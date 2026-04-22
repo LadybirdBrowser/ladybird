@@ -132,3 +132,104 @@ function(import_rust_crate)
         )
     endif()
 endfunction()
+
+# build_rust_binary(MANIFEST_PATH path/to/Cargo.toml CRATE_NAME name BINARY_NAME name OUTPUT_PATH_VAR var)
+#
+# Builds a Rust binary crate target using cargo and exposes the copied binary path through OUTPUT_PATH_VAR.
+function(build_rust_binary)
+    cmake_parse_arguments(PARSE_ARGV 0 ARG "" "MANIFEST_PATH;CRATE_NAME;BINARY_NAME;OUTPUT_NAME;OUTPUT_PATH_VAR;FFI_OUTPUT_DIR" "")
+
+    if (NOT ARG_OUTPUT_NAME)
+        set(ARG_OUTPUT_NAME "${ARG_BINARY_NAME}")
+    endif()
+
+    set(ARG_MANIFEST_PATH "${CMAKE_CURRENT_SOURCE_DIR}/${ARG_MANIFEST_PATH}")
+
+    # Find the workspace Cargo.lock to track as a dependency.
+    get_filename_component(workspace_dir "${ARG_MANIFEST_PATH}" DIRECTORY)
+    while(NOT EXISTS "${workspace_dir}/Cargo.lock")
+        get_filename_component(workspace_dir "${workspace_dir}" DIRECTORY)
+    endwhile()
+
+    # Detect the Rust toolchain.
+    find_program(RUST_CARGO cargo REQUIRED)
+    find_program(RUST_RUSTC rustc REQUIRED)
+    if (NOT DEFINED CACHE{RUST_TARGET_TRIPLE})
+        execute_process(COMMAND "${RUST_RUSTC}" -vV OUTPUT_VARIABLE rustc_verbose)
+        string(REGEX MATCH "host: ([^\n]+)" _ "${rustc_verbose}")
+        string(STRIP "${CMAKE_MATCH_1}" host_triple)
+        set(RUST_TARGET_TRIPLE "${host_triple}" CACHE INTERNAL "Rust target triple")
+    endif()
+
+    # Build the uppercased and underscored variants of the target triple.
+    string(REPLACE "-" "_" target_underscore "${RUST_TARGET_TRIPLE}")
+    string(TOUPPER "${target_underscore}" target_upper)
+
+    # Determine the cargo profile and output directory name.
+    string(TOUPPER "${CMAKE_BUILD_TYPE}" build_type_upper)
+    if (build_type_upper STREQUAL "DEBUG")
+        set(cargo_profile_flag "")
+        set(cargo_profile_dir "debug")
+    else()
+        set(cargo_profile_flag "--release")
+        set(cargo_profile_dir "release")
+    endif()
+
+    set(cargo_target_dir "${CMAKE_BINARY_DIR}/cargo/build")
+    set(cargo_output_dir "${cargo_target_dir}/${RUST_TARGET_TRIPLE}/${cargo_profile_dir}")
+    set(cargo_binary "${cargo_output_dir}/${ARG_BINARY_NAME}${CMAKE_EXECUTABLE_SUFFIX}")
+    set(depfile "${cargo_output_dir}/${ARG_BINARY_NAME}.d")
+    set(output_binary "${CMAKE_BINARY_DIR}/bin/${ARG_OUTPUT_NAME}${CMAKE_EXECUTABLE_SUFFIX}")
+
+    # Build environment variables for cargo.
+    set(cargo_env
+        "CC_${target_underscore}=${CMAKE_C_COMPILER}"
+        "CXX_${target_underscore}=${CMAKE_CXX_COMPILER}"
+        "CARGO_BUILD_RUSTC=${RUST_RUSTC}"
+    )
+
+    if (ARG_FFI_OUTPUT_DIR)
+        list(APPEND cargo_env "FFI_OUTPUT_DIR=${ARG_FFI_OUTPUT_DIR}")
+    endif()
+
+    if (NOT WIN32)
+        list(APPEND cargo_env
+            "CARGO_TARGET_${target_upper}_LINKER=${CMAKE_C_COMPILER}"
+            "AR_${target_underscore}=${CMAKE_AR}"
+        )
+    endif()
+
+    if (APPLE AND CMAKE_OSX_SYSROOT)
+        list(APPEND cargo_env "SDKROOT=${CMAKE_OSX_SYSROOT}")
+    endif()
+
+    add_custom_command(
+        OUTPUT "${output_binary}"
+        COMMAND
+            ${CMAKE_COMMAND} -E env ${cargo_env}
+            "${RUST_CARGO}"
+                rustc
+                --bin ${ARG_BINARY_NAME}
+                "--target=${RUST_TARGET_TRIPLE}"
+                --package ${ARG_CRATE_NAME}
+                --manifest-path "${ARG_MANIFEST_PATH}"
+                --target-dir "${cargo_target_dir}"
+                ${cargo_profile_flag}
+                --
+                -Cdefault-linker-libraries=yes
+                --emit=dep-info
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${cargo_binary}" "${output_binary}"
+        DEPENDS "${ARG_MANIFEST_PATH}"
+            "${workspace_dir}/Cargo.lock" "${workspace_dir}/Cargo.toml"
+        DEPFILE "${depfile}"
+        COMMENT "Building Rust binary ${ARG_BINARY_NAME}"
+        USES_TERMINAL
+        COMMAND_EXPAND_LISTS
+    )
+
+    add_custom_target(${ARG_BINARY_NAME}-build DEPENDS "${output_binary}")
+
+    if (ARG_OUTPUT_PATH_VAR)
+        set(${ARG_OUTPUT_PATH_VAR} "${output_binary}" PARENT_SCOPE)
+    endif()
+endfunction()

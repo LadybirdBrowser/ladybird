@@ -701,6 +701,32 @@ public:
     {
     }
 
+    Frame(Frame&& other)
+        : m_module(other.m_module)
+        , m_owned_locals(move(other.m_owned_locals))
+        , m_locals_ptr(other.m_owns_locals ? m_owned_locals.data() : other.m_locals_ptr)
+        , m_expression(other.m_expression)
+        , m_arity(other.m_arity)
+        , m_label_index(other.m_label_index)
+        , m_owns_locals(other.m_owns_locals)
+    {
+    }
+
+    Frame& operator=(Frame&& other)
+    {
+        if (this != &other) {
+            m_owned_locals = move(other.m_owned_locals);
+            m_locals_ptr = other.m_owns_locals ? m_owned_locals.data() : other.m_locals_ptr;
+            m_arity = other.m_arity;
+            m_label_index = other.m_label_index;
+            m_owns_locals = other.m_owns_locals;
+        }
+        return *this;
+    }
+
+    Frame(Frame const&) = delete;
+    Frame& operator=(Frame const&) = delete;
+
     auto& module() const { return m_module; }
     Value* locals_data() const { return m_locals_ptr; }
     bool owns_locals() const { return m_owns_locals; }

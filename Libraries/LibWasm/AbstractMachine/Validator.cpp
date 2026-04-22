@@ -269,6 +269,8 @@ ErrorOr<void, ValidationError> Validator::validate(TableSection const& section)
 
 ErrorOr<void, ValidationError> Validator::validate(CodeSection const& section)
 {
+    ScopeGuard flush_batch = [] { flush_cranelift_batch(); };
+
     size_t index = m_context.imported_function_count;
     for (auto& entry : section.functions()) {
         auto function_index = index++;
@@ -4398,6 +4400,49 @@ ErrorOr<Validator::ExpressionTypeResult, ValidationError> Validator::validate(Ex
 
     // Now that we're in happy land, try to compile the expression down to a list of labels to help dispatch.
     expression.compiled_instructions = try_compile_instructions(expression, m_context.functions.span());
+
+    // Optionally compile with Cranelift (skip constant expressions and unsupported types).
+    if (expression.compiled_instructions.direct && !is_constant_expression) {
+        bool has_unsupported_types = false;
+        for (auto& type : m_context.locals) {
+            if (type.is_reference() || type.kind() == ValueType::V128) {
+                has_unsupported_types = true;
+                break;
+            }
+        }
+        if (!has_unsupported_types) {
+            for (auto& type : result_types) {
+                if (type.is_reference() || type.kind() == ValueType::V128) {
+                    has_unsupported_types = true;
+                    break;
+                }
+            }
+        }
+        // Also skip 64-bit addressing (cranelift truncates base to u32).
+        if (!has_unsupported_types) {
+            for (auto& mem : m_context.memories) {
+                if (mem.limits().address_type() == AddressType::I64) {
+                    has_unsupported_types = true;
+                    break;
+                }
+            }
+        }
+        // Also skip if any call targets a function with multi-value returns.
+        if (!has_unsupported_types) {
+            for (auto& insn : expression.instructions()) {
+                if (insn.opcode() == Instructions::call) {
+                    auto func_idx = insn.arguments().get<FunctionIndex>().value();
+                    if (func_idx < m_context.functions.size() && m_context.functions[func_idx].results().size() > 1) {
+                        has_unsupported_types = true;
+                        break;
+                    }
+                }
+            }
+        }
+        // Also skip multi-value return functions.
+        if (!has_unsupported_types && result_types.size() <= 1)
+            try_cranelift_compile(expression.compiled_instructions, static_cast<u32>(result_types.size()));
+    }
 
     return ExpressionTypeResult { stack.release_vector(), is_constant_expression };
 }

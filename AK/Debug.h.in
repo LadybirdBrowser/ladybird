@@ -278,6 +278,10 @@
 #    cmakedefine01 WASM_BINPARSER_DEBUG
 #endif
 
+#ifndef WASM_CRANELIFT_DEBUG
+#    cmakedefine01 WASM_CRANELIFT_DEBUG
+#endif
+
 #ifndef WASM_TRACE_DEBUG
 #    cmakedefine01 WASM_TRACE_DEBUG
 #endif

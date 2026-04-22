@@ -723,11 +723,16 @@ union SourcesAndDestination {
     u32 sources_and_destination;
 };
 
+void free_cranelift_code(void* handle);
+
 struct CompiledInstructions {
     Vector<Dispatch> dispatches;
     Vector<SourcesAndDestination> src_dst_mappings;
     Vector<Instruction, 0, FastLastAccess::Yes> extra_instruction_storage;
     bool direct = false; // true if all dispatches contain handler_ptr, otherwise false and all contain instruction_opcode.
+    bool cranelift_compiled = false;
+    void* cranelift_code_handle = nullptr; // Owned; freed when the owning Module is destroyed.
+    size_t cranelift_code_size = 0;
     size_t max_call_arg_count = 0;
     size_t max_call_rec_size = 0;
 };
@@ -1398,5 +1403,7 @@ private:
 };
 
 CompiledInstructions try_compile_instructions(Expression const&, Span<FunctionType const> functions);
+bool try_cranelift_compile(CompiledInstructions& compiled, u32 result_arity = 0);
+void flush_cranelift_batch();
 
 }
