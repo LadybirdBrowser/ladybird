@@ -78,7 +78,6 @@
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnicodeRangeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
-#include <LibWeb/CSS/StyleValues/ViewFunctionStyleValue.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Infra/CharacterTypes.h>
@@ -1302,7 +1301,7 @@ RefPtr<FunctionStyleValue const> Parser::parse_scroll_function_value(TokenStream
 }
 
 // https://drafts.csswg.org/scroll-animations-1/#funcdef-view
-RefPtr<ViewFunctionStyleValue const> Parser::parse_view_function_value(TokenStream<ComponentValue>& tokens)
+RefPtr<FunctionStyleValue const> Parser::parse_view_function_value(TokenStream<ComponentValue>& tokens)
 {
     // <view()> = view( [ <axis> || <'view-timeline-inset'> ]? )
     auto transaction = tokens.begin_transaction();
@@ -1312,8 +1311,11 @@ RefPtr<ViewFunctionStyleValue const> Parser::parse_view_function_value(TokenStre
 
     auto context_guard = push_temporary_value_parsing_context(FunctionContext { "view"sv });
 
-    Optional<Axis> axis;
-    RefPtr<StyleValue const> inset;
+    StyleValueTuple tuple;
+    tuple.resize_with_default_value(2, nullptr);
+
+    bool has_axis = false;
+    bool has_inset = false;
 
     auto argument_tokens = TokenStream { function_token.function().value };
 
@@ -1324,33 +1326,36 @@ RefPtr<ViewFunctionStyleValue const> Parser::parse_view_function_value(TokenStre
             break;
 
         if (auto inset_value = parse_view_timeline_inset_value(argument_tokens); inset_value) {
-            if (inset)
+            if (has_inset)
                 return nullptr;
 
-            inset = inset_value;
+            auto const& inset_values = inset_value->as_value_list().values();
+
+            // NB: The default value of <'view-timeline-inset'> `auto auto` is omitted from the serialization.
+            if (inset_values[0]->to_keyword() != Keyword::Auto || inset_values[1]->to_keyword() != Keyword::Auto)
+                tuple[TupleStyleValue::Indices::ViewFunction::Inset] = inset_value;
+
+            has_inset = true;
             continue;
         }
 
         if (auto keyword_value = parse_keyword_value(argument_tokens); keyword_value && keyword_to_axis(keyword_value->to_keyword()).has_value()) {
-            if (axis.has_value())
+            if (has_axis)
                 return nullptr;
 
-            axis = keyword_to_axis(keyword_value->to_keyword());
+            // NB: The default value of <axis> `block` is omitted from the serialization.
+            if (keyword_value->to_keyword() != Keyword::Block)
+                tuple[TupleStyleValue::Indices::ViewFunction::Axis] = keyword_value;
+
+            has_axis = true;
             continue;
         }
 
         return nullptr;
     }
 
-    // By default, view() references the block axis
-    if (!axis.has_value())
-        axis = Axis::Block;
-
-    if (!inset)
-        inset = StyleValueList::create({ KeywordStyleValue::create(Keyword::Auto), KeywordStyleValue::create(Keyword::Auto) }, StyleValueList::Separator::Space);
-
     transaction.commit();
-    return ViewFunctionStyleValue::create(axis.value(), inset.release_nonnull());
+    return FunctionStyleValue::create("view"_fly_string, TupleStyleValue::create(move(tuple)));
 }
 
 // https://www.w3.org/TR/CSS2/visufx.html#value-def-shape

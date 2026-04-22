@@ -411,7 +411,6 @@ class UnicodeRangeStyleValue;
 class UnresolvedStyleValue;
 class URL;
 class URLStyleValue;
-class ViewFunctionStyleValue;
 class VisualViewport;
 
 enum class FontFeatureValueType : u8;

@@ -58,6 +58,11 @@ public:
             static constexpr size_t Scroller = 0;
             static constexpr size_t Axis = 1;
         };
+
+        struct ViewFunction {
+            static constexpr size_t Axis = 0;
+            static constexpr size_t Inset = 1;
+        };
     };
 
 private:
