@@ -15,13 +15,11 @@ interface FontFaceSet : EventTarget {
 
     // check and start loads if appropriate
     // and fulfill promise when all loads complete
-    // FIXME: Promise<sequence<FontFace>> load(CSSOMString font, optional CSSOMString text = " ");
-    Promise<sequence<FontFace>> load(CSSOMString font, optional CSSOMString text = "");
+    Promise<sequence<FontFace>> load(CSSOMString font, optional CSSOMString text = " ");
 
     // return whether all fonts in the fontlist are loaded
     // (does not initiate load if not available)
-    // FIXME: boolean check(CSSOMString font, optional CSSOMString text = " ");
-    boolean check(CSSOMString font, optional CSSOMString text = "");
+    boolean check(CSSOMString font, optional CSSOMString text = " ");
 
     // async notification that font loading and layout operations are done
     readonly attribute Promise<FontFaceSet> ready;

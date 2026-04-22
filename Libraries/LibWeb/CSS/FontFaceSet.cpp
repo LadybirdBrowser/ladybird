@@ -203,7 +203,7 @@ WebIDL::CallbackType* FontFaceSet::onloadingerror()
 }
 
 // https://drafts.csswg.org/css-font-loading/#find-the-matching-font-faces
-static WebIDL::ExceptionOr<GC::Ref<JS::Set>> find_matching_font_faces(JS::Realm& realm, FontFaceSet& font_face_set, String const& font, String const&)
+static WebIDL::ExceptionOr<GC::Ref<JS::Set>> find_matching_font_faces(JS::Realm& realm, FontFaceSet& font_face_set, String const& font, String const& text)
 {
     // 1. Parse font using the CSS value syntax of the font property. If a syntax error occurs, return a syntax error.
     auto property = parse_css_value(CSS::Parser::ParsingParams(), font, PropertyID::Font);
@@ -250,8 +250,28 @@ static WebIDL::ExceptionOr<GC::Ref<JS::Set>> find_matching_font_faces(JS::Realm&
     }
 
     // FIXME: 7. If matched font faces is empty, set the found faces flag to false. Otherwise, set it to true.
-    // FIXME: 8. For each font face in matched font faces, if its defined unicode-range does not include the codepoint of at
-    //           least one character in text, remove it from the list.
+
+    // 8. For each font face in matched font faces, if its defined unicode-range does not include the codepoint of at
+    //    least one character in text, remove it from the list.
+    auto faces_to_remove = GC::RootVector<JS::Value> { realm.heap() };
+    for (auto entry : *matched_font_faces) {
+        auto& font_face = as<FontFace>(entry.key.as_object());
+        bool includes_at_least_one_text_code_point = false;
+        for (auto code_point : text.code_points()) {
+            for (auto const& range : font_face.unicode_ranges()) {
+                if (range.contains(code_point)) {
+                    includes_at_least_one_text_code_point = true;
+                    break;
+                }
+            }
+            if (includes_at_least_one_text_code_point)
+                break;
+        }
+        if (!includes_at_least_one_text_code_point)
+            faces_to_remove.append(entry.key);
+    }
+    for (auto& key : faces_to_remove)
+        matched_font_faces->set_remove(key);
 
     // 9. Return matched font faces and the found faces flag.
     return matched_font_faces;
