@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target">target</div>
+<script>
+    function settleAndReset(triggerElement) {
+        getComputedStyle(triggerElement).color;
+        getComputedStyle(triggerElement).color;
+        internals.resetStyleInvalidationCounters();
+    }
+
+    function verifyLayerMutationSchedulesFullRestyle(label) {
+        const invalidations = internals.getStyleInvalidationCounters().fullStyleInvalidations;
+        if (invalidations >= 1)
+            println(`PASS: ${label} (${invalidations} full invalidations)`);
+        else
+            println(`FAIL: ${label} (${invalidations} full invalidations)`);
+    }
+
+    test(() => {
+        const target = document.getElementById("target");
+        settleAndReset(target);
+
+        const layerOrderStyle = document.createElement("style");
+        layerOrderStyle.textContent = "@layer B, A;";
+        document.head.appendChild(layerOrderStyle);
+
+        getComputedStyle(target).color;
+        verifyLayerMutationSchedulesFullRestyle("layer-only stylesheet add schedules full restyle");
+
+        settleAndReset(target);
+        layerOrderStyle.remove();
+
+        getComputedStyle(target).color;
+        verifyLayerMutationSchedulesFullRestyle("layer-only stylesheet remove schedules full restyle");
+    });
+</script>

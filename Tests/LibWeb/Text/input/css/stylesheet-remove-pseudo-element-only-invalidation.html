@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target" class="foo">target</div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const style = document.createElement("style");
+        style.textContent = ".foo::before { content: ''; color: rgb(255, 0, 0); background-color: rgb(0, 255, 0); }";
+        document.head.appendChild(style);
+
+        println(`before color: ${getComputedStyle(target, "::before").color}`);
+        println(`before background: ${getComputedStyle(target, "::before").backgroundColor}`);
+
+        style.remove();
+
+        println(`after color: ${getComputedStyle(target, "::before").color}`);
+        println(`after background: ${getComputedStyle(target, "::before").backgroundColor}`);
+    });
+</script>

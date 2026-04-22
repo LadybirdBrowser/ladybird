@@ -1,0 +1,2 @@
+PASS: slotted stylesheet add ignores matching bystanders outside the current host
+PASS: slotted stylesheet remove ignores matching bystanders outside the current host

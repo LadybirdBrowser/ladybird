@@ -1,0 +1,2 @@
+PASS: slot-only replaceSync stays scoped to the current host subtree
+PASS: slot-only replaceSync removal stays scoped to the current host subtree

@@ -1,0 +1,4 @@
+before replaceSync: rgb(0, 0, 0)
+after red replaceSync: rgb(255, 0, 0)
+after blue replaceSync: rgb(0, 0, 255)
+after empty replaceSync: rgb(0, 0, 0)

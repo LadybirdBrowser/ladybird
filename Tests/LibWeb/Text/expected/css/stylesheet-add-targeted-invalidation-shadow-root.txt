@@ -1,0 +1,4 @@
+before target: rgb(0, 0, 0)
+before non-target: rgb(0, 0, 0)
+after target: rgb(255, 0, 0)
+after non-target: rgb(0, 0, 0)

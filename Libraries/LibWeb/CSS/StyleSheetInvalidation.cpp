@@ -261,13 +261,21 @@ static void invalidate_elements_matching_invalidation_set_and_anchor_rules(
     });
 }
 
-// Slotted light-DOM nodes inherit from their assigned <slot>. If a targeted
-// shadow-root invalidation dirties the slot itself, we must also dirty the
-// flattened assignees outside the shadow subtree.
+static bool slot_or_ancestor_needs_style_update(HTML::HTMLSlotElement const& slot, DOM::ShadowRoot const& shadow_root)
+{
+    for (auto const* node = static_cast<DOM::Node const*>(&slot); node && node != &shadow_root; node = node->parent_node()) {
+        if (node->needs_style_update())
+            return true;
+    }
+    return false;
+}
+
+// Slotted light-DOM nodes inherit from their assigned <slot>. If a targeted shadow-root invalidation dirties the slot
+// or one of its ancestors, we must also dirty the flattened assignees outside the shadow subtree.
 void invalidate_assigned_elements_for_dirty_slots(DOM::ShadowRoot& shadow_root)
 {
-    shadow_root.for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([](HTML::HTMLSlotElement& slot) {
-        if (!slot.needs_style_update())
+    shadow_root.for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&shadow_root](HTML::HTMLSlotElement& slot) {
+        if (!slot_or_ancestor_needs_style_update(slot, shadow_root))
             return TraversalDecision::Continue;
         for (auto const& assigned_element : slot.assigned_elements({ .flatten = true }))
             assigned_element->set_needs_style_update(true);
@@ -464,6 +472,24 @@ static ShadowRootStylesheetEffects determine_shadow_root_stylesheet_effects_for_
         return TraversalDecision::Continue;
     });
 
+    auto selector_may_affect_assigned_nodes_via_slot_inheritance = [&](Selector const& selector) {
+        for (auto const& slot : slots) {
+            for (auto const* node = static_cast<DOM::Node const*>(slot.ptr()); node && node != &shadow_root; node = node->parent_node()) {
+                auto const* element = as_if<DOM::Element>(node);
+                if (!element)
+                    continue;
+                SelectorEngine::MatchContext context {
+                    .style_sheet_for_rule = style_sheet,
+                    .subject = *element,
+                    .rule_shadow_root = &shadow_root,
+                };
+                if (SelectorEngine::matches(selector, *element, shadow_root.host(), context))
+                    return true;
+            }
+        }
+        return false;
+    };
+
     style_sheet.for_each_effective_style_producing_rule([&](CSSRule const& rule) {
         if (effects.may_match_shadow_host && effects.may_match_light_dom_under_shadow_host && effects.may_affect_assigned_nodes_via_slots)
             return;
@@ -476,19 +502,8 @@ static ShadowRootStylesheetEffects determine_shadow_root_stylesheet_effects_for_
             effects.may_match_shadow_host |= selector->contains_pseudo_class(PseudoClass::Host);
             effects.may_match_light_dom_under_shadow_host |= selector_may_match_light_dom_under_shadow_host(*selector);
 
-            if (!effects.may_affect_assigned_nodes_via_slots && !slots.is_empty()) {
-                for (auto const& slot : slots) {
-                    SelectorEngine::MatchContext context {
-                        .style_sheet_for_rule = style_sheet,
-                        .subject = *slot,
-                        .rule_shadow_root = &shadow_root,
-                    };
-                    if (SelectorEngine::matches(*selector, *slot, shadow_root.host(), context)) {
-                        effects.may_affect_assigned_nodes_via_slots = true;
-                        break;
-                    }
-                }
-            }
+            if (!effects.may_affect_assigned_nodes_via_slots && !slots.is_empty())
+                effects.may_affect_assigned_nodes_via_slots = selector_may_affect_assigned_nodes_via_slot_inheritance(*selector);
 
             if (effects.may_match_shadow_host && effects.may_match_light_dom_under_shadow_host && effects.may_affect_assigned_nodes_via_slots)
                 return;

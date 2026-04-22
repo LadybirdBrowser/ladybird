@@ -1,0 +1,2 @@
+PASS: host child combinator add stays on the host-side tree (2 invalidations)
+PASS: host descendant combinator add stays on the host-side tree (2 invalidations)

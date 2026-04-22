@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host-child"><span id="direct-child">direct child</span></div>
+<div id="host-descendant"><div><span id="nested-descendant">nested descendant</span></div></div>
+<script>
+    function settleAndReset(triggerElement) {
+        getComputedStyle(triggerElement).color;
+        getComputedStyle(triggerElement).color;
+        internals.resetStyleInvalidationCounters();
+    }
+
+    function verifyInvalidationsStayHostSide(label, maxInvalidations) {
+        const invalidations = internals.getStyleInvalidationCounters().styleInvalidations;
+        if (invalidations > 0 && invalidations <= maxInvalidations)
+            println(`PASS: ${label} (${invalidations} invalidations)`);
+        else
+            println(`FAIL: ${label} (${invalidations} invalidations)`);
+    }
+
+    function populateShadowBystanders(shadowRoot, prefix) {
+        for (let i = 0; i < 25; ++i) {
+            const bystander = document.createElement("span");
+            bystander.textContent = `${prefix} shadow bystander ${i}`;
+            shadowRoot.appendChild(bystander);
+        }
+    }
+
+    test(() => {
+        const hostChild = document.getElementById("host-child");
+        const directChild = document.getElementById("direct-child");
+        const hostDescendant = document.getElementById("host-descendant");
+        const nestedDescendant = document.getElementById("nested-descendant");
+
+        const childShadowRoot = hostChild.attachShadow({ mode: "open" });
+        const descendantShadowRoot = hostDescendant.attachShadow({ mode: "open" });
+        populateShadowBystanders(childShadowRoot, "child");
+        populateShadowBystanders(descendantShadowRoot, "descendant");
+
+        settleAndReset(directChild);
+        const directStyle = document.createElement("style");
+        directStyle.textContent = ":host > * { color: rgb(0, 128, 0); }";
+        childShadowRoot.appendChild(directStyle);
+        getComputedStyle(directChild).color;
+        // In a shadow tree, :host > * targets the host's light-DOM children.
+        // The invalidation should therefore stay bounded to that host-side
+        // subtree instead of scaling with the unrelated shadow descendants.
+        verifyInvalidationsStayHostSide("host child combinator add stays on the host-side tree", 4);
+
+        settleAndReset(nestedDescendant);
+        const descendantStyle = document.createElement("style");
+        descendantStyle.textContent = ":host * { color: rgb(128, 0, 128); }";
+        descendantShadowRoot.appendChild(descendantStyle);
+        getComputedStyle(nestedDescendant).color;
+        verifyInvalidationsStayHostSide("host descendant combinator add stays on the host-side tree", 4);
+    });
+</script>

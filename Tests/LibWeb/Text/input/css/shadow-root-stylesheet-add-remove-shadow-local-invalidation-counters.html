@@ -16,43 +16,30 @@
             println(`FAIL: ${label} (${invalidations} invalidations)`);
     }
 
-    function verifyFullRestylesStayBounded(label, maxInvalidations) {
-        const invalidations = internals.getStyleInvalidationCounters().fullStyleInvalidations;
-        if (invalidations <= maxInvalidations)
-            println(`PASS: ${label} (${invalidations} full invalidations)`);
-        else
-            println(`FAIL: ${label} (${invalidations} full invalidations)`);
-    }
-
     test(() => {
         const host = document.getElementById("host");
         for (let i = 0; i < 25; ++i) {
             const lightDomBystander = document.createElement("span");
-            lightDomBystander.className = "foo";
+            lightDomBystander.className = "shadow-target-class";
             lightDomBystander.textContent = `light bystander ${i}`;
             host.appendChild(lightDomBystander);
         }
 
         const shadowRoot = host.attachShadow({ mode: "open" });
-        shadowRoot.innerHTML = `<div id="shadow-target" class="foo">shadow target</div>`;
+        shadowRoot.innerHTML = `<div id="shadow-target" class="shadow-target-class">shadow target</div>`;
         const shadowTarget = shadowRoot.getElementById("shadow-target");
 
-        const sheet = new CSSStyleSheet();
-        shadowRoot.adoptedStyleSheets = [sheet];
+        const shadowStyle = document.createElement("style");
+        shadowStyle.textContent = ".shadow-target-class { color: rgb(0, 128, 0); }";
 
         settleAndReset(shadowTarget);
-        sheet.replaceSync(".foo { color: rgb(0, 128, 0); }");
+        shadowRoot.appendChild(shadowStyle);
         getComputedStyle(shadowTarget).color;
-        verifyInvalidationsStayBounded("shadow-local replaceSync ignores matching light-DOM bystanders", 2);
+        verifyInvalidationsStayBounded("shadow-local stylesheet add ignores matching light-DOM bystanders", 4);
 
         settleAndReset(shadowTarget);
-        sheet.replaceSync(".foo { color: rgb(255, 0, 0); }");
+        shadowStyle.remove();
         getComputedStyle(shadowTarget).color;
-        verifyInvalidationsStayBounded("shadow-local replaceSync stays bounded on subsequent updates", 2);
-
-        settleAndReset(shadowTarget);
-        sheet.replaceSync("");
-        getComputedStyle(shadowTarget).color;
-        verifyFullRestylesStayBounded("shadow-local replaceSync clearing the sheet avoids extra full-document restyles", 1);
+        verifyInvalidationsStayBounded("shadow-local stylesheet remove ignores matching light-DOM bystanders", 4);
     });
 </script>

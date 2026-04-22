@@ -1,0 +1,2 @@
+PASS: inactive media stylesheet add does not schedule full restyle
+PASS: inactive media stylesheet remove does not schedule full restyle

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"><span id="slotted">slotted</span></div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const slotted = document.getElementById("slotted");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+
+        shadowRoot.innerHTML = `
+            <div class="wrapper">
+                <slot></slot>
+            </div>
+        `;
+
+        println(`before add: ${getComputedStyle(slotted).color}`);
+
+        const style = document.createElement("style");
+        style.textContent = ".wrapper { color: rgb(255, 0, 0); }";
+        shadowRoot.appendChild(style);
+        println(`after add: ${getComputedStyle(slotted).color}`);
+
+        style.remove();
+        println(`after remove: ${getComputedStyle(slotted).color}`);
+    });
+</script>

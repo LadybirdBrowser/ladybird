@@ -1,0 +1,1 @@
+PASS: shadow-local keyframes insert ignores matching light-DOM bystanders (1 invalidations)

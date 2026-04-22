@@ -1,0 +1,3 @@
+PASS: document stylesheet add stays bounded (4 invalidations)
+PASS: shadow stylesheet add stays bounded (3 invalidations)
+PASS: pseudo-only stylesheet removal stays bounded (2 invalidations)

@@ -1,0 +1,6 @@
+before replaceSync: rgb(0, 0, 0)
+after replaceSync add: rgb(255, 0, 0)
+after deleteRule: rgb(0, 0, 0)
+after replaceSync re-add: rgb(0, 0, 255)
+after disable: rgb(0, 0, 0)
+after re-enable: rgb(0, 0, 255)

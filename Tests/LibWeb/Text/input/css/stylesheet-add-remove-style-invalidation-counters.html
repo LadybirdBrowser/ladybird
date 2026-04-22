@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="add-target" class="add-target-class">add target</div>
+<div>add bystander 1</div>
+<div>add bystander 2</div>
+<div>add bystander 3</div>
+<div id="shadow-host"></div>
+<div id="remove-target" class="remove-target-class">remove target</div>
+<div>remove bystander 1</div>
+<div>remove bystander 2</div>
+<div>remove bystander 3</div>
+<script>
+    function settleAndReset(triggerElement, pseudoElement) {
+        // Force style resolution before we observe counters so the add/remove
+        // operation is measured in isolation.
+        getComputedStyle(triggerElement, pseudoElement).color;
+        getComputedStyle(triggerElement, pseudoElement).color;
+        internals.resetStyleInvalidationCounters();
+    }
+
+    function addBystanders(parent, prefix, count) {
+        for (let i = 0; i < count; ++i) {
+            const bystander = document.createElement("div");
+            bystander.textContent = `${prefix} bystander ${i + 4}`;
+            parent.appendChild(bystander);
+        }
+    }
+
+    function verifyInvalidationsStayBounded(label, maxInvalidations) {
+        const invalidations = internals.getStyleInvalidationCounters().styleInvalidations;
+        // These are intentionally upper bounds rather than exact counts: the
+        // mutation itself can legitimately dirty a small fixed number of helper
+        // nodes, but it must not grow with the number of unrelated bystanders.
+        if (invalidations <= maxInvalidations)
+            println(`PASS: ${label} (${invalidations} invalidations)`);
+        else
+            println(`FAIL: ${label} (${invalidations} invalidations)`);
+    }
+
+    test(() => {
+        const addTarget = document.getElementById("add-target");
+        addBystanders(document.body, "document add", 25);
+        settleAndReset(addTarget);
+
+        const addStyle = document.createElement("style");
+        addStyle.textContent = ".add-target-class { color: rgb(255, 0, 0); }";
+        document.head.appendChild(addStyle);
+        getComputedStyle(addTarget).color;
+        verifyInvalidationsStayBounded("document stylesheet add stays bounded", 4);
+
+        const shadowRoot = document.getElementById("shadow-host").attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `
+            <div id="shadow-target" class="shadow-target-class">shadow target</div>
+        `;
+        addBystanders(shadowRoot, "shadow add", 25);
+
+        const shadowTarget = shadowRoot.getElementById("shadow-target");
+        settleAndReset(shadowTarget);
+
+        const shadowStyle = document.createElement("style");
+        shadowStyle.textContent = ".shadow-target-class { color: rgb(0, 128, 0); }";
+        shadowRoot.appendChild(shadowStyle);
+        getComputedStyle(shadowTarget).color;
+        // Shadow-root sheet mutations can legitimately dirty the matching
+        // descendant, the shadow host, and a small fixed amount of plumbing,
+        // but must still stay constant as unrelated bystanders grow.
+        verifyInvalidationsStayBounded("shadow stylesheet add stays bounded", 4);
+
+        const removeTarget = document.getElementById("remove-target");
+        addBystanders(document.body, "document remove", 25);
+        const removeStyle = document.createElement("style");
+        removeStyle.textContent = ".remove-target-class::before { content: ''; color: rgb(0, 0, 255); }";
+        document.head.appendChild(removeStyle);
+        getComputedStyle(removeTarget, "::before").color;
+        settleAndReset(removeTarget, "::before");
+        removeStyle.remove();
+        getComputedStyle(removeTarget, "::before").color;
+        verifyInvalidationsStayBounded("pseudo-only stylesheet removal stays bounded", 2);
+    });
+</script>

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target">target</div>
+<script>
+    function settleAndReset(triggerElement) {
+        getComputedStyle(triggerElement).fontVariantAlternates;
+        getComputedStyle(triggerElement).fontVariantAlternates;
+        internals.resetStyleInvalidationCounters();
+    }
+
+    function verifyFontFeatureValuesMutationSchedulesFullRestyle(label) {
+        const invalidations = internals.getStyleInvalidationCounters().fullStyleInvalidations;
+        if (invalidations >= 1)
+            println(`PASS: ${label} (${invalidations} full invalidations)`);
+        else
+            println(`FAIL: ${label} (${invalidations} full invalidations)`);
+    }
+
+    test(() => {
+        const target = document.getElementById("target");
+        target.style.fontFamily = "TestFont";
+        target.style.fontVariantAlternates = "styleset(fancy)";
+        settleAndReset(target);
+
+        const style = document.createElement("style");
+        style.textContent = "@font-feature-values TestFont { @styleset { fancy: 1; } }";
+        document.head.appendChild(style);
+
+        getComputedStyle(target).fontVariantAlternates;
+        verifyFontFeatureValuesMutationSchedulesFullRestyle("@font-feature-values stylesheet add schedules full restyle");
+
+        settleAndReset(target);
+        style.remove();
+
+        getComputedStyle(target).fontVariantAlternates;
+        verifyFontFeatureValuesMutationSchedulesFullRestyle("@font-feature-values stylesheet remove schedules full restyle");
+    });
+</script>

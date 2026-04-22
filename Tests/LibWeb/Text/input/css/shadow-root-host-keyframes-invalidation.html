@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"></div>
+<script>
+    asyncTest(async done => {
+        const host = document.getElementById("host");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        const sheet = new CSSStyleSheet();
+
+        sheet.replaceSync(`
+            :host {
+                animation-name: fade;
+                animation-duration: 1s;
+                animation-fill-mode: both;
+            }
+        `);
+        shadowRoot.adoptedStyleSheets = [sheet];
+        println(`opacity before keyframes: ${getComputedStyle(host).opacity}`);
+
+        sheet.insertRule(`
+            @keyframes fade {
+                from { opacity: 0.25; }
+                to { opacity: 0.25; }
+            }
+        `, sheet.cssRules.length);
+        await animationFrame();
+        println(`opacity after keyframes insert: ${getComputedStyle(host).opacity}`);
+
+        sheet.deleteRule(sheet.cssRules.length - 1);
+        await animationFrame();
+        println(`opacity after keyframes delete: ${getComputedStyle(host).opacity}`);
+
+        done();
+    });
+</script>

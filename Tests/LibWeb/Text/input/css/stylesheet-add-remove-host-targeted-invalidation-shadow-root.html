@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"></div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+
+        println(`before add: ${getComputedStyle(host).color}`);
+
+        const style = document.createElement("style");
+        style.textContent = ":host { color: rgb(255, 0, 0); }";
+        shadowRoot.appendChild(style);
+
+        println(`after add: ${getComputedStyle(host).color}`);
+
+        style.remove();
+
+        println(`after remove: ${getComputedStyle(host).color}`);
+    });
+</script>

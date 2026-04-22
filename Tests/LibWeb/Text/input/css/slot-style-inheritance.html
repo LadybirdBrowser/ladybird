@@ -156,9 +156,7 @@
         println(`8c: ${getComputedStyle(document.getElementById("child8c")).color}`);
 
         // 9. Dynamically insert a <style> into the shadow DOM that styles the slot.
-        // FIXME: The slot itself gets the correct color, but the slotted child
-        //        doesn't pick it up. This appears to be a bug with dynamic style
-        //        element insertion not propagating to slotted elements.
+        //    The slot and its slotted child should both pick up the new inherited color.
         const child9 = document.getElementById("child9");
         const shadowRoot9 = document.getElementById("host9").shadowRoot;
         const slot9 = shadowRoot9.getElementById("slot9");

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"><span id="child">child</span></div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const child = document.getElementById("child");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        const sheet = new CSSStyleSheet();
+
+        shadowRoot.adoptedStyleSheets = [sheet];
+
+        println(`before replaceSync: ${getComputedStyle(child).color}`);
+
+        sheet.replaceSync(":host { color: rgb(255, 0, 0); }");
+        println(`after red replaceSync: ${getComputedStyle(child).color}`);
+
+        sheet.replaceSync(":host { color: rgb(0, 0, 255); }");
+        println(`after blue replaceSync: ${getComputedStyle(child).color}`);
+
+        sheet.replaceSync("");
+        println(`after empty replaceSync: ${getComputedStyle(child).color}`);
+    });
+</script>

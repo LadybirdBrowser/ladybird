@@ -1,0 +1,4 @@
+before color: rgb(255, 0, 0)
+before background: rgb(0, 255, 0)
+after color: rgb(0, 0, 0)
+after background: rgba(0, 0, 0, 0)

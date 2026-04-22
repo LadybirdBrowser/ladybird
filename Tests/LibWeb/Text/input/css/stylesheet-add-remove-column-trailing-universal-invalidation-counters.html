@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<table>
+    <colgroup>
+        <col class="selected">
+        <col>
+    </colgroup>
+    <tr>
+        <td>first</td>
+        <td>second</td>
+    </tr>
+</table>
+<script>
+    function settleAndReset() {
+        getComputedStyle(document.body).color;
+        getComputedStyle(document.body).color;
+        internals.resetStyleInvalidationCounters();
+    }
+
+    function printInvalidationCount(label) {
+        println(`${label}: ${internals.getStyleInvalidationCounters().styleInvalidations}`);
+    }
+
+    test(() => {
+        settleAndReset();
+
+        const style = document.createElement("style");
+        style.textContent = "col.selected || * { color: rgb(255, 0, 0); }";
+        document.head.appendChild(style);
+        printInvalidationCount("column trailing-universal add invalidations");
+        // Selector matching for || is still incomplete, so remove the rule
+        // before any later style flush can hit that unrelated TODO path.
+        style.remove();
+    });
+</script>

@@ -1,0 +1,2 @@
+PASS: shadow-local stylesheet add ignores matching light-DOM bystanders (1 invalidations)
+PASS: shadow-local stylesheet remove ignores matching light-DOM bystanders (1 invalidations)

@@ -1,0 +1,2 @@
+PASS: layer-only stylesheet add schedules full restyle (1 full invalidations)
+PASS: layer-only stylesheet remove schedules full restyle (1 full invalidations)

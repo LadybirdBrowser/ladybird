@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host-a"><span id="target">target</span></div>
+<div id="host-b"><span>other host</span></div>
+<script>
+    function settleAndReset(triggerElement) {
+        getComputedStyle(triggerElement).color;
+        getComputedStyle(triggerElement).color;
+        internals.resetStyleInvalidationCounters();
+    }
+
+    function verifyInvalidationsStayBounded(label, maxInvalidations) {
+        const invalidations = internals.getStyleInvalidationCounters().styleInvalidations;
+        if (invalidations <= maxInvalidations)
+            println(`PASS: ${label}`);
+        else
+            println(`FAIL: ${label} (${invalidations} invalidations)`);
+    }
+
+    test(() => {
+        const hostA = document.getElementById("host-a");
+        const target = document.getElementById("target");
+        const hostB = document.getElementById("host-b");
+
+        for (let i = 0; i < 25; ++i) {
+            const bystander = document.createElement("span");
+            bystander.textContent = `bystander ${i}`;
+            document.body.appendChild(bystander);
+        }
+
+        const shadowRootA = hostA.attachShadow({ mode: "open" });
+        shadowRootA.innerHTML = "<slot></slot>";
+        const shadowRootB = hostB.attachShadow({ mode: "open" });
+        shadowRootB.innerHTML = "<slot></slot>";
+
+        const sheet = new CSSStyleSheet();
+        shadowRootA.adoptedStyleSheets = [sheet];
+
+        settleAndReset(target);
+        sheet.replaceSync("slot { color: rgb(255, 0, 0); }");
+        getComputedStyle(target).color;
+        verifyInvalidationsStayBounded("slot-only replaceSync stays scoped to the current host subtree", 4);
+
+        settleAndReset(target);
+        sheet.replaceSync("");
+        getComputedStyle(target).color;
+        verifyInvalidationsStayBounded("slot-only replaceSync removal stays scoped to the current host subtree", 4);
+    });
+</script>

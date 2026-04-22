@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"></div>
+<div id="bystanders"></div>
+<script>
+    function settleAndReset(triggerElement) {
+        getComputedStyle(triggerElement).opacity;
+        getComputedStyle(triggerElement).opacity;
+        internals.resetStyleInvalidationCounters();
+    }
+
+    function verifyInvalidationsStayBounded(label, maxInvalidations) {
+        const invalidations = internals.getStyleInvalidationCounters().styleInvalidations;
+        if (invalidations <= maxInvalidations)
+            println(`PASS: ${label} (${invalidations} invalidations)`);
+        else
+            println(`FAIL: ${label} (${invalidations} invalidations)`);
+    }
+
+    test(() => {
+        const host = document.getElementById("host");
+        const bystanders = document.getElementById("bystanders");
+
+        for (let i = 0; i < 25; ++i) {
+            const bystander = document.createElement("div");
+            bystander.textContent = `bystander ${i}`;
+            bystander.style.animationName = "fade";
+            bystander.style.animationDuration = "1s";
+            bystander.style.animationFillMode = "both";
+            bystanders.appendChild(bystander);
+        }
+
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `
+            <style>
+                #target {
+                    animation-name: fade;
+                    animation-duration: 1s;
+                    animation-fill-mode: both;
+                }
+            </style>
+            <div id="target">shadow target</div>
+        `;
+
+        const target = shadowRoot.getElementById("target");
+        const sheet = shadowRoot.querySelector("style").sheet;
+
+        settleAndReset(target);
+        sheet.insertRule(`
+            @keyframes fade {
+                from { opacity: 0.25; }
+                to { opacity: 0.25; }
+            }
+        `, sheet.cssRules.length);
+        getComputedStyle(target).opacity;
+        verifyInvalidationsStayBounded("shadow-local keyframes insert ignores matching light-DOM bystanders", 4);
+    });
+</script>

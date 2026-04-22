@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"><span id="slotted">slotted</span></div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const slotted = document.getElementById("slotted");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        const sheet = new CSSStyleSheet();
+
+        shadowRoot.innerHTML = "<slot></slot>";
+        shadowRoot.adoptedStyleSheets = [sheet];
+
+        println(`before replaceSync: ${getComputedStyle(slotted).color}`);
+
+        sheet.replaceSync("slot { color: rgb(255, 0, 0); }");
+        println(`after slot replaceSync: ${getComputedStyle(slotted).color}`);
+
+        sheet.replaceSync("");
+        println(`after slot replaceSync removal: ${getComputedStyle(slotted).color}`);
+    });
+</script>

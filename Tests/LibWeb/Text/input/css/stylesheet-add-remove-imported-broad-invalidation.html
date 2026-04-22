@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target">target</div>
+<script>
+    function settleAndReset(triggerElement) {
+        getComputedStyle(triggerElement).color;
+        getComputedStyle(triggerElement).color;
+        internals.resetStyleInvalidationCounters();
+    }
+
+    function verifyFullRestyleWasScheduled(label) {
+        const invalidations = internals.getStyleInvalidationCounters().fullStyleInvalidations;
+        if (invalidations >= 1)
+            println(`PASS: ${label}`);
+        else
+            println(`FAIL: ${label} (${invalidations} full invalidations)`);
+    }
+
+    async function waitForImportedSheet(styleElement) {
+        while (styleElement.sheet.cssRules.length === 0 || styleElement.sheet.cssRules[0].styleSheet === null)
+            await animationFrame();
+    }
+
+    asyncTest(async done => {
+        const target = document.getElementById("target");
+        settleAndReset(target);
+
+        const layerImportStyle = document.createElement("style");
+        layerImportStyle.textContent = `@import "data:text/css;base64,${btoa("@layer B, A;")}";`;
+        document.head.appendChild(layerImportStyle);
+        await waitForImportedSheet(layerImportStyle);
+
+        getComputedStyle(target).color;
+        verifyFullRestyleWasScheduled("imported layer-only stylesheet add schedules full restyle");
+
+        settleAndReset(target);
+        layerImportStyle.remove();
+
+        getComputedStyle(target).color;
+        verifyFullRestyleWasScheduled("imported layer-only stylesheet remove schedules full restyle");
+
+        done();
+    });
+</script>
