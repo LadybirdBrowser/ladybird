@@ -100,8 +100,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     IDL::Context context;
 
-    IDL::Parser parser(path, data, move(import_base_paths), context);
-    auto& interface = parser.parse();
+    auto module = IDL::Parser::parse(path, data, move(import_base_paths), context);
+    VERIFY(module.interface.has_value());
+    auto& interface = module.interface.value();
 
     // If the interface name is the same as its namespace, qualify the name in the generated code.
     // e.g. Selection::Selection
@@ -127,7 +128,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     TRY(write_if_changed(&IDL::generate_implementation, interface, implementation_path));
 
     if (!depfile_path.is_empty()) {
-        TRY(generate_depfile(depfile_path, parser.imported_files(), { { header_path, implementation_path } }));
+        TRY(generate_depfile(depfile_path, module.imported_files, { { header_path, implementation_path } }));
     }
     return 0;
 }

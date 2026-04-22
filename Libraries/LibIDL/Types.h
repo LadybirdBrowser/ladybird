@@ -44,6 +44,7 @@ class Context;
 class ParameterizedType;
 class UnionType;
 class Interface;
+struct Module;
 
 class Type : public RefCounted<Type> {
 public:
@@ -328,7 +329,7 @@ public:
     ByteString global_mixin_class;
 
     ByteString module_own_path;
-    Vector<Interface&> imported_modules;
+    Vector<Module&> imported_modules;
 
     OrderedHashMap<ByteString, Vector<Function&>> overload_sets;
     OrderedHashMap<ByteString, Vector<Function&>> static_overload_sets;
@@ -346,6 +347,13 @@ public:
     bool will_generate_code() const;
 
     void extend_with_partial_interface(Interface const&);
+};
+
+struct Module {
+    ByteString module_own_path;
+    Optional<Interface&> interface;
+    Vector<Module&> imported_modules;
+    Vector<ByteString> imported_files;
 };
 
 class UnionType : public Type {
@@ -429,7 +437,8 @@ class Context {
 public:
     Interface& add_interface(NonnullOwnPtr<Interface>);
     Interface& add_mixin(NonnullOwnPtr<Interface>);
-    Interface* parsed_module(ByteString const& module_path);
+    Module& add_module(NonnullOwnPtr<Module>);
+    Module* find_parsed_module(ByteString const& module_path);
 
     HashMap<ByteString, Interface*> interfaces;
     Vector<NonnullOwnPtr<Interface>> owned_interfaces;
@@ -446,7 +455,11 @@ public:
     Vector<NonnullOwnPtr<Interface>> partial_namespaces;
 
     HashMap<ByteString, HashTable<ByteString>> included_mixins;
+
+    Vector<NonnullOwnPtr<Module>> owned_modules;
 };
+
+Optional<Interface const&> find_imported_interface(Interface const&, ByteString const& name);
 
 // https://webidl.spec.whatwg.org/#dfn-optionality-value
 enum class Optionality {

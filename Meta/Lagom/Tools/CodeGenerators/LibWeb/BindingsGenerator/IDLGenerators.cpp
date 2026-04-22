@@ -463,26 +463,34 @@ static void generate_include_for_interface(auto& generator, Interface const& int
 
 static void emit_includes_for_all_imports(auto& interface, auto& generator, bool is_iterator = false, bool is_async_iterator = false)
 {
-    Queue<RemoveCVReference<decltype(interface)> const*> interfaces;
+    Queue<Module const*> modules;
     HashTable<ByteString> paths_imported;
 
-    interfaces.enqueue(&interface);
-
-    while (!interfaces.is_empty()) {
-        auto interface = interfaces.dequeue();
-        if (paths_imported.contains(interface->module_own_path))
-            continue;
-
-        paths_imported.set(interface->module_own_path);
-        for (auto& imported_interface : interface->imported_modules) {
-            if (!paths_imported.contains(imported_interface.module_own_path))
-                interfaces.enqueue(&imported_interface);
+    auto enqueue_imports = [&paths_imported, &modules](auto& imported_modules) {
+        for (auto& imported_module : imported_modules) {
+            if (!paths_imported.contains(imported_module.module_own_path))
+                modules.enqueue(&imported_module);
         }
+    };
 
-        if (!interface->will_generate_code())
+    paths_imported.set(interface.module_own_path);
+    enqueue_imports(interface.imported_modules);
+
+    if (interface.will_generate_code())
+        generate_include_for_interface(generator, interface);
+
+    while (!modules.is_empty()) {
+        auto module = modules.dequeue();
+        if (paths_imported.contains(module->module_own_path))
             continue;
 
-        generate_include_for_interface(generator, *interface);
+        paths_imported.set(module->module_own_path);
+        enqueue_imports(module->imported_modules);
+
+        if (!module->interface.has_value() || !module->interface->will_generate_code())
+            continue;
+
+        generate_include_for_interface(generator, module->interface.value());
     }
 
     if (is_iterator) {
@@ -3379,17 +3387,15 @@ static Vector<Interface const&> create_an_inheritance_stack(IDL::Interface const
     auto const* current_interface = &start_interface;
     while (current_interface && !current_interface->parent_name.is_empty()) {
         // 1. Let I be that interface.
-        auto imported_interface_iterator = start_interface.imported_modules.find_if([&current_interface](IDL::Interface const& imported_interface) {
-            return imported_interface.name == current_interface->parent_name;
-        });
+        auto imported_interface = find_imported_interface(start_interface, current_interface->parent_name);
 
         // Inherited interfaces must have their IDL files imported.
-        VERIFY(imported_interface_iterator != start_interface.imported_modules.end());
+        VERIFY(imported_interface.has_value());
 
         // 2. Push I onto stack.
-        inheritance_chain.append(*imported_interface_iterator);
+        inheritance_chain.append(imported_interface.value());
 
-        current_interface = &*imported_interface_iterator;
+        current_interface = &imported_interface.value();
     }
 
     // 4. Return stack.

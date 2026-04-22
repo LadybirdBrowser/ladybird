@@ -569,22 +569,20 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     }
     VERIFY(paths.size() == files.size());
 
-    Vector<IDL::Parser> parsers;
     InterfaceSets interface_sets;
     IDL::Context context;
 
     for (size_t i = 0; i < paths.size(); ++i) {
         auto const& path = paths[i];
         StringView file_contents = files[i]->bytes();
-        IDL::Parser parser(path, file_contents, lexical_bases, context);
-        auto& interface = parser.parse();
-        if (interface.name.is_empty()) {
+        auto module = IDL::Parser::parse(path, file_contents, lexical_bases, context);
+        if (!module.interface.has_value()) {
             s_error_string = ByteString::formatted("Interface for file {} missing", path);
             return Error::from_string_view(s_error_string.view());
         }
+        auto& interface = module.interface.value();
 
         TRY(add_to_interface_sets(interface, interface_sets));
-        parsers.append(move(parser));
     }
 
     TRY(generate_intrinsic_definitions_header(output_path, interface_sets));

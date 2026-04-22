@@ -188,7 +188,7 @@ HashMap<ByteString, ByteString> Parser::parse_extended_attributes()
 }
 
 static HashTable<ByteString> import_stack;
-Optional<Interface&> Parser::resolve_import(auto path)
+Module& Parser::resolve_import(auto path)
 {
     ByteString include_path;
     for (auto import_base_path : import_base_paths) {
@@ -212,12 +212,12 @@ Optional<Interface&> Parser::resolve_import(auto path)
         report_parsing_error(ByteString::formatted("Failed to resolve path {}: {}", include_path, real_path_error_or.error()), filename, input, lexer.tell());
     auto real_path = real_path_error_or.release_value();
 
-    if (top_level_resolved_imports().contains(real_path))
-        return *top_level_resolved_imports().find(real_path)->value;
+    if (top_level_resolved_modules().contains(real_path))
+        return *top_level_resolved_modules().find(real_path)->value;
 
-    if (auto* parsed_module = context.parsed_module(real_path)) {
-        top_level_resolved_imports().set(real_path, parsed_module);
-        return *parsed_module;
+    if (auto* module = context.find_parsed_module(real_path)) {
+        top_level_resolved_modules().set(real_path, module);
+        return *module;
     }
 
     if (import_stack.contains(real_path))
@@ -234,7 +234,7 @@ Optional<Interface&> Parser::resolve_import(auto path)
     auto& result = Parser(this, real_path, data_or_error.value(), import_base_paths, context).parse();
     import_stack.remove(real_path);
 
-    top_level_resolved_imports().set(real_path, &result);
+    top_level_resolved_modules().set(real_path, &result);
     return result;
 }
 
@@ -1263,7 +1263,15 @@ void resolve_function_typedefs(Interface& interface, FunctionType& function)
     resolve_parameters_typedefs(interface, function.parameters);
 }
 
-Interface& Parser::parse()
+Module Parser::parse(ByteString filename, StringView contents, Vector<ByteString> import_base_paths, Context& context)
+{
+    Parser parser(move(filename), contents, move(import_base_paths), context);
+    auto& module = parser.parse();
+    module.imported_files = parser.imported_files();
+    return module;
+}
+
+Module& Parser::parse()
 {
     auto this_module_or_error = FileSystem::real_path(filename);
     if (this_module_or_error.is_error()) {
@@ -1272,25 +1280,27 @@ Interface& Parser::parse()
     }
     auto this_module = this_module_or_error.release_value();
 
-    if (auto* parsed_module = context.parsed_module(this_module))
-        return *parsed_module;
+    if (auto* module = context.find_parsed_module(this_module))
+        return *module;
+
+    auto module_ptr = make<Module>();
+    auto& module = *module_ptr;
+    module.module_own_path = this_module;
+    context.add_module(move(module_ptr));
 
     auto interface_ptr = make<Interface>(context);
     auto& interface = *interface_ptr;
     interface.module_own_path = this_module;
-    top_level_resolved_imports().set(this_module, &interface);
+    top_level_resolved_modules().set(this_module, &module);
 
-    Vector<Interface&> imports;
+    Vector<Module&> imports;
     {
         while (lexer.consume_specific("#import"sv)) {
             consume_whitespace();
             assert_specific('<');
             auto path = lexer.consume_until('>');
             lexer.ignore();
-            auto maybe_interface = resolve_import(path);
-            if (maybe_interface.has_value()) {
-                imports.append(maybe_interface.release_value());
-            }
+            imports.append(resolve_import(path));
             consume_whitespace();
         }
     }
@@ -1449,13 +1459,16 @@ Interface& Parser::parse()
         }
     }
 
-    interface.imported_modules = move(imports);
+    module.imported_modules = move(imports);
+    interface.imported_modules = module.imported_modules;
 
     if (top_level_parser() == this)
         VERIFY(import_stack.is_empty());
 
-    auto& owned_interface = interface.context.add_interface(move(interface_ptr));
-    return owned_interface;
+    if (!interface.name.is_empty())
+        module.interface = interface.context.add_interface(move(interface_ptr));
+
+    return module;
 }
 
 Parser::Parser(ByteString filename, StringView contents, Vector<ByteString> import_base_paths, Context& context)
@@ -1485,14 +1498,14 @@ Parser* Parser::top_level_parser()
     return current;
 }
 
-HashMap<ByteString, Interface*>& Parser::top_level_resolved_imports()
+HashMap<ByteString, Module*>& Parser::top_level_resolved_modules()
 {
-    return top_level_parser()->resolved_imports;
+    return top_level_parser()->resolved_modules;
 }
 
 Vector<ByteString> Parser::imported_files() const
 {
-    return const_cast<Parser*>(this)->top_level_resolved_imports().keys();
+    return const_cast<Parser*>(this)->top_level_resolved_modules().keys();
 }
 
 }
