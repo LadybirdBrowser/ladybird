@@ -38,6 +38,10 @@ extern "C" {
 
 namespace Web::WebGL {
 
+// https://registry.khronos.org/webgl/extensions/WEBGL_debug_renderer_info/
+static constexpr GLenum UNMASKED_VENDOR_WEBGL = 0x9245;
+static constexpr GLenum UNMASKED_RENDERER_WEBGL = 0x9246;
+
 WebGLRenderingContextImpl::WebGLRenderingContextImpl(JS::Realm& realm, NonnullOwnPtr<OpenGLContext> context)
     : WebGLRenderingContextBase(realm)
     , m_context(move(context))
@@ -1274,6 +1278,23 @@ WebIDL::ExceptionOr<JS::Value> WebGLRenderingContextImpl::get_parameter(WebIDL::
         auto byte_buffer = MUST(ByteBuffer::copy(result.data(), buffer_size));
         auto array_buffer = JS::ArrayBuffer::create(realm(), move(byte_buffer));
         return JS::Int32Array::create(realm(), 4, array_buffer);
+    }
+
+    case UNMASKED_VENDOR_WEBGL: {
+        if (!extension_enabled("WEBGL_debug_renderer_info"sv)) {
+            set_error(GL_INVALID_ENUM);
+            return JS::js_null();
+        }
+        auto result = reinterpret_cast<char const*>(glGetString(GL_VENDOR));
+        return JS::PrimitiveString::create(realm().vm(), ByteString { result });
+    }
+    case UNMASKED_RENDERER_WEBGL: {
+        if (!extension_enabled("WEBGL_debug_renderer_info"sv)) {
+            set_error(GL_INVALID_ENUM);
+            return JS::js_null();
+        }
+        auto result = reinterpret_cast<char const*>(glGetString(GL_RENDERER));
+        return JS::PrimitiveString::create(realm().vm(), ByteString { result });
     }
 
     case GL_FRAGMENT_SHADER_DERIVATIVE_HINT: { // NOTE: This has the same value as GL_FRAGMENT_SHADER_DERIVATIVE_HINT_OES

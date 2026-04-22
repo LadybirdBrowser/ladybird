@@ -34,6 +34,7 @@ extern "C" {
 #include <LibWeb/WebGL/Extensions/OESVertexArrayObject.h>
 #include <LibWeb/WebGL/Extensions/WebGLCompressedTextureS3tc.h>
 #include <LibWeb/WebGL/Extensions/WebGLCompressedTextureS3tcSrgb.h>
+#include <LibWeb/WebGL/Extensions/WebGLDebugRendererInfo.h>
 #include <LibWeb/WebGL/Extensions/WebGLDrawBuffers.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
@@ -124,7 +125,7 @@ static HashMap<String, Extension, AK::ASCIICaseInsensitiveStringTraits> s_availa
     { "OES_texture_half_float_linear"_string, { { "GL_OES_texture_half_float_linear"sv }, nullptr, OpenGLContext::WebGLVersion::WebGL1 } },
     { "OES_vertex_array_object"_string, { { "GL_OES_vertex_array_object"sv }, Extensions::OESVertexArrayObject::create, OpenGLContext::WebGLVersion::WebGL1 } },
     { "WEBGL_compressed_texture_s3tc"_string, { { "GL_EXT_texture_compression_dxt1"sv, "GL_ANGLE_texture_compression_dxt3"sv, "GL_ANGLE_texture_compression_dxt5"sv }, Extensions::WebGLCompressedTextureS3tc::create } },
-    { "WEBGL_debug_renderer_info"_string, { {}, nullptr } },
+    { "WEBGL_debug_renderer_info"_string, { {}, Extensions::WebGLDebugRendererInfo::create } },
     { "WEBGL_debug_shaders"_string, { {}, nullptr } },
     { "WEBGL_depth_texture"_string, { { "GL_ANGLE_depth_texture"sv }, nullptr, OpenGLContext::WebGLVersion::WebGL1 } },
     { "WEBGL_draw_buffers"_string, { { "GL_EXT_draw_buffers"sv }, Extensions::WebGLDrawBuffers::create, OpenGLContext::WebGLVersion::WebGL1 } },
