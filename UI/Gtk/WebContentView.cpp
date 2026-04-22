@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2026, Johan Dahlin <jdahlin@gmail.com>
+ * Copyright (c) 2026, Penk Chen <penk.chen@qt.io>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,6 +8,7 @@
 #include <LibCore/Resource.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Palette.h>
+#include <LibGfx/SharedImageBuffer.h>
 #include <LibGfx/SystemTheme.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/Menu.h>
@@ -18,7 +20,50 @@
 #include <adwaita.h>
 #include <gdk/gdk.h>
 
+#ifdef USE_VULKAN_DMABUF_IMAGES
+#    include <LibIPC/File.h>
+#    include <unistd.h>
+#endif
+
 namespace Ladybird {
+
+#ifdef USE_VULKAN_DMABUF_IMAGES
+static GdkTexture* try_build_dmabuf_texture(Gfx::LinuxDmaBufHandle const& dmabuf)
+{
+    int fd = ::dup(dmabuf.file.fd());
+    if (fd == -1)
+        return nullptr;
+
+    GObjectPtr builder { gdk_dmabuf_texture_builder_new() };
+    auto* b = GDK_DMABUF_TEXTURE_BUILDER(builder.ptr());
+    gdk_dmabuf_texture_builder_set_display(b, gdk_display_get_default());
+    gdk_dmabuf_texture_builder_set_width(b, dmabuf.size.width());
+    gdk_dmabuf_texture_builder_set_height(b, dmabuf.size.height());
+    gdk_dmabuf_texture_builder_set_fourcc(b, dmabuf.drm_format);
+    gdk_dmabuf_texture_builder_set_modifier(b, dmabuf.modifier);
+    gdk_dmabuf_texture_builder_set_n_planes(b, 1);
+    gdk_dmabuf_texture_builder_set_fd(b, 0, fd);
+    gdk_dmabuf_texture_builder_set_stride(b, 0, dmabuf.pitch);
+    gdk_dmabuf_texture_builder_set_offset(b, 0, 0);
+    gdk_dmabuf_texture_builder_set_premultiplied(b, dmabuf.alpha_type == Gfx::AlphaType::Premultiplied);
+
+    GError* error = nullptr;
+    auto* texture = gdk_dmabuf_texture_builder_build(
+        b,
+        +[](gpointer data) { ::close(GPOINTER_TO_INT(data)); },
+        GINT_TO_POINTER(fd),
+        &error);
+
+    if (!texture) {
+        ::close(fd);
+        if (error) {
+            g_warning("DMA-BUF texture build failed: %s", error->message);
+            g_error_free(error);
+        }
+    }
+    return texture;
+}
+#endif
 
 WebContentView::WebContentView(LadybirdWebView* widget, RefPtr<WebView::WebContentClient> parent_client, size_t page_index)
     : m_widget(widget)
@@ -140,15 +185,18 @@ void WebContentView::paint(GtkSnapshot* snapshot)
     if (width == 0 || height == 0)
         return;
 
+    Gfx::SharedImageBuffer const* shared_image_buffer = nullptr;
     Gfx::Bitmap const* bitmap = nullptr;
     Gfx::IntSize bitmap_size;
 
     if (m_client_state.has_usable_bitmap) {
         VERIFY(m_client_state.front_bitmap.shared_image_buffer);
-        bitmap = m_client_state.front_bitmap.shared_image_buffer->bitmap().ptr();
+        shared_image_buffer = m_client_state.front_bitmap.shared_image_buffer.ptr();
+        bitmap = shared_image_buffer->bitmap().ptr();
         bitmap_size = m_client_state.front_bitmap.last_painted_size.to_type<int>();
     } else if (m_backup_shared_image_buffer) {
-        bitmap = m_backup_shared_image_buffer->bitmap().ptr();
+        shared_image_buffer = m_backup_shared_image_buffer.ptr();
+        bitmap = shared_image_buffer->bitmap().ptr();
         bitmap_size = m_backup_bitmap_size.to_type<int>();
     }
 
@@ -158,29 +206,39 @@ void WebContentView::paint(GtkSnapshot* snapshot)
         if (painted_width == 0 || painted_height == 0)
             painted_width = bitmap->width(), painted_height = bitmap->height();
 
-        // Rebuild the GdkTexture when the bitmap data or size changes.
-        // Use GdkMemoryTextureBuilder so we can set update-texture to hint GSK
-        // that this is an incremental update of the previous frame, allowing it
-        // to reuse GPU resources and only re-upload changed regions.
+        // Prefer zero-copy dma-buf import; otherwise fall back to GdkMemoryTextureBuilder.
         if (bitmap != m_cached_bitmap || bitmap_size != m_cached_painted_size || !m_cached_texture.ptr()) {
-            auto* bytes = g_bytes_new_static(bitmap->scanline_u8(0), bitmap->pitch() * painted_height);
-            GObjectPtr builder { gdk_memory_texture_builder_new() };
-            gdk_memory_texture_builder_set_bytes(GDK_MEMORY_TEXTURE_BUILDER(builder.ptr()), bytes);
-            gdk_memory_texture_builder_set_stride(GDK_MEMORY_TEXTURE_BUILDER(builder.ptr()), bitmap->pitch());
-            gdk_memory_texture_builder_set_width(GDK_MEMORY_TEXTURE_BUILDER(builder.ptr()), painted_width);
-            gdk_memory_texture_builder_set_height(GDK_MEMORY_TEXTURE_BUILDER(builder.ptr()), painted_height);
-            gdk_memory_texture_builder_set_format(GDK_MEMORY_TEXTURE_BUILDER(builder.ptr()), GDK_MEMORY_B8G8R8A8_PREMULTIPLIED);
+            bool texture_built = false;
 
-            if (m_cached_texture.ptr()) {
-                gdk_memory_texture_builder_set_update_texture(GDK_MEMORY_TEXTURE_BUILDER(builder.ptr()), m_cached_texture);
-                cairo_rectangle_int_t full_rect = { 0, 0, painted_width, painted_height };
-                auto* update_region = cairo_region_create_rectangle(&full_rect);
-                gdk_memory_texture_builder_set_update_region(GDK_MEMORY_TEXTURE_BUILDER(builder.ptr()), update_region);
-                cairo_region_destroy(update_region);
+#ifdef USE_VULKAN_DMABUF_IMAGES
+            if (shared_image_buffer && shared_image_buffer->linux_dmabuf_handle().has_value()) {
+                if (auto* texture = try_build_dmabuf_texture(*shared_image_buffer->linux_dmabuf_handle())) {
+                    m_cached_texture = GObjectPtr<GdkTexture> { texture };
+                    texture_built = true;
+                }
             }
+#endif
 
-            m_cached_texture = GObjectPtr<GdkTexture> { gdk_memory_texture_builder_build(GDK_MEMORY_TEXTURE_BUILDER(builder.ptr())) };
-            g_bytes_unref(bytes);
+            if (!texture_built) {
+                auto* bytes = g_bytes_new_static(bitmap->scanline_u8(0), bitmap->pitch() * painted_height);
+                GObjectPtr builder { gdk_memory_texture_builder_new() };
+                gdk_memory_texture_builder_set_bytes(GDK_MEMORY_TEXTURE_BUILDER(builder.ptr()), bytes);
+                gdk_memory_texture_builder_set_stride(GDK_MEMORY_TEXTURE_BUILDER(builder.ptr()), bitmap->pitch());
+                gdk_memory_texture_builder_set_width(GDK_MEMORY_TEXTURE_BUILDER(builder.ptr()), painted_width);
+                gdk_memory_texture_builder_set_height(GDK_MEMORY_TEXTURE_BUILDER(builder.ptr()), painted_height);
+                gdk_memory_texture_builder_set_format(GDK_MEMORY_TEXTURE_BUILDER(builder.ptr()), GDK_MEMORY_B8G8R8A8_PREMULTIPLIED);
+
+                if (m_cached_texture.ptr()) {
+                    gdk_memory_texture_builder_set_update_texture(GDK_MEMORY_TEXTURE_BUILDER(builder.ptr()), m_cached_texture);
+                    cairo_rectangle_int_t full_rect = { 0, 0, painted_width, painted_height };
+                    auto* update_region = cairo_region_create_rectangle(&full_rect);
+                    gdk_memory_texture_builder_set_update_region(GDK_MEMORY_TEXTURE_BUILDER(builder.ptr()), update_region);
+                    cairo_region_destroy(update_region);
+                }
+
+                m_cached_texture = GObjectPtr<GdkTexture> { gdk_memory_texture_builder_build(GDK_MEMORY_TEXTURE_BUILDER(builder.ptr())) };
+                g_bytes_unref(bytes);
+            }
 
             m_cached_bitmap = bitmap;
             m_cached_painted_size = bitmap_size;
