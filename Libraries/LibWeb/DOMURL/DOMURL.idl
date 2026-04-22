@@ -7,7 +7,7 @@
 interface URL {
     constructor(USVString url, optional USVString base);
 
-    [ImplementedAs=parse_for_bindings] static DOMURL? parse(USVString url, optional USVString base);
+    [ImplementedAs=parse_for_bindings] static URL? parse(USVString url, optional USVString base);
     static boolean canParse(USVString url, optional USVString base);
 
     stringifier attribute USVString href;

@@ -11,7 +11,6 @@
  */
 
 #include "IDLGenerators.h"
-#include "Namespaces.h"
 #include <AK/Array.h>
 #include <AK/LexicalPath.h>
 #include <AK/NumericLimits.h>
@@ -59,14 +58,61 @@ static bool is_javascript_builtin_buffer_source_type(Type const& type)
     return types.span().contains_slow(type.name());
 }
 
-static ByteString cpp_type_name(Type const& type)
+static ByteString interface_cpp_type_name(Interface const& interface)
 {
-    if (libweb_interface_namespaces.span().contains_slow(type.name())) {
-        // e.g. Document.getSelection which returns Selection, which is in the Selection namespace.
-        return ByteString::formatted("{}::{}", type.name(), type.name());
+    if (!interface.fully_qualified_name.is_empty())
+        return interface.fully_qualified_name;
+    return interface.implemented_name;
+}
+
+static ByteString interface_cpp_type_name(Context const& context, Type const& type)
+{
+    if (type.name() == "WindowProxy"sv)
+        return "HTML::WindowProxy";
+
+    auto interface = context.interfaces.get(type.name());
+    if (interface.has_value())
+        return interface_cpp_type_name(**interface);
+
+    return type.name();
+}
+
+static ByteString cpp_namespace_for_module_path(ByteString const& module_own_path)
+{
+    auto path = LexicalPath { module_own_path };
+    auto parts = path.parts_view();
+    for (size_t i = 0; i + 2 < parts.size(); ++i) {
+        if (parts[i] != "LibWeb"sv)
+            continue;
+
+        return parts[i + 1].to_byte_string();
     }
+
+    if (parts.size() >= 2)
+        return parts[parts.size() - 2].to_byte_string();
+
+    return {};
+}
+
+static ByteString dictionary_cpp_type_name(Context const& context, ByteString const& name)
+{
+    if (auto it = context.dictionaries.find(name); it != context.dictionaries.end()) {
+        auto namespace_name = cpp_namespace_for_module_path(it->value.module_own_path);
+        if (!namespace_name.is_empty())
+            return ByteString::formatted("{}::{}", namespace_name, name);
+    }
+
+    return name;
+}
+
+static ByteString cpp_type_name(Type const& type, Context const& context)
+{
+    if (is_platform_object(context, type))
+        return interface_cpp_type_name(context, type);
     if (is_javascript_builtin_buffer_source_type(type))
         return ByteString::formatted("JS::{}", type.name());
+    if (context.dictionaries.contains(type.name()))
+        return dictionary_cpp_type_name(context, type.name());
     return type.name();
 }
 
@@ -127,13 +173,13 @@ static ByteString union_type_to_variant(UnionType const& union_type, Context con
 CppType idl_type_name_to_cpp_type(Type const& type, Context const& context)
 {
     if (is_platform_object(context, type))
-        return { .name = ByteString::formatted("GC::Root<{}>", type.name()), .sequence_storage_type = SequenceStorageType::RootVector };
+        return { .name = ByteString::formatted("GC::Root<{}>", interface_cpp_type_name(context, type)), .sequence_storage_type = SequenceStorageType::RootVector };
 
     if (is_javascript_builtin_buffer_source_type(type))
         return { .name = ByteString::formatted("GC::Root<JS::{}>", type.name()), .sequence_storage_type = SequenceStorageType::RootVector };
 
     if (auto const* callback_interface = callback_interface_for_type(context, type))
-        return { .name = ByteString::formatted("GC::Root<{}>", callback_interface->implemented_name), .sequence_storage_type = SequenceStorageType::RootVector };
+        return { .name = ByteString::formatted("GC::Root<{}>", interface_cpp_type_name(*callback_interface)), .sequence_storage_type = SequenceStorageType::RootVector };
 
     if (context.callback_functions.contains(type.name()))
         return { .name = "GC::Root<WebIDL::CallbackType>", .sequence_storage_type = SequenceStorageType::RootVector };
@@ -225,12 +271,8 @@ CppType idl_type_name_to_cpp_type(Type const& type, Context const& context)
         return { .name = union_type_to_variant(union_type, context), .sequence_storage_type = SequenceStorageType::Vector };
     }
 
-    if (!type.is_nullable()) {
-        for (auto& dictionary : context.dictionaries) {
-            if (type.name() == dictionary.key)
-                return { .name = type.name(), .sequence_storage_type = SequenceStorageType::Vector };
-        }
-    }
+    if (!type.is_nullable() && context.dictionaries.contains(type.name()))
+        return { .name = dictionary_cpp_type_name(context, type.name()), .sequence_storage_type = SequenceStorageType::Vector };
 
     if (context.enumerations.contains(type.name()))
         return { .name = type.name(), .sequence_storage_type = SequenceStorageType::Vector };
@@ -601,7 +643,7 @@ static void generate_dictionary_to_cpp(SourceGenerator& generator, Context const
 
 static void generate_callback_interface_to_cpp(SourceGenerator& scoped_generator, IDL::Type const& type, IDL::Interface const& callback_interface)
 {
-    scoped_generator.set("cpp_type", callback_interface.implemented_name);
+    scoped_generator.set("cpp_type", interface_cpp_type_name(callback_interface));
 
     if (type.is_nullable()) {
         scoped_generator.append(R"~~~(
@@ -1162,7 +1204,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
 
     if (dictionary_type) {
         auto dictionary_generator = union_generator.fork();
-        dictionary_generator.set("dictionary.type", dictionary_type->name());
+        dictionary_generator.set("dictionary.type", dictionary_cpp_type_name(context, dictionary_type->name()));
 
         // The lambda must take the JS::Value to convert as a parameter instead of capturing it in order to support union types being variadic.
         dictionary_generator.append(R"~~~(
@@ -1251,7 +1293,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
                 continue;
 
             auto union_platform_object_type_generator = union_generator.fork();
-            union_platform_object_type_generator.set("platform_object_type", type->name());
+            union_platform_object_type_generator.set("platform_object_type", interface_cpp_type_name(context, *type));
 
             union_platform_object_type_generator.append(R"~~~(
                 if (auto* @js_name@@js_suffix@_result = as_if<@platform_object_type@>(@js_name@@js_suffix@_object))
@@ -1681,7 +1723,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
     auto const& type = parameter.type;
     scoped_generator.set("parameter.type.name", type->name());
 
-    scoped_generator.set("parameter.type.name.normalized", cpp_type_name(*type));
+    scoped_generator.set("parameter.type.name.normalized", cpp_type_name(*type, context));
 
     scoped_generator.set("parameter.name", parameter.name);
 
@@ -1868,7 +1910,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
     if (optional_uses_value_access)
         value_non_optional = ByteString::formatted("{}.value()", value);
     scoped_generator.set("value_non_optional", value_non_optional);
-    scoped_generator.set("type", cpp_type_name(type));
+    scoped_generator.set("type", cpp_type_name(type, context));
     scoped_generator.set("result_expression", result_expression);
     scoped_generator.set("recursion_depth", ByteString::number(recursion_depth));
     scoped_generator.set("iteration_index", ByteString::number(iteration_index));
@@ -3023,13 +3065,14 @@ static void generate_dictionaries(SourceGenerator& generator, IDL::Interface con
             continue;
         auto dictionary_generator = generator.fork();
         dictionary_generator.set("dictionary.name", make_input_acceptable_cpp(it->key));
+        dictionary_generator.set("dictionary.cpp_type", dictionary_cpp_type_name(interface.context, it->key));
         dictionary_generator.set("dictionary.name:snakecase", make_input_acceptable_cpp(it->key.to_snakecase()));
         dictionary_generator.append(R"~~~(
-JS::Value @dictionary.name:snakecase@_to_value(JS::Realm&, @dictionary.name@ const&);
-JS::Value @dictionary.name:snakecase@_to_value(JS::Realm& realm, @dictionary.name@ const& dictionary)
+JS::Value @dictionary.name:snakecase@_to_value(JS::Realm&, @dictionary.cpp_type@ const&);
+JS::Value @dictionary.name:snakecase@_to_value(JS::Realm& realm, @dictionary.cpp_type@ const& dictionary)
 {
     auto& vm = realm.vm();
-    @dictionary.name@ copy = dictionary;
+    @dictionary.cpp_type@ copy = dictionary;
 )~~~");
         // FIXME: Support generating wrap statements for lvalues and get rid of the copy above
         auto dictionary_type = adopt_ref(*new Type(it->key, false));
@@ -3428,6 +3471,7 @@ static void generate_named_properties_object_definitions(IDL::Interface const& i
     SourceGenerator generator { builder };
 
     generator.set("name", interface.name);
+    generator.set("fully_qualified_name", interface.fully_qualified_name);
     generator.set("parent_name", interface.parent_name);
     generator.set("prototype_base_class", interface.prototype_base_class);
     generator.set("named_properties_class", ByteString::formatted("{}Properties", interface.name));
@@ -3481,7 +3525,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> @named_properties_class@
     auto& realm = this->realm();
 
     // 1. Let A be the interface for the named properties object O.
-    using A = @name@;
+    using A = @fully_qualified_name@;
 
     // 2. Let object be O.[[Realm]]'s global object.
     // 3. Assert: object implements A.
@@ -3598,7 +3642,7 @@ static void generate_prototype_or_global_mixin_initialization(IDL::Interface con
     generator.set("prototype_name", interface.prototype_class); // Used for Global Mixin
 
     if (interface.pair_iterator_types.has_value()) {
-        generator.set("iterator_name", ByteString::formatted("{}Iterator", interface.name));
+        generator.set("iterator_name", ByteString::formatted("{}Iterator", interface.fully_qualified_name));
     }
 
     bool define_on_existing_object = is_global_interface || generate_unforgeables == GenerateUnforgeables::Yes;
@@ -4260,7 +4304,7 @@ static void generate_prototype_or_global_mixin_definitions(IDL::Interface const&
     generator.set("prototype_name", interface.prototype_class); // Used for Global Mixin
 
     if (interface.pair_iterator_types.has_value()) {
-        generator.set("iterator_name", ByteString::formatted("{}Iterator", interface.name));
+        generator.set("iterator_name", ByteString::formatted("{}Iterator", interface.fully_qualified_name));
     }
 
     if (interface.is_callback_interface)
@@ -4810,7 +4854,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::values)
     // https://webidl.spec.whatwg.org/#js-asynchronous-iterable
     if (interface.async_value_iterator_type.has_value()) {
         auto iterator_generator = generator.fork();
-        iterator_generator.set("iterator_name"sv, MUST(String::formatted("{}AsyncIterator", interface.name)));
+        iterator_generator.set("iterator_name"sv, ByteString::formatted("{}AsyncIterator", interface.fully_qualified_name));
         iterator_generator.append(R"~~~(
 JS_DEFINE_NATIVE_FUNCTION(@class_name@::values)
 {
@@ -4838,7 +4882,8 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::values)
     if (interface.set_entry_type.has_value()) {
         auto setlike_generator = generator.fork();
         auto const& set_entry_type = *interface.set_entry_type.value();
-        setlike_generator.set("value_type", set_entry_type.name());
+        auto value_type = cpp_type_name(set_entry_type, interface.context);
+        setlike_generator.set("value_type", value_type);
 
         if (set_entry_type.is_string()) {
             setlike_generator.set("value_type_check", R"~~~(
@@ -4853,7 +4898,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::values)
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "{0}");
     }}
 )~~~",
-                    set_entry_type.name())));
+                    value_type)));
         }
 
         setlike_generator.append(R"~~~(
@@ -5253,64 +5298,6 @@ private:
     generator.append(R"~~~(
 };
 )~~~");
-}
-
-static void generate_using_namespace_definitions(SourceGenerator& generator)
-{
-    generator.append(R"~~~(
-// FIXME: This is a total hack until we can figure out the namespace for a given type somehow.
-using namespace Web::Animations;
-using namespace Web::Clipboard;
-using namespace Web::ContentSecurityPolicy;
-using namespace Web::CookieStore;
-using namespace Web::CredentialManagement;
-using namespace Web::Crypto;
-using namespace Web::CSS;
-using namespace Web::DOM;
-using namespace Web::DOMURL;
-using namespace Web::Encoding;
-using namespace Web::EncryptedMediaExtensions;
-using namespace Web::EntriesAPI;
-using namespace Web::EventTiming;
-using namespace Web::Fetch;
-using namespace Web::FileAPI;
-using namespace Web::Gamepad;
-using namespace Web::Geolocation;
-using namespace Web::Geometry;
-using namespace Web::HighResolutionTime;
-using namespace Web::HTML;
-using namespace Web::IndexedDB;
-using namespace Web::Internals;
-using namespace Web::IntersectionObserver;
-using namespace Web::MediaCapabilitiesAPI;
-using namespace Web::MediaCapture;
-using namespace Web::MediaSourceExtensions;
-using namespace Web::NavigationTiming;
-using namespace Web::NotificationsAPI;
-using namespace Web::PerformanceTimeline;
-using namespace Web::RequestIdleCallback;
-using namespace Web::ResizeObserver;
-using namespace Web::ResourceTiming;
-using namespace Web::Selection;
-using namespace Web::Serial;
-using namespace Web::ServiceWorker;
-using namespace Web::Speech;
-using namespace Web::StorageAPI;
-using namespace Web::Streams;
-using namespace Web::SVG;
-using namespace Web::TrustedTypes;
-using namespace Web::UIEvents;
-using namespace Web::URLPattern;
-using namespace Web::UserTiming;
-using namespace Web::WebAssembly;
-using namespace Web::WebAudio;
-using namespace Web::WebGL;
-using namespace Web::WebIDL;
-using namespace Web::WebVTT;
-using namespace Web::WebXR;
-using namespace Web::XHR;
-using namespace Web::XPath;
-)~~~"sv);
 }
 
 // https://webidl.spec.whatwg.org/#define-the-operations
@@ -6025,7 +6012,6 @@ static void generate_implementation_prologue(IDL::Interface const& interface, St
     }
 
     emit_includes_for_all_imports(interface, generator, interface.pair_iterator_types.has_value(), interface.async_value_iterator_type.has_value());
-    generate_using_namespace_definitions(generator);
 
     generator.append(R"~~~(
 namespace Web::Bindings {

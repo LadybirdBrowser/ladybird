@@ -210,6 +210,7 @@ struct Dictionary {
     ByteString parent_name;
     Vector<DictionaryMember> members;
     HashMap<ByteString, ByteString> extended_attributes;
+    ByteString module_own_path;
     bool is_original_definition { true };
 };
 

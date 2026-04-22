@@ -1012,6 +1012,7 @@ void Parser::parse_dictionary(HashMap<ByteString, ByteString> extended_attribute
 
     Dictionary dictionary {};
     dictionary.extended_attributes = move(extended_attributes);
+    dictionary.module_own_path = interface.module_own_path;
 
     auto name = parse_identifier_ending_with_space();
     consume_whitespace();

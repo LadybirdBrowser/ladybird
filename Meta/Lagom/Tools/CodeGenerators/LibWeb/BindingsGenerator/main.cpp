@@ -9,7 +9,6 @@
  */
 
 #include "IDLGenerators.h"
-#include "Namespaces.h"
 #include <AK/Assertions.h>
 #include <AK/Debug.h>
 #include <AK/HashTable.h>
@@ -62,6 +61,34 @@ static ErrorOr<void> generate_depfile(StringView depfile_path, ReadonlySpan<Byte
     }
     depfile_builder.append('\n');
     return depfile->write_until_depleted(depfile_builder.string_view().bytes());
+}
+
+static ByteString cpp_namespace_for_module_path(ByteString const& module_own_path)
+{
+    auto path = LexicalPath { module_own_path };
+    auto parts = path.parts_view();
+    for (size_t i = 0; i + 2 < parts.size(); ++i) {
+        if (parts[i] != "LibWeb"sv)
+            continue;
+
+        return parts[i + 1].to_byte_string();
+    }
+
+    if (parts.size() >= 2)
+        return parts[parts.size() - 2].to_byte_string();
+
+    return {};
+}
+
+static void assign_fully_qualified_name(IDL::Interface& interface)
+{
+    auto namespace_name = cpp_namespace_for_module_path(interface.module_own_path);
+    if (namespace_name.is_empty()) {
+        interface.fully_qualified_name = interface.implemented_name;
+        return;
+    }
+
+    interface.fully_qualified_name = ByteString::formatted("{}::{}", namespace_name, interface.implemented_name);
 }
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
@@ -144,22 +171,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             append_dependency_path(imported_file);
     }
 
+    for (auto& interface : context.owned_interfaces)
+        assign_fully_qualified_name(*interface);
+
     for (size_t i = 0; i < paths.size(); ++i) {
         auto const& lexical_path = lexical_paths[i];
-        auto& namespace_ = lexical_path.parts_view().at(lexical_path.parts_view().size() - 2);
         auto& interface = *interfaces[i];
-
-        // If the interface name is the same as its namespace, qualify the name in the generated code.
-        // e.g. Selection::Selection
-        if (IDL::libweb_interface_namespaces.span().contains_slow(namespace_)) {
-            StringBuilder builder;
-            builder.append(namespace_);
-            builder.append("::"sv);
-            builder.append(interface.implemented_name);
-            interface.fully_qualified_name = builder.to_byte_string();
-        } else {
-            interface.fully_qualified_name = interface.implemented_name;
-        }
 
         if constexpr (BINDINGS_GENERATOR_DEBUG)
             interface.dump();
