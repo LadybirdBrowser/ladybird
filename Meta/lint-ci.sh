@@ -14,17 +14,17 @@ FAILURES=0
 set +e
 
 for cmd in \
-        Meta/check-debug-flags.sh \
-        Meta/check-flatpak.py \
-        Meta/check-html-doctype.py \
-        Meta/check-idl-files.py \
-        Meta/check-newlines-at-eof.py \
-        Meta/check-png-sizes.sh \
-        Meta/check-style.py \
-        Meta/lint-executable-resources.sh \
-        Meta/lint-prettier.sh \
-        Meta/lint-python.sh \
-        Meta/lint-shell-scripts.sh; do
+        Meta/Linters/check_debug_flags.sh \
+        Meta/Linters/check_flatpak.py \
+        Meta/Linters/check_html_doctype.py \
+        Meta/Linters/check_idl_files.py \
+        Meta/Linters/check_newlines_at_eof.py \
+        Meta/Linters/check_png_sizes.sh \
+        Meta/Linters/check_style.py \
+        Meta/Linters/lint_executable_resources.sh \
+        Meta/Linters/lint_prettier.sh \
+        Meta/Linters/lint_python.sh \
+        Meta/Linters/lint_shell_scripts.sh; do
     if "${cmd}" "$@"; then
         echo -e "[${GREEN}OK${NC}]: ${cmd}"
     else
@@ -44,10 +44,10 @@ else
     echo -e "[${GREEN}SKIP${NC}]: IPCMagicLinter (in Meta/lint-ci.sh)"
 fi
 
-if Meta/lint-clang-format.py --overwrite-inplace "$@" && git diff --exit-code -- ':*.cpp' ':*.h' ':*.mm'; then
-    echo -e "[${GREEN}OK${NC}]: Meta/lint-clang-format.py"
+if Meta/Linters/lint_clang_format.py --overwrite-inplace "$@" && git diff --exit-code -- ':*.cpp' ':*.h' ':*.mm'; then
+    echo -e "[${GREEN}OK${NC}]: Meta/Linters/lint_clang_format.py"
 else
-    echo -e "[${BOLD_RED}FAIL${NC}]: Meta/lint-clang-format.py"
+    echo -e "[${BOLD_RED}FAIL${NC}]: Meta/Linters/lint_clang_format.py"
     ((FAILURES+=1))
 fi
 

@@ -3,7 +3,7 @@
 set -eo pipefail
 
 script_path=$(cd -P -- "$(dirname -- "$0")" && pwd -P)
-cd "$script_path/.."
+cd "${script_path}/../.." || exit 1
 
 if [ "$(uname -s)" = "Darwin" ]; then
     # MacOS's find does not support '-executable' OR '-perm /mode'.

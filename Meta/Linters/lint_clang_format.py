@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import List
 from typing import Optional
 
-sys.path.append(str(Path(__file__).resolve().parent.parent))
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 
 from Meta.host_platform import HostSystem
 from Meta.host_platform import Platform

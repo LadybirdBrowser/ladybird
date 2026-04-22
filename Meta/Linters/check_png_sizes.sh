@@ -6,7 +6,7 @@ set -eo pipefail
 : "${MINIMUM_OPTIMIZATION_BYTES:=1024}"
 
 script_path=$(cd -P -- "$(dirname -- "$0")" && pwd -P)
-cd "${script_path}/.."
+cd "${script_path}/../.." || exit 1
 
 if ! command -v optipng >/dev/null ; then
     if [[ "$GITHUB_ACTIONS" == "true" ]]; then
