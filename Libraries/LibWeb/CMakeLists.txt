@@ -227,6 +227,7 @@ set(SOURCES
     CSS/StyleScope.cpp
     CSS/StyleSheet.cpp
     CSS/StyleSheetIdentifier.cpp
+    CSS/StyleSheetInvalidation.cpp
     CSS/StyleSheetList.cpp
     CSS/StyleValues/AbstractImageStyleValue.cpp
     CSS/StyleValues/AddFunctionStyleValue.cpp

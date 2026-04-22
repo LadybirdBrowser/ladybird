@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style id="document-style"></style>
+<div id="document-target" class="foo">document target</div>
+<div>document bystander 1</div>
+<div>document bystander 2</div>
+<div>document bystander 3</div>
+<div id="shadow-host"></div>
+<script>
+    function settleAndReset(triggerElement) {
+        // Force style resolution before we observe counters so the subsequent
+        // mutation is measured in isolation.
+        getComputedStyle(triggerElement).color;
+        getComputedStyle(triggerElement).color;
+        internals.resetStyleInvalidationCounters();
+    }
+
+    function addBystanders(parent, prefix, count) {
+        for (let i = 0; i < count; ++i) {
+            const bystander = document.createElement("div");
+            bystander.textContent = `${prefix} bystander ${i}`;
+            parent.appendChild(bystander);
+        }
+    }
+
+    function verifyInvalidationsStayNarrow(label, maxInvalidations) {
+        const invalidations = internals.getStyleInvalidationCounters().styleInvalidations;
+        if (invalidations <= maxInvalidations)
+            println(`PASS: ${label} (${invalidations} invalidations)`);
+        else
+            println(`FAIL: ${label} (${invalidations} invalidations)`);
+    }
+
+    test(() => {
+        const documentTarget = document.getElementById("document-target");
+        // A large set of unrelated bystanders makes it obvious whether the
+        // invalidation cost scales with the whole subtree or just the match.
+        addBystanders(document.body, "document", 25);
+        const documentStyleSheet = document.getElementById("document-style").sheet;
+        settleAndReset(documentTarget);
+        documentStyleSheet.insertRule(".foo { color: rgb(255, 0, 0); }", documentStyleSheet.cssRules.length);
+        getComputedStyle(documentTarget).color;
+        verifyInvalidationsStayNarrow("document insertRule stays targeted across many bystanders", 1);
+
+        const shadowRoot = document.getElementById("shadow-host").attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `
+            <style id="shadow-style"></style>
+            <div id="shadow-target" class="foo">shadow target</div>
+        `;
+        addBystanders(shadowRoot, "shadow", 25);
+
+        const shadowTarget = shadowRoot.getElementById("shadow-target");
+        const shadowStyleSheet = shadowRoot.getElementById("shadow-style").sheet;
+        settleAndReset(shadowTarget);
+        shadowStyleSheet.insertRule(".foo { color: rgb(0, 128, 0); }", shadowStyleSheet.cssRules.length);
+        getComputedStyle(shadowTarget).color;
+        // Shadow-root sheets can legitimately dirty both the matching shadow
+        // descendant and the host when the sheet gains selectors such as :host.
+        verifyInvalidationsStayNarrow("shadow insertRule stays targeted across many bystanders", 2);
+    });
+</script>

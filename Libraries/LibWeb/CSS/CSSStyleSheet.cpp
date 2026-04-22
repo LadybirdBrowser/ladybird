@@ -11,10 +11,12 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSCounterStyleRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
+#include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleSheetInvalidation.h>
 #include <LibWeb/CSS/StyleSheetList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/StyleElementBase.h>
@@ -163,7 +165,10 @@ WebIDL::ExceptionOr<unsigned> CSSStyleSheet::insert_rule(StringView rule, unsign
         // NOTE: The spec doesn't say where to set the parent style sheet, so we'll do it here.
         parsed_rule->set_parent_style_sheet(this);
 
-        invalidate_owners(DOM::StyleInvalidationReason::StyleSheetInsertRule);
+        if (!constructed() && owner_node() && owner_node()->is_html_style_element() && parsed_rule->type() == CSSRule::Type::Style)
+            invalidate_owners_for_inserted_style_rule(*this, as<CSSStyleRule>(*parsed_rule), DOM::StyleInvalidationReason::StyleSheetInsertRule);
+        else
+            invalidate_owners(DOM::StyleInvalidationReason::StyleSheetInsertRule);
     }
 
     return result;

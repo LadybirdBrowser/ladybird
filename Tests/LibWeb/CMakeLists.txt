@@ -4,6 +4,7 @@ set(TEST_SOURCES
     TestControlMessageQueue.cpp
     TestCSSInheritedProperty.cpp
     TestCSSPixels.cpp
+    TestCSSStyleSheetInvalidation.cpp
     TestCSSSyntaxParser.cpp
     TestCSSTokenStream.cpp
     TestFetchURL.cpp

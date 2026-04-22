@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"></div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `
+            <style>.box { background-color: red; }</style>
+            <div id="scope">
+                <div id="target" class="box"></div>
+                <div id="other"></div>
+            </div>
+            <div id="pseudo" class="foo"></div>
+        `;
+
+        const styleSheet = shadowRoot.querySelector("style").sheet;
+        const target = shadowRoot.getElementById("target");
+        const other = shadowRoot.getElementById("other");
+        const pseudo = shadowRoot.getElementById("pseudo");
+
+        println(`before target: ${getComputedStyle(target).backgroundColor}`);
+        println(`before other: ${getComputedStyle(other).backgroundColor}`);
+        println(`before host: ${getComputedStyle(host).color}`);
+        println(`before pseudo: ${getComputedStyle(pseudo, "::before").color}`);
+        println(`before child selector: ${getComputedStyle(other).color}`);
+
+        styleSheet.insertRule(".box { background-color: green; }", styleSheet.cssRules.length);
+        styleSheet.insertRule(":host { color: rgb(0, 0, 255); }", styleSheet.cssRules.length);
+        styleSheet.insertRule(".foo::before { content: ''; color: rgb(255, 0, 0); }", styleSheet.cssRules.length);
+        styleSheet.insertRule("#scope > * { color: rgb(128, 0, 128); }", styleSheet.cssRules.length);
+
+        println(`after target: ${getComputedStyle(target).backgroundColor}`);
+        println(`after other: ${getComputedStyle(other).backgroundColor}`);
+        println(`after host: ${getComputedStyle(host).color}`);
+        println(`after pseudo: ${getComputedStyle(pseudo, "::before").color}`);
+        println(`after child selector: ${getComputedStyle(other).color}`);
+    });
+</script>

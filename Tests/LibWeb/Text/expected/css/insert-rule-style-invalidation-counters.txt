@@ -1,0 +1,2 @@
+PASS: document insertRule stays targeted across many bystanders (1 invalidations)
+PASS: shadow insertRule stays targeted across many bystanders (1 invalidations)
