@@ -332,6 +332,7 @@ class FontVariantAlternatesFunctionStyleValue;
 class Frequency;
 class FrequencyPercentage;
 class FrequencyStyleValue;
+class FunctionStyleValue;
 class GridAutoFlowStyleValue;
 class GridLineNames;
 class GridMinMax;
