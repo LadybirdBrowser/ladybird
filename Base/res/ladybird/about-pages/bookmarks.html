@@ -234,20 +234,20 @@
                 <img src="resource://icons/128x128/app-browser-dark.png" />
             </picture>
             <h1>Bookmarks</h1>
-                <div class="header-menu">
-                    <button class="menu-toggle" id="menu-toggle" aria-label="Bookmark options">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                            <circle cx="12" cy="5" r="2" />
-                            <circle cx="12" cy="12" r="2" />
-                            <circle cx="12" cy="19" r="2" />
-                        </svg>
-                    </button>
-                    <div class="menu-dropdown hidden" id="menu-dropdown">
-                        <button class="menu-item" id="import-button">Import from HTML...</button>
-                        <button class="menu-item" id="export-button">Export to HTML...</button>
-                    </div>
+            <div class="header-menu">
+                <button class="menu-toggle" id="menu-toggle" aria-label="Bookmark options">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <circle cx="12" cy="5" r="2" />
+                        <circle cx="12" cy="12" r="2" />
+                        <circle cx="12" cy="19" r="2" />
+                    </svg>
+                </button>
+                <div class="menu-dropdown hidden" id="menu-dropdown">
+                    <button class="menu-item" id="import-button">Import from HTML...</button>
+                    <button class="menu-item" id="export-button">Export to HTML...</button>
                 </div>
-                <input type="file" id="import-file" accept=".html,text/html" hidden />
+            </div>
+            <input type="file" id="import-file" accept=".html,text/html" hidden />
         </header>
 
         <div class="card">
@@ -587,7 +587,9 @@
                     }
 
                     for (const dt of dl.children) {
-                        if (dt.tagName !== "DT") continue;
+                        if (dt.tagName !== "DT") {
+                            continue;
+                        }
 
                         const anchor = dt.querySelector(":scope > A");
                         if (anchor) {
@@ -663,7 +665,9 @@
 
             importFileInput.addEventListener("change", () => {
                 const file = importFileInput.files[0];
-                if (!file) return;
+                if (!file) {
+                    return;
+                }
 
                 const reader = new FileReader();
                 reader.onload = () => {

@@ -103,14 +103,14 @@
             <tbody id="process-table"></tbody>
         </table>
         <script type="module">
-            import { getByteFormatter }  from "resource://ladybird/utils.js";
+            import { getByteFormatter } from "resource://ladybird/utils.js";
             const memoryFormatter = getByteFormatter(() => {
                 return {
                     unitDisplay: "narrow",
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
-                }
-            })
+                };
+            });
             const cpuFormatter = new Intl.NumberFormat([], {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
