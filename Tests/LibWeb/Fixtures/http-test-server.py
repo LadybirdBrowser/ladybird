@@ -56,6 +56,9 @@ class Echo:
 # In-memory store for echo responses
 echo_store: Dict[str, Echo] = {}
 
+# Headers from the most recent request at each echo path, queryable via GET /recorded-request-headers<echo-path>.
+recorded_request_headers: Dict[str, Dict[str, list]] = {}
+
 
 class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     static_directory: str
@@ -98,6 +101,8 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path.startswith("/echo"):
             self.handle_echo()
+        elif self.path.startswith("/recorded-request-headers/"):
+            self._serve_recorded_request_headers()
         else:
             self._serve_static_request()
 
@@ -201,9 +206,23 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(fetch_config).encode("utf-8"))
 
+    def _serve_recorded_request_headers(self):
+        echo_path = self.path[len("/recorded-request-headers") :]
+        headers = recorded_request_headers.get(echo_path)
+        if headers is None:
+            self.send_error(404, f"No recorded request at {echo_path}")
+            return
+        self.send_response(200)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(headers).encode("utf-8"))
+
     def handle_echo(self):
         method = self.command.upper()
         key = f"{method} {self.path}"
+
+        recorded_request_headers[self.path] = {header: self.headers.get_all(header) for header in self.headers.keys()}
 
         is_revalidation_request = "If-Modified-Since" in self.headers
         send_not_modified = is_revalidation_request and "X-Ladybird-Respond-With-Not-Modified" in self.headers
