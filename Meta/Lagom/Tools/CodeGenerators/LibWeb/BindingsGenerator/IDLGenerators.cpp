@@ -3442,7 +3442,7 @@ static void collect_attribute_values_of_an_inheritance_stack(SourceGenerator& fu
         for (auto& attribute : interface_in_chain.attributes) {
             if (attribute.extended_attributes.contains("FIXME"))
                 continue;
-            if (!attribute.type->is_json(interface_in_chain))
+            if (!attribute.type->is_json(interface_in_chain.context))
                 continue;
 
             auto attribute_generator = generator_for_member(attribute.name, attribute.extended_attributes);

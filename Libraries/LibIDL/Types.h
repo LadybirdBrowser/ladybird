@@ -137,7 +137,7 @@ public:
     // https://webidl.spec.whatwg.org/#dfn-distinguishable
     bool is_distinguishable_from(Interface const&, Type const& other) const;
 
-    bool is_json(Interface const&) const;
+    bool is_json(Context const&) const;
 
     bool is_restricted_floating_point() const { return m_name.is_one_of("float", "double"); }
     bool is_unrestricted_floating_point() const { return m_name.is_one_of("unrestricted float", "unrestricted double"); }
@@ -458,8 +458,6 @@ public:
 
     Vector<NonnullOwnPtr<Module>> owned_modules;
 };
-
-Optional<Interface const&> find_imported_interface(Interface const&, ByteString const& name);
 
 // https://webidl.spec.whatwg.org/#dfn-optionality-value
 enum class Optionality {
