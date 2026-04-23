@@ -1314,14 +1314,13 @@ Module& Parser::parse()
     interface.module_own_path = this_module;
     top_level_resolved_modules().set(this_module, &module);
 
-    Vector<Module&> imports;
     {
         while (lexer.consume_specific("#import"sv)) {
             consume_whitespace();
             assert_specific('<');
             auto path = lexer.consume_until('>');
             lexer.ignore();
-            imports.append(resolve_import(path));
+            resolve_import(path);
             consume_whitespace();
         }
     }
@@ -1479,9 +1478,6 @@ Module& Parser::parse()
             }
         }
     }
-
-    module.imported_modules = move(imports);
-    interface.imported_modules = module.imported_modules;
 
     if (top_level_parser() == this)
         VERIFY(import_stack.is_empty());

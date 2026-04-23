@@ -331,7 +331,6 @@ public:
     ByteString global_mixin_class;
 
     ByteString module_own_path;
-    Vector<Module&> imported_modules;
 
     OrderedHashMap<ByteString, Vector<Function&>> overload_sets;
     OrderedHashMap<ByteString, Vector<Function&>> static_overload_sets;
@@ -354,7 +353,6 @@ public:
 struct Module {
     ByteString module_own_path;
     Optional<Interface&> interface;
-    Vector<Module&> imported_modules;
     Vector<ByteString> imported_files;
 };
 
