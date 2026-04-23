@@ -5,6 +5,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/BitCast.h>
+#include <AK/ByteBuffer.h>
+#include <AK/Endian.h>
+#include <AK/ScopeGuard.h>
 #include <AK/Vector.h>
 #include <LibGfx/ImageFormats/ExifOrientedBitmap.h>
 #include <LibGfx/ImageFormats/PNGLoader.h>
@@ -13,6 +17,7 @@
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/Painter.h>
 #include <png.h>
+#include <zlib.h>
 
 namespace Gfx {
 
@@ -26,6 +31,9 @@ struct PNGLoadingContext {
     png_infop info_ptr { nullptr };
 
     ReadonlyBytes data;
+    // If the input PNG had a raw-deflate IDAT, we rewrap it here into a valid zlib stream (see
+    // maybe_rewrap_raw_deflate_idat) and retarget `data` at this buffer. Kept alive as long as the context is alive.
+    ByteBuffer rewrapped_data;
     IntSize size;
     u32 frame_count { 0 };
     u32 loop_count { 0 };
@@ -53,6 +61,281 @@ struct PNGLoadingContext {
         return {};
     }
 };
+
+namespace {
+
+struct Chunk {
+    StringView type;
+    ReadonlyBytes payload;
+    u32 stored_crc { 0 };
+};
+
+u32 png_chunk_crc(StringView type, ReadonlyBytes data)
+{
+    uLong c = ::crc32(0L, Z_NULL, 0);
+    c = ::crc32(c, bit_cast<Bytef const*>(type.characters_without_null_termination()), type.length());
+    c = ::crc32(c, data.data(), static_cast<uInt>(data.size()));
+    return static_cast<u32>(c);
+}
+
+ErrorOr<void> append_be_u32(ByteBuffer& out, u32 value)
+{
+    BigEndian<u32> big = value;
+    return out.try_append(ReadonlyBytes { &big, sizeof big });
+}
+
+Optional<Chunk> read_chunk(ReadonlyBytes input, size_t& offset)
+{
+    if (offset > input.size() || input.size() - offset < 12)
+        return {};
+    u32 length = *bit_cast<BigEndian<u32> const*>(input.data() + offset);
+    if (length > input.size() - offset - 12)
+        return {};
+    StringView type { bit_cast<char const*>(input.data() + offset + 4), 4 };
+    auto payload = input.slice(offset + 8, length);
+    u32 stored_crc = *bit_cast<BigEndian<u32> const*>(input.data() + offset + 8 + length);
+    offset += 12 + length;
+    return Chunk { type, payload, stored_crc };
+}
+
+// A maximal run of consecutive IDAT or fdAT chunks. Each PNG has at most one IDAT run (frame 0, if the image has one),
+// plus zero or more fdAT runs (one per subsequent APNG frame, separated by fcTL chunks). Each run's payloads form an
+// independent deflate stream that needs its own rewrap if it's raw deflate. `adler` carries the Adler-32 of the
+// inflated output iff rewrapping succeeded; otherwise the run passes through verbatim.
+struct DeflateRun {
+    size_t start_chunk_index { 0 };
+    size_t end_chunk_index { 0 };
+    size_t prefix_skip { 0 }; // 0 for IDAT; 4 for fdAT (sequence_number before the deflate data)
+    Optional<u32> adler;
+};
+
+// Bound inflated output at 256 MiB so a raw-deflate bomb can't expand unbounded before libpng ever sees the bytes.
+// Input size is deliberately not capped: legitimate raw-deflate PNGs of any size should work, and the output cap
+// already bounds CPU work per inflate attempt.
+constexpr u64 max_inflated_bytes = 256 * 1024 * 1024;
+
+// Try to prove one deflate run is a raw-deflate stream and compute its Adler-32. Returns the Adler-32 on success,
+// OptionalNone if the run isn't raw deflate (empty, CRC-corrupt, or fails inflate). Errors bubble up only on
+// allocation failure.
+ErrorOr<Optional<u32>> try_rewrap_deflate_run(Vector<Chunk, 16> const& chunks, DeflateRun const& run)
+{
+    auto deflate_bytes_of = [&](Chunk const& chunk) -> ReadonlyBytes {
+        if (chunk.payload.size() < run.prefix_skip)
+            return {};
+        return chunk.payload.slice(run.prefix_skip);
+    };
+
+    // Fast path: if we have at least 5 deflate bytes and byte 0's low nibble is 8, the byte is simultaneously a
+    // plausible zlib CMF and the start of a raw-deflate BFINAL=0/BTYPE=00 stored block. The stored-block
+    // interpretation requires bytes 1-4 to be LEN (LE u16) and NLEN (= ~LEN); if `LEN ^ NLEN != 0xFFFF` the stream
+    // can't be raw deflate, so it must be zlib — skip. Anything else (fewer than 5 bytes, non-CMF nibble, or the
+    // ~1/65536 random collision) falls through to the inflate attempt below, which is the definitive test.
+    Array<u8, 5> prefix;
+    size_t prefix_bytes_seen = 0;
+    for (size_t i = run.start_chunk_index; i <= run.end_chunk_index && prefix_bytes_seen < prefix.size(); ++i) {
+        auto data = deflate_bytes_of(chunks[i]);
+        size_t take = min(data.size(), prefix.size() - prefix_bytes_seen);
+        __builtin_memcpy(prefix.data() + prefix_bytes_seen, data.data(), take);
+        prefix_bytes_seen += take;
+    }
+    if (prefix_bytes_seen == 0)
+        return OptionalNone {};
+    if (prefix_bytes_seen == prefix.size() && (prefix[0] & 0x0f) == 0x08) {
+        u16 len = static_cast<u16>(prefix[1]) | (static_cast<u16>(prefix[2]) << 8);
+        u16 nlen = static_cast<u16>(prefix[3]) | (static_cast<u16>(prefix[4]) << 8);
+        if ((len ^ nlen) != 0xFFFF)
+            return OptionalNone {};
+    }
+
+    // Verify stored CRCs on the first and last chunks of the run — those are the only ones we'll rewrite; middle
+    // chunks pass through with their original CRCs, so libpng still validates them.
+    auto const& first_chunk = chunks[run.start_chunk_index];
+    auto const& last_chunk = chunks[run.end_chunk_index];
+    if (png_chunk_crc(first_chunk.type, first_chunk.payload) != first_chunk.stored_crc)
+        return OptionalNone {};
+    if (run.end_chunk_index != run.start_chunk_index
+        && png_chunk_crc(last_chunk.type, last_chunk.payload) != last_chunk.stored_crc) {
+        return OptionalNone {};
+    }
+
+    // Stream-inflate deflate data across chunks without concatenating upfront; this avoids an O(input-size) allocation
+    // for arbitrarily large raw-deflate PNGs. fdAT sequence_number prefixes are skipped per-chunk.
+    z_stream stream {};
+    if (inflateInit2(&stream, -MAX_WBITS) != Z_OK)
+        return Error::from_string_literal("inflateInit2 failed");
+    ScopeGuard end_inflate = [&] { inflateEnd(&stream); };
+
+    uLong adler = ::adler32(0L, Z_NULL, 0);
+    u64 total_inflated = 0;
+    Array<u8, 64 * 1024> inflate_buf;
+    bool saw_stream_end = false;
+    for (size_t i = run.start_chunk_index; i <= run.end_chunk_index; ++i) {
+        auto data = deflate_bytes_of(chunks[i]);
+        if (saw_stream_end) {
+            // Any more deflate bytes past Z_STREAM_END means this isn't a single-member raw deflate stream.
+            if (!data.is_empty())
+                return OptionalNone {};
+            continue;
+        }
+        if (data.is_empty())
+            continue;
+        stream.next_in = const_cast<Bytef*>(data.data());
+        stream.avail_in = static_cast<uInt>(data.size());
+        while (stream.avail_in > 0) {
+            stream.next_out = inflate_buf.data();
+            stream.avail_out = static_cast<uInt>(inflate_buf.size());
+            int rv = inflate(&stream, Z_NO_FLUSH);
+            size_t produced = inflate_buf.size() - stream.avail_out;
+            if (produced > 0) {
+                adler = ::adler32(adler, inflate_buf.data(), static_cast<uInt>(produced));
+                total_inflated += produced;
+                if (total_inflated > max_inflated_bytes)
+                    return OptionalNone {};
+            }
+            if (rv == Z_STREAM_END) {
+                if (stream.avail_in != 0)
+                    return OptionalNone {};
+                saw_stream_end = true;
+                break;
+            }
+            if (rv != Z_OK)
+                return OptionalNone {};
+            if (produced == 0 && stream.avail_in == 0)
+                break; // need more input from the next chunk
+        }
+    }
+    if (!saw_stream_end)
+        return OptionalNone {};
+    return static_cast<u32>(adler);
+}
+
+// If any of the PNG's deflate-carrying chunk runs (IDAT for frame 0, fdAT for subsequent APNG frames) is a raw-deflate
+// member (no zlib header), rewrap those runs as valid zlib streams so libpng can decode them. The PNG spec mandates
+// zlib-wrapped deflate, but raw-deflate IDAT/fdAT payloads appear in the wild and are commonly accepted by other
+// decoders; libpng rejects them. Runs that are already valid zlib pass through unchanged.
+//
+// libpng's existing structural checks are preserved: non-consecutive IDATs are rejected, CRC corruption on any
+// rewritten chunk is rejected, chunk-walk failures are rejected. OptionalNone leaves the bytes unchanged; ErrorOr
+// errors only for allocation/IO failures.
+ErrorOr<Optional<ByteBuffer>> maybe_rewrap_raw_deflate_idat(ReadonlyBytes input)
+{
+    constexpr Array<u8, 8> png_signature = { 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a };
+    if (input.size() < png_signature.size())
+        return OptionalNone {};
+    for (size_t i = 0; i < png_signature.size(); ++i) {
+        if (input[i] != png_signature[i])
+            return OptionalNone {};
+    }
+
+    // Walk chunks into an inline-capacity Vector that keeps well-formed PNGs off the heap entirely.
+    Vector<Chunk, 16> chunks;
+    bool saw_any_idat = false;
+    bool non_idat_seen_after_first_idat = false;
+    {
+        size_t offset = png_signature.size();
+        while (true) {
+            auto chunk = read_chunk(input, offset);
+            if (!chunk.has_value())
+                return OptionalNone {};
+            auto type = chunk->type;
+            TRY(chunks.try_append(chunk.release_value()));
+            if (type == "IDAT"sv) {
+                // PNG spec: all IDAT chunks must be consecutive.
+                if (non_idat_seen_after_first_idat)
+                    return OptionalNone {};
+                saw_any_idat = true;
+            } else if (saw_any_idat) {
+                non_idat_seen_after_first_idat = true;
+            }
+            if (type == "IEND"sv)
+                break;
+        }
+    }
+
+    // Identify runs of consecutive IDAT or consecutive fdAT chunks.
+    Vector<DeflateRun, 8> runs;
+    for (size_t i = 0; i < chunks.size(); ++i) {
+        auto const& chunk = chunks[i];
+        size_t prefix_skip;
+        if (chunk.type == "IDAT"sv)
+            prefix_skip = 0;
+        else if (chunk.type == "fdAT"sv)
+            prefix_skip = 4;
+        else
+            continue;
+        if (!runs.is_empty() && runs.last().prefix_skip == prefix_skip && runs.last().end_chunk_index == i - 1) {
+            runs.last().end_chunk_index = i;
+        } else {
+            DeflateRun run;
+            run.start_chunk_index = i;
+            run.end_chunk_index = i;
+            run.prefix_skip = prefix_skip;
+            TRY(runs.try_append(move(run)));
+        }
+    }
+    if (runs.is_empty())
+        return OptionalNone {};
+
+    // Try rewrapping each run independently.
+    bool any_rewrap = false;
+    for (auto& run : runs) {
+        run.adler = TRY(try_rewrap_deflate_run(chunks, run));
+        if (run.adler.has_value())
+            any_rewrap = true;
+    }
+    if (!any_rewrap)
+        return OptionalNone {};
+
+    // Emit the new PNG. Non-run chunks pass through verbatim; non-rewrapped runs pass through verbatim; rewrapped runs
+    // get `0x78 0x01` prepended to the first chunk's deflate data and the 4-byte Adler-32 appended to the last, with
+    // fresh CRCs on just those two chunks.
+    constexpr Array<u8, 2> zlib_header = { 0x78, 0x01 };
+    ByteBuffer output;
+    TRY(output.try_ensure_capacity(input.size() + 6 * runs.size()));
+    TRY(output.try_append(ReadonlyBytes { png_signature.data(), png_signature.size() }));
+
+    size_t run_cursor = 0;
+    for (size_t i = 0; i < chunks.size(); ++i) {
+        auto const& chunk = chunks[i];
+        while (run_cursor < runs.size() && runs[run_cursor].end_chunk_index < i)
+            ++run_cursor;
+        DeflateRun const* active_run = nullptr;
+        if (run_cursor < runs.size()
+            && runs[run_cursor].start_chunk_index <= i && i <= runs[run_cursor].end_chunk_index
+            && runs[run_cursor].adler.has_value()) {
+            active_run = &runs[run_cursor];
+        }
+
+        bool is_first = active_run && i == active_run->start_chunk_index;
+        bool is_last = active_run && i == active_run->end_chunk_index;
+        if (!is_first && !is_last) {
+            TRY(append_be_u32(output, static_cast<u32>(chunk.payload.size())));
+            TRY(output.try_append(chunk.type.bytes()));
+            TRY(output.try_append(chunk.payload));
+            TRY(append_be_u32(output, chunk.stored_crc));
+            continue;
+        }
+
+        ByteBuffer new_payload;
+        TRY(new_payload.try_ensure_capacity(chunk.payload.size() + 6));
+        TRY(new_payload.try_append(chunk.payload.slice(0, active_run->prefix_skip)));
+        if (is_first)
+            TRY(new_payload.try_append(ReadonlyBytes { zlib_header.data(), zlib_header.size() }));
+        TRY(new_payload.try_append(chunk.payload.slice(active_run->prefix_skip)));
+        if (is_last) {
+            BigEndian<u32> adler_be = *active_run->adler;
+            TRY(new_payload.try_append(ReadonlyBytes { &adler_be, sizeof adler_be }));
+        }
+        TRY(append_be_u32(output, static_cast<u32>(new_payload.size())));
+        TRY(output.try_append(chunk.type.bytes()));
+        TRY(output.try_append(new_payload.bytes()));
+        TRY(append_be_u32(output, png_chunk_crc(chunk.type, new_payload.bytes())));
+    }
+
+    return output;
+}
+
+}
 
 ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> PNGImageDecoderPlugin::create(ReadonlyBytes bytes)
 {
@@ -155,6 +438,13 @@ ErrorOr<void> PNGImageDecoderPlugin::initialize()
 
     if (auto error_value = setjmp(png_jmpbuf(m_context->png_ptr)); error_value) {
         return Error::from_errno(error_value);
+    }
+
+    // libpng rejects raw-deflate IDAT; other browsers accept it. Rewrap before libpng sees the bytes. See
+    // maybe_rewrap_raw_deflate_idat for details.
+    if (auto rewrapped = TRY(maybe_rewrap_raw_deflate_idat(m_context->data)); rewrapped.has_value()) {
+        m_context->rewrapped_data = rewrapped.release_value();
+        m_context->data = m_context->rewrapped_data.bytes();
     }
 
     png_set_read_fn(m_context->png_ptr, &m_context->data, [](png_structp png_ptr, png_bytep data, png_size_t length) {

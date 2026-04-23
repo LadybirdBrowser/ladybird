@@ -5,7 +5,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
+#include <AK/BitCast.h>
+#include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
+#include <AK/Endian.h>
+#include <AK/ScopeGuard.h>
 #include <LibCore/MappedFile.h>
 #include <LibGfx/ImageFormats/AVIFLoader.h>
 #include <LibGfx/ImageFormats/BMPLoader.h>
@@ -22,6 +27,7 @@
 #include <LibTest/TestCase.h>
 #include <stdio.h>
 #include <string.h>
+#include <zlib.h>
 
 #define TEST_INPUT(x) ("test-inputs/" x)
 
@@ -496,6 +502,285 @@ TEST_CASE(test_exif)
 
     EXPECT_EQ(frame.image->get_pixel(65, 70), Gfx::Color(0, 255, 0));
     EXPECT_EQ(frame.image->get_pixel(190, 10), Gfx::Color(255, 0, 0));
+}
+
+static ErrorOr<void> append_chunk(ByteBuffer& out, StringView type, ReadonlyBytes payload)
+{
+    BigEndian<u32> length = static_cast<u32>(payload.size());
+    TRY(out.try_append(ReadonlyBytes { &length, sizeof length }));
+    TRY(out.try_append(type.bytes()));
+    TRY(out.try_append(payload));
+    uLong crc = ::crc32(0L, Z_NULL, 0);
+    crc = ::crc32(crc, bit_cast<Bytef const*>(type.characters_without_null_termination()), type.length());
+    crc = ::crc32(crc, payload.data(), static_cast<uInt>(payload.size()));
+    BigEndian<u32> crc_be = static_cast<u32>(crc);
+    TRY(out.try_append(ReadonlyBytes { &crc_be, sizeof crc_be }));
+    return {};
+}
+
+static ErrorOr<ByteBuffer> build_minimal_grayscale_png(u32 width, u32 height, ReadonlyBytes idat_payload)
+{
+    ByteBuffer out;
+    constexpr Array<u8, 8> signature { 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a };
+    TRY(out.try_append(ReadonlyBytes { signature.data(), signature.size() }));
+
+    struct [[gnu::packed]] IHDR {
+        BigEndian<u32> width;
+        BigEndian<u32> height;
+        u8 bit_depth { 8 };
+        u8 color_type { 0 }; // grayscale
+        u8 compression { 0 };
+        u8 filter { 0 };
+        u8 interlace { 0 };
+    };
+    static_assert(sizeof(IHDR) == 13);
+    IHDR ihdr { .width = width, .height = height };
+    TRY(append_chunk(out, "IHDR"sv, ReadonlyBytes { &ihdr, sizeof ihdr }));
+    TRY(append_chunk(out, "IDAT"sv, idat_payload));
+    TRY(append_chunk(out, "IEND"sv, {}));
+    return out;
+}
+
+TEST_CASE(test_png_idat_raw_deflate_turnstile_fixture)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/idat-raw-deflate.png"sv)));
+    EXPECT(Gfx::PNGImageDecoderPlugin::sniff(file->bytes()));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(file->bytes()));
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 2, 2 }));
+    for (int y = 0; y < 2; ++y) {
+        for (int x = 0; x < 2; ++x)
+            EXPECT_EQ(frame.image->get_pixel(x, y), Gfx::Color(0, 0, 0));
+    }
+}
+
+TEST_CASE(test_png_idat_raw_deflate_non_uniform)
+{
+    // 2x2 8-bit grayscale image built by hand with a raw-deflate IDAT. The IDAT payload is one BFINAL=1 BTYPE=00
+    // (stored) block of 6 literal bytes: two scanlines of [filter=None, pixel, pixel].
+    Array<u8, 11> idat_payload {
+        0x01, 0x06, 0x00, 0xf9, 0xff,
+        0x00, 0x11, 0x22, 0x00, 0x33, 0x44
+    };
+    auto png = MUST(build_minimal_grayscale_png(2, 2, ReadonlyBytes { idat_payload.data(), idat_payload.size() }));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(png.bytes()));
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 2, 2 }));
+    EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color(0x11, 0x11, 0x11));
+    EXPECT_EQ(frame.image->get_pixel(1, 0), Gfx::Color(0x22, 0x22, 0x22));
+    EXPECT_EQ(frame.image->get_pixel(0, 1), Gfx::Color(0x33, 0x33, 0x33));
+    EXPECT_EQ(frame.image->get_pixel(1, 1), Gfx::Color(0x44, 0x44, 0x44));
+}
+
+TEST_CASE(test_png_idat_raw_deflate_tiny_huffman)
+{
+    // Regression: a 4-byte raw-deflate IDAT using BTYPE=01 fixed Huffman. Too short for the stored-block fast-path
+    // check, so detection must fall through to the inflate attempt. Bits (LSB-first per RFC 1951): BFINAL=1,
+    // BTYPE=01 (fixed Huffman), literal 0x00 (filter=None), literal 0x11 (pixel), end-of-block. Decodes to a 1x1
+    // grayscale pixel at value 0x11.
+    Array<u8, 4> idat_payload { 0x63, 0x10, 0x04, 0x00 };
+    auto png = MUST(build_minimal_grayscale_png(1, 1, ReadonlyBytes { idat_payload.data(), idat_payload.size() }));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(png.bytes()));
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 1, 1 }));
+    EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color(0x11, 0x11, 0x11));
+}
+
+static ErrorOr<ByteBuffer> build_raw_deflate_stored_blocks(ReadonlyBytes data)
+{
+    // Encode `data` as a sequence of BTYPE=00 stored deflate blocks, with BFINAL=1 on the last one. Each block carries
+    // at most 0xFFFF literal bytes.
+    ByteBuffer out;
+    size_t pos = 0;
+    do {
+        size_t remaining = data.size() - pos;
+        u16 block_len = static_cast<u16>(min<size_t>(remaining, 0xFFFF));
+        bool is_last = (pos + block_len == data.size());
+        TRY(out.try_append(static_cast<u8>(is_last ? 0x01 : 0x00)));
+        u8 header[4] = {
+            static_cast<u8>(block_len & 0xff),
+            static_cast<u8>((block_len >> 8) & 0xff),
+            static_cast<u8>(static_cast<u16>(~block_len) & 0xff),
+            static_cast<u8>((static_cast<u16>(~block_len) >> 8) & 0xff),
+        };
+        TRY(out.try_append(ReadonlyBytes { header, sizeof header }));
+        TRY(out.try_append(data.slice(pos, block_len)));
+        pos += block_len;
+    } while (pos < data.size());
+    return out;
+}
+
+TEST_CASE(test_png_idat_raw_deflate_large_input)
+{
+    // 1024x1024 grayscale PNG whose raw-deflate IDAT exceeds 1 MiB. Exercises streaming inflate across the 64-KiB
+    // output buffer and guards against any cap being reintroduced on large raw-deflate inputs.
+    constexpr u32 side = 1024;
+    ByteBuffer scanlines;
+    MUST(scanlines.try_ensure_capacity(side * (side + 1u)));
+    for (u32 y = 0; y < side; ++y) {
+        MUST(scanlines.try_append(static_cast<u8>(0))); // filter=None
+        for (u32 x = 0; x < side; ++x)
+            MUST(scanlines.try_append(static_cast<u8>((x + y) & 0xff)));
+    }
+    auto idat = MUST(build_raw_deflate_stored_blocks(scanlines.bytes()));
+    // Regression guard: any input-size cap would block this otherwise-legitimate ~1 MiB raw-deflate IDAT.
+    EXPECT(idat.size() > 1u * 1024u * 1024u);
+    auto png = MUST(build_minimal_grayscale_png(side, side, idat.bytes()));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(png.bytes()));
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { static_cast<int>(side), static_cast<int>(side) }));
+    auto expected = [](u32 x, u32 y) {
+        u8 v = static_cast<u8>((x + y) & 0xff);
+        return Gfx::Color(v, v, v);
+    };
+    EXPECT_EQ(frame.image->get_pixel(0, 0), expected(0, 0));
+    EXPECT_EQ(frame.image->get_pixel(100, 200), expected(100, 200));
+    EXPECT_EQ(frame.image->get_pixel(500, 600), expected(500, 600));
+    EXPECT_EQ(frame.image->get_pixel(1023, 1023), expected(1023, 1023));
+}
+
+TEST_CASE(test_png_idat_raw_deflate_zlib_header_lookalike)
+{
+    // Regression: raw-deflate IDAT whose first two bytes happen to satisfy the zlib header predicate
+    // `(cmf & 0x0f) == 8 && (cmf*256 + flg) % 31 == 0`. A naive fast path that bails on "looks like a valid zlib
+    // header" would leave this unwrapped and libpng would emit "IDAT: invalid stored block lengths" on decode. A 28x1
+    // 8-bit grayscale image is large enough for the payload to require a two-block raw-deflate stream (first BFINAL=0
+    // stored block of 29 bytes, then BFINAL=1 empty stored block).
+    Array<u8, 39> idat_payload {
+        0x08, 0x1d, 0x00, 0xe2, 0xff,
+        0x00, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,
+        0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20, 0x21, 0x22, 0x23, 0x24,
+        0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b,
+        0x01, 0x00, 0x00, 0xff, 0xff
+    };
+    auto png = MUST(build_minimal_grayscale_png(28, 1, ReadonlyBytes { idat_payload.data(), idat_payload.size() }));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(png.bytes()));
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 28, 1 }));
+    for (int x = 0; x < 28; ++x) {
+        u8 expected = 0x10 + x;
+        EXPECT_EQ(frame.image->get_pixel(x, 0), Gfx::Color(expected, expected, expected));
+    }
+}
+
+// Compress `input` via zlib. `window_bits = MAX_WBITS` produces a zlib-wrapped stream; `window_bits = -MAX_WBITS`
+// produces raw deflate (no zlib header or Adler-32 trailer).
+static ErrorOr<ByteBuffer> deflate_compress(ReadonlyBytes input, int window_bits)
+{
+    z_stream stream {};
+    if (deflateInit2(&stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED, window_bits, 8, Z_DEFAULT_STRATEGY) != Z_OK)
+        return Error::from_string_literal("deflateInit2 failed");
+    ScopeGuard cleanup = [&] { deflateEnd(&stream); };
+    stream.next_in = const_cast<Bytef*>(input.data());
+    stream.avail_in = static_cast<uInt>(input.size());
+    ByteBuffer out;
+    Array<u8, 256> buf;
+    int rv;
+    do {
+        stream.next_out = buf.data();
+        stream.avail_out = static_cast<uInt>(buf.size());
+        rv = deflate(&stream, Z_FINISH);
+        if (rv != Z_OK && rv != Z_STREAM_END)
+            return Error::from_string_literal("deflate failed");
+        TRY(out.try_append(ReadonlyBytes { buf.data(), buf.size() - stream.avail_out }));
+    } while (rv != Z_STREAM_END);
+    return out;
+}
+
+// Build a 2-frame 1x1 grayscale APNG. Frame 0's IDAT uses normal zlib-wrapped deflate; frame 1's fdAT uses
+// raw-deflate (no zlib wrapping), preceded by its 4-byte fdAT sequence_number.
+static ErrorOr<ByteBuffer> build_two_frame_apng_1x1_grayscale_raw_deflate_fdat(u8 pixel0, u8 pixel1)
+{
+    ByteBuffer out;
+    constexpr Array<u8, 8> signature { 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a };
+    TRY(out.try_append(ReadonlyBytes { signature.data(), signature.size() }));
+
+    struct [[gnu::packed]] IHDR {
+        BigEndian<u32> width { 1 };
+        BigEndian<u32> height { 1 };
+        u8 bit_depth { 8 };
+        u8 color_type { 0 }; // grayscale
+        u8 compression { 0 };
+        u8 filter { 0 };
+        u8 interlace { 0 };
+    };
+    static_assert(sizeof(IHDR) == 13);
+    IHDR ihdr {};
+    TRY(append_chunk(out, "IHDR"sv, ReadonlyBytes { &ihdr, sizeof ihdr }));
+
+    struct [[gnu::packed]] acTL {
+        BigEndian<u32> num_frames { 2 };
+        BigEndian<u32> num_plays { 0 };
+    };
+    static_assert(sizeof(acTL) == 8);
+    acTL actl {};
+    TRY(append_chunk(out, "acTL"sv, ReadonlyBytes { &actl, sizeof actl }));
+
+    struct [[gnu::packed]] fcTL {
+        BigEndian<u32> sequence_number { 0 };
+        BigEndian<u32> width { 1 };
+        BigEndian<u32> height { 1 };
+        BigEndian<u32> x_offset { 0 };
+        BigEndian<u32> y_offset { 0 };
+        BigEndian<u16> delay_num { 1 };
+        BigEndian<u16> delay_den { 1 };
+        u8 dispose_op { 0 };
+        u8 blend_op { 0 };
+    };
+    static_assert(sizeof(fcTL) == 26);
+
+    fcTL fctl0 {};
+    fctl0.sequence_number = 0;
+    TRY(append_chunk(out, "fcTL"sv, ReadonlyBytes { &fctl0, sizeof fctl0 }));
+
+    Array<u8, 2> scanline0 { 0x00, pixel0 }; // filter=None, pixel
+    auto idat_payload = TRY(deflate_compress(scanline0.span(), MAX_WBITS));
+    TRY(append_chunk(out, "IDAT"sv, idat_payload.bytes()));
+
+    fcTL fctl1 {};
+    fctl1.sequence_number = 1;
+    TRY(append_chunk(out, "fcTL"sv, ReadonlyBytes { &fctl1, sizeof fctl1 }));
+
+    Array<u8, 2> scanline1 { 0x00, pixel1 };
+    auto raw_deflate = TRY(deflate_compress(scanline1.span(), -MAX_WBITS));
+    ByteBuffer fdat_payload;
+    BigEndian<u32> seqnum = 2;
+    TRY(fdat_payload.try_append(ReadonlyBytes { &seqnum, sizeof seqnum }));
+    TRY(fdat_payload.try_append(raw_deflate.bytes()));
+    TRY(append_chunk(out, "fdAT"sv, fdat_payload.bytes()));
+
+    TRY(append_chunk(out, "IEND"sv, {}));
+    return out;
+}
+
+TEST_CASE(test_png_apng_fdat_raw_deflate)
+{
+    // 2-frame APNG where frame 0's IDAT is zlib-wrapped but frame 1's fdAT uses raw deflate. fdAT chunks carry a
+    // 4-byte sequence_number before the deflate data; the rewrap must preserve that prefix and only fix the deflate
+    // bytes. Without fdAT support, libpng emits "fdAT: incorrect header check" and frame 1 falls back to transparent.
+    auto png = MUST(build_two_frame_apng_1x1_grayscale_raw_deflate_fdat(0x11, 0x22));
+    EXPECT(Gfx::PNGImageDecoderPlugin::sniff(png.bytes()));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(png.bytes()));
+    EXPECT_EQ(plugin_decoder->frame_count(), 2u);
+    auto frame_0 = TRY_OR_FAIL(plugin_decoder->frame(0));
+    EXPECT_EQ(frame_0.image->get_pixel(0, 0), Gfx::Color(0x11, 0x11, 0x11));
+    auto frame_1 = TRY_OR_FAIL(plugin_decoder->frame(1));
+    EXPECT_EQ(frame_1.image->get_pixel(0, 0), Gfx::Color(0x22, 0x22, 0x22));
+}
+
+TEST_CASE(test_png_idat_raw_deflate_crc_mismatch_not_laundered)
+{
+    // Flip a byte in the fixture's IDAT payload so the stored CRC no longer matches. The rewrap path must refuse: it
+    // would be a bug if we produced a successful decode from a PNG whose IDAT CRC is wrong. libpng's own CRC check
+    // fails after rewrap-skip, and `PNGImageDecoderPlugin::create` falls back to a blank bitmap. We assert transparent
+    // specifically so any future change that laundered the corrupt IDAT into correctly-decoded pixels would be caught.
+    // NOTE: this is coupled to `create`'s current "return blank bitmap on post-init failure" contract
+    // (`Libraries/LibGfx/ImageFormats/PNGLoader.cpp:62-71`); if that contract ever changes, update this test.
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/idat-raw-deflate.png"sv)));
+    auto bytes = TRY_OR_FAIL(ByteBuffer::copy(file->bytes()));
+    // IDAT payload starts at offset 0x3b in the 86-byte fixture.
+    bytes[0x3b] ^= 0x01;
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(bytes));
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 2, 2 }));
+    for (int y = 0; y < 2; ++y) {
+        for (int x = 0; x < 2; ++x)
+            EXPECT_EQ(frame.image->get_pixel(x, y), Gfx::Color::NamedColor::Transparent);
+    }
 }
 
 TEST_CASE(test_png_malformed_frame)
