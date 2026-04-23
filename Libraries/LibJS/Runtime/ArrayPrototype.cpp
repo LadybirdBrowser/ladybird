@@ -152,6 +152,26 @@ static bool can_use_packed_array_fast_path(Array const& array)
     return array.is_simple_packed_array() && array.default_prototype_chain_intact();
 }
 
+static bool can_use_packed_shift_fast_path(Array const& array)
+{
+    // Packed: every index in [0, size) is an own property, so memmove semantics match the spec even if the prototype
+    // chain has indexed properties (HasProperty never escapes to the proto) and even if the array is non-extensible
+    // (no new own properties are created).
+    return array.is_simple_packed_array() && array.length_is_writable();
+}
+
+static bool can_use_holey_shift_fast_path(Array const& array)
+{
+    // Holey: the spec path uses HasProperty + Get on every index, so a poisoned prototype changes the outcome on holes.
+    // A set() on a hole slot also creates a new own property, which a non-extensible array rejects with TypeError.
+    return !array.is_proxy_target()
+        && !array.may_interfere_with_indexed_property_access()
+        && array.indexed_storage_kind() == IndexedStorageKind::Holey
+        && array.default_prototype_chain_intact()
+        && array.extensible()
+        && array.length_is_writable();
+}
+
 static Array* fast_array_species_result(Object& object)
 {
     auto* array = as_if<Array>(object);
@@ -1306,7 +1326,8 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::shift)
     // - has intact prototype chain, which means we don't have to worry about getters/setters potentially defined for holes.
     // - has simple storage type, which means all values have default attributes (if some elements have configurable=false, we cannot use fast path, because delete operation will fail).
     // then we could take a fast path by directly taking first element from indexed storage.
-    if (auto* array = as_if<Array>(*this_object); array && array->is_simple_packed_array() && array->length_is_writable()) {
+    if (auto* array = as_if<Array>(*this_object);
+        array && (can_use_packed_shift_fast_path(*array) || can_use_holey_shift_fast_path(*array))) {
         auto first = array->indexed_take_first().value;
         if (first.is_special_empty_value())
             return js_undefined();
