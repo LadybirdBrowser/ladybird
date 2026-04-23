@@ -102,7 +102,10 @@ def main():
         "args", nargs=argparse.REMAINDER, help="Additional arguments passed through to the build system"
     )
 
-    subparsers.add_parser("vcpkg", help="Ensure that dependencies are available", parents=[preset_parser])
+    vcpkg_parser = subparsers.add_parser(
+        "vcpkg", help="Ensure that dependencies are available", parents=[preset_parser]
+    )
+    vcpkg_parser.add_argument("--jobs", "-j", required=False)
 
     subparsers.add_parser("clean", help="Cleans the build environment", parents=[preset_parser])
 
@@ -142,14 +145,11 @@ def main():
         if not args.target and args.command not in ("build", "rebuild"):
             args.target = "ladybird" if platform.host_system == HostSystem.Windows else "Ladybird"
 
-    if args.jobs:
-        os.environ["VCPKG_MAX_CONCURRENCY"] = args.jobs
-
     if args.command == "build":
-        build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.gui)
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.jobs, args.gui)
         build_main(build_dir, args.jobs, args.target, args.args)
     elif args.command == "test":
-        build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.gui)
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.jobs, args.gui)
         build_main(build_dir, args.jobs)
         test_main(build_dir, args.preset, args.pattern)
     elif args.command == "run":
@@ -163,38 +163,40 @@ def main():
             os.environ["UBSAN_OPTIONS"] = os.environ.get(
                 "UBSAN_OPTIONS", "print_stacktrace=1:print_summary=1:halt_on_error=1"
             )
-        build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.gui)
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.jobs, args.gui)
         build_main(build_dir, args.jobs, args.target)
         run_main(platform.host_system, build_dir, args.target, args.args)
     elif args.command == "debug":
-        build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.gui)
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.jobs, args.gui)
         build_main(build_dir, args.jobs, args.target, args.args)
         debug_main(platform.host_system, build_dir, args.target, args.debugger, args.cmd)
     elif args.command == "profile":
-        build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.gui)
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.jobs, args.gui)
         build_main(build_dir, args.jobs, args.target)
         profile_main(platform.host_system, build_dir, args.target, args.args)
     elif args.command == "install":
-        build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.gui)
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.jobs, args.gui)
         build_main(build_dir, args.jobs, args.target, args.args)
         build_main(build_dir, args.jobs, "install", args.args)
     elif args.command == "vcpkg":
-        configure_build_env(platform, args.preset)
+        configure_build_env(platform, args.preset, args.jobs)
         build_vcpkg()
     elif args.command == "clean":
         clean_main(platform, args.preset)
     elif args.command == "rebuild":
         clean_main(platform, args.preset)
-        build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.gui)
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.jobs, args.gui)
         build_main(build_dir, args.jobs, args.target, args.args)
     elif args.command == "addr2line":
-        build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.gui)
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.jobs, args.gui)
         build_main(build_dir, args.jobs, args.target)
         addr2line_main(build_dir, args.target, args.program, args.addresses)
 
 
-def configure_main(platform: Platform, preset: str, cc: str, cxx: str, gui: Optional[GUIFramework]) -> Path:
-    ladybird_source_dir, build_preset_dir = configure_build_env(platform, preset)
+def configure_main(
+    platform: Platform, preset: str, cc: str, cxx: str, jobs: Optional[str], gui: Optional[GUIFramework]
+) -> Path:
+    ladybird_source_dir, build_preset_dir = configure_build_env(platform, preset, jobs)
     build_vcpkg()
 
     if build_preset_dir.joinpath("build.ninja").exists() or build_preset_dir.joinpath("ladybird.sln").exists():
@@ -281,7 +283,7 @@ def configure_skia_jemalloc() -> list[str]:
     return cmake_args
 
 
-def configure_build_env(platform: Platform, preset: str) -> tuple[Path, Path]:
+def configure_build_env(platform: Platform, preset: str, jobs: Optional[str] = None) -> tuple[Path, Path]:
     ladybird_source_dir = ensure_ladybird_source_dir()
     build_root_dir = ladybird_source_dir / "Build"
 
@@ -302,6 +304,10 @@ def configure_build_env(platform: Platform, preset: str) -> tuple[Path, Path]:
     vcpkg_root = str(build_root_dir / "vcpkg")
     os.environ["PATH"] += os.pathsep + vcpkg_root
     os.environ["VCPKG_ROOT"] = vcpkg_root
+
+    if jobs:
+        os.environ["VCPKG_MAX_CONCURRENCY"] = jobs
+
     if platform.host_architecture == HostArchitecture.riscv64:
         # vcpkg refuses to build ports on riscv64 and other less common architectures without this flag.
         # With it set vcpkg will use the system provided CMake and Ninja binaries but will still download,
