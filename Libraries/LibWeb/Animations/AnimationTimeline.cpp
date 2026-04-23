@@ -24,15 +24,32 @@ Optional<TimeValue> AnimationTimeline::current_time() const
 
 void AnimationTimeline::set_current_time(Optional<TimeValue> value)
 {
-    if (value == m_current_time)
-        return;
-
     if (m_is_monotonically_increasing && m_current_time.has_value() && (!value.has_value() || *value < *m_current_time)) {
         dbgln("AnimationTimeline::set_current_time({}): monotonically increasing timeline can only move forward", value);
         return;
     }
 
     m_current_time = value;
+
+    update_associated_animations_and_dispatch_events();
+}
+
+void AnimationTimeline::update_associated_animations_and_dispatch_events()
+{
+    // https://drafts.csswg.org/web-animations-1/#animation-frame-loop
+    // Note: Due to the hierarchical nature of the timing model, updating the current time of a timeline also involves:
+    // - Updating the current time of any animations associated with the timeline.
+    // - Running the update an animation's finished state procedure for any animations whose current time has been
+    //   updated.
+    // - Queueing animation events for any such animations.
+    for (auto& animation : m_associated_animations)
+        animation.update();
+
+    auto animations = GC::RootVector<GC::Ref<Animations::Animation>> { heap() };
+    for (auto& animation : m_associated_animations)
+        animations.append(animation);
+    for (auto& animation : animations)
+        m_associated_document->dispatch_events_for_animation_if_necessary(animation);
 }
 
 // https://drafts.csswg.org/web-animations-2/#timeline-duration

@@ -54,6 +54,7 @@ protected:
     virtual void finalize() override;
 
     void set_current_time(Optional<TimeValue> value);
+    void update_associated_animations_and_dispatch_events();
 
     // https://www.w3.org/TR/web-animations-1/#dom-animationtimeline-currenttime
     Optional<TimeValue> m_current_time {};

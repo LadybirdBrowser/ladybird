@@ -6039,24 +6039,8 @@ void Document::update_animations_and_send_events(double timestamp)
     {
         HTML::TemporaryExecutionContext temporary_execution_context { realm() };
         // 1. Update the current time of all timelines associated with doc passing now as the timestamp.
-        //
-        // Note: Due to the hierarchical nature of the timing model, updating the current time of a timeline also involves:
-        // - Updating the current time of any animations associated with the timeline.
-        // - Running the update an animation’s finished state procedure for any animations whose current time has been
-        //   updated.
-        // - Queueing animation events for any such animations.
-        for (auto const& timeline : timelines_to_update) {
+        for (auto const& timeline : timelines_to_update)
             timeline->update_current_time(timestamp);
-
-            for (auto& animation : timeline->associated_animations())
-                animation.update();
-
-            auto animations = GC::RootVector<GC::Ref<Animations::Animation>> { heap() };
-            for (auto& animation : timeline->associated_animations())
-                animations.append(animation);
-            for (auto& animation : animations)
-                dispatch_events_for_animation_if_necessary(animation);
-        }
 
         // 2. Remove replaced animations for doc.
         remove_replaced_animations();
