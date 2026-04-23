@@ -465,7 +465,7 @@ def write_proxy_method(
 
         signature_params.append(f"{type} {parameter.name}")
 
-    out.write(f"\n    {return_type} {method_name}({', '.join(signature_params)}) {{")
+    out.write(f"\n    {return_type} {method_name}({', '.join(signature_params)})\n    {{")
 
     if not is_synchronous and not is_try and not is_unicode_string_overload:
         for parameter in parameters:
@@ -539,7 +539,8 @@ public:
 
     {endpoint.name}Proxy(IPC::Connection<LocalEndpoint, PeerEndpoint>& connection, Tag)
         : m_connection(connection)
-    {{ }}
+    {{
+    }}
 """)
 
     for message in endpoint.messages:
