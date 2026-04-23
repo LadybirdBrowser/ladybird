@@ -869,6 +869,7 @@ void Parser::parse_partial_interface(HashMap<ByteString, ByteString> extended_at
     assert_string("interface"sv);
 
     auto partial_interface = make<Interface>(context);
+    partial_interface->is_partial = true;
     partial_interface->extended_attributes = move(extended_attributes);
     parse_interface(*partial_interface);
     parent.context.partial_interfaces.append(move(partial_interface));
@@ -916,6 +917,7 @@ void Parser::parse_partial_namespace(Interface& parent)
     assert_string("namespace"sv);
 
     auto partial_namespace = make<Interface>(context);
+    partial_namespace->is_partial = true;
     parse_namespace(*partial_namespace);
     parent.context.partial_namespaces.append(move(partial_namespace));
 }

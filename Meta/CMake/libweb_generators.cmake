@@ -236,6 +236,7 @@ function (generate_js_bindings target)
     list(TRANSFORM generated_idl_targets PREPEND "generate_")
     set(LIBWEB_ALL_BINDINGS_SOURCES)
     set(LIBWEB_ALL_IDL_FILES)
+    set(LIBWEB_ALL_PARSED_IDL_FILES)
     function(libweb_js_bindings class)
         get_filename_component(basename "${class}" NAME)
 
@@ -256,6 +257,19 @@ function (generate_js_bindings target)
 
         list(APPEND LIBWEB_ALL_IDL_FILES "${LIBWEB_INPUT_FOLDER}/${class}.idl")
         set(LIBWEB_ALL_IDL_FILES ${LIBWEB_ALL_IDL_FILES} PARENT_SCOPE)
+
+        list(APPEND LIBWEB_ALL_PARSED_IDL_FILES "${LIBWEB_INPUT_FOLDER}/${class}.idl")
+        set(LIBWEB_ALL_PARSED_IDL_FILES ${LIBWEB_ALL_PARSED_IDL_FILES} PARENT_SCOPE)
+    endfunction()
+
+    function(libweb_support_idl class)
+        list(APPEND LIBWEB_ALL_PARSED_IDL_FILES "${LIBWEB_INPUT_FOLDER}/${class}.idl")
+        set(LIBWEB_ALL_PARSED_IDL_FILES ${LIBWEB_ALL_PARSED_IDL_FILES} PARENT_SCOPE)
+    endfunction()
+
+    function(libweb_generated_support_idl class)
+        list(APPEND LIBWEB_ALL_PARSED_IDL_FILES "${CMAKE_CURRENT_BINARY_DIR}/${class}.idl")
+        set(LIBWEB_ALL_PARSED_IDL_FILES ${LIBWEB_ALL_PARSED_IDL_FILES} PARENT_SCOPE)
     endfunction()
 
     function(generate_exposed_interface_files)
@@ -300,22 +314,29 @@ function (generate_js_bindings target)
     endfunction()
 
     include("idl_files.cmake")
+    list(REMOVE_DUPLICATES LIBWEB_ALL_PARSED_IDL_FILES)
 
     set(LIBWEB_ALL_IDL_FILES_ARGUMENT ${LIBWEB_ALL_IDL_FILES})
+    set(LIBWEB_ALL_PARSED_IDL_FILES_ARGUMENT ${LIBWEB_ALL_PARSED_IDL_FILES})
     if (WIN32)
         list(JOIN LIBWEB_ALL_IDL_FILES "\n" idl_file_list)
         file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/all_idl_files.txt" CONTENT "${idl_file_list}" NEWLINE_STYLE UNIX)
         set(LIBWEB_ALL_IDL_FILES_ARGUMENT "@${CMAKE_CURRENT_BINARY_DIR}/all_idl_files.txt")
+
+        list(JOIN LIBWEB_ALL_PARSED_IDL_FILES "\n" parsed_idl_file_list)
+        file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/all_parsed_idl_files.txt" CONTENT "${parsed_idl_file_list}" NEWLINE_STYLE UNIX)
+        set(LIBWEB_ALL_PARSED_IDL_FILES_ARGUMENT "@${CMAKE_CURRENT_BINARY_DIR}/all_parsed_idl_files.txt")
     endif()
 
     add_custom_command(
         OUTPUT ${LIBWEB_ALL_BINDINGS_SOURCES}
         COMMAND "${CMAKE_COMMAND}" -E make_directory "Bindings"
         COMMAND "$<TARGET_FILE:Lagom::BindingsGenerator>" -o "Bindings" --depfile "Bindings/all_bindings.d"
-                -b "${LIBWEB_INPUT_FOLDER}" -b "${CMAKE_CURRENT_BINARY_DIR}" ${LIBWEB_ALL_IDL_FILES_ARGUMENT}
+                -b "${LIBWEB_INPUT_FOLDER}" -b "${CMAKE_CURRENT_BINARY_DIR}"
+                ${LIBWEB_ALL_PARSED_IDL_FILES_ARGUMENT}
         VERBATIM
         COMMENT "Generating LibWeb bindings"
-        DEPENDS Lagom::BindingsGenerator ${LIBWEB_ALL_IDL_FILES}
+        DEPENDS Lagom::BindingsGenerator ${LIBWEB_ALL_IDL_FILES} ${LIBWEB_ALL_PARSED_IDL_FILES}
         DEPFILE ${CMAKE_CURRENT_BINARY_DIR}/Bindings/all_bindings.d
     )
 

@@ -143,8 +143,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Vector<ByteString> dependency_paths;
     HashTable<ByteString> seen_dependency_paths;
     Vector<ByteString> output_files;
-    Vector<LexicalPath> lexical_paths;
-    Vector<IDL::Interface*> interfaces;
 
     auto append_dependency_path = [&](ByteString const& dependency_path) {
         if (seen_dependency_paths.set(dependency_path) != AK::HashSetResult::InsertedNewEntry)
@@ -154,18 +152,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     for (auto const& path : paths) {
         auto file = TRY(Core::MappedFile::map(path, Core::MappedFile::Mode::ReadOnly));
-        lexical_paths.empend(path);
-
-        auto& lexical_path = lexical_paths.last();
+        auto lexical_path = LexicalPath { path };
         auto import_base_paths = base_paths;
         if (import_base_paths.is_empty())
             import_base_paths.append(lexical_path.dirname());
 
         auto module = IDL::Parser::parse(path, file->bytes(), move(import_base_paths), context);
-        VERIFY(module.interface.has_value());
-        auto& interface = module.interface.value();
-        interfaces.append(&interface);
-
         append_dependency_path(path);
         for (auto const& imported_file : module.imported_files)
             append_dependency_path(imported_file);
@@ -174,13 +166,18 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     for (auto& interface : context.owned_interfaces)
         assign_fully_qualified_name(*interface);
 
-    for (size_t i = 0; i < paths.size(); ++i) {
-        auto const& lexical_path = lexical_paths[i];
-        auto& interface = *interfaces[i];
+    for (auto const& module : context.owned_modules) {
+        if (!module->interface.has_value())
+            continue;
+
+        auto& interface = module->interface.value();
+        if (!interface.will_generate_code())
+            continue;
 
         if constexpr (BINDINGS_GENERATOR_DEBUG)
             interface.dump();
 
+        auto lexical_path = LexicalPath { module->module_own_path };
         auto path_prefix = LexicalPath::join(output_path, lexical_path.basename(LexicalPath::StripExtension::Yes));
         auto header_path = ByteString::formatted("{}.h", path_prefix);
         auto implementation_path = ByteString::formatted("{}.cpp", path_prefix);
