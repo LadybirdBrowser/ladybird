@@ -2007,9 +2007,8 @@ ValueAndAttributes Object::indexed_take_first()
     auto available_elements = min(m_indexed_array_like_size, indexed_elements_capacity());
     auto first = available_elements > 0 ? m_indexed_elements[0] : js_special_empty_value();
 
-    // Shift all elements left
-    for (u32 i = 0; i + 1 < available_elements; ++i)
-        m_indexed_elements[i] = m_indexed_elements[i + 1];
+    if (available_elements > 1)
+        memmove(m_indexed_elements, m_indexed_elements + 1, (available_elements - 1) * sizeof(Value));
 
     m_indexed_array_like_size--;
     if (available_elements > 0)
