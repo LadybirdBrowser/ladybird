@@ -220,6 +220,7 @@ struct Typedef {
 };
 
 struct Enumeration {
+    ByteString module_own_path;
     OrderedHashTable<ByteString> values;
     OrderedHashMap<ByteString, ByteString> translated_cpp_names;
     HashMap<ByteString, ByteString> extended_attributes;

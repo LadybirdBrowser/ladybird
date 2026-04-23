@@ -938,6 +938,7 @@ void Parser::parse_enumeration(HashMap<ByteString, ByteString> extended_attribut
 
     Enumeration enumeration {};
     enumeration.extended_attributes = move(extended_attributes);
+    enumeration.module_own_path = interface.module_own_path;
 
     auto name = parse_identifier_ending_with_space();
     consume_whitespace();

@@ -14,7 +14,7 @@
 #include <AK/Array.h>
 #include <AK/LexicalPath.h>
 #include <AK/NumericLimits.h>
-#include <AK/Queue.h>
+#include <AK/QuickSort.h>
 #include <AK/RefPtr.h>
 #include <LibIDL/ExposedTo.h>
 #include <LibIDL/Types.h>
@@ -317,57 +317,203 @@ static void generate_include_for_iterator(auto& generator, auto& iterator_path)
 )~~~");
 }
 
-static void generate_include_for_interface(auto& generator, Interface const& interface)
+static ByteString relative_module_path(ByteString const& module_own_path)
 {
-    auto forked_generator = generator.fork();
-    auto path_string = interface.module_own_path;
+    auto path_string = module_own_path;
     for (auto& search_path : g_header_search_paths) {
-        if (!interface.module_own_path.starts_with(search_path))
+        if (!module_own_path.starts_with(search_path))
             continue;
-        auto relative_path = *LexicalPath::relative_path(interface.module_own_path, search_path);
+        auto relative_path = *LexicalPath::relative_path(module_own_path, search_path);
         if (relative_path.length() < path_string.length())
             path_string = relative_path;
     }
 
+    return path_string;
+}
+
+static void generate_include_for_module(auto& generator, Module const& module)
+{
+    auto forked_generator = generator.fork();
+    auto path_string = relative_module_path(module.module_own_path);
     LexicalPath include_path { path_string };
-    ByteString include_title = interface.implemented_name.is_empty() ? include_path.title().to_byte_string() : interface.implemented_name;
+    ByteString include_title = include_path.title().to_byte_string();
+    if (module.interface.has_value() && !module.interface->implemented_name.is_empty())
+        include_title = module.interface->implemented_name;
     forked_generator.set("include.path", ByteString::formatted("{}/{}.h", include_path.dirname(), include_title));
     forked_generator.append(R"~~~(
 #include <@include.path@>
 )~~~");
 }
 
-static void emit_includes_for_all_imports(auto& interface, auto& generator, bool is_iterator = false, bool is_async_iterator = false)
+static Module const& module_for_path(Context const& context, ByteString const& module_own_path)
 {
-    Queue<Module const*> modules;
-    HashTable<ByteString> paths_imported;
+    for (auto const& module : context.owned_modules) {
+        if (module->module_own_path == module_own_path)
+            return *module;
+    }
 
-    auto enqueue_imports = [&paths_imported, &modules](auto& imported_modules) {
-        for (auto& imported_module : imported_modules) {
-            if (!paths_imported.contains(imported_module.module_own_path))
-                modules.enqueue(&imported_module);
-        }
+    VERIFY_NOT_REACHED();
+}
+
+static bool module_will_generate_code(Module const& module)
+{
+    return module.interface.has_value() && module.interface->will_generate_code();
+}
+
+static void add_module_include_dependency(Vector<Module const*>& modules_to_include, HashTable<ByteString>& paths_included, Module const& module)
+{
+    if (!module_will_generate_code(module))
+        return;
+    if (paths_included.set(module.module_own_path) != AK::HashSetResult::InsertedNewEntry)
+        return;
+    modules_to_include.append(&module);
+}
+
+static void add_interface_include_dependency(Vector<Module const*>& modules_to_include, HashTable<ByteString>& paths_included, Interface const& interface)
+{
+    add_module_include_dependency(modules_to_include, paths_included, module_for_path(interface.context, interface.module_own_path));
+}
+
+static void add_dictionary_include_dependency(Vector<Module const*>& modules_to_include, HashTable<ByteString>& paths_included, Interface const& interface, ByteString const& dictionary_name)
+{
+    auto it = interface.context.dictionaries.find(dictionary_name);
+    if (it == interface.context.dictionaries.end())
+        return;
+    add_module_include_dependency(modules_to_include, paths_included, module_for_path(interface.context, it->value.module_own_path));
+}
+
+static void add_enumeration_include_dependency(Vector<Module const*>& modules_to_include, HashTable<ByteString>& paths_included, Interface const& interface, ByteString const& enumeration_name)
+{
+    auto it = interface.context.enumerations.find(enumeration_name);
+    if (it == interface.context.enumerations.end())
+        return;
+    add_module_include_dependency(modules_to_include, paths_included, module_for_path(interface.context, it->value.module_own_path));
+}
+
+static void collect_interface_include_dependencies(Interface const& interface, Type const& type, Vector<Module const*>& modules_to_include, HashTable<ByteString>& paths_included);
+
+static void collect_interface_include_dependencies(Interface const& interface, Vector<Parameter> const& parameters, Vector<Module const*>& modules_to_include, HashTable<ByteString>& paths_included)
+{
+    for (auto const& parameter : parameters)
+        collect_interface_include_dependencies(interface, *parameter.type, modules_to_include, paths_included);
+}
+
+static void collect_interface_include_dependencies(Interface const& interface, Function const& function, Vector<Module const*>& modules_to_include, HashTable<ByteString>& paths_included)
+{
+    collect_interface_include_dependencies(interface, *function.return_type, modules_to_include, paths_included);
+    collect_interface_include_dependencies(interface, function.parameters, modules_to_include, paths_included);
+}
+
+static void collect_interface_include_dependencies(Interface const& interface, CallbackFunction const& callback_function, Vector<Module const*>& modules_to_include, HashTable<ByteString>& paths_included)
+{
+    collect_interface_include_dependencies(interface, *callback_function.return_type, modules_to_include, paths_included);
+    collect_interface_include_dependencies(interface, callback_function.parameters, modules_to_include, paths_included);
+}
+
+static void collect_interface_include_dependencies(Interface const& interface, Dictionary const& dictionary, Vector<Module const*>& modules_to_include, HashTable<ByteString>& paths_included)
+{
+    if (!dictionary.parent_name.is_empty()) {
+        add_dictionary_include_dependency(modules_to_include, paths_included, interface, dictionary.parent_name);
+        if (auto parent_dictionary = interface.context.dictionaries.find(dictionary.parent_name); parent_dictionary != interface.context.dictionaries.end())
+            collect_interface_include_dependencies(interface, parent_dictionary->value, modules_to_include, paths_included);
+    }
+
+    for (auto const& member : dictionary.members)
+        collect_interface_include_dependencies(interface, *member.type, modules_to_include, paths_included);
+}
+
+static void collect_interface_include_dependencies(Interface const& interface, Type const& type, Vector<Module const*>& modules_to_include, HashTable<ByteString>& paths_included)
+{
+    if (auto referenced_interface = interface.context.interfaces.get(type.name()); referenced_interface.has_value())
+        add_interface_include_dependency(modules_to_include, paths_included, *referenced_interface.value());
+
+    add_dictionary_include_dependency(modules_to_include, paths_included, interface, type.name());
+    add_enumeration_include_dependency(modules_to_include, paths_included, interface, type.name());
+
+    if (auto dictionary = interface.context.dictionaries.find(type.name()); dictionary != interface.context.dictionaries.end())
+        collect_interface_include_dependencies(interface, dictionary->value, modules_to_include, paths_included);
+
+    if (auto partial_dictionaries = interface.context.partial_dictionaries.find(type.name()); partial_dictionaries != interface.context.partial_dictionaries.end()) {
+        for (auto const& partial_dictionary : partial_dictionaries->value)
+            collect_interface_include_dependencies(interface, partial_dictionary, modules_to_include, paths_included);
+    }
+
+    if (auto callback_function = interface.context.callback_functions.find(type.name()); callback_function != interface.context.callback_functions.end())
+        collect_interface_include_dependencies(interface, callback_function->value, modules_to_include, paths_included);
+
+    if (type.is_parameterized()) {
+        for (auto const& parameter : type.as_parameterized().parameters())
+            collect_interface_include_dependencies(interface, *parameter, modules_to_include, paths_included);
+        return;
+    }
+
+    if (type.is_union()) {
+        for (auto const& member_type : type.as_union().member_types())
+            collect_interface_include_dependencies(interface, *member_type, modules_to_include, paths_included);
+    }
+}
+
+static void emit_includes_for_all_dependencies(auto& interface, auto& generator, bool is_iterator = false, bool is_async_iterator = false)
+{
+    Vector<Module const*> modules_to_include;
+    HashTable<ByteString> paths_included;
+
+    add_interface_include_dependency(modules_to_include, paths_included, interface);
+
+    if (!interface.parent_name.is_empty()) {
+        auto parent_interface = interface.context.interfaces.get(interface.parent_name);
+        VERIFY(parent_interface.has_value());
+        add_interface_include_dependency(modules_to_include, paths_included, *parent_interface.value());
+    }
+
+    auto collect_optional_type_include_dependencies = [&](auto const& optional) {
+        if (optional.has_value())
+            collect_interface_include_dependencies(interface, **optional, modules_to_include, paths_included);
+    };
+    auto collect_optional_function_include_dependencies = [&](auto const& optional) {
+        if (optional.has_value())
+            collect_interface_include_dependencies(interface, *optional, modules_to_include, paths_included);
     };
 
-    paths_imported.set(interface.module_own_path);
-    enqueue_imports(interface.imported_modules);
-
-    if (interface.will_generate_code())
-        generate_include_for_interface(generator, interface);
-
-    while (!modules.is_empty()) {
-        auto module = modules.dequeue();
-        if (paths_imported.contains(module->module_own_path))
-            continue;
-
-        paths_imported.set(module->module_own_path);
-        enqueue_imports(module->imported_modules);
-
-        if (!module->interface.has_value() || !module->interface->will_generate_code())
-            continue;
-
-        generate_include_for_interface(generator, module->interface.value());
+    for (auto const& attribute : interface.attributes)
+        collect_interface_include_dependencies(interface, *attribute.type, modules_to_include, paths_included);
+    for (auto const& attribute : interface.static_attributes)
+        collect_interface_include_dependencies(interface, *attribute.type, modules_to_include, paths_included);
+    for (auto const& constant : interface.constants)
+        collect_interface_include_dependencies(interface, *constant.type, modules_to_include, paths_included);
+    for (auto const& constructor : interface.constructors)
+        collect_interface_include_dependencies(interface, constructor.parameters, modules_to_include, paths_included);
+    for (auto const& function : interface.functions)
+        collect_interface_include_dependencies(interface, function, modules_to_include, paths_included);
+    for (auto const& function : interface.static_functions)
+        collect_interface_include_dependencies(interface, function, modules_to_include, paths_included);
+    collect_optional_type_include_dependencies(interface.value_iterator_type);
+    if (interface.pair_iterator_types.has_value()) {
+        collect_interface_include_dependencies(interface, *interface.pair_iterator_types->template get<0>(), modules_to_include, paths_included);
+        collect_interface_include_dependencies(interface, *interface.pair_iterator_types->template get<1>(), modules_to_include, paths_included);
     }
+    collect_optional_type_include_dependencies(interface.async_value_iterator_type);
+    collect_interface_include_dependencies(interface, interface.async_value_iterator_parameters, modules_to_include, paths_included);
+    collect_optional_type_include_dependencies(interface.set_entry_type);
+    collect_optional_type_include_dependencies(interface.map_key_type);
+    collect_optional_type_include_dependencies(interface.map_value_type);
+    collect_optional_function_include_dependencies(interface.named_property_getter);
+    collect_optional_function_include_dependencies(interface.named_property_setter);
+    collect_optional_function_include_dependencies(interface.indexed_property_getter);
+    collect_optional_function_include_dependencies(interface.indexed_property_setter);
+    collect_optional_function_include_dependencies(interface.named_property_deleter);
+    for (auto const& dictionary_name : interface.own_dictionaries) {
+        auto dictionary = interface.context.dictionaries.find(dictionary_name);
+        VERIFY(dictionary != interface.context.dictionaries.end());
+        collect_interface_include_dependencies(interface, dictionary->value, modules_to_include, paths_included);
+    }
+
+    quick_sort(modules_to_include, [](auto const* a, auto const* b) {
+        return a->module_own_path < b->module_own_path;
+    });
+
+    for (auto const* included_module : modules_to_include)
+        generate_include_for_module(generator, *included_module);
 
     if (is_iterator) {
         auto iterator_path = ByteString::formatted("{}Iterator", interface.fully_qualified_name.replace("::"sv, "/"sv, ReplaceMode::All));
@@ -5976,6 +6122,7 @@ static void generate_implementation_prologue(IDL::Interface const& interface, St
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>
@@ -6011,7 +6158,7 @@ static void generate_implementation_prologue(IDL::Interface const& interface, St
 )~~~");
     }
 
-    emit_includes_for_all_imports(interface, generator, interface.pair_iterator_types.has_value(), interface.async_value_iterator_type.has_value());
+    emit_includes_for_all_dependencies(interface, generator, interface.pair_iterator_types.has_value(), interface.async_value_iterator_type.has_value());
 
     generator.append(R"~~~(
 namespace Web::Bindings {
