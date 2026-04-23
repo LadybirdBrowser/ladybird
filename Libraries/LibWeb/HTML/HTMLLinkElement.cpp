@@ -85,11 +85,18 @@ void HTMLLinkElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ance
     Base::removed_from(is_subtree_root, old_ancestor, old_root);
 
     if (m_loaded_style_sheet) {
-        auto& style_sheet_list = [&old_root] -> CSS::StyleSheetList& {
-            if (auto* shadow_root = as_if<DOM::ShadowRoot>(old_root); shadow_root)
+        // NB: We can't use `old_root` here. When this link element is nested
+        //     inside a shadow tree within a larger removed subtree, `old_root`
+        //     is the outer subtree's root, not the shadow root that actually
+        //     contains our stylesheet. Use the sheet's own tracked owning
+        //     root, which is the one whose StyleSheetList it belongs to.
+        auto const& owning_roots = m_loaded_style_sheet->owning_documents_or_shadow_roots();
+        VERIFY(owning_roots.size() == 1);
+        auto& owning_root = **owning_roots.begin();
+        auto& style_sheet_list = [&owning_root] -> CSS::StyleSheetList& {
+            if (auto* shadow_root = as_if<DOM::ShadowRoot>(owning_root))
                 return shadow_root->style_sheets();
-
-            return as<DOM::Document>(old_root).style_sheets();
+            return as<DOM::Document>(owning_root).style_sheets();
         }();
 
         style_sheet_list.remove_a_css_style_sheet(*m_loaded_style_sheet);

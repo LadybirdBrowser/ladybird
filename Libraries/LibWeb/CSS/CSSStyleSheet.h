@@ -90,7 +90,7 @@ public:
     void for_each_effective_keyframes_at_rule(Function<void(CSSKeyframesRule const&)> const& callback) const;
     void for_each_effective_counter_style_at_rule(Function<void(CSSCounterStyleRule const&)> const& callback) const;
 
-    HashTable<GC::Ptr<DOM::Node>> owning_documents_or_shadow_roots() const { return m_owning_documents_or_shadow_roots; }
+    HashTable<GC::Ptr<DOM::Node>> const& owning_documents_or_shadow_roots() const { return m_owning_documents_or_shadow_roots; }
     void add_owning_document_or_shadow_root(DOM::Node& document_or_shadow_root);
     void remove_owning_document_or_shadow_root(DOM::Node& document_or_shadow_root);
     void invalidate_owners(DOM::StyleInvalidationReason, ShadowRootStylesheetEffects const* previous_sheet_effects = nullptr);

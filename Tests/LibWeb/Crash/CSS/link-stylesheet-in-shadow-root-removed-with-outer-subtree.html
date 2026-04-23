@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<div id="container">
+  <div id="host"></div>
+</div>
+<script>
+  const host = document.getElementById('host');
+  const shadow = host.attachShadow({ mode: 'open' });
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = 'data:text/css,body{color:red}';
+  link.onload = () => {
+    document.getElementById('container').remove();
+  };
+  shadow.appendChild(link);
+</script>
