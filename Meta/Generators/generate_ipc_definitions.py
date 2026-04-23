@@ -623,9 +623,12 @@ public:
 
     for message in endpoint.messages:
         pascal_name = pascal_case(message.name)
-        out.write(f"""
-        case (int)Messages::{endpoint.name}::MessageID::{pascal_name}:
-            return handle_{message.name}(*message);""")
+        out.write(f"\n        case (int)Messages::{endpoint.name}::MessageID::{pascal_name}:\n")
+
+        if message.inputs:
+            out.write(f"            return handle_{message.name}(*message);")
+        else:
+            out.write(f"            return handle_{message.name}();")
 
     out.write(f"""
         default:
@@ -636,9 +639,6 @@ public:
 
     for message in endpoint.messages:
         pascal_name = pascal_case(message.name)
-        request_cast = (
-            f"[[maybe_unused]] auto& request = static_cast<Messages::{endpoint.name}::{pascal_name}&>(message);"
-        )
 
         arg_parts: List[str] = []
         for parameter in message.inputs:
@@ -646,22 +646,23 @@ public:
             arg_parts.append(f"request.{accessor}()")
         arguments = ", ".join(arg_parts)
 
-        out.write(
-            f"\n    NEVER_INLINE ErrorOr<OwnPtr<IPC::MessageBuffer>> handle_{message.name}(IPC::Message& message)\n    {{\n"
-        )
+        out.write(f"\n    NEVER_INLINE ErrorOr<OwnPtr<IPC::MessageBuffer>> handle_{message.name}(")
+
+        if message.inputs:
+            out.write("IPC::Message& message)\n    {\n")
+            out.write(f"        auto& request = static_cast<Messages::{endpoint.name}::{pascal_name}&>(message);\n")
+        else:
+            out.write(")\n    {\n")
 
         if not message.is_synchronous:
-            out.write(f"        {request_cast}\n")
             out.write(f"        {message.name}({arguments});\n")
             out.write("        return nullptr;\n")
         elif not message.outputs:
             response_pascal_name = pascal_case(message.response_name())
-            out.write(f"        {request_cast}\n")
             out.write(f"        {message.name}({arguments});\n")
             out.write(f"        auto response = Messages::{endpoint.name}::{response_pascal_name} {{}};\n")
             out.write("        return make<IPC::MessageBuffer>(TRY(response.encode()));\n")
         else:
-            out.write(f"        {request_cast}\n")
             out.write(f"        auto response = {message.name}({arguments});\n")
             out.write("        return make<IPC::MessageBuffer>(TRY(response.encode()));\n")
 
