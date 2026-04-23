@@ -15,7 +15,6 @@ enum class FrameFlags : u8 {
     None = 0,
     Keyframe = 1 << 0,
 };
+AK_ENUM_BITWISE_OPERATORS(FrameFlags);
 
 }
-
-AK_ENUM_BITWISE_OPERATORS(Media::FrameFlags);
