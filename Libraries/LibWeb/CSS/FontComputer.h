@@ -35,12 +35,14 @@ struct FontFaceKey {
     FlyString family_name;
     FontWeightRange weight;
     int slope { 0 };
-    [[nodiscard]] u32 hash() const { return pair_int_hash(family_name.ascii_case_insensitive_hash(), pair_int_hash(weight.hash(), slope)); }
+    int width { 100 };
+    [[nodiscard]] u32 hash() const { return pair_int_hash(family_name.ascii_case_insensitive_hash(), pair_int_hash(weight.hash(), pair_int_hash(slope, width))); }
     [[nodiscard]] bool operator==(FontFaceKey const& other) const
     {
         return family_name.equals_ignoring_ascii_case(other.family_name)
             && weight == other.weight
-            && slope == other.slope;
+            && slope == other.slope
+            && width == other.width;
     }
 };
 

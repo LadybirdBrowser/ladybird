@@ -95,6 +95,7 @@ public:
 
     FontWeightRange declared_weight_range() const { return m_cached_weight_range; }
     int declared_slope() const { return m_cached_slope; }
+    int declared_width() const { return m_cached_width; }
     bool should_be_registered_with_font_computer() const { return is_css_connected() || status() == Bindings::FontFaceLoadStatus::Loaded; }
 
     RefPtr<Gfx::FontCascadeList const> font_with_point_size(float point_size, Gfx::FontVariationSettings const&, Gfx::ShapeFeatures const&) const;
@@ -134,6 +135,7 @@ private:
 
     FontWeightRange m_cached_weight_range { 400, 400 };
     int m_cached_slope { 0 };
+    int m_cached_width { 100 };
     GC::Ptr<FontLoader> m_font_loader;
 
     // https://drafts.csswg.org/css-font-loading/#dom-fontface-status

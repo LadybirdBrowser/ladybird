@@ -77,6 +77,14 @@ static int compute_slope(StyleValue const& value)
     return StyleComputer::compute_font_style(value)->as_font_style().to_font_slope();
 }
 
+static int compute_width(StyleValue const& value)
+{
+    if (value.to_keyword() == Keyword::Auto || value.to_keyword() == Keyword::Normal)
+        return 100;
+
+    return static_cast<int>(StyleComputer::compute_font_width(value)->as_percentage().raw_value());
+}
+
 static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Typeface const>>> load_vector_font([[maybe_unused]] JS::Realm& realm, ByteBuffer data)
 {
     auto promise = Core::Promise<NonnullRefPtr<Gfx::Typeface const>>::construct();
@@ -315,7 +323,7 @@ ParsedFontFace FontFace::parsed_font_face() const
         m_family,
         m_cached_weight_range,
         m_cached_slope,
-        Gfx::FontWidth::Normal, // FIXME: width
+        m_cached_width,
         m_urls,
         m_unicode_ranges,
         {},                // FIXME: ascent_override
@@ -516,11 +524,16 @@ WebIDL::ExceptionOr<void> FontFace::set_stretch(String const& string)
     if (m_css_font_face_rule)
         TRY(m_css_font_face_rule->descriptors()->set_font_width(string));
 
+    if (should_be_registered_with_font_computer()) {
+        if (auto font_computer = this->font_computer(); font_computer.has_value())
+            font_computer->unregister_font_face(*this);
+    }
+
     set_stretch_impl(property.release_nonnull());
 
     if (should_be_registered_with_font_computer()) {
         if (auto font_computer = this->font_computer(); font_computer.has_value())
-            font_computer->did_load_font(FlyString(m_family));
+            font_computer->register_font_face(*this);
     }
 
     return {};
@@ -529,6 +542,7 @@ WebIDL::ExceptionOr<void> FontFace::set_stretch(String const& string)
 void FontFace::set_stretch_impl(NonnullRefPtr<StyleValue const> const& value)
 {
     m_stretch = value->to_string(SerializationMode::Normal);
+    m_cached_width = compute_width(*value);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-unicoderange

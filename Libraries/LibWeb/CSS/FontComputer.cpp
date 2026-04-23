@@ -465,6 +465,7 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
             .family_name = family,
             .weight = { weight, weight },
             .slope = slope,
+            .width = static_cast<int>(font_width.value()),
         };
         if (auto it = m_font_faces.find(lookup_key); it != m_font_faces.end()) {
             auto shape_features = font_feature_data.to_shape_features(font_feature_values);
@@ -657,6 +658,7 @@ void FontComputer::register_font_face(GC::Ref<FontFace> face)
         .family_name = FlyString(face->family()),
         .weight = face->declared_weight_range(),
         .slope = face->declared_slope(),
+        .width = face->declared_width(),
     };
     auto& faces = m_font_faces.ensure(key);
     if (!faces.contains_slow(face))
@@ -672,6 +674,7 @@ void FontComputer::unregister_font_face(GC::Ref<FontFace> face)
         .family_name = FlyString(face->family()),
         .weight = face->declared_weight_range(),
         .slope = face->declared_slope(),
+        .width = face->declared_width(),
     };
     if (auto it = m_font_faces.find(key); it != m_font_faces.end()) {
         it->value.remove_all_matching([&](auto const& entry) { return entry == face; });
