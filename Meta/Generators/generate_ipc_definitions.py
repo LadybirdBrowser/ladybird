@@ -356,8 +356,6 @@ public:""")
 """)
 
     out.write(f"""
-    virtual ~{pascal_name}() override = default;
-
     static constexpr u32 ENDPOINT_MAGIC = {endpoint.magic};
 
     virtual u32 endpoint_magic() const override {{ return ENDPOINT_MAGIC; }}
