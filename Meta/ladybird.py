@@ -15,15 +15,15 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-sys.path.append(str(Path(__file__).resolve().parent.parent))
+sys.path.append(str(Path(__file__).resolve().parent))
 
-from Meta.build_vcpkg import build_vcpkg
-from Meta.find_compiler import pick_host_compiler
-from Meta.host_platform import GUIFramework
-from Meta.host_platform import HostArchitecture
-from Meta.host_platform import HostSystem
-from Meta.host_platform import Platform
-from Meta.utils import run_command
+from Utils.build_vcpkg import build_vcpkg
+from Utils.find_compiler import pick_host_compiler
+from Utils.host_platform import GUIFramework
+from Utils.host_platform import HostArchitecture
+from Utils.host_platform import HostSystem
+from Utils.host_platform import Platform
+from Utils.utils import run_command
 
 
 def main():

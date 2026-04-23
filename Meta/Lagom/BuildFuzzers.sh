@@ -25,7 +25,7 @@ fi
 # FIXME: Replace these CMake invocations with a CMake superbuild?
 echo "Building Lagom Tools..."
 
-. "../find_compiler.sh"
+. "../Utils/find_compiler.sh"
 pick_host_compiler --clang-only
 
 cmake -S ../.. -GNinja --preset=Distribution -B Build/tools \

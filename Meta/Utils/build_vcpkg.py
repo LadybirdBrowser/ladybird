@@ -10,11 +10,13 @@ import pathlib
 import subprocess
 import sys
 
-LADYBIRD_SOURCE_DIR = pathlib.Path(__file__).resolve().parent.parent
-sys.path.append(str(LADYBIRD_SOURCE_DIR))
+META_SOURCE_DIR = pathlib.Path(__file__).resolve().parent.parent
+LADYBIRD_SOURCE_DIR = META_SOURCE_DIR.parent
 
-from Meta.host_platform import HostSystem  # noqa: E402
-from Meta.host_platform import Platform  # noqa: E402
+sys.path.append(str(META_SOURCE_DIR))
+
+from Utils.host_platform import HostSystem  # noqa: E402
+from Utils.host_platform import Platform  # noqa: E402
 
 
 def build_vcpkg():

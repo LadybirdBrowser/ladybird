@@ -13,11 +13,11 @@ from pathlib import Path
 from typing import List
 from typing import Optional
 
-sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from Meta.host_platform import HostSystem
-from Meta.host_platform import Platform
-from Meta.utils import run_command
+from Utils.host_platform import HostSystem
+from Utils.host_platform import Platform
+from Utils.utils import run_command
 
 CLANG_FORMAT_MAJOR_VERSION = 21
 CLANG_FORMAT_EXECUTABLE = "clang-format"

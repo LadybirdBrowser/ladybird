@@ -5,7 +5,7 @@ set -e
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # shellcheck source=/dev/null
-. "${DIR}/shell_include.sh"
+. "${DIR}/Utils/shell_include.sh"
 
 ensure_ladybird_source_dir
 

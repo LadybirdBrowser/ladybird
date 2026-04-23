@@ -1,4 +1,4 @@
-# Keep the lists here in sync with Meta/host_platform.py
+# Keep the lists here in sync with Meta/Utils/host_platform.py
 if (ANDROID OR VCPKG_TARGET_ANDROID)
     set(_possible_guis "Android")
     set(_default_gui "Android")

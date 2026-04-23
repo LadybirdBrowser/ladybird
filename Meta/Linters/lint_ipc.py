@@ -13,9 +13,9 @@ from pathlib import Path
 from typing import Dict
 from typing import List
 
-sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from Meta.Generators.string_hash import string_hash
+from Utils.utils import string_hash
 
 ENDPOINT_PREFIX = "endpoint "
 

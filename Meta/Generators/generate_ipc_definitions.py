@@ -7,14 +7,18 @@
 
 
 import argparse
+import sys
 
 from dataclasses import dataclass
 from dataclasses import field
+from pathlib import Path
 from typing import List
 from typing import TextIO
 
-from lexer import Lexer
-from string_hash import string_hash
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
+from Utils.lexer import Lexer
+from Utils.utils import string_hash
 
 PRIMITIVE_TYPES = {
     "i8",

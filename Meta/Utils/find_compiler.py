@@ -14,9 +14,9 @@ from typing import Optional
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from Meta.host_platform import HostSystem
-from Meta.host_platform import Platform
-from Meta.utils import run_command
+from Utils.host_platform import HostSystem
+from Utils.host_platform import Platform
+from Utils.utils import run_command
 
 CLANG_MINIMUM_VERSION = 19
 GCC_MINIMUM_VERSION = 14

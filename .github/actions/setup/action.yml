@@ -223,7 +223,7 @@ runs:
     - name: 'Install vcpkg'
       if: ${{ inputs.type == 'build' }}
       shell: bash
-      run: ./Meta/build_vcpkg.py
+      run: ./Meta/Utils/build_vcpkg.py
 
     - name: 'Export installed versions'
       id: 'export-versions'
