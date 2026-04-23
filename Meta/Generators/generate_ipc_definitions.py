@@ -414,7 +414,7 @@ public:""")
             out.write(f"\n    {parameter.type} {parameter.name}() const {{ return m_{parameter.name}; }}\n")
         else:
             out.write(f"""
-    const {parameter.type}& {parameter.name}() const {{ return m_{parameter.name}; }}
+    {parameter.type} const& {parameter.name}() const {{ return m_{parameter.name}; }}
     {parameter.type} take_{parameter.name}() {{ return move(m_{parameter.name}); }}
 """)
 
@@ -625,7 +625,7 @@ public:
         pascal_name = pascal_case(message.name)
         out.write(f"""
         case (int)Messages::{endpoint.name}::MessageID::{pascal_name}:
-            return handle_{pascal_name}(*message);""")
+            return handle_{message.name}(*message);""")
 
     out.write(f"""
         default:
@@ -647,7 +647,7 @@ public:
         arguments = ", ".join(arg_parts)
 
         out.write(
-            f"\n    NEVER_INLINE ErrorOr<OwnPtr<IPC::MessageBuffer>> handle_{pascal_name}(IPC::Message& message)\n    {{\n"
+            f"\n    NEVER_INLINE ErrorOr<OwnPtr<IPC::MessageBuffer>> handle_{message.name}(IPC::Message& message)\n    {{\n"
         )
 
         if not message.is_synchronous:
