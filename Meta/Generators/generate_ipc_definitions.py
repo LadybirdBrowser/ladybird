@@ -299,12 +299,15 @@ def parse(contents: str) -> List[Endpoint]:
 
 def constructor_for_message(name: str, parameters: List[Parameter]) -> str:
     if not parameters:
-        return f"{name}() {{}}"
+        return f"{name}() = default;"
 
     params = ", ".join(f"{p.type} {p.name}" for p in parameters)
-    initializers = ", ".join(f"m_{p.name}(move({p.name}))" for p in parameters)
+    initializers = "\n        , ".join(f"m_{p.name}(move({p.name}))" for p in parameters)
 
-    return f"{name}({params}) : {initializers} {{}}"
+    return f"""{name}({params})
+        : {initializers}
+    {{
+    }}"""
 
 
 def write_message_ids_enum(out: TextIO, endpoint: Endpoint) -> None:
@@ -339,10 +342,11 @@ public:""")
         out.write(f"\n    typedef class {response_type} ResponseType;\n")
 
     out.write(f"""
+    {constructor_for_message(pascal_name, parameters)}
+
     {pascal_name}({pascal_name} const&) = default;
     {pascal_name}({pascal_name}&&) = default;
     {pascal_name}& operator=({pascal_name} const&) = default;
-    {constructor_for_message(pascal_name, parameters)}
 """)
 
     if len(parameters) == 1:
