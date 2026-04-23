@@ -1,9 +1,3 @@
-#import <DOM/AbortSignal.idl>
-#import <Streams/QueuingStrategy.idl>
-#import <Streams/ReadableStreamBYOBReader.idl>
-#import <Streams/ReadableStreamDefaultReader.idl>
-#import <Streams/WritableStream.idl>
-
 dictionary ReadableWritablePair {
     required ReadableStream readable;
     required WritableStream writable;

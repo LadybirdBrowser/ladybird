@@ -1,9 +1,3 @@
-#import <SVG/SVGAnimatedEnumeration.idl>
-#import <SVG/SVGAnimatedInteger.idl>
-#import <SVG/SVGAnimatedNumber.idl>
-#import <SVG/SVGAnimatedString.idl>
-#import <SVG/SVGFilterPrimitiveStandardAttributes.idl>
-
 // https://drafts.csswg.org/filter-effects/#svgfeturbulenceelement
 [Exposed=Window]
 interface SVGFETurbulenceElement : SVGElement {

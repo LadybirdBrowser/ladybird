@@ -1,7 +1,3 @@
-#import <DOM/Element.idl>
-#import <Geometry/DOMRect.idl>
-#import <HighResolutionTime/DOMHighResTimeStamp.idl>
-
 // https://w3c.github.io/IntersectionObserver/#intersectionobserverentry
 [Exposed=Window]
 interface IntersectionObserverEntry {

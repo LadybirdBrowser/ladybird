@@ -1,5 +1,3 @@
-#import <CSS/CSSConditionRule.idl>
-
 // https://drafts.csswg.org/css-conditional-5/#dictdef-csscontainercondition
 dictionary CSSContainerCondition {
     required CSSOMString name;

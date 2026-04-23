@@ -1,5 +1,3 @@
-#import <PerformanceTimeline/PerformanceObserverEntryList.idl>
-
 // https://w3c.github.io/performance-timeline/#dom-performanceobservercallbackoptions
 dictionary PerformanceObserverCallbackOptions {
     unsigned long long droppedEntriesCount;

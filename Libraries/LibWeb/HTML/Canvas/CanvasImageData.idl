@@ -1,5 +1,3 @@
-#import <HTML/ImageData.idl>
-
 // https://html.spec.whatwg.org/multipage/canvas.html#canvasimagedata
 interface mixin CanvasImageData {
     ImageData createImageData([EnforceRange] long sw, [EnforceRange] long sh, optional ImageDataSettings settings = {});

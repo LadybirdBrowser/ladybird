@@ -1,5 +1,3 @@
-#import <HTML/TextMetrics.idl>
-
 // https://html.spec.whatwg.org/multipage/canvas.html#canvastext
 interface mixin CanvasText {
     undefined fillText(Utf16DOMString text, unrestricted double x, unrestricted double y, optional unrestricted double maxWidth);

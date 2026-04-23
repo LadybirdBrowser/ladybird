@@ -1,6 +1,3 @@
-#import <DOM/EventHandler.idl>
-#import <WebAudio/AudioNode.idl>
-
 // https://webaudio.github.io/web-audio-api/#AudioScheduledSourceNode
 [Exposed=Window]
 interface AudioScheduledSourceNode : AudioNode {

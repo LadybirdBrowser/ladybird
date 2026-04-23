@@ -1,6 +1,3 @@
-#import <DOM/Document.idl>
-#import <DOM/XMLDocument.idl>
-
 // https://dom.spec.whatwg.org/#domimplementation
 [Exposed=Window]
 interface DOMImplementation {

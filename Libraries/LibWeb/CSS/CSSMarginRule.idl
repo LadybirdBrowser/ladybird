@@ -1,6 +1,3 @@
-#import <CSS/CSSRule.idl>
-#import <CSS/CSSStyleProperties.idl>
-
 // https://drafts.csswg.org/cssom/#cssmarginrule
 [Exposed=Window]
 interface CSSMarginRule : CSSRule {

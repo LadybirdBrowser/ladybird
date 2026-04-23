@@ -1,5 +1,3 @@
-#import <TrustedTypes/TrustedTypePolicy.idl>
-
 // https://w3c.github.io/trusted-types/dist/spec/#trustedtypepolicyfactory
 [Exposed=(Window,Worker)]
 interface TrustedTypePolicyFactory {

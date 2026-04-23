@@ -1,6 +1,3 @@
-#import <CSS/FontFace.idl>
-#import <DOM/EventTarget.idl>
-
 enum FontFaceSetLoadStatus { "loading", "loaded" };
 
 // https://drafts.csswg.org/css-font-loading/#fontfaceset

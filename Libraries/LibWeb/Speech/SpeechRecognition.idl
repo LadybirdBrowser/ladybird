@@ -1,7 +1,3 @@
-#import <DOM/EventHandler.idl>
-#import <DOM/EventTarget.idl>
-#import <Speech/SpeechGrammarList.idl>
-
 // https://wicg.github.io/speech-api/#speechrecognition
 [Exposed=Window]
 interface SpeechRecognition : EventTarget {

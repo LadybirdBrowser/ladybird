@@ -1,6 +1,3 @@
-#import <CSS/CSSStyleDeclaration.idl>
-#import <CSS/GeneratedCSSStyleProperties.idl>
-
 // https://drafts.csswg.org/cssom/#cssstyleproperties
 [Exposed=Window]
 interface CSSStyleProperties : CSSStyleDeclaration {

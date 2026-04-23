@@ -1,9 +1,3 @@
-#import <HTML/HTMLElement.idl>
-#import <HTML/HTMLTableCaptionElement.idl>
-#import <HTML/HTMLTableRowElement.idl>
-#import <HTML/HTMLTableSectionElement.idl>
-#import <DOM/HTMLCollection.idl>
-
 // https://html.spec.whatwg.org/multipage/tables.html#htmltableelement
 [Exposed=Window]
 interface HTMLTableElement : HTMLElement {

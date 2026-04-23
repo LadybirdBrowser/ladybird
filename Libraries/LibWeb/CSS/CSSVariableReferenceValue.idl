@@ -1,5 +1,3 @@
-#import <CSS/CSSUnparsedValue.idl>
-
 // https://drafts.css-houdini.org/css-typed-om-1/#cssvariablereferencevalue
 [Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
 interface CSSVariableReferenceValue {

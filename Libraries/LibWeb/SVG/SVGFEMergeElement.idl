@@ -1,6 +1,3 @@
-#import <SVG/SVGElement.idl>
-#import <SVG/SVGFilterPrimitiveStandardAttributes.idl>
-
 // https://drafts.csswg.org/filter-effects-1/#InterfaceSVGFEMergeElement
 [Exposed=Window]
 interface SVGFEMergeElement : SVGElement {

@@ -1,7 +1,3 @@
-#import <DOM/HTMLCollection.idl>
-#import <HTML/HTMLElement.idl>
-#import <HTML/HTMLTableRowElement.idl>
-
 // https://html.spec.whatwg.org/multipage/tables.html#htmltablesectionelement
 [Exposed=Window]
 interface HTMLTableSectionElement : HTMLElement {

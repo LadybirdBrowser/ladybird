@@ -1,5 +1,3 @@
-#import <Crypto/CryptoKey.idl>
-
 typedef (object or DOMString) AlgorithmIdentifier;
 
 dictionary Algorithm {

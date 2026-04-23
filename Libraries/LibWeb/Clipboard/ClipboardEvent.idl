@@ -1,6 +1,3 @@
-#import <DOM/Event.idl>
-#import <HTML/DataTransfer.idl>
-
 dictionary ClipboardEventInit : EventInit {
     DataTransfer? clipboardData = null;
 };

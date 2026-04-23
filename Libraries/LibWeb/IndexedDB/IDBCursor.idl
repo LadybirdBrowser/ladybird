@@ -1,5 +1,3 @@
-#import <IndexedDB/IDBRequest.idl>
-
 [Exposed=(Window,Worker)]
 interface IDBCursor {
     [ImplementedAs=source_handle] readonly attribute (IDBObjectStore or IDBIndex) source;

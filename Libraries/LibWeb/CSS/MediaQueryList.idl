@@ -1,7 +1,3 @@
-#import <DOM/EventTarget.idl>
-#import <DOM/EventHandler.idl>
-#import <DOM/EventListener.idl>
-
 // https://drafts.csswg.org/cssom-view/#the-mediaquerylist-interface
 [Exposed=Window]
 interface MediaQueryList : EventTarget {

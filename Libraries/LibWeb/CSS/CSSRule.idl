@@ -1,5 +1,3 @@
-#import <CSS/CSSStyleSheet.idl>
-
 // https://drafts.csswg.org/cssom/#the-cssrule-interface
 [Exposed=Window]
 interface CSSRule {

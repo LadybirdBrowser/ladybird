@@ -1,5 +1,3 @@
-#import <Geometry/DOMRect.idl>
-
 // https://svgwg.org/svg2-draft/types.html#InterfaceSVGAnimatedRect
 [Exposed=Window]
 interface SVGAnimatedRect {

@@ -1,16 +1,3 @@
-#import <DOM/EventTarget.idl>
-#import <DOM/EventHandler.idl>
-#import <WebAudio/AudioBuffer.idl>
-#import <WebAudio/AudioBufferSourceNode.idl>
-#import <WebAudio/AudioDestinationNode.idl>
-#import <WebAudio/AudioListener.idl>
-#import <WebAudio/ChannelMergerNode.idl>
-#import <WebAudio/DynamicsCompressorNode.idl>
-#import <WebAudio/GainNode.idl>
-#import <WebAudio/OscillatorNode.idl>
-#import <WebAudio/PannerNode.idl>
-#import <WebIDL/DOMException.idl>
-
 // https://webaudio.github.io/web-audio-api/#enumdef-audiocontextstate
 enum AudioContextState { "suspended", "running", "closed" };
 

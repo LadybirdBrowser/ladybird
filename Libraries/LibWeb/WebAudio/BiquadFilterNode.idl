@@ -1,7 +1,3 @@
-#import <WebAudio/AudioParam.idl>
-#import <WebAudio/AudioNode.idl>
-#import <WebAudio/BaseAudioContext.idl>
-
 enum BiquadFilterType {
     "lowpass",
     "highpass",

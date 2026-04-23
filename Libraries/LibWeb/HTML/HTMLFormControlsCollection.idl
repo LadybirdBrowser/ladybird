@@ -1,6 +1,3 @@
-#import <DOM/HTMLCollection.idl>
-#import <HTML/RadioNodeList.idl>
-
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#htmlformcontrolscollection
 [Exposed=Window]
 interface HTMLFormControlsCollection : HTMLCollection {

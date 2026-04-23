@@ -1,6 +1,3 @@
-#import <Clipboard/ClipboardItem.idl>
-#import <DOM/EventTarget.idl>
-
 typedef sequence<ClipboardItem> ClipboardItems;
 
 // https://w3c.github.io/clipboard-apis/#clipboard

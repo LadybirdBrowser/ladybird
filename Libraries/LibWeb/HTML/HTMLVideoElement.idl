@@ -1,5 +1,3 @@
-#import <HTML/HTMLMediaElement.idl>
-
 // https://html.spec.whatwg.org/multipage/media.html#htmlvideoelement
 [Exposed=Window]
 interface HTMLVideoElement : HTMLMediaElement {

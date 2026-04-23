@@ -1,6 +1,3 @@
-#import <DOM/Event.idl>
-#import <Speech/SpeechRecognitionResultList.idl>
-
 // https://wicg.github.io/speech-api/#speechrecognitionevent
 [Exposed=Window]
 interface SpeechRecognitionEvent : Event {

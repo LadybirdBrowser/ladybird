@@ -1,6 +1,3 @@
-#import <DOM/EventHandler.idl>
-#import <Serial/SerialPort.idl>
-
 // https://wicg.github.io/serial/#serial-interface
 [Exposed=(DedicatedWorker, Window), SecureContext]
 interface Serial : EventTarget {

@@ -1,6 +1,3 @@
-#import <DOM/Event.idl>
-#import <XHR/FormData.idl>
-
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#the-formdataevent-interface
 [Exposed=Window]
 interface FormDataEvent : Event {

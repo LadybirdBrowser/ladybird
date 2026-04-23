@@ -1,5 +1,3 @@
-#import <DOM/Event.idl>
-
 [Exposed=(Window,Worker)]
 interface IDBVersionChangeEvent : Event {
     constructor(DOMString type, optional IDBVersionChangeEventInit eventInitDict = {});

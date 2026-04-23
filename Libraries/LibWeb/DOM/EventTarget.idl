@@ -1,6 +1,3 @@
-#import <DOM/AbortSignal.idl>
-#import <DOM/EventListener.idl>
-
 // https://dom.spec.whatwg.org/#eventtarget
 [Exposed=*]
 interface EventTarget {

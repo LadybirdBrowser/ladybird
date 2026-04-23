@@ -1,8 +1,3 @@
-#import <HTML/HTMLElement.idl>
-#import <HTML/Scripting/Fetching.idl>
-#import <DOM/Document.idl>
-#import <TrustedTypes/TrustedHTML.idl>
-
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#htmliframeelement
 [Exposed=Window]
 interface HTMLIFrameElement : HTMLElement {

@@ -1,5 +1,3 @@
-#import <DOM/Element.idl>
-
 // https://drafts.csswg.org/scroll-animations-1/#scrolltimeline
 [Exposed=Window]
 interface ScrollTimeline : AnimationTimeline {

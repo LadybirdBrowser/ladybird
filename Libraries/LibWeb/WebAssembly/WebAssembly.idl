@@ -1,7 +1,3 @@
-#import <WebAssembly/Instance.idl>
-#import <WebAssembly/Module.idl>
-#import <Fetch/Response.idl>
-
 dictionary WebAssemblyInstantiatedSource {
     required Module module;
     required Instance instance;

@@ -1,7 +1,3 @@
-#import <HTML/HTMLElement.idl>
-#import <HTML/HTMLFormElement.idl>
-#import <HTML/ValidityState.idl>
-
 // https://html.spec.whatwg.org/multipage/form-elements.html#htmltextareaelement
 [Exposed=Window]
 interface HTMLTextAreaElement : HTMLElement {

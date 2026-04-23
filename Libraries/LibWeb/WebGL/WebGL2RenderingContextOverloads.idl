@@ -1,7 +1,3 @@
-#import <WebGL/Types.idl>
-#import <WebGL/WebGLRenderingContextOverloads.idl>
-#import <WebGL/WebGLUniformLocation.idl>
-
 // https://registry.khronos.org/webgl/specs/latest/2.0/#3.7
 interface mixin WebGL2RenderingContextOverloads {
     // WebGL1:

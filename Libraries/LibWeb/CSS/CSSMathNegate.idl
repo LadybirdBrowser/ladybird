@@ -1,6 +1,3 @@
-#import <CSS/CSSMathValue.idl>
-#import <CSS/CSSNumericValue.idl>
-
 // https://drafts.css-houdini.org/css-typed-om-1/#cssmathnegate
 [Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
 interface CSSMathNegate : CSSMathValue {

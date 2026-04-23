@@ -1,8 +1,3 @@
-#import <DOM/Element.idl>
-#import <DOM/Node.idl>
-#import <DOM/Text.idl>
-#import <HTML/HTMLElement.idl>
-
 // https://html.spec.whatwg.org/multipage/scripting.html#htmlslotelement
 [Exposed=Window]
 interface HTMLSlotElement : HTMLElement {

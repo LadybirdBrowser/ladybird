@@ -1,6 +1,3 @@
-#import <CSS/CSSStyleProperties.idl>
-#import <CSS/StylePropertyMap.idl>
-
 // https://w3c.github.io/csswg-drafts/cssom/#elementcssinlinestyle
 interface mixin ElementCSSInlineStyle {
     [SameObject, PutForwards=cssText, ImplementedAs=style_for_bindings] readonly attribute CSSStyleProperties style;

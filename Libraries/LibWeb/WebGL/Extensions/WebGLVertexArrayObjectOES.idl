@@ -1,5 +1,3 @@
-#import <WebGL/WebGLObject.idl>
-
 // https://registry.khronos.org/webgl/extensions/OES_vertex_array_object/
 [Exposed=(Window,Worker), LegacyNoInterfaceObject]
 interface WebGLVertexArrayObjectOES : WebGLObject {

@@ -1,6 +1,3 @@
-#import <DOM/Event.idl>
-#import <WebXR/XRSession.idl>
-
 // https://immersive-web.github.io/webxr/#xrsessionevent-interface
 [Experimental, SecureContext, Exposed=Window]
 interface XRSessionEvent : Event {

@@ -1,7 +1,3 @@
-#import <WebAudio/AudioNode.idl>
-#import <WebAudio/AudioParam.idl>
-#import <WebAudio/BaseAudioContext.idl>
-
 // https://webaudio.github.io/web-audio-api/#DynamicsCompressorOptions
 dictionary DynamicsCompressorOptions : AudioNodeOptions {
     float attack = 0.003;

@@ -1,5 +1,3 @@
-#import <EncryptedMediaExtensions/MediaKeySystemAccess.idl>
-
 // https://w3c.github.io/media-capabilities/#mediaconfiguration
 dictionary MediaConfiguration {
     VideoConfiguration video;

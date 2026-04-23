@@ -1,7 +1,3 @@
-#import <Fetch/Request.idl>
-#import <HTML/HTMLElement.idl>
-#import <HTML/HTMLHyperlinkElementUtils.idl>
-
 // https://html.spec.whatwg.org/multipage/image-maps.html#htmlareaelement
 [Exposed=Window]
 interface HTMLAreaElement : HTMLElement {

@@ -1,5 +1,3 @@
-#import <DOM/Event.idl>
-
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#popstateevent
 [Exposed=Window]
 interface PopStateEvent : Event {

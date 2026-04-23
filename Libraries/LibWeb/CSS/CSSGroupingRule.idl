@@ -1,6 +1,3 @@
-#import <CSS/CSSRule.idl>
-#import <CSS/CSSRuleList.idl>
-
 // https://drafts.csswg.org/cssom/#the-cssgroupingrule-interface
 [Exposed=Window]
 interface CSSGroupingRule : CSSRule {

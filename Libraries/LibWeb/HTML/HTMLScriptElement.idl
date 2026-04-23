@@ -1,7 +1,3 @@
-#import <Fetch/Request.idl>
-#import <HTML/HTMLElement.idl>
-#import <HTML/Scripting/Fetching.idl>
-
 // https://html.spec.whatwg.org/multipage/scripting.html#htmlscriptelement
 [Exposed=Window]
 interface HTMLScriptElement : HTMLElement {

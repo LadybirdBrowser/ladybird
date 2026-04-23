@@ -1,6 +1,3 @@
-#import <SVG/SVGAnimatedLength.idl>
-#import <SVG/SVGGeometryElement.idl>
-
 // https://svgwg.org/svg2-draft/single-page.html#shapes-InterfaceSVGEllipseElement
 [Exposed=Window]
 interface SVGEllipseElement : SVGGeometryElement {

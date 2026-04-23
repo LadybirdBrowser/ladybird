@@ -1,7 +1,3 @@
-#import <HTML/Scripting/Fetching.idl>
-#import <SVG/SVGElement.idl>
-#import <SVG/SVGURIReference.idl>
-
 // https://w3c.github.io/svgwg/svg2-draft/interact.html#InterfaceSVGScriptElement
 [Exposed=Window]
 interface SVGScriptElement : SVGElement {

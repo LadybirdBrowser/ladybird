@@ -1,6 +1,3 @@
-#import <FileAPI/File.idl>
-#import <HTML/DataTransferItem.idl>
-
 // https://html.spec.whatwg.org/multipage/dnd.html#datatransferitemlist
 [Exposed=Window]
 interface DataTransferItemList {

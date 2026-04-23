@@ -1,5 +1,3 @@
-#import <Geometry/DOMPointReadOnly.idl>
-
 // https://drafts.fxtf.org/geometry/#dompoint
 [Exposed=(Window,Worker), Serializable, LegacyWindowAlias=SVGPoint]
 interface DOMPoint : DOMPointReadOnly {

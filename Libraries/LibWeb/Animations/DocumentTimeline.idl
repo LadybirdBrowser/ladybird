@@ -1,6 +1,3 @@
-#import <Animations/AnimationTimeline.idl>
-#import <HighResolutionTime/DOMHighResTimeStamp.idl>
-
 // https://drafts.csswg.org/web-animations-1/#dictdef-documenttimelineoptions
 dictionary DocumentTimelineOptions {
     DOMHighResTimeStamp originTime = 0;

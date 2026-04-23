@@ -1,9 +1,3 @@
-#import <HTML/HTMLMediaElement.idl>
-#import <WebAudio/AudioContext.idl>
-#import <WebAudio/AudioNode.idl>
-#import <WebAudio/AudioParam.idl>
-#import <WebAudio/AudioParam.idl>
-
 // https://webaudio.github.io/web-audio-api/#MediaElementAudioSourceOptions
 dictionary MediaElementAudioSourceOptions {
     required HTMLMediaElement mediaElement;

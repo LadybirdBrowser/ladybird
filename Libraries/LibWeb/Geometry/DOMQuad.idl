@@ -1,7 +1,3 @@
-#import <Geometry/DOMPoint.idl>
-#import <Geometry/DOMRect.idl>
-#import <Geometry/DOMRectReadOnly.idl>
-
 // https://drafts.fxtf.org/geometry/#domquad
 [Exposed=(Window,Worker), Serializable]
 interface DOMQuad {

@@ -1,25 +1,3 @@
-#import <Clipboard/Clipboard.idl>
-#import <CredentialManagement/CredentialsContainer.idl>
-#import <EncryptedMediaExtensions/MediaKeySystemAccess.idl>
-#import <Gamepad/Gamepad.idl>
-#import <Geolocation/Geolocation.idl>
-#import <GPC/GlobalPrivacyControl.idl>
-#import <HTML/MimeTypeArray.idl>
-#import <HTML/NavigatorBeacon.idl>
-#import <HTML/NavigatorConcurrentHardware.idl>
-#import <HTML/NavigatorDeviceMemory.idl>
-#import <HTML/NavigatorID.idl>
-#import <HTML/NavigatorLanguage.idl>
-#import <HTML/NavigatorOnLine.idl>
-#import <HTML/PluginArray.idl>
-#import <HTML/UserActivation.idl>
-#import <MediaCapabilitiesAPI/MediaCapabilities.idl>
-#import <MediaCapture/MediaDevices.idl>
-#import <Serial/Serial.idl>
-#import <ServiceWorker/ServiceWorkerContainer.idl>
-#import <StorageAPI/NavigatorStorage.idl>
-#import <WebXR/XRSystem.idl>
-
 // https://html.spec.whatwg.org/multipage/system-state.html#navigator
 [Exposed=Window]
 interface Navigator {

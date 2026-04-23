@@ -1,6 +1,3 @@
-#import <DOM/EventTarget.idl>
-#import <HighResolutionTime/DOMHighResTimeStamp.idl>
-
 // https://dom.spec.whatwg.org/#event
 [Exposed=*]
 interface Event {

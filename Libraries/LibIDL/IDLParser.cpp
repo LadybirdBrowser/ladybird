@@ -187,57 +187,6 @@ HashMap<ByteString, ByteString> Parser::parse_extended_attributes()
     return extended_attributes;
 }
 
-static HashTable<ByteString> import_stack;
-Module& Parser::resolve_import(auto path)
-{
-    ByteString include_path;
-    for (auto import_base_path : import_base_paths) {
-        auto maybe_include_path = LexicalPath::join(import_base_path, path).string();
-        if (!FileSystem::exists(maybe_include_path))
-            continue;
-
-        include_path = maybe_include_path;
-        break;
-    }
-
-    if (include_path.is_empty()) {
-        StringBuilder error_message;
-        error_message.appendff("Failed to find {} in the following directories:\n", path);
-        error_message.join('\n', import_base_paths);
-        report_parsing_error(error_message.to_byte_string(), filename, input, lexer.tell());
-    }
-
-    auto real_path_error_or = FileSystem::real_path(include_path);
-    if (real_path_error_or.is_error())
-        report_parsing_error(ByteString::formatted("Failed to resolve path {}: {}", include_path, real_path_error_or.error()), filename, input, lexer.tell());
-    auto real_path = real_path_error_or.release_value();
-
-    if (top_level_resolved_modules().contains(real_path))
-        return *top_level_resolved_modules().find(real_path)->value;
-
-    if (auto* module = context.find_parsed_module(real_path)) {
-        top_level_resolved_modules().set(real_path, module);
-        return *module;
-    }
-
-    if (import_stack.contains(real_path))
-        report_parsing_error(ByteString::formatted("Circular import detected: {}", include_path), filename, input, lexer.tell());
-    import_stack.set(real_path);
-
-    auto file_or_error = Core::File::open(real_path, Core::File::OpenMode::Read);
-    if (file_or_error.is_error())
-        report_parsing_error(ByteString::formatted("Failed to open {}: {}", real_path, file_or_error.error()), filename, input, lexer.tell());
-
-    auto data_or_error = file_or_error.value()->read_until_eof();
-    if (data_or_error.is_error())
-        report_parsing_error(ByteString::formatted("Failed to read {}: {}", real_path, data_or_error.error()), filename, input, lexer.tell());
-    auto& result = Parser(this, real_path, data_or_error.value(), import_base_paths, context).parse();
-    import_stack.remove(real_path);
-
-    top_level_resolved_modules().set(real_path, &result);
-    return result;
-}
-
 NonnullRefPtr<Type const> Parser::parse_type()
 {
     if (lexer.consume_specific('(')) {
@@ -1415,12 +1364,10 @@ static void validate_overload_sets(Interface& interface, StringView filename, St
     }
 }
 
-Module Parser::parse(ByteString filename, StringView contents, Vector<ByteString> import_base_paths, Context& context)
+Module Parser::parse(ByteString filename, StringView contents, Context& context)
 {
-    Parser parser(move(filename), contents, move(import_base_paths), context);
-    auto& module = parser.parse();
-    module.imported_files = parser.imported_files();
-    return module;
+    Parser parser(move(filename), contents, context);
+    return parser.parse();
 }
 
 Module& Parser::parse()
@@ -1443,18 +1390,6 @@ Module& Parser::parse()
     auto interface_ptr = make<Interface>(context);
     auto& interface = *interface_ptr;
     interface.module_own_path = this_module;
-    top_level_resolved_modules().set(this_module, &module);
-
-    {
-        while (lexer.consume_specific("#import"sv)) {
-            consume_whitespace();
-            assert_specific('<');
-            auto path = lexer.consume_until('>');
-            lexer.ignore();
-            resolve_import(path);
-            consume_whitespace();
-        }
-    }
 
     parse_non_interface_entities(true, interface);
 
@@ -1465,50 +1400,18 @@ Module& Parser::parse()
 
     parse_non_interface_entities(false, interface);
 
-    if (top_level_parser() == this)
-        VERIFY(import_stack.is_empty());
-
     if (!interface.name.is_empty())
         module.interface = interface.context.add_interface(move(interface_ptr));
 
     return module;
 }
 
-Parser::Parser(ByteString filename, StringView contents, Vector<ByteString> import_base_paths, Context& context)
-    : import_base_paths(move(import_base_paths))
-    , filename(move(filename))
+Parser::Parser(ByteString filename, StringView contents, Context& context)
+    : filename(move(filename))
     , input(contents)
     , lexer(input)
     , context(context)
 {
-}
-
-Parser::Parser(Parser* parent, ByteString filename, StringView contents, Vector<ByteString> import_base_paths, Context& context)
-    : import_base_paths(move(import_base_paths))
-    , filename(move(filename))
-    , input(contents)
-    , lexer(input)
-    , context(context)
-    , parent(parent)
-{
-}
-
-Parser* Parser::top_level_parser()
-{
-    Parser* current = this;
-    for (Parser* next = this; next; next = next->parent)
-        current = next;
-    return current;
-}
-
-HashMap<ByteString, Module*>& Parser::top_level_resolved_modules()
-{
-    return top_level_parser()->resolved_modules;
-}
-
-Vector<ByteString> Parser::imported_files() const
-{
-    return const_cast<Parser*>(this)->top_level_resolved_modules().keys();
 }
 
 static void resolve_partials_and_mixins(Context& context)

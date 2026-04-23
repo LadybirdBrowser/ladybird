@@ -282,7 +282,7 @@ function (generate_js_bindings target)
         add_custom_command(
             OUTPUT  ${exposed_interface_sources}
             COMMAND "${CMAKE_COMMAND}" -E make_directory "tmp"
-            COMMAND $<TARGET_FILE:Lagom::GenerateWindowOrWorkerInterfaces> -o "${CMAKE_CURRENT_BINARY_DIR}/tmp" -b "${LIBWEB_INPUT_FOLDER}" -b "${CMAKE_CURRENT_BINARY_DIR}" ${LIBWEB_ALL_IDL_FILES_ARGUMENT}
+            COMMAND $<TARGET_FILE:Lagom::GenerateWindowOrWorkerInterfaces> -o "${CMAKE_CURRENT_BINARY_DIR}/tmp" ${LIBWEB_ALL_IDL_FILES_ARGUMENT}
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different tmp/IntrinsicDefinitions.h "Bindings/IntrinsicDefinitions.h"
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different tmp/IntrinsicDefinitions.cpp "Bindings/IntrinsicDefinitions.cpp"
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different tmp/DedicatedWorkerExposedInterfaces.h "Bindings/DedicatedWorkerExposedInterfaces.h"
@@ -332,7 +332,6 @@ function (generate_js_bindings target)
         OUTPUT ${LIBWEB_ALL_BINDINGS_SOURCES}
         COMMAND "${CMAKE_COMMAND}" -E make_directory "Bindings"
         COMMAND "$<TARGET_FILE:Lagom::BindingsGenerator>" -o "Bindings" --depfile "Bindings/all_bindings.d"
-                -b "${LIBWEB_INPUT_FOLDER}" -b "${CMAKE_CURRENT_BINARY_DIR}"
                 ${LIBWEB_ALL_PARSED_IDL_FILES_ARGUMENT}
         VERBATIM
         COMMENT "Generating LibWeb bindings"

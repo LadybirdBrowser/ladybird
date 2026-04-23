@@ -1,6 +1,3 @@
-#import <Animations/Animation.idl>
-#import <Animations/KeyframeEffect.idl>
-
 // https://drafts.csswg.org/web-animations-1/#the-animatable-interface-mixin
 interface mixin Animatable {
     Animation animate(object? keyframes, optional (unrestricted double or KeyframeAnimationOptions) options = {});

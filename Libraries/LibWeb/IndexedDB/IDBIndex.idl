@@ -1,5 +1,3 @@
-#import <IndexedDB/IDBCursor.idl>
-
 [Exposed=(Window,Worker)]
 interface IDBIndex {
     attribute DOMString name;

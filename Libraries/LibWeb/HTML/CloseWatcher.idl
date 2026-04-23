@@ -1,6 +1,3 @@
-#import <DOM/EventTarget.idl>
-#import <DOM/EventHandler.idl>
-
 // https://html.spec.whatwg.org/multipage/interaction.html#closewatcher
 [Exposed=Window]
 interface CloseWatcher : EventTarget {

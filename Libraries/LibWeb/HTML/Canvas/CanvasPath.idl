@@ -1,5 +1,3 @@
-#import <Geometry/DOMPointReadOnly.idl>
-
 // https://html.spec.whatwg.org/multipage/canvas.html#canvaspath
 interface mixin CanvasPath {
     undefined closePath();

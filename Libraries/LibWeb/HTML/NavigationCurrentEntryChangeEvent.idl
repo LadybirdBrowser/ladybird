@@ -1,7 +1,3 @@
-#import <DOM/Event.idl>
-#import <HTML/NavigationHistoryEntry.idl>
-#import <HTML/NavigationType.idl>
-
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#the-navigationcurrententrychangeevent-interface
 [Exposed=Window]
 interface NavigationCurrentEntryChangeEvent : Event {

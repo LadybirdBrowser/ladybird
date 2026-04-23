@@ -1,7 +1,3 @@
-#import <SVG/SVGAnimatedEnumeration.idl>
-#import <SVG/SVGAnimatedString.idl>
-#import <SVG/SVGFilterPrimitiveStandardAttributes.idl>
-
 // https://drafts.csswg.org/filter-effects-1/#InterfaceSVGFECompositeElement
 [Exposed=Window]
 interface SVGFECompositeElement : SVGElement {

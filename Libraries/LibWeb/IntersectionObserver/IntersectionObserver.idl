@@ -1,8 +1,3 @@
-#import <DOM/Document.idl>
-#import <DOM/Element.idl>
-#import <DOM/Node.idl>
-#import <IntersectionObserver/IntersectionObserverEntry.idl>
-
 // https://w3c.github.io/IntersectionObserver/#intersection-observer-callback
 callback IntersectionObserverCallback = undefined (sequence<IntersectionObserverEntry> entries, IntersectionObserver observer);
 

@@ -1,5 +1,3 @@
-#import <DOM/Element.idl>
-
 // https://drafts.csswg.org/resize-observer-1/#resize-observer-interface
 [Exposed=(Window)]
 interface ResizeObserver {

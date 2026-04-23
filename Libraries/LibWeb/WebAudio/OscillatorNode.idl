@@ -1,6 +1,3 @@
-#import <WebAudio/AudioScheduledSourceNode.idl>
-#import <WebAudio/PeriodicWave.idl>
-
 // https://webaudio.github.io/web-audio-api/#enumdef-oscillatortype
 enum OscillatorType {
     "sine",

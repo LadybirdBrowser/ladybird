@@ -1,9 +1,3 @@
-#import <DOM/EventTarget.idl>
-#import <HTML/AbstractWorker.idl>
-#import <HTML/MessagePort.idl>
-#import <HTML/Worker.idl>
-#import <TrustedTypes/TrustedScriptURL.idl>
-
 // https://html.spec.whatwg.org/multipage/workers.html#sharedworker
 [Exposed=Window]
 interface SharedWorker : EventTarget {

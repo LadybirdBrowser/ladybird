@@ -1,5 +1,3 @@
-#import <SVG/SVGElement.idl>
-
 // https://svgwg.org/specs/animations/#InterfaceSVGAnimationElement
 [Exposed=Window]
 interface SVGAnimationElement : SVGElement {

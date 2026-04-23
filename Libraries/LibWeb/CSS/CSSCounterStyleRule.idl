@@ -1,5 +1,3 @@
-#import <CSS/CSSRule.idl>
-
 // https://drafts.csswg.org/css-counter-styles/#the-csscounterstylerule-interface
 [Exposed=Window]
 interface CSSCounterStyleRule : CSSRule {

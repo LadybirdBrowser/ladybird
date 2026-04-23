@@ -1,6 +1,3 @@
-#import <HTML/HTMLElement.idl>
-#import <HTML/HTMLFormControlsCollection.idl>
-
 // https://html.spec.whatwg.org/multipage/forms.html#attr-form-autocomplete
 [MissingValueDefault=on, InvalidValueDefault=on]
 enum Autocomplete {

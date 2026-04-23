@@ -1,6 +1,3 @@
-#import <DOM/EventTarget.idl>
-#import <DOM/EventHandler.idl>
-
 // https://html.spec.whatwg.org/multipage/web-messaging.html#messageport
 [Exposed=(Window,Worker,AudioWorklet), Transferable]
 interface MessagePort : EventTarget {

@@ -1,5 +1,3 @@
-#import <WebGL/WebGLRenderingContext.idl>
-#import <WebGL/WebGL2RenderingContext.idl>
 // https://immersive-web.github.io/webxr/#xrwebgllayer-interface
 
 typedef (WebGLRenderingContext or

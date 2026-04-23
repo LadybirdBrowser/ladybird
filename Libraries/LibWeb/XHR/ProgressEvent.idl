@@ -1,5 +1,3 @@
-#import <DOM/Event.idl>
-
 // https://xhr.spec.whatwg.org/#interface-progressevent
 [Exposed=(Window,Worker)]
 interface ProgressEvent : Event {

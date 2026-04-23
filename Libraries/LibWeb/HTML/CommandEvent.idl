@@ -1,5 +1,3 @@
-#import <DOM/Event.idl>
-
 // https://html.spec.whatwg.org/multipage/interaction.html#commandevent
 [Exposed=Window]
 interface CommandEvent : Event {

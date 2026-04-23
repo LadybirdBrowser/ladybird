@@ -1,6 +1,3 @@
-#import <SVG/SVGAnimatedLength.idl>
-#import <SVG/SVGAnimatedString.idl>
-
 // https://drafts.csswg.org/filter-effects-1/#InterfaceSVGFilterPrimitiveStandardAttributes
 interface mixin SVGFilterPrimitiveStandardAttributes {
     [SameObject] readonly attribute SVGAnimatedLength x;

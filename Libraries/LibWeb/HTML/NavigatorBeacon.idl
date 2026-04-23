@@ -1,5 +1,3 @@
-#import <Fetch/BodyInit.idl>
-
 // https://w3c.github.io/beacon/#sendbeacon-method
 partial interface Navigator {
     boolean sendBeacon(USVString url, optional BodyInit? data = null);

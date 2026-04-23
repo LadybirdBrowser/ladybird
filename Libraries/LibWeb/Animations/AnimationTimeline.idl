@@ -1,5 +1,3 @@
-#import <CSS/CSSNumericValue.idl>
-
 // https://drafts.csswg.org/web-animations-2/#the-animationtimeline-interface
 [Exposed=Window]
 interface AnimationTimeline {

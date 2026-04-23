@@ -1,5 +1,3 @@
-#import <SVG/SVGLengthList.idl>
-
 // https://svgwg.org/svg2-draft/types.html#InterfaceSVGAnimatedLengthList
 [Exposed=Window]
 interface SVGAnimatedLengthList {

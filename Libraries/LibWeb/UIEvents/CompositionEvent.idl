@@ -1,5 +1,3 @@
-#import <UIEvents/UIEvent.idl>
-
 // https://w3c.github.io/uievents/#compositionevent
 [Exposed=Window]
 interface CompositionEvent : UIEvent {

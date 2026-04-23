@@ -1,6 +1,3 @@
-#import <HTML/HTMLElement.idl>
-#import <HTML/HTMLFormElement.idl>
-
 // https://html.spec.whatwg.org/multipage/semantics.html#htmlfieldsetelement
 [Exposed=Window]
 interface HTMLFieldSetElement : HTMLElement {

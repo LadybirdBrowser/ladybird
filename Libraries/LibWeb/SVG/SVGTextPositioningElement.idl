@@ -1,7 +1,3 @@
-#import <SVG/SVGAnimatedLengthList.idl>
-#import <SVG/SVGAnimatedNumberList.idl>
-#import <SVG/SVGTextContentElement.idl>
-
 // https://svgwg.org/svg2-draft/text.html#InterfaceSVGTextPositioningElement
 [Exposed=Window]
 interface SVGTextPositioningElement : SVGTextContentElement {

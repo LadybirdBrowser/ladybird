@@ -1,6 +1,3 @@
-#import <DOM/EventTarget.idl>
-#import <WebXR/XRRenderState.idl>
-
 [Experimental] enum XRVisibilityState {
     "visible",
     "visible-blurred",

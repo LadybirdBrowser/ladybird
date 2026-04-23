@@ -1,6 +1,3 @@
-#import <DOM/EventTarget.idl>
-#import <Speech/SpeechSynthesisVoice.idl>
-
 // https://wicg.github.io/speech-api/#speechsynthesisutterance
 [Exposed=Window]
 interface SpeechSynthesisUtterance : EventTarget {

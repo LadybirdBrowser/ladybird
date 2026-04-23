@@ -1,5 +1,3 @@
-#import <DOM/Event.idl>
-
 // https://websockets.spec.whatwg.org/#the-closeevent-interface
 [Exposed=*]
 interface CloseEvent : Event {

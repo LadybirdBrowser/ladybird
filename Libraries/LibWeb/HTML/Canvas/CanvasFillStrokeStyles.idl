@@ -1,8 +1,3 @@
-#import <HTML/CanvasGradient.idl>
-#import <HTML/CanvasPattern.idl>
-#import <HTML/HTMLCanvasElement.idl>
-#import <HTML/HTMLImageElement.idl>
-
 // https://html.spec.whatwg.org/multipage/canvas.html#canvasfillstrokestyles
 interface mixin CanvasFillStrokeStyles {
     attribute (DOMString or CanvasGradient or CanvasPattern) strokeStyle;

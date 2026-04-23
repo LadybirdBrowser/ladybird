@@ -1,6 +1,3 @@
-#import <SVG/SVGTextContentElement.idl>
-#import <SVG/SVGURIReference.idl>
-
 // https://svgwg.org/svg2-draft/text.html#InterfaceSVGTextPathElement
 [Exposed=Window]
 interface SVGTextPathElement : SVGTextContentElement {

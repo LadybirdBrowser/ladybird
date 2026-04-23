@@ -1,5 +1,3 @@
-#import <IndexedDB/IDBRequest.idl>
-
 // https://w3c.github.io/IndexedDB/#idbopendbrequest
 [Exposed=(Window,Worker)]
 interface IDBOpenDBRequest : IDBRequest {

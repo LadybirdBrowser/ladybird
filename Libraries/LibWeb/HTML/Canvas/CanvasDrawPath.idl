@@ -1,5 +1,3 @@
-#import <HTML/Path2D.idl>
-
 // https://html.spec.whatwg.org/multipage/canvas.html#canvasfillrule
 enum CanvasFillRule { "nonzero", "evenodd" };
 

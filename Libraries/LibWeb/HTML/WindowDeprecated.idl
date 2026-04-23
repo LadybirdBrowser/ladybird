@@ -1,5 +1,3 @@
-#import <HTML/External.idl>
-
 // https://html.spec.whatwg.org/multipage/obsolete.html#external
 partial interface Window {
     undefined captureEvents();

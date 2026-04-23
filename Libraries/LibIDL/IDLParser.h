@@ -16,7 +16,7 @@ namespace IDL {
 
 class Parser {
 public:
-    static Module parse(ByteString filename, StringView contents, Vector<ByteString> import_base_paths, Context& context);
+    static Module parse(ByteString filename, StringView contents, Context& context);
 
 private:
     // https://webidl.spec.whatwg.org/#dfn-special-operation
@@ -31,15 +31,12 @@ private:
         Yes,
     };
 
-    Parser(Parser* parent, ByteString filename, StringView contents, Vector<ByteString> import_base_path, Context&);
-    Parser(ByteString filename, StringView contents, Vector<ByteString> import_base_paths, Context& context);
+    Parser(ByteString filename, StringView contents, Context& context);
 
     Module& parse();
-    Vector<ByteString> imported_files() const;
     void assert_specific(char ch);
     void assert_string(StringView expected);
     void consume_whitespace();
-    Module& resolve_import(auto path);
 
     HashMap<ByteString, ByteString> parse_extended_attributes();
     void parse_attribute(HashMap<ByteString, ByteString>& extended_attributes, Interface&, IsStatic is_static = IsStatic::No);
@@ -73,16 +70,10 @@ private:
     ByteString parse_identifier_ending_with_space();
     ByteString parse_identifier_ending_with_space_or(auto... possible_terminating_characters);
 
-    Vector<ByteString> import_base_paths;
     ByteString filename;
     StringView input;
     LineTrackingLexer lexer;
     Context& context;
-
-    HashMap<ByteString, Module*>& top_level_resolved_modules();
-    HashMap<ByteString, Module*> resolved_modules;
-    Parser* top_level_parser();
-    Parser* parent = nullptr;
 };
 
 }

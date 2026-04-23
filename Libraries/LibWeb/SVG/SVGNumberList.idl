@@ -1,5 +1,3 @@
-#import <SVG/SVGNumber.idl>
-
 // https://w3c.github.io/svgwg/svg2-draft/types.html#InterfaceSVGNumberList
 [Exposed=Window]
 interface SVGNumberList {

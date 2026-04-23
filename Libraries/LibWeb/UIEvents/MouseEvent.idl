@@ -1,5 +1,3 @@
-#import <UIEvents/EventModifier.idl>
-
 // https://w3c.github.io/uievents/#mouseevent
 [Exposed=Window]
 interface MouseEvent : UIEvent {

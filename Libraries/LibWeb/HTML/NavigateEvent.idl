@@ -1,9 +1,3 @@
-#import <DOM/AbortSignal.idl>
-#import <DOM/Event.idl>
-#import <HTML/NavigationDestination.idl>
-#import <HTML/NavigationType.idl>
-#import <XHR/FormData.idl>
-
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#the-navigateevent-interface
 [Exposed=Window]
 interface NavigateEvent : Event {

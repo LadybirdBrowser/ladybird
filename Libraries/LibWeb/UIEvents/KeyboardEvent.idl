@@ -1,5 +1,3 @@
-#import <UIEvents/EventModifier.idl>
-
 // https://w3c.github.io/uievents/#idl-keyboardevent
 [Exposed=Window]
 interface KeyboardEvent : UIEvent {

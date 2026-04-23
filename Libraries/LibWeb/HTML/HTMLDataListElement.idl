@@ -1,5 +1,3 @@
-#import <HTML/HTMLElement.idl>
-
 // https://html.spec.whatwg.org/multipage/semantics.html#htmldatalistelement
 [Exposed=Window]
 interface HTMLDataListElement : HTMLElement {

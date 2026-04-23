@@ -1,8 +1,3 @@
-#import <CSS/CSSRule.idl>
-#import <CSS/CSSRuleList.idl>
-#import <CSS/MediaList.idl>
-#import <CSS/StyleSheet.idl>
-
 // https://drafts.csswg.org/cssom/#cssstylesheet
 [Exposed=Window]
 interface CSSStyleSheet : StyleSheet {

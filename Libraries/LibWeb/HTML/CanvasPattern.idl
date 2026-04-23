@@ -1,5 +1,3 @@
-#import <Geometry/DOMMatrix.idl>
-
 // https://html.spec.whatwg.org/multipage/canvas.html#canvaspattern
 [Exposed=(Window,Worker)]
 interface CanvasPattern {

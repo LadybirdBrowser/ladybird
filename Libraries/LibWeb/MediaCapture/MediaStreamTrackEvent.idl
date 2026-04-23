@@ -1,6 +1,3 @@
-#import <DOM/Event.idl>
-#import <MediaCapture/MediaStreamTrack.idl>
-
 // https://w3c.github.io/mediacapture-main/#dictdef-mediastreamtrackeventinit
 dictionary MediaStreamTrackEventInit : EventInit {
     required MediaStreamTrack track;

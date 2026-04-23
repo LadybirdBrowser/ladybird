@@ -1,6 +1,3 @@
-#import <Animations/AnimationEffect.idl>
-#import <DOM/Element.idl>
-
 // https://drafts.csswg.org/web-animations-1/#the-compositeoperation-enumeration
 enum CompositeOperation { "replace", "add", "accumulate" };
 

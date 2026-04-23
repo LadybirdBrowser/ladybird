@@ -1,16 +1,3 @@
-#import <HTML/HTMLCanvasElement.idl>
-#import <WebGL/Types.idl>
-#import <WebGL/WebGLActiveInfo.idl>
-#import <WebGL/WebGLBuffer.idl>
-#import <WebGL/WebGLFramebuffer.idl>
-#import <WebGL/WebGLObject.idl>
-#import <WebGL/WebGLProgram.idl>
-#import <WebGL/WebGLRenderbuffer.idl>
-#import <WebGL/WebGLShader.idl>
-#import <WebGL/WebGLShaderPrecisionFormat.idl>
-#import <WebGL/WebGLTexture.idl>
-#import <WebGL/WebGLUniformLocation.idl>
-
 dictionary WebGLContextAttributes {
     boolean alpha = true;
     boolean depth = true;

@@ -1,5 +1,3 @@
-#import <DOM/EventHandler.idl>
-
 // https://fullscreen.spec.whatwg.org/#ref-for-document
 partial interface Document {
     [LegacyLenientSetter] readonly attribute boolean fullscreenEnabled;

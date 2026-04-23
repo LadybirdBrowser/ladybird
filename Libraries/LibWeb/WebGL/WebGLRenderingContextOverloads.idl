@@ -1,5 +1,3 @@
-#import <WebGL/Types.idl>
-
 typedef (ImageBitmap or
          ImageData or
          HTMLImageElement or

@@ -1,6 +1,3 @@
-#import <DOM/Event.idl>
-#import <HTML/MessagePort.idl>
-
 // FIXME: typedef (WindowProxy or MessagePort or ServiceWorker) MessageEventSource;
 typedef (WindowProxy or MessagePort) MessageEventSource;
 

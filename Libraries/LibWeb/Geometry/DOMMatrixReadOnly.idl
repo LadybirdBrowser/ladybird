@@ -1,6 +1,3 @@
-#import <Geometry/DOMMatrix.idl>
-#import <Geometry/DOMPoint.idl>
-
 // https://drafts.fxtf.org/geometry/#dommatrixreadonly
 [Exposed=(Window,Worker), Serializable]
 interface DOMMatrixReadOnly {

@@ -354,7 +354,6 @@ public:
 struct Module {
     ByteString module_own_path;
     Optional<Interface&> interface;
-    Vector<ByteString> imported_files;
 };
 
 class UnionType : public Type {

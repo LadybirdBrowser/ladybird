@@ -1,5 +1,3 @@
-#import <HTML/HTMLElement.idl>
-
 // https://html.spec.whatwg.org/multipage/form-elements.html#htmllegendelement
 [Exposed=Window]
 interface HTMLLegendElement : HTMLElement {

@@ -1,6 +1,3 @@
-#import <CSS/CSSUnitValue.idl>
-#import <CSS/GeneratedCSSNumericFactoryMethods.idl>
-
 dictionary PropertyDefinition {
     required CSSOMString name;
     CSSOMString syntax = "*";

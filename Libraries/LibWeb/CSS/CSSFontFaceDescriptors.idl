@@ -1,5 +1,3 @@
-#import <CSS/CSSStyleDeclaration.idl>
-
 // https://drafts.csswg.org/css-fonts-4/#cssfontfacedescriptors
 [Exposed=Window]
 interface CSSFontFaceDescriptors : CSSStyleDeclaration {

@@ -1,5 +1,3 @@
-#import <HTML/HTMLElement.idl>
-
 // https://html.spec.whatwg.org/multipage/semantics.html#htmldetailselement
 [Exposed=Window]
 interface HTMLDetailsElement : HTMLElement {

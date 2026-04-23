@@ -1,7 +1,3 @@
-#import <DOM/HTMLCollection.idl>
-#import <HTML/HTMLOptionElement.idl>
-#import <HTML/HTMLOptGroupElement.idl>
-
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#htmloptionscollection
 [Exposed=Window]
 interface HTMLOptionsCollection : HTMLCollection {

@@ -1,13 +1,3 @@
-#import <GPC/GlobalPrivacyControl.idl>
-#import <HTML/NavigatorConcurrentHardware.idl>
-#import <HTML/NavigatorDeviceMemory.idl>
-#import <HTML/NavigatorID.idl>
-#import <HTML/NavigatorLanguage.idl>
-#import <HTML/NavigatorOnLine.idl>
-#import <MediaCapabilitiesAPI/MediaCapabilities.idl>
-#import <Serial/Serial.idl>
-#import <StorageAPI/NavigatorStorage.idl>
-
 // https://html.spec.whatwg.org/multipage/workers.html#workernavigator
 [Exposed=Worker]
 interface WorkerNavigator {

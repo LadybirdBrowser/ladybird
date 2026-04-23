@@ -1,7 +1,3 @@
-#import <CSS/AnimationEvent.idl>
-#import <DOM/Event.idl>
-#import <UIEvents/PointerEventHandlers.idl>
-
 [LegacyTreatNonObjectAsNull]
 callback EventHandlerNonNull = any (Event event);
 typedef EventHandlerNonNull? EventHandler;

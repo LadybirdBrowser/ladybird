@@ -1,5 +1,3 @@
-#import <StorageAPI/StorageManager.idl>
-
 // https://storage.spec.whatwg.org/#navigatorstorage
 [SecureContext]
 interface mixin NavigatorStorage {

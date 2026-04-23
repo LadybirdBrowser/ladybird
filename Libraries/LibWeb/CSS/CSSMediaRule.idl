@@ -1,6 +1,3 @@
-#import <CSS/CSSConditionRule.idl>
-#import <CSS/MediaList.idl>
-
 // https://drafts.csswg.org/css-conditional-3/#the-cssmediarule-interface
 [Exposed=Window]
 interface CSSMediaRule : CSSConditionRule {

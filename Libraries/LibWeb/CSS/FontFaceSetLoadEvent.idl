@@ -1,6 +1,3 @@
-#import <CSS/FontFace.idl>
-#import <DOM/Event.idl>
-
 // https://drafts.csswg.org/css-font-loading/#fontfacesetloadevent
 dictionary FontFaceSetLoadEventInit : EventInit {
     sequence<FontFace> fontfaces = [];

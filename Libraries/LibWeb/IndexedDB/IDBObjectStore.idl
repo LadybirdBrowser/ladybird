@@ -1,7 +1,3 @@
-#import <IndexedDB/IDBRequest.idl>
-#import <IndexedDB/IDBIndex.idl>
-#import <IndexedDB/IDBCursor.idl>
-
 [Exposed=(Window,Worker)]
 interface IDBObjectStore {
     attribute DOMString name;

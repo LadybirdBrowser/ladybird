@@ -1,5 +1,3 @@
-#import <Animations/AnimationTimeline.idl>
-
 [Exposed=Nobody]
 interface InternalAnimationTimeline : AnimationTimeline {
     undefined setTime(double? time);

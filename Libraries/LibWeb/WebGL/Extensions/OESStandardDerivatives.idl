@@ -1,5 +1,3 @@
-#import <WebGL/Types.idl>
-
 // https://registry.khronos.org/webgl/extensions/OES_standard_derivatives/
 // NOTE: Original OES_standard_derivatives name is changed to title case,
 //       so it matches corresponding C++ class name, and does not require

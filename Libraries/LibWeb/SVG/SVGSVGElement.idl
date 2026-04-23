@@ -1,7 +1,3 @@
-#import <SVG/SVGGraphicsElement.idl>
-#import <SVG/SVGFitToViewBox.idl>
-#import <Geometry/DOMRectReadOnly.idl>
-
 // https://svgwg.org/svg2-draft/struct.html#InterfaceSVGSVGElement
 [Exposed=Window]
 interface SVGSVGElement : SVGGraphicsElement {

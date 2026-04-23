@@ -1,5 +1,3 @@
-#import <CSS/CSSStyleValue.idl>
-
 // https://drafts.css-houdini.org/css-typed-om-1/#csskeywordvalue
 [Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
 interface CSSKeywordValue : CSSStyleValue {

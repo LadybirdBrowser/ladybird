@@ -1,6 +1,3 @@
-#import <WebIDL/Function.idl>
-#import <WebXR/XRSystem.idl>
-
 // https://github.com/immersive-web/webxr-test-api/blob/main/explainer.md
 dictionary FakeXRDeviceInit {
     // Deprecated - use `supportedModes` instead.

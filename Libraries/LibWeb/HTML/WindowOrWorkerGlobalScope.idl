@@ -1,14 +1,3 @@
-#import <Crypto/Crypto.idl>
-#import <Fetch/Request.idl>
-#import <Fetch/Response.idl>
-#import <HighResolutionTime/Performance.idl>
-#import <HTML/ImageBitmap.idl>
-#import <HTML/MessagePort.idl>
-#import <IndexedDB/IDBFactory.idl>
-#import <ServiceWorker/CacheStorage.idl>
-#import <TrustedTypes/TrustedTypePolicyFactory.idl>
-#import <WebIDL/Function.idl>
-
 // https://html.spec.whatwg.org/multipage/webappapis.html#timerhandler
 typedef (DOMString or Function) TimerHandler;
 

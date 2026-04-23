@@ -1,5 +1,3 @@
-#import <HTML/MimeType.idl>
-
 // https://html.spec.whatwg.org/multipage/infrastructure.html#plugin
 [Exposed=Window, LegacyUnenumerableNamedProperties]
 interface Plugin {

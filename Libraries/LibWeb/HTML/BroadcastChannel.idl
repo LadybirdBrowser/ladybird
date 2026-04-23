@@ -1,6 +1,3 @@
-#import <DOM/EventHandler.idl>
-#import <DOM/EventTarget.idl>
-
 // https://html.spec.whatwg.org/multipage/web-messaging.html#broadcastchannel
 [Exposed=(Window,Worker)]
 interface BroadcastChannel : EventTarget {

@@ -1,5 +1,3 @@
-#import <DOM/Event.idl>
-
 // https://html.spec.whatwg.org/multipage/webappapis.html#promiserejectionevent
 [Exposed=*]
 interface PromiseRejectionEvent : Event {

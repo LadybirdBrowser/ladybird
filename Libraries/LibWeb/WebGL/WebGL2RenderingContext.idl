@@ -1,8 +1,3 @@
-#import <HTML/HTMLCanvasElement.idl>
-#import <WebGL/WebGLRenderingContextBase.idl>
-#import <WebGL/WebGL2RenderingContextBase.idl>
-#import <WebGL/WebGL2RenderingContextOverloads.idl>
-
 // https://registry.khronos.org/webgl/specs/latest/2.0/#3.7
 [Exposed=(Window,Worker)]
 interface WebGL2RenderingContext {

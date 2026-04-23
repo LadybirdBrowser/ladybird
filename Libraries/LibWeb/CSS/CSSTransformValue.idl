@@ -1,7 +1,3 @@
-#import <CSS/CSSStyleValue.idl>
-#import <CSS/CSSTransformComponent.idl>
-#import <Geometry/DOMMatrix.idl>
-
 // https://drafts.css-houdini.org/css-typed-om-1/#csstransformvalue
 [Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
 interface CSSTransformValue : CSSStyleValue {

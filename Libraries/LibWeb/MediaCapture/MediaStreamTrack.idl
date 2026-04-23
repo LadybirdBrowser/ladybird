@@ -1,6 +1,3 @@
-#import <DOM/EventTarget.idl>
-#import <MediaCapture/MediaStreamConstraints.idl>
-
 // https://w3c.github.io/mediacapture-main/#mediastreamtrack
 
 enum MediaStreamTrackState { "live", "ended" };

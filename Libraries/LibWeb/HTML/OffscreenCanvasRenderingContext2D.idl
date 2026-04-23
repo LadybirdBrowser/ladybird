@@ -1,22 +1,3 @@
-#import <HTML/Canvas/CanvasCompositing.idl>
-#import <HTML/Canvas/OffscreenCanvasBase.idl>
-#import <HTML/CanvasRenderingContext2D.idl>
-#import <HTML/Canvas/CanvasDrawImage.idl>
-#import <HTML/Canvas/CanvasDrawPath.idl>
-#import <HTML/Canvas/CanvasFillStrokeStyles.idl>
-#import <HTML/Canvas/CanvasFilters.idl>
-#import <HTML/Canvas/CanvasImageData.idl>
-#import <HTML/Canvas/CanvasImageSmoothing.idl>
-#import <HTML/Canvas/CanvasPath.idl>
-#import <HTML/Canvas/CanvasPathDrawingStyles.idl>
-#import <HTML/Canvas/CanvasTextDrawingStyles.idl>
-#import <HTML/Canvas/CanvasRect.idl>
-#import <HTML/Canvas/CanvasShadowStyles.idl>
-#import <HTML/Canvas/CanvasState.idl>
-#import <HTML/Canvas/CanvasText.idl>
-#import <HTML/Canvas/CanvasTransform.idl>
-#import <HTML/Canvas/CanvasUserInterface.idl>
-
 // https://html.spec.whatwg.org/multipage/canvas.html#offscreencanvasrenderingcontext2d
 [Exposed=(Window,Worker), Experimental]
 interface OffscreenCanvasRenderingContext2D {

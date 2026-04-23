@@ -1,6 +1,3 @@
-#import <WebIDL/Function.idl>
-#import <Internals/FakeXRDevice.idl>
-
 // https://github.com/immersive-web/webxr-test-api/blob/main/explainer.md
 [Exposed=Nobody]
 partial interface XRSystem {

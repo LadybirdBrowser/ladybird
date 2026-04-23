@@ -1,8 +1,3 @@
-#import <DOM/EventHandler.idl>
-#import <DOM/EventTarget.idl>
-#import <MediaCapture/MediaStreamTrack.idl>
-#import <MediaCapture/MediaStreamTrackEvent.idl>
-
 // https://w3c.github.io/mediacapture-main/#mediastream
 [Exposed=Window]
 interface MediaStream : EventTarget {

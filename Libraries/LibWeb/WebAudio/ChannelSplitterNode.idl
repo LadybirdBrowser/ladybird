@@ -1,6 +1,3 @@
-#import <WebAudio/AudioNode.idl>
-#import <WebAudio/BaseAudioContext.idl>
-
 // https://webaudio.github.io/web-audio-api/#ChannelSplitterNode
 [Exposed=Window]
 interface ChannelSplitterNode : AudioNode {

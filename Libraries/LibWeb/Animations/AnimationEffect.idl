@@ -1,5 +1,3 @@
-#import <CSS/CSSNumericValue.idl>
-
 // https://drafts.csswg.org/web-animations-1/#the-effecttiming-dictionaries
 // https://drafts.csswg.org/web-animations-2/#the-effecttiming-dictionaries
 dictionary EffectTiming {

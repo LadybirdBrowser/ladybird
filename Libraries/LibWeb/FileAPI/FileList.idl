@@ -1,5 +1,3 @@
-#import <FileAPI/File.idl>
-
 // https://w3c.github.io/FileAPI/#filelist-section
 [Exposed=(Window,Worker), Serializable]
 interface FileList {

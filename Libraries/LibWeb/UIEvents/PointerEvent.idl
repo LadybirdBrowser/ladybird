@@ -1,5 +1,3 @@
-#import <UIEvents/MouseEvent.idl>
-
 // https://w3c.github.io/pointerevents/#ref-for-dom-pointereventinit-1
 dictionary PointerEventInit : MouseEventInit {
     long pointerId = 0;

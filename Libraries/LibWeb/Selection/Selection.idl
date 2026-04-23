@@ -1,6 +1,3 @@
-#import <DOM/Node.idl>
-#import <DOM/Range.idl>
-
 // https://w3c.github.io/selection-api/#selection-interface
 [Exposed=Window]
 interface Selection {

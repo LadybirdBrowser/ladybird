@@ -1,6 +1,3 @@
-#import <CSS/CSSRule.idl>
-#import <CSS/CSSFontFeatureValuesMap.idl>
-
 [Exposed=Window]
 interface CSSFontFeatureValuesRule : CSSRule {
     attribute CSSOMString fontFamily;

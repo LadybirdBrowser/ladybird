@@ -1,5 +1,3 @@
-#import <Encoding/TextEncoderCommon.idl>
-
 // https://encoding.spec.whatwg.org/#dictdef-textencoderencodeintoresult
 dictionary TextEncoderEncodeIntoResult {
     [GenerateAsRequired] unsigned long long read;

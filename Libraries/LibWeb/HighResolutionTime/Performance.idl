@@ -1,12 +1,3 @@
-#import <DOM/EventTarget.idl>
-#import <HighResolutionTime/DOMHighResTimeStamp.idl>
-#import <NavigationTiming/PerformanceExtensions.idl>
-#import <NavigationTiming/PerformanceNavigation.idl>
-#import <NavigationTiming/PerformanceTiming.idl>
-#import <PerformanceTimeline/PerformanceEntry.idl>
-#import <UserTiming/PerformanceMark.idl>
-#import <UserTiming/PerformanceMeasure.idl>
-
 // https://w3c.github.io/performance-timeline/#typedefdef-performanceentrylist
 typedef sequence<PerformanceEntry> PerformanceEntryList;
 

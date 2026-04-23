@@ -1,6 +1,3 @@
-#import <CSS/StyleSheetList.idl>
-#import <Fullscreen/DocumentOrShadowRootExtensions.idl>
-
 // https://dom.spec.whatwg.org/#documentorshadowroot
 interface mixin DocumentOrShadowRoot {
     readonly attribute CustomElementRegistry? customElementRegistry;

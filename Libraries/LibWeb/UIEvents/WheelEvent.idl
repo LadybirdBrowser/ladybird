@@ -1,5 +1,3 @@
-#import <UIEvents/MouseEvent.idl>
-
 // https://w3c.github.io/pointerevents/#idl-wheelevent
 [Exposed=Window]
 interface WheelEvent : MouseEvent {

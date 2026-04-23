@@ -1,7 +1,3 @@
-#import <CSS/CSSStyleSheet.idl>
-#import <CSS/MediaList.idl>
-#import <DOM/Element.idl>
-
 // https://drafts.csswg.org/cssom/#stylesheet
 [Exposed=Window]
 interface StyleSheet {

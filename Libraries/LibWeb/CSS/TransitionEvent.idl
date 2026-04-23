@@ -1,5 +1,3 @@
-#import <DOM/Event.idl>
-
 // https://drafts.csswg.org/css-transitions/#transitionevent
 [Exposed=Window]
 interface TransitionEvent : Event {

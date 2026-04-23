@@ -1,6 +1,3 @@
-#import <Fetch/Request.idl>
-#import <ServiceWorker/Cache.idl>
-
 // https://w3c.github.io/ServiceWorker/#cachestorage-interface
 [SecureContext, Exposed=(Window,Worker)]
 interface CacheStorage {

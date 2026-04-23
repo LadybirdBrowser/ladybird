@@ -1,8 +1,3 @@
-#import <SVG/SVGAnimatedString.idl>
-#import <SVG/SVGElement.idl>
-#import <SVG/SVGFilterPrimitiveStandardAttributes.idl>
-#import <SVG/SVGURIReference.idl>
-
 // https://drafts.csswg.org/filter-effects-1/#feImageElement
 [Exposed=Window]
 interface SVGFEImageElement : SVGElement {

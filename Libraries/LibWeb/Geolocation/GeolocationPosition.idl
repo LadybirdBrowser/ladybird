@@ -1,6 +1,3 @@
-#import <Geolocation/GeolocationCoordinates.idl>
-#import <HighResolutionTime/EpochTimeStamp.idl>
-
 // https://w3c.github.io/geolocation/#position_interface
 [Exposed=Window, SecureContext]
 interface GeolocationPosition {

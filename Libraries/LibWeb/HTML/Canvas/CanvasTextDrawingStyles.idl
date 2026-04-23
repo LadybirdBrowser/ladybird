@@ -1,5 +1,3 @@
-#import <HTML/CanvasRenderingContext2D.idl>
-
 // https://html.spec.whatwg.org/multipage/canvas.html#canvastextalign
 // enum CanvasTextAlign { "start", "end", "left", "right", "center" };
 // enum CanvasTextBaseline { "top", "hanging", "middle", "alphabetic", "ideographic", "bottom" };

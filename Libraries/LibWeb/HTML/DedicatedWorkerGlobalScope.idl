@@ -1,5 +1,3 @@
-#import <HTML/WorkerGlobalScope.idl>
-
 // https://html.spec.whatwg.org/multipage/workers.html#dedicatedworkerglobalscope
 [Global=(Worker,DedicatedWorker),Exposed=DedicatedWorker]
 interface DedicatedWorkerGlobalScope : WorkerGlobalScope {

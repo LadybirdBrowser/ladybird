@@ -1,5 +1,3 @@
-#import <SVG/SVGTransform.idl>
-
 // https://svgwg.org/svg2-draft/single-page.html#coords-InterfaceSVGTransformList
 [Exposed=Window]
 interface SVGTransformList {

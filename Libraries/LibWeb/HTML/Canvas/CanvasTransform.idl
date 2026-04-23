@@ -1,5 +1,3 @@
-#import <Geometry/DOMMatrix.idl>
-
 // https://html.spec.whatwg.org/multipage/canvas.html#canvastransform
 interface mixin CanvasTransform {
     undefined scale(unrestricted double x, unrestricted double y);

@@ -95,7 +95,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     Core::ArgsParser args_parser;
     Vector<ByteString> paths;
-    Vector<ByteString> base_paths;
     StringView output_path = "-"sv;
     StringView depfile_path;
 
@@ -107,17 +106,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         .value_name = "path",
         .accept_value = [&](StringView s) {
             IDL::g_header_search_paths.append(s);
-            return true;
-        },
-    });
-    args_parser.add_option(Core::ArgsParser::Option {
-        .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
-        .help_string = "Path to root of IDL file tree(s)",
-        .long_name = "base-path",
-        .short_name = 'b',
-        .value_name = "base-path",
-        .accept_value = [&](StringView s) {
-            base_paths.append(s);
             return true;
         },
     });
@@ -152,15 +140,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     for (auto const& path : paths) {
         auto file = TRY(Core::MappedFile::map(path, Core::MappedFile::Mode::ReadOnly));
-        auto lexical_path = LexicalPath { path };
-        auto import_base_paths = base_paths;
-        if (import_base_paths.is_empty())
-            import_base_paths.append(lexical_path.dirname());
-
-        auto module = IDL::Parser::parse(path, file->bytes(), move(import_base_paths), context);
+        auto module = IDL::Parser::parse(path, file->bytes(), context);
         append_dependency_path(path);
-        for (auto const& imported_file : module.imported_files)
-            append_dependency_path(imported_file);
     }
 
     context.resolve();

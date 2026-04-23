@@ -1,6 +1,3 @@
-#import <DOM/ShadowRoot.idl>
-#import <HTML/CustomElements/CustomStateSet.idl>
-
 // https://html.spec.whatwg.org/multipage/custom-elements.html#elementinternals
 [Exposed=Window]
 interface ElementInternals {

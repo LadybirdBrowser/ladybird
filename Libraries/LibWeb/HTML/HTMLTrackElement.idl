@@ -1,5 +1,3 @@
-#import <HTML/HTMLElement.idl>
-
 // https://html.spec.whatwg.org/multipage/media.html#attr-track-kind
 [MissingValueDefault=subtitles, InvalidValueDefault=metadata]
 enum TrackKindAttribute {

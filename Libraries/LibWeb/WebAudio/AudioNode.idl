@@ -1,6 +1,3 @@
-#import <WebAudio/AudioParam.idl>
-#import <WebAudio/BaseAudioContext.idl>
-
 // https://webaudio.github.io/web-audio-api/#enumdef-channelcountmode
 enum ChannelCountMode {
     "max",

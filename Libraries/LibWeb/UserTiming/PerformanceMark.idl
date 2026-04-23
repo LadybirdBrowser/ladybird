@@ -1,5 +1,3 @@
-#import <PerformanceTimeline/PerformanceEntry.idl>
-
 // https://w3c.github.io/user-timing/#dom-performancemark
 [Exposed=(Window,Worker)]
 interface PerformanceMark : PerformanceEntry {

@@ -1,5 +1,3 @@
-#import <Speech/SpeechGrammar.idl>
-
 // https://wicg.github.io/speech-api/#speechgrammarlist
 [Exposed=Window]
 interface SpeechGrammarList {

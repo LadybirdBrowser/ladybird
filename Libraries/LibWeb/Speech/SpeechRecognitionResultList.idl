@@ -1,5 +1,3 @@
-#import <Speech/SpeechRecognitionResult.idl>
-
 // https://wicg.github.io/speech-api/#speechrecognitionresultlist
 [Exposed=Window]
 interface SpeechRecognitionResultList {

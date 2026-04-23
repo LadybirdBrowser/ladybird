@@ -1,7 +1,3 @@
-#import <Fetch/Body.idl>
-#import <Fetch/BodyInit.idl>
-#import <Fetch/Headers.idl>
-
 // https://fetch.spec.whatwg.org/#response-class
 [Exposed=(Window,Worker)]
 interface Response {

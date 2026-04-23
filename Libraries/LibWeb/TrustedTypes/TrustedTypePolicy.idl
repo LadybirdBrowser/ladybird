@@ -1,7 +1,3 @@
-#import <TrustedTypes/TrustedHTML.idl>
-#import <TrustedTypes/TrustedScript.idl>
-#import <TrustedTypes/TrustedScriptURL.idl>
-
 // https://w3c.github.io/trusted-types/dist/spec/#typedefdef-trustedtype
 typedef (TrustedHTML or TrustedScript or TrustedScriptURL) TrustedType;
 

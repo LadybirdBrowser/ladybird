@@ -1,6 +1,3 @@
-#import <HTML/TextTrackCue.idl>
-#import <WebVTT/VTTRegion.idl>
-
 enum AutoKeyword { "auto" };
 typedef (double or AutoKeyword) LineAndPositionSetting;
 enum DirectionSetting { "", "rl", "lr" };

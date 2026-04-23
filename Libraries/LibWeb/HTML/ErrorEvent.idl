@@ -1,5 +1,3 @@
-#import <DOM/Event.idl>
-
 // https://html.spec.whatwg.org/multipage/webappapis.html#errorevent
 [Exposed=(Window,Worker)]
 interface ErrorEvent : Event {

@@ -1,13 +1,3 @@
-#import <HTML/AudioTrackList.idl>
-#import <HTML/HTMLElement.idl>
-#import <HTML/MediaError.idl>
-#import <HTML/TextTrack.idl>
-#import <HTML/TextTrackList.idl>
-#import <HTML/TimeRanges.idl>
-#import <HTML/VideoTrackList.idl>
-#import <HTML/Scripting/Fetching.idl>
-#import <MediaSourceExtensions/MediaSource.idl>
-
 // https://html.spec.whatwg.org/multipage/media.html#attr-media-preload
 [MissingValueDefault=metadata, InvalidValueDefault=metadata]
 enum Preload {

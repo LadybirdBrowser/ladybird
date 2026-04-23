@@ -1,5 +1,3 @@
-#import <DOM/Event.idl>
-
 // https://registry.khronos.org/webgl/specs/latest/1.0/#5.15
 [Exposed=(Window,Worker)]
 interface WebGLContextEvent : Event {

@@ -1,6 +1,3 @@
-#import <CSS/CSSRule.idl>
-#import <CSS/CSSStyleProperties.idl>
-
 // https://drafts.csswg.org/css-nesting-1/#cssnesteddeclarations
 [Exposed=Window]
 interface CSSNestedDeclarations : CSSRule {

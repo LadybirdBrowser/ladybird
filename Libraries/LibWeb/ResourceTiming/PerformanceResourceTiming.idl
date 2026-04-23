@@ -1,5 +1,3 @@
-#import <PerformanceTimeline/PerformanceEntry.idl>
-
 // https://w3c.github.io/resource-timing/#dom-renderblockingstatustype
 enum RenderBlockingStatusType {
     "blocking",

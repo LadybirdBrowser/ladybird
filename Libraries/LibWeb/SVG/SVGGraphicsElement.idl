@@ -1,6 +1,3 @@
-#import <SVG/SVGElement.idl>
-#import <Geometry/DOMRectReadOnly.idl>
-
 dictionary SVGBoundingBoxOptions {
     boolean fill = true;
     boolean stroke = false;

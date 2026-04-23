@@ -1,7 +1,3 @@
-#import <Streams/QueuingStrategy.idl>
-#import <Streams/ReadableStream.idl>
-#import <Streams/WritableStream.idl>
-
 // https://streams.spec.whatwg.org/#transformstream
 [Exposed=*, Transferable]
 interface TransformStream {

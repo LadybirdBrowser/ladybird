@@ -1,6 +1,3 @@
-#import <DOM/Event.idl>
-#import <HTML/TimeRanges.idl>
-
 // https://w3c.github.io/media-source/#dom-bufferedchangeevent
 [Exposed=(Window,DedicatedWorker)]
 interface BufferedChangeEvent : Event {

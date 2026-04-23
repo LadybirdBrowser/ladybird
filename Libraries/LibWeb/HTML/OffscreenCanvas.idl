@@ -1,8 +1,3 @@
-#import <DOM/EventTarget.idl>
-#import <HTML/OffscreenCanvasRenderingContext2D.idl>
-#import <HTML/Canvas/OffscreenCanvasBase.idl>
-
-
 // FIXME: This should be in OffscreenCanvasBase.idl but then it is not exported
 // https://html.spec.whatwg.org/multipage/canvas.html#imageencodeoptions
 dictionary ImageEncodeOptions {

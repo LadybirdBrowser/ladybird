@@ -1,5 +1,3 @@
-#import <HTML/MessagePort.idl>
-
 // FIXME: Support VoidFunction in the IDL parser
 callback VoidFunction = undefined ();
 

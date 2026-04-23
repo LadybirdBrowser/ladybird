@@ -1,6 +1,3 @@
-#import <DOM/Event.idl>
-#import <WebAudio/AudioBuffer.idl>
-
 // https://webaudio.github.io/web-audio-api/#OfflineAudioCompletionEvent
 [Exposed=Window]
 interface OfflineAudioCompletionEvent : Event {

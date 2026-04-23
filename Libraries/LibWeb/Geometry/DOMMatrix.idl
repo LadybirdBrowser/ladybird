@@ -1,5 +1,3 @@
-#import <Geometry/DOMMatrixReadOnly.idl>
-
 // https://drafts.fxtf.org/geometry/#dommatrix
 [Exposed=(Window,Worker), Serializable, LegacyWindowAlias=(SVGMatrix, WebKitCSSMatrix)]
 interface DOMMatrix : DOMMatrixReadOnly {

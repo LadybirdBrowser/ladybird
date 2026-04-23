@@ -1,5 +1,3 @@
-#import <CSS/CSSRule.idl>
-
 // https://drafts.csswg.org/cssom/#the-cssnamespacerule-interface
 [Exposed=Window]
 interface CSSNamespaceRule : CSSRule {

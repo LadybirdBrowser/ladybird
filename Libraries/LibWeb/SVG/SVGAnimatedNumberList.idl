@@ -1,5 +1,3 @@
-#import <SVG/SVGNumberList.idl>
-
 // https://w3c.github.io/svgwg/svg2-draft/types.html#InterfaceSVGAnimatedNumberList
 [Exposed=Window]
 interface SVGAnimatedNumberList {

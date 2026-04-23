@@ -1,8 +1,3 @@
-#import <DOM/AbortSignal.idl>
-#import <Fetch/Body.idl>
-#import <Fetch/BodyInit.idl>
-#import <Fetch/Headers.idl>
-
 typedef (Request or USVString) RequestInfo;
 
 // https://fetch.spec.whatwg.org/#request

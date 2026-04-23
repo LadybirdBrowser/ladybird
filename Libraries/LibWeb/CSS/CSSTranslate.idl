@@ -1,6 +1,3 @@
-#import <CSS/CSSNumericValue.idl>
-#import <CSS/CSSTransformComponent.idl>
-
 // https://drafts.css-houdini.org/css-typed-om-1/#csstranslate
 [Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
 interface CSSTranslate : CSSTransformComponent {

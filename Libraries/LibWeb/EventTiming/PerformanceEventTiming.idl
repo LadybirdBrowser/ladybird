@@ -1,5 +1,3 @@
-#import <PerformanceTimeline/PerformanceEntry.idl>
-
 // https://w3c.github.io/event-timing/#sec-performance-event-timing
 [Exposed=Window]
 interface PerformanceEventTiming : PerformanceEntry {

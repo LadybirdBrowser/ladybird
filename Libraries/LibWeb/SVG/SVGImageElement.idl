@@ -1,6 +1,3 @@
-#import <SVG/SVGGraphicsElement.idl>
-#import <SVG/SVGURIReference.idl>
-
 // https://svgwg.org/svg2-draft/embedded.html#InterfaceSVGImageElement
 [Exposed=Window]
 interface SVGImageElement : SVGGraphicsElement {

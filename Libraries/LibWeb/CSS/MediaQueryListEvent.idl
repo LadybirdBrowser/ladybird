@@ -1,5 +1,3 @@
-#import <DOM/Event.idl>
-
 // https://w3c.github.io/csswg-drafts/cssom-view-1/#mediaquerylistevent
 [Exposed=Window]
 interface MediaQueryListEvent : Event {

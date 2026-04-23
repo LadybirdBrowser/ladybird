@@ -1,6 +1,3 @@
-#import <WebIDL/Function.idl>
-#import <Streams/QueuingStrategyInit.idl>
-
 // https://streams.spec.whatwg.org/#blqs-class-definition
 [Exposed=*]
 interface ByteLengthQueuingStrategy {

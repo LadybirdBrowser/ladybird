@@ -1,5 +1,3 @@
-#import <HTML/HTMLElement.idl>
-
 // https://html.spec.whatwg.org/multipage/embedded-content.html#htmlsourceelement
 [Exposed=Window]
 interface HTMLSourceElement : HTMLElement {

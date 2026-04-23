@@ -1,5 +1,3 @@
-#import <DOM/EventTarget.idl>
-
 [Experimental, SecureContext, Exposed=Window] interface XRSystem : EventTarget {
     // Methods
     Promise<boolean> isSessionSupported(XRSessionMode mode);

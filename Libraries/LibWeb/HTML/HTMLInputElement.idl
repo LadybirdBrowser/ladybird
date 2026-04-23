@@ -1,10 +1,3 @@
-#import <HTML/HTMLDataListElement.idl>
-#import <HTML/HTMLElement.idl>
-#import <HTML/HTMLFormElement.idl>
-#import <HTML/PopoverTargetAttributes.idl>
-#import <HTML/ValidityState.idl>
-#import <FileAPI/FileList.idl>
-
 // https://html.spec.whatwg.org/multipage/input.html#htmlinputelement
 [Exposed=Window]
 interface HTMLInputElement : HTMLElement {

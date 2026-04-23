@@ -1,6 +1,3 @@
-#import <CookieStore/CookieStore.idl>
-#import <DOM/EventHandler.idl>
-
 // https://w3c.github.io/ServiceWorker/#serviceworkerglobalscope
 [Global=(Worker,ServiceWorker), Exposed=ServiceWorker, SecureContext]
 interface ServiceWorkerGlobalScope : WorkerGlobalScope {

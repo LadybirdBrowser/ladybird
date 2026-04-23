@@ -1,7 +1,3 @@
-#import <CSS/CSSRule.idl>
-#import <CSS/CSSStyleSheet.idl>
-#import <CSS/MediaList.idl>
-
 // https://drafts.csswg.org/cssom/#the-cssimportrule-interface
 [Exposed=Window]
 interface CSSImportRule : CSSRule {

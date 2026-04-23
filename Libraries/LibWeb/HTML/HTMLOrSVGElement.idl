@@ -1,5 +1,3 @@
-#import <HTML/DOMStringMap.idl>
-
 // https://html.spec.whatwg.org/multipage/dom.html#htmlorsvgelement
 interface mixin HTMLOrSVGElement {
     [SameObject] readonly attribute DOMStringMap dataset;

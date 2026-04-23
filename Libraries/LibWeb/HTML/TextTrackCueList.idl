@@ -1,5 +1,3 @@
-#import <HTML/TextTrackCue.idl>
-
 // https://html.spec.whatwg.org/multipage/media.html#texttrackcuelist
 [Exposed=Window]
 interface TextTrackCueList {

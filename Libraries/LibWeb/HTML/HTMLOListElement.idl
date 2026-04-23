@@ -1,5 +1,3 @@
-#import <HTML/HTMLElement.idl>
-
 // https://html.spec.whatwg.org/multipage/grouping-content.html#htmlolistelement
 [Exposed=Window]
 interface HTMLOListElement : HTMLElement {

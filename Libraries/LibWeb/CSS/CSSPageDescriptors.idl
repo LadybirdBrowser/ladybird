@@ -1,5 +1,3 @@
-#import <CSS/CSSStyleDeclaration.idl>
-
 // https://drafts.csswg.org/cssom/#csspagedescriptors
 [Exposed=Window]
 interface CSSPageDescriptors : CSSStyleDeclaration {
