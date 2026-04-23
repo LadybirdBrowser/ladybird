@@ -715,8 +715,6 @@ GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face
 void FontComputer::load_fonts_from_sheet(CSSStyleSheet& sheet)
 {
     sheet.for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& const_rule) {
-        // for_each_effective_rule delivers const references; the underlying objects are
-        // non-const, so we cast here to call the mutating methods below.
         auto& rule = const_cast<CSSRule&>(const_rule);
 
         // FIXME: Revisit this for conditional group rules that become effective
@@ -746,10 +744,11 @@ void FontComputer::unload_fonts_from_sheet(CSSStyleSheet& sheet)
     // https://drafts.csswg.org/css-font-loading/#font-face-css-connection
     // If a @font-face rule is removed from the document, its connected FontFace object is no longer CSS-connected.
     sheet.for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& const_rule) {
-        // for_each_effective_rule delivers const references; the underlying objects are
-        // non-const, so we cast here to call the mutating methods below.
         auto& rule = const_cast<CSSRule&>(const_rule);
 
+        // FIXME: This only visits currently-effective conditional group rules. If a
+        // conditional group rule stops matching, we still need to disconnect any
+        // @font-face rules that were loaded while it matched.
         if (auto* font_face_rule = as_if<CSSFontFaceRule>(rule)) {
             if (auto font_face = font_face_rule->css_connected_font_face())
                 unregister_font_face(*font_face);
