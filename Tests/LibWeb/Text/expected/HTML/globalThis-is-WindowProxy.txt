@@ -1,0 +1,9 @@
+globalThis === window: true
+globalThis === self: true
+globalThis === frames: true
+globalThis === this: true
+iframe contentWindow === iframe globalThis: true
+iframe globalThis === iframe self: true
+iframe realm globalThis === window: true
+globalThis !== iframe globalThis: true
+Object.getPrototypeOf(globalThis) === Object.getPrototypeOf(window): true

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe id="ifr" srcdoc=""></iframe>
+<script>
+    test(() => {
+        println(`globalThis === window: ${globalThis === window}`);
+        println(`globalThis === self: ${globalThis === self}`);
+        println(`globalThis === frames: ${globalThis === frames}`);
+        println(`globalThis === this: ${globalThis === this}`);
+
+        const iframeWindow = ifr.contentWindow;
+        println(`iframe contentWindow === iframe globalThis: ${iframeWindow === iframeWindow.globalThis}`);
+        println(`iframe globalThis === iframe self: ${iframeWindow.globalThis === iframeWindow.self}`);
+
+        iframeWindow.eval("window.__check = globalThis === window;");
+        println(`iframe realm globalThis === window: ${iframeWindow.__check}`);
+
+        println(`globalThis !== iframe globalThis: ${globalThis !== iframeWindow.globalThis}`);
+
+        println(`Object.getPrototypeOf(globalThis) === Object.getPrototypeOf(window): ${Object.getPrototypeOf(globalThis) === Object.getPrototypeOf(window)}`);
+    });
+</script>
