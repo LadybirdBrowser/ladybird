@@ -71,16 +71,10 @@ Some OS distributions don't ship bleeding-edge clang-format binaries. Below are 
 
 ## Clangd Configuration
 
-Clangd will automatically look for configuration information in files
-named `.clangd` in each of the parent directories of the file being
-edited. The Ladybird source code repository has a top-level `.clangd`
-configuration file in the root directory. One of the configuration
-stanzas in that file specifies the location for a compilation database.
-Depending on your build configuration (e.g., Debug, default, Sanitizer,
-etc.), the path to the compilation database in that file may not be
-correct. The result is that `clangd` will have a difficult time
-understanding all your include directories. To resolve the problem, you
-can use the `Meta/configure-clangd.sh` script.
+The repository has a `.clangd` configuration file in the root directory. One of the configuration stanzas in that file
+specifies the location for a compilation database. Depending on your build configuration (e.g. Release, Debug, Sanitizer),
+the path to the compilation database in that file may not be correct. You may edit the `.clangd` file to point at your
+build directory.
 
 ## Clang Plugins
 
@@ -111,7 +105,7 @@ builds, and to configure the Flathub repo. The Ladybird Flatpak manifest at
 ```bash
 flatpak-builder --user --force-clean --install-deps-from=flathub \
   --ccache --repo=Build/repo --install Build/flatpak \
-  Meta/CMake/flatpak/org.ladybird.Ladybird.json 
+  Meta/CMake/flatpak/org.ladybird.Ladybird.json
 ```
 
 This command will build the Flatpak bundle and install it into the local Flatpak repository at `Build/repo`. Expect this
