@@ -402,7 +402,15 @@ Vector<Parameter> Parser::parse_parameters()
         if (lexer.next_is('=') && optional) {
             assert_specific('=');
             consume_whitespace();
-            auto default_value = lexer.consume_until([](auto ch) { return is_ascii_space(ch) || ch == ',' || ch == ')'; });
+            StringView default_value;
+            if (lexer.next_is('"')) {
+                auto start = lexer.tell();
+                lexer.consume_quoted_string();
+                auto end = lexer.tell();
+                default_value = lexer.input().substring_view(start, end - start);
+            } else {
+                default_value = lexer.consume_until([](auto ch) { return is_ascii_space(ch) || ch == ',' || ch == ')'; });
+            }
             parameter.optional_default_value = default_value;
         }
         parameters.append(move(parameter));
