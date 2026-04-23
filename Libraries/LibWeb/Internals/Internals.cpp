@@ -380,7 +380,7 @@ void Internals::spoof_current_url(String const& url_string)
 GC::Ref<InternalAnimationTimeline> Internals::create_internal_animation_timeline()
 {
     auto& realm = this->realm();
-    return realm.create<InternalAnimationTimeline>(realm);
+    return realm.create<InternalAnimationTimeline>(realm, as<HTML::Window>(realm.global_object()).associated_document());
 }
 
 void Internals::simulate_drag_start(double x, double y, String const& name, String const& contents)

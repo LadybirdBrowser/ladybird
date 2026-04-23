@@ -175,11 +175,10 @@ void ScrollTimeline::update_current_time(double)
 }
 
 ScrollTimeline::ScrollTimeline(JS::Realm& realm, DOM::Document& document, Source source, Bindings::ScrollAxis axis)
-    : AnimationTimeline(realm)
+    : AnimationTimeline(realm, document)
     , m_source(source)
     , m_axis(axis)
 {
-    set_associated_document(document);
 }
 
 void ScrollTimeline::visit_edges(Cell::Visitor& visitor)

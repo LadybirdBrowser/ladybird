@@ -47,15 +47,6 @@ NullableCSSNumberish AnimationTimeline::duration_for_bindings() const
     return NullableCSSNumberish::from_optional_css_numberish_time(realm(), duration());
 }
 
-void AnimationTimeline::set_associated_document(GC::Ptr<DOM::Document> document)
-{
-    if (document)
-        document->associate_with_timeline(*this);
-    if (m_associated_document)
-        m_associated_document->disassociate_with_timeline(*this);
-    m_associated_document = document;
-}
-
 // https://drafts.csswg.org/web-animations-1/#timeline
 bool AnimationTimeline::is_inactive() const
 {
@@ -63,22 +54,23 @@ bool AnimationTimeline::is_inactive() const
     return !m_current_time.has_value();
 }
 
-AnimationTimeline::AnimationTimeline(JS::Realm& realm)
+AnimationTimeline::AnimationTimeline(JS::Realm& realm, GC::Ref<DOM::Document> document)
     : Bindings::PlatformObject(realm)
+    , m_associated_document(document)
 {
 }
 
 void AnimationTimeline::finalize()
 {
     Base::finalize();
-    if (m_associated_document)
-        m_associated_document->disassociate_with_timeline(*this);
+    m_associated_document->disassociate_with_timeline(*this);
 }
 
 void AnimationTimeline::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(AnimationTimeline);
     Base::initialize(realm);
+    m_associated_document->associate_with_timeline(*this);
 }
 
 void AnimationTimeline::visit_edges(Cell::Visitor& visitor)
