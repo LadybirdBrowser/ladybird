@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/Error.h>
+#include <AK/StringView.h>
 #include <AK/Vector.h>
 #include <LibIPC/Attachment.h>
 #include <LibIPC/Forward.h>
@@ -59,7 +60,7 @@ public:
 
     virtual u32 endpoint_magic() const = 0;
     virtual int message_id() const = 0;
-    virtual char const* message_name() const = 0;
+    virtual StringView message_name() const = 0;
     virtual ErrorOr<MessageBuffer> encode() const = 0;
 
 protected:
