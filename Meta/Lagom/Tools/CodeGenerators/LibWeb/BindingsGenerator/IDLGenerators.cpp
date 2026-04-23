@@ -3384,15 +3384,12 @@ static Vector<Interface const&> create_an_inheritance_stack(IDL::Interface const
     auto const* current_interface = &start_interface;
     while (current_interface && !current_interface->parent_name.is_empty()) {
         // 1. Let I be that interface.
-        auto imported_interface = find_imported_interface(start_interface, current_interface->parent_name);
-
-        // Inherited interfaces must have their IDL files imported.
-        VERIFY(imported_interface.has_value());
+        auto inhereted_interface = start_interface.context.interfaces.get(current_interface->parent_name);
+        VERIFY(inhereted_interface.has_value());
 
         // 2. Push I onto stack.
-        inheritance_chain.append(imported_interface.value());
-
-        current_interface = &imported_interface.value();
+        inheritance_chain.append(*inhereted_interface.value());
+        current_interface = inhereted_interface.value();
     }
 
     // 4. Return stack.
