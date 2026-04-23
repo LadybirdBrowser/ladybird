@@ -347,7 +347,7 @@ public:""")
 
     if len(parameters) == 1:
         out.write(f"""
-    template <typename WrappedReturnType>
+    template<typename WrappedReturnType>
     requires(!SameAs<WrappedReturnType, {parameters[0].type}>)
     {pascal_name}(WrappedReturnType&& value)
         : m_{parameters[0].name}(forward<WrappedReturnType>(value))
@@ -489,7 +489,7 @@ def write_proxy_method(
         sync_call = f"m_connection.template send_sync<Messages::{endpoint.name}::{pascal_name}>({call_args})"
 
         if return_type == "void":
-            out.write(f"\n        (void) {sync_call};")
+            out.write(f"\n        (void){sync_call};")
         elif len(message.outputs) == 1:
             output = message.outputs[0]
             accessor = output.name if is_primitive_or_simple_type(output.type) else f"take_{output.name}"
@@ -506,9 +506,9 @@ def write_proxy_method(
 """)
 
         if inner_return_type != "void":
-            out.write("        return move(*result);\n")
+            out.write("        return move(*result);")
         else:
-            out.write("        return { };\n")
+            out.write("        return {};")
     else:
         # Async messages silently ignore send failures (e.g. peer disconnected).
         out.write(f"""
@@ -601,7 +601,6 @@ public:
 
         VERIFY_NOT_REACHED();
     }}
-
 }};
 """)
 
@@ -657,7 +656,7 @@ public:
             response_pascal_name = pascal_case(message.response_name())
             out.write(f"        {request_cast}\n")
             out.write(f"        {message.name}({arguments});\n")
-            out.write(f"        auto response = Messages::{endpoint.name}::{response_pascal_name} {{ }};\n")
+            out.write(f"        auto response = Messages::{endpoint.name}::{response_pascal_name} {{}};\n")
             out.write("        return make<IPC::MessageBuffer>(TRY(response.encode()));\n")
         else:
             out.write(f"        {request_cast}\n")
