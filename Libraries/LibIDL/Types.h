@@ -440,6 +440,7 @@ public:
     Interface& add_mixin(NonnullOwnPtr<Interface>);
     Module& add_module(NonnullOwnPtr<Module>);
     Module* find_parsed_module(ByteString const& module_path);
+    void resolve();
 
     HashMap<ByteString, Interface*> interfaces;
     Vector<NonnullOwnPtr<Interface>> owned_interfaces;

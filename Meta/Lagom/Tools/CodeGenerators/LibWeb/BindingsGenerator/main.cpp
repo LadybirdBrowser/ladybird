@@ -163,6 +163,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             append_dependency_path(imported_file);
     }
 
+    context.resolve();
+
     for (auto& interface : context.owned_interfaces)
         assign_fully_qualified_name(*interface);
 

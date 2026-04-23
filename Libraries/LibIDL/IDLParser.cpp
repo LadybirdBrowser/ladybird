@@ -1286,6 +1286,135 @@ void resolve_function_typedefs(Interface& interface, FunctionType& function)
     resolve_parameters_typedefs(interface, function.parameters);
 }
 
+static void resolve_typedefs(Interface& interface)
+{
+    for (auto& attribute : interface.attributes)
+        resolve_typedef(interface, attribute.type, &attribute.extended_attributes);
+    for (auto& attribute : interface.static_attributes)
+        resolve_typedef(interface, attribute.type, &attribute.extended_attributes);
+    for (auto& constant : interface.constants)
+        resolve_typedef(interface, constant.type);
+    for (auto& constructor : interface.constructors)
+        resolve_parameters_typedefs(interface, constructor.parameters);
+    for (auto& function : interface.functions)
+        resolve_function_typedefs(interface, function);
+    for (auto& static_function : interface.static_functions)
+        resolve_function_typedefs(interface, static_function);
+    if (interface.value_iterator_type.has_value())
+        resolve_typedef(interface, *interface.value_iterator_type);
+    if (interface.pair_iterator_types.has_value()) {
+        resolve_typedef(interface, interface.pair_iterator_types->get<0>());
+        resolve_typedef(interface, interface.pair_iterator_types->get<1>());
+    }
+    if (interface.named_property_getter.has_value())
+        resolve_function_typedefs(interface, *interface.named_property_getter);
+    if (interface.named_property_setter.has_value())
+        resolve_function_typedefs(interface, *interface.named_property_setter);
+    if (interface.indexed_property_getter.has_value())
+        resolve_function_typedefs(interface, *interface.indexed_property_getter);
+    if (interface.indexed_property_setter.has_value())
+        resolve_function_typedefs(interface, *interface.indexed_property_setter);
+    if (interface.named_property_deleter.has_value())
+        resolve_function_typedefs(interface, *interface.named_property_deleter);
+    if (interface.named_property_getter.has_value())
+        resolve_function_typedefs(interface, *interface.named_property_getter);
+    for (auto& dictionary : interface.context.dictionaries) {
+        for (auto& dictionary_member : dictionary.value.members)
+            resolve_typedef(interface, dictionary_member.type, &dictionary_member.extended_attributes);
+    }
+    for (auto& dictionaries : interface.context.partial_dictionaries) {
+        for (auto& dictionary : dictionaries.value)
+            for (auto& dictionary_member : dictionary.members)
+                resolve_typedef(interface, dictionary_member.type, &dictionary_member.extended_attributes);
+    }
+    for (auto& callback_function : interface.context.callback_functions)
+        resolve_function_typedefs(interface, callback_function.value);
+}
+
+static void build_overload_sets(Interface& interface)
+{
+    interface.overload_sets.clear();
+    interface.static_overload_sets.clear();
+    interface.constructor_overload_sets.clear();
+
+    for (auto& function : interface.functions) {
+        function.overload_index = 0;
+        function.is_overloaded = false;
+        if (function.extended_attributes.contains("FIXME"))
+            continue;
+        auto& overload_set = interface.overload_sets.ensure(function.name);
+        function.overload_index = overload_set.size();
+        overload_set.append(function);
+    }
+    for (auto& overload_set : interface.overload_sets) {
+        if (overload_set.value.size() == 1)
+            continue;
+        for (auto& overloaded_function : overload_set.value)
+            overloaded_function.is_overloaded = true;
+    }
+
+    for (auto& function : interface.static_functions) {
+        function.overload_index = 0;
+        function.is_overloaded = false;
+        if (function.extended_attributes.contains("FIXME"))
+            continue;
+        auto& overload_set = interface.static_overload_sets.ensure(function.name);
+        function.overload_index = overload_set.size();
+        overload_set.append(function);
+    }
+    for (auto& overload_set : interface.static_overload_sets) {
+        if (overload_set.value.size() == 1)
+            continue;
+        for (auto& overloaded_function : overload_set.value)
+            overloaded_function.is_overloaded = true;
+    }
+
+    for (auto& constructor : interface.constructors) {
+        constructor.overload_index = 0;
+        constructor.is_overloaded = false;
+        if (constructor.extended_attributes.contains("FIXME"))
+            continue;
+        auto& overload_set = interface.constructor_overload_sets.ensure(constructor.name);
+        constructor.overload_index = overload_set.size();
+        overload_set.append(constructor);
+    }
+    for (auto& overload_set : interface.constructor_overload_sets) {
+        if (overload_set.value.size() == 1)
+            continue;
+        for (auto& overloaded_constructor : overload_set.value)
+            overloaded_constructor.is_overloaded = true;
+    }
+}
+
+static void validate_overload_sets(Interface& interface, StringView filename, StringView input)
+{
+    // Check overload sets for repeated instances of the same function
+    // as these will produce very cryptic errors if left alone.
+    for (auto& overload_set : interface.overload_sets) {
+        auto& functions = overload_set.value;
+        for (size_t i = 0; i < functions.size(); ++i) {
+            for (size_t j = i + 1; j < functions.size(); ++j) {
+                if (functions[i].parameters.size() != functions[j].parameters.size())
+                    continue;
+                auto same = true;
+                for (size_t k = 0; k < functions[i].parameters.size(); ++k) {
+                    if (functions[i].parameters[k].type->is_distinguishable_from(interface, functions[j].parameters[k].type)) {
+                        same = false;
+                        break;
+                    }
+                }
+                if (same) {
+                    report_parsing_error(
+                        ByteString::formatted("Overload set '{}' contains multiple identical declarations", overload_set.key),
+                        filename,
+                        input,
+                        functions[j].source_position.offset);
+                }
+            }
+        }
+    }
+}
+
 Module Parser::parse(ByteString filename, StringView contents, Vector<ByteString> import_base_paths, Context& context)
 {
     Parser parser(move(filename), contents, move(import_base_paths), context);
@@ -1336,151 +1465,6 @@ Module& Parser::parse()
 
     parse_non_interface_entities(false, interface);
 
-    for (auto& partial_interface : interface.context.partial_interfaces) {
-        if (partial_interface->name == interface.name)
-            interface.extend_with_partial_interface(*partial_interface);
-    }
-
-    for (auto& partial_namespace : interface.context.partial_namespaces) {
-        if (partial_namespace->namespace_class == interface.namespace_class)
-            interface.extend_with_partial_interface(*partial_namespace);
-    }
-
-    // Resolve mixins
-    if (auto it = interface.context.included_mixins.find(interface.name); it != interface.context.included_mixins.end()) {
-        for (auto& entry : it->value) {
-            auto mixin_it = interface.context.mixins.find(entry);
-            if (mixin_it == interface.context.mixins.end())
-                report_parsing_error(ByteString::formatted("Mixin '{}' was never defined", entry), filename, input, lexer.tell());
-
-            auto& mixin = mixin_it->value;
-            interface.attributes.extend(mixin->attributes);
-            interface.constants.extend(mixin->constants);
-            interface.functions.extend(mixin->functions);
-            interface.static_functions.extend(mixin->static_functions);
-            if (interface.has_stringifier && mixin->has_stringifier)
-                report_parsing_error(ByteString::formatted("Both interface '{}' and mixin '{}' have defined stringifier attributes", interface.name, mixin->name), filename, input, lexer.tell());
-
-            if (mixin->has_stringifier) {
-                interface.stringifier_attribute = mixin->stringifier_attribute;
-                interface.has_stringifier = true;
-            }
-
-            if (mixin->has_unscopable_member)
-                interface.has_unscopable_member = true;
-        }
-    }
-
-    // Resolve typedefs
-    for (auto& attribute : interface.attributes)
-        resolve_typedef(interface, attribute.type, &attribute.extended_attributes);
-    for (auto& attribute : interface.static_attributes)
-        resolve_typedef(interface, attribute.type, &attribute.extended_attributes);
-    for (auto& constant : interface.constants)
-        resolve_typedef(interface, constant.type);
-    for (auto& constructor : interface.constructors)
-        resolve_parameters_typedefs(interface, constructor.parameters);
-    for (auto& function : interface.functions)
-        resolve_function_typedefs(interface, function);
-    for (auto& static_function : interface.static_functions)
-        resolve_function_typedefs(interface, static_function);
-    if (interface.value_iterator_type.has_value())
-        resolve_typedef(interface, *interface.value_iterator_type);
-    if (interface.pair_iterator_types.has_value()) {
-        resolve_typedef(interface, interface.pair_iterator_types->get<0>());
-        resolve_typedef(interface, interface.pair_iterator_types->get<1>());
-    }
-    if (interface.named_property_getter.has_value())
-        resolve_function_typedefs(interface, *interface.named_property_getter);
-    if (interface.named_property_setter.has_value())
-        resolve_function_typedefs(interface, *interface.named_property_setter);
-    if (interface.indexed_property_getter.has_value())
-        resolve_function_typedefs(interface, *interface.indexed_property_getter);
-    if (interface.indexed_property_setter.has_value())
-        resolve_function_typedefs(interface, *interface.indexed_property_setter);
-    if (interface.named_property_deleter.has_value())
-        resolve_function_typedefs(interface, *interface.named_property_deleter);
-    if (interface.named_property_getter.has_value())
-        resolve_function_typedefs(interface, *interface.named_property_getter);
-    for (auto& dictionary : interface.context.dictionaries) {
-        for (auto& dictionary_member : dictionary.value.members)
-            resolve_typedef(interface, dictionary_member.type, &dictionary_member.extended_attributes);
-    }
-    for (auto& dictionaries : interface.context.partial_dictionaries) {
-        for (auto& dictionary : dictionaries.value)
-            for (auto& dictionary_member : dictionary.members)
-                resolve_typedef(interface, dictionary_member.type, &dictionary_member.extended_attributes);
-    }
-    for (auto& callback_function : interface.context.callback_functions)
-        resolve_function_typedefs(interface, callback_function.value);
-
-    // Create overload sets
-    for (auto& function : interface.functions) {
-        if (function.extended_attributes.contains("FIXME"))
-            continue;
-        auto& overload_set = interface.overload_sets.ensure(function.name);
-        function.overload_index = overload_set.size();
-        overload_set.append(function);
-    }
-    for (auto& overload_set : interface.overload_sets) {
-        if (overload_set.value.size() == 1)
-            continue;
-        for (auto& overloaded_function : overload_set.value)
-            overloaded_function.is_overloaded = true;
-    }
-    for (auto& function : interface.static_functions) {
-        if (function.extended_attributes.contains("FIXME"))
-            continue;
-        auto& overload_set = interface.static_overload_sets.ensure(function.name);
-        function.overload_index = overload_set.size();
-        overload_set.append(function);
-    }
-    for (auto& overload_set : interface.static_overload_sets) {
-        if (overload_set.value.size() == 1)
-            continue;
-        for (auto& overloaded_function : overload_set.value)
-            overloaded_function.is_overloaded = true;
-    }
-    for (auto& constructor : interface.constructors) {
-        if (constructor.extended_attributes.contains("FIXME"))
-            continue;
-        auto& overload_set = interface.constructor_overload_sets.ensure(constructor.name);
-        constructor.overload_index = overload_set.size();
-        overload_set.append(constructor);
-    }
-    for (auto& overload_set : interface.constructor_overload_sets) {
-        if (overload_set.value.size() == 1)
-            continue;
-        for (auto& overloaded_constructor : overload_set.value)
-            overloaded_constructor.is_overloaded = true;
-    }
-
-    // Check overload sets for repeated instances of the same function
-    // as these will produce very cryptic errors if left alone.
-    for (auto& overload_set : interface.overload_sets) {
-        auto& functions = overload_set.value;
-        for (size_t i = 0; i < functions.size(); ++i) {
-            for (size_t j = i + 1; j < functions.size(); ++j) {
-                if (functions[i].parameters.size() != functions[j].parameters.size())
-                    continue;
-                auto same = true;
-                for (size_t k = 0; k < functions[i].parameters.size(); ++k) {
-                    if (functions[i].parameters[k].type->is_distinguishable_from(interface, functions[j].parameters[k].type)) {
-                        same = false;
-                        break;
-                    }
-                }
-                if (same) {
-                    report_parsing_error(
-                        ByteString::formatted("Overload set '{}' contains multiple identical declarations", overload_set.key),
-                        filename,
-                        input,
-                        functions[j].source_position.offset);
-                }
-            }
-        }
-    }
-
     if (top_level_parser() == this)
         VERIFY(import_stack.is_empty());
 
@@ -1525,6 +1509,56 @@ HashMap<ByteString, Module*>& Parser::top_level_resolved_modules()
 Vector<ByteString> Parser::imported_files() const
 {
     return const_cast<Parser*>(this)->top_level_resolved_modules().keys();
+}
+
+static void resolve_partials_and_mixins(Context& context)
+{
+    for (auto& interface : context.owned_interfaces) {
+        for (auto& partial_interface : context.partial_interfaces) {
+            if (partial_interface->extended_attributes.get("Exposed"sv) == "Nobody"sv)
+                continue;
+            if (partial_interface->name == interface->name)
+                interface->extend_with_partial_interface(*partial_interface);
+        }
+
+        for (auto& partial_namespace : context.partial_namespaces) {
+            if (partial_namespace->namespace_class == interface->namespace_class)
+                interface->extend_with_partial_interface(*partial_namespace);
+        }
+
+        if (auto it = context.included_mixins.find(interface->name); it != context.included_mixins.end()) {
+            for (auto& entry : it->value) {
+                auto mixin_it = context.mixins.find(entry);
+                VERIFY(mixin_it != context.mixins.end());
+
+                auto& mixin = *mixin_it->value;
+                interface->attributes.extend(mixin.attributes);
+                interface->constants.extend(mixin.constants);
+                interface->functions.extend(mixin.functions);
+                interface->static_functions.extend(mixin.static_functions);
+                VERIFY(!interface->has_stringifier || !mixin.has_stringifier);
+
+                if (mixin.has_stringifier) {
+                    interface->stringifier_attribute = mixin.stringifier_attribute;
+                    interface->has_stringifier = true;
+                }
+
+                if (mixin.has_unscopable_member)
+                    interface->has_unscopable_member = true;
+            }
+        }
+    }
+}
+
+void Context::resolve()
+{
+    resolve_partials_and_mixins(*this);
+
+    for (auto& interface : owned_interfaces) {
+        resolve_typedefs(*interface);
+        build_overload_sets(*interface);
+        validate_overload_sets(*interface, interface->module_own_path, {});
+    }
 }
 
 }
