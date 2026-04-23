@@ -87,6 +87,10 @@ jobs:
             echo "host_cxx=$(xcrun --find clang++)" >> "$GITHUB_OUTPUT"
           fi
 
+          if ${{ inputs.os_name == 'Linux' && inputs.build_preset == 'Sanitizer' }} ; then
+            CMAKE_OPTIONS="$CMAKE_OPTIONS -DLADYBIRD_GUI_FRAMEWORK=Gtk"
+          fi
+
           if ${{ inputs.clang_plugins }} ; then
             echo "ccache_key=${{ inputs.build_preset }}-CLANG_PLUGINS" >> "$GITHUB_OUTPUT"
             CMAKE_OPTIONS="$CMAKE_OPTIONS -DENABLE_CLANG_PLUGINS=ON"
@@ -168,8 +172,8 @@ jobs:
           cmake --build .
           cmake --install . --strip --prefix ${{ github.workspace }}/Install
 
-      - name: Build - macOS with Qt
-        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer' }}
+      - name: Build with Qt
+        if: ${{ (inputs.os_name == 'macOS' || inputs.os_name == 'Linux') && inputs.build_preset == 'Sanitizer' }}
         working-directory: ${{ github.workspace }}
         run: |
           cmake --preset ${{ inputs.build_preset }} -B Build -DLADYBIRD_GUI_FRAMEWORK=Qt
