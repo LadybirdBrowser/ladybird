@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<input type="range" id="r" style="width: 100px">
+<script>
+    const input = document.getElementById("r");
+    input.getBoundingClientRect();
+    input.type = "text";
+    input.dispatchEvent(new MouseEvent("mousedown", { clientX: 50 }));
+    input.dispatchEvent(new WheelEvent("wheel", { deltaY: 1 }));
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft" }));
+</script>

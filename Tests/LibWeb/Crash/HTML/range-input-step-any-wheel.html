@@ -1,0 +1,5 @@
+<!DOCTYPE html>
+<input type="range" step="any" id="r">
+<script>
+    document.getElementById("r").dispatchEvent(new WheelEvent("wheel", { deltaY: 1 }));
+</script>

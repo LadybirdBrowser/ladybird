@@ -1209,7 +1209,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
 
         auto up_callback_function = JS::NativeFunction::create(
             realm(), [this](JS::VM&) {
-                if (is_mutable()) {
+                if (type_state() == TypeAttributeState::Number && is_mutable() && allowed_value_step().has_value()) {
                     MUST(step_up());
                     user_interaction_did_change_input_value();
                 }
@@ -1238,7 +1238,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
 
         auto down_callback_function = JS::NativeFunction::create(
             realm(), [this](JS::VM&) {
-                if (is_mutable()) {
+                if (type_state() == TypeAttributeState::Number && is_mutable() && allowed_value_step().has_value()) {
                     MUST(step_down());
                     user_interaction_did_change_input_value();
                 }
@@ -1361,7 +1361,14 @@ void HTMLInputElement::create_range_input_shadow_tree()
 
     auto keydown_callback_function = JS::NativeFunction::create(
         realm(), [this](JS::VM& vm) {
-            auto key = MUST(vm.argument(0).get(vm, "key"_utf16_fly_string)).as_string().utf8_string();
+            if (type_state() != TypeAttributeState::Range)
+                return JS::js_undefined();
+            if (!allowed_value_step().has_value())
+                return JS::js_undefined();
+            auto key_value = MUST(vm.argument(0).get(vm, "key"_utf16_fly_string));
+            if (!key_value.is_string())
+                return JS::js_undefined();
+            auto key = key_value.as_string().utf8_string();
 
             if (key == "ArrowLeft" || key == "ArrowDown")
                 MUST(step_down());
@@ -1382,8 +1389,14 @@ void HTMLInputElement::create_range_input_shadow_tree()
 
     auto wheel_callback_function = JS::NativeFunction::create(
         realm(), [this](JS::VM& vm) {
-            auto delta_y = MUST(vm.argument(0).get(vm, "deltaY"_utf16_fly_string)).as_i32();
-            if (delta_y > 0) {
+            if (type_state() != TypeAttributeState::Range)
+                return JS::js_undefined();
+            if (!allowed_value_step().has_value())
+                return JS::js_undefined();
+            auto delta_y_value = MUST(vm.argument(0).get(vm, "deltaY"_utf16_fly_string));
+            if (!delta_y_value.is_finite_number())
+                return JS::js_undefined();
+            if (delta_y_value.as_double() > 0) {
                 MUST(step_down());
             } else {
                 MUST(step_up());
@@ -1396,10 +1409,19 @@ void HTMLInputElement::create_range_input_shadow_tree()
     add_event_listener_without_options(UIEvents::EventNames::wheel, DOM::IDLEventListener::create(realm(), wheel_callback));
 
     auto update_slider_by_mouse = [this](JS::VM& vm) {
-        auto client_x = MUST(vm.argument(0).get(vm, "clientX"_utf16_fly_string)).as_double();
+        if (type_state() != TypeAttributeState::Range)
+            return;
+        auto client_x_value = MUST(vm.argument(0).get(vm, "clientX"_utf16_fly_string));
+        if (!client_x_value.is_finite_number())
+            return;
+        auto client_x = client_x_value.as_double();
         auto rect = get_bounding_client_rect();
+        if (rect.width().to_double() <= 0)
+            return;
         double minimum = *min();
         double maximum = *max();
+        if (minimum > maximum)
+            return;
         // FIXME: Snap new value to input steps
         MUST(set_value_as_number(clamp(round(((client_x - rect.left().to_double()) / rect.width().to_double()) * (maximum - minimum) + minimum), minimum, maximum)));
         user_interaction_did_change_input_value();

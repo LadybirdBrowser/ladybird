@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<input type="range" id="r">
+<script>
+    const input = document.getElementById("r");
+    input.dispatchEvent(new Event("mousedown"));
+    input.dispatchEvent(new Event("wheel"));
+    input.dispatchEvent(new Event("keydown"));
+</script>

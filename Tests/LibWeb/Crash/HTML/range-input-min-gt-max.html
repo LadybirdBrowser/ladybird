@@ -1,0 +1,6 @@
+<!DOCTYPE html>
+<input type="range" min="200" max="100" id="r" style="width: 100px">
+<script>
+    document.getElementById("r").getBoundingClientRect();
+    document.getElementById("r").dispatchEvent(new MouseEvent("mousedown", { clientX: 50 }));
+</script>

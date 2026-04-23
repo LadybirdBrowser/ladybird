@@ -1,0 +1,6 @@
+<!DOCTYPE html>
+<input type="range" style="display: none" id="r">
+<script>
+    const input = document.getElementById("r");
+    input.dispatchEvent(new MouseEvent("mousedown", { clientX: 0, clientY: 0 }));
+</script>
