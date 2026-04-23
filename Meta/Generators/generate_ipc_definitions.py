@@ -500,17 +500,10 @@ def write_proxy_method(
             out.write(f"\n        return move(*{sync_call});")
     elif is_try:
         out.write(f"""
-        auto result = m_connection.template send_sync_but_allow_failure<Messages::{endpoint.name}::{pascal_name}>({call_args});
-        if (!result) {{
-            m_connection.shutdown();
-            return IPC::ErrorCode::PeerDisconnected;
-        }}
-""")
-
-        if inner_return_type != "void":
-            out.write("        return move(*result);")
-        else:
-            out.write("        return {};")
+        if (auto result = m_connection.template send_sync_but_allow_failure<Messages::{endpoint.name}::{pascal_name}>({call_args}))
+            return {"{}" if inner_return_type == "void" else "move(*result)"};
+        m_connection.shutdown();
+        return IPC::ErrorCode::PeerDisconnected;""")
     else:
         # Async messages silently ignore send failures (e.g. peer disconnected).
         out.write(f"""
@@ -577,9 +570,8 @@ public:
         FixedMemoryStream stream {{ buffer }};
         auto message_endpoint_magic = TRY(stream.read_value<u32>());
 
-        if (message_endpoint_magic != {endpoint.magic}) {{
+        if (message_endpoint_magic != static_magic())
             return Error::from_string_literal("Endpoint magic number mismatch, not my message!");
-        }}
 
         auto message_id = TRY(stream.read_value<i32>());
 
@@ -594,7 +586,7 @@ public:
             pascal_name = pascal_case(name)
             out.write(f"""
         case (int)Messages::{endpoint.name}::MessageID::{pascal_name}:
-            return TRY(Messages::{endpoint.name}::{pascal_name}::decode(stream, attachments));""")
+            return Messages::{endpoint.name}::{pascal_name}::decode(stream, attachments);""")
 
     out.write(f"""
         default:
