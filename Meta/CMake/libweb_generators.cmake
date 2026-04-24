@@ -68,9 +68,9 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/PseudoClasses.json"
     )
 
-    invoke_cpp_generator(
+    invoke_py_generator(
         "PseudoElement.cpp"
-        Lagom::GenerateCSSPseudoElement
+        "generate_libweb_css_pseudo_element.py"
         "${LIBWEB_INPUT_FOLDER}/CSS/PseudoElements.json"
         "CSS/PseudoElement.h"
         "CSS/PseudoElement.cpp"
