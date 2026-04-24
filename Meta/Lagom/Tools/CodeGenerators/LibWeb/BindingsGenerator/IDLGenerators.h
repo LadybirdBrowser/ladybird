@@ -17,8 +17,8 @@
 
 namespace IDL {
 
-void generate_header(Interface const&, StringBuilder&);
-void generate_implementation(Interface const&, StringBuilder&);
+void generate_header(Module const&, StringBuilder&);
+void generate_implementation(Module const&, StringBuilder&);
 
 CppType idl_type_name_to_cpp_type(Type const& type, Context const& context);
 

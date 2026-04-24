@@ -20,20 +20,21 @@
 #include <LibIDL/Types.h>
 
 template<typename GeneratorFunction>
-static ErrorOr<void> write_if_changed(GeneratorFunction generator_function, IDL::Interface const& interface, StringView file_path)
+static ErrorOr<void> write_if_changed(GeneratorFunction generator_function, IDL::Module const& module, StringView file_path)
 {
     StringBuilder output_builder;
-    generator_function(interface, output_builder);
+    generator_function(module, output_builder);
 
     auto current_file_or_error = Core::File::open(file_path, Core::File::OpenMode::Read);
     if (current_file_or_error.is_error() && current_file_or_error.error().code() != ENOENT)
         return current_file_or_error.release_error();
 
+    bool file_exists = !current_file_or_error.is_error();
     ByteBuffer current_contents;
-    if (!current_file_or_error.is_error())
+    if (file_exists)
         current_contents = TRY(current_file_or_error.value()->read_until_eof());
-    // Only write to disk if contents have changed
-    if (current_contents != output_builder.string_view().bytes()) {
+
+    if (!file_exists || current_contents != output_builder.string_view().bytes()) {
         auto output_file = TRY(Core::File::open(file_path, Core::File::OpenMode::Write | Core::File::OpenMode::Truncate));
         TRY(output_file->write_until_depleted(output_builder.string_view().bytes()));
     }
@@ -150,23 +151,18 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         assign_fully_qualified_name(*interface);
 
     for (auto const& module : context.owned_modules) {
-        if (!module->interface.has_value())
-            continue;
-
-        auto& interface = module->interface.value();
-        if (!interface.will_generate_code())
-            continue;
-
-        if constexpr (BINDINGS_GENERATOR_DEBUG)
-            interface.dump();
-
         auto lexical_path = LexicalPath { module->module_own_path };
         auto path_prefix = LexicalPath::join(output_path, lexical_path.basename(LexicalPath::StripExtension::Yes));
         auto header_path = ByteString::formatted("{}.h", path_prefix);
         auto implementation_path = ByteString::formatted("{}.cpp", path_prefix);
 
-        TRY(write_if_changed(&IDL::generate_header, interface, header_path));
-        TRY(write_if_changed(&IDL::generate_implementation, interface, implementation_path));
+        if constexpr (BINDINGS_GENERATOR_DEBUG) {
+            if (module->interface.has_value() && module->interface->will_generate_code())
+                module->interface->dump();
+        }
+
+        TRY(write_if_changed(&IDL::generate_header, *module, header_path));
+        TRY(write_if_changed(&IDL::generate_implementation, *module, implementation_path));
 
         output_files.append(header_path);
         output_files.append(implementation_path);

@@ -6156,7 +6156,7 @@ static void generate_implementation_prologue(IDL::Interface const& interface, St
 {
     SourceGenerator generator { builder };
 
-    generator.set("bindings_name", interface.implemented_name);
+    generator.set("bindings_name", LexicalPath { interface.module_own_path }.basename(LexicalPath::StripExtension::Yes));
     if (!interface.parent_name.is_empty())
         generator.set("parent_bindings_name", interface.parent_name);
 
@@ -6227,7 +6227,7 @@ namespace Web::Bindings {
 )~~~");
 }
 
-void generate_header(IDL::Interface const& interface, StringBuilder& builder)
+static void generate_header_for_interface(IDL::Interface const& interface, StringBuilder& builder)
 {
     builder.append(R"~~~(#pragma once
 
@@ -6259,7 +6259,14 @@ namespace Web::Bindings {
 )~~~"sv);
 }
 
-void generate_implementation(IDL::Interface const& interface, StringBuilder& builder)
+void generate_header(IDL::Module const& module, StringBuilder& builder)
+{
+    if (!module_will_generate_code(module))
+        return;
+    generate_header_for_interface(*module.interface, builder);
+}
+
+static void generate_implementation_for_interface(IDL::Interface const& interface, StringBuilder& builder)
 {
     generate_implementation_prologue(interface, builder);
 
@@ -6282,6 +6289,13 @@ void generate_implementation(IDL::Interface const& interface, StringBuilder& bui
     builder.append(R"~~~(
 } // namespace Web::Bindings
 )~~~"sv);
+}
+
+void generate_implementation(IDL::Module const& module, StringBuilder& builder)
+{
+    if (!module_will_generate_code(module))
+        return;
+    generate_implementation_for_interface(*module.interface, builder);
 }
 
 }
