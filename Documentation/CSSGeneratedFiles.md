@@ -415,3 +415,24 @@ The generated code provides:
   - `bool units_are_compatible(FooUnit, FooUnit)` which returns whether these are compatible - basically whether you can convert from one to the other.
   - `double ratio_between_units(FooUnit, FooUnit)` to get a multiplier for converting the first unit into the second.
 - `bool is_absolute(LengthUnit)`, `bool is_font_relative(LengthUnit)`, `bool is_viewport_relative(LengthUnit)`, and `bool is_relative(LengthUnit)` for checking the category of length units.
+
+## ValueTypes.json
+
+This is a JSON object with the keys being value type names, and the values being the definition of the value type.
+It generates Parser/GeneratedValueTypesParsing.h and Parser/GeneratedValueTypesParsing.cpp
+
+NOTE: The generated parsing code is limited to the information given by the CSS value definition grammar, if there are
+additional requirements not representable in this grammar (e.g. bespoke resultant StyleValue types, default value
+handling, etc) parsing will need to be implemented manually.
+
+Each value type has the following properties:
+| Field       | Required | Description                                                       |
+|-------------|----------|-------------------------------------------------------------------|
+| `spec`      | Yes      | A link to the CSS specification where this value type is defined. |
+| `grammar`   | Yes      | The grammar of the CSS value type, as defined in the spec.        |
+| `__comment` | No       | Strings, for when you want to leave a note.                       |
+
+The generated code provides:
+- A `GenerateValueTypes` enum, listing each of the generated value types.
+- For each of those...
+  - A `CSS::Parser::Parser::parse_foo_value` method to parse the value type.
