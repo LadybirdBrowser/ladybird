@@ -38,9 +38,9 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/MathFunctions.json"
     )
 
-    invoke_cpp_generator(
+    invoke_py_generator(
         "MediaFeatureID.cpp"
-        Lagom::GenerateCSSMediaFeatureID
+        "generate_libweb_css_media_feature_id.py"
         "${LIBWEB_INPUT_FOLDER}/CSS/MediaFeatures.json"
         "CSS/MediaFeatureID.h"
         "CSS/MediaFeatureID.cpp"
