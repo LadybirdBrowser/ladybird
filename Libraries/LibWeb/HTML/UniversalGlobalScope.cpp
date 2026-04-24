@@ -185,8 +185,6 @@ bool UniversalGlobalScopeMixin::remove_from_about_to_be_notified_rejected_promis
 // https://html.spec.whatwg.org/multipage/webappapis.html#notify-about-rejected-promises
 void UniversalGlobalScopeMixin::notify_about_rejected_promises(Badge<EventLoop>)
 {
-    auto& realm = this_impl().realm();
-
     // 1. Let list be a copy of settings object's about-to-be-notified rejected promises list.
     auto list = m_about_to_be_notified_rejected_promises_list;
 
@@ -201,7 +199,7 @@ void UniversalGlobalScopeMixin::notify_about_rejected_promises(Badge<EventLoop>)
     auto& global = this_impl();
 
     // 5. Queue a global task on the DOM manipulation task source given global to run the following substep:
-    queue_global_task(Task::Source::DOMManipulation, global, GC::create_function(realm.heap(), [this, &global, list = move(list)] {
+    queue_global_task(Task::Source::DOMManipulation, global, GC::create_function(global.heap(), [this, &global, list = move(list)] {
         auto& realm = global.realm();
 
         // 1. For each promise p in list:
