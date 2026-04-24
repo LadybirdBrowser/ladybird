@@ -332,10 +332,9 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
 
     // 3. If the resulting width is smaller than 'min-width', the rules above are applied again,
     //    but this time using the value of 'min-width' as the computed value for 'width'.
-    if (!computed_values.min_width().is_auto()) {
+    if (!computed_values.min_width().is_auto() && !used_width.is_auto()) {
         auto min_width = calculate_inner_width(box, available_space.width, computed_values.min_width());
-        auto used_width_px = used_width.is_auto() ? remaining_available_space.width : AvailableSize::make_definite(used_width.to_px_or_zero(box));
-        if (used_width_px < min_width)
+        if (used_width.to_px_or_zero(box) < min_width)
             used_width = try_compute_width(CSS::Length::make_px(min_width));
     }
 
