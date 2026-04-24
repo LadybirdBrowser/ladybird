@@ -571,7 +571,7 @@
         {
           "type": "git",
           "url": "https://github.com/davea42/libdwarf-code.git",
-          "tag": "v2.3.0"
+          "tag": "v2.3.1"
         }
       ],
       "config-opts": [
