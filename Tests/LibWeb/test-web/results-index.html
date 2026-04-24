@@ -13,7 +13,7 @@
                 <span>Test Results</span>
                 <span class="title-timestamp" id="page-timestamp"></span>
             </h1>
-            <button class="copy-btn" id="copy-run-command-btn"></button>
+            <button class="copy-btn copy-run-command-btn" id="copy-run-command-btn" data-label="Copy Run Cmd"></button>
             <div class="search-box">
                 <span class="search-icon">&#128269;</span>
                 <input type="text" id="search" placeholder="Filter tests..." autocomplete="off">
@@ -32,10 +32,47 @@
 
         let currentIndex = -1;
         let testElements = [];
+        let testsByPid = new Map();
+        let argv = [];
+
+        function buildTestsByPid(records) {
+            const groupedTests = new Map();
+
+            for (const record of records) {
+                if (record.type !== 'test' || !Array.isArray(record.pids))
+                    continue;
+
+                for (const pid of record.pids) {
+                    if (!Number.isFinite(pid))
+                        continue;
+                    if (!groupedTests.has(pid))
+                        groupedTests.set(pid, []);
+                    groupedTests.get(pid).push(record);
+                }
+            }
+            return groupedTests;
+        }
 
         function setCopyButtonContents(btn, icon) {
-            if (btn.id !== 'copy-run-command-btn') return btn.innerHTML = icon;
-            btn.innerHTML = `<span class="stat-label">Copy Run Cmd</span><span class="copy-btn-icon">${icon}</span>`;
+            const label = btn.dataset.label;
+            if (!label)
+                return btn.innerHTML = icon;
+            btn.innerHTML = `<span class="stat-label">${label}</span><span class="copy-btn-icon">${icon}</span>`;
+        }
+
+        function formatCommand(argumentsList) {
+            return argumentsList.map(v => `'${String(v).replaceAll("'", `'"'"'`)}'`).join(' ');
+        }
+
+        function buildSequenceRunCommand(sequence) {
+            if (!argv.length || !sequence.length)
+                return '';
+
+            const argumentsList = [argv[0]];
+            for (const test of sequence) {
+                argumentsList.push('-f', test.relativePath ?? test.name);
+            }
+            return formatCommand(argumentsList);
         }
 
         function renderHeader(data) {
@@ -46,9 +83,11 @@
             const pad2 = (value) => String(value).padStart(2, '0');
             document.getElementById('page-timestamp').textContent = `${date.getFullYear()}/${pad2(date.getMonth() + 1)}/${pad2(date.getDate())} at ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`;
             const copyRunCommandButton = document.getElementById('copy-run-command-btn');
+            argv = Array.isArray(data.argv) ? data.argv : [];
+            const invocationCommand = formatCommand(argv);
             setCopyButtonContents(copyRunCommandButton, copySvg);
-            copyRunCommandButton.title = data.invocationCommandLine;
-            copyRunCommandButton.onclick = e => copyText(e, copyRunCommandButton, data.invocationCommandLine);
+            copyRunCommandButton.title = invocationCommand;
+            copyRunCommandButton.onclick = e => copyText(e, copyRunCommandButton, invocationCommand);
         }
 
         function summarizeResults(tests, total) {
@@ -61,13 +100,16 @@
         }
 
         function loadResults() {
-            const data = { total: 0, generatedAt: 0, invocationCommandLine: '', showSkipped: false, tests: [], hasHelperLogs: false };
+            const data = { total: 0, generatedAt: 0, argv: [], showSkipped: false, tests: [], hasHelperLogs: false };
             const records = Array.isArray(window.RESULTS_MANIFEST) ? window.RESULTS_MANIFEST : [];
+            testsByPid = buildTestsByPid(records);
             for (const record of records) {
                 if (record.type === 'run')
-                    Object.assign(data, { total: record.total ?? 0, generatedAt: record.generatedAt ?? 0, invocationCommandLine: record.invocationCommandLine ?? '', showSkipped: Boolean(record.showSkipped) });
-                else if (record.type === 'test' && record.result !== 'Pass')
-                    data.tests.push(record);
+                    Object.assign(data, { total: record.total ?? 0, generatedAt: record.generatedAt ?? 0, argv: Array.isArray(record.argv) ? record.argv : [], showSkipped: Boolean(record.showSkipped) });
+                else if (record.type === 'test') {
+                    if (record.result !== 'Pass')
+                        data.tests.push(record);
+                }
                 else if (record.type === 'helper-logs')
                     data.hasHelperLogs = true;
             }
@@ -82,7 +124,7 @@
             const tests = data.showSkipped ? data.tests : data.tests.filter(test => test.result !== 'Skipped');
 
             const items = data.hasHelperLogs
-                ? [{ name: 'test-dumps/results/helper-process-logs.html', mode: 'LOGS', inlineFileResult: 'helper-process-logs.html' }, ...tests]
+                ? [{ type: 'helper-logs', name: 'test-dumps/results/helper-process-logs.html', mode: 'LOGS', inlineFileResult: 'helper-process-logs.html' }, ...tests]
                 : tests;
 
             let html = `
@@ -126,7 +168,7 @@
             const tabs = item.inlineFileResult ? null : buildTabs(item);
 
             let html = `
-                <div class="test-item" data-name="${item.name.toLowerCase()}" id="test-${testId}">
+                <div class="test-item" data-type="${item.type}" data-name="${item.name.toLowerCase()}" id="test-${testId}">
                     <div class="row-header" onclick="toggleTest('${testId}')">
                         ${item.result ? `<span class="result-badge ${item.result}">${item.result}</span>` : ''}
                         ${item.mode ? `<span class="mode-badge">${item.mode}</span>` : ''}
@@ -136,8 +178,7 @@
                     </div>
                     <div class="test-content">`;
             if (tabs) {
-                html += `<div class="tab-bar">${tabs.bar}</div>
-                        <div class="preview-container" id="preview-${testId}">
+                html += `<div class="tab-bar">${tabs.bar}</div><div class="preview-container" id="preview-${testId}">
                             <div class="loading">Select a tab to view content</div>
                         </div>`;
             } else if (item.inlineFileResult) {
@@ -159,6 +200,13 @@
             }
 
             if (test.hasLogs) tabs.push({ id: 'std-logs', label: 'Logs', file: `${test.name}.logs.html`, type: 'text' });
+            if (Array.isArray(test.pids)) {
+                for (const pid of test.pids) {
+                    if ((testsByPid.get(pid)?.length ?? 0) === 0)
+                        continue;
+                    tabs.push({ id: `pid-${pid}`, label: 'Context', pid, currentTestName: test.name, type: 'process' });
+                }
+            }
 
             const bar = tabs.map((t, i) =>
                 `<button class="tab-btn${i === 0 ? ' active' : ''}" onclick="showTab('${test.name.replace(/[^a-zA-Z0-9]/g, '-')}', ${JSON.stringify(t).replace(/"/g, '&quot;')}, this)">${t.label}</button>`
@@ -210,7 +258,64 @@
                 container.innerHTML = `<img class="preview-image" src="${tab.file}" alt="${tab.label}">`;
             } else if (tab.type === 'imageDiff') {
                 initImageDiffViewer(container, tab.expected, tab.actual, tab.diff, tab.pixelErrors, tab.maxChannelDiff);
+            } else if (tab.type === 'process') {
+                renderProcessTab(container, tab.pid, tab.currentTestName);
             }
+        }
+
+        function renderProcessTab(container, pid, currentTestName) {
+            const sequence = testsByPid.get(pid) ?? [];
+            const runCommand = buildSequenceRunCommand(sequence);
+
+            if (!sequence.length) {
+                container.innerHTML = '<div class="loading">No test sequence was recorded for this pid.</div>';
+                return;
+            }
+
+            const rows = sequence.map((test, index) => {
+                const isCurrentTest = test.name === currentTestName;
+                const testPath = test.relativePath ?? test.name;
+                return `
+                    <div class="process-row${isCurrentTest ? ' current' : ''}">
+                        <span class="mode-badge">${isCurrentTest ? 'Current' : index + 1}</span>
+                        <span class="result-badge ${test.result}">${test.result}</span>
+                        <div class="process-row-main">
+                            <span class="test-name">${escapeHtml(testPath)}</span>
+                            <button class="copy-btn" data-copy-text="${escapeHtml(testPath)}" title="Copy test path"></button>
+                        </div>
+                    </div>`;
+            }).join('');
+
+            container.innerHTML = `
+                <div class="process">
+                    <div class="process-header">
+                        <span class="process-meta">Pid ${pid}: ${sequence.length} tests</span>
+                        <button class="copy-btn copy-run-command-btn compact process-copy-btn" data-label="Copy Run Cmd"></button>
+                    </div>
+                    <div class="process-list">${rows}</div>
+                </div>`;
+
+            const copyButton = container.querySelector('.process-copy-btn');
+            if (copyButton) {
+                setCopyButtonContents(copyButton, copySvg);
+                copyButton.title = runCommand;
+                copyButton.onclick = event => copyText(event, copyButton, runCommand);
+            }
+
+            container.querySelectorAll('.process .copy-btn').forEach(button => {
+                if (button.classList.contains('process-copy-btn'))
+                    return;
+                setCopyButtonContents(button, copySvg);
+                button.onclick = event => copyText(event, button, button.dataset.copyText ?? '');
+            });
+
+            requestAnimationFrame(() => {
+                container.querySelector('.process-row.current')?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center',
+                    inline: 'nearest',
+                });
+            });
         }
 
         function initImageDiffViewer(container, expectedSrc, actualSrc, diffSrc, pixelErrors, maxChannelDiff) {
@@ -518,6 +623,15 @@
             testElements.forEach(t => t.style.outline = '');
             el.style.outline = '2px solid var(--accent-blue)';
             el.style.outlineOffset = '-2px';
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;');
         }
 
         loadResults();

@@ -38,7 +38,7 @@ public:
     Vector<ByteString> test_globs;
 
     ByteString python_executable_path;
-    String invocation_command_line;
+    Vector<ByteString> argv;
 
     bool dump_gc_graph { false };
     bool fail_fast { false };

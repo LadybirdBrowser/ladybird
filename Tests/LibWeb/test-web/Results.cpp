@@ -7,6 +7,7 @@
 #include "Results.h"
 #include "Application.h"
 
+#include <AK/JsonArray.h>
 #include <AK/JsonValue.h>
 #include <AK/LexicalPath.h>
 #include <AK/Stream.h>
@@ -66,10 +67,13 @@ void append_result(Test const& test, TestResult result)
     StringBuilder builder;
     builder.appendff(
         "{{ \"type\": \"test\", \"name\": {}, \"relativePath\": {}, \"result\": {}, \"mode\": {}",
-        JsonValue(test.safe_relative_path).serialized(),
-        JsonValue(test.relative_path).serialized(),
+        JsonValue(test.safe_relative_path.view()).serialized(),
+        JsonValue(test.relative_path.view()).serialized(),
         JsonValue(test_result_to_string(result)).serialized(),
         JsonValue(test_mode_to_string(test.mode)).serialized());
+
+    if (test.pid > 0)
+        builder.appendff(", \"pids\": [{}]", test.pid);
 
     auto base_path = LexicalPath::join(Application::the().results_directory, test.safe_relative_path).string();
     if (FileSystem::exists(ByteString::formatted("{}.logs.html", base_path)))
@@ -93,6 +97,10 @@ ErrorOr<void> dump_screenshot_to_file(Gfx::Bitmap const& bitmap, StringView path
 ErrorOr<void> prepare_result_files(ReadonlySpan<Test> tests)
 {
     auto& app = Application::the();
+    JsonArray argv;
+    argv.ensure_capacity(app.argv.size());
+    for (auto const& argument : app.argv)
+        argv.must_append(argument.view());
 
     TRY(copy_result_asset("results-index.html"sv, "index.html"sv));
     TRY(copy_result_asset("results-index.css"sv, "index.css"sv));
@@ -100,10 +108,10 @@ ErrorOr<void> prepare_result_files(ReadonlySpan<Test> tests)
     TRY(initialize_manifest_array());
 
     auto run_header = ByteString::formatted(
-        "{{ \"type\": \"run\", \"total\": {}, \"generatedAt\": {}, \"invocationCommandLine\": {}, \"showSkipped\": {} }}",
+        "{{ \"type\": \"run\", \"total\": {}, \"generatedAt\": {}, \"argv\": {}, \"showSkipped\": {} }}",
         tests.size(),
         UnixDateTime::now().seconds_since_epoch(),
-        JsonValue(app.invocation_command_line).serialized(),
+        JsonValue(argv).serialized(),
         app.verbosity >= Application::VERBOSITY_LEVEL_LOG_SKIPPED_TESTS ? "true" : "false");
     TRY(append_manifest_record(run_header));
     return append_manifest_record("{ \"type\": \"helper-logs\" }"sv);

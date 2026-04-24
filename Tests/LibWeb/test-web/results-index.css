@@ -282,8 +282,7 @@ h1::before {
     border-color: var(--accent-green);
 }
 
-#copy-run-command-btn {
-    margin-left: auto;
+.copy-run-command-btn {
     width: auto;
     height: auto;
     padding: 10px;
@@ -291,14 +290,27 @@ h1::before {
     border-radius: 6px;
 }
 
-#copy-run-command-btn .stat-label {
+.copy-run-command-btn .stat-label {
     margin-top: 0;
+}
+
+#copy-run-command-btn {
+    margin-left: auto;
 }
 
 .copy-btn-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+}
+
+.compact {
+    padding: 6px 8px;
+    gap: 6px;
+}
+
+.compact .stat-label {
+    font-size: 11px;
 }
 
 .expand-icon {
@@ -357,6 +369,56 @@ h1::before {
     max-height: 600px;
     overflow: auto;
     background: var(--bg-primary);
+}
+
+.process {
+    padding: 0 12px 16px;
+}
+
+.process-header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding: 12px 0 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-primary);
+}
+
+.process-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.process-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-secondary);
+}
+
+.process-row-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.process-row .test-name {
+    min-width: 0;
+}
+
+.process-meta {
+    color: var(--text-secondary);
+    font-size: 12px;
 }
 
 .preview-frame {

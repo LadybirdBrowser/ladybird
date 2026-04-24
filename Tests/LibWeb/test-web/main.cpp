@@ -852,6 +852,10 @@ static void set_ui_callbacks_for_tests(TestWebView& view, TestRunCapture& test_r
     };
 
     view.on_web_content_process_change_for_cross_site_navigation = [&view, &test_run_capture]() {
+        if (auto index = s_current_test_index_by_view.get(&view); index.has_value()) {
+            if (s_run_context)
+                s_run_context->tests[*index].pid = view.web_content_pid();
+        }
         test_run_capture.rebind_test_output_capture(view);
     };
 }
@@ -1052,6 +1056,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
             auto& test = tests[index];
             test.start_time = UnixDateTime::now();
+            test.pid = view->web_content_pid();
             test.index = index;
 
             // Mark this view as active (for variant wake-up tracking)
@@ -1087,15 +1092,14 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
                 if (app.fail_fast && !fail_fast_triggered && should_trigger_fail_fast) {
                     fail_fast_triggered = true;
-                    auto const pid = view->web_content_pid();
-                    Display::the().on_fail_fast(test, result.result, pid);
+                    Display::the().on_fail_fast(test, result.result, test.pid);
 
                     if (s_all_tests_complete)
                         s_all_tests_complete->reject(Error::from_string_literal("Fail-fast"));
                     Core::EventLoop::current().quit(1);
 
                     if (result.result == TestResult::Timeout)
-                        maybe_attach_on_fail_fast_timeout(pid);
+                        maybe_attach_on_fail_fast_timeout(test.pid);
 
                     return;
                 }
@@ -1197,7 +1201,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 #else
     auto app = TRY(TestWeb::Application::create(arguments, OptionalNone {}));
 #endif
-    app->invocation_command_line = MUST(String::join(' ', arguments.strings));
+    for (auto const& argument : arguments.strings)
+        app->argv.append(argument);
 
     if (app->repeat_count > 1 && app->rebaseline) {
         warnln("Error: --repeat cannot be used together with --rebaseline.");
