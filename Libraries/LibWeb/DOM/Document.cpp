@@ -2099,13 +2099,17 @@ void Document::invalidate_style_for_elements_affected_by_pseudo_class_change(CSS
             return false;
 
         SelectorEngine::MatchContext context;
-        if (SelectorEngine::matches(selector, element, {}, context))
-            return true;
-        if (SelectorEngine::matches(selector, { element, CSS::PseudoElement::Before }, {}, context))
-            return true;
-        if (SelectorEngine::matches(selector, { element, CSS::PseudoElement::After }, {}, context))
-            return true;
-        return false;
+        auto const& target_pseudo = selector.target_pseudo_element();
+        if (!target_pseudo.has_value())
+            return SelectorEngine::matches(selector, element, {}, context);
+        switch (target_pseudo->type()) {
+        case CSS::PseudoElement::Before:
+            return SelectorEngine::matches(selector, { element, CSS::PseudoElement::Before }, {}, context);
+        case CSS::PseudoElement::After:
+            return SelectorEngine::matches(selector, { element, CSS::PseudoElement::After }, {}, context);
+        default:
+            return false;
+        }
     };
 
     auto matches_different_set_of_rules_after_state_change = [&](Element& element) {
