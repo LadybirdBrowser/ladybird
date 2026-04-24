@@ -26,6 +26,12 @@ TESTJS_GLOBAL_FUNCTION(can_parse_source, canParseSource)
     return JS::Value(!script.is_error());
 }
 
+TESTJS_GLOBAL_FUNCTION(collect_garbage, gc)
+{
+    vm.heap().collect_garbage();
+    return JS::js_undefined();
+}
+
 // Based on $262.evalScript
 TESTJS_GLOBAL_FUNCTION(evaluate_source, evaluateSource)
 {

@@ -185,24 +185,7 @@ void set_default_global_bindings(Realm& realm)
     // 3. Return unused.
 }
 
-void GlobalObject::initialize(Realm& realm)
-{
-    Base::initialize(realm);
-
-    auto& vm = this->vm();
-
-    // Non-standard
-    u8 attr = Attribute::Writable | Attribute::Configurable;
-    define_native_function(realm, vm.names.gc, gc, 0, attr);
-}
-
 GlobalObject::~GlobalObject() = default;
-
-JS_DEFINE_NATIVE_FUNCTION(GlobalObject::gc)
-{
-    vm.heap().collect_garbage();
-    return js_undefined();
-}
 
 // 19.2.1 eval ( x ), https://tc39.es/ecma262/#sec-eval-x
 JS_DEFINE_NATIVE_FUNCTION(GlobalObject::eval)

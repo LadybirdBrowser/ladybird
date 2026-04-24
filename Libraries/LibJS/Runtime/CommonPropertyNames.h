@@ -194,7 +194,6 @@ namespace JS {
     P(fromHex)                               \
     P(fround)                                \
     P(Function)                              \
-    P(gc)                                    \
     P(get)                                   \
     P(getBigInt64)                           \
     P(getBigUint64)                          \
