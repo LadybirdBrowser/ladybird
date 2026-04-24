@@ -15,8 +15,9 @@
 
 namespace TestWeb {
 
+void append_result(Test const&, TestResult);
 ErrorOr<void> dump_screenshot_to_file(Gfx::Bitmap const&, StringView path);
-ErrorOr<void> generate_result_files(ReadonlySpan<Test>, ReadonlySpan<TestCompletion> non_passing_tests);
+ErrorOr<void> prepare_result_files(ReadonlySpan<Test>);
 ErrorOr<void> write_test_diff_to_results(Test const&, ByteBuffer const& expectation);
 ErrorOr<void> write_screenshot_failure_results(Test&, Gfx::Bitmap const& actual, Gfx::Bitmap const& expected);
 

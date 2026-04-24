@@ -610,7 +610,7 @@ static void run_screenshot_test(TestWebView& view, TestRunContext& context, Test
 
     auto handle_completed_test = [&context, test_index, url]() -> ErrorOr<TestResult> {
         auto& test = context.tests[test_index];
-        auto& actual = *test.actual_screenshot;
+        auto const& actual = *test.actual_screenshot;
 
         // Try to load and compare against existing expected PNG first.
         auto expectation_file_or_error = Core::MappedFile::map(test.expectation_path);
@@ -958,6 +958,11 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     Vector<NonnullOwnPtr<TestWebView>> views;
     views.ensure_capacity(concurrency);
 
+    if (auto result = prepare_result_files(tests); result.is_error())
+        warnln("Failed to prepare live result files: {}", result.error());
+    else
+        outln("Results: file://{}/index.html", app.results_directory);
+
     TestRunCapture test_run_capture;
 
     for (size_t i = 0; i < concurrency; ++i) {
@@ -1058,6 +1063,8 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
                 cleanup_test(result.test_index, result.result);
 
                 auto& test = tests[result.test_index];
+                if (result.result != TestResult::Expanded)
+                    append_result(test, result.result);
 
                 // Clear screenshots to free memory
                 test.actual_screenshot.clear();
@@ -1141,15 +1148,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             }
         }
     }
-    bool has_helper_output = test_run_capture.write_helper_process_output();
-
-    // Generate result files (JSON data and HTML index)
-    if (app.quiet || app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT || !non_passing_tests.is_empty() || has_helper_output) {
-        if (auto result = generate_result_files(tests, non_passing_tests); result.is_error())
-            warnln("Failed to generate result files: {}", result.error());
-        else
-            outln("Results: file://{}/index.html", app.results_directory);
-    }
+    test_run_capture.write_helper_process_output();
 
     return display.fail_count + display.timeout_count + display.crashed_count + tests_remaining;
 }

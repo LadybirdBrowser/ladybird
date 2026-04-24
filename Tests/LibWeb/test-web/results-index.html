@@ -4,8 +4,9 @@
     <meta charset="utf-8">
     <title>Test Results</title>
     <link rel="stylesheet" href="index.css">
+    <script src="results-manifest.js"></script>
 </head>
-<body>
+<body class="results-index-page">
     <div class="container">
         <header>
             <h1>
@@ -25,7 +26,6 @@
         <span><kbd>Enter</kbd> Expand</span>
         <span><kbd>/</kbd> Search</span>
     </div>
-    <script src="results.js"></script>
     <script>
         const copySvg = '<svg width="14" height="14" viewBox="-1 -1 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V3a1.5 1.5 0 0 0-1.5-1.5H3A1.5 1.5 0 0 0 1.5 3v6A1.5 1.5 0 0 0 3 10.5h2.5"/></svg>';
         const checkSvg = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5 6.5-7"/></svg>';
@@ -39,6 +39,9 @@
         }
 
         function renderHeader(data) {
+            if (!data.generatedAt)
+                return;
+
             const date = new Date(data.generatedAt * 1000);
             const pad2 = (value) => String(value).padStart(2, '0');
             document.getElementById('page-timestamp').textContent = `${date.getFullYear()}/${pad2(date.getMonth() + 1)}/${pad2(date.getDate())} at ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`;
@@ -48,43 +51,60 @@
             copyRunCommandButton.onclick = e => copyText(e, copyRunCommandButton, data.invocationCommandLine);
         }
 
+        function summarizeResults(tests, total) {
+            return tests.reduce((summary, test) => {
+                const key = test.result.toLowerCase();
+                if (key in summary)
+                    summary[key]++;
+                return summary;
+            }, { total, fail: 0, timeout: 0, crashed: 0, skipped: 0 });
+        }
+
         function loadResults() {
-            if (typeof RESULTS_DATA === 'undefined') {
-                document.getElementById('content').innerHTML = '<div class="empty-state"><h2>No Results</h2><p>results.js not found</p></div>';
-                return;
+            const data = { total: 0, generatedAt: 0, invocationCommandLine: '', showSkipped: false, tests: [], hasHelperLogs: false };
+            const records = Array.isArray(window.RESULTS_MANIFEST) ? window.RESULTS_MANIFEST : [];
+            for (const record of records) {
+                if (record.type === 'run')
+                    Object.assign(data, { total: record.total ?? 0, generatedAt: record.generatedAt ?? 0, invocationCommandLine: record.invocationCommandLine ?? '', showSkipped: Boolean(record.showSkipped) });
+                else if (record.type === 'test' && record.result !== 'Pass')
+                    data.tests.push(record);
+                else if (record.type === 'helper-logs')
+                    data.hasHelperLogs = true;
             }
-            renderHeader(RESULTS_DATA);
-            renderResults(RESULTS_DATA);
+            renderHeader(data);
+            renderResults(data);
             setupKeyboardNav();
         }
 
         function renderResults(data) {
             const content = document.getElementById('content');
+            const summary = summarizeResults(data.tests, data.total);
+            const tests = data.showSkipped ? data.tests : data.tests.filter(test => test.result !== 'Skipped');
 
-            const items = data.hasLogs
-                ? [{ name: 'test-dumps/results/helper-process-logs.html', mode: 'LOGS', inlineFileResult: 'helper-process-logs.html' }, ...data.tests]
-                : data.tests;
+            const items = data.hasHelperLogs
+                ? [{ name: 'test-dumps/results/helper-process-logs.html', mode: 'LOGS', inlineFileResult: 'helper-process-logs.html' }, ...tests]
+                : tests;
 
             let html = `
                 <div class="summary">
                     <div class="stat-card total">
-                        <div class="stat-value">${data.summary.total}</div>
+                        <div class="stat-value">${summary.total}</div>
                         <div class="stat-label">Total</div>
                     </div>
                     <div class="stat-card fail">
-                        <div class="stat-value">${data.summary.fail}</div>
+                        <div class="stat-value">${summary.fail}</div>
                         <div class="stat-label">Failed</div>
                     </div>
                     <div class="stat-card timeout">
-                        <div class="stat-value">${data.summary.timeout}</div>
+                        <div class="stat-value">${summary.timeout}</div>
                         <div class="stat-label">Timeout</div>
                     </div>
                     <div class="stat-card crashed">
-                        <div class="stat-value">${data.summary.crashed}</div>
+                        <div class="stat-value">${summary.crashed}</div>
                         <div class="stat-label">Crashed</div>
                     </div>
                     <div class="stat-card skipped">
-                        <div class="stat-value">${data.summary.skipped}</div>
+                        <div class="stat-value">${summary.skipped}</div>
                         <div class="stat-label">Skipped</div>
                     </div>
                 </div>
@@ -94,7 +114,7 @@
                 html += renderResultItem(test);
             }
             html += '</div>';
-            if (items.every(test => test.mode === 'LOGS')) {
+            if (!tests.length && !data.hasHelperLogs) {
                 html += '<div class="empty-state"><h2>All items Passed!</h2><p>No failing items to display.</p></div>';
             }
             content.innerHTML = html;
@@ -107,7 +127,7 @@
 
             let html = `
                 <div class="test-item" data-name="${item.name.toLowerCase()}" id="test-${testId}">
-                    <div class="test-header" onclick="toggleTest('${testId}')">
+                    <div class="row-header" onclick="toggleTest('${testId}')">
                         ${item.result ? `<span class="result-badge ${item.result}">${item.result}</span>` : ''}
                         ${item.mode ? `<span class="mode-badge">${item.mode}</span>` : ''}
                         <span class="test-name">${item.name}</span>
@@ -138,7 +158,7 @@
                 tabs.push({ id: 'compare', label: 'Compare', expected: `${test.name}.expected.png`, actual: `${test.name}.actual.png`, diff: `${test.name}.diff.png`, pixelErrors: test.pixelErrors, maxChannelDiff: test.maxChannelDiff, type: 'imageDiff' });
             }
 
-            if (test.hasLogs) tabs.push({ id: 'std-logs', label: 'std logs', file: `${test.name}.logs.html`, type: 'text' });
+            if (test.hasLogs) tabs.push({ id: 'std-logs', label: 'Logs', file: `${test.name}.logs.html`, type: 'text' });
 
             const bar = tabs.map((t, i) =>
                 `<button class="tab-btn${i === 0 ? ' active' : ''}" onclick="showTab('${test.name.replace(/[^a-zA-Z0-9]/g, '-')}', ${JSON.stringify(t).replace(/"/g, '&quot;')}, this)">${t.label}</button>`

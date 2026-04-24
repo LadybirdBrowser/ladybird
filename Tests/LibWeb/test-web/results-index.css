@@ -182,7 +182,8 @@ h1::before {
     border-color: var(--accent-blue);
 }
 
-.test-header {
+.test-header,
+.row-header {
     display: flex;
     align-items: center;
     padding: 12px 16px;
@@ -191,7 +192,8 @@ h1::before {
     transition: background 0.15s ease;
 }
 
-.test-header:hover {
+.test-header:hover,
+.row-header:hover {
     background: var(--bg-hover);
 }
 
@@ -203,6 +205,12 @@ h1::before {
     border-radius: 4px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+}
+
+.result-badge.Pass {
+    background: rgba(63, 185, 80, 0.2);
+    color: var(--accent-green);
+    border: 1px solid rgba(63, 185, 80, 0.4);
 }
 
 .result-badge.Fail {

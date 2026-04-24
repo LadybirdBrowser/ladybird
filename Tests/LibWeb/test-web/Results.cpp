@@ -6,10 +6,10 @@
 
 #include "Results.h"
 #include "Application.h"
-#include "Display.h"
 
 #include <AK/JsonValue.h>
 #include <AK/LexicalPath.h>
+#include <AK/Stream.h>
 #include <AK/StringBuilder.h>
 #include <LibCore/Directory.h>
 #include <LibCore/File.h>
@@ -19,7 +19,13 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
 
+#if !defined(AK_OS_WINDOWS)
+#    include <unistd.h>
+#endif
+
 namespace TestWeb {
+
+static constexpr StringView MANIFEST_FILE_NAME = "results-manifest.js"sv;
 
 static ErrorOr<ByteString> prepare_output_path(Test const& test)
 {
@@ -27,6 +33,53 @@ static ErrorOr<ByteString> prepare_output_path(Test const& test)
     auto base_path = LexicalPath::join(app.results_directory, test.safe_relative_path);
     TRY(Core::Directory::create(base_path.dirname(), Core::Directory::CreateDirectories::Yes));
     return base_path.string();
+}
+
+static ErrorOr<void> initialize_manifest_array()
+{
+    auto path = LexicalPath::join(Application::the().results_directory, MANIFEST_FILE_NAME).string();
+    auto file = TRY(Core::File::open(path, Core::File::OpenMode::Write | Core::File::OpenMode::Truncate));
+    TRY(file->write_until_depleted("window.RESULTS_MANIFEST = [\n];\n"sv));
+    return {};
+}
+
+static ErrorOr<void> append_manifest_record(StringView json)
+{
+    auto path = LexicalPath::join(Application::the().results_directory, MANIFEST_FILE_NAME).string();
+    auto file = TRY(Core::File::open(path, Core::File::OpenMode::ReadWrite));
+    TRY(file->seek(-3, SeekMode::FromEndPosition));
+    auto line = ByteString::formatted("{},\n];\n", json);
+    TRY(file->write_until_depleted(line.bytes()));
+    return {};
+}
+
+static ErrorOr<void> copy_result_asset(StringView source_file_name, StringView destination_file_name)
+{
+    auto const& app = Application::the();
+    auto source_path = LexicalPath::join(app.test_root_path, ByteString::formatted("test-web/{}", source_file_name)).string();
+    auto destination_path = LexicalPath::join(app.results_directory, destination_file_name).string();
+    return FileSystem::copy_file_or_directory(destination_path, source_path, FileSystem::RecursionMode::Disallowed, FileSystem::LinkMode::Disallowed, FileSystem::AddDuplicateFileMarker::No);
+}
+
+void append_result(Test const& test, TestResult result)
+{
+    StringBuilder builder;
+    builder.appendff(
+        "{{ \"type\": \"test\", \"name\": {}, \"relativePath\": {}, \"result\": {}, \"mode\": {}",
+        JsonValue(test.safe_relative_path).serialized(),
+        JsonValue(test.relative_path).serialized(),
+        JsonValue(test_result_to_string(result)).serialized(),
+        JsonValue(test_mode_to_string(test.mode)).serialized());
+
+    auto base_path = LexicalPath::join(Application::the().results_directory, test.safe_relative_path).string();
+    if (FileSystem::exists(ByteString::formatted("{}.logs.html", base_path)))
+        builder.append(", \"hasLogs\": true"sv);
+
+    if ((test.mode == TestMode::Ref || test.mode == TestMode::Screenshot) && test.diff_pixel_error_count > 0)
+        builder.appendff(", \"pixelErrors\": {}, \"maxChannelDiff\": {}", test.diff_pixel_error_count, test.diff_maximum_error);
+
+    builder.append(" }"sv);
+    (void)append_manifest_record(builder.string_view());
 }
 
 ErrorOr<void> dump_screenshot_to_file(Gfx::Bitmap const& bitmap, StringView path)
@@ -37,71 +90,23 @@ ErrorOr<void> dump_screenshot_to_file(Gfx::Bitmap const& bitmap, StringView path
     return {};
 }
 
-ErrorOr<void> generate_result_files(ReadonlySpan<Test> tests, ReadonlySpan<TestCompletion> non_passing_tests)
+ErrorOr<void> prepare_result_files(ReadonlySpan<Test> tests)
 {
     auto& app = Application::the();
-    auto& display = Display::the();
 
-    bool const has_helper_logs = FileSystem::exists(LexicalPath::join(app.results_directory, "helper-process-logs.html"sv).string());
-    auto const generated_at = UnixDateTime::now();
+    TRY(copy_result_asset("results-index.html"sv, "index.html"sv));
+    TRY(copy_result_asset("results-index.css"sv, "index.css"sv));
 
-    StringBuilder js;
-    js.append("const RESULTS_DATA = {\n"sv);
-    js.appendff("  \"summary\": {{ \"total\": {}, \"fail\": {}, \"timeout\": {}, \"crashed\": {}, \"skipped\": {} }},\n",
-        total_tests(),
-        display.fail_count,
-        display.timeout_count,
-        display.crashed_count,
-        display.skipped_count);
-    js.appendff("  \"generatedAt\": {},\n", generated_at.seconds_since_epoch());
-    js.appendff("  \"invocationCommandLine\": {},\n", JsonValue(app.invocation_command_line).serialized());
-    js.appendff("  \"hasLogs\": {},\n", has_helper_logs ? "true" : "false");
-    js.append("  \"tests\": [\n"sv);
+    TRY(initialize_manifest_array());
 
-    bool first = true;
-    for (auto const& result : non_passing_tests) {
-        if (result.result == TestResult::Skipped && app.verbosity < Application::VERBOSITY_LEVEL_LOG_SKIPPED_TESTS)
-            continue;
-
-        if (!first)
-            js.append(",\n"sv);
-        first = false;
-
-        auto const& test = tests[result.test_index];
-        auto base_path = TRY(prepare_output_path(test));
-        bool has_std_logs = FileSystem::exists(ByteString::formatted("{}.logs.html", base_path));
-
-        js.appendff("    {{ \"name\": \"{}\", \"result\": \"{}\", \"mode\": \"{}\", \"hasLogs\": {}",
-            test.safe_relative_path,
-            test_result_to_string(result.result),
-            test_mode_to_string(test.mode),
-            has_std_logs ? "true" : "false");
-        if ((test.mode == TestMode::Ref || test.mode == TestMode::Screenshot) && test.diff_pixel_error_count > 0)
-            js.appendff(", \"pixelErrors\": {}, \"maxChannelDiff\": {}", test.diff_pixel_error_count, test.diff_maximum_error);
-        js.append(" }"sv);
-    }
-
-    js.append("\n  ]\n};\n"sv);
-
-    auto js_path = LexicalPath::join(app.results_directory, "results.js"sv).string();
-    auto js_file = TRY(Core::File::open(js_path, Core::File::OpenMode::Write | Core::File::OpenMode::Truncate));
-    TRY(js_file->write_until_depleted(js.string_view().bytes()));
-
-    auto source_html_path = LexicalPath::join(app.test_root_path, "test-web/results-index.html"sv).string();
-    auto dest_html_path = LexicalPath::join(app.results_directory, "index.html"sv).string();
-    auto source_html = TRY(Core::File::open(source_html_path, Core::File::OpenMode::Read));
-    auto html_contents = TRY(source_html->read_until_eof());
-    auto dest_html = TRY(Core::File::open(dest_html_path, Core::File::OpenMode::Write | Core::File::OpenMode::Truncate));
-    TRY(dest_html->write_until_depleted(html_contents));
-
-    auto source_css_path = LexicalPath::join(app.test_root_path, "test-web/results-index.css"sv).string();
-    auto dest_css_path = LexicalPath::join(app.results_directory, "index.css"sv).string();
-    auto source_css = TRY(Core::File::open(source_css_path, Core::File::OpenMode::Read));
-    auto css_contents = TRY(source_css->read_until_eof());
-    auto dest_css = TRY(Core::File::open(dest_css_path, Core::File::OpenMode::Write | Core::File::OpenMode::Truncate));
-    TRY(dest_css->write_until_depleted(css_contents));
-
-    return {};
+    auto run_header = ByteString::formatted(
+        "{{ \"type\": \"run\", \"total\": {}, \"generatedAt\": {}, \"invocationCommandLine\": {}, \"showSkipped\": {} }}",
+        tests.size(),
+        UnixDateTime::now().seconds_since_epoch(),
+        JsonValue(app.invocation_command_line).serialized(),
+        app.verbosity >= Application::VERBOSITY_LEVEL_LOG_SKIPPED_TESTS ? "true" : "false");
+    TRY(append_manifest_record(run_header));
+    return append_manifest_record("{ \"type\": \"helper-logs\" }"sv);
 }
 
 ErrorOr<void> write_test_diff_to_results(Test const& test, ByteBuffer const& expectation)
