@@ -121,6 +121,43 @@ static ComputedScrollAxis computed_scroll_axis(Bindings::ScrollAxis axis, CSS::W
     VERIFY_NOT_REACHED();
 }
 
+struct ScrollOffsetData {
+    double scroll_offset;
+    double max_scroll_offset;
+};
+static Optional<ScrollOffsetData> compute_scroll_offset_data(Variant<GC::Ptr<DOM::Element const>, GC::Ptr<DOM::Document>> propagated_source, Bindings::ScrollAxis axis)
+{
+    if (propagated_source.visit([](auto const& source) { return source == nullptr; }))
+        return {};
+
+    auto const& layout_node = propagated_source.visit([](auto const& source) -> Layout::NodeWithStyle const* { return source->unsafe_layout_node(); });
+
+    if (!layout_node || !layout_node->is_scroll_container())
+        return {};
+
+    auto const& paintable_box = propagated_source.visit([](auto const& source) -> RefPtr<Painting::PaintableBox const> { return source->unsafe_paintable_box(); });
+
+    if (!paintable_box || !paintable_box->has_scrollable_overflow())
+        return {};
+
+    auto const& scrollable_overflow_rect = paintable_box->scrollable_overflow_rect().value();
+    auto const& computed_axis = computed_scroll_axis(axis, paintable_box->computed_values().writing_mode(), paintable_box->computed_values().direction());
+
+    // FIXME: Scroll offset is currently incorrect as it is always relative to the top left of the scrollable overflow
+    //        rect when it should instead be relative to the scroll origin.
+
+    // FIXME: Support the case where the computed scroll axis is reversed
+
+    return ScrollOffsetData {
+        .scroll_offset = computed_axis.is_vertical
+            ? paintable_box->scroll_offset().y().to_double()
+            : paintable_box->scroll_offset().x().to_double(),
+        .max_scroll_offset = computed_axis.is_vertical
+            ? scrollable_overflow_rect.height().to_double() - paintable_box->content_height().to_double()
+            : scrollable_overflow_rect.width().to_double() - paintable_box->content_width().to_double(),
+    };
+}
+
 void ScrollTimeline::update_current_time(double)
 {
     // https://drafts.csswg.org/scroll-animations-1/#ref-for-dom-animationtimeline-currenttime
@@ -128,36 +165,19 @@ void ScrollTimeline::update_current_time(double)
     // representing its startmost scroll position (in the writing mode of the scroll container). Null when the timeline
     // is inactive.
 
-    auto propagated_source = get_propagated_source();
-
-    if (propagated_source.visit([](auto const& source) { return source == nullptr; })) {
-        set_current_time({});
-        return;
-    }
+    auto scroll_offset_data = compute_scroll_offset_data(get_propagated_source(), m_axis);
 
     // If the source of a ScrollTimeline is an element whose principal box does not exist or is not a scroll container,
     // or if there is no scrollable overflow, then the ScrollTimeline is inactive.
     // NB: Called during animation timeline update, which runs before layout is up to date.
-    auto const& layout_node = propagated_source.visit([](auto const& source) -> Layout::NodeWithStyle const* { return source->unsafe_layout_node(); });
-
-    if (!layout_node || !layout_node->is_scroll_container()) {
+    if (!scroll_offset_data.has_value()) {
         set_current_time({});
         return;
     }
-
-    auto paintable_box = propagated_source.visit([](auto const& source) -> RefPtr<Painting::PaintableBox const> { return source->unsafe_paintable_box(); });
-
-    if (!paintable_box || !paintable_box->has_scrollable_overflow()) {
-        set_current_time({});
-        return;
-    }
-
-    auto const& scrollable_overflow_rect = paintable_box->scrollable_overflow_rect().value();
-    auto const& computed_axis = computed_scroll_axis(m_axis, paintable_box->computed_values().writing_mode(), paintable_box->computed_values().direction());
 
     // https://drafts.csswg.org/scroll-animations-1/#scroll-timeline-progress
     // If the 0% position and 100% position coincide (i.e. the denominator in the current time formula is zero), the timeline is inactive.
-    if ((computed_axis.is_vertical && scrollable_overflow_rect.height() == paintable_box->content_height()) || (!computed_axis.is_vertical && scrollable_overflow_rect.width() == paintable_box->content_width())) {
+    if (scroll_offset_data->max_scroll_offset == 0) {
         set_current_time({});
         return;
     }
@@ -167,13 +187,7 @@ void ScrollTimeline::update_current_time(double)
     // https://drafts.csswg.org/scroll-animations-1/#scroll-timeline-progress
     // Progress (the current time) for a scroll progress timeline is calculated as:
     //     scroll offset ÷ (scrollable overflow size − scroll container size)
-    // FIXME: Scroll offset is currently incorrect as it is always relative to the top left of the scrollable overflow
-    //        rect when it should instead be relative to the scroll origin.
-    auto progress = computed_axis.is_vertical
-        ? paintable_box->scroll_offset().y().to_double() / (scrollable_overflow_rect.height().to_double() - paintable_box->content_height().to_double())
-        : paintable_box->scroll_offset().x().to_double() / (scrollable_overflow_rect.width().to_double() - paintable_box->content_width().to_double());
-
-    // FIXME: Support the case where the computed scroll axis is reversed
+    auto progress = scroll_offset_data->scroll_offset / scroll_offset_data->max_scroll_offset;
 
     set_current_time(TimeValue { TimeValue::Type::Percentage, progress * 100 });
 }
