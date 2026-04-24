@@ -29,9 +29,9 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/EnvironmentVariables.json"
     )
 
-    invoke_cpp_generator(
+    invoke_py_generator(
         "MathFunctions.cpp"
-        Lagom::GenerateCSSMathFunctions
+        "generate_libweb_css_math_functions.py"
         "${LIBWEB_INPUT_FOLDER}/CSS/MathFunctions.json"
         "CSS/MathFunctions.h"
         "CSS/MathFunctions.cpp"
