@@ -384,7 +384,7 @@
         {
           "type": "git",
           "url": "https://github.com/AOMediaCodec/libavif.git",
-          "tag": "v1.3.0"
+          "tag": "v1.4.1"
         }
       ],
       "config-opts": [
