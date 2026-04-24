@@ -78,3 +78,9 @@ def underlying_type_for_enum(member_count: int) -> str:
     if member_count <= 0xFFFFFFFF:
         return "u32"
     return "u64"
+
+
+def make_name_acceptable_cpp(name: str) -> str:
+    if name == "float":
+        return "float_"
+    return name

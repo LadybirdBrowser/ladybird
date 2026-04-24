@@ -135,6 +135,29 @@ function(invoke_idl_generator cpp_name idl_name generator primary_source header 
     set(CURRENT_LIB_GENERATED ${CURRENT_LIB_GENERATED} PARENT_SCOPE)
 endfunction()
 
+function(invoke_py_idl_generator cpp_name idl_name script primary_source header implementation idl)
+    cmake_parse_arguments(invoke_py_idl_generator "" "" "arguments;dependencies" ${ARGN})
+
+    set(script_path "${LADYBIRD_SOURCE_DIR}/Meta/Generators/${script}")
+    add_custom_command(
+        OUTPUT "${header}" "${implementation}" "${idl}"
+        COMMAND ${Python3_EXECUTABLE} "${script_path}" -h "${header}.tmp" -c "${implementation}.tmp" -i "${idl}.tmp" ${invoke_py_idl_generator_arguments}
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${header}.tmp" "${header}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${implementation}.tmp" "${implementation}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${idl}.tmp" "${idl}"
+        COMMAND "${CMAKE_COMMAND}" -E remove "${header}.tmp" "${implementation}.tmp" "${idl}.tmp"
+        VERBATIM
+        DEPENDS "${script_path}" ${invoke_py_idl_generator_dependencies} "${primary_source}"
+    )
+
+    add_custom_target("generate_${cpp_name}" DEPENDS "${header}" "${implementation}" "${idl}")
+    add_custom_target("generate_${idl_name}" DEPENDS "generate_${cpp_name}")
+    add_dependencies(ladybird_codegen_accumulator "generate_${cpp_name}")
+    add_dependencies(ladybird_codegen_accumulator "generate_${idl_name}")
+    list(APPEND CURRENT_LIB_GENERATED "${name}")
+    set(CURRENT_LIB_GENERATED ${CURRENT_LIB_GENERATED} PARENT_SCOPE)
+endfunction()
+
 function(download_file_multisource urls path)
     cmake_parse_arguments(DOWNLOAD "" "SHA256" "" ${ARGN})
 

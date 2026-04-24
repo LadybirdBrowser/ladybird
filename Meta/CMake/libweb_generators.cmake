@@ -104,10 +104,10 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/Keywords.json"
     )
 
-    invoke_idl_generator(
+    invoke_py_idl_generator(
         "GeneratedCSSNumericFactoryMethods.cpp"
         "GeneratedCSSNumericFactoryMethods.idl"
-        Lagom::GenerateCSSNumericFactoryMethods
+        "generate_libweb_css_numeric_factory_methods.py"
         "${LIBWEB_INPUT_FOLDER}/CSS/Units.json"
         "CSS/GeneratedCSSNumericFactoryMethods.h"
         "CSS/GeneratedCSSNumericFactoryMethods.cpp"
