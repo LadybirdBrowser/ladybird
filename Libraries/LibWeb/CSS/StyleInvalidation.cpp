@@ -15,7 +15,7 @@
 
 namespace Web::CSS {
 
-static bool is_stacking_context_creating_value(CSS::PropertyID property_id, RefPtr<StyleValue const> const& value)
+static bool is_stacking_context_creating_value(CSS::PropertyID property_id, StyleValue const* value)
 {
     if (!value)
         return false;
@@ -59,11 +59,13 @@ static bool is_stacking_context_creating_value(CSS::PropertyID property_id, RefP
     }
 }
 
-RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::PropertyID property_id, ValueComparingRefPtr<StyleValue const> const& old_value, ValueComparingRefPtr<StyleValue const> const& new_value)
+RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value)
 {
     RequiredInvalidationAfterStyleChange invalidation;
 
     if (old_value == new_value)
+        return invalidation;
+    if (old_value && new_value && old_value->equals(*new_value))
         return invalidation;
 
     // NOTE: If the computed CSS display, position, content, or content-visibility property changes, we have to rebuild the entire layout tree.

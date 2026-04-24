@@ -31,6 +31,6 @@ struct RequiredInvalidationAfterStyleChange {
     static RequiredInvalidationAfterStyleChange full() { return { true, true, true, true, false }; }
 };
 
-RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::PropertyID property_id, ValueComparingRefPtr<StyleValue const> const& old_value, ValueComparingRefPtr<StyleValue const> const& new_value);
+RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value);
 
 }

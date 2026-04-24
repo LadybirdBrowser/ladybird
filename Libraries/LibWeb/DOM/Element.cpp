@@ -850,8 +850,11 @@ static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(C
 
     for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
         auto property_id = static_cast<CSS::PropertyID>(i);
-
-        invalidation |= CSS::compute_property_invalidation(property_id, old_style.property(property_id), new_style.property(property_id));
+        auto const& old_value = old_style.property(property_id);
+        auto const& new_value = new_style.property(property_id);
+        if (&old_value == &new_value)
+            continue;
+        invalidation |= CSS::compute_property_invalidation(property_id, &old_value, &new_value);
     }
 
     // NB: Even if the computed value hasn't changed the resolved counter style may have (e.g. if the relevant
@@ -1068,7 +1071,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
 
         RefPtr new_value = CSS::StyleComputer::get_non_animated_inherit_value(property_id, { *this });
         computed_properties->set_property(property_id, *new_value, CSS::ComputedProperties::Inherited::Yes);
-        invalidation |= CSS::compute_property_invalidation(property_id, old_value, computed_properties->property(property_id));
+        invalidation |= CSS::compute_property_invalidation(property_id, old_value.ptr(), &computed_properties->property(property_id));
     }
 
     if (invalidation.is_none() && property_values_affected_by_inherited_style.is_empty())
@@ -1080,7 +1083,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
 
     for (auto const& [property_id, old_value] : property_values_affected_by_inherited_style) {
         auto const& new_value = computed_properties->property(static_cast<CSS::PropertyID>(property_id));
-        invalidation |= CSS::compute_property_invalidation(static_cast<CSS::PropertyID>(property_id), old_value, new_value);
+        invalidation |= CSS::compute_property_invalidation(static_cast<CSS::PropertyID>(property_id), old_value.ptr(), &new_value);
     }
 
     if (invalidation.is_none())
