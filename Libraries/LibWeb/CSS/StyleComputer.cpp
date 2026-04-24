@@ -1920,8 +1920,9 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
     if (did_change_custom_properties.has_value()) {
         auto new_custom_property_data = abstract_element.custom_property_data();
         if (old_custom_property_data.ptr() != new_custom_property_data.ptr()) {
-            auto const& old_own = old_custom_property_data ? old_custom_property_data->own_values() : OrderedHashMap<FlyString, StyleProperty> {};
-            auto const& new_own = new_custom_property_data ? new_custom_property_data->own_values() : OrderedHashMap<FlyString, StyleProperty> {};
+            static OrderedHashMap<FlyString, StyleProperty> const empty_own_values;
+            auto const& old_own = old_custom_property_data ? old_custom_property_data->own_values() : empty_own_values;
+            auto const& new_own = new_custom_property_data ? new_custom_property_data->own_values() : empty_own_values;
             if (old_own != new_own)
                 *did_change_custom_properties = true;
         }
