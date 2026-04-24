@@ -10,10 +10,10 @@ function (generate_css_implementation)
         "CSS/DescriptorID.cpp"
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/Descriptors.json"
     )
-
-    invoke_cpp_generator(
+    
+    invoke_py_generator(
         "Enums.cpp"
-        Lagom::GenerateCSSEnums
+        "generate_libweb_css_enums.py"
         "${LIBWEB_INPUT_FOLDER}/CSS/Enums.json"
         "CSS/Enums.h"
         "CSS/Enums.cpp"
