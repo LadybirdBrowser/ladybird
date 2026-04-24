@@ -363,6 +363,20 @@ Core::EventLoop& Application::create_platform_event_loop()
 {
     if (!browser_options().headless_mode.has_value()) {
         Core::EventLoopManager::install(*new EventLoopManagerQt);
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
+        // Prevent any competing ATK→AT-SPI2 bridge from attaching to our process. On GNOME/Fedora, Qt loads the
+        // libqgtk3 platform-theme plugin by default — which pulls in libgtk-3 via DT_NEEDED. Once libgtk-3 is loaded,
+        // its initialization calls atk_bridge_adaptor_init(). And that registers an ATK application on the shared
+        // AT-SPI2 bus under *our* D-Bus name — hijacking it from Qt's QSpiAccessibleBridge. AT clients then see a GTK
+        // app with zero accessible children (because ATK has no widgets to expose in a Qt app) — and our entire
+        // accessibility tree is unreachable.
+        //
+        // So, we set NO_AT_BRIDGE=1 here — before libgtk-3 is loaded – to tell GTK's init code to skip the atk-bridge
+        // registration. The library is still linked, but the hijack doesn't happen; AT-SPI2 queries reach Qt's bridge
+        // (and therefore our WebContentViewAccessible) normally. Firefox, in their toolkit/xre/nsAppRunner.cpp, does
+        // the same thing, for the same reason.
+        qputenv("NO_AT_BRIDGE", "1");
+#endif
         m_application = make<LadybirdQApplication>(arguments());
 #if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
         install_orca_scripts();
