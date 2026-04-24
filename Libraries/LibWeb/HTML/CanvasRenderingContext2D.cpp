@@ -785,7 +785,7 @@ CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(Ut
     // 2. Replace all ASCII whitespace in text with U+0020 SPACE characters.
     StringBuilder builder { StringBuilder::Mode::UTF16, text.length_in_code_units() };
     for (auto c : text) {
-        builder.append(Infra::is_ascii_whitespace(c) ? ' ' : c);
+        builder.append_code_point(Infra::is_ascii_whitespace(c) ? ' ' : c);
     }
     auto replaced_text = builder.to_utf16_string();
 

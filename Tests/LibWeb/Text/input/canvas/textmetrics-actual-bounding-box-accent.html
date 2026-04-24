@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<style>
+    @font-face {
+        font-family: "LatoTest";
+        src: url("../../../Assets/Lato-Bold.ttf");
+    }
+</style>
+<span style="font-family: LatoTest; position: absolute; visibility: hidden">Kraków</span>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        await document.fonts.ready;
+
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        ctx.font = "48px LatoTest";
+
+        const accented = ctx.measureText("ó");
+        const decomposed = ctx.measureText("o\u0301");
+        println(`precomposed accent has positive width: ${accented.width > 0}`);
+        println(`precomposed and decomposed accent widths match: ${Math.abs(accented.width - decomposed.width) < 1}`);
+
+        const text = "Kraków";
+        const metrics = ctx.measureText(text);
+        println(`word width includes precomposed accent: ${metrics.width > ctx.measureText("Krakw").width}`);
+    });
+</script>
