@@ -2,15 +2,15 @@ function (generate_css_implementation)
     set(LIBWEB_INPUT_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}")
 
 
-    invoke_cpp_generator(
+    invoke_py_generator(
         "DescriptorID.cpp"
-        Lagom::GenerateCSSDescriptors
+        "generate_libweb_css_descriptors.py"
         "${LIBWEB_INPUT_FOLDER}/CSS/Descriptors.json"
         "CSS/DescriptorID.h"
         "CSS/DescriptorID.cpp"
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/Descriptors.json"
     )
-    
+
     invoke_py_generator(
         "Enums.cpp"
         "generate_libweb_css_enums.py"
