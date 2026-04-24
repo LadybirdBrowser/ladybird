@@ -17,13 +17,6 @@ GC_DEFINE_ALLOCATOR(PrototypeChainValidity);
 
 Shape::~Shape() = default;
 
-void Shape::finalize()
-{
-    Base::finalize();
-    if (m_is_prototype_shape)
-        m_realm->all_prototype_shapes().remove(this);
-}
-
 GC::Ref<Shape> Shape::create_dictionary_transition()
 {
     auto new_shape = heap().allocate<Shape>(m_realm);
@@ -185,6 +178,9 @@ void Shape::visit_edges(Cell::Visitor& visitor)
 
     visitor.ignore(m_prototype_transitions);
 
+    // Child prototype-shape weak refs need no marking; pruning is lazy.
+    visitor.ignore(m_child_prototype_shapes);
+
     // FIXME: The forward transition keys should be weak, but we have to mark them for now in case they go stale.
     if (m_forward_transitions) {
         for (auto& it : *m_forward_transitions)
@@ -335,7 +331,6 @@ GC::Ref<Shape> Shape::clone_for_prototype()
     VERIFY(!m_is_prototype_shape);
     VERIFY(!m_prototype_chain_validity);
     auto new_shape = heap().allocate<Shape>(m_realm);
-    m_realm->all_prototype_shapes().set(new_shape);
     new_shape->m_is_prototype_shape = true;
     new_shape->m_has_parameter_map = m_has_parameter_map;
     new_shape->m_prototype = m_prototype;
@@ -344,6 +339,8 @@ GC::Ref<Shape> Shape::clone_for_prototype()
     (*new_shape->m_property_table) = *m_property_table;
     new_shape->m_property_count = new_shape->m_property_table->size();
     new_shape->m_prototype_chain_validity = heap().allocate<PrototypeChainValidity>();
+    if (new_shape->m_prototype)
+        new_shape->m_prototype->shape().add_child_prototype_shape(*new_shape);
     return new_shape;
 }
 
@@ -357,9 +354,19 @@ void Shape::set_prototype_without_transition(Object* new_prototype)
 void Shape::set_prototype_shape()
 {
     VERIFY(!m_is_prototype_shape);
-    m_realm->all_prototype_shapes().set(this);
     m_is_prototype_shape = true;
     m_prototype_chain_validity = heap().allocate<PrototypeChainValidity>();
+    if (m_prototype)
+        m_prototype->shape().add_child_prototype_shape(*this);
+}
+
+void Shape::add_child_prototype_shape(GC::Ref<Shape> child)
+{
+    VERIFY(m_is_prototype_shape);
+    VERIFY(child->m_is_prototype_shape);
+    if (!m_child_prototype_shapes)
+        m_child_prototype_shapes = make<Vector<GC::Weak<Shape>>>();
+    m_child_prototype_shapes->append(GC::Weak<Shape> { *child });
 }
 
 void Shape::invalidate_prototype_if_needed_for_new_prototype(GC::Ref<Shape> new_prototype_shape)
@@ -370,6 +377,10 @@ void Shape::invalidate_prototype_if_needed_for_new_prototype(GC::Ref<Shape> new_
     m_prototype_chain_validity->set_valid(false);
 
     invalidate_all_prototype_chains_leading_to_this();
+
+    // The owning object is keeping the same [[Prototype]], so its existing
+    // children descend from new_prototype_shape going forward.
+    new_prototype_shape->m_child_prototype_shapes = move(m_child_prototype_shapes);
 }
 
 void Shape::invalidate_prototype_if_needed_for_change_without_transition()
@@ -384,20 +395,28 @@ void Shape::invalidate_prototype_if_needed_for_change_without_transition()
 
 void Shape::invalidate_all_prototype_chains_leading_to_this()
 {
-    HashTable<Shape*> shapes_to_invalidate;
-    for (auto& candidate : m_realm->all_prototype_shapes()) {
-        if (!candidate->m_prototype)
-            continue;
-        for (auto* current_prototype_shape = &candidate->m_prototype->shape(); current_prototype_shape; current_prototype_shape = current_prototype_shape->prototype() ? &current_prototype_shape->prototype()->shape() : nullptr) {
-            if (current_prototype_shape == this) {
-                VERIFY(candidate->m_is_prototype_shape);
-                shapes_to_invalidate.set(candidate);
-                break;
-            }
-        }
-    }
-    if (shapes_to_invalidate.is_empty())
+    if (!m_child_prototype_shapes || m_child_prototype_shapes->is_empty())
         return;
+
+    HashTable<Shape*> shapes_to_invalidate;
+    Vector<Shape*> worklist;
+    auto enqueue_children_of = [&](Shape& shape) {
+        if (!shape.m_child_prototype_shapes)
+            return;
+        // Prune dead weak refs and enqueue the live ones in one pass.
+        shape.m_child_prototype_shapes->remove_all_matching([&](GC::Weak<Shape> const& weak) {
+            auto child = weak.ptr();
+            if (!child)
+                return true;
+            if (shapes_to_invalidate.set(child.ptr()) == HashSetResult::InsertedNewEntry)
+                worklist.append(child.ptr());
+            return false;
+        });
+    };
+    enqueue_children_of(*this);
+    while (!worklist.is_empty())
+        enqueue_children_of(*worklist.take_last());
+
     for (auto* shape : shapes_to_invalidate) {
         shape->m_prototype_chain_validity->set_valid(false);
         shape->m_prototype_chain_validity = heap().allocate<PrototypeChainValidity>();

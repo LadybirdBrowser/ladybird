@@ -10,6 +10,7 @@
 #include <AK/HashMap.h>
 #include <AK/OwnPtr.h>
 #include <AK/StringView.h>
+#include <AK/Vector.h>
 #include <AK/Weakable.h>
 #include <LibGC/Weak.h>
 #include <LibGC/WeakInlines.h>
@@ -60,8 +61,6 @@ class JS_API Shape final : public Cell {
     GC_DECLARE_ALLOCATOR(Shape);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     virtual ~Shape() override;
 
     enum class TransitionType : u8 {
@@ -118,7 +117,8 @@ private:
     void invalidate_prototype_if_needed_for_change_without_transition();
     void invalidate_all_prototype_chains_leading_to_this();
 
-    virtual void finalize() override;
+    void add_child_prototype_shape(GC::Ref<Shape>);
+
     virtual void visit_edges(Visitor&) override;
 
     [[nodiscard]] GC::Ptr<Shape> get_or_prune_cached_forward_transition(TransitionKey const&);
@@ -145,14 +145,17 @@ private:
     Optional<PropertyKey> m_property_key;
     GC::Ptr<Object> m_prototype;
 
+    // The following two are only populated for prototype shapes.
     GC::Ptr<PrototypeChainValidity> m_prototype_chain_validity;
+    // Prototype shapes whose immediate [[Prototype]] is the object that owns this shape.
+    OwnPtr<Vector<GC::Weak<Shape>>> m_child_prototype_shapes;
 
     u32 m_property_count { 0 };
     u32 m_dictionary_generation { 0 };
 };
 
 #if !defined(AK_OS_WINDOWS)
-static_assert(sizeof(Shape) == 96, "Keep the size of JS::Shape down!");
+static_assert(sizeof(Shape) == 104, "Keep the size of JS::Shape down!");
 #endif
 
 }
