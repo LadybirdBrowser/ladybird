@@ -1,0 +1,23 @@
+{
+  "name": "highway",
+  "version": "1.4.0",
+  "description": "Performance-portable, length-agnostic SIMD with runtime dispatch",
+  "homepage": "https://github.com/google/highway",
+  "license": "Apache-2.0",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    }
+  ],
+  "features": {
+    "contrib": {
+      "description": "SIMD related utility functions",
+      "supports": "!uwp"
+    }
+  }
+}
