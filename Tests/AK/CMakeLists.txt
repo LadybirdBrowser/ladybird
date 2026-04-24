@@ -103,14 +103,11 @@ if (WIN32)
     target_link_libraries(TestUFixedBigInt PRIVATE clang_rt.builtins-x86_64.lib)
 endif()
 
-if (CXX_COMPILER_SUPPORTS_BLOCKS)
+if (APPLE)
     ladybird_test(TestFunctionObjC.mm AK NAME TestFunctionObjC)
-    target_link_libraries(TestFunctionObjC PRIVATE ${BLOCKS_REQUIRED_LIBRARIES})
-endif()
-if (CXX_COMPILER_SUPPORTS_OBJC_ARC)
+
     ladybird_test(TestFunctionObjC.mm AK NAME TestFunctionObjCArc)
     target_compile_options(TestFunctionObjCArc PRIVATE -fobjc-arc)
-    target_link_libraries(TestFunctionObjCArc PRIVATE ${BLOCKS_REQUIRED_LIBRARIES})
 endif()
 
 target_link_libraries(TestString PRIVATE LibUnicode)

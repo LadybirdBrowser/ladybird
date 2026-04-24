@@ -52,24 +52,4 @@ if (ENABLE_FUZZERS_LIBFUZZER)
     set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY CACHE STRING "Type of target to use for try_compile()" FORCE)
 endif()
 
-include(CheckCXXSourceCompiles)
-set(BLOCKS_REQUIRED_LIBRARIES "")
-if (NOT APPLE)
-    find_package(BlocksRuntime)
-    if (BlocksRuntime_FOUND)
-        set(BLOCKS_REQUIRED_LIBRARIES BlocksRuntime::BlocksRuntime)
-        set(CMAKE_REQUIRED_LIBRARIES BlocksRuntime::BlocksRuntime)
-    endif()
-endif()
-check_cxx_source_compiles([=[
-    int main() { __block int x = 0; auto b = ^{++x;}; b(); }
-]=] CXX_COMPILER_SUPPORTS_BLOCKS)
-
-set(CMAKE_REQUIRED_FLAGS "-fobjc-arc")
-check_cxx_source_compiles([=[
-    int main() { auto b = ^{}; auto __weak w = b; w(); }
-]=] CXX_COMPILER_SUPPORTS_OBJC_ARC)
-unset(CMAKE_REQUIRED_FLAGS)
-unset(CMAKE_REQUIRED_LIBRARIES)
-
 include(${CMAKE_CURRENT_LIST_DIR}/lagom_install_options.cmake)

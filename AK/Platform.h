@@ -263,11 +263,11 @@
 #    define LSAN_IGNORE_OBJECT(base)
 #endif
 
-#if __has_feature(blocks)
+#if __has_feature(blocks) && defined(AK_OS_MACOS)
 #    define AK_HAS_BLOCKS
 #endif
 
-#if __has_feature(objc_arc)
+#if __has_feature(objc_arc) && defined(AK_OS_MACOS)
 #    define AK_HAS_OBJC_ARC
 #endif
 
