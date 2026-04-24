@@ -462,7 +462,7 @@ static NSImage* literal_url_suggestion_icon()
             });
         }
 
-        m_rows.append({ .kind = AutocompleteRowKind::Suggestion, .suggestion_index = suggestion_index });
+        m_rows.append({ .kind = AutocompleteRowKind::Suggestion, .text = {}, .suggestion_index = suggestion_index });
     }
 }
 
