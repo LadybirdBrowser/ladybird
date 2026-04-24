@@ -158,6 +158,24 @@ static Optional<ScrollOffsetData> compute_scroll_offset_data(Variant<GC::Ptr<DOM
     };
 }
 
+bool ScrollTimeline::is_stale() const
+{
+    // FIXME: This should probably be a spec bug
+
+    // https://drafts.csswg.org/scroll-animations-1/#stale-timelines
+    // AD-HOC: The spec only lists two criteria for a scroll timeline to be considered stale: a) it was newly created
+    //         within the current frame or; b) style update and layout within the current frame changed it's associated
+    //         named timeline ranges. However, WPT expects us to also consider the source element resizing as a cause
+    //         for staleness, so we use a more broad definition of staleness and consider any timeline whose max scroll
+    //         offset has changed since the last call to `update_current_time` to be stale. This matches the (admittedly
+    //         narrow) tests in WPT and is the same behavior as is implemented by WebKit.
+
+    // FIXME: Account for the named timeline ranges of view progress timelines once they are implemented.
+    auto scroll_offset_data = compute_scroll_offset_data(get_propagated_source(), m_axis);
+
+    return scroll_offset_data.map([](auto const& data) { return data.max_scroll_offset; }) != m_last_max_scroll_offset;
+}
+
 void ScrollTimeline::update_current_time(double)
 {
     // https://drafts.csswg.org/scroll-animations-1/#ref-for-dom-animationtimeline-currenttime
@@ -167,9 +185,12 @@ void ScrollTimeline::update_current_time(double)
 
     auto scroll_offset_data = compute_scroll_offset_data(get_propagated_source(), m_axis);
 
+    m_last_max_scroll_offset = scroll_offset_data.map([](auto const& data) { return data.max_scroll_offset; });
+
     // If the source of a ScrollTimeline is an element whose principal box does not exist or is not a scroll container,
     // or if there is no scrollable overflow, then the ScrollTimeline is inactive.
     // NB: Called during animation timeline update, which runs before layout is up to date.
+
     if (!scroll_offset_data.has_value()) {
         set_current_time({});
         return;

@@ -8,6 +8,7 @@
 #include <AK/TemporaryChange.h>
 #include <LibCore/EventLoop.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibWeb/Animations/ScrollTimeline.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFaceSet.h>
@@ -465,6 +466,37 @@ void EventLoop::update_the_rendering()
         if (document->has_skipped_resize_observations()) {
             // FIXME: Deliver resize loop error.
         }
+
+        // https://drafts.csswg.org/scroll-animations-1/#event-loop
+        // During step 7.14.1 of the HTML Processing Model, any created scroll progress timelines or view progress
+        // timelines are collected into a stale timelines set. After step 7.14 if any timelines' named timeline ranges
+        // have changed, these timelines are added to the stale timelines set. If there are any stale timelines they now
+        // update their current time and associated ranges, the set of stale timelines is cleared and we run an additional
+        // step to recalculate styles and update layout.
+
+        // AD-HOC: This was step 7.14.1 at the time the CSS web-animations spec was written, but it has since been
+        //         moved, see https://github.com/w3c/csswg-drafts/issues/12120
+
+        bool requires_style_and_layout_update = false;
+
+        TemporaryExecutionContext context { document->realm() };
+
+        for (auto const& timeline : document->associated_animation_timelines()) {
+            auto* scroll_timeline = as_if<Animations::ScrollTimeline>(*timeline);
+
+            if (!scroll_timeline)
+                continue;
+
+            if (!scroll_timeline->is_stale())
+                continue;
+
+            // NB: The passed timestamp is ignored for ScrollTimelines so we can just use 0.
+            timeline->update_current_time(0);
+            requires_style_and_layout_update = true;
+        }
+
+        if (requires_style_and_layout_update)
+            document->update_layout(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate);
     }
 
     // FIXME: 17. For each doc of docs, if the focused area of doc is not a focusable area, then run the focusing steps for doc's viewport, and set doc's relevant global object's navigation API's focus changed during ongoing navigation to false.

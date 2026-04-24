@@ -44,6 +44,7 @@ public:
 
     Source source_internal() const { return m_source; }
 
+    bool is_stale() const;
     virtual void update_current_time(double timestamp) override;
 
     virtual bool is_progress_based() const override { return true; }
@@ -63,6 +64,8 @@ private:
 
     // https://drafts.csswg.org/scroll-animations-1/#dom-scrolltimeline-axis
     Bindings::ScrollAxis m_axis { Bindings::ScrollAxis::Block };
+
+    Optional<double> m_last_max_scroll_offset;
 };
 
 Bindings::ScrollAxis css_axis_to_bindings_scroll_axis(CSS::Axis);
