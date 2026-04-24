@@ -86,9 +86,9 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/TransformFunctions.json"
     )
 
-    invoke_cpp_generator(
+    invoke_py_generator(
         "Units.cpp"
-        Lagom::GenerateCSSUnits
+        "generate_libweb_css_units.py"
         "${LIBWEB_INPUT_FOLDER}/CSS/Units.json"
         "CSS/Units.h"
         "CSS/Units.cpp"
