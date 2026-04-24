@@ -28,6 +28,15 @@ class TestCSSGrammarParser(unittest.TestCase):
 """,
         )
 
+    def test_parse_custom_ident_blacklist(self) -> None:
+        syntax = parse_value_definition_grammar("<custom-ident ![foo, bar-baz]>")
+        self.assertEqual(
+            syntax.dump(),
+            """ComponentValue
+  Type: custom-ident ![foo, bar-baz]
+""",
+        )
+
     def test_parse_alternatives(self) -> None:
         syntax = parse_value_definition_grammar("<foo> | <bar> | <baz>")
         self.assertEqual(
@@ -67,7 +76,16 @@ class TestCSSGrammarParser(unittest.TestCase):
             parse_value_definition_grammar("<foo> |")
 
     def test_reject_invalid_type_reference(self) -> None:
-        for value in ("<>", "<foo", "<foo/auto>"):
+        for value in (
+            "<>",
+            "<foo",
+            "<foo/auto>",
+            "<length ![foo]>",
+            "<custom-ident ![]>",
+            "<custom-ident ![foo bar]>",
+            "<custom-ident ![foo,]>",
+            "<custom-ident ![foo>",
+        ):
             with self.subTest(value=value):
                 with self.assertRaises(SyntaxError):
                     parse_value_definition_grammar(value)

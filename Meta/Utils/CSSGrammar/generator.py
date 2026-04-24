@@ -11,7 +11,18 @@ from Utils.utils import snake_casify
 
 def generate_css_parser_expression_for_type_component_value(out: TextIO, cpp_name: str, type: Type) -> None:
     type_name = snake_casify(type.name)
-    out.write(f"auto {cpp_name} = parse_{type_name}_value(tokens);\n")
+
+    additional_arguments = ""
+    if type.custom_ident_blacklist is not None:
+        additional_arguments = ", ReadonlySpan<StringView> { "
+
+        if len(type.custom_ident_blacklist) > 0:
+            disallowed_idents = "".join(f'"{disallowed_ident}"sv, ' for disallowed_ident in type.custom_ident_blacklist)
+            additional_arguments += f"Array<StringView, {len(type.custom_ident_blacklist)}> {{{disallowed_idents}}}"
+
+        additional_arguments += "}"
+
+    out.write(f"auto {cpp_name} = parse_{type_name}_value(tokens{additional_arguments});\n")
 
 
 def generate_css_parser_expression_for_component_value_grammar_node(
