@@ -11,6 +11,7 @@
 #include <LibFileSystem/FileSystem.h>
 #include <LibURL/Parser.h>
 #include <LibURL/PublicSuffixData.h>
+#include <LibWebView/Application.h>
 #include <LibWebView/Autocomplete.h>
 #include <LibWebView/URL.h>
 
@@ -158,7 +159,7 @@ bool autocomplete_url_can_complete(StringView query, StringView suggestion)
     return normalized_suggestion.starts_with_bytes(normalized_query, CaseSensitivity::CaseInsensitive);
 }
 
-Vector<URL::URL> sanitize_urls(ReadonlySpan<ByteString> raw_urls, URL::URL const& new_tab_page_url)
+Vector<URL::URL> sanitize_urls(ReadonlySpan<ByteString> raw_urls)
 {
     Vector<URL::URL> sanitized_urls;
     sanitized_urls.ensure_capacity(raw_urls.size());
@@ -169,7 +170,7 @@ Vector<URL::URL> sanitize_urls(ReadonlySpan<ByteString> raw_urls, URL::URL const
     }
 
     if (sanitized_urls.is_empty())
-        sanitized_urls.append(new_tab_page_url);
+        sanitized_urls.append(Application::settings().new_tab_page_url());
 
     return sanitized_urls;
 }

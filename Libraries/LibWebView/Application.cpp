@@ -293,7 +293,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         disable_site_isolation = true;
 
     m_browser_options = {
-        .urls = sanitize_urls(raw_urls, m_settings.new_tab_page_url()),
+        .urls = sanitize_urls(raw_urls),
         .raw_urls = move(raw_urls),
         .headless_mode = headless_mode,
         .new_window = new_window ? NewWindow::Yes : NewWindow::No,

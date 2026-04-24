@@ -183,13 +183,13 @@ void UIProcessConnectionFromClient::die()
 void UIProcessConnectionFromClient::create_new_tab(Vector<ByteString> urls)
 {
     if (on_new_tab)
-        on_new_tab(sanitize_urls(urls, Application::settings().new_tab_page_url()));
+        on_new_tab(sanitize_urls(urls));
 }
 
 void UIProcessConnectionFromClient::create_new_window(Vector<ByteString> urls)
 {
     if (on_new_window)
-        on_new_window(sanitize_urls(urls, Application::settings().new_tab_page_url()));
+        on_new_window(sanitize_urls(urls));
 }
 
 }
