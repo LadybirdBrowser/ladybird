@@ -80,6 +80,7 @@ runs:
             autoconf \
             autoconf-archive \
             automake \
+            bison \
             build-essential \
             ccache \
             cmake \
@@ -95,6 +96,7 @@ runs:
             libssl-dev \
             libstdc++-${{ inputs.gcc_version }}-dev \
             libtool \
+            libxkbcommon-dev \
             lld-${{ inputs.llvm_version }} \
             llvm-${{ inputs.llvm_version }} \
             nasm \
