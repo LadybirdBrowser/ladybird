@@ -539,7 +539,7 @@
           {
             "type": "git",
             "url": "https://github.com/fastfloat/fast_float.git",
-            "tag": "v8.1.0"
+            "tag": "v8.2.5"
           }
         ],
         "config-opts": [
