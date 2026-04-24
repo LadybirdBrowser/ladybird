@@ -27,7 +27,7 @@ mkdir -p ${CACHE_DIR}
 git clone https://github.com/LadybirdBrowser/ladybird.git --depth 1
 cd ladybird
 # Grab and bootstrap the exact commit of vcpkg that trunk is using
-python3 ./Meta/build_vcpkg.py
+python3 ./Meta/Utils/build_vcpkg.py
 
 # Install the vcpkg.json in manifest mode from the root of the repo
 # Set the binary cache directory to the one we intend to use at container runtime
