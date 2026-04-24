@@ -344,6 +344,13 @@ static ErrorOr<void> generate_result_files(ReadonlySpan<Test> tests, ReadonlySpa
     auto dest_html = TRY(Core::File::open(dest_html_path, Core::File::OpenMode::Write | Core::File::OpenMode::Truncate));
     TRY(dest_html->write_until_depleted(html_contents));
 
+    auto source_css_path = LexicalPath::join(app.test_root_path, "test-web/results-index.css"sv).string();
+    auto dest_css_path = LexicalPath::join(app.results_directory, "index.css"sv).string();
+    auto source_css = TRY(Core::File::open(source_css_path, Core::File::OpenMode::Read));
+    auto css_contents = TRY(source_css->read_until_eof());
+    auto dest_css = TRY(Core::File::open(dest_css_path, Core::File::OpenMode::Write | Core::File::OpenMode::Truncate));
+    TRY(dest_css->write_until_depleted(css_contents));
+
     return {};
 }
 
