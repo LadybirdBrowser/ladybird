@@ -1,3 +1,4 @@
+from Utils.CSSGrammar.Parser.component_values import Keyword
 from Utils.CSSGrammar.Parser.component_values import Type
 from Utils.CSSGrammar.Parser.token import Token
 from Utils.CSSGrammar.Parser.token import TokenType
@@ -40,6 +41,9 @@ class Tokenizer:
                 return Token.create(TokenType.SINGLE_BAR)
             case "<":
                 return self.consume_a_non_terminal_token()
+
+        if is_identifier_character(self.lexer.peek()):
+            return self.consume_a_keyword_token()
 
         raise SyntaxError("CSSGrammar::Tokenizer: Unexpected character")
 
@@ -87,3 +91,10 @@ class Tokenizer:
             raise SyntaxError("CSSGrammar::Tokenizer: Expected '>'")
 
         return Token.create_component_value(Type(name, custom_ident_blacklist))
+
+    def consume_a_keyword_token(self) -> Token:
+        value = self.consume_an_identifier()
+
+        assert value
+
+        return Token.create_component_value(Keyword(value))

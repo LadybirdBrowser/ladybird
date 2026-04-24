@@ -37,6 +37,38 @@ class TestCSSGrammarParser(unittest.TestCase):
 """,
         )
 
+    def test_parse_keyword(self) -> None:
+        syntax = parse_value_definition_grammar("auto")
+        self.assertEqual(
+            syntax.dump(),
+            """ComponentValue
+  Keyword: auto
+""",
+        )
+
+    def test_parse_hyphenated_keyword(self) -> None:
+        syntax = parse_value_definition_grammar("max-content")
+        self.assertEqual(
+            syntax.dump(),
+            """ComponentValue
+  Keyword: max-content
+""",
+        )
+
+    def test_parse_keyword_alternatives(self) -> None:
+        syntax = parse_value_definition_grammar("auto | none | <length>")
+        self.assertEqual(
+            syntax.dump(),
+            """Combinator(Alternatives):
+  ComponentValue
+    Keyword: auto
+  ComponentValue
+    Keyword: none
+  ComponentValue
+    Type: length
+""",
+        )
+
     def test_parse_alternatives(self) -> None:
         syntax = parse_value_definition_grammar("<foo> | <bar> | <baz>")
         self.assertEqual(

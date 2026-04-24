@@ -16,5 +16,13 @@ class Type:
         return output + "\n"
 
 
+@dataclass(frozen=True)
+class Keyword:
+    value: str
+
+    def dump(self, indent: int) -> str:
+        return f"{'': >{indent}}Keyword: {self.value}\n"
+
+
 # https://drafts.csswg.org/css-values-4/#component-types
-ComponentValue = Union[Type]
+ComponentValue = Union[Type, Keyword]

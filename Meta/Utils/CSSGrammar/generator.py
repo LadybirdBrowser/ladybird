@@ -1,5 +1,6 @@
 from typing import TextIO
 
+from Utils.CSSGrammar.Parser.component_values import Keyword
 from Utils.CSSGrammar.Parser.component_values import Type
 from Utils.CSSGrammar.Parser.grammar_node import CombinatorGrammarNode
 from Utils.CSSGrammar.Parser.grammar_node import CombinatorType
@@ -7,6 +8,7 @@ from Utils.CSSGrammar.Parser.grammar_node import ComponentValueGrammarNode
 from Utils.CSSGrammar.Parser.grammar_node import GrammarNode
 from Utils.CSSGrammar.Parser.parser import parse_value_definition_grammar
 from Utils.utils import snake_casify
+from Utils.utils import title_casify
 
 
 def generate_css_parser_expression_for_type_component_value(out: TextIO, cpp_name: str, type: Type) -> None:
@@ -25,12 +27,20 @@ def generate_css_parser_expression_for_type_component_value(out: TextIO, cpp_nam
     out.write(f"auto {cpp_name} = parse_{type_name}_value(tokens{additional_arguments});\n")
 
 
+def generate_css_parser_expression_for_keyword_component_value(out: TextIO, cpp_name: str, keyword: Keyword) -> None:
+    keyword_name = title_casify(keyword.value)
+    out.write(f"auto {cpp_name} = parse_specific_keyword_value(tokens, Keyword::{keyword_name});\n")
+
+
 def generate_css_parser_expression_for_component_value_grammar_node(
     out: TextIO, cpp_name: str, grammar_node: ComponentValueGrammarNode
 ) -> None:
     match grammar_node.component_value:
         case Type() as type_component_value:
             generate_css_parser_expression_for_type_component_value(out, cpp_name, type_component_value)
+            return
+        case Keyword() as keyword:
+            generate_css_parser_expression_for_keyword_component_value(out, cpp_name, keyword)
             return
 
     raise TypeError(f"Unhandled component value type: {type(grammar_node.component_value).__name__}")
