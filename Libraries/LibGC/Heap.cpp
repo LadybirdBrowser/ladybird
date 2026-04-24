@@ -269,12 +269,12 @@ private:
     FlatPtr m_max_block_address;
 };
 
-AK::JsonObject Heap::dump_graph()
+AK::JsonObject Heap::dump_graph(ExcludeConservativeRoots root_inclusion)
 {
     HashMap<Cell*, HeapRoot> roots;
     HashTable<HeapBlock*> all_live_heap_blocks;
     Vector<StackFrameInfo> stack_frames;
-    gather_roots(roots, all_live_heap_blocks, &stack_frames);
+    gather_roots(roots, all_live_heap_blocks, root_inclusion, &stack_frames);
     GraphConstructorVisitor visitor(*this, roots);
     visitor.visit_all_cells();
     auto graph = visitor.dump();
@@ -304,14 +304,14 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
         if (print_report)
             collection_measurement_timer.start();
 
-        if (collection_type == CollectionType::CollectGarbage) {
+        if (collection_type == CollectionType::CollectGarbage || collection_type == CollectionType::CollectGarbageEmbedderRootsOnly) {
             if (m_gc_deferrals) {
                 m_should_gc_when_deferral_ends = true;
                 return;
             }
             HashMap<Cell*, HeapRoot> roots;
             HashTable<HeapBlock*> all_live_heap_blocks;
-            gather_roots(roots, all_live_heap_blocks);
+            gather_roots(roots, all_live_heap_blocks, collection_root_inclusion(collection_type));
             mark_live_cells(roots, all_live_heap_blocks);
         }
         finalize_unmarked_cells();
@@ -410,7 +410,7 @@ void Heap::register_sweep_callback(AK::Function<void()> callback)
     m_sweep_callbacks.append(move(callback));
 }
 
-void Heap::gather_roots(HashMap<Cell*, HeapRoot>& roots, HashTable<HeapBlock*>& all_live_heap_blocks, Vector<StackFrameInfo>* out_stack_frames)
+void Heap::gather_roots(HashMap<Cell*, HeapRoot>& roots, HashTable<HeapBlock*>& all_live_heap_blocks, ExcludeConservativeRoots root_inclusion, Vector<StackFrameInfo>* out_stack_frames)
 {
     for_each_block([&](auto& block) {
         all_live_heap_blocks.set(&block);
@@ -427,7 +427,8 @@ void Heap::gather_roots(HashMap<Cell*, HeapRoot>& roots, HashTable<HeapBlock*>& 
     });
 
     m_gather_embedder_roots(roots);
-    gather_conservative_roots(roots, all_live_heap_blocks, out_stack_frames);
+    if (root_inclusion == ExcludeConservativeRoots::No)
+        gather_conservative_roots(roots, all_live_heap_blocks, out_stack_frames);
 
     for (auto& root : m_roots)
         roots.set(root.cell(), HeapRoot { .type = HeapRoot::Type::Root, .location = &root.source_location() });
