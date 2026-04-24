@@ -648,8 +648,8 @@
         {
           "type": "git",
           "url": "https://github.com/FFmpeg/FFmpeg.git",
-          "commit": "db69d06eeeab4f46da15030a80d539efb4503ca8",
-          "tag": "n7.1.1"
+          "commit": "a65b3bfe9dacc3b20597ef199d0afdd8bc8128e2",
+          "tag": "n8.1"
         }
       ]
     },
