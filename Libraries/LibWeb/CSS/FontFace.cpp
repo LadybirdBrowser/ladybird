@@ -726,6 +726,18 @@ GC::Ref<WebIDL::Promise> FontFace::load()
     if (m_css_font_face_rule)
         m_css_font_face_rule->set_loading_state(CSSStyleSheet::LoadingState::Loading);
 
+    // AD-HOC: Switch the containing FontFaceSets to "loading" for URL-backed fonts too, mirroring the step the
+    //         constructor performs for BufferSource-backed fonts.
+    // Spec issue: https://github.com/w3c/csswg-drafts/issues/13235
+    {
+        HTML::TemporaryExecutionContext context(realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+        for (auto& font_face_set : m_containing_sets) {
+            if (font_face_set->loading_fonts().is_empty())
+                font_face_set->switch_to_loading();
+            font_face_set->loading_fonts().append(*this);
+        }
+    }
+
     Web::Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this] {
         // 4. Using the value of font face’s [[Urls]] slot, attempt to load a font as defined in [CSS-FONTS-3],
         //     as if it was the value of a @font-face rule’s src descriptor.
