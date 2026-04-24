@@ -63,6 +63,16 @@ def title_casify(dashy_name: str) -> str:
     return "".join(part[0].upper() + part[1:] for part in dashy_name.split("-") if part)
 
 
+def camel_casify(dashy_name: str) -> str:
+    parts = [part for part in dashy_name.split("-") if part]
+    if not parts:
+        return ""
+    result = [parts[0]]
+    for part in parts[1:]:
+        result.append(part[0].upper() + part[1:])
+    return "".join(result)
+
+
 def snake_casify(dashy_name: str, trim_leading_underscores: bool = False) -> str:
     snake_case = dashy_name.replace("-", "_")
     if trim_leading_underscores:

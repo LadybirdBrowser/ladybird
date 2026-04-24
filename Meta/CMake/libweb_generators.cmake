@@ -47,9 +47,9 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/MediaFeatures.json"
     )
 
-    invoke_cpp_generator(
+    invoke_py_generator(
         "PropertyID.cpp"
-        Lagom::GenerateCSSPropertyID
+        "generate_libweb_css_property_id.py"
         "${LIBWEB_INPUT_FOLDER}/CSS/Properties.json"
         "CSS/PropertyID.h"
         "CSS/PropertyID.cpp"
