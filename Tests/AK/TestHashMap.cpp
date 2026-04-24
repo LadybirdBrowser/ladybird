@@ -406,3 +406,34 @@ TEST_CASE(compare)
     first.set(2, 20);
     EXPECT_NE(second, first);
 }
+
+TEST_CASE(ensure_callback_sees_consistent_table)
+{
+    // HashMap::ensure() must run the initialization callback while the tentative
+    // target bucket is invisible to iterators. If the bucket were stamped as "used"
+    // before the callback ran, its uninitialized slot would be exposed to anything
+    // that iterated the map during the callback -- this was a real crash for
+    // HashMap<_, GC::Ref<_>>::ensure() callbacks that triggered GC marking.
+
+    static constexpr u64 MAGIC = 0xC0FFEECAFEBABEULL;
+    struct Sentinel {
+        u64 magic = MAGIC;
+    };
+
+    HashMap<int, Sentinel> map;
+    for (int i = 0; i < 100; ++i)
+        map.set(i, Sentinel {});
+
+    size_t visited = 0;
+    auto& value = map.ensure(9999, [&] {
+        for (auto& it : map) {
+            EXPECT_EQ(it.value.magic, MAGIC);
+            ++visited;
+        }
+        return Sentinel {};
+    });
+
+    EXPECT_EQ(value.magic, MAGIC);
+    EXPECT_EQ(visited, 100u);
+    EXPECT_EQ(map.size(), 101u);
+}
