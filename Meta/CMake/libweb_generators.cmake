@@ -77,9 +77,9 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/PseudoElements.json"
     )
 
-    invoke_cpp_generator(
+    invoke_py_generator(
         "TransformFunctions.cpp"
-        Lagom::GenerateCSSTransformFunctions
+        "generate_libweb_css_transform_functions.py"
         "${LIBWEB_INPUT_FOLDER}/CSS/TransformFunctions.json"
         "CSS/TransformFunctions.h"
         "CSS/TransformFunctions.cpp"
