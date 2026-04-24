@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    // Regression test: HTMLImageElement.decode()'s returned promise must not resolve until the image's current request
+    // has transitioned to CompletelyAvailable, so callers reading img.width / img.height from a then() handler see
+    // non-zero dimensions for a successfully-decoded image.
+    asyncTest(async done => {
+        const image = new Image();
+        image.src = "../../Assets/120.png";
+        try {
+            await image.decode();
+            println(`width=${image.width} height=${image.height} naturalWidth=${image.naturalWidth} naturalHeight=${image.naturalHeight}`);
+        } catch (error) {
+            println(`FAIL: decode rejected: ${error}`);
+        }
+        done();
+    });
+</script>

@@ -48,6 +48,45 @@
 
 namespace Web::HTML {
 
+// We batch handling of successfully fetched images to avoid interleaving 1 image, 1 layout, 1 image, 1 layout, etc.
+// The processing timer is 1ms instead of 0ms, since layout is driven by a 0ms timer, and if we use 0ms here,
+// the event loop will process them in insertion order. This is a bit of a hack, but it works.
+struct BatchingDispatcher {
+public:
+    BatchingDispatcher()
+        : m_timer(Core::Timer::create_single_shot(1, [this] { process(); }))
+    {
+    }
+
+    void enqueue(GC::Root<GC::Function<void()>> callback)
+    {
+        // NOTE: We don't want to flush the queue on every image load, since that would be slow.
+        //       However, we don't want to keep growing the batch forever either.
+        static constexpr size_t max_loads_to_batch_before_flushing = 16;
+
+        m_queue.append(move(callback));
+        if (m_queue.size() < max_loads_to_batch_before_flushing)
+            m_timer->restart();
+    }
+
+private:
+    void process()
+    {
+        auto queue = move(m_queue);
+        for (auto& callback : queue)
+            callback->function()();
+    }
+
+    NonnullRefPtr<Core::Timer> m_timer;
+    Vector<GC::Root<GC::Function<void()>>> m_queue;
+};
+
+static BatchingDispatcher& batching_dispatcher()
+{
+    static BatchingDispatcher dispatcher;
+    return dispatcher;
+}
+
 GC_DEFINE_ALLOCATOR(HTMLImageElement);
 
 HTMLImageElement::HTMLImageElement(DOM::Document& document, DOM::QualifiedName qualified_name)
@@ -465,26 +504,32 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> HTMLImageElement::decode() const
         }
 
         current_request.add_callbacks(
-            [weak_this, expected_request, queue_resolve_task, queue_reject_task] {
-                if (!weak_this) {
-                    queue_reject_task("Image element no longer available"_utf16);
-                    return;
-                }
-                auto& image = *weak_this;
+            // AD-HOC: Enqueue on the batching dispatcher to preserve ordering relative to update_the_image_data's step
+            //         16, which also goes through the batching dispatcher. Otherwise decode() can resolve before the
+            //         current request transitions to CompletelyAvailable, leaving the image dimensions at zero when
+            //         callers inspect them.
+            [weak_this, expected_request, queue_resolve_task, queue_reject_task, &realm] {
+                batching_dispatcher().enqueue(GC::create_function(realm.heap(), [weak_this, expected_request, queue_resolve_task, queue_reject_task] {
+                    if (!weak_this) {
+                        queue_reject_task("Image element no longer available"_utf16);
+                        return;
+                    }
+                    auto& image = *weak_this;
 
-                if (!image.document().is_fully_active()) {
-                    queue_reject_task("Node document not fully active"_utf16);
-                    return;
-                }
-                if (image.m_current_request != expected_request) {
-                    queue_reject_task("Current request changed or was mutated"_utf16);
-                    return;
-                }
-                if (image.current_request().state() == ImageRequest::State::Broken) {
-                    queue_reject_task("Current request state is broken"_utf16);
-                    return;
-                }
-                queue_resolve_task();
+                    if (!image.document().is_fully_active()) {
+                        queue_reject_task("Node document not fully active"_utf16);
+                        return;
+                    }
+                    if (image.m_current_request != expected_request) {
+                        queue_reject_task("Current request changed or was mutated"_utf16);
+                        return;
+                    }
+                    if (image.current_request().state() == ImageRequest::State::Broken) {
+                        queue_reject_task("Current request state is broken"_utf16);
+                        return;
+                    }
+                    queue_resolve_task();
+                }));
             },
             [weak_this, expected_request, queue_reject_task] {
                 if (!weak_this) {
@@ -531,45 +576,6 @@ bool HTMLImageElement::uses_srcset_or_picture() const
     // An img element is said to use srcset or picture if it has a srcset attribute specified
     // or if it has a parent that is a picture element.
     return has_attribute(HTML::AttributeNames::srcset) || (parent() && is<HTMLPictureElement>(*parent()));
-}
-
-// We batch handling of successfully fetched images to avoid interleaving 1 image, 1 layout, 1 image, 1 layout, etc.
-// The processing timer is 1ms instead of 0ms, since layout is driven by a 0ms timer, and if we use 0ms here,
-// the event loop will process them in insertion order. This is a bit of a hack, but it works.
-struct BatchingDispatcher {
-public:
-    BatchingDispatcher()
-        : m_timer(Core::Timer::create_single_shot(1, [this] { process(); }))
-    {
-    }
-
-    void enqueue(GC::Root<GC::Function<void()>> callback)
-    {
-        // NOTE: We don't want to flush the queue on every image load, since that would be slow.
-        //       However, we don't want to keep growing the batch forever either.
-        static constexpr size_t max_loads_to_batch_before_flushing = 16;
-
-        m_queue.append(move(callback));
-        if (m_queue.size() < max_loads_to_batch_before_flushing)
-            m_timer->restart();
-    }
-
-private:
-    void process()
-    {
-        auto queue = move(m_queue);
-        for (auto& callback : queue)
-            callback->function()();
-    }
-
-    NonnullRefPtr<Core::Timer> m_timer;
-    Vector<GC::Root<GC::Function<void()>>> m_queue;
-};
-
-static BatchingDispatcher& batching_dispatcher()
-{
-    static BatchingDispatcher dispatcher;
-    return dispatcher;
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#update-the-image-data
