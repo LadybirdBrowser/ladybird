@@ -274,7 +274,7 @@
     },
     {
       "name": "dbus",
-      "version": "1.16.2#2"
+      "version": "1.16.2#4"
     },
     {
       "name": "dirent",
