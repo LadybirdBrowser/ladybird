@@ -361,10 +361,6 @@
       "version": "git-f5ff813#5"
     },
     {
-      "name": "nghttp2",
-      "version": "1.68.0#1"
-    },
-    {
       "name": "openssl",
       "version": "3.6.2#0"
     },
