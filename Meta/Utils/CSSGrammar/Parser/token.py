@@ -1,0 +1,33 @@
+from dataclasses import dataclass
+from enum import Enum
+from typing import Self
+
+from Utils.CSSGrammar.Parser.component_values import ComponentValue
+
+
+class TokenType(Enum):
+    END_OF_FILE = "end-of-file"
+    SINGLE_BAR = "single-bar"
+    COMPONENT_VALUE = "component-value"
+
+
+@dataclass(frozen=True)
+class Token:
+    token_type: TokenType
+    value: ComponentValue | None
+
+    @classmethod
+    def create(cls, token_type: TokenType) -> Self:
+        return cls(token_type, None)
+
+    @classmethod
+    def create_component_value(cls, component_value: ComponentValue) -> Self:
+        return cls(TokenType.COMPONENT_VALUE, component_value)
+
+    def is_token_type(self, token_type: TokenType) -> bool:
+        return self.token_type == token_type
+
+    def component_value(self) -> ComponentValue:
+        assert self.token_type == TokenType.COMPONENT_VALUE and isinstance(self.value, ComponentValue)
+
+        return self.value

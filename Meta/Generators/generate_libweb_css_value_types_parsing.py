@@ -14,6 +14,7 @@ from typing import TextIO
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
+from Utils.CSSGrammar.generator import generate_css_parser_expression_for_grammar
 from Utils.utils import snake_casify
 
 
@@ -106,9 +107,9 @@ namespace Web::CSS::Parser {
 RefPtr<StyleValue const> Parser::parse_{name_snake_case}_value(TokenStream<ComponentValue>& tokens)
 {{
     // {value_type_name} = {grammar}
-    (void)tokens;
-    // FIXME: Generate parser code for this value type.
-    return nullptr;
+""")
+        generate_css_parser_expression_for_grammar(out, name_snake_case, grammar)
+        out.write(f"""    return {name_snake_case};
 }}
 """)
 
