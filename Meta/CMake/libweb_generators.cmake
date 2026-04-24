@@ -20,9 +20,9 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/Enums.json"
     )
 
-    invoke_cpp_generator(
+    invoke_py_generator(
         "EnvironmentVariable.cpp"
-        Lagom::GenerateCSSEnvironmentVariable
+        "generate_libweb_css_environment_variables.py"
         "${LIBWEB_INPUT_FOLDER}/CSS/EnvironmentVariables.json"
         "CSS/EnvironmentVariable.h"
         "CSS/EnvironmentVariable.cpp"
