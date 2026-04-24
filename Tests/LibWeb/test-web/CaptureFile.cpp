@@ -29,8 +29,6 @@ CaptureFile::CaptureFile(ByteString destination_path)
         builder.append((ch == '/' || ch == '\\') ? '_' : ch);
     builder.append(".capture"sv);
     m_writer_path = LexicalPath::join(Application::the().results_directory, builder.string_view()).string();
-    if (auto maybe_writer = Core::File::open(m_writer_path, Core::File::OpenMode::Write | Core::File::OpenMode::Truncate); !maybe_writer.is_error())
-        m_writer = maybe_writer.release_value();
 }
 
 ErrorOr<bool> CaptureFile::transfer_to_output_file()
@@ -59,6 +57,11 @@ ErrorOr<bool> CaptureFile::transfer_to_output_file()
 
 void CaptureFile::write(StringView message)
 {
+    if (!m_writer) {
+        auto maybe_writer = Core::File::open(m_writer_path, Core::File::OpenMode::Write | Core::File::OpenMode::Truncate);
+        if (!maybe_writer.is_error())
+            m_writer = maybe_writer.release_value();
+    }
     if (m_writer && !message.is_empty())
         MUST(m_writer->write_until_depleted(message.bytes()));
 }
