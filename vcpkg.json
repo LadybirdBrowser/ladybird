@@ -305,6 +305,10 @@
       "version": "10.2.0#0"
     },
     {
+      "name": "highway",
+      "version": "1.4.0#0"
+    },
+    {
       "name": "icu",
       "version": "78.2#0"
     },
