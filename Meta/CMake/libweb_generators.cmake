@@ -115,10 +115,10 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/Units.json"
     )
 
-    invoke_idl_generator(
+    invoke_py_idl_generator(
         "GeneratedCSSStyleProperties.cpp"
         "GeneratedCSSStyleProperties.idl"
-        Lagom::GenerateCSSStyleProperties
+        "generate_libweb_css_style_properties.py"
         "${LIBWEB_INPUT_FOLDER}/CSS/Properties.json"
         "CSS/GeneratedCSSStyleProperties.h"
         "CSS/GeneratedCSSStyleProperties.cpp"
