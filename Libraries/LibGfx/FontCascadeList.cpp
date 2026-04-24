@@ -41,27 +41,38 @@ void FontCascadeList::extend(FontCascadeList const& other)
 
 Gfx::Font const& FontCascadeList::font_for_code_point(u32 code_point) const
 {
+    if (code_point < m_ascii_cache.size()) {
+        if (auto const* cached = m_ascii_cache[code_point])
+            return *cached;
+    }
+
+    auto cache_and_return = [&](Font const& font) -> Font const& {
+        if (code_point < m_ascii_cache.size())
+            m_ascii_cache[code_point] = &font;
+        return font;
+    };
+
     for (auto const& entry : m_fonts) {
         if (entry.range_data.has_value()) {
             if (!entry.range_data->enclosing_range.contains(code_point))
                 continue;
             for (auto const& range : entry.range_data->unicode_ranges) {
                 if (range.contains(code_point) && entry.font->contains_glyph(code_point))
-                    return entry.font;
+                    return cache_and_return(*entry.font);
             }
         } else if (entry.font->contains_glyph(code_point)) {
-            return entry.font;
+            return cache_and_return(*entry.font);
         }
     }
 
     if (m_system_font_fallback_callback) {
         if (auto fallback = m_system_font_fallback_callback(code_point, first())) {
             m_fonts.append({ fallback.release_nonnull(), {} });
-            return *m_fonts.last().font;
+            return cache_and_return(*m_fonts.last().font);
         }
     }
 
-    return *m_last_resort_font;
+    return cache_and_return(*m_last_resort_font);
 }
 
 bool FontCascadeList::equals(FontCascadeList const& other) const

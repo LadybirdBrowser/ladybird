@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Array.h>
 #include <AK/Function.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/UnicodeRange.h>
@@ -67,6 +68,10 @@ private:
     RefPtr<Font const> m_last_resort_font;
     mutable Vector<Entry> m_fonts;
     SystemFontFallbackCallback m_system_font_fallback_callback;
+
+    // OPTIMIZATION: Cache of resolved fonts for ASCII code points. Since m_fonts only grows and the cascade returns
+    //               the first matching font, a cached hit can never become stale.
+    mutable Array<Font const*, 128> m_ascii_cache {};
 };
 
 }
