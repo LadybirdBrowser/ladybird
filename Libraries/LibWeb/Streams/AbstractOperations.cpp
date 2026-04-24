@@ -464,10 +464,9 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> transfer_array_buffer(JS::Realm& r
 
     // 2. Let arrayBufferData be O.[[ArrayBufferData]].
     // 3. Let arrayBufferByteLength be O.[[ArrayBufferByteLength]].
-    auto array_buffer = buffer.buffer();
-
     // 4. Perform ? DetachArrayBuffer(O).
-    TRY(JS::detach_array_buffer(vm, buffer));
+    // NB: We steal the underlying bytes and detach atomically so the transfer is zero-copy.
+    auto array_buffer = TRY(buffer.detach_and_take_bytes(vm));
 
     // 5. Return a new ArrayBuffer object, created in the current Realm, whose [[ArrayBufferData]] internal slot value is arrayBufferData and whose [[ArrayBufferByteLength]] internal slot value is arrayBufferByteLength.
     return JS::ArrayBuffer::create(realm, move(array_buffer));

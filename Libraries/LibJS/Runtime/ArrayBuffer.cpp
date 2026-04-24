@@ -261,6 +261,21 @@ void ArrayBuffer::detach_buffer()
     m_data_block.byte_buffer = Empty {};
 }
 
+ThrowCompletionOr<ByteBuffer> ArrayBuffer::detach_and_take_bytes(VM& vm)
+{
+    VERIFY(!is_shared_array_buffer());
+
+    if (!same_value(detach_key(), js_undefined()))
+        return vm.throw_completion<TypeError>(ErrorType::DetachKeyMismatch, js_undefined(), detach_key());
+
+    auto bytes = m_data_block.byte_buffer.visit(
+        [](Empty) -> ByteBuffer { VERIFY_NOT_REACHED(); },
+        [](ByteBuffer& value) -> ByteBuffer { return move(value); },
+        [](DataBlock::UnownedFixedLengthByteBuffer& value) -> ByteBuffer { return MUST(ByteBuffer::copy(value.buffer->span())); });
+    detach_buffer();
+    return bytes;
+}
+
 void ArrayBuffer::register_cached_typed_array_view(TypedArrayBase& view)
 {
     m_cached_views.set(view);

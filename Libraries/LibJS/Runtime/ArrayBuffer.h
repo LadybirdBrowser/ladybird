@@ -87,6 +87,11 @@ public:
     ByteBuffer& buffer() { return m_data_block.buffer(); }
     ByteBuffer const& buffer() const { return m_data_block.buffer(); }
 
+    // Detaches this ArrayBuffer and returns its underlying bytes as a ByteBuffer for use in a TransferArrayBuffer-like
+    // operation. Moves the storage when we own it and copies it for externally-owned buffers (e.g. Wasm memory).
+    // If detach fails, the underlying storage is left untouched.
+    ThrowCompletionOr<ByteBuffer> detach_and_take_bytes(VM&);
+
     // [[ArrayBufferMaxByteLength]]
     size_t max_byte_length() const { return m_max_byte_length.value(); }
     void set_max_byte_length(size_t max_byte_length) { m_max_byte_length = max_byte_length; }

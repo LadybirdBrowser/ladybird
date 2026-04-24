@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        {
+            const stream = new ReadableStream({ type: "bytes" });
+            const reader = stream.getReader({ mode: "byob" });
+            const memory = new WebAssembly.Memory({ initial: 1 });
+            const view = new Uint8Array(memory.buffer, 0, 8);
+
+            try {
+                await reader.read(view);
+                println("FAIL: read() should reject");
+            } catch (error) {
+                println(`read() rejected with TypeError: ${error instanceof TypeError}`);
+            }
+
+            println(`Read buffer byteLength: ${memory.buffer.byteLength}`);
+        }
+
+        {
+            let controller;
+            new ReadableStream({
+                type: "bytes",
+                start(streamController) {
+                    controller = streamController;
+                },
+            });
+            const memory = new WebAssembly.Memory({ initial: 1 });
+
+            try {
+                controller.enqueue(new Uint8Array(memory.buffer, 0, 8));
+                println("FAIL: enqueue() should throw");
+            } catch (error) {
+                println(`enqueue() threw TypeError: ${error instanceof TypeError}`);
+            }
+
+            println(`Enqueue buffer byteLength: ${memory.buffer.byteLength}`);
+        }
+
+        {
+            const memory = new WebAssembly.Memory({ initial: 1 });
+            const stream = new ReadableStream({
+                type: "bytes",
+                pull(controller) {
+                    controller.byobRequest.respondWithNewView(new Uint8Array(memory.buffer, 0, 8));
+                },
+            });
+            const reader = stream.getReader({ mode: "byob" });
+
+            try {
+                await reader.read(new Uint8Array(new ArrayBuffer(memory.buffer.byteLength), 0, 8));
+                println("FAIL: read() should reject after respondWithNewView()");
+            } catch (error) {
+                println(`respondWithNewView() rejected with TypeError: ${error instanceof TypeError}`);
+            }
+
+            println(`RespondWithNewView buffer byteLength: ${memory.buffer.byteLength}`);
+        }
+
+        done();
+    });
+</script>
