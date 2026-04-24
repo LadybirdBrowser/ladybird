@@ -59,9 +59,9 @@ function (generate_css_implementation)
         dependencies "${LIBWEB_INPUT_FOLDER}/CSS/Enums.json" "${LIBWEB_INPUT_FOLDER}/CSS/LogicalPropertyGroups.json"
     )
 
-    invoke_cpp_generator(
+    invoke_py_generator(
         "PseudoClass.cpp"
-        Lagom::GenerateCSSPseudoClass
+        "generate_libweb_css_pseudo_class.py"
         "${LIBWEB_INPUT_FOLDER}/CSS/PseudoClasses.json"
         "CSS/PseudoClass.h"
         "CSS/PseudoClass.cpp"
