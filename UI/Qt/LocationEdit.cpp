@@ -180,8 +180,8 @@ LocationEdit::LocationEdit(QWidget* parent)
         auto ctrl_held = QApplication::keyboardModifiers() & Qt::ControlModifier;
         auto append_tld = ctrl_held ? WebView::AppendTLD::Yes : WebView::AppendTLD::No;
 
-        if (auto url = WebView::sanitize_url(query, WebView::Application::settings().search_engine(), append_tld); url.has_value())
-            set_url(url.release_value());
+        auto url = WebView::sanitize_url(query, WebView::Application::settings().search_engine(), append_tld);
+        set_url(AK::move(url));
     });
 
     connect(this, &QLineEdit::textEdited, this, [this] {
@@ -229,8 +229,8 @@ void LocationEdit::focusOutEvent(QFocusEvent* event)
 
     if (m_url_is_hidden) {
         m_url_is_hidden = false;
-        if (text().isEmpty())
-            setText(qstring_from_ak_string(m_url.serialize()));
+        if (text().isEmpty() && m_url.has_value())
+            setText(qstring_from_ak_string(m_url->serialize()));
     }
 
     if (event->reason() != Qt::PopupFocusReason) {
@@ -245,7 +245,8 @@ void LocationEdit::keyPressEvent(QKeyEvent* event)
         if (m_autocomplete->close())
             return;
         reset_autocomplete_state();
-        setText(qstring_from_ak_string(m_url.serialize()));
+        if (m_url.has_value())
+            setText(qstring_from_ak_string(m_url->serialize()));
         clearFocus();
         return;
     }
@@ -331,14 +332,14 @@ void LocationEdit::highlight_location()
     QCoreApplication::sendEvent(this, &event);
 }
 
-void LocationEdit::set_url(URL::URL url)
+void LocationEdit::set_url(Optional<URL::URL> url)
 {
     m_url = AK::move(url);
 
     if (m_url_is_hidden) {
         clear();
-    } else {
-        setText(qstring_from_ak_string(m_url.serialize()));
+    } else if (m_url.has_value()) {
+        setText(qstring_from_ak_string(m_url->serialize()));
         setCursorPosition(0);
     }
 }

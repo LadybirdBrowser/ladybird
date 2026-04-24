@@ -17,6 +17,7 @@
 #include <LibWeb/Infra/Strings.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BookmarkStore.h>
+#include <LibWebView/ErrorHTML.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/Menu.h>
@@ -184,6 +185,17 @@ void ViewImplementation::load(URL::URL const& url)
 void ViewImplementation::load_html(StringView html)
 {
     client().async_load_html(page_id(), html);
+}
+
+void ViewImplementation::load_navigation_error_page(StringView text)
+{
+    auto message = MUST(String::formatted("Failed to load \"{}\"", text));
+
+    StringBuilder builder;
+    builder.appendff(ERROR_HTML_HEADER, ERROR_SVG, message);
+    builder.append("<p>If you were trying to enter a search query, please enable search in <a href=\"about:settings#search\">settings</a>.</p>"sv);
+    builder.append(ERROR_HTML_FOOTER);
+    load_html(builder.string_view());
 }
 
 void ViewImplementation::reload()
@@ -692,25 +704,13 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
     handle_resize();
 
     if (load_error_page == LoadErrorPage::Yes) {
+        auto escaped_url = escape_html_entities(m_url.serialize());
+
         StringBuilder builder;
-        builder.append("<!DOCTYPE html>"sv);
-        builder.append("<html lang=\"en\"><head><meta charset=\"UTF-8\"><title>Error!</title><style>"
-                       ":root { color-scheme: light dark; font-family: system-ui, sans-serif; }"
-                       "body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; box-sizing: border-box; margin: 0; padding: 1rem; text-align: center; }"
-                       "header { display: flex; flex-direction: column; align-items: center; gap: 2rem; margin-bottom: 1rem; }"
-                       "svg { height: 64px; width: auto; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }"
-                       "h1 { margin: 0; font-size: 1.5rem; }"
-                       "p { font-size: 1rem; color: #555; }"
-                       "</style></head><body>"sv);
-        builder.append("<header>"sv);
-        builder.append("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 17.5 21.5\">"sv);
-        builder.append("<path class=\"b\" d=\"M11.75.75h-9c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-13l-5-5z\"/>"sv);
-        builder.append("<path class=\"b\" d=\"M10.75.75v4c0 1.1.9 2 2 2h4M4.75 9.75l2 2M10.75 9.75l2 2M12.75 9.75l-2 2M6.75 9.75l-2 2M5.75 16.75c1-2.67 5-2.67 6 0\"/></svg>"sv);
-        auto escaped_url = escape_html_entities(m_url.to_byte_string());
-        builder.append("<h1>Ladybird flew off-course!</h1>"sv);
+        builder.appendff(ERROR_HTML_HEADER, CRASH_ERROR_SVG, "Ladybird flew off-course!"sv);
         builder.appendff("<p>The web page <a href=\"{}\">{}</a> has crashed.<br><br>You can reload the page to try again.</p>", escaped_url, escaped_url);
-        builder.append("</body></html>"sv);
-        load_html(builder.to_byte_string());
+        builder.append(ERROR_HTML_FOOTER);
+        load_html(builder.string_view());
     }
 }
 

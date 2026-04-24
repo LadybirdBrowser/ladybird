@@ -485,9 +485,14 @@ void Tab::load_html(StringView html)
 
 void Tab::location_edit_return_pressed()
 {
-    if (m_location_edit->text().isEmpty())
+    auto text = m_location_edit->text();
+    if (text.isEmpty())
         return;
-    navigate(m_location_edit->url());
+
+    if (auto url = m_location_edit->url(); url.has_value())
+        navigate(*url);
+    else
+        view().load_navigation_error_page(ak_string_from_qstring(text));
 }
 
 void Tab::open_file()

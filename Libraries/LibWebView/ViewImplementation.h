@@ -79,6 +79,8 @@ public:
 
     void load(URL::URL const&);
     void load_html(StringView);
+    void load_navigation_error_page(StringView);
+
     void reload();
     void traverse_the_history_by_delta(int delta);
 

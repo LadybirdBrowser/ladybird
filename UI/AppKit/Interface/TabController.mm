@@ -609,6 +609,8 @@ static NSInteger autocomplete_suggestion_index(NSString* suggestion_text, Vector
 
     if (auto url = WebView::sanitize_url(location, WebView::Application::settings().search_engine()); url.has_value()) {
         [self loadURL:*url];
+    } else {
+        [[[self tab] web_view] view].load_navigation_error_page(location);
     }
 
     self.current_inline_autocomplete_suggestion = nil;
