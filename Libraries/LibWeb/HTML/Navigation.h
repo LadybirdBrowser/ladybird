@@ -8,9 +8,9 @@
 
 #include <LibJS/Runtime/Promise.h>
 #include <LibWeb/Bindings/Navigation.h>
+#include <LibWeb/Bindings/NavigationType.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
-#include <LibWeb/HTML/NavigationType.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
 

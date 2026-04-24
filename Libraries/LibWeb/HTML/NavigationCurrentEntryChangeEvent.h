@@ -6,8 +6,8 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/NavigationType.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWeb/HTML/NavigationType.h>
 
 namespace Web::HTML {
 

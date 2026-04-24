@@ -3291,13 +3291,13 @@ JS::Value @dictionary.name:snakecase@_to_value(JS::Realm& realm, @dictionary.cpp
     }
 }
 
-static void generate_enumerations(IDL::Interface const& interface, StringBuilder& builder)
+static void generate_enumerations(IDL::Context const& context, OrderedHashTable<ByteString> const& own_enumerations, StringBuilder& builder)
 {
     SourceGenerator generator { builder };
 
-    for (auto const& enumeration_name : interface.own_enumerations) {
-        auto it = interface.context.enumerations.find(enumeration_name);
-        VERIFY(it != interface.context.enumerations.end());
+    for (auto const& enumeration_name : own_enumerations) {
+        auto it = context.enumerations.find(enumeration_name);
+        VERIFY(it != context.enumerations.end());
         if (!it->value.is_original_definition)
             continue;
         auto enum_generator = generator.fork();
@@ -3336,6 +3336,11 @@ inline String idl_enum_to_string(@enum.type.name@ value)
 }
 )~~~");
     }
+}
+
+static void generate_enumerations(IDL::Interface const& interface, StringBuilder& builder)
+{
+    generate_enumerations(interface.context, interface.own_enumerations, builder);
 }
 
 static void generate_prototype_or_global_mixin_declarations(IDL::Interface const& interface, StringBuilder& builder)
@@ -6261,7 +6266,25 @@ namespace Web::Bindings {
 
 void generate_header(IDL::Module const& module, StringBuilder& builder)
 {
-    if (!module_will_generate_code(module))
+    if (!module.interface.has_value()) {
+        if (module.own_enumerations.is_empty())
+            return;
+
+        builder.append(R"~~~(#pragma once
+
+#include <AK/String.h>
+
+namespace Web::Bindings {
+
+)~~~"sv);
+        generate_enumerations(*module.context, module.own_enumerations, builder);
+        builder.append(R"~~~(
+}
+)~~~"sv);
+        return;
+    }
+
+    if (!module.interface->will_generate_code())
         return;
     generate_header_for_interface(*module.interface, builder);
 }

@@ -352,7 +352,9 @@ public:
 };
 
 struct Module {
+    Context* context { nullptr };
     ByteString module_own_path;
+    OrderedHashTable<ByteString> own_enumerations;
     Optional<Interface&> interface;
 };
 
