@@ -95,9 +95,9 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/Units.json"
     )
 
-    invoke_cpp_generator(
+    invoke_py_generator(
         "Keyword.cpp"
-        Lagom::GenerateCSSKeyword
+        "generate_libweb_css_keyword.py"
         "${LIBWEB_INPUT_FOLDER}/CSS/Keywords.json"
         "CSS/Keyword.h"
         "CSS/Keyword.cpp"
