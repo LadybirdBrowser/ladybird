@@ -917,7 +917,7 @@ public:
     size_t transition_generation() const { return m_transition_generation; }
 
     // Does document represent an embedded svg img
-    [[nodiscard]] bool is_decoded_svg() const;
+    [[nodiscard]] bool is_decoded_svg() const { return m_is_decoded_svg; }
 
     Vector<GC::Root<Range>> find_matching_text(String const&, CaseSensitivity);
 
@@ -1286,6 +1286,8 @@ private:
 
     bool m_needs_full_style_update { false };
     bool m_needs_full_layout_tree_update { false };
+
+    bool m_is_decoded_svg { false };
 
     bool m_is_running_update_layout { false };
 

@@ -514,6 +514,8 @@ Document::Document(JS::Realm& realm, URL::URL const& url, TemporaryDocumentForFr
         .has_legacy_override_built_ins_interface_extended_attribute = true,
     };
 
+    m_is_decoded_svg = m_page->client().is_svg_page_client();
+
     m_cursor_blink_timer = Core::Timer::create_repeating(500, [this] {
         auto cursor_position = this->cursor_position();
         if (!cursor_position)
@@ -6876,11 +6878,6 @@ void Document::register_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot& sha
 void Document::unregister_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot& shadow_root)
 {
     m_shadow_roots.remove(shadow_root);
-}
-
-bool Document::is_decoded_svg() const
-{
-    return page().client().is_svg_page_client();
 }
 
 // https://drafts.csswg.org/css-position-4/#add-an-element-to-the-top-layer
