@@ -1995,8 +1995,8 @@ handler Call
     #    helper that unwinds the callee frame before dispatching to a JS
     #    handler (see .call_raw_native_exception).
     #
-    # Everything else — non-functions, NativeJavaScriptBackedFunction,
-    # ECMAScript functions that can't inline, Proxies, ... — falls through
+    # Everything else -- non-functions, NativeJavaScriptBackedFunction,
+    # ECMAScript functions that can't inline, Proxies, ... -- falls through
     # to .call_slow, i.e. asm_slow_path_call.
     #
     # High-level flow of the ECMAScript fast path:
@@ -2005,394 +2005,389 @@ handler Call
     #   3. Reserve an InterpreterStack frame and populate ExecutionContext.
     #   4. Materialize [registers | locals | constants | arguments].
     #   5. Swap VM state over to the callee frame and dispatch at pc = 0.
-    #
-    # Register usage within this handler:
-    #   t3 = callee ECMAScriptFunctionObject*
-    #   t2 = asm-call metadata / later callee ExecutionContext*
-    #   t7 = callee Executable* carried across `this` binding
-    #   t8 = boxed `this` value carried into the callee
-    load_operand t0, m_callee
-    extract_tag t1, t0
-    branch_ne t1, OBJECT_TAG, .call_slow
-    unbox_object t0, t0
-    mov t3, t0
+    temp callee, callee_value, flags, shared_data, exec_ptr, meta, this_value, tag, scratch, formal_count, passed_count, arg_count, total_slots, regs_locals_count, frame_bytes, vm_ptr, stack_limit, frame_base, value_tail, realm, lex_env, priv_env, empty_tag, som_src, som_lo, som_hi, return_pc, return_dst, base_pc, slot_offset, slot_end, const_count, const_data, const_idx, const_value, write_idx, arg_idx, arg_ops, arg_value, undef_slot, fill_end, native_func, variant, native_return, helper_arg, native_pc, exception_pc, native_total_bytes, after_pc, dst_offset, after_offset, result
+    load_operand callee_value, m_callee
+    extract_tag tag, callee_value
+    branch_ne tag, OBJECT_TAG, .call_slow
+    unbox_object callee, callee_value
 
-    # Non-functions still go through the normal Call slow path for proper error
-    # reporting. Non-ECMAScript function objects get a RawNativeFunction fast
-    # path attempt before we fully give up.
-    load8 t1, [t3, OBJECT_FLAGS]
-    branch_bits_clear t1, OBJECT_FLAG_IS_FUNCTION, .call_slow
-    branch_bits_clear t1, OBJECT_FLAG_IS_ECMASCRIPT_FUNCTION_OBJECT, .call_try_native
+    # Non-functions still go through the normal Call slow path for proper
+    # error reporting. Non-ECMAScript function objects get a
+    # RawNativeFunction fast path attempt before we fully give up.
+    load8 flags, [callee, OBJECT_FLAGS]
+    branch_bits_clear flags, OBJECT_FLAG_IS_FUNCTION, .call_slow
+    branch_bits_clear flags, OBJECT_FLAG_IS_ECMASCRIPT_FUNCTION_OBJECT, .call_try_native
 
-    load64 t2, [t3, ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA]
-    load_pair64 t7, t2, [t2, SHARED_FUNCTION_INSTANCE_DATA_EXECUTABLE], [t2, SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA]
-    branch_bits_clear t2, SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_CAN_INLINE_CALL, .call_slow
+    load64 shared_data, [callee, ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA]
+    load_pair64 exec_ptr, meta, [shared_data, SHARED_FUNCTION_INSTANCE_DATA_EXECUTABLE], [shared_data, SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA]
+    branch_bits_clear meta, SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_CAN_INLINE_CALL, .call_slow
     # NewFunctionEnvironment() allocates and has to stay out of the pure asm
     # path, but we still preserve inline-call semantics via .call_interp_inline.
-    branch_bits_set t2, SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_FUNCTION_ENVIRONMENT_NEEDED, .call_interp_inline
+    branch_bits_set meta, SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_FUNCTION_ENVIRONMENT_NEEDED, .call_interp_inline
 
     # Bind this without allocations. Sloppy primitive this-values still need
     # ToObject(), so they use the C++ inline-frame helper.
     #
-    # t8 starts as "empty" to match the normal interpreter behavior for
-    # callees that never observe `this`.
-    mov t8, EMPTY_TAG_SHIFTED
-    branch_bits_clear t2, SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_USES_THIS, .this_ready
-    load_operand t8, m_this_value
-    branch_bits_set t2, SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_STRICT, .this_ready
+    # this_value starts as "empty" to match the normal interpreter behavior
+    # for callees that never observe `this`.
+    mov this_value, EMPTY_TAG_SHIFTED
+    branch_bits_clear meta, SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_USES_THIS, .this_ready
+    load_operand this_value, m_this_value
+    branch_bits_set meta, SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_STRICT, .this_ready
 
     # Sloppy null/undefined binds the callee realm's global object.
-    # Sloppy primitive receivers need ToObject(), which may allocate wrappers,
-    # so they go through the helper instead of the full Call slow path.
-    extract_tag t1, t8
-    mov t0, t1
-    and t0, 0xFFFE
-    branch_eq t0, UNDEFINED_TAG, .sloppy_global_this
-    branch_eq t1, OBJECT_TAG, .this_ready
+    # Sloppy primitive receivers need ToObject(), which may allocate
+    # wrappers, so they go through the helper instead of the full slow path.
+    extract_tag tag, this_value
+    mov scratch, tag
+    and scratch, 0xFFFE
+    branch_eq scratch, UNDEFINED_TAG, .sloppy_global_this
+    branch_eq tag, OBJECT_TAG, .this_ready
     jmp .call_interp_inline
 
 .sloppy_global_this:
-    load64 t1, [t3, OBJECT_SHAPE]
-    load64 t1, [t1, SHAPE_REALM]
-    load64 t1, [t1, REALM_GLOBAL_ENVIRONMENT]
-    load64 t1, [t1, GLOBAL_ENVIRONMENT_GLOBAL_THIS_VALUE]
+    load64 scratch, [callee, OBJECT_SHAPE]
+    load64 scratch, [scratch, SHAPE_REALM]
+    load64 scratch, [scratch, REALM_GLOBAL_ENVIRONMENT]
+    load64 scratch, [scratch, GLOBAL_ENVIRONMENT_GLOBAL_THIS_VALUE]
     # Match Value(Object*): keep only the low 48 pointer bits before boxing.
-    shl t1, 16
-    shr t1, 16
-    mov t8, OBJECT_TAG_SHIFTED
-    or t8, t1
+    shl scratch, 16
+    shr scratch, 16
+    mov this_value, OBJECT_TAG_SHIFTED
+    or this_value, scratch
 
 .this_ready:
     # The low 32 bits of the packed metadata word hold the formal parameter count.
-    and t2, 0xFFFFFFFF
+    and meta, 0xFFFFFFFF
 
-    load32 t6, [pb, pc, m_argument_count]
-    mov t4, t2
-    branch_ge_unsigned t4, t6, .arg_count_ready
-    mov t4, t6
+    load32 passed_count, [pb, pc, m_argument_count]
+    mov formal_count, meta
+    branch_ge_unsigned formal_count, passed_count, .arg_count_ready
+    mov formal_count, passed_count
 .arg_count_ready:
-    load_pair32 t5, t1, [t7, EXECUTABLE_REGISTERS_AND_LOCALS_COUNT], [t7, EXECUTABLE_REGISTERS_AND_LOCALS_AND_CONSTANTS_COUNT]
+    load_pair32 regs_locals_count, total_slots, [exec_ptr, EXECUTABLE_REGISTERS_AND_LOCALS_COUNT], [exec_ptr, EXECUTABLE_REGISTERS_AND_LOCALS_AND_CONSTANTS_COUNT]
 
     # Inline InterpreterStack::allocate().
-    # t1 = total Value slots, t2 = new stack top, t6 = current frame base.
-    add t1, t4
-    mov t2, t1
-    shl t2, 3
-    add t2, SIZEOF_EXECUTION_CONTEXT
+    add total_slots, formal_count
+    mov frame_bytes, total_slots
+    shl frame_bytes, 3
+    add frame_bytes, SIZEOF_EXECUTION_CONTEXT
 
-    load_vm t0
-    lea t0, [t0, VM_INTERPRETER_STACK]
-    load_pair64 t6, t0, [t0, INTERPRETER_STACK_TOP], [t0, INTERPRETER_STACK_LIMIT]
-    add t2, t6
-    branch_ge_unsigned t0, t2, .stack_ok
+    load_vm vm_ptr
+    lea vm_ptr, [vm_ptr, VM_INTERPRETER_STACK]
+    load_pair64 frame_base, stack_limit, [vm_ptr, INTERPRETER_STACK_TOP], [vm_ptr, INTERPRETER_STACK_LIMIT]
+    add frame_bytes, frame_base
+    branch_ge_unsigned stack_limit, frame_bytes, .stack_ok
     jmp .call_slow
 
 .stack_ok:
-    load_vm t0
-    store64 [t0, VM_INTERPRETER_STACK_TOP], t2
+    load_vm vm_ptr
+    store64 [vm_ptr, VM_INTERPRETER_STACK_TOP], frame_bytes
 
     # Set up the callee ExecutionContext header exactly the way
     # VM::push_inline_frame() / run_executable() would see it.
-    mov t2, t6
-    lea t6, [t6, SIZEOF_EXECUTION_CONTEXT]
-    store_pair32 [t2, EXECUTION_CONTEXT_REGISTERS_AND_CONSTANTS_AND_LOCALS_AND_ARGUMENTS_COUNT], [t2, EXECUTION_CONTEXT_ARGUMENT_COUNT], t1, t4
-    load32 t0, [pb, pc, m_argument_count]
-    store32 [t2, EXECUTION_CONTEXT_PASSED_ARGUMENT_COUNT], t0
+    lea value_tail, [frame_base, SIZEOF_EXECUTION_CONTEXT]
+    store_pair32 [frame_base, EXECUTION_CONTEXT_REGISTERS_AND_CONSTANTS_AND_LOCALS_AND_ARGUMENTS_COUNT], [frame_base, EXECUTION_CONTEXT_ARGUMENT_COUNT], total_slots, formal_count
+    load32 scratch, [pb, pc, m_argument_count]
+    store32 [frame_base, EXECUTION_CONTEXT_PASSED_ARGUMENT_COUNT], scratch
 
-    load64 t0, [t3, OBJECT_SHAPE]
-    load64 t0, [t0, SHAPE_REALM]
-    store_pair64 [t2, EXECUTION_CONTEXT_FUNCTION], [t2, EXECUTION_CONTEXT_REALM], t3, t0
+    load64 realm, [callee, OBJECT_SHAPE]
+    load64 realm, [realm, SHAPE_REALM]
+    store_pair64 [frame_base, EXECUTION_CONTEXT_FUNCTION], [frame_base, EXECUTION_CONTEXT_REALM], callee, realm
 
-    load_pair64 t0, t1, [t3, ECMASCRIPT_FUNCTION_OBJECT_ENVIRONMENT], [t3, ECMASCRIPT_FUNCTION_OBJECT_PRIVATE_ENVIRONMENT]
-    store_pair64 [t2, EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT], [t2, EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT], t0, t0
-    store64 [t2, EXECUTION_CONTEXT_PRIVATE_ENVIRONMENT], t1
-    store_pair64 [t2, EXECUTION_CONTEXT_THIS_VALUE], [t2, EXECUTION_CONTEXT_EXECUTABLE], t8, t7
+    load_pair64 lex_env, priv_env, [callee, ECMASCRIPT_FUNCTION_OBJECT_ENVIRONMENT], [callee, ECMASCRIPT_FUNCTION_OBJECT_PRIVATE_ENVIRONMENT]
+    store_pair64 [frame_base, EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT], [frame_base, EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT], lex_env, lex_env
+    store64 [frame_base, EXECUTION_CONTEXT_PRIVATE_ENVIRONMENT], priv_env
+    store_pair64 [frame_base, EXECUTION_CONTEXT_THIS_VALUE], [frame_base, EXECUTION_CONTEXT_EXECUTABLE], this_value, exec_ptr
 
-    mov t1, EMPTY_TAG_SHIFTED
-    store_pair64 [t6, ACCUMULATOR_REG_OFFSET], [t6, EXCEPTION_REG_OFFSET], t1, t1
-    store64 [t6, THIS_VALUE_REG_OFFSET], t8
-    store_pair64 [t6, RETURN_VALUE_REG_OFFSET], [t6, SAVED_LEXICAL_ENVIRONMENT_REG_OFFSET], t1, t1
+    mov empty_tag, EMPTY_TAG_SHIFTED
+    store_pair64 [value_tail, ACCUMULATOR_REG_OFFSET], [value_tail, EXCEPTION_REG_OFFSET], empty_tag, empty_tag
+    store64 [value_tail, THIS_VALUE_REG_OFFSET], this_value
+    store_pair64 [value_tail, RETURN_VALUE_REG_OFFSET], [value_tail, SAVED_LEXICAL_ENVIRONMENT_REG_OFFSET], empty_tag, empty_tag
 
     # ScriptOrModule is a two-word Variant in ExecutionContext, so copy both
     # machine words explicitly.
-    lea t0, [t2, EXECUTION_CONTEXT_SCRIPT_OR_MODULE]
-    lea t7, [t3, ECMASCRIPT_FUNCTION_OBJECT_SCRIPT_OR_MODULE]
-    load_pair64 t3, t8, [t7, 0], [t7, 8]
-    store64 [t0, 0], t3
-    store64 [t0, 8], t8
+    lea scratch, [frame_base, EXECUTION_CONTEXT_SCRIPT_OR_MODULE]
+    lea som_src, [callee, ECMASCRIPT_FUNCTION_OBJECT_SCRIPT_OR_MODULE]
+    load_pair64 som_lo, som_hi, [som_src, 0], [som_src, 8]
+    store64 [scratch, 0], som_lo
+    store64 [scratch, 8], som_hi
 
-    store32 [t2, EXECUTION_CONTEXT_PROGRAM_COUNTER], 0
-    store32 [t2, EXECUTION_CONTEXT_SKIP_WHEN_DETERMINING_INCUMBENT_COUNTER], 0
-    mov t0, EXECUTION_CONTEXT_NO_YIELD_CONTINUATION
-    store32 [t2, EXECUTION_CONTEXT_YIELD_CONTINUATION], t0
-    store8 [t2, EXECUTION_CONTEXT_YIELD_IS_AWAIT], 0
-    store8 [t2, EXECUTION_CONTEXT_CALLER_IS_CONSTRUCT], 0
-    store64 [t2, EXECUTION_CONTEXT_CALLER_FRAME], exec_ctx
-    load_pair32 t0, t1, [pb, pc, m_length], [pb, pc, m_dst]
-    lea t3, [pb, pc]
-    sub t3, pb
-    add t0, t3
-    store_pair32 [t2, EXECUTION_CONTEXT_CALLER_RETURN_PC], [t2, EXECUTION_CONTEXT_CALLER_DST_RAW], t0, t1
+    store32 [frame_base, EXECUTION_CONTEXT_PROGRAM_COUNTER], 0
+    store32 [frame_base, EXECUTION_CONTEXT_SKIP_WHEN_DETERMINING_INCUMBENT_COUNTER], 0
+    mov scratch, EXECUTION_CONTEXT_NO_YIELD_CONTINUATION
+    store32 [frame_base, EXECUTION_CONTEXT_YIELD_CONTINUATION], scratch
+    store8 [frame_base, EXECUTION_CONTEXT_YIELD_IS_AWAIT], 0
+    store8 [frame_base, EXECUTION_CONTEXT_CALLER_IS_CONSTRUCT], 0
+    store64 [frame_base, EXECUTION_CONTEXT_CALLER_FRAME], exec_ctx
+    load_pair32 return_pc, return_dst, [pb, pc, m_length], [pb, pc, m_dst]
+    lea base_pc, [pb, pc]
+    sub base_pc, pb
+    add return_pc, base_pc
+    store_pair32 [frame_base, EXECUTION_CONTEXT_CALLER_RETURN_PC], [frame_base, EXECUTION_CONTEXT_CALLER_DST_RAW], return_pc, return_dst
 
     # values = [registers | locals | constants | arguments]
-    # Keep t2 at the ExecutionContext base while t6 walks the Value tail.
-    mov t0, t5
-    shl t0, 3
-    mov t3, RESERVED_REGISTERS_SIZE
+    # Walk value_tail with two cursors: slot_offset for the byte index and
+    # write_idx for the element index when copying constants/arguments.
+    mov slot_end, regs_locals_count
+    shl slot_end, 3
+    mov slot_offset, RESERVED_REGISTERS_SIZE
 .clear_registers_and_locals:
-    mov t8, t3
-    add t8, 8
-    branch_ge_unsigned t8, t0, .clear_registers_and_locals_tail
-    store_pair64 [t6, t3, 0], [t6, t3, 8], t1, t1
-    add t3, 16
+    mov scratch, slot_offset
+    add scratch, 8
+    branch_ge_unsigned scratch, slot_end, .clear_registers_and_locals_tail
+    store_pair64 [value_tail, slot_offset, 0], [value_tail, slot_offset, 8], empty_tag, empty_tag
+    add slot_offset, 16
     jmp .clear_registers_and_locals
 
 .clear_registers_and_locals_tail:
-    branch_ge_unsigned t3, t0, .copy_constants
-    store64 [t6, t3], t1
+    branch_ge_unsigned slot_offset, slot_end, .copy_constants
+    store64 [value_tail, slot_offset], empty_tag
 
 .copy_constants:
-    load64 t0, [t2, EXECUTION_CONTEXT_EXECUTABLE]
-    load_pair64 t3, t0, [t0, EXECUTABLE_ASM_CONSTANTS_SIZE], [t0, EXECUTABLE_ASM_CONSTANTS_DATA]
-    mov t1, t5
-    xor t8, t8
+    load64 const_data, [frame_base, EXECUTION_CONTEXT_EXECUTABLE]
+    load_pair64 const_count, const_data, [const_data, EXECUTABLE_ASM_CONSTANTS_SIZE], [const_data, EXECUTABLE_ASM_CONSTANTS_DATA]
+    mov write_idx, regs_locals_count
+    xor const_idx, const_idx
 .copy_constants_loop:
-    branch_ge_unsigned t8, t3, .copy_arguments
-    load64 t7, [t0, t8, 8]
-    store64 [t6, t1, 8], t7
-    add t8, 1
-    add t1, 1
+    branch_ge_unsigned const_idx, const_count, .copy_arguments
+    load64 const_value, [const_data, const_idx, 8]
+    store64 [value_tail, write_idx, 8], const_value
+    add const_idx, 1
+    add write_idx, 1
     jmp .copy_constants_loop
 
 .copy_arguments:
-    load32 t7, [pb, pc, m_argument_count]
-    mov t1, t5
-    add t1, t3
-    lea t0, [exec_ctx, SIZEOF_EXECUTION_CONTEXT]
-    lea t8, [pb, pc]
-    add t8, m_expression_string
-    add t8, 4
-    xor t3, t3
+    load32 arg_count, [pb, pc, m_argument_count]
+    mov write_idx, regs_locals_count
+    add write_idx, const_count
+    lea scratch, [exec_ctx, SIZEOF_EXECUTION_CONTEXT]
+    lea arg_ops, [pb, pc]
+    add arg_ops, m_expression_string
+    add arg_ops, 4
+    xor arg_idx, arg_idx
 .copy_arguments_loop:
     # The operand array in the bytecode stores caller register indices.
-    branch_ge_unsigned t3, t7, .fill_missing_arguments
-    load32 t5, [t8, t3, 4]
-    load64 t5, [t0, t5, 8]
-    store64 [t6, t1, 8], t5
-    add t3, 1
-    add t1, 1
+    branch_ge_unsigned arg_idx, arg_count, .fill_missing_arguments
+    load32 arg_value, [arg_ops, arg_idx, 4]
+    load64 arg_value, [scratch, arg_value, 8]
+    store64 [value_tail, write_idx, 8], arg_value
+    add arg_idx, 1
+    add write_idx, 1
     jmp .copy_arguments_loop
 
 .fill_missing_arguments:
-    mov t3, t1
-    add t3, t4
-    sub t3, t7
-    mov t0, UNDEFINED_SHIFTED
+    mov fill_end, write_idx
+    add fill_end, formal_count
+    sub fill_end, arg_count
+    mov undef_slot, UNDEFINED_SHIFTED
 .fill_missing_arguments_loop:
-    branch_ge_unsigned t1, t3, .enter_callee
-    store64 [t6, t1, 8], t0
-    add t1, 1
+    branch_ge_unsigned write_idx, fill_end, .enter_callee
+    store64 [value_tail, write_idx, 8], undef_slot
+    add write_idx, 1
     jmp .fill_missing_arguments_loop
 
 .enter_callee:
-    load64 pb, [t2, EXECUTION_CONTEXT_EXECUTABLE]
+    load64 pb, [frame_base, EXECUTION_CONTEXT_EXECUTABLE]
     load64 pb, [pb, EXECUTABLE_BYTECODE_DATA]
-    load_vm t0
-    store64 [t0, VM_RUNNING_EXECUTION_CONTEXT], t2
-    mov exec_ctx, t2
+    load_vm vm_ptr
+    store64 [vm_ptr, VM_RUNNING_EXECUTION_CONTEXT], frame_base
+    mov exec_ctx, frame_base
     lea values, [exec_ctx, SIZEOF_EXECUTION_CONTEXT]
     xor pc, pc
     goto_handler pc
 .call_interp_inline:
-    # Shared escape hatch for the cases that need C++ help to build the inline
-    # frame correctly but must not take the full Call slow path, since that
-    # would insert a run_executable() boundary and observable microtask drain.
-    call_interp asm_try_inline_call
-    branch_nonzero t0, .call_slow
-    load_vm t0
-    load64 exec_ctx, [t0, VM_RUNNING_EXECUTION_CONTEXT]
+    # Shared escape hatch for the cases that need C++ help to build the
+    # inline frame correctly but must not take the full Call slow path,
+    # since that would insert a run_executable() boundary and observable
+    # microtask drain.
+    call_interp asm_try_inline_call, result
+    branch_nonzero result, .call_slow
+    load_vm vm_ptr
+    load64 exec_ctx, [vm_ptr, VM_RUNNING_EXECUTION_CONTEXT]
     lea values, [exec_ctx, SIZEOF_EXECUTION_CONTEXT]
-    load64 t0, [exec_ctx, EXECUTION_CONTEXT_EXECUTABLE]
-    load64 pb, [t0, EXECUTABLE_BYTECODE_DATA]
+    load64 scratch, [exec_ctx, EXECUTION_CONTEXT_EXECUTABLE]
+    load64 pb, [scratch, EXECUTABLE_BYTECODE_DATA]
     xor pc, pc
     goto_handler pc
 .call_try_native:
     # Fast path for RawNativeFunction: the callee is a plain C++ function
     # pointer with no JS-visible prologue, so we can build the callee frame
-    # ourselves and jump straight at the entry point. NativeFunction objects
-    # that still carry a callback (NativeJavaScriptBackedFunction) do not have
-    # this flag set and fall through to .call_slow.
-    load8 t0, [t3, OBJECT_FLAGS]
-    branch_bits_clear t0, OBJECT_FLAG_IS_RAW_NATIVE_FUNCTION, .call_slow
+    # ourselves and jump straight at the entry point. NativeFunction
+    # objects that still carry a callback (NativeJavaScriptBackedFunction)
+    # do not have this flag set and fall through to .call_slow.
+    load8 flags, [callee, OBJECT_FLAGS]
+    branch_bits_clear flags, OBJECT_FLAG_IS_RAW_NATIVE_FUNCTION, .call_slow
 
     # Unlike the ECMAScript path we don't pad to the formal parameter count:
     # native functions read their arguments via the passed-count API, so we
-    # only need space for the call-site arguments plus the ExecutionContext
-    # header. t4 = argument count, t5 = total bytes needed for this frame.
-    load32 t4, [pb, pc, m_argument_count]
-    mov t5, t4
-    shl t5, 3
-    add t5, SIZEOF_EXECUTION_CONTEXT
+    # only need space for the call-site arguments plus the EC header.
+    load32 arg_count, [pb, pc, m_argument_count]
+    mov native_total_bytes, arg_count
+    shl native_total_bytes, 3
+    add native_total_bytes, SIZEOF_EXECUTION_CONTEXT
 
     # Inline InterpreterStack::allocate(): bail to C++ if the interpreter
-    # stack doesn't have room for the new frame. t6 = new frame base (old
-    # top), t5 becomes the new top after the add below.
-    load_vm t0
-    lea t0, [t0, VM_INTERPRETER_STACK]
-    load_pair64 t6, t7, [t0, INTERPRETER_STACK_TOP], [t0, INTERPRETER_STACK_LIMIT]
-    add t5, t6
-    branch_ge_unsigned t7, t5, .native_interpreter_stack_ok
+    # stack doesn't have room for the new frame.
+    load_vm vm_ptr
+    lea vm_ptr, [vm_ptr, VM_INTERPRETER_STACK]
+    load_pair64 frame_base, stack_limit, [vm_ptr, INTERPRETER_STACK_TOP], [vm_ptr, INTERPRETER_STACK_LIMIT]
+    add native_total_bytes, frame_base
+    branch_ge_unsigned stack_limit, native_total_bytes, .native_interpreter_stack_ok
     jmp .call_slow
 
 .native_interpreter_stack_ok:
-    # RawNativeFunctions run real C++ code on the host stack, so we also have
-    # to check that we're not about to blow past the VM's reserved stack
-    # limit. The ECMAScript path can skip this because it never leaves asm.
-    load_vm t0
-    lea t0, [t0, VM_STACK_INFO]
-    load64 t7, [t0, STACK_INFO_BASE]
-    add t7, VM_STACK_SPACE_LIMIT
-    branch_ge_unsigned fp, t7, .native_stack_space_ok
+    # RawNativeFunctions run real C++ code on the host stack, so we also
+    # have to check that we're not about to blow past the VM's reserved
+    # stack limit. The ECMAScript path can skip this because it never
+    # leaves asm.
+    load_vm vm_ptr
+    lea vm_ptr, [vm_ptr, VM_STACK_INFO]
+    load64 stack_limit, [vm_ptr, STACK_INFO_BASE]
+    add stack_limit, VM_STACK_SPACE_LIMIT
+    branch_ge_unsigned fp, stack_limit, .native_stack_space_ok
     jmp .call_slow
 
 .native_stack_space_ok:
-    # Commit the new interpreter stack top. From here on we own [t6, t5).
-    load_vm t0
-    store64 [t0, VM_INTERPRETER_STACK_TOP], t5
+    # Commit the new interpreter stack top.
+    load_vm vm_ptr
+    store64 [vm_ptr, VM_INTERPRETER_STACK_TOP], native_total_bytes
 
-    # Populate the callee ExecutionContext to match what VM::push_execution_context
-    # plus NativeFunction::internal_call would produce. t2 tracks the EC
-    # header, t6 advances to the argument Value array that follows it.
-    mov t2, t6
-    lea t6, [t6, SIZEOF_EXECUTION_CONTEXT]
-    # For natives, argument_count and "registers+..." total are both just the
-    # call-site argument count: there are no registers, locals, or constants.
-    store_pair32 [t2, EXECUTION_CONTEXT_REGISTERS_AND_CONSTANTS_AND_LOCALS_AND_ARGUMENTS_COUNT], [t2, EXECUTION_CONTEXT_ARGUMENT_COUNT], t4, t4
-    store32 [t2, EXECUTION_CONTEXT_PASSED_ARGUMENT_COUNT], t4
+    # Populate the callee EC to match VM::push_execution_context plus
+    # NativeFunction::internal_call. value_tail walks past the EC header to
+    # the argument Value array.
+    lea value_tail, [frame_base, SIZEOF_EXECUTION_CONTEXT]
+    # For natives, argument_count and "registers+..." total are both just
+    # the call-site argument count: there are no registers, locals, or
+    # constants.
+    store_pair32 [frame_base, EXECUTION_CONTEXT_REGISTERS_AND_CONSTANTS_AND_LOCALS_AND_ARGUMENTS_COUNT], [frame_base, EXECUTION_CONTEXT_ARGUMENT_COUNT], arg_count, arg_count
+    store32 [frame_base, EXECUTION_CONTEXT_PASSED_ARGUMENT_COUNT], arg_count
 
     # Shape stores a Realm pointer; use it as the callee EC realm.
-    load64 t0, [t3, OBJECT_SHAPE]
-    load64 t0, [t0, SHAPE_REALM]
-    store_pair64 [t2, EXECUTION_CONTEXT_FUNCTION], [t2, EXECUTION_CONTEXT_REALM], t3, t0
+    load64 realm, [callee, OBJECT_SHAPE]
+    load64 realm, [realm, SHAPE_REALM]
+    store_pair64 [frame_base, EXECUTION_CONTEXT_FUNCTION], [frame_base, EXECUTION_CONTEXT_REALM], callee, realm
 
-    # Mirror NativeFunction::internal_call: a raw native has no environment of
-    # its own, so lexical/variable/private environments are copied straight
-    # from the caller frame.
-    load_pair64 t0, t7, [exec_ctx, EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT], [exec_ctx, EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT]
-    store_pair64 [t2, EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT], [t2, EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT], t0, t7
-    load64 t0, [exec_ctx, EXECUTION_CONTEXT_PRIVATE_ENVIRONMENT]
-    store64 [t2, EXECUTION_CONTEXT_PRIVATE_ENVIRONMENT], t0
-    # |this| is forwarded unchanged. Native builtins do their own type checks
-    # on the receiver where they need to.
-    load_operand t0, m_this_value
-    store64 [t2, EXECUTION_CONTEXT_THIS_VALUE], t0
+    # Mirror NativeFunction::internal_call: a raw native has no environment
+    # of its own, so lexical/variable/private environments are copied
+    # straight from the caller frame.
+    load_pair64 lex_env, scratch, [exec_ctx, EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT], [exec_ctx, EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT]
+    store_pair64 [frame_base, EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT], [frame_base, EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT], lex_env, scratch
+    load64 priv_env, [exec_ctx, EXECUTION_CONTEXT_PRIVATE_ENVIRONMENT]
+    store64 [frame_base, EXECUTION_CONTEXT_PRIVATE_ENVIRONMENT], priv_env
+    # |this| is forwarded unchanged. Native builtins do their own type
+    # checks on the receiver where they need to.
+    load_operand this_value, m_this_value
+    store64 [frame_base, EXECUTION_CONTEXT_THIS_VALUE], this_value
 
-    # Zero out the ScriptOrModule variant (two words) and Executable pointer.
-    # Native frames don't belong to any script/module and have no bytecode.
-    xor t0, t0
-    lea t7, [t2, EXECUTION_CONTEXT_SCRIPT_OR_MODULE]
-    store_pair64 [t7, 0], [t7, 8], t0, t0
-    store64 [t2, EXECUTION_CONTEXT_EXECUTABLE], t0
-    store32 [t2, EXECUTION_CONTEXT_PROGRAM_COUNTER], 0
-    store32 [t2, EXECUTION_CONTEXT_SKIP_WHEN_DETERMINING_INCUMBENT_COUNTER], 0
-    mov t0, EXECUTION_CONTEXT_NO_YIELD_CONTINUATION
-    store32 [t2, EXECUTION_CONTEXT_YIELD_CONTINUATION], t0
-    store8 [t2, EXECUTION_CONTEXT_YIELD_IS_AWAIT], 0
-    store8 [t2, EXECUTION_CONTEXT_CALLER_IS_CONSTRUCT], 0
+    # Zero out the ScriptOrModule variant (two words) and Executable
+    # pointer. Native frames don't belong to any script/module.
+    xor scratch, scratch
+    lea som_src, [frame_base, EXECUTION_CONTEXT_SCRIPT_OR_MODULE]
+    store_pair64 [som_src, 0], [som_src, 8], scratch, scratch
+    store64 [frame_base, EXECUTION_CONTEXT_EXECUTABLE], scratch
+    store32 [frame_base, EXECUTION_CONTEXT_PROGRAM_COUNTER], 0
+    store32 [frame_base, EXECUTION_CONTEXT_SKIP_WHEN_DETERMINING_INCUMBENT_COUNTER], 0
+    mov scratch, EXECUTION_CONTEXT_NO_YIELD_CONTINUATION
+    store32 [frame_base, EXECUTION_CONTEXT_YIELD_CONTINUATION], scratch
+    store8 [frame_base, EXECUTION_CONTEXT_YIELD_IS_AWAIT], 0
+    store8 [frame_base, EXECUTION_CONTEXT_CALLER_IS_CONSTRUCT], 0
 
     # While asm runs, the authoritative program counter lives in the `pc`
-    # register and the caller EC's stored program_counter is stale. Before we
-    # leave asm to run native C++ that may throw, sync `pc` into the caller
-    # EC as a bytecode offset (pc - pb). asm_helper_handle_raw_native_exception
-    # and VM::handle_exception both read from the caller EC after unwind.
-    lea t7, [pb, pc]
-    sub t7, pb
-    store32 [exec_ctx, EXECUTION_CONTEXT_PROGRAM_COUNTER], t7
-    store64 [t2, EXECUTION_CONTEXT_CALLER_FRAME], exec_ctx
-    # CALLER_RETURN_PC is the bytecode offset of the instruction after the
-    # Call (Call offset + Call length). CALLER_DST_RAW records where the
-    # return value should be written in the caller's value array.
-    load32 t0, [pb, pc, m_length]
-    add t0, t7
-    store32 [t2, EXECUTION_CONTEXT_CALLER_RETURN_PC], t0
-    load32 t0, [pb, pc, m_dst]
-    store32 [t2, EXECUTION_CONTEXT_CALLER_DST_RAW], t0
+    # register and the caller EC's stored program_counter is stale. Before
+    # we leave asm to run native C++ that may throw, sync `pc` into the
+    # caller EC as a bytecode offset (pc - pb). The exception helper and
+    # VM::handle_exception both read from the caller EC after unwind.
+    lea native_pc, [pb, pc]
+    sub native_pc, pb
+    store32 [exec_ctx, EXECUTION_CONTEXT_PROGRAM_COUNTER], native_pc
+    store64 [frame_base, EXECUTION_CONTEXT_CALLER_FRAME], exec_ctx
+    # CALLER_RETURN_PC is the bytecode offset of the instruction after
+    # the Call. CALLER_DST_RAW records where the return value should
+    # be written in the caller's value array.
+    load32 after_pc, [pb, pc, m_length]
+    add after_pc, native_pc
+    store32 [frame_base, EXECUTION_CONTEXT_CALLER_RETURN_PC], after_pc
+    load32 dst_offset, [pb, pc, m_dst]
+    store32 [frame_base, EXECUTION_CONTEXT_CALLER_DST_RAW], dst_offset
 
     # Copy the call-site arguments from the caller's value array into the
-    # callee frame's argument tail. t0 points at the caller's value array,
-    # t8 at the Operand[] that trails the fixed Call instruction fields.
-    # The Call layout ends with `m_expression_string: Optional<StringTableIndex>`
-    # (4 bytes via the sentinel specialization) followed by `m_arguments`, so
-    # base + offsetof(m_expression_string) + 4 is the operand array.
-    lea t0, [exec_ctx, SIZEOF_EXECUTION_CONTEXT]
-    lea t8, [pb, pc]
-    add t8, m_expression_string
-    add t8, 4
-    xor t7, t7
+    # callee frame's argument tail. scratch points at the caller's value
+    # array, arg_ops at the Operand[] that trails the fixed Call instruction
+    # fields. The Call layout ends with `m_expression_string:
+    # Optional<StringTableIndex>` (4 bytes via the sentinel specialization)
+    # followed by `m_arguments`, so base + offsetof(m_expression_string) + 4
+    # is the operand array.
+    lea scratch, [exec_ctx, SIZEOF_EXECUTION_CONTEXT]
+    lea arg_ops, [pb, pc]
+    add arg_ops, m_expression_string
+    add arg_ops, 4
+    xor arg_idx, arg_idx
 .copy_native_arguments_loop:
-    branch_ge_unsigned t7, t4, .enter_raw_native
-    load32 t5, [t8, t7, 4]
-    load64 t5, [t0, t5, 8]
-    store64 [t6, t7, 8], t5
-    add t7, 1
+    branch_ge_unsigned arg_idx, arg_count, .enter_raw_native
+    load32 arg_value, [arg_ops, arg_idx, 4]
+    load64 arg_value, [scratch, arg_value, 8]
+    store64 [value_tail, arg_idx, 8], arg_value
+    add arg_idx, 1
     jmp .copy_native_arguments_loop
 
 .enter_raw_native:
     # Swap the running ExecutionContext over to the callee and point the
     # asm `values` register at its argument array. After this, we look like
     # a normal inline frame from the VM's perspective.
-    load_vm t0
-    store64 [t0, VM_RUNNING_EXECUTION_CONTEXT], t2
-    mov exec_ctx, t2
+    load_vm vm_ptr
+    store64 [vm_ptr, VM_RUNNING_EXECUTION_CONTEXT], frame_base
+    mov exec_ctx, frame_base
     lea values, [exec_ctx, SIZEOF_EXECUTION_CONTEXT]
 
-    # Invoke the raw C++ function pointer. call_raw_native lowers to a native
-    # call through the platform ABI and surfaces the returned
-    # ThrowCompletionOr<Value> via (t0, t1): t0 is the Value payload and t1
-    # holds the Variant discriminator in its low byte (0 = Value, 1 =
-    # ErrorValue). Anything non-zero in that byte means the native threw and
-    # t0 is the thrown Value, not a return value.
-    load64 t3, [t3, RAW_NATIVE_FUNCTION_NATIVE_FUNCTION]
-    call_raw_native t3
-    and t1, 0xFF
-    branch_nonzero t1, .call_raw_native_exception
+    # Invoke the raw C++ function pointer. call_raw_native lowers to a
+    # native call through the platform ABI and surfaces the returned
+    # ThrowCompletionOr<Value> via (payload, variant). The variant low byte
+    # is 0 for a Value, 1 for an ErrorValue; anything else means the native
+    # threw and payload is the thrown Value, not a return value.
+    load64 native_func, [callee, RAW_NATIVE_FUNCTION_NATIVE_FUNCTION]
+    call_raw_native native_func, native_return, variant
+    and variant, 0xFF
+    branch_nonzero variant, .call_raw_native_exception
 
     # Normal return path: tear the callee frame off the interpreter stack,
     # restore the caller as the running ExecutionContext, write the return
     # value into the caller's m_dst operand, and dispatch the next insn.
-    load64 t2, [exec_ctx, EXECUTION_CONTEXT_CALLER_FRAME]
-    load_vm t3
-    store64 [t3, VM_RUNNING_EXECUTION_CONTEXT], t2
-    store64 [t3, VM_INTERPRETER_STACK_TOP], exec_ctx
-    mov exec_ctx, t2
+    load64 frame_base, [exec_ctx, EXECUTION_CONTEXT_CALLER_FRAME]
+    load_vm vm_ptr
+    store64 [vm_ptr, VM_RUNNING_EXECUTION_CONTEXT], frame_base
+    store64 [vm_ptr, VM_INTERPRETER_STACK_TOP], exec_ctx
+    mov exec_ctx, frame_base
     lea values, [exec_ctx, SIZEOF_EXECUTION_CONTEXT]
-    store_operand m_dst, t0
-    load32 t0, [pb, pc, m_length]
-    dispatch_variable t0
+    store_operand m_dst, native_return
+    load32 after_offset, [pb, pc, m_length]
+    dispatch_variable after_offset
 
 .call_raw_native_exception:
     # The native threw. Hand the thrown Value off to a C++ helper, which
     # unwinds the callee frame off the interpreter stack and calls through
-    # to VM::handle_exception. Return value (t0) follows the standard asm
+    # to VM::handle_exception. Return value follows the standard asm
     # slow-path convention (see AsmInterpreter.cpp:127):
-    #   >= 0 : an enclosing handler was found; t0 is the new program counter
-    #          to resume at inside the (post-unwind) running execution context.
+    #   >= 0 : an enclosing handler was found; the result is the new
+    #          program counter to resume at inside the (post-unwind)
+    #          running execution context.
     #    < 0 : no handler; bail out of the asm dispatch loop entirely.
-    mov t1, t0
-    call_helper asm_helper_handle_raw_native_exception
-    branch_negative t0, .call_exit_asm
-    jmp .call_exception_handled
-.call_exception_handled:
-    # Reload exec_ctx/values/pb/pc from the caller frame the helper left us
-    # on, and resume dispatching at its program_counter (which the helper
-    # already updated to the handler entry).
-    load_vm t0
-    load64 exec_ctx, [t0, VM_RUNNING_EXECUTION_CONTEXT]
+    # native_return is pinned to rax by call_raw_native; helper_arg is
+    # pinned to rcx by call_helper, so this mov is the explicit bridge
+    # between the two ABIs.
+    mov helper_arg, native_return
+    call_helper asm_helper_handle_raw_native_exception, helper_arg, exception_pc
+    branch_negative exception_pc, .call_exit_asm
+    # Reload exec_ctx/values/pb/pc from the caller frame the helper left
+    # us on, and resume dispatching at its program_counter (which the
+    # helper already updated to the handler entry).
+    load_vm vm_ptr
+    load64 exec_ctx, [vm_ptr, VM_RUNNING_EXECUTION_CONTEXT]
     lea values, [exec_ctx, SIZEOF_EXECUTION_CONTEXT]
-    load64 t0, [exec_ctx, EXECUTION_CONTEXT_EXECUTABLE]
-    load64 pb, [t0, EXECUTABLE_BYTECODE_DATA]
-    load32 t2, [exec_ctx, EXECUTION_CONTEXT_PROGRAM_COUNTER]
-    mov pc, t2
+    load64 scratch, [exec_ctx, EXECUTION_CONTEXT_EXECUTABLE]
+    load64 pb, [scratch, EXECUTABLE_BYTECODE_DATA]
+    load32 native_pc, [exec_ctx, EXECUTION_CONTEXT_PROGRAM_COUNTER]
+    mov pc, native_pc
     goto_handler pc
 .call_exit_asm:
     # No JS handler caught the native exception; bail out of the asm
