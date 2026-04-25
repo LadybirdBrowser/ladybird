@@ -1,0 +1,247 @@
+focus old before append: rgb(0, 128, 0)
+focus new before append: rgb(0, 0, 0)
+focus old after append: rgb(0, 0, 0)
+focus new after append: rgb(0, 128, 0)
+focus new after remove: rgb(0, 0, 0)
+focus move old before moveBefore: rgb(0, 128, 0)
+focus move new before moveBefore: rgb(0, 0, 0)
+focus move old after moveBefore: rgb(0, 128, 0)
+focus move new after moveBefore: rgb(0, 0, 0)
+focus fragment old before append: rgb(0, 128, 0)
+focus fragment new before append: rgb(0, 0, 0)
+focus fragment old after append: rgb(0, 0, 0)
+focus fragment new after append: rgb(0, 128, 0)
+focus pseudo old before append: none
+focus pseudo new before append: none
+focus pseudo old after append: none
+focus pseudo new after append: focus
+focus pseudo new after remove: focus
+focus pseudo move old before moveBefore: none
+focus pseudo move new before moveBefore: none
+focus pseudo move old after moveBefore: none
+focus pseudo move new after moveBefore: none
+focus pseudo move old after moveBefore back: none
+focus pseudo move new after moveBefore back: none
+focus pseudo fragment old before append: none
+focus pseudo fragment new before append: none
+focus pseudo fragment old after append: none
+focus pseudo fragment new after append: focus
+focus pseudo fragment old after moveBefore back: none
+focus pseudo fragment new after moveBefore back: focus
+shadow focus pseudo old before append: shadow focus
+shadow focus pseudo new before append: none
+shadow focus pseudo old after append: shadow focus
+shadow focus pseudo new after append: shadow focus
+shadow focus pseudo new after remove: shadow focus
+shadow focus pseudo move old before moveBefore: shadow focus
+shadow focus pseudo move new before moveBefore: none
+shadow focus pseudo move old after moveBefore: shadow focus
+shadow focus pseudo move new after moveBefore: none
+shadow focus pseudo move old after moveBefore back: shadow focus
+shadow focus pseudo move new after moveBefore back: none
+shadow focus pseudo fragment old before append: shadow focus
+shadow focus pseudo fragment new before append: none
+shadow focus pseudo fragment old after append: shadow focus
+shadow focus pseudo fragment new after append: shadow focus
+shadow focus pseudo fragment old after moveBefore back: shadow focus
+shadow focus pseudo fragment new after moveBefore back: shadow focus
+hover old before append: rgb(255, 0, 0)
+hover new before append: rgb(255, 255, 255)
+hover old after append: rgb(255, 255, 255)
+hover new after append: rgb(255, 0, 0)
+hover new after remove: rgb(255, 255, 255)
+hover move old before moveBefore: rgb(255, 0, 0)
+hover move new before moveBefore: rgb(255, 255, 255)
+hover move old after moveBefore: rgb(255, 0, 0)
+hover move new after moveBefore: rgb(255, 255, 255)
+hover fragment old before append: rgb(255, 0, 0)
+hover fragment new before append: rgb(255, 255, 255)
+hover fragment old after append: rgb(255, 255, 255)
+hover fragment new after append: rgb(255, 0, 0)
+hover pseudo old before append: hover
+hover pseudo new before append: none
+hover pseudo old after append: hover
+hover pseudo new after append: hover
+hover pseudo new after remove: hover
+hover pseudo move old before moveBefore: hover
+hover pseudo move new before moveBefore: none
+hover pseudo move old after moveBefore: hover
+hover pseudo move new after moveBefore: none
+hover pseudo move old after moveBefore back: hover
+hover pseudo move new after moveBefore back: none
+hover pseudo fragment old before append: hover
+hover pseudo fragment new before append: none
+hover pseudo fragment old after append: hover
+hover pseudo fragment new after append: hover
+hover pseudo fragment old after moveBefore back: hover
+hover pseudo fragment new after moveBefore back: hover
+shadow hover pseudo old before append: none
+shadow hover pseudo new before append: none
+shadow hover pseudo old after append: none
+shadow hover pseudo new after append: shadow hover
+shadow hover pseudo new after remove: shadow hover
+shadow hover pseudo move old before moveBefore: none
+shadow hover pseudo move new before moveBefore: none
+shadow hover pseudo move old after moveBefore: none
+shadow hover pseudo move new after moveBefore: none
+shadow hover pseudo move old after moveBefore back: none
+shadow hover pseudo move new after moveBefore back: none
+shadow hover pseudo fragment old before append: none
+shadow hover pseudo fragment new before append: none
+shadow hover pseudo fragment old after append: none
+shadow hover pseudo fragment new after append: shadow hover
+shadow hover pseudo fragment old after moveBefore back: none
+shadow hover pseudo fragment new after moveBefore back: shadow hover
+has append before child append: rgb(0, 0, 0)
+has append after child append: rgb(0, 128, 0)
+has remove before child remove: rgb(0, 128, 0)
+has remove after child remove: rgb(0, 0, 0)
+has move old before moveBefore: rgb(0, 128, 0)
+has move new before moveBefore: rgb(0, 0, 0)
+has move old after moveBefore: rgb(0, 0, 0)
+has move new after moveBefore: rgb(0, 128, 0)
+has fragment before append: rgb(0, 0, 0)
+has fragment after append: rgb(0, 128, 0)
+has pseudo append before child append: none
+has pseudo append after child append: has
+has pseudo remove before child remove: has
+has pseudo remove after child remove: has
+has pseudo move old before moveBefore: has
+has pseudo move new before moveBefore: none
+has pseudo move old after moveBefore: has
+has pseudo move new after moveBefore: has
+has pseudo fragment before append: none
+has pseudo fragment after append: has
+shadow has append before child append: rgb(0, 0, 0)
+shadow has append after child append: rgb(0, 128, 0)
+shadow has append after child remove: rgb(0, 0, 0)
+shadow has move old before moveBefore: rgb(0, 128, 0)
+shadow has move new before moveBefore: rgb(0, 0, 0)
+shadow has move old after moveBefore: rgb(0, 0, 0)
+shadow has move new after moveBefore: rgb(0, 128, 0)
+shadow has fragment before append: rgb(0, 0, 0)
+shadow has fragment after append: rgb(0, 128, 0)
+shadow has pseudo before child append: none
+shadow has pseudo after child append: shadow has
+shadow has pseudo after child remove: shadow has
+shadow has pseudo move old before moveBefore: shadow has
+shadow has pseudo move new before moveBefore: none
+shadow has pseudo move old after moveBefore: shadow has
+shadow has pseudo move new after moveBefore: shadow has
+shadow has pseudo fragment before append: none
+shadow has pseudo fragment after append: shadow has
+textarea before text insert: rgb(0, 128, 0)
+textarea after text insert: rgb(0, 0, 0)
+textarea after text remove: rgb(0, 128, 0)
+placeholder pseudo before text remove: none
+placeholder pseudo after text remove: placeholder
+placeholder pseudo before text insert: placeholder
+placeholder pseudo after text insert: placeholder
+not-placeholder pseudo before text insert: none
+not-placeholder pseudo after text insert: not placeholder
+not-placeholder pseudo before text remove: not placeholder
+not-placeholder pseudo after text remove: not placeholder
+empty parent before child append: rgb(0, 128, 0)
+empty parent after child append: rgb(0, 0, 0)
+empty parent before child remove: rgb(0, 0, 0)
+empty parent after child remove: rgb(0, 128, 0)
+not-empty parent before child append: rgb(0, 0, 0)
+not-empty parent after child append: rgb(0, 128, 0)
+not-empty parent before child remove: rgb(0, 128, 0)
+not-empty parent after child remove: rgb(0, 0, 0)
+empty pseudo before child remove: normal
+empty pseudo after child remove: "empty"
+empty text pseudo before text mutation: none
+empty text pseudo after text mutation: empty text
+empty pseudo before child append: empty state
+empty pseudo after child append: empty state
+empty pseudo before fragment append: empty state
+empty pseudo after fragment append: empty state
+empty pseudo before text insert: empty state
+empty pseudo after text insert: empty state
+not-empty pseudo before child append: none
+not-empty pseudo after child append: not empty state
+not-empty pseudo before child remove: not empty state
+not-empty pseudo after child remove: not empty state
+not-empty pseudo before fragment append: none
+not-empty pseudo after fragment append: not empty state
+not-empty pseudo move old before moveBefore: not empty state
+not-empty pseudo move new before moveBefore: none
+not-empty pseudo move old after moveBefore: not empty state
+not-empty pseudo move new after moveBefore: none
+not-empty pseudo before text insert: none
+not-empty pseudo after text insert: not empty state
+not-empty pseudo before text mutation: not empty state
+not-empty pseudo after text mutation: not empty state
+empty shadow host before light child remove: none
+empty shadow host after light child remove: shadow empty
+empty shadow host before light child append: shadow empty
+empty shadow host after light child append: shadow empty
+not-empty shadow host before light child append: none
+not-empty shadow host after light child append: shadow not empty
+not-empty shadow host before light child remove: shadow not empty
+not-empty shadow host after light child remove: shadow not empty
+not-empty shadow host move old before moveBefore: shadow not empty
+not-empty shadow host move new before moveBefore: none
+not-empty shadow host move old after moveBefore: shadow not empty
+not-empty shadow host move new after moveBefore: none
+not-empty shadow host before fragment append: none
+not-empty shadow host after fragment append: shadow not empty
+empty shadow host before light text mutation: shadow empty
+empty shadow host after light text mutation: shadow empty
+empty shadow host before light text clear: none
+empty shadow host after light text clear: shadow empty
+not-empty shadow host before light text mutation: none
+not-empty shadow host after light text mutation: shadow not empty
+not-empty shadow host before light text clear: shadow not empty
+not-empty shadow host after light text clear: shadow not empty
+empty move target before moveBefore: rgb(0, 0, 0)
+empty move target after moveBefore: rgb(0, 0, 0)
+dir auto before text mutation: rgb(0, 0, 0)
+dir auto after text mutation: rgb(0, 128, 0)
+dir pseudo before text mutation: none
+dir pseudo after text mutation: rtl
+dir auto before reverse text mutation: rgb(0, 0, 0)
+dir auto after reverse text mutation: rgb(0, 128, 0)
+dir pseudo before reverse text mutation: none
+dir pseudo after reverse text mutation: ltr
+invalid parent form before required input append: rgb(0, 128, 0)
+invalid parent form after required input append: rgb(255, 0, 0)
+valid parent form before required input remove: rgb(255, 0, 0)
+valid parent form after required input remove: rgb(0, 128, 0)
+invalid parent fieldset before required input append: rgb(0, 128, 0)
+invalid parent fieldset after required input append: rgb(255, 0, 0)
+valid parent fieldset before required input remove: rgb(255, 0, 0)
+valid parent fieldset after required input remove: rgb(0, 128, 0)
+invalid pseudo form before required input append: none
+invalid pseudo form after required input append: invalid
+valid pseudo form before required input remove: none
+valid pseudo form after required input remove: valid
+invalid pseudo form before required input remove: invalid
+invalid pseudo form after required input remove: invalid
+valid pseudo form before required input append: valid
+valid pseudo form after required input append: valid
+invalid pseudo fieldset before required input append: none
+invalid pseudo fieldset after required input append: invalid fieldset
+valid pseudo fieldset before required input remove: none
+valid pseudo fieldset after required input remove: valid fieldset
+invalid pseudo fieldset before required input remove: invalid
+invalid pseudo fieldset after required input remove: invalid
+valid pseudo fieldset before required input append: valid
+valid pseudo fieldset after required input append: valid
+user-invalid select before option remove: rgb(255, 0, 0)
+user-invalid select after option remove: rgb(0, 0, 0)
+user-invalid pseudo before selected option remove: none
+user-invalid pseudo after selected option remove: user invalid
+user-valid pseudo before placeholder option remove: none
+user-valid pseudo after placeholder option remove: user valid
+user-invalid parent before selected option remove: rgb(0, 0, 0)
+user-invalid parent after selected option remove: rgb(255, 0, 0)
+user-valid parent before placeholder option remove: rgb(0, 0, 0)
+user-valid parent after placeholder option remove: rgb(0, 128, 0)
+user-valid parent before selected option remove: rgb(0, 128, 0)
+user-valid parent after selected option remove: rgb(0, 0, 0)
+user-invalid pseudo before placeholder option remove: user invalid
+user-invalid pseudo after placeholder option remove: user invalid
+user-valid pseudo before selected option remove: user valid
+user-valid pseudo after selected option remove: user valid

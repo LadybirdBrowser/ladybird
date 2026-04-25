@@ -1,0 +1,1464 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    .focus-panel {
+        color: rgb(0, 0, 0);
+    }
+    .focus-panel:focus-within {
+        color: rgb(0, 128, 0);
+    }
+    .focus-pseudo:focus-within::before {
+        content: "focus";
+        --child-state: focus;
+    }
+    .hover-panel {
+        background-color: rgb(255, 255, 255);
+        height: 40px;
+        margin: 4px;
+        width: 120px;
+    }
+    .hover-panel:hover {
+        background-color: rgb(255, 0, 0);
+    }
+    .hover-pseudo:hover::before {
+        content: "hover";
+        --child-state: hover;
+    }
+    .has-panel {
+        color: rgb(0, 0, 0);
+    }
+    .has-panel:has(.has-child) {
+        color: rgb(0, 128, 0);
+    }
+    .has-pseudo:has(.has-child)::before {
+        content: "has";
+        --child-state: has;
+    }
+    .empty-panel {
+        color: rgb(0, 0, 0);
+    }
+    .empty-panel:empty {
+        color: rgb(0, 128, 0);
+    }
+    .not-empty-panel {
+        color: rgb(0, 0, 0);
+    }
+    .not-empty-panel:not(:empty) {
+        color: rgb(0, 128, 0);
+    }
+    textarea {
+        color: rgb(0, 0, 0);
+    }
+    textarea:placeholder-shown {
+        color: rgb(0, 128, 0);
+    }
+    #placeholder-pseudo:placeholder-shown::before {
+        content: "placeholder";
+        --child-state: placeholder;
+    }
+    .placeholder-pseudo:placeholder-shown::before {
+        content: "placeholder";
+        --child-state: placeholder;
+    }
+    .not-placeholder-pseudo:not(:placeholder-shown)::before {
+        content: "not placeholder";
+        --child-state: not placeholder;
+    }
+    #empty-pseudo:empty::before {
+        content: "empty";
+        --child-state: empty;
+    }
+    #empty-text-pseudo:empty::before {
+        content: "empty text";
+        --child-state: empty text;
+    }
+    .empty-pseudo-state:empty::before {
+        content: "empty state";
+        --child-state: empty state;
+    }
+    .not-empty-pseudo-state:not(:empty)::before {
+        content: "not empty state";
+        --child-state: not empty state;
+    }
+    #empty-move-target:empty {
+        color: rgb(0, 128, 0);
+    }
+    #dir-auto {
+        color: rgb(0, 0, 0);
+    }
+    #dir-auto:dir(rtl) {
+        color: rgb(0, 128, 0);
+    }
+    #dir-pseudo:dir(rtl)::before {
+        content: "rtl";
+        --child-state: rtl;
+    }
+    #dir-auto-back {
+        color: rgb(0, 0, 0);
+    }
+    #dir-auto-back:dir(ltr) {
+        color: rgb(0, 128, 0);
+    }
+    #dir-pseudo-back:dir(ltr)::before {
+        content: "ltr";
+        --child-state: ltr;
+    }
+    .validity-panel {
+        color: rgb(0, 0, 0);
+    }
+    .validity-panel:invalid {
+        color: rgb(255, 0, 0);
+    }
+    .validity-panel:valid {
+        color: rgb(0, 128, 0);
+    }
+    .invalid-pseudo-state:invalid::before {
+        content: "invalid";
+        --child-state: invalid;
+    }
+    .valid-pseudo-state:valid::before {
+        content: "valid";
+        --child-state: valid;
+    }
+    #invalid-pseudo-form:invalid::before {
+        content: "invalid";
+        --child-state: invalid;
+    }
+    #valid-pseudo-form:valid::before {
+        content: "valid";
+        --child-state: valid;
+    }
+    #invalid-pseudo-fieldset:invalid::before {
+        content: "invalid fieldset";
+        --child-state: invalid fieldset;
+    }
+    #valid-pseudo-fieldset:valid::before {
+        content: "valid fieldset";
+        --child-state: valid fieldset;
+    }
+    #user-invalid-select {
+        color: rgb(0, 0, 0);
+    }
+    #user-invalid-select:user-invalid {
+        color: rgb(255, 0, 0);
+    }
+    .user-invalid-panel {
+        color: rgb(0, 0, 0);
+    }
+    .user-invalid-panel:user-invalid {
+        color: rgb(255, 0, 0);
+    }
+    .user-valid-panel {
+        color: rgb(0, 0, 0);
+    }
+    .user-valid-panel:user-valid {
+        color: rgb(0, 128, 0);
+    }
+    #user-invalid-pseudo-select:user-invalid::before {
+        content: "user invalid";
+        --child-state: user invalid;
+    }
+    #user-valid-pseudo-select:user-valid::before {
+        content: "user valid";
+        --child-state: user valid;
+    }
+    .user-invalid-pseudo-state:user-invalid::before {
+        content: "user invalid";
+        --child-state: user invalid;
+    }
+    .user-valid-pseudo-state:user-valid::before {
+        content: "user valid";
+        --child-state: user valid;
+    }
+</style>
+<div id="focus-old" class="focus-panel">
+    <div id="focus-subtree"><input id="focus-input"></div>
+</div>
+<div id="focus-new" class="focus-panel"></div>
+<div id="focus-move-old" class="focus-panel">
+    <button id="focus-move-button">button</button>
+</div>
+<div id="focus-move-new" class="focus-panel"></div>
+<div id="focus-fragment-old" class="focus-panel">
+    <button id="focus-fragment-button">button</button>
+</div>
+<div id="focus-fragment-new" class="focus-panel"></div>
+<div id="focus-pseudo-old" class="focus-pseudo">
+    <div id="focus-pseudo-subtree"><input id="focus-pseudo-input"></div>
+</div>
+<div id="focus-pseudo-new" class="focus-pseudo"></div>
+<div id="focus-pseudo-move-old" class="focus-pseudo">
+    <button id="focus-pseudo-move-button">button</button>
+</div>
+<div id="focus-pseudo-move-new" class="focus-pseudo"></div>
+<div id="focus-pseudo-fragment-old" class="focus-pseudo">
+    <button id="focus-pseudo-fragment-button">button</button>
+</div>
+<div id="focus-pseudo-fragment-new" class="focus-pseudo"></div>
+<div id="hover-old" class="hover-panel">
+    <div id="hover-subtree">hover</div>
+</div>
+<div id="hover-new" class="hover-panel"></div>
+<div id="hover-move-old" class="hover-panel">
+    <div id="hover-move-subtree">hover move</div>
+</div>
+<div id="hover-move-new" class="hover-panel"></div>
+<div id="hover-fragment-old" class="hover-panel">
+    <div id="hover-fragment-subtree">hover fragment</div>
+</div>
+<div id="hover-fragment-new" class="hover-panel"></div>
+<div id="hover-pseudo-old" class="hover-pseudo">
+    <div id="hover-pseudo-subtree">hover pseudo</div>
+</div>
+<div id="hover-pseudo-new" class="hover-pseudo"></div>
+<div id="hover-pseudo-move-old" class="hover-pseudo">
+    <div id="hover-pseudo-move-subtree">hover pseudo move</div>
+</div>
+<div id="hover-pseudo-move-new" class="hover-pseudo"></div>
+<div id="hover-pseudo-fragment-old" class="hover-pseudo">
+    <div id="hover-pseudo-fragment-subtree">hover pseudo fragment</div>
+</div>
+<div id="hover-pseudo-fragment-new" class="hover-pseudo"></div>
+<div id="has-append" class="has-panel"></div>
+<div id="has-remove" class="has-panel"><span id="has-remove-child" class="has-child"></span></div>
+<div id="has-move-old" class="has-panel"><span id="has-move-child" class="has-child"></span></div>
+<div id="has-move-new" class="has-panel"></div>
+<div id="has-fragment" class="has-panel"></div>
+<div id="has-pseudo-append" class="has-pseudo"></div>
+<div id="has-pseudo-remove" class="has-pseudo"><span id="has-pseudo-remove-child" class="has-child"></span></div>
+<div id="has-pseudo-move-old" class="has-pseudo"><span id="has-pseudo-move-child" class="has-child"></span></div>
+<div id="has-pseudo-move-new" class="has-pseudo"></div>
+<div id="has-pseudo-fragment" class="has-pseudo"></div>
+<textarea id="placeholder-textarea" placeholder="placeholder"></textarea>
+<textarea id="placeholder-pseudo" placeholder="placeholder">value</textarea>
+<textarea id="placeholder-pseudo-insert" class="placeholder-pseudo" placeholder="placeholder"></textarea>
+<textarea id="not-placeholder-pseudo-insert" class="not-placeholder-pseudo" placeholder="placeholder"></textarea>
+<textarea id="not-placeholder-pseudo-remove" class="not-placeholder-pseudo" placeholder="placeholder">value</textarea>
+<div id="empty-parent-insert" class="empty-panel"></div>
+<div id="empty-parent-remove" class="empty-panel"><span id="empty-parent-remove-child"></span></div>
+<div id="not-empty-parent-insert" class="not-empty-panel"></div>
+<div id="not-empty-parent-remove" class="not-empty-panel"><span id="not-empty-parent-remove-child"></span></div>
+<div id="empty-pseudo"><span id="empty-pseudo-child"></span></div>
+<div id="empty-text-pseudo">text</div>
+<div id="empty-insert-pseudo" class="empty-pseudo-state"></div>
+<div id="empty-fragment-pseudo" class="empty-pseudo-state"></div>
+<div id="empty-text-insert-pseudo" class="empty-pseudo-state"></div>
+<div id="not-empty-insert-pseudo" class="not-empty-pseudo-state"></div>
+<div id="not-empty-remove-pseudo" class="not-empty-pseudo-state"><span id="not-empty-remove-child"></span></div>
+<div id="not-empty-fragment-pseudo" class="not-empty-pseudo-state"></div>
+<div id="not-empty-move-old" class="not-empty-pseudo-state"><span id="not-empty-move-child"></span></div>
+<div id="not-empty-move-new" class="not-empty-pseudo-state"></div>
+<div id="not-empty-text-insert-pseudo" class="not-empty-pseudo-state"></div>
+<div id="not-empty-text-clear-pseudo" class="not-empty-pseudo-state">text</div>
+<div id="empty-shadow-host"><span id="empty-shadow-child"></span></div>
+<div id="empty-move-target"><span id="empty-move-only-child">x</span></div>
+<div id="empty-move-destination"></div>
+<div id="dir-auto" dir="auto">a</div>
+<div id="dir-pseudo" dir="auto">a</div>
+<div id="dir-auto-back" dir="auto">א</div>
+<div id="dir-pseudo-back" dir="auto">א</div>
+<form id="validity-parent-invalid-append" class="validity-panel" action="javascript:void 0"></form>
+<form id="validity-parent-valid-remove" class="validity-panel" action="javascript:void 0">
+    <input id="validity-parent-valid-remove-required" required>
+</form>
+<fieldset id="validity-fieldset-invalid-append" class="validity-panel"></fieldset>
+<fieldset id="validity-fieldset-valid-remove" class="validity-panel">
+    <input id="validity-fieldset-valid-remove-required" required>
+</fieldset>
+<form id="invalid-pseudo-form" action="javascript:void 0"></form>
+<form id="valid-pseudo-form" action="javascript:void 0">
+    <input id="valid-pseudo-required" required>
+</form>
+<form id="invalid-pseudo-form-remove" class="invalid-pseudo-state" action="javascript:void 0">
+    <input id="invalid-pseudo-form-remove-required" required>
+</form>
+<form id="valid-pseudo-form-append" class="valid-pseudo-state" action="javascript:void 0"></form>
+<fieldset id="invalid-pseudo-fieldset"></fieldset>
+<fieldset id="valid-pseudo-fieldset">
+    <input id="valid-pseudo-fieldset-required" required>
+</fieldset>
+<fieldset id="invalid-pseudo-fieldset-remove" class="invalid-pseudo-state">
+    <input id="invalid-pseudo-fieldset-remove-required" required>
+</fieldset>
+<fieldset id="valid-pseudo-fieldset-append" class="valid-pseudo-state"></fieldset>
+<form id="user-validity-form" action="javascript:void 0">
+    <select id="user-invalid-select" required>
+        <option id="user-invalid-placeholder"></option>
+        <option>choice</option>
+    </select>
+    <button id="user-validity-submit">submit</button>
+</form>
+<form id="user-invalid-pseudo-form" action="javascript:void 0">
+    <select id="user-invalid-pseudo-select" required>
+        <option value="">placeholder</option>
+        <option id="user-invalid-pseudo-choice" value="choice" selected>choice</option>
+    </select>
+    <button id="user-invalid-pseudo-submit">submit</button>
+</form>
+<form id="user-valid-pseudo-form" action="javascript:void 0">
+    <select id="user-valid-pseudo-select" required>
+        <option id="user-valid-pseudo-placeholder"></option>
+        <option>choice</option>
+    </select>
+    <button id="user-valid-pseudo-submit">submit</button>
+</form>
+<form id="user-invalid-parent-gain-form" action="javascript:void 0">
+    <select id="user-invalid-parent-gain-select" class="user-invalid-panel" required>
+        <option value="">placeholder</option>
+        <option id="user-invalid-parent-gain-choice" value="choice" selected>choice</option>
+    </select>
+    <button id="user-invalid-parent-gain-submit">submit</button>
+</form>
+<form id="user-valid-parent-gain-form" action="javascript:void 0">
+    <select id="user-valid-parent-gain-select" class="user-valid-panel" required>
+        <option id="user-valid-parent-gain-placeholder"></option>
+        <option>choice</option>
+    </select>
+    <button id="user-valid-parent-gain-submit">submit</button>
+</form>
+<form id="user-valid-parent-clear-form" action="javascript:void 0">
+    <select id="user-valid-parent-clear-select" class="user-valid-panel" required>
+        <option value="">placeholder</option>
+        <option id="user-valid-parent-clear-choice" value="choice" selected>choice</option>
+    </select>
+    <button id="user-valid-parent-clear-submit">submit</button>
+</form>
+<form id="user-invalid-pseudo-clear-form" action="javascript:void 0">
+    <select id="user-invalid-pseudo-clear-select" class="user-invalid-pseudo-state" required>
+        <option id="user-invalid-pseudo-clear-placeholder"></option>
+        <option>choice</option>
+    </select>
+    <button id="user-invalid-pseudo-clear-submit">submit</button>
+</form>
+<form id="user-valid-pseudo-clear-form" action="javascript:void 0">
+    <select id="user-valid-pseudo-clear-select" class="user-valid-pseudo-state" required>
+        <option value="">placeholder</option>
+        <option id="user-valid-pseudo-clear-choice" value="choice" selected>choice</option>
+    </select>
+    <button id="user-valid-pseudo-clear-submit">submit</button>
+</form>
+<script>
+    function color(id) {
+        return elementColor(document.getElementById(id));
+    }
+
+    function pseudoContent(id) {
+        return getComputedStyle(document.getElementById(id), "::before").content;
+    }
+
+    function pseudoState(id) {
+        return elementPseudoState(document.getElementById(id));
+    }
+
+    function backgroundColor(id) {
+        return getComputedStyle(document.getElementById(id)).backgroundColor;
+    }
+
+    function elementColor(element) {
+        return getComputedStyle(element).color;
+    }
+
+    function elementPseudoState(element) {
+        return getComputedStyle(element, "::before").getPropertyValue("--child-state").trim()
+            || "none";
+    }
+
+    function createShadowHost(id, styleText) {
+        const host = document.createElement("div");
+        host.id = id;
+        document.body.appendChild(host);
+        const shadowContents = `<style>:host { color: rgb(0, 0, 0); } ${styleText}</style><slot></slot>`;
+        host.attachShadow({ mode: "open" }).innerHTML = shadowContents;
+        return host;
+    }
+
+    function submitAndStabilize(formId, controlId, submitId) {
+        const form = document.getElementById(formId);
+        const control = document.getElementById(controlId);
+        form.addEventListener("submit", event => event.preventDefault());
+        document.getElementById(submitId).click();
+        // Force one recompute after form submission, so option removal is the invalidation being tested below.
+        control.style.borderWidth = "1px";
+        return control;
+    }
+
+    function hover(element) {
+        const rect = element.getBoundingClientRect();
+        internals.mouseMove(Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.height / 2));
+    }
+
+    test(() => {
+        // ===== :focus-within (parent style) =====
+        const focusSubtree = document.getElementById("focus-subtree");
+        const focusInput = document.getElementById("focus-input");
+        const focusNew = document.getElementById("focus-new");
+        focusInput.focus();
+
+        println(`focus old before append: ${color("focus-old")}`);
+        println(`focus new before append: ${color("focus-new")}`);
+
+        focusNew.appendChild(focusSubtree);
+
+        println(`focus old after append: ${color("focus-old")}`);
+        println(`focus new after append: ${color("focus-new")}`);
+
+        focusSubtree.remove();
+
+        println(`focus new after remove: ${color("focus-new")}`);
+
+        const focusMoveButton = document.getElementById("focus-move-button");
+        const focusMoveNew = document.getElementById("focus-move-new");
+        focusMoveButton.focus();
+
+        println(`focus move old before moveBefore: ${color("focus-move-old")}`);
+        println(`focus move new before moveBefore: ${color("focus-move-new")}`);
+
+        focusMoveNew.moveBefore(focusMoveButton, null);
+
+        println(`focus move old after moveBefore: ${color("focus-move-old")}`);
+        println(`focus move new after moveBefore: ${color("focus-move-new")}`);
+
+        const focusFragmentButton = document.getElementById("focus-fragment-button");
+        const focusFragmentNew = document.getElementById("focus-fragment-new");
+        focusFragmentButton.focus();
+
+        println(`focus fragment old before append: ${color("focus-fragment-old")}`);
+        println(`focus fragment new before append: ${color("focus-fragment-new")}`);
+
+        const focusFragment = document.createDocumentFragment();
+        focusFragment.appendChild(focusFragmentButton);
+        focusFragmentNew.appendChild(focusFragment);
+
+        println(`focus fragment old after append: ${color("focus-fragment-old")}`);
+        println(`focus fragment new after append: ${color("focus-fragment-new")}`);
+
+        // ===== :focus-within (pseudo-element) =====
+        const focusPseudoSubtree = document.getElementById("focus-pseudo-subtree");
+        const focusPseudoInput = document.getElementById("focus-pseudo-input");
+        const focusPseudoNew = document.getElementById("focus-pseudo-new");
+        focusPseudoInput.focus();
+
+        println(`focus pseudo old before append: ${pseudoState("focus-pseudo-old")}`);
+        println(`focus pseudo new before append: ${pseudoState("focus-pseudo-new")}`);
+
+        focusPseudoNew.appendChild(focusPseudoSubtree);
+
+        println(`focus pseudo old after append: ${pseudoState("focus-pseudo-old")}`);
+        println(`focus pseudo new after append: ${pseudoState("focus-pseudo-new")}`);
+
+        focusPseudoSubtree.remove();
+
+        println(`focus pseudo new after remove: ${pseudoState("focus-pseudo-new")}`);
+
+        const focusPseudoMoveButton = document.getElementById("focus-pseudo-move-button");
+        const focusPseudoMoveNew = document.getElementById("focus-pseudo-move-new");
+        focusPseudoMoveButton.focus();
+
+        println(`focus pseudo move old before moveBefore: ${pseudoState("focus-pseudo-move-old")}`);
+        println(`focus pseudo move new before moveBefore: ${pseudoState("focus-pseudo-move-new")}`);
+
+        focusPseudoMoveNew.moveBefore(focusPseudoMoveButton, null);
+
+        println(`focus pseudo move old after moveBefore: ${pseudoState("focus-pseudo-move-old")}`);
+        println(`focus pseudo move new after moveBefore: ${pseudoState("focus-pseudo-move-new")}`);
+
+        document.getElementById("focus-pseudo-move-old").moveBefore(focusPseudoMoveButton, null);
+
+        println(`focus pseudo move old after moveBefore back: ${pseudoState("focus-pseudo-move-old")}`);
+        println(`focus pseudo move new after moveBefore back: ${pseudoState("focus-pseudo-move-new")}`);
+
+        const focusPseudoFragmentButton = document.getElementById("focus-pseudo-fragment-button");
+        const focusPseudoFragmentNew = document.getElementById("focus-pseudo-fragment-new");
+        focusPseudoFragmentButton.focus();
+
+        println(`focus pseudo fragment old before append: ${pseudoState("focus-pseudo-fragment-old")}`);
+        println(`focus pseudo fragment new before append: ${pseudoState("focus-pseudo-fragment-new")}`);
+
+        const focusPseudoFragment = document.createDocumentFragment();
+        focusPseudoFragment.appendChild(focusPseudoFragmentButton);
+        focusPseudoFragmentNew.appendChild(focusPseudoFragment);
+
+        println(`focus pseudo fragment old after append: ${pseudoState("focus-pseudo-fragment-old")}`);
+        println(`focus pseudo fragment new after append: ${pseudoState("focus-pseudo-fragment-new")}`);
+
+        document.getElementById("focus-pseudo-fragment-old").moveBefore(focusPseudoFragmentButton, null);
+
+        println(`focus pseudo fragment old after moveBefore back: ${pseudoState("focus-pseudo-fragment-old")}`);
+        println(`focus pseudo fragment new after moveBefore back: ${pseudoState("focus-pseudo-fragment-new")}`);
+
+        // ===== :host(:focus-within) (shadow pseudo-element) =====
+        const shadowFocusPseudoOld = createShadowHost(
+            "shadow-focus-pseudo-old",
+            `:host(:focus-within)::before { content: "shadow focus"; --child-state: shadow focus; }`);
+        const shadowFocusPseudoNew = createShadowHost(
+            "shadow-focus-pseudo-new",
+            `:host(:focus-within)::before { content: "shadow focus"; --child-state: shadow focus; }`);
+        const shadowFocusPseudoSubtree = document.createElement("div");
+        const shadowFocusPseudoInput = document.createElement("input");
+        shadowFocusPseudoSubtree.appendChild(shadowFocusPseudoInput);
+        shadowFocusPseudoOld.appendChild(shadowFocusPseudoSubtree);
+        shadowFocusPseudoInput.focus();
+
+        println(`shadow focus pseudo old before append: ${elementPseudoState(shadowFocusPseudoOld)}`);
+        println(`shadow focus pseudo new before append: ${elementPseudoState(shadowFocusPseudoNew)}`);
+
+        shadowFocusPseudoNew.appendChild(shadowFocusPseudoSubtree);
+
+        println(`shadow focus pseudo old after append: ${elementPseudoState(shadowFocusPseudoOld)}`);
+        println(`shadow focus pseudo new after append: ${elementPseudoState(shadowFocusPseudoNew)}`);
+
+        shadowFocusPseudoSubtree.remove();
+
+        println(`shadow focus pseudo new after remove: ${elementPseudoState(shadowFocusPseudoNew)}`);
+
+        const shadowFocusPseudoMoveOld = createShadowHost(
+            "shadow-focus-pseudo-move-old",
+            `:host(:focus-within)::before { content: "shadow focus"; --child-state: shadow focus; }`);
+        const shadowFocusPseudoMoveNew = createShadowHost(
+            "shadow-focus-pseudo-move-new",
+            `:host(:focus-within)::before { content: "shadow focus"; --child-state: shadow focus; }`);
+        const shadowFocusPseudoMoveButton = document.createElement("button");
+        shadowFocusPseudoMoveOld.appendChild(shadowFocusPseudoMoveButton);
+        shadowFocusPseudoMoveButton.focus();
+
+        println(`shadow focus pseudo move old before moveBefore: ${elementPseudoState(shadowFocusPseudoMoveOld)}`);
+        println(`shadow focus pseudo move new before moveBefore: ${elementPseudoState(shadowFocusPseudoMoveNew)}`);
+
+        shadowFocusPseudoMoveNew.moveBefore(shadowFocusPseudoMoveButton, null);
+
+        println(`shadow focus pseudo move old after moveBefore: ${elementPseudoState(shadowFocusPseudoMoveOld)}`);
+        println(`shadow focus pseudo move new after moveBefore: ${elementPseudoState(shadowFocusPseudoMoveNew)}`);
+
+        shadowFocusPseudoMoveOld.moveBefore(shadowFocusPseudoMoveButton, null);
+
+        println(`shadow focus pseudo move old after moveBefore back: ${elementPseudoState(shadowFocusPseudoMoveOld)}`);
+        println(`shadow focus pseudo move new after moveBefore back: ${elementPseudoState(shadowFocusPseudoMoveNew)}`);
+
+        const shadowFocusPseudoFragmentOld = createShadowHost(
+            "shadow-focus-pseudo-fragment-old",
+            `:host(:focus-within)::before { content: "shadow focus"; --child-state: shadow focus; }`);
+        const shadowFocusPseudoFragmentNew = createShadowHost(
+            "shadow-focus-pseudo-fragment-new",
+            `:host(:focus-within)::before { content: "shadow focus"; --child-state: shadow focus; }`);
+        const shadowFocusPseudoFragmentButton = document.createElement("button");
+        shadowFocusPseudoFragmentOld.appendChild(shadowFocusPseudoFragmentButton);
+        shadowFocusPseudoFragmentButton.focus();
+
+        println(`shadow focus pseudo fragment old before append: ${elementPseudoState(shadowFocusPseudoFragmentOld)}`);
+        println(`shadow focus pseudo fragment new before append: ${elementPseudoState(shadowFocusPseudoFragmentNew)}`);
+
+        const shadowFocusPseudoFragment = document.createDocumentFragment();
+        shadowFocusPseudoFragment.appendChild(shadowFocusPseudoFragmentButton);
+        shadowFocusPseudoFragmentNew.appendChild(shadowFocusPseudoFragment);
+
+        println(`shadow focus pseudo fragment old after append: ${elementPseudoState(shadowFocusPseudoFragmentOld)}`);
+        println(`shadow focus pseudo fragment new after append: ${elementPseudoState(shadowFocusPseudoFragmentNew)}`);
+
+        shadowFocusPseudoFragmentOld.moveBefore(shadowFocusPseudoFragmentButton, null);
+
+        println(`shadow focus pseudo fragment old after moveBefore back: ${elementPseudoState(shadowFocusPseudoFragmentOld)}`);
+        println(`shadow focus pseudo fragment new after moveBefore back: ${elementPseudoState(shadowFocusPseudoFragmentNew)}`);
+
+        // ===== :hover (parent style) =====
+        const hoverSubtree = document.getElementById("hover-subtree");
+        const hoverNew = document.getElementById("hover-new");
+        hover(hoverSubtree);
+
+        println(`hover old before append: ${backgroundColor("hover-old")}`);
+        println(`hover new before append: ${backgroundColor("hover-new")}`);
+
+        hoverNew.appendChild(hoverSubtree);
+
+        println(`hover old after append: ${backgroundColor("hover-old")}`);
+        println(`hover new after append: ${backgroundColor("hover-new")}`);
+
+        hoverSubtree.remove();
+
+        println(`hover new after remove: ${backgroundColor("hover-new")}`);
+
+        const hoverMoveSubtree = document.getElementById("hover-move-subtree");
+        const hoverMoveNew = document.getElementById("hover-move-new");
+        hover(hoverMoveSubtree);
+
+        println(`hover move old before moveBefore: ${backgroundColor("hover-move-old")}`);
+        println(`hover move new before moveBefore: ${backgroundColor("hover-move-new")}`);
+
+        hoverMoveNew.moveBefore(hoverMoveSubtree, null);
+
+        println(`hover move old after moveBefore: ${backgroundColor("hover-move-old")}`);
+        println(`hover move new after moveBefore: ${backgroundColor("hover-move-new")}`);
+
+        const hoverFragmentSubtree = document.getElementById("hover-fragment-subtree");
+        const hoverFragmentNew = document.getElementById("hover-fragment-new");
+        hover(hoverFragmentSubtree);
+
+        println(`hover fragment old before append: ${backgroundColor("hover-fragment-old")}`);
+        println(`hover fragment new before append: ${backgroundColor("hover-fragment-new")}`);
+
+        const hoverFragment = document.createDocumentFragment();
+        hoverFragment.appendChild(hoverFragmentSubtree);
+        hoverFragmentNew.appendChild(hoverFragment);
+
+        println(`hover fragment old after append: ${backgroundColor("hover-fragment-old")}`);
+        println(`hover fragment new after append: ${backgroundColor("hover-fragment-new")}`);
+
+        // ===== :hover (pseudo-element) =====
+        const hoverPseudoSubtree = document.getElementById("hover-pseudo-subtree");
+        const hoverPseudoNew = document.getElementById("hover-pseudo-new");
+        hover(hoverPseudoSubtree);
+
+        println(`hover pseudo old before append: ${pseudoState("hover-pseudo-old")}`);
+        println(`hover pseudo new before append: ${pseudoState("hover-pseudo-new")}`);
+
+        hoverPseudoNew.appendChild(hoverPseudoSubtree);
+
+        println(`hover pseudo old after append: ${pseudoState("hover-pseudo-old")}`);
+        println(`hover pseudo new after append: ${pseudoState("hover-pseudo-new")}`);
+
+        hoverPseudoSubtree.remove();
+
+        println(`hover pseudo new after remove: ${pseudoState("hover-pseudo-new")}`);
+
+        const hoverPseudoMoveSubtree = document.getElementById("hover-pseudo-move-subtree");
+        const hoverPseudoMoveNew = document.getElementById("hover-pseudo-move-new");
+        hover(hoverPseudoMoveSubtree);
+
+        println(`hover pseudo move old before moveBefore: ${pseudoState("hover-pseudo-move-old")}`);
+        println(`hover pseudo move new before moveBefore: ${pseudoState("hover-pseudo-move-new")}`);
+
+        hoverPseudoMoveNew.moveBefore(hoverPseudoMoveSubtree, null);
+
+        println(`hover pseudo move old after moveBefore: ${pseudoState("hover-pseudo-move-old")}`);
+        println(`hover pseudo move new after moveBefore: ${pseudoState("hover-pseudo-move-new")}`);
+
+        document.getElementById("hover-pseudo-move-old").moveBefore(hoverPseudoMoveSubtree, null);
+
+        println(`hover pseudo move old after moveBefore back: ${pseudoState("hover-pseudo-move-old")}`);
+        println(`hover pseudo move new after moveBefore back: ${pseudoState("hover-pseudo-move-new")}`);
+
+        const hoverPseudoFragmentSubtree = document.getElementById("hover-pseudo-fragment-subtree");
+        const hoverPseudoFragmentNew = document.getElementById("hover-pseudo-fragment-new");
+        hover(hoverPseudoFragmentSubtree);
+
+        println(`hover pseudo fragment old before append: ${pseudoState("hover-pseudo-fragment-old")}`);
+        println(`hover pseudo fragment new before append: ${pseudoState("hover-pseudo-fragment-new")}`);
+
+        const hoverPseudoFragment = document.createDocumentFragment();
+        hoverPseudoFragment.appendChild(hoverPseudoFragmentSubtree);
+        hoverPseudoFragmentNew.appendChild(hoverPseudoFragment);
+
+        println(`hover pseudo fragment old after append: ${pseudoState("hover-pseudo-fragment-old")}`);
+        println(`hover pseudo fragment new after append: ${pseudoState("hover-pseudo-fragment-new")}`);
+
+        document.getElementById("hover-pseudo-fragment-old").moveBefore(hoverPseudoFragmentSubtree, null);
+
+        println(`hover pseudo fragment old after moveBefore back: ${pseudoState("hover-pseudo-fragment-old")}`);
+        println(`hover pseudo fragment new after moveBefore back: ${pseudoState("hover-pseudo-fragment-new")}`);
+
+        // ===== :host(:hover) (shadow pseudo-element) =====
+        const shadowHoverPseudoOld = createShadowHost(
+            "shadow-hover-pseudo-old",
+            `:host(:hover)::before { content: "shadow hover"; --child-state: shadow hover; }`);
+        const shadowHoverPseudoNew = createShadowHost(
+            "shadow-hover-pseudo-new",
+            `:host(:hover)::before { content: "shadow hover"; --child-state: shadow hover; }`);
+        const shadowHoverPseudoSubtree = document.createElement("div");
+        shadowHoverPseudoSubtree.textContent = "shadow hover";
+        shadowHoverPseudoOld.appendChild(shadowHoverPseudoSubtree);
+        hover(shadowHoverPseudoSubtree);
+
+        println(`shadow hover pseudo old before append: ${elementPseudoState(shadowHoverPseudoOld)}`);
+        println(`shadow hover pseudo new before append: ${elementPseudoState(shadowHoverPseudoNew)}`);
+
+        shadowHoverPseudoNew.appendChild(shadowHoverPseudoSubtree);
+
+        println(`shadow hover pseudo old after append: ${elementPseudoState(shadowHoverPseudoOld)}`);
+        println(`shadow hover pseudo new after append: ${elementPseudoState(shadowHoverPseudoNew)}`);
+
+        shadowHoverPseudoSubtree.remove();
+
+        println(`shadow hover pseudo new after remove: ${elementPseudoState(shadowHoverPseudoNew)}`);
+
+        const shadowHoverPseudoMoveOld = createShadowHost(
+            "shadow-hover-pseudo-move-old",
+            `:host(:hover)::before { content: "shadow hover"; --child-state: shadow hover; }`);
+        const shadowHoverPseudoMoveNew = createShadowHost(
+            "shadow-hover-pseudo-move-new",
+            `:host(:hover)::before { content: "shadow hover"; --child-state: shadow hover; }`);
+        const shadowHoverPseudoMoveSubtree = document.createElement("div");
+        shadowHoverPseudoMoveSubtree.textContent = "shadow hover move";
+        shadowHoverPseudoMoveOld.appendChild(shadowHoverPseudoMoveSubtree);
+        hover(shadowHoverPseudoMoveSubtree);
+
+        println(`shadow hover pseudo move old before moveBefore: ${elementPseudoState(shadowHoverPseudoMoveOld)}`);
+        println(`shadow hover pseudo move new before moveBefore: ${elementPseudoState(shadowHoverPseudoMoveNew)}`);
+
+        shadowHoverPseudoMoveNew.moveBefore(shadowHoverPseudoMoveSubtree, null);
+
+        println(`shadow hover pseudo move old after moveBefore: ${elementPseudoState(shadowHoverPseudoMoveOld)}`);
+        println(`shadow hover pseudo move new after moveBefore: ${elementPseudoState(shadowHoverPseudoMoveNew)}`);
+
+        shadowHoverPseudoMoveOld.moveBefore(shadowHoverPseudoMoveSubtree, null);
+
+        println(`shadow hover pseudo move old after moveBefore back: ${elementPseudoState(shadowHoverPseudoMoveOld)}`);
+        println(`shadow hover pseudo move new after moveBefore back: ${elementPseudoState(shadowHoverPseudoMoveNew)}`);
+
+        const shadowHoverPseudoFragmentOld = createShadowHost(
+            "shadow-hover-pseudo-fragment-old",
+            `:host(:hover)::before { content: "shadow hover"; --child-state: shadow hover; }`);
+        const shadowHoverPseudoFragmentNew = createShadowHost(
+            "shadow-hover-pseudo-fragment-new",
+            `:host(:hover)::before { content: "shadow hover"; --child-state: shadow hover; }`);
+        const shadowHoverPseudoFragmentSubtree = document.createElement("div");
+        shadowHoverPseudoFragmentSubtree.textContent = "shadow hover fragment";
+        shadowHoverPseudoFragmentOld.appendChild(shadowHoverPseudoFragmentSubtree);
+        hover(shadowHoverPseudoFragmentSubtree);
+
+        println(`shadow hover pseudo fragment old before append: ${elementPseudoState(shadowHoverPseudoFragmentOld)}`);
+        println(`shadow hover pseudo fragment new before append: ${elementPseudoState(shadowHoverPseudoFragmentNew)}`);
+
+        const shadowHoverPseudoFragment = document.createDocumentFragment();
+        shadowHoverPseudoFragment.appendChild(shadowHoverPseudoFragmentSubtree);
+        shadowHoverPseudoFragmentNew.appendChild(shadowHoverPseudoFragment);
+
+        println(`shadow hover pseudo fragment old after append: ${elementPseudoState(shadowHoverPseudoFragmentOld)}`);
+        println(`shadow hover pseudo fragment new after append: ${elementPseudoState(shadowHoverPseudoFragmentNew)}`);
+
+        shadowHoverPseudoFragmentOld.moveBefore(shadowHoverPseudoFragmentSubtree, null);
+
+        println(`shadow hover pseudo fragment old after moveBefore back: ${elementPseudoState(shadowHoverPseudoFragmentOld)}`);
+        println(`shadow hover pseudo fragment new after moveBefore back: ${elementPseudoState(shadowHoverPseudoFragmentNew)}`);
+
+        // ===== :has() (parent style) =====
+        const hasAppend = document.getElementById("has-append");
+        const hasAppendChild = document.createElement("span");
+        hasAppendChild.className = "has-child";
+
+        println(`has append before child append: ${color("has-append")}`);
+
+        hasAppend.appendChild(hasAppendChild);
+
+        println(`has append after child append: ${color("has-append")}`);
+
+        const hasRemoveChild = document.getElementById("has-remove-child");
+
+        println(`has remove before child remove: ${color("has-remove")}`);
+
+        hasRemoveChild.remove();
+
+        println(`has remove after child remove: ${color("has-remove")}`);
+
+        const hasMoveChild = document.getElementById("has-move-child");
+        const hasMoveNew = document.getElementById("has-move-new");
+
+        println(`has move old before moveBefore: ${color("has-move-old")}`);
+        println(`has move new before moveBefore: ${color("has-move-new")}`);
+
+        hasMoveNew.moveBefore(hasMoveChild, null);
+
+        println(`has move old after moveBefore: ${color("has-move-old")}`);
+        println(`has move new after moveBefore: ${color("has-move-new")}`);
+
+        const hasFragment = document.createDocumentFragment();
+        const hasFragmentChild = document.createElement("span");
+        hasFragmentChild.className = "has-child";
+        hasFragment.appendChild(hasFragmentChild);
+
+        println(`has fragment before append: ${color("has-fragment")}`);
+
+        document.getElementById("has-fragment").appendChild(hasFragment);
+
+        println(`has fragment after append: ${color("has-fragment")}`);
+
+        // ===== :has() (pseudo-element) =====
+        const hasPseudoAppend = document.getElementById("has-pseudo-append");
+        const hasPseudoAppendChild = document.createElement("span");
+        hasPseudoAppendChild.className = "has-child";
+
+        println(`has pseudo append before child append: ${pseudoState("has-pseudo-append")}`);
+
+        hasPseudoAppend.appendChild(hasPseudoAppendChild);
+
+        println(`has pseudo append after child append: ${pseudoState("has-pseudo-append")}`);
+
+        const hasPseudoRemoveChild = document.getElementById("has-pseudo-remove-child");
+
+        println(`has pseudo remove before child remove: ${pseudoState("has-pseudo-remove")}`);
+
+        hasPseudoRemoveChild.remove();
+
+        println(`has pseudo remove after child remove: ${pseudoState("has-pseudo-remove")}`);
+
+        const hasPseudoMoveChild = document.getElementById("has-pseudo-move-child");
+        const hasPseudoMoveNew = document.getElementById("has-pseudo-move-new");
+
+        println(`has pseudo move old before moveBefore: ${pseudoState("has-pseudo-move-old")}`);
+        println(`has pseudo move new before moveBefore: ${pseudoState("has-pseudo-move-new")}`);
+
+        hasPseudoMoveNew.moveBefore(hasPseudoMoveChild, null);
+
+        println(`has pseudo move old after moveBefore: ${pseudoState("has-pseudo-move-old")}`);
+        println(`has pseudo move new after moveBefore: ${pseudoState("has-pseudo-move-new")}`);
+
+        const hasPseudoFragment = document.createDocumentFragment();
+        const hasPseudoFragmentChild = document.createElement("span");
+        hasPseudoFragmentChild.className = "has-child";
+        hasPseudoFragment.appendChild(hasPseudoFragmentChild);
+
+        println(`has pseudo fragment before append: ${pseudoState("has-pseudo-fragment")}`);
+
+        document.getElementById("has-pseudo-fragment").appendChild(hasPseudoFragment);
+
+        println(`has pseudo fragment after append: ${pseudoState("has-pseudo-fragment")}`);
+
+        // ===== :host:has() (shadow host parent style) =====
+        const shadowHasAppend = createShadowHost(
+            "shadow-has-append",
+            `:host:has(.has-child) { color: rgb(0, 128, 0); }`);
+        const shadowHasAppendChild = document.createElement("span");
+        shadowHasAppendChild.className = "has-child";
+
+        println(`shadow has append before child append: ${elementColor(shadowHasAppend)}`);
+
+        shadowHasAppend.appendChild(shadowHasAppendChild);
+
+        println(`shadow has append after child append: ${elementColor(shadowHasAppend)}`);
+
+        shadowHasAppendChild.remove();
+
+        println(`shadow has append after child remove: ${elementColor(shadowHasAppend)}`);
+
+        const shadowHasMoveOld = createShadowHost(
+            "shadow-has-move-old",
+            `:host:has(.has-child) { color: rgb(0, 128, 0); }`);
+        const shadowHasMoveNew = createShadowHost(
+            "shadow-has-move-new",
+            `:host:has(.has-child) { color: rgb(0, 128, 0); }`);
+        const shadowHasMoveChild = document.createElement("span");
+        shadowHasMoveChild.className = "has-child";
+        shadowHasMoveOld.appendChild(shadowHasMoveChild);
+
+        println(`shadow has move old before moveBefore: ${elementColor(shadowHasMoveOld)}`);
+        println(`shadow has move new before moveBefore: ${elementColor(shadowHasMoveNew)}`);
+
+        shadowHasMoveNew.moveBefore(shadowHasMoveChild, null);
+
+        println(`shadow has move old after moveBefore: ${elementColor(shadowHasMoveOld)}`);
+        println(`shadow has move new after moveBefore: ${elementColor(shadowHasMoveNew)}`);
+
+        const shadowHasFragment = createShadowHost(
+            "shadow-has-fragment",
+            `:host:has(.has-child) { color: rgb(0, 128, 0); }`);
+        const shadowHasFragmentChild = document.createElement("span");
+        shadowHasFragmentChild.className = "has-child";
+        const shadowHasFragmentNodes = document.createDocumentFragment();
+        shadowHasFragmentNodes.appendChild(shadowHasFragmentChild);
+
+        println(`shadow has fragment before append: ${elementColor(shadowHasFragment)}`);
+
+        shadowHasFragment.appendChild(shadowHasFragmentNodes);
+
+        println(`shadow has fragment after append: ${elementColor(shadowHasFragment)}`);
+
+        // ===== :host(:has()) (shadow pseudo-element) =====
+        const shadowHasPseudo = createShadowHost(
+            "shadow-has-pseudo",
+            `:host(:has(.has-child))::before { content: "shadow has"; --child-state: shadow has; }`);
+        const shadowHasPseudoChild = document.createElement("span");
+        shadowHasPseudoChild.className = "has-child";
+
+        println(`shadow has pseudo before child append: ${elementPseudoState(shadowHasPseudo)}`);
+
+        shadowHasPseudo.appendChild(shadowHasPseudoChild);
+
+        println(`shadow has pseudo after child append: ${elementPseudoState(shadowHasPseudo)}`);
+
+        shadowHasPseudoChild.remove();
+
+        println(`shadow has pseudo after child remove: ${elementPseudoState(shadowHasPseudo)}`);
+
+        const shadowHasPseudoMoveOld = createShadowHost(
+            "shadow-has-pseudo-move-old",
+            `:host(:has(.has-child))::before { content: "shadow has"; --child-state: shadow has; }`);
+        const shadowHasPseudoMoveNew = createShadowHost(
+            "shadow-has-pseudo-move-new",
+            `:host(:has(.has-child))::before { content: "shadow has"; --child-state: shadow has; }`);
+        const shadowHasPseudoMoveChild = document.createElement("span");
+        shadowHasPseudoMoveChild.className = "has-child";
+        shadowHasPseudoMoveOld.appendChild(shadowHasPseudoMoveChild);
+
+        println(`shadow has pseudo move old before moveBefore: ${elementPseudoState(shadowHasPseudoMoveOld)}`);
+        println(`shadow has pseudo move new before moveBefore: ${elementPseudoState(shadowHasPseudoMoveNew)}`);
+
+        shadowHasPseudoMoveNew.moveBefore(shadowHasPseudoMoveChild, null);
+
+        println(`shadow has pseudo move old after moveBefore: ${elementPseudoState(shadowHasPseudoMoveOld)}`);
+        println(`shadow has pseudo move new after moveBefore: ${elementPseudoState(shadowHasPseudoMoveNew)}`);
+
+        const shadowHasPseudoFragment = createShadowHost(
+            "shadow-has-pseudo-fragment",
+            `:host(:has(.has-child))::before { content: "shadow has"; --child-state: shadow has; }`);
+        const shadowHasPseudoFragmentChild = document.createElement("span");
+        shadowHasPseudoFragmentChild.className = "has-child";
+        const shadowHasPseudoFragmentNodes = document.createDocumentFragment();
+        shadowHasPseudoFragmentNodes.appendChild(shadowHasPseudoFragmentChild);
+
+        println(`shadow has pseudo fragment before append: ${elementPseudoState(shadowHasPseudoFragment)}`);
+
+        shadowHasPseudoFragment.appendChild(shadowHasPseudoFragmentNodes);
+
+        println(`shadow has pseudo fragment after append: ${elementPseudoState(shadowHasPseudoFragment)}`);
+
+        // ===== :placeholder-shown (textarea) =====
+        const placeholderTextarea = document.getElementById("placeholder-textarea");
+
+        println(`textarea before text insert: ${color("placeholder-textarea")}`);
+
+        placeholderTextarea.appendChild(document.createTextNode("value"));
+
+        println(`textarea after text insert: ${color("placeholder-textarea")}`);
+
+        placeholderTextarea.firstChild.remove();
+
+        println(`textarea after text remove: ${color("placeholder-textarea")}`);
+
+        const placeholderPseudo = document.getElementById("placeholder-pseudo");
+
+        println(`placeholder pseudo before text remove: ${pseudoState("placeholder-pseudo")}`);
+
+        placeholderPseudo.firstChild.remove();
+
+        println(`placeholder pseudo after text remove: ${pseudoState("placeholder-pseudo")}`);
+
+        const placeholderPseudoInsert = document.getElementById("placeholder-pseudo-insert");
+
+        println(`placeholder pseudo before text insert: ${pseudoState("placeholder-pseudo-insert")}`);
+
+        placeholderPseudoInsert.appendChild(document.createTextNode("value"));
+
+        println(`placeholder pseudo after text insert: ${pseudoState("placeholder-pseudo-insert")}`);
+
+        const notPlaceholderPseudoInsert = document.getElementById("not-placeholder-pseudo-insert");
+
+        println(`not-placeholder pseudo before text insert: ${pseudoState("not-placeholder-pseudo-insert")}`);
+
+        notPlaceholderPseudoInsert.appendChild(document.createTextNode("value"));
+
+        println(`not-placeholder pseudo after text insert: ${pseudoState("not-placeholder-pseudo-insert")}`);
+
+        const notPlaceholderPseudoRemove = document.getElementById("not-placeholder-pseudo-remove");
+
+        println(`not-placeholder pseudo before text remove: ${pseudoState("not-placeholder-pseudo-remove")}`);
+
+        notPlaceholderPseudoRemove.firstChild.remove();
+
+        println(`not-placeholder pseudo after text remove: ${pseudoState("not-placeholder-pseudo-remove")}`);
+
+        // ===== :empty / :not(:empty) (parent style) =====
+        const emptyParentInsert = document.getElementById("empty-parent-insert");
+
+        println(`empty parent before child append: ${color("empty-parent-insert")}`);
+
+        emptyParentInsert.appendChild(document.createElement("span"));
+
+        println(`empty parent after child append: ${color("empty-parent-insert")}`);
+
+        const emptyParentRemoveChild = document.getElementById("empty-parent-remove-child");
+
+        println(`empty parent before child remove: ${color("empty-parent-remove")}`);
+
+        emptyParentRemoveChild.remove();
+
+        println(`empty parent after child remove: ${color("empty-parent-remove")}`);
+
+        const notEmptyParentInsert = document.getElementById("not-empty-parent-insert");
+
+        println(`not-empty parent before child append: ${color("not-empty-parent-insert")}`);
+
+        notEmptyParentInsert.appendChild(document.createElement("span"));
+
+        println(`not-empty parent after child append: ${color("not-empty-parent-insert")}`);
+
+        const notEmptyParentRemoveChild = document.getElementById("not-empty-parent-remove-child");
+
+        println(`not-empty parent before child remove: ${color("not-empty-parent-remove")}`);
+
+        notEmptyParentRemoveChild.remove();
+
+        println(`not-empty parent after child remove: ${color("not-empty-parent-remove")}`);
+
+        // ===== :empty / :not(:empty) (pseudo-element) =====
+        const emptyPseudoChild = document.getElementById("empty-pseudo-child");
+
+        println(`empty pseudo before child remove: ${pseudoContent("empty-pseudo")}`);
+
+        emptyPseudoChild.remove();
+
+        println(`empty pseudo after child remove: ${pseudoContent("empty-pseudo")}`);
+
+        const emptyTextPseudo = document.getElementById("empty-text-pseudo");
+
+        println(`empty text pseudo before text mutation: ${pseudoState("empty-text-pseudo")}`);
+
+        emptyTextPseudo.firstChild.data = "";
+
+        println(`empty text pseudo after text mutation: ${pseudoState("empty-text-pseudo")}`);
+
+        const emptyInsertPseudo = document.getElementById("empty-insert-pseudo");
+
+        println(`empty pseudo before child append: ${pseudoState("empty-insert-pseudo")}`);
+
+        emptyInsertPseudo.appendChild(document.createElement("span"));
+
+        println(`empty pseudo after child append: ${pseudoState("empty-insert-pseudo")}`);
+
+        const emptyFragmentPseudo = document.getElementById("empty-fragment-pseudo");
+        const emptyFragmentPseudoNodes = document.createDocumentFragment();
+        emptyFragmentPseudoNodes.appendChild(document.createElement("span"));
+
+        println(`empty pseudo before fragment append: ${pseudoState("empty-fragment-pseudo")}`);
+
+        emptyFragmentPseudo.appendChild(emptyFragmentPseudoNodes);
+
+        println(`empty pseudo after fragment append: ${pseudoState("empty-fragment-pseudo")}`);
+
+        const emptyTextInsertPseudo = document.getElementById("empty-text-insert-pseudo");
+
+        println(`empty pseudo before text insert: ${pseudoState("empty-text-insert-pseudo")}`);
+
+        emptyTextInsertPseudo.appendChild(document.createTextNode("text"));
+
+        println(`empty pseudo after text insert: ${pseudoState("empty-text-insert-pseudo")}`);
+
+        const notEmptyInsertPseudo = document.getElementById("not-empty-insert-pseudo");
+
+        println(`not-empty pseudo before child append: ${pseudoState("not-empty-insert-pseudo")}`);
+
+        notEmptyInsertPseudo.appendChild(document.createElement("span"));
+
+        println(`not-empty pseudo after child append: ${pseudoState("not-empty-insert-pseudo")}`);
+
+        const notEmptyRemoveChild = document.getElementById("not-empty-remove-child");
+
+        println(`not-empty pseudo before child remove: ${pseudoState("not-empty-remove-pseudo")}`);
+
+        notEmptyRemoveChild.remove();
+
+        println(`not-empty pseudo after child remove: ${pseudoState("not-empty-remove-pseudo")}`);
+
+        const notEmptyFragmentPseudo = document.getElementById("not-empty-fragment-pseudo");
+        const notEmptyFragmentPseudoNodes = document.createDocumentFragment();
+        notEmptyFragmentPseudoNodes.appendChild(document.createElement("span"));
+
+        println(`not-empty pseudo before fragment append: ${pseudoState("not-empty-fragment-pseudo")}`);
+
+        notEmptyFragmentPseudo.appendChild(notEmptyFragmentPseudoNodes);
+
+        println(`not-empty pseudo after fragment append: ${pseudoState("not-empty-fragment-pseudo")}`);
+
+        const notEmptyMoveChild = document.getElementById("not-empty-move-child");
+        const notEmptyMoveNew = document.getElementById("not-empty-move-new");
+
+        println(`not-empty pseudo move old before moveBefore: ${pseudoState("not-empty-move-old")}`);
+        println(`not-empty pseudo move new before moveBefore: ${pseudoState("not-empty-move-new")}`);
+
+        notEmptyMoveNew.moveBefore(notEmptyMoveChild, null);
+
+        println(`not-empty pseudo move old after moveBefore: ${pseudoState("not-empty-move-old")}`);
+        println(`not-empty pseudo move new after moveBefore: ${pseudoState("not-empty-move-new")}`);
+
+        const notEmptyTextInsertPseudo = document.getElementById("not-empty-text-insert-pseudo");
+
+        println(`not-empty pseudo before text insert: ${pseudoState("not-empty-text-insert-pseudo")}`);
+
+        notEmptyTextInsertPseudo.appendChild(document.createTextNode("text"));
+
+        println(`not-empty pseudo after text insert: ${pseudoState("not-empty-text-insert-pseudo")}`);
+
+        const notEmptyTextClearPseudo = document.getElementById("not-empty-text-clear-pseudo");
+
+        println(`not-empty pseudo before text mutation: ${pseudoState("not-empty-text-clear-pseudo")}`);
+
+        notEmptyTextClearPseudo.firstChild.data = "";
+
+        println(`not-empty pseudo after text mutation: ${pseudoState("not-empty-text-clear-pseudo")}`);
+
+        // ===== :host(:empty) / :host(:not(:empty)) (shadow pseudo-element) =====
+        const emptyShadowHost = document.getElementById("empty-shadow-host");
+        const emptyShadowRoot = emptyShadowHost.attachShadow({ mode: "open" });
+        emptyShadowRoot.innerHTML =
+            `<style>:host(:empty)::before { content: "shadow empty"; --child-state: shadow empty; }</style>`
+            + `<slot></slot>`;
+
+        println(`empty shadow host before light child remove: ${pseudoState("empty-shadow-host")}`);
+
+        document.getElementById("empty-shadow-child").remove();
+
+        println(`empty shadow host after light child remove: ${pseudoState("empty-shadow-host")}`);
+
+        const shadowEmptyInsert = createShadowHost(
+            "shadow-empty-insert",
+            `:host(:empty)::before { content: "shadow empty"; --child-state: shadow empty; }`);
+
+        println(`empty shadow host before light child append: ${elementPseudoState(shadowEmptyInsert)}`);
+
+        shadowEmptyInsert.appendChild(document.createElement("span"));
+
+        println(`empty shadow host after light child append: ${elementPseudoState(shadowEmptyInsert)}`);
+
+        const shadowNotEmptyInsert = createShadowHost(
+            "shadow-not-empty-insert",
+            `:host(:not(:empty))::before { content: "shadow not empty"; --child-state: shadow not empty; }`);
+
+        println(`not-empty shadow host before light child append: ${elementPseudoState(shadowNotEmptyInsert)}`);
+
+        shadowNotEmptyInsert.appendChild(document.createElement("span"));
+
+        println(`not-empty shadow host after light child append: ${elementPseudoState(shadowNotEmptyInsert)}`);
+
+        const shadowNotEmptyRemove = createShadowHost(
+            "shadow-not-empty-remove",
+            `:host(:not(:empty))::before { content: "shadow not empty"; --child-state: shadow not empty; }`);
+        const shadowNotEmptyRemoveChild = document.createElement("span");
+        shadowNotEmptyRemove.appendChild(shadowNotEmptyRemoveChild);
+
+        println(`not-empty shadow host before light child remove: ${elementPseudoState(shadowNotEmptyRemove)}`);
+
+        shadowNotEmptyRemoveChild.remove();
+
+        println(`not-empty shadow host after light child remove: ${elementPseudoState(shadowNotEmptyRemove)}`);
+
+        const shadowNotEmptyMoveOld = createShadowHost(
+            "shadow-not-empty-move-old",
+            `:host(:not(:empty))::before { content: "shadow not empty"; --child-state: shadow not empty; }`);
+        const shadowNotEmptyMoveNew = createShadowHost(
+            "shadow-not-empty-move-new",
+            `:host(:not(:empty))::before { content: "shadow not empty"; --child-state: shadow not empty; }`);
+        const shadowNotEmptyMoveChild = document.createElement("span");
+        shadowNotEmptyMoveOld.appendChild(shadowNotEmptyMoveChild);
+
+        println(`not-empty shadow host move old before moveBefore: ${elementPseudoState(shadowNotEmptyMoveOld)}`);
+        println(`not-empty shadow host move new before moveBefore: ${elementPseudoState(shadowNotEmptyMoveNew)}`);
+
+        shadowNotEmptyMoveNew.moveBefore(shadowNotEmptyMoveChild, null);
+
+        println(`not-empty shadow host move old after moveBefore: ${elementPseudoState(shadowNotEmptyMoveOld)}`);
+        println(`not-empty shadow host move new after moveBefore: ${elementPseudoState(shadowNotEmptyMoveNew)}`);
+
+        const shadowNotEmptyFragment = createShadowHost(
+            "shadow-not-empty-fragment",
+            `:host(:not(:empty))::before { content: "shadow not empty"; --child-state: shadow not empty; }`);
+        const shadowNotEmptyFragmentNodes = document.createDocumentFragment();
+        shadowNotEmptyFragmentNodes.appendChild(document.createElement("span"));
+
+        println(`not-empty shadow host before fragment append: ${elementPseudoState(shadowNotEmptyFragment)}`);
+
+        shadowNotEmptyFragment.appendChild(shadowNotEmptyFragmentNodes);
+
+        println(`not-empty shadow host after fragment append: ${elementPseudoState(shadowNotEmptyFragment)}`);
+
+        const shadowEmptyTextInsert = createShadowHost(
+            "shadow-empty-text-insert",
+            `:host(:empty)::before { content: "shadow empty"; --child-state: shadow empty; }`);
+        shadowEmptyTextInsert.appendChild(document.createTextNode(""));
+
+        println(`empty shadow host before light text mutation: ${elementPseudoState(shadowEmptyTextInsert)}`);
+
+        shadowEmptyTextInsert.firstChild.data = "text";
+
+        println(`empty shadow host after light text mutation: ${elementPseudoState(shadowEmptyTextInsert)}`);
+
+        const shadowEmptyTextClear = createShadowHost(
+            "shadow-empty-text-clear",
+            `:host(:empty)::before { content: "shadow empty"; --child-state: shadow empty; }`);
+        shadowEmptyTextClear.appendChild(document.createTextNode("text"));
+
+        println(`empty shadow host before light text clear: ${elementPseudoState(shadowEmptyTextClear)}`);
+
+        shadowEmptyTextClear.firstChild.data = "";
+
+        println(`empty shadow host after light text clear: ${elementPseudoState(shadowEmptyTextClear)}`);
+
+        const shadowNotEmptyTextInsert = createShadowHost(
+            "shadow-not-empty-text-insert",
+            `:host(:not(:empty))::before { content: "shadow not empty"; --child-state: shadow not empty; }`);
+        shadowNotEmptyTextInsert.appendChild(document.createTextNode(""));
+
+        println(`not-empty shadow host before light text mutation: ${elementPseudoState(shadowNotEmptyTextInsert)}`);
+
+        shadowNotEmptyTextInsert.firstChild.data = "text";
+
+        println(`not-empty shadow host after light text mutation: ${elementPseudoState(shadowNotEmptyTextInsert)}`);
+
+        const shadowNotEmptyTextClear = createShadowHost(
+            "shadow-not-empty-text-clear",
+            `:host(:not(:empty))::before { content: "shadow not empty"; --child-state: shadow not empty; }`);
+        shadowNotEmptyTextClear.appendChild(document.createTextNode("text"));
+
+        println(`not-empty shadow host before light text clear: ${elementPseudoState(shadowNotEmptyTextClear)}`);
+
+        shadowNotEmptyTextClear.firstChild.data = "";
+
+        println(`not-empty shadow host after light text clear: ${elementPseudoState(shadowNotEmptyTextClear)}`);
+
+        // ===== :empty (moveBefore last child out) =====
+        const emptyMoveOnlyChild = document.getElementById("empty-move-only-child");
+        const emptyMoveDestination = document.getElementById("empty-move-destination");
+
+        println(`empty move target before moveBefore: ${color("empty-move-target")}`);
+
+        emptyMoveDestination.moveBefore(emptyMoveOnlyChild, null);
+
+        println(`empty move target after moveBefore: ${color("empty-move-target")}`);
+
+        // ===== :dir() (parent style and pseudo-element) =====
+        const dirAuto = document.getElementById("dir-auto");
+
+        println(`dir auto before text mutation: ${color("dir-auto")}`);
+
+        dirAuto.firstChild.data = "א";
+
+        println(`dir auto after text mutation: ${color("dir-auto")}`);
+
+        const dirPseudo = document.getElementById("dir-pseudo");
+
+        println(`dir pseudo before text mutation: ${pseudoState("dir-pseudo")}`);
+
+        dirPseudo.firstChild.data = "א";
+
+        println(`dir pseudo after text mutation: ${pseudoState("dir-pseudo")}`);
+
+        const dirAutoBack = document.getElementById("dir-auto-back");
+
+        println(`dir auto before reverse text mutation: ${color("dir-auto-back")}`);
+
+        dirAutoBack.firstChild.data = "a";
+
+        println(`dir auto after reverse text mutation: ${color("dir-auto-back")}`);
+
+        const dirPseudoBack = document.getElementById("dir-pseudo-back");
+
+        println(`dir pseudo before reverse text mutation: ${pseudoState("dir-pseudo-back")}`);
+
+        dirPseudoBack.firstChild.data = "a";
+
+        println(`dir pseudo after reverse text mutation: ${pseudoState("dir-pseudo-back")}`);
+
+        // ===== :valid / :invalid (form, fieldset) =====
+        const validityParentInvalidAppend = document.getElementById("validity-parent-invalid-append");
+        const validityParentInvalidAppendInput = document.createElement("input");
+        validityParentInvalidAppendInput.required = true;
+
+        println(`invalid parent form before required input append: ${color("validity-parent-invalid-append")}`);
+
+        validityParentInvalidAppend.appendChild(validityParentInvalidAppendInput);
+
+        println(`invalid parent form after required input append: ${color("validity-parent-invalid-append")}`);
+
+        const validityParentValidRemoveRequired = document.getElementById("validity-parent-valid-remove-required");
+
+        println(`valid parent form before required input remove: ${color("validity-parent-valid-remove")}`);
+
+        validityParentValidRemoveRequired.remove();
+
+        println(`valid parent form after required input remove: ${color("validity-parent-valid-remove")}`);
+
+        const validityFieldsetInvalidAppend = document.getElementById("validity-fieldset-invalid-append");
+        const validityFieldsetInvalidAppendInput = document.createElement("input");
+        validityFieldsetInvalidAppendInput.required = true;
+
+        println(`invalid parent fieldset before required input append: ${color("validity-fieldset-invalid-append")}`);
+
+        validityFieldsetInvalidAppend.appendChild(validityFieldsetInvalidAppendInput);
+
+        println(`invalid parent fieldset after required input append: ${color("validity-fieldset-invalid-append")}`);
+
+        const validityFieldsetValidRemoveRequired =
+            document.getElementById("validity-fieldset-valid-remove-required");
+
+        println(`valid parent fieldset before required input remove: ${color("validity-fieldset-valid-remove")}`);
+
+        validityFieldsetValidRemoveRequired.remove();
+
+        println(`valid parent fieldset after required input remove: ${color("validity-fieldset-valid-remove")}`);
+
+        const invalidPseudoForm = document.getElementById("invalid-pseudo-form");
+        const invalidPseudoInput = document.createElement("input");
+        invalidPseudoInput.required = true;
+
+        println(`invalid pseudo form before required input append: ${pseudoState("invalid-pseudo-form")}`);
+
+        invalidPseudoForm.appendChild(invalidPseudoInput);
+
+        println(`invalid pseudo form after required input append: ${pseudoState("invalid-pseudo-form")}`);
+
+        const validPseudoRequired = document.getElementById("valid-pseudo-required");
+
+        println(`valid pseudo form before required input remove: ${pseudoState("valid-pseudo-form")}`);
+
+        validPseudoRequired.remove();
+
+        println(`valid pseudo form after required input remove: ${pseudoState("valid-pseudo-form")}`);
+
+        const invalidPseudoFormRemoveRequired = document.getElementById("invalid-pseudo-form-remove-required");
+
+        println(`invalid pseudo form before required input remove: ${pseudoState("invalid-pseudo-form-remove")}`);
+
+        invalidPseudoFormRemoveRequired.remove();
+
+        println(`invalid pseudo form after required input remove: ${pseudoState("invalid-pseudo-form-remove")}`);
+
+        const validPseudoFormAppend = document.getElementById("valid-pseudo-form-append");
+        const validPseudoFormAppendInput = document.createElement("input");
+        validPseudoFormAppendInput.required = true;
+
+        println(`valid pseudo form before required input append: ${pseudoState("valid-pseudo-form-append")}`);
+
+        validPseudoFormAppend.appendChild(validPseudoFormAppendInput);
+
+        println(`valid pseudo form after required input append: ${pseudoState("valid-pseudo-form-append")}`);
+
+        const invalidPseudoFieldset = document.getElementById("invalid-pseudo-fieldset");
+        const invalidPseudoFieldsetInput = document.createElement("input");
+        invalidPseudoFieldsetInput.required = true;
+
+        println(`invalid pseudo fieldset before required input append: ${pseudoState("invalid-pseudo-fieldset")}`);
+
+        invalidPseudoFieldset.appendChild(invalidPseudoFieldsetInput);
+
+        println(`invalid pseudo fieldset after required input append: ${pseudoState("invalid-pseudo-fieldset")}`);
+
+        const validPseudoFieldsetRequired = document.getElementById("valid-pseudo-fieldset-required");
+
+        println(`valid pseudo fieldset before required input remove: ${pseudoState("valid-pseudo-fieldset")}`);
+
+        validPseudoFieldsetRequired.remove();
+
+        println(`valid pseudo fieldset after required input remove: ${pseudoState("valid-pseudo-fieldset")}`);
+
+        const invalidPseudoFieldsetRemoveRequired =
+            document.getElementById("invalid-pseudo-fieldset-remove-required");
+
+        println(`invalid pseudo fieldset before required input remove: ${pseudoState("invalid-pseudo-fieldset-remove")}`);
+
+        invalidPseudoFieldsetRemoveRequired.remove();
+
+        println(`invalid pseudo fieldset after required input remove: ${pseudoState("invalid-pseudo-fieldset-remove")}`);
+
+        const validPseudoFieldsetAppend = document.getElementById("valid-pseudo-fieldset-append");
+        const validPseudoFieldsetAppendInput = document.createElement("input");
+        validPseudoFieldsetAppendInput.required = true;
+
+        println(`valid pseudo fieldset before required input append: ${pseudoState("valid-pseudo-fieldset-append")}`);
+
+        validPseudoFieldsetAppend.appendChild(validPseudoFieldsetAppendInput);
+
+        println(`valid pseudo fieldset after required input append: ${pseudoState("valid-pseudo-fieldset-append")}`);
+
+        // ===== :user-valid / :user-invalid (select after submit) =====
+        const userValidityForm = document.getElementById("user-validity-form");
+        const userInvalidSelect = document.getElementById("user-invalid-select");
+        const userInvalidPlaceholder = document.getElementById("user-invalid-placeholder");
+        userValidityForm.addEventListener("submit", event => event.preventDefault());
+        document.getElementById("user-validity-submit").click();
+        // Force one recompute after form submission, so option removal is the invalidation being tested below.
+        userInvalidSelect.style.borderWidth = "1px";
+
+        println(`user-invalid select before option remove: ${color("user-invalid-select")}`);
+
+        userInvalidPlaceholder.remove();
+
+        println(`user-invalid select after option remove: ${color("user-invalid-select")}`);
+
+        const userInvalidPseudoForm = document.getElementById("user-invalid-pseudo-form");
+        const userInvalidPseudoSelect = document.getElementById("user-invalid-pseudo-select");
+        const userInvalidPseudoChoice = document.getElementById("user-invalid-pseudo-choice");
+        userInvalidPseudoForm.addEventListener("submit", event => event.preventDefault());
+        document.getElementById("user-invalid-pseudo-submit").click();
+        userInvalidPseudoSelect.style.borderWidth = "1px";
+
+        println(`user-invalid pseudo before selected option remove: ${pseudoState("user-invalid-pseudo-select")}`);
+
+        userInvalidPseudoChoice.remove();
+
+        println(`user-invalid pseudo after selected option remove: ${pseudoState("user-invalid-pseudo-select")}`);
+
+        const userValidPseudoForm = document.getElementById("user-valid-pseudo-form");
+        const userValidPseudoSelect = document.getElementById("user-valid-pseudo-select");
+        const userValidPseudoPlaceholder = document.getElementById("user-valid-pseudo-placeholder");
+        userValidPseudoForm.addEventListener("submit", event => event.preventDefault());
+        document.getElementById("user-valid-pseudo-submit").click();
+        userValidPseudoSelect.style.borderWidth = "1px";
+
+        println(`user-valid pseudo before placeholder option remove: ${pseudoState("user-valid-pseudo-select")}`);
+
+        userValidPseudoPlaceholder.remove();
+
+        println(`user-valid pseudo after placeholder option remove: ${pseudoState("user-valid-pseudo-select")}`);
+
+        submitAndStabilize(
+            "user-invalid-parent-gain-form",
+            "user-invalid-parent-gain-select",
+            "user-invalid-parent-gain-submit");
+        const userInvalidParentGainChoice = document.getElementById("user-invalid-parent-gain-choice");
+
+        println(`user-invalid parent before selected option remove: ${color("user-invalid-parent-gain-select")}`);
+
+        userInvalidParentGainChoice.remove();
+
+        println(`user-invalid parent after selected option remove: ${color("user-invalid-parent-gain-select")}`);
+
+        submitAndStabilize(
+            "user-valid-parent-gain-form",
+            "user-valid-parent-gain-select",
+            "user-valid-parent-gain-submit");
+        const userValidParentGainPlaceholder = document.getElementById("user-valid-parent-gain-placeholder");
+
+        println(`user-valid parent before placeholder option remove: ${color("user-valid-parent-gain-select")}`);
+
+        userValidParentGainPlaceholder.remove();
+
+        println(`user-valid parent after placeholder option remove: ${color("user-valid-parent-gain-select")}`);
+
+        submitAndStabilize(
+            "user-valid-parent-clear-form",
+            "user-valid-parent-clear-select",
+            "user-valid-parent-clear-submit");
+        const userValidParentClearChoice = document.getElementById("user-valid-parent-clear-choice");
+
+        println(`user-valid parent before selected option remove: ${color("user-valid-parent-clear-select")}`);
+
+        userValidParentClearChoice.remove();
+
+        println(`user-valid parent after selected option remove: ${color("user-valid-parent-clear-select")}`);
+
+        submitAndStabilize(
+            "user-invalid-pseudo-clear-form",
+            "user-invalid-pseudo-clear-select",
+            "user-invalid-pseudo-clear-submit");
+        const userInvalidPseudoClearPlaceholder = document.getElementById("user-invalid-pseudo-clear-placeholder");
+
+        println(
+            `user-invalid pseudo before placeholder option remove: ${pseudoState("user-invalid-pseudo-clear-select")}`);
+
+        userInvalidPseudoClearPlaceholder.remove();
+
+        println(
+            `user-invalid pseudo after placeholder option remove: ${pseudoState("user-invalid-pseudo-clear-select")}`);
+
+        submitAndStabilize(
+            "user-valid-pseudo-clear-form",
+            "user-valid-pseudo-clear-select",
+            "user-valid-pseudo-clear-submit");
+        const userValidPseudoClearChoice = document.getElementById("user-valid-pseudo-clear-choice");
+
+        println(`user-valid pseudo before selected option remove: ${pseudoState("user-valid-pseudo-clear-select")}`);
+
+        userValidPseudoClearChoice.remove();
+
+        println(`user-valid pseudo after selected option remove: ${pseudoState("user-valid-pseudo-clear-select")}`);
+    });
+</script>
