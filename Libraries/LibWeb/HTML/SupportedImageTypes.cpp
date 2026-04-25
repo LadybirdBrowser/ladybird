@@ -14,7 +14,8 @@ bool is_supported_image_type(StringView type)
         return true;
     if (!type.starts_with("image/"sv, CaseSensitivity::CaseInsensitive))
         return false;
-    return type.equals_ignoring_ascii_case("image/bmp"sv)
+    return type.equals_ignoring_ascii_case("image/avif"sv)
+        || type.equals_ignoring_ascii_case("image/bmp"sv)
         || type.equals_ignoring_ascii_case("image/gif"sv)
         || type.equals_ignoring_ascii_case("image/vnd.microsoft.icon"sv)
         || type.equals_ignoring_ascii_case("image/x-icon"sv)
