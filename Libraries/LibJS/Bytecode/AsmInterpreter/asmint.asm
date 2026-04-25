@@ -324,40 +324,43 @@ macro jump_binary_epilogue(slow_path_func)
     goto_handler target
 end
 
-# Coerce two operands (already in t1/t2) to int32 for bitwise operations.
-# On success: t3 = lhs as int32, t4 = rhs as int32. Falls through.
-# If either operand is not a number (int32, boolean, or double): jumps to fail.
-# Clobbers t1 (on x86_64, js_to_int32 clobbers rcx=t1), t3, t4.
-macro coerce_to_int32s(fail)
-    extract_tag t3, t1
-    branch_any_eq t3, INT32_TAG, BOOLEAN_TAG, .lhs_is_int
-    check_tag_is_double t3, fail
-    fp_mov ft0, t1
-    js_to_int32 t3, ft0, fail
+# Coerce two operands to int32 for bitwise operations.
+# On success: lhs_int / rhs_int hold the sign-extended int32 values.
+# If either operand is not a number (int32, boolean, or double):
+# jumps to fail.
+macro coerce_to_int32s(lhs, rhs, lhs_int, rhs_int, fail)
+    temp tag
+    ftemp fp_scratch
+    extract_tag tag, lhs
+    branch_any_eq tag, INT32_TAG, BOOLEAN_TAG, .lhs_is_int
+    check_tag_is_double tag, fail
+    fp_mov fp_scratch, lhs
+    js_to_int32 lhs_int, fp_scratch, fail
     jmp .lhs_done
 .lhs_is_int:
-    unbox_int32 t3, t1
+    unbox_int32 lhs_int, lhs
 .lhs_done:
-    extract_tag t4, t2
-    branch_any_eq t4, INT32_TAG, BOOLEAN_TAG, .rhs_is_int
-    check_tag_is_double t4, fail
-    fp_mov ft0, t2
-    js_to_int32 t4, ft0, fail
+    extract_tag tag, rhs
+    branch_any_eq tag, INT32_TAG, BOOLEAN_TAG, .rhs_is_int
+    check_tag_is_double tag, fail
+    fp_mov fp_scratch, rhs
+    js_to_int32 rhs_int, fp_scratch, fail
     jmp .rhs_done
 .rhs_is_int:
-    unbox_int32 t4, t2
+    unbox_int32 rhs_int, rhs
 .rhs_done:
 end
 
 # Fast path for bitwise binary operations on int32/boolean/double operands.
 # op_insn: the bitwise instruction to apply (xor, and, or).
 macro bitwise_op(op_insn, slow_path_func)
-    load_operand t1, m_lhs
-    load_operand t2, m_rhs
-    coerce_to_int32s .slow
-    op_insn t3, t4
-    box_int32 t4, t3
-    store_operand m_dst, t4
+    temp lhs, rhs, lhs_int, rhs_int, dst
+    load_operand lhs, m_lhs
+    load_operand rhs, m_rhs
+    coerce_to_int32s lhs, rhs, lhs_int, rhs_int, .slow
+    op_insn lhs_int, rhs_int
+    box_int32 dst, lhs_int
+    store_operand m_dst, dst
     dispatch_next
 .slow:
     call_slow_path slow_path_func
@@ -1158,14 +1161,15 @@ end
 
 # Fast path for numeric values: +x is a no-op for int32 and double.
 handler UnaryPlus
-    load_operand t1, m_src
+    temp value, tag
+    load_operand value, m_src
     # Check if int32
-    extract_tag t0, t1
-    branch_eq t0, INT32_TAG, .done
-    # t0 already has tag; check if double
-    check_tag_is_double t0, .slow
+    extract_tag tag, value
+    branch_eq tag, INT32_TAG, .done
+    # tag already holds value's tag; check if double
+    check_tag_is_double tag, .slow
 .done:
-    store_operand m_dst, t1
+    store_operand m_dst, value
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_unary_plus
