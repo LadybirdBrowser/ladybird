@@ -1868,48 +1868,44 @@ end
 # Fast path for Array.length (magical length property).
 # Also includes IC fast path for non-array objects (same as GetById).
 handler GetLength
-    load_operand t1, m_base
-    # Check base is an object
-    extract_tag t2, t1
-    branch_ne t2, OBJECT_TAG, .slow
-    # Extract Object*
-    unbox_object t3, t1
-    # Check has_magical_length_property flag
-    load8 t0, [t3, OBJECT_FLAGS]
-    branch_bits_set t0, OBJECT_FLAG_HAS_MAGICAL_LENGTH, .magical_length
+    temp base, tag, obj, flags, shape, plc, cache_shape, cache_proto, prop_offset, dict_gen, cur_dict_gen, props, value, length, sign_check, dst
+    ftemp length_dbl
+    load_operand base, m_base
+    extract_tag tag, base
+    branch_ne tag, OBJECT_TAG, .slow
+    unbox_object obj, base
+    load8 flags, [obj, OBJECT_FLAGS]
+    branch_bits_set flags, OBJECT_FLAG_HAS_MAGICAL_LENGTH, .magical_length
     # Non-magical length: IC fast path (same as GetById)
-    load64 t4, [t3, OBJECT_SHAPE]
-    load64 t5, [pb, pc, m_cache]
-    # Check entry[0].shape and entry[0].prototype.
-    load_pair64 t1, t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE], [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE]
-    branch_ne t1, t4, .slow
-    branch_nonzero t0, .slow
-    # Check dictionary generation
-    load_pair32 t1, t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROPERTY_OFFSET], [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
-    load32 t2, [t4, SHAPE_DICTIONARY_GENERATION]
-    branch_ne t0, t2, .slow
-    # IC hit
-    load64 t5, [t3, OBJECT_NAMED_PROPERTIES]
-    load64 t0, [t5, t1, 8]
-    extract_tag t2, t0
-    branch_eq t2, ACCESSOR_TAG, .slow
-    store_operand m_dst, t0
+    load64 shape, [obj, OBJECT_SHAPE]
+    load64 plc, [pb, pc, m_cache]
+    load_pair64 cache_shape, cache_proto, [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE], [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE]
+    branch_ne cache_shape, shape, .slow
+    branch_nonzero cache_proto, .slow
+    load_pair32 prop_offset, dict_gen, [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_PROPERTY_OFFSET], [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
+    load32 cur_dict_gen, [shape, SHAPE_DICTIONARY_GENERATION]
+    branch_ne dict_gen, cur_dict_gen, .slow
+    load64 props, [obj, OBJECT_NAMED_PROPERTIES]
+    load64 value, [props, prop_offset, 8]
+    extract_tag tag, value
+    branch_eq tag, ACCESSOR_TAG, .slow
+    store_operand m_dst, value
     dispatch_next
 .magical_length:
-    # Object.m_indexed_array_like_size (u32)
-    load32 t0, [t3, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
-    # Box as int32 if fits (u32 always fits since bit 31 check is for sign)
-    mov t2, t0
-    shr t2, 31
-    branch_nonzero t2, .length_double
-    # Tag as int32
-    box_int32 t3, t0
-    store_operand m_dst, t3
+    # Object.m_indexed_array_like_size (u32). Box as int32 when bit 31 is
+    # clear; otherwise widen to a double so the value isn't reinterpreted
+    # as a negative int32.
+    load32 length, [obj, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
+    mov sign_check, length
+    shr sign_check, 31
+    branch_nonzero sign_check, .length_double
+    box_int32 dst, length
+    store_operand m_dst, dst
     dispatch_next
 .length_double:
-    int_to_double ft0, t0
-    fp_mov t0, ft0
-    store_operand m_dst, t0
+    int_to_double length_dbl, length
+    fp_mov dst, length_dbl
+    store_operand m_dst, dst
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_get_length
@@ -1917,55 +1913,47 @@ end
 
 # Inline cache fast path for global variable access via the global object.
 handler GetGlobal
-    # Load global_declarative_environment and global_object via realm
-    load64 t0, [exec_ctx, EXECUTION_CONTEXT_REALM]
-    load_pair64 t2, t1, [t0, REALM_GLOBAL_OBJECT], [t0, REALM_GLOBAL_DECLARATIVE_ENVIRONMENT]
-    # Get GlobalVariableCache* (direct pointer from instruction stream)
-    load64 t3, [pb, pc, m_cache]
-    # Check environment_serial_number matches
-    load64 t0, [t3, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_SERIAL]
-    load64 t4, [t1, DECLARATIVE_ENVIRONMENT_SERIAL]
-    branch_ne t0, t4, .slow
+    temp realm, global_object, env, gvc, cache_serial, env_serial, shape, cache_shape, cur_dict_gen, prop_offset, dict_gen, props, value, tag, has_env, in_module, idx, binding, init, result
+    load64 realm, [exec_ctx, EXECUTION_CONTEXT_REALM]
+    load_pair64 global_object, env, [realm, REALM_GLOBAL_OBJECT], [realm, REALM_GLOBAL_DECLARATIVE_ENVIRONMENT]
+    load64 gvc, [pb, pc, m_cache]
+    load64 cache_serial, [gvc, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_SERIAL]
+    load64 env_serial, [env, DECLARATIVE_ENVIRONMENT_SERIAL]
+    branch_ne cache_serial, env_serial, .slow
     # Shape-based fast path: check entries[0].shape matches global_object.shape
     # (falls through to env binding path on shape mismatch)
-    load64 t4, [t2, OBJECT_SHAPE]
-    load64 t0, [t3, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE]
-    branch_ne t0, t4, .try_env_binding
-    # Check dictionary generation
-    load32 t5, [t4, SHAPE_DICTIONARY_GENERATION]
-    load_pair32 t4, t0, [t3, PROPERTY_LOOKUP_CACHE_ENTRY0_PROPERTY_OFFSET], [t3, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
-    branch_ne t0, t5, .try_env_binding
+    load64 shape, [global_object, OBJECT_SHAPE]
+    load64 cache_shape, [gvc, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE]
+    branch_ne cache_shape, shape, .try_env_binding
+    load32 cur_dict_gen, [shape, SHAPE_DICTIONARY_GENERATION]
+    load_pair32 prop_offset, dict_gen, [gvc, PROPERTY_LOOKUP_CACHE_ENTRY0_PROPERTY_OFFSET], [gvc, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
+    branch_ne dict_gen, cur_dict_gen, .try_env_binding
     # IC hit! Load property value via get_direct
-    load64 t5, [t2, OBJECT_NAMED_PROPERTIES]
-    load64 t0, [t5, t4, 8]
-    # Check not accessor
-    extract_tag t5, t0
-    branch_eq t5, ACCESSOR_TAG, .slow
-    store_operand m_dst, t0
+    load64 props, [global_object, OBJECT_NAMED_PROPERTIES]
+    load64 value, [props, prop_offset, 8]
+    extract_tag tag, value
+    branch_eq tag, ACCESSOR_TAG, .slow
+    store_operand m_dst, value
     dispatch_next
 .try_env_binding:
-    # Check if cache has an environment binding index (global let/const)
-    load8 t0, [t3, GLOBAL_VARIABLE_CACHE_HAS_ENVIRONMENT_BINDING]
-    branch_zero t0, .slow
-    # Bail to C++ for module environments (rare)
-    load8 t0, [t3, GLOBAL_VARIABLE_CACHE_IN_MODULE_ENVIRONMENT]
-    branch_nonzero t0, .slow_env
-    # Inline env binding: index into global_declarative_environment bindings
-    # t1 = global_declarative_environment (loaded at handler entry)
-    load32 t0, [t3, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_BINDING_INDEX]
-    load64 t4, [t1, BINDINGS_DATA_PTR]
-    mul t0, t0, SIZEOF_BINDING
-    add t4, t0
-    # Check binding is initialized (TDZ)
-    load8 t0, [t4, BINDING_INITIALIZED]
-    branch_zero t0, .slow
-    # Load binding value
-    load64 t0, [t4, BINDING_VALUE]
-    store_operand m_dst, t0
+    load8 has_env, [gvc, GLOBAL_VARIABLE_CACHE_HAS_ENVIRONMENT_BINDING]
+    branch_zero has_env, .slow
+    # Bail to C++ for module environments (rare).
+    load8 in_module, [gvc, GLOBAL_VARIABLE_CACHE_IN_MODULE_ENVIRONMENT]
+    branch_nonzero in_module, .slow_env
+    # Inline env binding: index into global_declarative_environment bindings.
+    load32 idx, [gvc, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_BINDING_INDEX]
+    load64 binding, [env, BINDINGS_DATA_PTR]
+    mul idx, idx, SIZEOF_BINDING
+    add binding, idx
+    load8 init, [binding, BINDING_INITIALIZED]
+    branch_zero init, .slow
+    load64 value, [binding, BINDING_VALUE]
+    store_operand m_dst, value
     dispatch_next
 .slow_env:
-    call_interp asm_try_get_global_env_binding
-    branch_nonzero t0, .slow
+    call_interp asm_try_get_global_env_binding, result
+    branch_nonzero result, .slow
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_get_global
@@ -1973,59 +1961,46 @@ end
 
 # Inline cache fast path for global variable store via the global object.
 handler SetGlobal
-    # Load global_declarative_environment and global_object via realm
-    load64 t0, [exec_ctx, EXECUTION_CONTEXT_REALM]
-    load_pair64 t2, t1, [t0, REALM_GLOBAL_OBJECT], [t0, REALM_GLOBAL_DECLARATIVE_ENVIRONMENT]
-    # Get GlobalVariableCache* (direct pointer from instruction stream)
-    load64 t3, [pb, pc, m_cache]
-    # Check environment_serial_number matches
-    load64 t0, [t3, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_SERIAL]
-    load64 t4, [t1, DECLARATIVE_ENVIRONMENT_SERIAL]
-    branch_ne t0, t4, .slow
-    # Shape-based fast path: check entries[0].shape matches global_object.shape
-    # (falls through to env binding path on shape mismatch)
-    load64 t4, [t2, OBJECT_SHAPE]
-    load64 t0, [t3, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE]
-    branch_ne t0, t4, .try_env_binding
-    # Check dictionary generation
-    load32 t5, [t4, SHAPE_DICTIONARY_GENERATION]
-    load_pair32 t4, t0, [t3, PROPERTY_LOOKUP_CACHE_ENTRY0_PROPERTY_OFFSET], [t3, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
-    branch_ne t0, t5, .try_env_binding
-    # IC hit! Load current value to check it's not an accessor
-    load64 t5, [t2, OBJECT_NAMED_PROPERTIES]
-    load64 t0, [t5, t4, 8]
-    extract_tag t0, t0
-    branch_eq t0, ACCESSOR_TAG, .slow
-    # Store new value via put_direct
-    # NB: load_operand clobbers t0, so property offset stays in t4.
-    load_operand t0, m_src
-    store64 [t5, t4, 8], t0
+    temp realm, global_object, env, gvc, cache_serial, env_serial, shape, cache_shape, cur_dict_gen, prop_offset, dict_gen, props, value, tag, has_env, in_module, idx, binding, flag, src, result
+    load64 realm, [exec_ctx, EXECUTION_CONTEXT_REALM]
+    load_pair64 global_object, env, [realm, REALM_GLOBAL_OBJECT], [realm, REALM_GLOBAL_DECLARATIVE_ENVIRONMENT]
+    load64 gvc, [pb, pc, m_cache]
+    load64 cache_serial, [gvc, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_SERIAL]
+    load64 env_serial, [env, DECLARATIVE_ENVIRONMENT_SERIAL]
+    branch_ne cache_serial, env_serial, .slow
+    load64 shape, [global_object, OBJECT_SHAPE]
+    load64 cache_shape, [gvc, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE]
+    branch_ne cache_shape, shape, .try_env_binding
+    load32 cur_dict_gen, [shape, SHAPE_DICTIONARY_GENERATION]
+    load_pair32 prop_offset, dict_gen, [gvc, PROPERTY_LOOKUP_CACHE_ENTRY0_PROPERTY_OFFSET], [gvc, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
+    branch_ne dict_gen, cur_dict_gen, .try_env_binding
+    # IC hit! Load current value to check it's not an accessor.
+    load64 props, [global_object, OBJECT_NAMED_PROPERTIES]
+    load64 value, [props, prop_offset, 8]
+    extract_tag tag, value
+    branch_eq tag, ACCESSOR_TAG, .slow
+    load_operand src, m_src
+    store64 [props, prop_offset, 8], src
     dispatch_next
 .try_env_binding:
-    # Check if cache has an environment binding index (global let/const)
-    load8 t0, [t3, GLOBAL_VARIABLE_CACHE_HAS_ENVIRONMENT_BINDING]
-    branch_zero t0, .slow
-    # Bail to C++ for module environments (rare)
-    load8 t0, [t3, GLOBAL_VARIABLE_CACHE_IN_MODULE_ENVIRONMENT]
-    branch_nonzero t0, .slow_env
-    # Inline env binding: index into global_declarative_environment bindings
-    # t1 = global_declarative_environment (loaded at handler entry)
-    load32 t0, [t3, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_BINDING_INDEX]
-    load64 t4, [t1, BINDINGS_DATA_PTR]
-    mul t0, t0, SIZEOF_BINDING
-    add t4, t0
-    # Check binding is initialized (TDZ) and mutable
-    load8 t0, [t4, BINDING_INITIALIZED]
-    branch_zero t0, .slow
-    load8 t0, [t4, BINDING_MUTABLE]
-    branch_zero t0, .slow
-    # Store value into binding
-    load_operand t0, m_src
-    store64 [t4, BINDING_VALUE], t0
+    load8 has_env, [gvc, GLOBAL_VARIABLE_CACHE_HAS_ENVIRONMENT_BINDING]
+    branch_zero has_env, .slow
+    load8 in_module, [gvc, GLOBAL_VARIABLE_CACHE_IN_MODULE_ENVIRONMENT]
+    branch_nonzero in_module, .slow_env
+    load32 idx, [gvc, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_BINDING_INDEX]
+    load64 binding, [env, BINDINGS_DATA_PTR]
+    mul idx, idx, SIZEOF_BINDING
+    add binding, idx
+    load8 flag, [binding, BINDING_INITIALIZED]
+    branch_zero flag, .slow
+    load8 flag, [binding, BINDING_MUTABLE]
+    branch_zero flag, .slow
+    load_operand src, m_src
+    store64 [binding, BINDING_VALUE], src
     dispatch_next
 .slow_env:
-    call_interp asm_try_set_global_env_binding
-    branch_nonzero t0, .slow
+    call_interp asm_try_set_global_env_binding, result
+    branch_nonzero result, .slow
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_set_global
