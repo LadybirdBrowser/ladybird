@@ -31,7 +31,7 @@
 
 use crate::instructions::{InstructionInfo, OperandKind, lookup};
 use crate::parser::{AsmInstruction, Handler, Operand, Program};
-use crate::registers::{Arch, mapping_for, resolve_register};
+use crate::registers::{Arch, mapping_for, register_cost, resolve_register};
 use std::collections::{BTreeSet, HashMap, HashSet};
 
 /// Registers x86-64 calls clobber (caller-saved). System V AMD64.
@@ -482,6 +482,25 @@ fn apply_operand_kind(
     }
 }
 
+/// Count how many times each register name appears in the operand stream.
+/// This is a coarse spill-cost proxy: the more an x86_64 temp is referenced,
+/// the more bytes we save by placing it in a low-encoding-cost register.
+fn count_register_uses(instructions: &[AsmInstruction]) -> HashMap<String, u32> {
+    let mut counts: HashMap<String, u32> = HashMap::new();
+    for insn in instructions {
+        if insn.mnemonic == "temp" || insn.mnemonic == "ftemp" {
+            // Declarations themselves are not real uses.
+            continue;
+        }
+        for op in &insn.operands {
+            collect_operand_registers(op, &mut |name| {
+                *counts.entry(name.to_string()).or_insert(0) += 1;
+            });
+        }
+    }
+    counts
+}
+
 fn collect_operand_registers<F: FnMut(&str)>(op: &Operand, f: &mut F) {
     match op {
         Operand::Register(name) => f(name),
@@ -886,34 +905,112 @@ fn allocate(
     let gpr_pool: Vec<&'static str> = mapping.temporaries.to_vec();
     let fpr_pool: Vec<&'static str> = mapping.fp_temporaries.to_vec();
 
-    // Allocate. Order temps by descending live-range size so the most
-    // constrained temps go first; hard-pinned temps always go first.
-    let mut all_temps: Vec<(String, bool)> = declared_gpr_temps
+    // Per-temp use count: every operand-level reference to the temp's name
+    // (including occurrences inside memory operands) contributes one use.
+    // On x86_64 each saved use of a low-cost register saves an encoding
+    // byte, so hot temps want to land in cheap registers.
+    let use_counts = count_register_uses(instructions);
+
+    let all_temps: Vec<(String, bool)> = declared_gpr_temps
         .iter()
         .map(|n| (n.clone(), true))
         .chain(declared_fpr_temps.iter().map(|n| (n.clone(), false)))
         .collect();
-    all_temps.sort_by(|a, b| {
+
+    // Greedy graph coloring is sensitive to the order temps are processed
+    // in. Two orders are useful here:
+    //
+    //   - Use-count-first is cost-optimal: the temp with the most operand
+    //     references claims the cheapest register, so byte savings
+    //     concentrate where they matter most.
+    //
+    //   - Live-range-first is fit-optimal: the most constrained temps
+    //     (those alive across the most instructions, which see the most
+    //     interference) claim registers first and are the most likely to
+    //     fit. Some packed handlers (e.g. `Call`) only color successfully
+    //     under this order.
+    //
+    // We try cost-first and fall back to fit-first only when cost-first
+    // can't color. This wins the byte savings when the handler has slack
+    // and never regresses fit when it doesn't.
+    let try_color = |sorted: &[(String, bool)]| -> Result<AllocationPlan, AllocationError> {
+        color(
+            handler,
+            sorted,
+            &alive_in,
+            &alive_out,
+            &crosses,
+            &killed_phys_per_insn,
+            &operand_forbids,
+            &hard_pins,
+            &gpr_pool,
+            &fpr_pool,
+            arch,
+        )
+    };
+
+    let by_use_count_first = |a: &(String, bool), b: &(String, bool)| {
         let ap = hard_pins.contains_key(&a.0);
         let bp = hard_pins.contains_key(&b.0);
-        bp.cmp(&ap).then_with(|| {
-            let aw = alive_in
-                .get(&a.0)
-                .map_or(0, |s| s.len())
-                + alive_out.get(&a.0).map_or(0, |s| s.len());
-            let bw = alive_in
-                .get(&b.0)
-                .map_or(0, |s| s.len())
-                + alive_out.get(&b.0).map_or(0, |s| s.len());
-            bw.cmp(&aw)
-        })
-    });
+        let au = use_counts.get(&a.0).copied().unwrap_or(0);
+        let bu = use_counts.get(&b.0).copied().unwrap_or(0);
+        let aw = alive_in.get(&a.0).map_or(0, |s| s.len())
+            + alive_out.get(&a.0).map_or(0, |s| s.len());
+        let bw = alive_in.get(&b.0).map_or(0, |s| s.len())
+            + alive_out.get(&b.0).map_or(0, |s| s.len());
+        bp.cmp(&ap)
+            .then_with(|| bu.cmp(&au))
+            .then_with(|| bw.cmp(&aw))
+            .then_with(|| a.0.cmp(&b.0))
+    };
+    let by_live_range_first = |a: &(String, bool), b: &(String, bool)| {
+        let ap = hard_pins.contains_key(&a.0);
+        let bp = hard_pins.contains_key(&b.0);
+        let au = use_counts.get(&a.0).copied().unwrap_or(0);
+        let bu = use_counts.get(&b.0).copied().unwrap_or(0);
+        let aw = alive_in.get(&a.0).map_or(0, |s| s.len())
+            + alive_out.get(&a.0).map_or(0, |s| s.len());
+        let bw = alive_in.get(&b.0).map_or(0, |s| s.len())
+            + alive_out.get(&b.0).map_or(0, |s| s.len());
+        bp.cmp(&ap)
+            .then_with(|| bw.cmp(&aw))
+            .then_with(|| bu.cmp(&au))
+            .then_with(|| a.0.cmp(&b.0))
+    };
 
+    let mut sorted = all_temps.clone();
+    sorted.sort_by(by_use_count_first);
+    if let Ok(plan) = try_color(&sorted) {
+        return Ok(plan);
+    }
+
+    let mut sorted = all_temps;
+    sorted.sort_by(by_live_range_first);
+    try_color(&sorted)
+}
+
+/// Greedy linear-scan coloring driven by the order in `sorted_temps`.
+/// Returns Err if any temp can't be placed; the caller decides whether to
+/// retry with a different ordering.
+#[allow(clippy::too_many_arguments)]
+fn color(
+    handler: &Handler,
+    sorted_temps: &[(String, bool)],
+    alive_in: &HashMap<String, BTreeSet<usize>>,
+    alive_out: &HashMap<String, BTreeSet<usize>>,
+    crosses: &HashMap<String, BTreeSet<usize>>,
+    killed_phys_per_insn: &[BTreeSet<String>],
+    operand_forbids: &HashMap<String, HashSet<&'static str>>,
+    hard_pins: &HashMap<String, &'static str>,
+    gpr_pool: &[&'static str],
+    fpr_pool: &[&'static str],
+    arch: Arch,
+) -> Result<AllocationPlan, AllocationError> {
     let mut gpr_assignments: HashMap<String, &'static str> = HashMap::new();
     let mut fpr_assignments: HashMap<String, &'static str> = HashMap::new();
 
-    for (name, is_gpr) in &all_temps {
-        let pool = if *is_gpr { &gpr_pool } else { &fpr_pool };
+    for (name, is_gpr) in sorted_temps {
+        let pool: &[&'static str] = if *is_gpr { gpr_pool } else { fpr_pool };
         let my_in = alive_in
             .get(name)
             .expect("missing live_in for declared temp");
@@ -996,9 +1093,16 @@ fn allocate(
             }
             pinned
         } else {
+            // Pick the cheapest available register for this temp. Pool
+            // position breaks ties so behavior stays deterministic when
+            // several registers tie in cost (e.g. all FPRs, or all
+            // aarch64 GPRs).
             *pool
                 .iter()
-                .find(|p| !forbidden.contains(*p))
+                .enumerate()
+                .filter(|(_, p)| !forbidden.contains(*p))
+                .min_by_key(|(i, p)| (register_cost(p, arch), *i))
+                .map(|(_, p)| p)
                 .ok_or_else(|| AllocationError {
                     handler: handler.name.clone(),
                     message: format!(

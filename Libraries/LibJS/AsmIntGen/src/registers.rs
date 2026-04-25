@@ -96,3 +96,32 @@ pub fn resolve_register(name: &str, arch: Arch) -> Option<String> {
         _ => None,
     }
 }
+
+/// Encoding-cost score for a physical register. Lower is cheaper, so the
+/// allocator should prefer assigning hot named temporaries to low-cost
+/// registers.
+///
+/// On x86_64:
+///   * `rax` is the cheapest. Many arithmetic and logical instructions have
+///     a 1-byte-shorter accumulator-form encoding when the destination is
+///     `rax`/`eax` (e.g. `add eax, imm32` is one byte shorter than
+///     `add r/m32, imm32`).
+///   * The remaining "classic" GPRs (`rcx`, `rdx`, `rbx`, `rsi`, `rdi`)
+///     fit in three encoding bits, so 32-bit forms do not need a REX
+///     prefix at all -- saving one byte per instruction compared to the
+///     "modern" GPRs.
+///   * `r8`..`r15` always need REX.B (or REX.R) to extend the register
+///     field, so they are the most expensive to encode.
+///
+/// On aarch64 every general-purpose register encodes the same way, so the
+/// cost is uniformly zero.
+pub fn register_cost(name: &str, arch: Arch) -> u32 {
+    match arch {
+        Arch::X86_64 => match name {
+            "rax" | "eax" => 0,
+            "rcx" | "rdx" | "rbx" | "rsi" | "rdi" | "ecx" | "edx" | "ebx" | "esi" | "edi" => 1,
+            _ => 2,
+        },
+        Arch::Aarch64 => 0,
+    }
+}
