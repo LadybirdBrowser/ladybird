@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    test(() => {
+        const stressModes = ["warm", "cold", "pseudo-warm", "pseudo-cold", "detached", "detached-pseudo"];
+        for (const selectorCase of childMutationCases) {
+            for (const mode of stressModes)
+                runStressCase("document-styled-use-shadow", selectorCase, mode);
+        }
+    });
+</script>

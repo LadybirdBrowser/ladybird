@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    test(() => {
+        const scopes = [
+            "document",
+            "document-styled-use-shadow",
+            "shadow-internal",
+            "shadow-host",
+            "slotted-default",
+            "slotted-named",
+            "slotted-shadow-host-default",
+            "slotted-shadow-host-named",
+        ];
+
+        for (const scope of scopes) {
+            for (const selectorCase of attributeMutationCases) {
+                runCase({
+                    suite: "descendant attribute mutation",
+                    scope,
+                    ...selectorCase,
+                    initial: selectorCase.initial ?? false,
+                    after: selectorCase.after ?? true,
+                    setup: subject => {
+                        const child = makeElement("span");
+                        subject.appendChild(child);
+                        selectorCase.setup?.(child);
+                    },
+                    mutate: subject => selectorCase.mutate(subject.firstChild),
+                });
+            }
+
+            for (const selectorCase of descendantTextMutationCases) {
+                runCase({
+                    suite: "descendant text mutation",
+                    scope,
+                    ...selectorCase,
+                    setup: subject => {
+                        const child = makeElement("span");
+                        subject.appendChild(child);
+                        selectorCase.setup(child);
+                    },
+                    mutate: subject => selectorCase.mutate(subject.firstChild),
+                });
+            }
+        }
+
+        const inheritedScopes = scopes.filter(scope => scope !== "document-styled-use-shadow");
+        for (const scope of inheritedScopes) {
+            for (const selectorCase of descendantDirectionMutationCases) {
+                runCase({
+                    suite: "descendant direction mutation",
+                    scope,
+                    ...selectorCase,
+                    setup: subject => {
+                        const child = makeElement("span");
+                        subject.appendChild(child);
+                        selectorCase.setup(child);
+                    },
+                    mutate: subject => selectorCase.mutate(subject.firstChild),
+                });
+            }
+            for (const selectorCase of descendantLanguageMutationCases) {
+                runCase({
+                    suite: "descendant language mutation",
+                    scope,
+                    ...selectorCase,
+                    setup: subject => {
+                        const child = makeElement("span");
+                        subject.appendChild(child);
+                        selectorCase.setup(child);
+                    },
+                    mutate: subject => selectorCase.mutate(subject.firstChild),
+                });
+            }
+            for (const selectorCase of inheritedLanguageCases) {
+                runInheritedLanguageCase(scope, selectorCase);
+                runInheritedLanguageCase(scope, selectorCase, "::before");
+            }
+        }
+
+        const stateScopes = [
+            "document",
+            "shadow-internal",
+            "shadow-host",
+            "slotted-default",
+            "slotted-shadow-host-default",
+            "part-document",
+            "part-shadow-host-document",
+            "part-shadow-host-ancestor",
+        ];
+        for (const scope of stateScopes) {
+            for (const selectorCase of descendantStateMutationCases) {
+                runCase({
+                    suite: "descendant state mutation",
+                    scope,
+                    initial: selectorCase.initial ?? false,
+                    after: selectorCase.after ?? true,
+                    ...selectorCase,
+                });
+                runCase({
+                    suite: "descendant state pseudo-element mutation",
+                    scope,
+                    initial: selectorCase.initial ?? false,
+                    after: selectorCase.after ?? true,
+                    pseudoElement: "::before",
+                    ...selectorCase,
+                });
+            }
+        }
+
+        for (const scope of ["document", "shadow-internal", "slotted-default", "part-document"]) {
+            for (const selectorCase of formChildMutationCases) {
+                runCase({
+                    suite: "form child mutation",
+                    scope,
+                    initial: selectorCase.initial,
+                    after: selectorCase.after,
+                    pseudoElement: "::before",
+                    ...selectorCase,
+                });
+            }
+            for (const selectorCase of placeholderChildMutationCases) {
+                runCase({
+                    suite: "placeholder child mutation",
+                    scope,
+                    initial: selectorCase.initial,
+                    after: selectorCase.after,
+                    pseudoElement: "::before",
+                    ...selectorCase,
+                });
+            }
+        }
+    });
+</script>

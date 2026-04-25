@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    test(() => {
+        const partScopes = [
+            "part-document",
+            "part-shadow-host-document",
+            "part-shadow-internal",
+            "part-shadow-host-internal",
+            "part-shadow-ancestor",
+            "part-shadow-host-ancestor",
+        ];
+        for (const scope of partScopes) {
+            for (const selectorCase of partChildMutationCases) {
+                runCase({
+                    suite: "part child mutation",
+                    scope,
+                    initial: selectorCase.initial,
+                    after: selectorCase.after,
+                    ...selectorCase,
+                });
+                runCase({
+                    suite: "part pseudo-element child mutation",
+                    scope,
+                    initial: selectorCase.initial,
+                    after: selectorCase.after,
+                    pseudoElement: "::before",
+                    ...selectorCase,
+                });
+                if (!selectorCase.initial && selectorCase.after) {
+                    runCase({
+                        suite: "part pseudo-element child mutation without warmup",
+                        scope,
+                        initial: selectorCase.initial,
+                        after: selectorCase.after,
+                        pseudoElement: "::before",
+                        skipInitialRead: true,
+                        ...selectorCase,
+                    });
+                }
+            }
+        }
+
+        runSlotMoveCase();
+        runNestedSlotPartCase();
+    });
+</script>

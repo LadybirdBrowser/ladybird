@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    function runCousinContextCase(selectorCase, mode) {
+        const fixture = makeElement("section");
+        document.body.appendChild(fixture);
+        const style = addStyle(document.head, selectorCase.cssText || "");
+        try {
+            const context = selectorCase.setup(fixture, style);
+            const target = context.target;
+            if (!mode.includes("cold")) {
+                assertEqual(`${selectorCase.name} ${mode} initial`, readProbe(target), selectorCase.initial ? MATCH : BASE);
+            }
+            resetStyleCounters();
+            if (mode.includes("detached"))
+                fixture.remove();
+            selectorCase.mutate(context, fixture, style);
+            if (mode.includes("detached"))
+                document.body.appendChild(fixture);
+            selectorCase.check?.(context);
+            assertEqual(`${selectorCase.name} ${mode} after mutation`, readProbe(target), selectorCase.after ? MATCH : BASE);
+            printPassWithCounters(`cousin context ${mode}: ${selectorCase.name}`);
+        } finally {
+            style.remove();
+            fixture.remove();
+        }
+    }
+
+    const cousinContextCases = [
+        {
+            name: "ancestor class stops matching descendant selector",
+            cssText: `.active .target { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => {
+                const wrapper = makeElement("div", { className: "active" });
+                const target = makeElement("span", { className: "target" });
+                wrapper.appendChild(target);
+                fixture.appendChild(wrapper);
+                return { wrapper, target };
+            },
+            mutate: ({ wrapper }) => wrapper.classList.remove("active"),
+        },
+        {
+            name: "ancestor attribute stops matching descendant selector",
+            cssText: `[data-active] .target { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => {
+                const wrapper = makeElement("div", { attributes: { "data-active": "" } });
+                const target = makeElement("span", { className: "target" });
+                wrapper.appendChild(target);
+                fixture.appendChild(wrapper);
+                return { wrapper, target };
+            },
+            mutate: ({ wrapper }) => wrapper.removeAttribute("data-active"),
+        },
+        {
+            name: "target class begins matching compound selector",
+            cssText: `.target.active[data-kind="primary"] { ${MATCH_DECLARATION} }`,
+            initial: false,
+            after: true,
+            setup: fixture => {
+                const target = makeElement("span", { className: "target", attributes: { "data-kind": "primary" } });
+                fixture.appendChild(target);
+                return { target };
+            },
+            mutate: ({ target }) => target.classList.add("active"),
+        },
+        {
+            name: "target attribute value changes exact match",
+            cssText: `.target[data-state="open"] { ${MATCH_DECLARATION} }`,
+            initial: false,
+            after: true,
+            setup: fixture => {
+                const target = makeElement("span", { className: "target", attributes: { "data-state": "closed" } });
+                fixture.appendChild(target);
+                return { target };
+            },
+            mutate: ({ target }) => target.setAttribute("data-state", "open"),
+        },
+        {
+            name: "target attribute substring selector stops matching",
+            cssText: `.target[data-state*="pen"] { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => {
+                const target = makeElement("span", { className: "target", attributes: { "data-state": "open" } });
+                fixture.appendChild(target);
+                return { target };
+            },
+            mutate: ({ target }) => target.setAttribute("data-state", "closed"),
+        },
+        {
+            name: "case-insensitive attribute selector begins matching",
+            cssText: `.target[data-state="open" i] { ${MATCH_DECLARATION} }`,
+            initial: false,
+            after: true,
+            setup: fixture => {
+                const target = makeElement("span", { className: "target", attributes: { "data-state": "closed" } });
+                fixture.appendChild(target);
+                return { target };
+            },
+            mutate: ({ target }) => target.setAttribute("data-state", "OPEN"),
+        },
+        {
+            name: "previous sibling removal stops adjacent selector",
+            cssText: `.before + .target { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => {
+                const before = makeElement("span", { className: "before" });
+                const target = makeElement("span", { className: "target" });
+                fixture.append(before, target);
+                return { before, target };
+            },
+            mutate: ({ before }) => before.remove(),
+        },
+        {
+            name: "general sibling stops matching after target moves before source",
+            cssText: `.before ~ .target { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => {
+                const before = makeElement("span", { className: "before" });
+                const target = makeElement("span", { className: "target" });
+                fixture.append(before, target);
+                return { before, target };
+            },
+            mutate: ({ before, target }) => before.before(target),
+        },
+        {
+            name: "first-child begins matching after previous sibling removal",
+            cssText: `.target:first-child { ${MATCH_DECLARATION} }`,
+            initial: false,
+            after: true,
+            setup: fixture => {
+                const before = makeElement("span");
+                const target = makeElement("span", { className: "target" });
+                fixture.append(before, target);
+                return { before, target };
+            },
+            mutate: ({ before }) => before.remove(),
+        },
+        {
+            name: "last-child stops matching after next sibling append",
+            cssText: `.target:last-child { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => {
+                const target = makeElement("span", { className: "target" });
+                fixture.appendChild(target);
+                return { target };
+            },
+            mutate: ({ target }) => target.after(makeElement("span")),
+        },
+        {
+            name: "nth-of-type begins matching after same type prepend",
+            cssText: `.target:nth-of-type(2) { ${MATCH_DECLARATION} }`,
+            initial: false,
+            after: true,
+            setup: fixture => {
+                const target = makeElement("span", { className: "target" });
+                fixture.appendChild(target);
+                return { target };
+            },
+            mutate: ({ target }) => target.before(makeElement("span")),
+        },
+        {
+            name: "nth-of-type ignores different type prepend",
+            cssText: `.target:nth-of-type(1) { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: true,
+            setup: fixture => {
+                const target = makeElement("span", { className: "target" });
+                fixture.appendChild(target);
+                return { target };
+            },
+            mutate: ({ target }) => target.before(makeElement("em")),
+        },
+        {
+            name: "only-of-type stops matching after same type append",
+            cssText: `.target:only-of-type { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => {
+                const target = makeElement("span", { className: "target" });
+                fixture.appendChild(target);
+                return { target };
+            },
+            mutate: ({ target }) => target.after(makeElement("span")),
+        },
+        {
+            name: "empty begins matching after text removal",
+            cssText: `.target:empty { ${MATCH_DECLARATION} }`,
+            initial: false,
+            after: true,
+            setup: fixture => {
+                const target = makeElement("span", { className: "target", text: "text" });
+                fixture.appendChild(target);
+                return { target };
+            },
+            mutate: ({ target }) => target.textContent = "",
+        },
+        {
+            name: "is wrapper begins matching after ancestor class mutation",
+            cssText: `:is(.active, .fallback) .target { ${MATCH_DECLARATION} }`,
+            initial: false,
+            after: true,
+            setup: fixture => {
+                const wrapper = makeElement("div");
+                const target = makeElement("span", { className: "target" });
+                wrapper.appendChild(target);
+                fixture.appendChild(wrapper);
+                return { wrapper, target };
+            },
+            mutate: ({ wrapper }) => wrapper.classList.add("fallback"),
+        },
+        {
+            name: "where wrapper begins matching after ancestor attribute mutation",
+            cssText: `:where([data-active]) .target { ${MATCH_DECLARATION} }`,
+            initial: false,
+            after: true,
+            setup: fixture => {
+                const wrapper = makeElement("div");
+                const target = makeElement("span", { className: "target" });
+                wrapper.appendChild(target);
+                fixture.appendChild(wrapper);
+                return { wrapper, target };
+            },
+            mutate: ({ wrapper }) => wrapper.setAttribute("data-active", ""),
+        },
+        {
+            name: "not wrapper stops matching after ancestor class mutation",
+            cssText: `.wrapper:not(.inactive) .target { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => {
+                const wrapper = makeElement("div", { className: "wrapper" });
+                const target = makeElement("span", { className: "target" });
+                wrapper.appendChild(target);
+                fixture.appendChild(wrapper);
+                return { wrapper, target };
+            },
+            mutate: ({ wrapper }) => wrapper.classList.add("inactive"),
+        },
+        {
+            name: "not has wrapper stops matching after blocker append",
+            cssText: `.subject:not(:has(.blocker)) .target { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => {
+                const subject = makeElement("div", { className: "subject" });
+                const target = makeElement("span", { className: "target" });
+                subject.appendChild(target);
+                fixture.appendChild(subject);
+                return { subject, target };
+            },
+            mutate: ({ subject }) => subject.appendChild(makeElement("span", { className: "blocker" })),
+        },
+        {
+            name: "has adjacent sibling begins matching after sibling append",
+            cssText: `.subject:has(+ .gate) .target { ${MATCH_DECLARATION} }`,
+            initial: false,
+            after: true,
+            setup: fixture => {
+                const subject = makeElement("div", { className: "subject" });
+                const target = makeElement("span", { className: "target" });
+                subject.appendChild(target);
+                fixture.appendChild(subject);
+                return { subject, target };
+            },
+            mutate: ({ subject }) => subject.after(makeElement("div", { className: "gate" })),
+        },
+        {
+            name: "has general sibling begins matching after distant sibling append",
+            cssText: `.subject:has(~ .gate) .target { ${MATCH_DECLARATION} }`,
+            initial: false,
+            after: true,
+            setup: fixture => {
+                const subject = makeElement("div", { className: "subject" });
+                const spacer = makeElement("div");
+                const target = makeElement("span", { className: "target" });
+                subject.appendChild(target);
+                fixture.append(subject, spacer);
+                return { spacer, target };
+            },
+            mutate: ({ spacer }) => spacer.after(makeElement("div", { className: "gate" })),
+        },
+        {
+            name: "has sibling relation inside subject begins matching",
+            cssText: `.subject:has(.hit ~ .tail) .target { ${MATCH_DECLARATION} }`,
+            initial: false,
+            after: true,
+            setup: fixture => {
+                const subject = makeElement("div", { className: "subject" });
+                const hit = makeElement("span", { className: "hit" });
+                const target = makeElement("span", { className: "target" });
+                subject.append(hit, target);
+                fixture.appendChild(subject);
+                return { hit, target };
+            },
+            mutate: ({ hit }) => hit.after(makeElement("span", { className: "tail" })),
+        },
+        {
+            name: "inherited custom-property probe changes through ancestor style",
+            cssText: `.target { --style-invalidation-probe: var(--inherited-probe, ${BASE}); }`,
+            initial: false,
+            after: true,
+            setup: fixture => {
+                const wrapper = makeElement("div");
+                const target = makeElement("span", { className: "target" });
+                wrapper.appendChild(target);
+                fixture.appendChild(wrapper);
+                return { wrapper, target };
+            },
+            mutate: ({ wrapper }) => wrapper.style.setProperty("--inherited-probe", MATCH),
+        },
+        {
+            name: "custom property fallback resumes after ancestor property removal",
+            cssText: `.target { --style-invalidation-probe: var(--target-probe, ${BASE}); }`,
+            initial: true,
+            after: false,
+            setup: fixture => {
+                const wrapper = makeElement("div", { attributes: { style: `--target-probe: ${MATCH}` } });
+                const target = makeElement("span", { className: "target" });
+                wrapper.appendChild(target);
+                fixture.appendChild(wrapper);
+                return { wrapper, target };
+            },
+            mutate: ({ wrapper }) => wrapper.style.removeProperty("--target-probe"),
+        },
+        {
+            name: "rule text insertion begins matching",
+            cssText: ``,
+            initial: false,
+            after: true,
+            setup: fixture => {
+                const target = makeElement("span", { className: "target" });
+                fixture.appendChild(target);
+                return { target };
+            },
+            mutate: (context, fixture, style) => style.textContent = `.target { ${MATCH_DECLARATION} }`,
+        },
+        {
+            name: "rule text removal stops matching",
+            cssText: `.target { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => {
+                const target = makeElement("span", { className: "target" });
+                fixture.appendChild(target);
+                return { target };
+            },
+            mutate: (context, fixture, style) => style.textContent = "",
+        },
+        {
+            name: "stylesheet node removal stops matching",
+            cssText: `.target { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => {
+                const target = makeElement("span", { className: "target" });
+                fixture.appendChild(target);
+                return { target };
+            },
+            mutate: (context, fixture, style) => style.remove(),
+        },
+        {
+            name: "shadow host attribute changes internal descendant style",
+            initial: false,
+            after: true,
+            setup: fixture => {
+                const host = makeElement("x-host");
+                fixture.appendChild(host);
+                const shadowRoot = host.attachShadow({ mode: "open" });
+                const target = makeElement("span", { className: "target" });
+                shadowRoot.appendChild(target);
+                addStyle(shadowRoot, `:host([data-active]) .target { ${MATCH_DECLARATION} }`);
+                return { host, target };
+            },
+            mutate: ({ host }) => host.setAttribute("data-active", ""),
+        },
+        {
+            name: "shadow host negation stops internal descendant style",
+            initial: true,
+            after: false,
+            setup: fixture => {
+                const host = makeElement("x-host");
+                fixture.appendChild(host);
+                const shadowRoot = host.attachShadow({ mode: "open" });
+                const target = makeElement("span", { className: "target" });
+                shadowRoot.appendChild(target);
+                addStyle(shadowRoot, `:host(:not(.inactive)) .target { ${MATCH_DECLARATION} }`);
+                return { host, target };
+            },
+            mutate: ({ host }) => host.classList.add("inactive"),
+        },
+        {
+            name: "slotted selector begins matching after slottable class mutation",
+            initial: false,
+            after: true,
+            setup: fixture => {
+                const host = makeElement("x-host");
+                const target = makeElement("span");
+                host.appendChild(target);
+                fixture.appendChild(host);
+                const shadowRoot = host.attachShadow({ mode: "open" });
+                shadowRoot.appendChild(makeElement("slot"));
+                addStyle(shadowRoot, `::slotted(.target) { ${MATCH_DECLARATION} }`);
+                return { target };
+            },
+            mutate: ({ target }) => target.classList.add("target"),
+        },
+        {
+            name: "slotted selector stops matching after slot name mutation",
+            initial: true,
+            after: false,
+            setup: fixture => {
+                const host = makeElement("x-host");
+                const target = makeElement("span", { className: "target" });
+                host.appendChild(target);
+                fixture.appendChild(host);
+                const shadowRoot = host.attachShadow({ mode: "open" });
+                const slot = makeElement("slot");
+                shadowRoot.appendChild(slot);
+                addStyle(shadowRoot, `::slotted(.target) { ${MATCH_DECLARATION} }`);
+                return { slot, target };
+            },
+            mutate: ({ slot }) => slot.name = "other",
+            check: ({ target }) => assertEqual("slot name mutation assignment", target.assignedSlot, null),
+        },
+        {
+            name: "part selector stops matching after part token removal",
+            cssText: `x-host::part(foo) { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => {
+                const host = makeElement("x-host");
+                fixture.appendChild(host);
+                const shadowRoot = host.attachShadow({ mode: "open" });
+                const target = makeElement("span", { attributes: { part: "foo" } });
+                shadowRoot.appendChild(target);
+                return { target };
+            },
+            mutate: ({ target }) => target.removeAttribute("part"),
+        },
+        {
+            name: "part selector begins matching after exportparts mutation",
+            cssText: `x-outer::part(foo) { ${MATCH_DECLARATION} }`,
+            initial: false,
+            after: true,
+            setup: fixture => {
+                const outer = makeElement("x-outer");
+                fixture.appendChild(outer);
+                const outerShadow = outer.attachShadow({ mode: "open" });
+                const inner = makeElement("x-inner");
+                outerShadow.appendChild(inner);
+                const innerShadow = inner.attachShadow({ mode: "open" });
+                const target = makeElement("span", { attributes: { part: "foo" } });
+                innerShadow.appendChild(target);
+                return { inner, target };
+            },
+            mutate: ({ inner }) => inner.setAttribute("exportparts", "foo"),
+        },
+    ];
+
+    test(() => {
+        for (const selectorCase of cousinContextCases) {
+            for (const mode of ["warm", "cold", "detached", "detached-cold"])
+                runCousinContextCase(selectorCase, mode);
+        }
+    });
+</script>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    test(() => {
+        const detachedScopes = [
+            "document",
+            "shadow-internal",
+            "slotted-default",
+            "slotted-shadow-host-default",
+            "part-document",
+            "part-shadow-host-document",
+            "part-shadow-host-ancestor",
+        ];
+        const detachedSelectorCaseNames = [
+            ":has(.hit) after direct child append",
+            ":has(.hit ~ .after) after indirect sibling append",
+            ":has(.hit, .fallback) after first-list child append",
+        ];
+        for (const scope of detachedScopes) {
+            for (const name of detachedSelectorCaseNames) {
+                const selectorCase = childMutationCases.find(c => c.name === name);
+                if (!selectorCase)
+                    throw new Error(`detached scope refers to unknown case: ${name}`);
+                runDetachedReconnectCase(scope, selectorCase);
+                runDetachedReconnectCase(scope, selectorCase, "::before");
+            }
+        }
+
+        for (const selectorCase of precomputedDetachedInsertionCases) {
+            runPrecomputedDetachedInsertionCase(selectorCase);
+            for (const mode of ["append", "prepend", "replaceChildren", "fragment"])
+                runPrecomputedDetachedInsertionStressCase(selectorCase, mode);
+        }
+    });
+</script>

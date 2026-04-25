@@ -1,0 +1,1 @@
+Uncaught Error In Test: descendant direction stress warm: document: :has(:dir(rtl)) after descendant dir=auto text mutation after mutation: expected match, got base
