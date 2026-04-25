@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(async done => {
+    let count = 0;
+    window.addEventListener("beforeprint", () => { count++; });
+
+    await new Promise(resolve => {
+        window.addEventListener("beforeprint", resolve, { once: true });
+        window.print();
+    });
+
+    println(`beforeprint fired: ${count}`);
+    done();
+});
+</script>

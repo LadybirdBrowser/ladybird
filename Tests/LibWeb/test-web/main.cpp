@@ -42,6 +42,7 @@
 #include <LibGfx/SystemTheme.h>
 #include <LibURL/Parser.h>
 #include <LibURL/URL.h>
+#include <LibWeb/HTML/PrintSettings.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Process.h>
 #include <LibWebView/Utilities.h>
@@ -607,6 +608,17 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
             if (test.did_finish_loading)
                 on_test_complete();
         };
+    } else if (test.mode == TestMode::PrintLayout) {
+        view.on_load_finish = [&view, &context, url, test_index, on_test_complete = move(on_test_complete)](auto const& loaded_url) {
+            if (!url.equals(loaded_url, URL::ExcludeFragment::Yes))
+                return;
+
+            auto promise = view.request_internal_page_info(WebView::PageInfoType::PrintLayoutTree);
+            promise->when_resolved([&context, test_index, on_test_complete = move(on_test_complete)](auto const& text) {
+                context.tests[test_index].text = text;
+                on_test_complete();
+            });
+        };
     }
 
     view.load(url);
@@ -943,6 +955,7 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
         case TestMode::Crash:
         case TestMode::Text:
         case TestMode::Layout:
+        case TestMode::PrintLayout:
             run_dump_test(view, context, test, *url);
             return;
         case TestMode::Ref:
@@ -1007,6 +1020,9 @@ static void set_ui_callbacks_for_tests(TestWebView& view, TestRunCapture& test_r
         view.alert_closed();
     };
 
+    view.on_print_request = [&view]() { view.trigger_print(Web::HTML::PrintSettings {}); };
+    view.on_request_print_bitmap = [&view](auto const&) { view.did_finish_print(); };
+
     view.on_web_content_crashed = [&view, &test_run_capture]() {
         test_run_capture.write_test_output(view);
 
@@ -1046,6 +1062,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
     TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Layout", app.test_root_path), "."sv, TestMode::Layout));
     TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Text", app.test_root_path), "."sv, TestMode::Text));
+    TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/PrintLayout", app.test_root_path), "."sv, TestMode::PrintLayout));
     TRY(collect_ref_tests(app, tests, ByteString::formatted("{}/Ref", app.test_root_path), "."sv));
     TRY(collect_crash_tests(app, tests, ByteString::formatted("{}/Crash", app.test_root_path), "."sv));
     TRY(collect_screenshot_tests(app, tests, ByteString::formatted("{}/Screenshot", app.test_root_path), "."sv));

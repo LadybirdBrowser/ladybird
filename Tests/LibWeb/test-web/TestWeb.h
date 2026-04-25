@@ -26,6 +26,7 @@ enum class TestMode {
     Ref,
     Screenshot,
     Crash,
+    PrintLayout,
 };
 
 constexpr StringView test_mode_to_string(TestMode mode)
@@ -41,6 +42,8 @@ constexpr StringView test_mode_to_string(TestMode mode)
         return "Screenshot"sv;
     case TestMode::Crash:
         return "Crash"sv;
+    case TestMode::PrintLayout:
+        return "PrintLayout"sv;
     }
     VERIFY_NOT_REACHED();
 }

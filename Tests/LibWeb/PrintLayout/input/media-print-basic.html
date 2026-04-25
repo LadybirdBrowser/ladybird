@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  .screen-only { display: block; }
+  .print-only  { display: none; }
+  @media print {
+    .screen-only { display: none; }
+    .print-only  { display: block; }
+  }
+</style>
+</head>
+<body>
+  <div class="screen-only">Screen</div>
+  <div class="print-only">Print</div>
+  <div>Both</div>
+</body>
+</html>
