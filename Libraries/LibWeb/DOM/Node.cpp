@@ -462,21 +462,34 @@ void Node::invalidate_style(StyleInvalidationReason reason)
     // which was in scope before and reliably carries the correct flags.
     if (reason == StyleInvalidationReason::NodeRemove || reason == StyleInvalidationReason::NodeInsertBefore) {
         if (auto* parent = parent_or_shadow_host(); parent) {
-            schedule_has_walk_for_parent(style_scope, *parent);
-            // :host(...:has(...)) rules live in a shadow root that this parent's light-DOM tree cannot reach via
-            // root().style_scope(). Schedule the walk on every enclosing shadow host's style scope so those rules
-            // get re-evaluated too.
+            // Walk every scope reachable from the parent and schedule the :has() walk on each. Going up via
+            // parent_or_shadow_host crosses shadow boundaries in both directions, so this picks up:
+            //   - the parent's own root scope (light DOM or its shadow root)
+            //   - inner shadow roots of each shadow-host ancestor (for :host(...:has(...)) and ::slotted(.x:has(...))
+            //     rules)
+            //   - outer scopes when crossing from a shadow root out to its host (for ::part(...:has(...)) rules in the
+            //     outer document or containing shadow root)
+            HashTable<CSS::StyleScope*> scheduled_scopes;
+            auto schedule_unique = [&](CSS::StyleScope& scope) {
+                if (scheduled_scopes.set(&scope) != AK::HashSetResult::InsertedNewEntry)
+                    return;
+                schedule_has_walk_for_parent(scope, *parent);
+            };
+            schedule_unique(style_scope);
             for (auto* ancestor = parent; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
-                auto* element = as_if<Element>(*ancestor);
-                if (!element)
-                    continue;
-                auto shadow_root = element->shadow_root();
-                if (!shadow_root)
-                    continue;
-                auto& shadow_scope = shadow_root->style_scope();
-                if (&shadow_scope == &style_scope)
-                    continue;
-                schedule_has_walk_for_parent(shadow_scope, *parent);
+                auto& ancestor_root = ancestor->root();
+                if (auto* shadow_root = as_if<ShadowRoot>(ancestor_root)) {
+                    if (shadow_root->uses_document_style_sheets())
+                        schedule_unique(document().style_scope());
+                    else
+                        schedule_unique(shadow_root->style_scope());
+                } else {
+                    schedule_unique(document().style_scope());
+                }
+                if (auto* element = as_if<Element>(*ancestor); element) {
+                    if (auto shadow_root = element->shadow_root())
+                        schedule_unique(shadow_root->style_scope());
+                }
             }
         }
     } else if (style_scope.may_have_has_selectors() && reason_may_affect_has_selectors(reason)) {
@@ -576,9 +589,12 @@ void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::Invalida
         return document().style_scope();
     }();
 
-    // Collect every shadow scope this mutation can flip, in addition to the root scope. This includes the element's
-    // own shadow root (if it's a shadow host) and every enclosing shadow host's shadow root, since :host(...:has(...))
-    // and ::slotted(...) rules in those scopes can observe property changes on this element or its light-DOM children.
+    // Collect every shadow scope this mutation can flip, in addition to the root scope. This includes:
+    //   - The element's own shadow root (if it's a shadow host).
+    //   - Every enclosing shadow host's shadow root, for :host(...:has(...)) and ::slotted(...) rules in those scopes
+    //     that observe property changes on this element or its light-DOM children.
+    //   - The document scope and any outer shadow root scopes when this element lives inside a shadow tree, for
+    //     ::part(...:has(...)) rules in the outer document or containing shadow root.
     Vector<GC::Ref<CSS::StyleScope>, 4> additional_scopes;
     auto add_additional_scope = [&](CSS::StyleScope& scope) {
         if (&scope == &style_scope)
@@ -594,11 +610,19 @@ void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::Invalida
             add_additional_scope(element_shadow_root->style_scope());
     }
     for (auto* ancestor = parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
-        auto* element = as_if<Element>(*ancestor);
-        if (!element)
-            continue;
-        if (auto ancestor_shadow_root = element->shadow_root())
-            add_additional_scope(ancestor_shadow_root->style_scope());
+        auto& ancestor_root = ancestor->root();
+        if (auto* shadow_root = as_if<ShadowRoot>(ancestor_root)) {
+            if (shadow_root->uses_document_style_sheets())
+                add_additional_scope(document().style_scope());
+            else
+                add_additional_scope(shadow_root->style_scope());
+        } else {
+            add_additional_scope(document().style_scope());
+        }
+        if (auto* element = as_if<Element>(*ancestor); element) {
+            if (auto ancestor_shadow_root = element->shadow_root())
+                add_additional_scope(ancestor_shadow_root->style_scope());
+        }
     }
 
     bool properties_used_in_has_selectors = false;
