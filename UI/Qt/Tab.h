@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <LibGfx/ShareableBitmap.h>
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <UI/Qt/BookmarksBar.h>
 #include <UI/Qt/FindInPageWidget.h>
@@ -17,6 +18,7 @@
 #include <QLabel>
 #include <QMenu>
 #include <QPointer>
+#include <QPrinter>
 #include <QToolBar>
 #include <QToolButton>
 #include <QWidget>
@@ -105,6 +107,7 @@ private:
     BrowserWindow* m_window { nullptr };
     QString m_title;
     HyperlinkLabel* m_hover_label { nullptr };
+    OwnPtr<QPrinter> m_pending_printer;
     QIcon m_favicon;
 
     QMenu* m_context_menu { nullptr };

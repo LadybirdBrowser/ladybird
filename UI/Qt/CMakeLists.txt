@@ -1,7 +1,7 @@
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets PrintSupport)
 
 qt_add_executable(ladybird main.cpp)
 target_sources(ladybird PRIVATE
@@ -23,7 +23,7 @@ target_sources(ladybird PRIVATE
     WebContentView.cpp
     ladybird.qrc
 )
-target_link_libraries(ladybird PRIVATE Qt::Core Qt::Gui Qt::Widgets)
+target_link_libraries(ladybird PRIVATE Qt::Core Qt::Gui Qt::Widgets Qt::PrintSupport)
 create_ladybird_bundle(ladybird)
 
 if (WIN32)

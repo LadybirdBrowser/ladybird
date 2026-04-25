@@ -186,6 +186,11 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
         qaction.setIcon(load_icon_from_uri("resource://icons/16x16/filetype-image.png"sv));
         break;
 
+    case WebView::ActionID::Print:
+        qaction.setIcon(QIcon::fromTheme("document-print"));
+        qaction.setShortcut(QKeySequence::Print);
+        break;
+
     case WebView::ActionID::OpenInNewTab:
         qaction.setIcon(load_icon_from_uri("resource://icons/16x16/new-tab.png"sv));
         break;

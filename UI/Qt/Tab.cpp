@@ -7,6 +7,7 @@
  */
 
 #include <LibURL/URL.h>
+#include <LibWeb/HTML/PrintSettings.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
 #include <UI/Qt/BrowserWindow.h>
@@ -16,6 +17,8 @@
 #include <UI/Qt/StringUtils.h>
 
 #include <QColorDialog>
+#include <QDialogButtonBox>
+#include <QEventLoop>
 #include <QFileDialog>
 #include <QFont>
 #include <QFontMetrics>
@@ -25,6 +28,11 @@
 #include <QMessageBox>
 #include <QMimeData>
 #include <QMimeDatabase>
+#include <QPainter>
+#include <QPrintDialog>
+#include <QPrintPreviewDialog>
+#include <QPrinter>
+#include <QPushButton>
 #include <QResizeEvent>
 
 namespace Ladybird {
@@ -365,6 +373,105 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     view().on_find_in_page = [this](auto current_match_index, auto const& total_match_count) {
         m_find_in_page->update_result_label(current_match_index, total_match_count);
+    };
+
+    // Renders a ShareableBitmap onto a QPrinter, paginating as needed.
+    auto render_to_printer = [](Gfx::ShareableBitmap const& bitmap, QPrinter& printer) {
+        auto* bmp = bitmap.bitmap();
+        if (!bmp)
+            return;
+
+        // Gfx::BitmapFormat::BGRA8888 maps to QImage::Format_ARGB32_Premultiplied on little-endian
+        QImage image(
+            reinterpret_cast<uchar const*>(bmp->scanline_u8(0)),
+            bmp->width(), bmp->height(),
+            bmp->pitch(),
+            QImage::Format_ARGB32_Premultiplied);
+
+        QRectF page_rect = printer.pageRect(QPrinter::DevicePixel);
+        double scale = (image.width() > 0) ? page_rect.width() / image.width() : 1.0;
+        double scaled_height = image.height() * scale;
+        int num_pages = qMax(1, static_cast<int>(std::ceil(scaled_height / page_rect.height())));
+
+        QPainter painter(&printer);
+        for (int page = 0; page < num_pages; ++page) {
+            if (page > 0)
+                printer.newPage();
+            double y_offset = page * (page_rect.height() / scale);
+            double slice_height = qMin(static_cast<double>(image.height()) - y_offset,
+                page_rect.height() / scale);
+            QRectF src_rect(0, y_offset, image.width(), slice_height);
+            QRectF dest_rect(0, 0, page_rect.width(), slice_height * scale);
+            painter.drawImage(dest_rect, image, src_rect);
+        }
+        painter.end();
+    };
+
+    // Builds a PrintSettings from the current QPrinter page layout.
+    auto settings_from_printer = [](QPrinter const& p) {
+        auto layout = p.pageLayout();
+        auto size_mm = layout.pageSize().size(QPageSize::Millimeter);
+        auto margins_mm = layout.margins(QPageLayout::Millimeter);
+        return Web::HTML::PrintSettings {
+            .paper_width_mm = static_cast<float>(size_mm.width()),
+            .paper_height_mm = static_cast<float>(size_mm.height()),
+            .margin_top_mm = static_cast<float>(margins_mm.top()),
+            .margin_right_mm = static_cast<float>(margins_mm.right()),
+            .margin_bottom_mm = static_cast<float>(margins_mm.bottom()),
+            .margin_left_mm = static_cast<float>(margins_mm.left()),
+        };
+    };
+
+    // Renders for a QPrinter synchronously: triggers WebContent, spins event loop, paints.
+    auto render_sync = [this, render_to_printer, settings_from_printer](QPrinter* p) mutable {
+        Optional<Gfx::ShareableBitmap> result;
+        QEventLoop loop;
+        view().on_request_print_bitmap = [&result, &loop](Gfx::ShareableBitmap bmp) {
+            result = bmp;
+            loop.quit();
+        };
+        view().trigger_print(settings_from_printer(*p));
+        loop.exec();
+        view().on_request_print_bitmap = {};
+        if (result.has_value())
+            render_to_printer(*result, *p);
+    };
+
+    view().on_print_request = [this, render_sync, settings_from_printer]() mutable {
+        auto printer = make<QPrinter>();
+        QPrintDialog dialog(printer.ptr(), m_window);
+
+        // Add a "Preview..." button alongside the standard Print/Cancel buttons.
+        auto* preview_button = new QPushButton(tr("Preview..."), &dialog);
+        if (auto* button_box = dialog.findChild<QDialogButtonBox*>())
+            button_box->addButton(preview_button, QDialogButtonBox::ActionRole);
+
+        QObject::connect(preview_button, &QPushButton::clicked, [this, &printer, &render_sync, &dialog]() {
+            dialog.hide();
+            QPrintPreviewDialog preview(printer.ptr(), m_window);
+            QObject::connect(&preview, &QPrintPreviewDialog::paintRequested, [&render_sync](QPrinter* p) {
+                render_sync(p);
+            });
+            preview.exec();
+            // After preview closes, dismiss the print dialog too (user already committed or cancelled in preview).
+            dialog.reject();
+        });
+
+        if (dialog.exec() != QDialog::Accepted)
+            return;
+
+        m_pending_printer = AK::move(printer);
+        view().trigger_print(settings_from_printer(*m_pending_printer));
+    };
+
+    view().on_request_print_bitmap = [this, render_to_printer](Gfx::ShareableBitmap bitmap) mutable {
+        auto printer = AK::move(m_pending_printer);
+        if (!printer) {
+            view().did_finish_print();
+            return;
+        }
+        render_to_printer(bitmap, *printer);
+        view().did_finish_print();
     };
 
     QObject::connect(focus_location_editor_action, &QAction::triggered, this, &Tab::focus_location_editor);

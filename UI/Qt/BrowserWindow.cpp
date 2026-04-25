@@ -228,6 +228,11 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     m_hamburger_menu->addAction(open_file_action);
     file_menu->addAction(open_file_action);
 
+    file_menu->addSeparator();
+    auto* print_action = create_application_action(*this, Application::the().print_action());
+    m_hamburger_menu->addAction(print_action);
+    file_menu->addAction(print_action);
+
     m_hamburger_menu->addSeparator();
 
     auto* edit_menu = m_hamburger_menu->addMenu("&Edit");
