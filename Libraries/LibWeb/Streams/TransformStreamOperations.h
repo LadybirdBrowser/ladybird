@@ -26,7 +26,7 @@ void transform_stream_unblock_write(TransformStream&);
 
 // 6.4.2. Default controllers, https://streams.spec.whatwg.org/#ts-default-controller-abstract-ops
 void set_up_transform_stream_default_controller(TransformStream&, TransformStreamDefaultController&, GC::Ref<TransformAlgorithm>, GC::Ref<FlushAlgorithm>, GC::Ref<CancelAlgorithm>);
-void set_up_transform_stream_default_controller_from_transformer(TransformStream&, JS::Value transformer, Transformer&);
+void set_up_transform_stream_default_controller_from_transformer(TransformStream&, JS::Value transformer, Bindings::Transformer&);
 void transform_stream_default_controller_clear_algorithms(TransformStreamDefaultController&);
 WebIDL::ExceptionOr<void> transform_stream_default_controller_enqueue(TransformStreamDefaultController&, JS::Value chunk);
 void transform_stream_default_controller_error(TransformStreamDefaultController&, JS::Value error);

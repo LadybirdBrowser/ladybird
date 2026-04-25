@@ -7,6 +7,7 @@
 #include <LibIPC/File.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/TransformStream.h>
+#include <LibWeb/Bindings/Transformer.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/Streams/ReadableStream.h>
@@ -14,7 +15,6 @@
 #include <LibWeb/Streams/TransformStream.h>
 #include <LibWeb/Streams/TransformStreamDefaultController.h>
 #include <LibWeb/Streams/TransformStreamOperations.h>
-#include <LibWeb/Streams/Transformer.h>
 #include <LibWeb/Streams/WritableStream.h>
 #include <LibWeb/Streams/WritableStreamOperations.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -35,7 +35,7 @@ WebIDL::ExceptionOr<GC::Ref<TransformStream>> TransformStream::construct_impl(JS
     auto transformer = transformer_object.has_value() ? JS::Value { transformer_object.value() } : JS::js_null();
 
     // 2. Let transformerDict be transformer, converted to an IDL value of type Transformer.
-    auto transformer_dict = TRY(Transformer::from_value(vm, transformer));
+    auto transformer_dict = TRY(Bindings::convert_to_idl_value_for_transformer(vm, transformer));
 
     // 3. If transformerDict["readableType"] exists, throw a RangeError exception.
     if (transformer_dict.readable_type.has_value())

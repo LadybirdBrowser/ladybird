@@ -1141,8 +1141,6 @@ class WritableStreamDefaultWriter;
 
 struct PullIntoDescriptor;
 
-struct Transformer;
-
 }
 
 namespace Web::StorageAPI {
