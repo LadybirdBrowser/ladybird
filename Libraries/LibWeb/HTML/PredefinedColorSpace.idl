@@ -1,0 +1,2 @@
+// https://html.spec.whatwg.org/multipage/canvas.html#predefinedcolorspace
+enum PredefinedColorSpace { "srgb", "srgb-linear", "display-p3", "display-p3-linear" };

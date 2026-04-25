@@ -1,7 +1,5 @@
 // https://html.spec.whatwg.org/multipage/canvas.html#imagedata
 
-enum PredefinedColorSpace { "srgb", "display-p3" };
-
 dictionary ImageDataSettings {
     PredefinedColorSpace colorSpace;
 };
