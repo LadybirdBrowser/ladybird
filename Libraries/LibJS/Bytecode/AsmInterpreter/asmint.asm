@@ -1705,146 +1705,132 @@ end
 
 # Fast path for array[int32_index] with Packed/Holey indexed storage.
 handler GetByValue
-    load_operand t1, m_base
-    load_operand t2, m_property
-    # Check base is an object
-    extract_tag t3, t1
-    branch_ne t3, OBJECT_TAG, .slow
-    # Check property is non-negative int32
-    extract_tag t4, t2
-    branch_ne t4, INT32_TAG, .slow
-    mov t4, t2
-    and t4, 0xFFFFFFFF
-    # t4 = index (zero-extended u32)
-    # Check high bit (negative int32)
-    branch_bit_set t4, 31, .slow
-    # Extract Object*
-    unbox_object t3, t1
-    # Check IsTypedArray flag -- branch to C++ helper early
-    load8 t0, [t3, OBJECT_FLAGS]
-    branch_bits_set t0, OBJECT_FLAG_IS_TYPED_ARRAY, .try_typed_array
-    # Check !may_interfere_with_indexed_property_access
-    branch_bits_set t0, OBJECT_FLAG_MAY_INTERFERE, .slow
+    temp base, prop, base_tag, prop_tag, index, obj, flags, storage_kind, size, elements, slot, capacity_addr, capacity, kind_byte, raw, addr, neg_zero, dst, result
+    ftemp slot_dbl
+    load_operand base, m_base
+    load_operand prop, m_property
+    extract_tag base_tag, base
+    branch_ne base_tag, OBJECT_TAG, .slow
+    extract_tag prop_tag, prop
+    branch_ne prop_tag, INT32_TAG, .slow
+    mov index, prop
+    and index, 0xFFFFFFFF
+    branch_bit_set index, 31, .slow
+    unbox_object obj, base
+    load8 flags, [obj, OBJECT_FLAGS]
+    branch_bits_set flags, OBJECT_FLAG_IS_TYPED_ARRAY, .try_typed_array
+    branch_bits_set flags, OBJECT_FLAG_MAY_INTERFERE, .slow
     # Packed is the hot path: in-bounds elements are always present.
-    load8 t0, [t3, OBJECT_INDEXED_STORAGE_KIND]
-    branch_ne t0, INDEXED_STORAGE_KIND_PACKED, .not_packed
-    # Check index < array_like_size
-    load32 t5, [t3, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
-    branch_ge_unsigned t4, t5, .slow
-    load64 t5, [t3, OBJECT_INDEXED_ELEMENTS]
-    load64 t0, [t5, t4, 8]
+    load8 storage_kind, [obj, OBJECT_INDEXED_STORAGE_KIND]
+    branch_ne storage_kind, INDEXED_STORAGE_KIND_PACKED, .not_packed
+    load32 size, [obj, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
+    branch_ge_unsigned index, size, .slow
+    load64 elements, [obj, OBJECT_INDEXED_ELEMENTS]
+    load64 dst, [elements, index, 8]
     # NB: No accessor check needed -- Packed/Holey storage
     #     can only hold default-attributed data properties.
-    store_operand m_dst, t0
+    store_operand m_dst, dst
     dispatch_next
 .not_packed:
-    branch_ne t0, INDEXED_STORAGE_KIND_HOLEY, .slow
+    branch_ne storage_kind, INDEXED_STORAGE_KIND_HOLEY, .slow
     # Holey arrays need a slot load to distinguish present elements from holes.
-    load32 t5, [t3, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
-    branch_ge_unsigned t4, t5, .slow
-    load64 t5, [t3, OBJECT_INDEXED_ELEMENTS]
-    branch_zero t5, .slow
-    mov t0, t5
-    sub t0, 8
-    load32 t0, [t0, 0]
-    branch_ge_unsigned t4, t0, .slow
-    load64 t0, [t5, t4, 8]
-    mov t5, EMPTY_TAG_SHIFTED
-    branch_eq t0, t5, .slow
-    store_operand m_dst, t0
+    load32 size, [obj, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
+    branch_ge_unsigned index, size, .slow
+    load64 elements, [obj, OBJECT_INDEXED_ELEMENTS]
+    branch_zero elements, .slow
+    mov capacity_addr, elements
+    sub capacity_addr, 8
+    load32 capacity, [capacity_addr, 0]
+    branch_ge_unsigned index, capacity, .slow
+    load64 slot, [elements, index, 8]
+    mov neg_zero, EMPTY_TAG_SHIFTED
+    branch_eq slot, neg_zero, .slow
+    store_operand m_dst, slot
     dispatch_next
 .try_typed_array:
-    # t3 = Object*, t4 = index (u32, non-negative)
-    # Load cached data pointer (pre-computed: buffer.data() + byte_offset)
-    # nullptr means uncached -> C++ helper will resolve the access.
-    load64 t5, [t3, TYPED_ARRAY_CACHED_DATA_PTR]
-    branch_zero t5, .try_typed_array_slow
+    load64 elements, [obj, TYPED_ARRAY_CACHED_DATA_PTR]
+    branch_zero elements, .try_typed_array_slow
     # Cached pointers only exist for fixed-length typed arrays, so array_length
     # is known to hold a concrete u32 value here.
-    load32 t0, [t3, TYPED_ARRAY_ARRAY_LENGTH_VALUE]
-    branch_ge_unsigned t4, t0, .try_typed_array_slow
-    # t5 = data base pointer, t4 = index
-    # Dispatch on kind
-    load8 t0, [t3, TYPED_ARRAY_KIND]
-    branch_eq t0, TYPED_ARRAY_KIND_INT32, .ta_int32
-    branch_any_eq t0, TYPED_ARRAY_KIND_UINT8, TYPED_ARRAY_KIND_UINT8_CLAMPED, .ta_uint8
-    branch_eq t0, TYPED_ARRAY_KIND_UINT16, .ta_uint16
-    branch_eq t0, TYPED_ARRAY_KIND_INT8, .ta_int8
-    branch_eq t0, TYPED_ARRAY_KIND_INT16, .ta_int16
-    branch_eq t0, TYPED_ARRAY_KIND_UINT32, .ta_uint32
-    branch_eq t0, TYPED_ARRAY_KIND_FLOAT32, .ta_float32
-    branch_eq t0, TYPED_ARRAY_KIND_FLOAT64, .ta_float64
+    load32 capacity, [obj, TYPED_ARRAY_ARRAY_LENGTH_VALUE]
+    branch_ge_unsigned index, capacity, .try_typed_array_slow
+    load8 kind_byte, [obj, TYPED_ARRAY_KIND]
+    branch_eq kind_byte, TYPED_ARRAY_KIND_INT32, .ta_int32
+    branch_any_eq kind_byte, TYPED_ARRAY_KIND_UINT8, TYPED_ARRAY_KIND_UINT8_CLAMPED, .ta_uint8
+    branch_eq kind_byte, TYPED_ARRAY_KIND_UINT16, .ta_uint16
+    branch_eq kind_byte, TYPED_ARRAY_KIND_INT8, .ta_int8
+    branch_eq kind_byte, TYPED_ARRAY_KIND_INT16, .ta_int16
+    branch_eq kind_byte, TYPED_ARRAY_KIND_UINT32, .ta_uint32
+    branch_eq kind_byte, TYPED_ARRAY_KIND_FLOAT32, .ta_float32
+    branch_eq kind_byte, TYPED_ARRAY_KIND_FLOAT64, .ta_float64
     jmp .try_typed_array_slow
 .ta_int32:
-    load32 t0, [t5, t4, 4]
+    load32 raw, [elements, index, 4]
     jmp .ta_box_int32
 .ta_uint8:
-    load8 t0, [t5, t4]
+    load8 raw, [elements, index]
     jmp .ta_box_int32
 .ta_uint16:
-    mov t0, t4
-    add t0, t4
-    load16 t0, [t5, t0]
+    mov addr, index
+    add addr, index
+    load16 raw, [elements, addr]
     jmp .ta_box_int32
 .ta_int8:
-    load8s t0, [t5, t4]
+    load8s raw, [elements, index]
     jmp .ta_box_int32
 .ta_int16:
-    mov t0, t4
-    add t0, t4
-    load16s t0, [t5, t0]
+    mov addr, index
+    add addr, index
+    load16s raw, [elements, addr]
     jmp .ta_box_int32
 .ta_float32:
-    mov t0, t4
-    shl t0, 2
-    add t0, t5
-    loadf32 ft0, [t0, 0]
-    float_to_double ft0, ft0
-    fp_mov t1, ft0
-    mov t3, NEGATIVE_ZERO
-    branch_eq t1, t3, .ta_f64_as_double
-    double_to_int32 t0, ft0, .ta_f64_as_double
-    branch_nonzero t0, .ta_f64_as_int
+    mov addr, index
+    shl addr, 2
+    add addr, elements
+    loadf32 slot_dbl, [addr, 0]
+    float_to_double slot_dbl, slot_dbl
+    fp_mov slot, slot_dbl
+    mov neg_zero, NEGATIVE_ZERO
+    branch_eq slot, neg_zero, .ta_f64_as_double
+    double_to_int32 raw, slot_dbl, .ta_f64_as_double
+    branch_nonzero raw, .ta_f64_as_int
     jmp .ta_f64_as_int
 .ta_float64:
-    # index * 8 for f64 elements
-    mov t0, t4
-    shl t0, 3
-    add t0, t5
-    load64 t1, [t0, 0]
-    fp_mov ft0, t1
-    # Exclude negative zero early (t1 gets clobbered by double_to_int32)
-    mov t3, NEGATIVE_ZERO
-    branch_eq t1, t3, .ta_f64_as_double
-    # Try to store as int32 if the value is an integer in i32 range.
-    double_to_int32 t0, ft0, .ta_f64_as_double
-    branch_nonzero t0, .ta_f64_as_int
+    mov addr, index
+    shl addr, 3
+    add addr, elements
+    load64 slot, [addr, 0]
+    fp_mov slot_dbl, slot
+    # Exclude negative zero early (slot gets clobbered by double_to_int32).
+    mov neg_zero, NEGATIVE_ZERO
+    branch_eq slot, neg_zero, .ta_f64_as_double
+    double_to_int32 raw, slot_dbl, .ta_f64_as_double
+    branch_nonzero raw, .ta_f64_as_int
     # double_to_int32 succeeded with 0 -- this is +0.0, box as int
 .ta_f64_as_int:
-    box_int32 t3, t0
-    store_operand m_dst, t3
+    box_int32 dst, raw
+    store_operand m_dst, dst
     dispatch_next
 .ta_f64_as_double:
-    canonicalize_nan t0, ft0
-    store_operand m_dst, t0
+    canonicalize_nan dst, slot_dbl
+    store_operand m_dst, dst
     dispatch_next
 .ta_uint32:
-    load32 t0, [t5, t4, 4]
-    branch_bit_set t0, 31, .ta_uint32_to_double
+    load32 raw, [elements, index, 4]
+    branch_bit_set raw, 31, .ta_uint32_to_double
     jmp .ta_box_int32
 .ta_uint32_to_double:
-    # Value > INT32_MAX, convert to double
-    int_to_double ft0, t0
-    fp_mov t0, ft0
-    store_operand m_dst, t0
+    int_to_double slot_dbl, raw
+    fp_mov dst, slot_dbl
+    store_operand m_dst, dst
     dispatch_next
 .ta_box_int32:
-    box_int32_clean t3, t0
-    store_operand m_dst, t3
+    box_int32_clean dst, raw
+    store_operand m_dst, dst
     dispatch_next
 .try_typed_array_slow:
-    call_interp asm_try_get_by_value_typed_array
-    branch_nonzero t0, .slow
+    call_interp asm_try_get_by_value_typed_array, result
+    branch_nonzero result, .slow
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_get_by_value
