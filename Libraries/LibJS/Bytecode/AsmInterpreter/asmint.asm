@@ -1015,25 +1015,27 @@ end
 
 # x++: save original to dst first, then increment src in-place.
 handler PostfixIncrement
-    load_operand t1, m_src
-    extract_tag t2, t1
-    branch_ne t2, INT32_TAG, .slow
+    temp value, tag, int_value, dst
+    ftemp result_dbl, one_dbl
+    load_operand value, m_src
+    extract_tag tag, value
+    branch_ne tag, INT32_TAG, .slow
     # Save original value to dst (the "postfix" part)
-    store_operand m_dst, t1
+    store_operand m_dst, value
     # Increment in-place: src = src + 1
-    unbox_int32 t3, t1
-    add32_overflow t3, 1, .overflow_after_store
-    box_int32_clean t4, t3
-    store_operand m_src, t4
+    unbox_int32 int_value, value
+    add32_overflow int_value, 1, .overflow_after_store
+    box_int32_clean dst, int_value
+    store_operand m_src, dst
     dispatch_next
 .overflow_after_store:
-    unbox_int32 t3, t1
-    int_to_double ft0, t3
-    mov t0, DOUBLE_ONE
-    fp_mov ft1, t0
-    fp_add ft0, ft1
-    fp_mov t4, ft0
-    store_operand m_src, t4
+    unbox_int32 int_value, value
+    int_to_double result_dbl, int_value
+    mov dst, DOUBLE_ONE
+    fp_mov one_dbl, dst
+    fp_add result_dbl, one_dbl
+    fp_mov dst, result_dbl
+    store_operand m_src, dst
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_postfix_increment
@@ -1354,33 +1356,35 @@ handler LooselyInequals
 end
 
 handler UnaryMinus
-    load_operand t1, m_src
-    extract_tag t2, t1
-    branch_ne t2, INT32_TAG, .try_double
-    unbox_int32 t3, t1
+    temp value, tag, int_value, dst
+    ftemp dst_dbl
+    load_operand value, m_src
+    extract_tag tag, value
+    branch_ne tag, INT32_TAG, .try_double
+    unbox_int32 int_value, value
     # -0 check: if value is 0, result is -0.0 (double)
-    branch_zero t3, .negative_zero
+    branch_zero int_value, .negative_zero
     # 32-bit negate with overflow detection (INT32_MIN)
-    neg32_overflow t3, .overflow
-    box_int32_clean t4, t3
-    store_operand m_dst, t4
+    neg32_overflow int_value, .overflow
+    box_int32_clean dst, int_value
+    store_operand m_dst, dst
     dispatch_next
 .negative_zero:
-    mov t0, NEGATIVE_ZERO
-    store_operand m_dst, t0
+    mov dst, NEGATIVE_ZERO
+    store_operand m_dst, dst
     dispatch_next
 .overflow:
     # INT32_MIN: -(-2147483648) = 2147483648.0
-    int_to_double ft0, t3
-    fp_mov t4, ft0
-    store_operand m_dst, t4
+    int_to_double dst_dbl, int_value
+    fp_mov dst, dst_dbl
+    store_operand m_dst, dst
     dispatch_next
 .try_double:
-    # t2 already has tag
-    check_tag_is_double t2, .slow
+    # tag already has the lhs tag
+    check_tag_is_double tag, .slow
     # Negate double: flip sign bit (bit 63)
-    toggle_bit t1, 63
-    store_operand m_dst, t1
+    toggle_bit value, 63
+    store_operand m_dst, value
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_unary_minus
@@ -1388,55 +1392,61 @@ end
 
 # x--: save original to dst first, then decrement src in-place.
 handler PostfixDecrement
-    load_operand t1, m_src
-    extract_tag t2, t1
-    branch_ne t2, INT32_TAG, .slow
+    temp value, tag, int_value, dst
+    ftemp result_dbl, one_dbl
+    load_operand value, m_src
+    extract_tag tag, value
+    branch_ne tag, INT32_TAG, .slow
     # Save original value to dst (the "postfix" part)
-    store_operand m_dst, t1
+    store_operand m_dst, value
     # Decrement in-place: src = src - 1
-    unbox_int32 t3, t1
-    sub32_overflow t3, 1, .overflow_after_store
-    box_int32_clean t4, t3
-    store_operand m_src, t4
+    unbox_int32 int_value, value
+    sub32_overflow int_value, 1, .overflow_after_store
+    box_int32_clean dst, int_value
+    store_operand m_src, dst
     dispatch_next
 .overflow_after_store:
-    unbox_int32 t3, t1
-    int_to_double ft0, t3
-    mov t0, DOUBLE_ONE
-    fp_mov ft1, t0
-    fp_sub ft0, ft1
-    fp_mov t4, ft0
-    store_operand m_src, t4
+    unbox_int32 int_value, value
+    int_to_double result_dbl, int_value
+    mov dst, DOUBLE_ONE
+    fp_mov one_dbl, dst
+    fp_sub result_dbl, one_dbl
+    fp_mov dst, result_dbl
+    store_operand m_src, dst
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_postfix_decrement
 end
 
 handler ToInt32
-    load_operand t1, m_value
-    extract_tag t2, t1
-    branch_ne t2, INT32_TAG, .try_double
+    temp value, tag, tag_copy, dst
+    ftemp value_dbl
+    load_operand value, m_value
+    extract_tag tag, value
+    branch_ne tag, INT32_TAG, .try_double
     # Already int32, just copy
-    store_operand m_dst, t1
+    store_operand m_dst, value
     dispatch_next
 .try_double:
-    # t2 already has tag; check if double (copy first, t2 needed at .try_boolean)
-    mov t3, t2
-    check_tag_is_double t3, .try_boolean
+    # `tag` already has the value's tag; check if double (copy first because
+    # check_tag_is_double clobbers its argument and `tag` is needed again
+    # at .try_boolean for the boolean check).
+    mov tag_copy, tag
+    check_tag_is_double tag_copy, .try_boolean
     # Convert double to int32 using JS ToInt32 semantics.
     # With FEAT_JSCVT: fjcvtzs handles everything in one instruction.
     # Without: truncate + round-trip check, slow path on mismatch.
-    fp_mov ft0, t1
-    js_to_int32 t2, ft0, .slow
-    box_int32_clean t2, t2
-    store_operand m_dst, t2
+    fp_mov value_dbl, value
+    js_to_int32 dst, value_dbl, .slow
+    box_int32_clean dst, dst
+    store_operand m_dst, dst
     dispatch_next
 .try_boolean:
-    branch_ne t2, BOOLEAN_TAG, .slow
+    branch_ne tag, BOOLEAN_TAG, .slow
     # Convert boolean to int32: false -> 0, true -> 1
-    and t1, 1
-    box_int32_clean t1, t1
-    store_operand m_dst, t1
+    and value, 1
+    box_int32_clean dst, value
+    store_operand m_dst, dst
     dispatch_next
 .slow:
     # Slow path handles other types (string, object, nullish, etc) and uncommon cases.
