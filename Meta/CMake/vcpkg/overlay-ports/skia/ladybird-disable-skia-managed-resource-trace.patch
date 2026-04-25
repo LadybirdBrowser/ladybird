@@ -1,0 +1,14 @@
+diff --git a/src/gpu/ganesh/GrManagedResource.h b/src/gpu/ganesh/GrManagedResource.h
+--- a/src/gpu/ganesh/GrManagedResource.h
++++ b/src/gpu/ganesh/GrManagedResource.h
+@@ -23,7 +23,7 @@
+ 
+ // uncomment to enable tracing of resource refs
+-#ifdef SK_DEBUG
+-#define SK_TRACE_MANAGED_RESOURCES
+-#endif
++// #ifdef SK_DEBUG
++// #define SK_TRACE_MANAGED_RESOURCES
++// #endif
+ 
+ /** \class GrManagedResource
