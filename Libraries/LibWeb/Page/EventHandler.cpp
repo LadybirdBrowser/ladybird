@@ -1496,6 +1496,10 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
     // NB: Dispatching an event may have disturbed the world.
     if (m_navigable->active_document() != document)
         return EventResult::Accepted;
+
+    if (!m_middle_button_scroll_handler && !is_handling_mouse_selection())
+        return EventResult::Handled;
+
     document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseMove);
     if (!paint_root())
         return EventResult::Accepted;
