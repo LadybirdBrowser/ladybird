@@ -279,6 +279,11 @@ static ByteString make_input_acceptable_cpp(ByteString const& input)
     return input.replace("-"sv, "_"sv, ReplaceMode::All);
 }
 
+static ByteString idl_value_conversion_function_name(ByteString const& type_name)
+{
+    return ByteString::formatted("convert_to_idl_value_for_{}", make_input_acceptable_cpp(type_name.to_snakecase()));
+}
+
 static void generate_include_for_iterator(auto& generator, auto& iterator_path)
 {
     auto iterator_generator = generator.fork();
@@ -592,6 +597,31 @@ static void emit_includes_for_module_dictionary_dependencies(Module const& modul
         generate_bindings_include_for_module(generator, *included_module);
 }
 
+static void emit_includes_for_module_idl_value_conversion_dependencies(Module const& module, SourceGenerator& generator)
+{
+    IncludeCollector collector;
+
+    for (auto const& dictionary_name : module.own_dictionaries) {
+        auto dictionary = module.context->dictionaries.find(dictionary_name);
+        VERIFY(dictionary != module.context->dictionaries.end());
+        collect_include_dependencies(*module.context, dictionary->value, collector);
+    }
+
+    quick_sort(collector.source_modules, [](auto const* a, auto const* b) {
+        return a->module_own_path < b->module_own_path;
+    });
+    quick_sort(collector.bindings_modules, [](auto const* a, auto const* b) {
+        return a->module_own_path < b->module_own_path;
+    });
+
+    for (auto const* included_module : collector.source_modules)
+        generate_include_for_module(generator, *included_module);
+    for (auto const* included_module : collector.bindings_modules) {
+        if (included_module->module_own_path == module.module_own_path)
+            continue;
+        generate_bindings_include_for_module(generator, *included_module);
+    }
+}
 template<typename ParameterType>
 static void generate_to_string(SourceGenerator& scoped_generator, ParameterType const& parameter, bool variadic, bool optional, Optional<ByteString> const& optional_default_value)
 {
@@ -1226,6 +1256,25 @@ static void generate_enum_to_cpp(SourceGenerator& scoped_generator, Enumeration 
     auto default_value_cpp_name = enumeration.translated_cpp_names.get(enum_member_name);
     VERIFY(default_value_cpp_name.has_value());
     enum_generator.set("enum.default.cpp_value", *default_value_cpp_name);
+
+    if (throw_on_invalid == ThrowOnInvalidEnumValue::Yes) {
+        enum_generator.append(R"~~~(
+    @parameter.type.name.normalized@ @cpp_name@ { @parameter.type.name.normalized@::@enum.default.cpp_value@ };
+)~~~");
+
+        if (optional) {
+            enum_generator.append(R"~~~(
+    if (!@js_name@@js_suffix@.is_undefined())
+        @cpp_name@ = TRY(@parameter.type.idl_value_conversion_function@(vm, @js_name@@js_suffix@));
+)~~~");
+        } else {
+            enum_generator.append(R"~~~(
+    @cpp_name@ = TRY(@parameter.type.idl_value_conversion_function@(vm, @js_name@@js_suffix@));
+)~~~");
+        }
+        return;
+    }
+
     enum_generator.set("js_name.as_string", ByteString::formatted("{}{}_string", enum_generator.get("js_name"sv), enum_generator.get("js_suffix"sv)));
     enum_generator.append(R"~~~(
     @parameter.type.name.normalized@ @cpp_name@ { @parameter.type.name.normalized@::@enum.default.cpp_value@ };
@@ -1254,17 +1303,10 @@ static void generate_enum_to_cpp(SourceGenerator& scoped_generator, Enumeration 
 )~~~");
     }
 
-    if (throw_on_invalid == ThrowOnInvalidEnumValue::Yes) {
-        enum_generator.append(R"~~~(
-    else
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::InvalidEnumerationValue, @js_name.as_string@, "@parameter.type.name@");
-)~~~");
-    } else {
-        enum_generator.append(R"~~~(
+    enum_generator.append(R"~~~(
     else
         return JS::js_undefined();
 )~~~");
-    }
 
     if (optional) {
         enum_generator.append(R"~~~(
@@ -1482,23 +1524,8 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
     }
 
     if (dictionary_type) {
-        auto dictionary_generator = union_generator.fork();
-        dictionary_generator.set("dictionary.type", dictionary_type->name());
-
-        // The lambda must take the JS::Value to convert as a parameter instead of capturing it in order to support union types being variadic.
-        dictionary_generator.append(R"~~~(
-    auto @js_name@@js_suffix@_to_dictionary = [&vm, &realm](JS::Value @js_name@@js_suffix@) -> JS::ThrowCompletionOr<@dictionary.type@> {
-        // This might be unused.
-        (void)realm;
-)~~~");
-
-        IDL::Parameter dictionary_parameter { .type = *dictionary_type, .name = cpp_name, .optional_default_value = {}, .extended_attributes = {} };
-        generate_to_cpp(dictionary_generator, dictionary_parameter, js_name, js_suffix, "dictionary_union_type"sv, context, false, {}, false, recursion_depth + 1);
-
-        dictionary_generator.append(R"~~~(
-        return dictionary_union_type;
-    };
-)~~~");
+        union_generator.set("dictionary.type", dictionary_type->name());
+        union_generator.set("dictionary.type.idl_value_conversion_function", idl_value_conversion_function_name(dictionary_type->name()));
     }
 
     // A lambda is used because Variants without "Empty" can't easily be default initialized.
@@ -1510,16 +1537,8 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
 
     // The lambda must take the JS::Value to convert as a parameter instead of capturing it in order to support union types being variadic.
 
-    StringBuilder to_variant_captures;
-    to_variant_captures.append("&vm, &realm"sv);
-
-    if (dictionary_type)
-        to_variant_captures.append(ByteString::formatted(", &{}{}_to_dictionary", js_name, js_suffix));
-
-    union_generator.set("to_variant_captures", to_variant_captures.to_byte_string());
-
     union_generator.append(R"~~~(
-    auto @js_name@@js_suffix@_to_variant = [@to_variant_captures@](JS::Value @js_name@@js_suffix@) -> JS::ThrowCompletionOr<@union_type@> {
+    auto @js_name@@js_suffix@_to_variant = [&vm, &realm](JS::Value @js_name@@js_suffix@) -> JS::ThrowCompletionOr<@union_type@> {
         // These might be unused.
         (void)vm;
         (void)realm;
@@ -1544,7 +1563,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
         //    4.1 If types includes a dictionary type, then return the result of converting V to that dictionary type.
         union_generator.append(R"~~~(
         if (@js_name@@js_suffix@.is_nullish())
-            return @union_type@ { TRY(@js_name@@js_suffix@_to_dictionary(@js_name@@js_suffix@)) };
+            return @union_type@ { TRY(@dictionary.type.idl_value_conversion_function@(vm, @js_name@@js_suffix@)) };
 )~~~");
     }
 
@@ -1701,7 +1720,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
     // 3. If types includes a dictionary type, then return the result of converting V to that dictionary type.
     if (dictionary_type) {
         union_generator.append(R"~~~(
-        return @union_type@ { TRY(@js_name@@js_suffix@_to_dictionary(@js_name@@js_suffix@)) };
+        return @union_type@ { TRY(@dictionary.type.idl_value_conversion_function@(vm, @js_name@@js_suffix@)) };
 )~~~");
     }
 
@@ -1953,10 +1972,14 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
                     union_generator.append(R"~~~(
     @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? TRY(@js_name@@js_suffix@_to_variant(JS::Value(JS::PrimitiveString::create(vm, MUST(String::from_utf8(@default_string_value@sv)))))) : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
 )~~~");
+                } else if (optional_default_value == "[]") {
+                    union_generator.append(R"~~~(
+    @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? TRY(@js_name@@js_suffix@_to_variant(JS::Value(MUST(JS::Array::create(realm, 0))))) : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
+)~~~");
                 } else if (optional_default_value == "{}") {
                     VERIFY(dictionary_type);
                     union_generator.append(R"~~~(
-    @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? TRY(@js_name@@js_suffix@_to_dictionary(@js_name@@js_suffix@)) : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
+    @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? @union_type@ { TRY(@dictionary.type.idl_value_conversion_function@(vm, @js_name@@js_suffix@)) } : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
 )~~~");
                 } else if (optional_default_value->to_number<int>().has_value() || optional_default_value->to_number<unsigned>().has_value()) {
                     union_generator.append(R"~~~(
@@ -2002,7 +2025,8 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
     auto const& type = parameter.type;
     scoped_generator.set("parameter.type.name", type->name());
 
-    scoped_generator.set("parameter.type.name.normalized", cpp_type_name(*type, context));
+    auto normalized_parameter_type_name = cpp_type_name(*type, context);
+    scoped_generator.set("parameter.type.name.normalized", normalized_parameter_type_name);
 
     scoped_generator.set("parameter.name", parameter.name);
 
@@ -2035,14 +2059,15 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         ThrowOnInvalidEnumValue throw_on_invalid = ThrowOnInvalidEnumValue::No;
         if constexpr (!IsSame<Attribute, RemoveConst<ParameterType>>)
             throw_on_invalid = ThrowOnInvalidEnumValue::Yes;
+        scoped_generator.set("parameter.type.idl_value_conversion_function", idl_value_conversion_function_name(normalized_parameter_type_name));
         generate_enum_to_cpp(scoped_generator, context.enumerations.find(parameter.type->name())->value, throw_on_invalid, optional, optional_default_value);
     } else if (context.dictionaries.contains(parameter.type->name())) {
         if (optional_default_value.has_value() && optional_default_value != "{}")
             TODO();
-        auto dictionary_generator = scoped_generator.fork();
-        auto dictionary_name = parameter.type->name();
-        auto& dictionary = context.dictionaries.find(dictionary_name)->value;
-        generate_dictionary_to_cpp(dictionary_generator, context, dictionary, dictionary_name);
+        scoped_generator.set("parameter.type.idl_value_conversion_function", idl_value_conversion_function_name(normalized_parameter_type_name));
+        scoped_generator.append(R"~~~(
+    auto @cpp_name@ = TRY(@parameter.type.idl_value_conversion_function@(vm, @js_name@@js_suffix@));
+)~~~");
     } else if (context.callback_functions.contains(parameter.type->name())) {
         auto& callback_function = context.callback_functions.find(parameter.type->name())->value;
         generate_callback_function_to_cpp(scoped_generator, *parameter.type, callback_function, optional);
@@ -2408,7 +2433,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         if (type.is_nullable() || is_optional)
             scoped_generator.set("value", ByteString::formatted("{}.value()", value));
         scoped_generator.append(R"~~~(
-    @result_expression@ JS::PrimitiveString::create(vm, Bindings::idl_enum_to_string(@value@));
+    @result_expression@ JS::PrimitiveString::create(vm, idl_enum_to_string(@value@));
 )~~~");
     } else if (context.callback_functions.contains(type.name())) {
         // https://webidl.spec.whatwg.org/#es-callback-function
@@ -3398,6 +3423,16 @@ static void emit_dictionary_support_includes(StringBuilder& builder)
 )~~~"sv);
 }
 
+static void emit_idl_value_conversion_support_includes(StringBuilder& builder)
+{
+    builder.append(R"~~~(
+#include <AK/String.h>
+#include <LibJS/Forward.h>
+#include <LibJS/Runtime/Value.h>
+
+)~~~"sv);
+}
+
 static ByteString dictionary_member_cpp_type(Context const& context, DictionaryMember const& member)
 {
     auto const& type = *member.type;
@@ -3634,7 +3669,12 @@ static void generate_dictionary_struct(Context const& context, ByteString const&
         member_generator.set("member.initializer", dictionary_member_initializer(context, member));
         member_generator.append("    @member.type@ @member.name@@member.initializer@;\n");
     }
-    generator.append("};\n");
+    generator.set("dictionary.idl_value_conversion_function", idl_value_conversion_function_name(dictionary_name));
+    generator.append(R"~~~(
+};
+
+JS::ThrowCompletionOr<@dictionary.name@> @dictionary.idl_value_conversion_function@(JS::VM&, JS::Value);
+)~~~");
 }
 
 static void generate_same_module_dictionary_dependencies(Context const& context, ByteString const& module_own_path, Type const& type, StringBuilder& builder, HashTable<ByteString>& emitted_dictionaries)
@@ -3687,6 +3727,7 @@ static void generate_enumerations(IDL::Context const& context, OrderedHashTable<
         auto enum_generator = generator.fork();
         enum_generator.set("enum.type.name", it->key);
         enum_generator.set("enum.underlying_type", get_best_value_for_underlying_enum_type(it->value.translated_cpp_names.size()));
+        enum_generator.set("enum.idl_value_conversion_function", idl_value_conversion_function_name(it->key));
         enum_generator.append(R"~~~(
 enum class @enum.type.name@ : @enum.underlying_type@ {
 )~~~");
@@ -3699,13 +3740,92 @@ enum class @enum.type.name@ : @enum.underlying_type@ {
 
         enum_generator.append(R"~~~(
 };
+
+JS::ThrowCompletionOr<@enum.type.name@> @enum.idl_value_conversion_function@(JS::VM&, JS::Value);
+
+String idl_enum_to_string(@enum.type.name@);
+)~~~");
+    }
+}
+
+static void generate_enumerations(IDL::Interface const& interface, StringBuilder& builder)
+{
+    generate_enumerations(interface.context, interface.own_enumerations, builder);
+}
+
+static void generate_dictionary_idl_value_conversions(IDL::Context const& context, OrderedHashTable<ByteString> const& own_dictionaries, StringBuilder& builder)
+{
+    SourceGenerator generator { builder };
+
+    for (auto const& dictionary_name : own_dictionaries) {
+        auto it = context.dictionaries.find(dictionary_name);
+        VERIFY(it != context.dictionaries.end());
+        if (!it->value.is_original_definition)
+            continue;
+
+        auto dictionary_generator = generator.fork();
+        dictionary_generator.set("dictionary.name", it->key);
+        dictionary_generator.set("parameter.type.name", it->key);
+        dictionary_generator.set("parameter.type.name.normalized", it->key);
+        dictionary_generator.set("dictionary.idl_value_conversion_function", idl_value_conversion_function_name(it->key));
+        dictionary_generator.set("js_name", "value");
+        dictionary_generator.set("js_suffix", "");
+        dictionary_generator.set("cpp_name", "converted_value");
+        dictionary_generator.append(R"~~~(
+JS::ThrowCompletionOr<@dictionary.name@> @dictionary.idl_value_conversion_function@(JS::VM& vm, JS::Value value)
+{
+    [[maybe_unused]] auto& realm = *vm.current_realm();
 )~~~");
 
+        generate_dictionary_to_cpp(dictionary_generator, context, it->value, dictionary_name);
+
+        dictionary_generator.append(R"~~~(
+    return converted_value;
+}
+)~~~");
+    }
+}
+
+static void generate_enumeration_idl_value_conversions(IDL::Context const& context, OrderedHashTable<ByteString> const& own_enumerations, StringBuilder& builder)
+{
+    SourceGenerator generator { builder };
+
+    for (auto const& enumeration_name : own_enumerations) {
+        auto it = context.enumerations.find(enumeration_name);
+        VERIFY(it != context.enumerations.end());
+        if (!it->value.is_original_definition)
+            continue;
+
+        auto enum_generator = generator.fork();
+        enum_generator.set("enum.type.name", it->key);
+        enum_generator.set("enum.idl_value_conversion_function", idl_value_conversion_function_name(it->key));
         enum_generator.append(R"~~~(
-inline String idl_enum_to_string(@enum.type.name@ value)
+JS::ThrowCompletionOr<@enum.type.name@> @enum.idl_value_conversion_function@(JS::VM& vm, JS::Value value)
+{
+    auto value_as_string = TRY(value.to_string(vm));
+)~~~");
+
+        bool first = true;
+        for (auto const& entry : it->value.translated_cpp_names) {
+            enum_generator.set("enum.entry", entry.value);
+            enum_generator.set("enum.string", entry.key);
+            enum_generator.set("else", first ? "" : "else ");
+            first = false;
+            enum_generator.append(R"~~~(
+    @else@if (value_as_string == "@enum.string@"sv)
+        return @enum.type.name@::@enum.entry@;
+)~~~");
+        }
+
+        enum_generator.append(R"~~~(
+    return vm.throw_completion<JS::TypeError>(JS::ErrorType::InvalidEnumerationValue, value_as_string, "@enum.type.name@");
+}
+
+String idl_enum_to_string(@enum.type.name@ value)
 {
     switch (value) {
 )~~~");
+
         for (auto const& entry : it->value.translated_cpp_names) {
             enum_generator.set("enum.entry", entry.value);
             enum_generator.set("enum.string", entry.key);
@@ -3714,17 +3834,13 @@ inline String idl_enum_to_string(@enum.type.name@ value)
         return "@enum.string@"_string;
 )~~~");
         }
+
         enum_generator.append(R"~~~(
     }
     VERIFY_NOT_REACHED();
 }
 )~~~");
     }
-}
-
-static void generate_enumerations(IDL::Interface const& interface, StringBuilder& builder)
-{
-    generate_enumerations(interface.context, interface.own_enumerations, builder);
 }
 
 static void generate_prototype_or_global_mixin_declarations(IDL::Interface const& interface, StringBuilder& builder)
@@ -6617,6 +6733,53 @@ namespace Web::Bindings {
 )~~~");
 }
 
+static void generate_idl_value_conversion_implementation_prologue(IDL::Module const& module, StringBuilder& builder)
+{
+    SourceGenerator generator { builder };
+    generator.set("bindings_name", LexicalPath { module.module_own_path }.basename(LexicalPath::StripExtension::Yes));
+
+    generator.append(R"~~~(
+#include <AK/TypeCasts.h>
+#include <LibGC/Heap.h>
+#include <LibJS/Runtime/AbstractOperations.h>
+#include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/ArrayBuffer.h>
+#include <LibJS/Runtime/DataView.h>
+#include <LibJS/Runtime/Error.h>
+#include <LibJS/Runtime/FunctionObject.h>
+#include <LibJS/Runtime/Iterator.h>
+#include <LibJS/Runtime/PrimitiveString.h>
+#include <LibJS/Runtime/PromiseConstructor.h>
+#include <LibJS/Runtime/Realm.h>
+#include <LibJS/Runtime/TypedArray.h>
+#include <LibJS/Runtime/VM.h>
+#include <LibJS/Runtime/Value.h>
+#include <LibJS/Runtime/ValueInlines.h>
+#include <LibWeb/Bindings/@bindings_name@.h>
+#include <LibWeb/Bindings/ExceptionOrUtils.h>
+#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/WindowProxy.h>
+#include <LibWeb/WebIDL/AbstractOperations.h>
+#include <LibWeb/WebIDL/Buffers.h>
+#include <LibWeb/WebIDL/CallbackType.h>
+
+)~~~");
+
+    emit_includes_for_module_idl_value_conversion_dependencies(module, generator);
+
+    generator.append(R"~~~(
+namespace Web::Bindings {
+
+)~~~");
+}
+
+static void generate_idl_value_conversion_implementations(IDL::Module const& module, StringBuilder& builder)
+{
+    generate_enumeration_idl_value_conversions(*module.context, module.own_enumerations, builder);
+    generate_dictionary_idl_value_conversions(*module.context, module.own_dictionaries, builder);
+}
+
 static void generate_header_for_interface(IDL::Interface const& interface, StringBuilder& builder)
 {
     builder.append(R"~~~(#pragma once
@@ -6624,9 +6787,12 @@ static void generate_header_for_interface(IDL::Interface const& interface, Strin
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Object.h>
 
-)~~~"sv);
+    )~~~"sv);
 
     SourceGenerator generator { builder };
+    if (!interface.own_dictionaries.is_empty() || !interface.own_enumerations.is_empty()) {
+        emit_idl_value_conversion_support_includes(builder);
+    }
     if (!interface.own_dictionaries.is_empty()) {
         emit_includes_for_module_dictionary_dependencies(module_for_path(interface.context, interface.module_own_path), generator);
         emit_dictionary_support_includes(builder);
@@ -6683,6 +6849,7 @@ void generate_header(IDL::Module const& module, StringBuilder& builder)
 )~~~"sv);
 
         SourceGenerator generator { builder };
+        emit_idl_value_conversion_support_includes(builder);
         if (!module.own_dictionaries.is_empty()) {
             emit_includes_for_module_dictionary_dependencies(module, generator);
             emit_dictionary_support_includes(builder);
@@ -6729,6 +6896,8 @@ static void generate_implementation_for_interface(IDL::Interface const& interfac
     if (interface.extended_attributes.contains("Global"))
         generate_global_mixin_implementation(interface, builder);
 
+    generate_idl_value_conversion_implementations(module_for_path(interface.context, interface.module_own_path), builder);
+
     builder.append(R"~~~(
 } // namespace Web::Bindings
 )~~~"sv);
@@ -6736,13 +6905,64 @@ static void generate_implementation_for_interface(IDL::Interface const& interfac
 
 void generate_implementation(IDL::Module const& module, StringBuilder& builder)
 {
-    if (!module.interface.has_value() || !module.interface->will_generate_code())
+    if (!module.interface.has_value()) {
+        if (module.own_dictionaries.is_empty() && module.own_enumerations.is_empty())
+            return;
+        generate_idl_value_conversion_implementation_prologue(module, builder);
+        generate_idl_value_conversion_implementations(module, builder);
+        builder.append(R"~~~(
+} // namespace Web::Bindings
+)~~~"sv);
+        return;
+    }
+
+    if (!module.interface->will_generate_code())
         return;
     generate_implementation_for_interface(*module.interface, builder);
 }
 
 void generate_forward_header(IDL::Context const& context, StringBuilder& builder)
 {
+    builder.append(R"~~~(#pragma once
+
+)~~~"sv);
+
+    HashMap<ByteString, Vector<ByteString>> interface_names_by_namespace;
+    Vector<ByteString> interface_namespaces;
+
+    for (auto const& interface : context.owned_interfaces) {
+        if (!interface->will_generate_code() || interface->is_namespace || interface->is_mixin)
+            continue;
+
+        auto last_namespace_separator = interface->fully_qualified_name.find_last("::"sv);
+        if (!last_namespace_separator.has_value())
+            continue;
+
+        auto namespace_name = interface->fully_qualified_name.substring_view(0, *last_namespace_separator).to_byte_string();
+        auto class_name = interface->fully_qualified_name.substring_view(*last_namespace_separator + 2).to_byte_string();
+
+        auto& class_names = interface_names_by_namespace.ensure(namespace_name);
+        if (class_names.is_empty())
+            interface_namespaces.append(namespace_name);
+        class_names.append(class_name);
+    }
+
+    quick_sort(interface_namespaces);
+
+    for (auto const& namespace_name : interface_namespaces) {
+        auto& class_names = interface_names_by_namespace.find(namespace_name)->value;
+        quick_sort(class_names);
+
+        builder.appendff("namespace Web::{} {{\n\n", namespace_name);
+
+        for (auto const& class_name : class_names)
+            builder.appendff("class {};\n", class_name);
+
+        builder.append(R"~~~(
+}
+
+)~~~"sv);
+    }
     Vector<ByteString> dictionary_names;
     dictionary_names.ensure_capacity(context.dictionaries.size());
     for (auto const& it : context.dictionaries)
@@ -6750,9 +6970,7 @@ void generate_forward_header(IDL::Context const& context, StringBuilder& builder
 
     quick_sort(dictionary_names);
 
-    builder.append(R"~~~(#pragma once
-
-namespace Web::Bindings {
+    builder.append(R"~~~(namespace Web::Bindings {
 
 )~~~"sv);
 
