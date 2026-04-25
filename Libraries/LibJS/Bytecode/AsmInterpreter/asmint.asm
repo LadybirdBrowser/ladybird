@@ -2660,88 +2660,90 @@ handler GetObjectPropertyIterator
 end
 
 handler ObjectPropertyIteratorNext
-    load_operand t1, m_iterator_object
-    extract_tag t2, t1
-    branch_ne t2, OBJECT_TAG, .slow
-    unbox_object t3, t1
+    temp it_value, tag, iterator, fast_path, expected, cache, cached_shape, receiver, current_shape, is_dict, cur_dict_gen, dict_gen, storage_kind, packed_kind, size, expected_size, validity, valid, indexed_count, next_indexed, key, key_index, named_index, named_size, named_data, exhausted, packed_kind_byte, slow_kind, scratch
+    load_operand it_value, m_iterator_object
+    extract_tag tag, it_value
+    branch_ne tag, OBJECT_TAG, .slow
+    unbox_object iterator, it_value
 
-    load8 t4, [t3, PROPERTY_NAME_ITERATOR_FAST_PATH]
-    mov t0, OBJECT_PROPERTY_ITERATOR_FAST_PATH_NONE
-    branch_eq t4, t0, .slow
+    load8 fast_path, [iterator, PROPERTY_NAME_ITERATOR_FAST_PATH]
+    mov expected, OBJECT_PROPERTY_ITERATOR_FAST_PATH_NONE
+    branch_eq fast_path, expected, .slow
 
-    # These guards mirror PropertyNameIterator::fast_path_still_valid(). If the
-    # receiver or prototype chain no longer matches the cached snapshot, we drop
-    # to C++ and continue in deoptimized mode for the rest of the enumeration.
-    load_pair64 t5, t7, [t3, PROPERTY_NAME_ITERATOR_PROPERTY_CACHE], [t3, PROPERTY_NAME_ITERATOR_SHAPE]
-    load64 t6, [t3, PROPERTY_NAME_ITERATOR_OBJECT]
-    load64 t8, [t6, OBJECT_SHAPE]
-    branch_ne t8, t7, .slow
+    # These guards mirror PropertyNameIterator::fast_path_still_valid(). If
+    # the receiver or prototype chain no longer matches the cached snapshot,
+    # we drop to C++ and continue in deoptimized mode for the rest of the
+    # enumeration.
+    load_pair64 cache, cached_shape, [iterator, PROPERTY_NAME_ITERATOR_PROPERTY_CACHE], [iterator, PROPERTY_NAME_ITERATOR_SHAPE]
+    load64 receiver, [iterator, PROPERTY_NAME_ITERATOR_OBJECT]
+    load64 current_shape, [receiver, OBJECT_SHAPE]
+    branch_ne current_shape, cached_shape, .slow
 
-    load8 t2, [t3, PROPERTY_NAME_ITERATOR_SHAPE_IS_DICTIONARY]
-    branch_zero t2, .check_receiver
-    load32 t0, [t8, SHAPE_DICTIONARY_GENERATION]
-    load32 t2, [t3, PROPERTY_NAME_ITERATOR_SHAPE_DICTIONARY_GENERATION]
-    branch_ne t0, t2, .slow
+    load8 is_dict, [iterator, PROPERTY_NAME_ITERATOR_SHAPE_IS_DICTIONARY]
+    branch_zero is_dict, .check_receiver
+    load32 cur_dict_gen, [current_shape, SHAPE_DICTIONARY_GENERATION]
+    load32 dict_gen, [iterator, PROPERTY_NAME_ITERATOR_SHAPE_DICTIONARY_GENERATION]
+    branch_ne cur_dict_gen, dict_gen, .slow
 
 .check_receiver:
-    mov t0, OBJECT_PROPERTY_ITERATOR_FAST_PATH_PACKED_INDEXED
-    branch_ne t4, t0, .check_proto
-    load8 t0, [t6, OBJECT_INDEXED_STORAGE_KIND]
-    mov t2, INDEXED_STORAGE_KIND_PACKED
-    branch_ne t0, t2, .slow
-    load32 t0, [t6, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
-    load32 t2, [t3, PROPERTY_NAME_ITERATOR_INDEXED_PROPERTY_COUNT]
-    branch_ne t0, t2, .slow
+    mov packed_kind_byte, OBJECT_PROPERTY_ITERATOR_FAST_PATH_PACKED_INDEXED
+    branch_ne fast_path, packed_kind_byte, .check_proto
+    load8 storage_kind, [receiver, OBJECT_INDEXED_STORAGE_KIND]
+    mov packed_kind, INDEXED_STORAGE_KIND_PACKED
+    branch_ne storage_kind, packed_kind, .slow
+    load32 size, [receiver, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
+    load32 expected_size, [iterator, PROPERTY_NAME_ITERATOR_INDEXED_PROPERTY_COUNT]
+    branch_ne size, expected_size, .slow
 
 .check_proto:
-    load64 t0, [t3, PROPERTY_NAME_ITERATOR_PROTOTYPE_CHAIN_VALIDITY]
-    branch_zero t0, .next_key
-    load8 t2, [t0, PROTOTYPE_CHAIN_VALIDITY_VALID]
-    branch_zero t2, .slow
+    load64 validity, [iterator, PROPERTY_NAME_ITERATOR_PROTOTYPE_CHAIN_VALIDITY]
+    branch_zero validity, .next_key
+    load8 valid, [validity, PROTOTYPE_CHAIN_VALIDITY_VALID]
+    branch_zero valid, .slow
 
 .next_key:
     # property_values is laid out as:
     #   [receiver packed index keys..., flattened named keys...]
-    load_pair32 t2, t0, [t3, PROPERTY_NAME_ITERATOR_INDEXED_PROPERTY_COUNT], [t3, PROPERTY_NAME_ITERATOR_NEXT_INDEXED_PROPERTY]
-    branch_ge_unsigned t0, t2, .named
-    load64 t8, [t5, OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_DATA]
-    load64 t8, [t8, t0, 8]
-    add t0, 1
-    store32 [t3, PROPERTY_NAME_ITERATOR_NEXT_INDEXED_PROPERTY], t0
-    store_operand m_dst_value, t8
-    mov t0, BOOLEAN_FALSE
-    store_operand m_dst_done, t0
+    load_pair32 indexed_count, next_indexed, [iterator, PROPERTY_NAME_ITERATOR_INDEXED_PROPERTY_COUNT], [iterator, PROPERTY_NAME_ITERATOR_NEXT_INDEXED_PROPERTY]
+    branch_ge_unsigned next_indexed, indexed_count, .named
+    load64 key, [cache, OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_DATA]
+    load64 key, [key, next_indexed, 8]
+    add next_indexed, 1
+    store32 [iterator, PROPERTY_NAME_ITERATOR_NEXT_INDEXED_PROPERTY], next_indexed
+    store_operand m_dst_value, key
+    mov scratch, BOOLEAN_FALSE
+    store_operand m_dst_done, scratch
     dispatch_next
 
 .named:
-    load64 t0, [t3, PROPERTY_NAME_ITERATOR_NEXT_PROPERTY]
-    load64 t8, [t5, OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_SIZE]
-    sub t8, t2
-    branch_ge_unsigned t0, t8, .done
-    mov t8, t0
-    add t8, t2
-    load64 t5, [t5, OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_DATA]
-    load64 t8, [t5, t8, 8]
-    add t0, 1
-    store64 [t3, PROPERTY_NAME_ITERATOR_NEXT_PROPERTY], t0
-    store_operand m_dst_value, t8
-    mov t0, BOOLEAN_FALSE
-    store_operand m_dst_done, t0
+    load64 named_index, [iterator, PROPERTY_NAME_ITERATOR_NEXT_PROPERTY]
+    load64 named_size, [cache, OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_SIZE]
+    sub named_size, indexed_count
+    branch_ge_unsigned named_index, named_size, .done
+    mov key_index, named_index
+    add key_index, indexed_count
+    load64 named_data, [cache, OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_DATA]
+    load64 key, [named_data, key_index, 8]
+    add named_index, 1
+    store64 [iterator, PROPERTY_NAME_ITERATOR_NEXT_PROPERTY], named_index
+    store_operand m_dst_value, key
+    mov scratch, BOOLEAN_FALSE
+    store_operand m_dst_done, scratch
     dispatch_next
 
 .done:
-    load64 t5, [t3, PROPERTY_NAME_ITERATOR_ITERATOR_CACHE_SLOT]
-    branch_zero t5, .store_done
+    load64 exhausted, [iterator, PROPERTY_NAME_ITERATOR_ITERATOR_CACHE_SLOT]
+    branch_zero exhausted, .store_done
     # Return the exhausted iterator object to the bytecode-site cache so the
     # next execution of this loop can reset and reuse it.
-    mov t0, 0
-    store64 [t3, PROPERTY_NAME_ITERATOR_OBJECT], t0
-    store64 [t5, OBJECT_PROPERTY_ITERATOR_CACHE_REUSABLE_PROPERTY_NAME_ITERATOR], t3
-    store64 [t3, PROPERTY_NAME_ITERATOR_ITERATOR_CACHE_SLOT], t0
+    mov scratch, 0
+    store64 [iterator, PROPERTY_NAME_ITERATOR_OBJECT], scratch
+    store64 [exhausted, OBJECT_PROPERTY_ITERATOR_CACHE_REUSABLE_PROPERTY_NAME_ITERATOR], iterator
+    store64 [iterator, PROPERTY_NAME_ITERATOR_ITERATOR_CACHE_SLOT], scratch
 
 .store_done:
-    mov t0, BOOLEAN_TRUE
-    store_operand m_dst_done, t0
+    mov scratch, BOOLEAN_TRUE
+    store_operand m_dst_done, scratch
     dispatch_next
 
 .slow:
