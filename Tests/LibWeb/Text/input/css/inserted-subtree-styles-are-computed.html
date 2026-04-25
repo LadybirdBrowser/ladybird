@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .leaf {
+        color: rgb(0, 128, 0);
+    }
+    .direct-leaf {
+        color: rgb(0, 0, 255);
+    }
+</style>
+<div id="root"></div>
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+
+        // Build a small subtree off-document, then insert its root. Every descendant must pick up the matching
+        // rules, without relying on the old unconditional dirtying in Node::inserted().
+        const subtreeRoot = document.createElement("section");
+        const intermediate = document.createElement("div");
+        const leaf = document.createElement("span");
+        leaf.className = "leaf";
+        leaf.textContent = "leaf";
+        intermediate.appendChild(leaf);
+        subtreeRoot.appendChild(intermediate);
+
+        root.appendChild(subtreeRoot);
+        println(`leaf after subtree insert: ${getComputedStyle(leaf).color}`);
+
+        // Insert a new direct child into an already-connected parent and make sure it gets styled too.
+        const directLeaf = document.createElement("span");
+        directLeaf.className = "direct-leaf";
+        directLeaf.textContent = "direct leaf";
+        intermediate.appendChild(directLeaf);
+        println(`direct leaf after insert: ${getComputedStyle(directLeaf).color}`);
+    });
+</script>

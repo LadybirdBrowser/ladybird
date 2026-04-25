@@ -1,0 +1,2 @@
+leaf after subtree insert: rgb(0, 128, 0)
+direct leaf after insert: rgb(0, 0, 255)
