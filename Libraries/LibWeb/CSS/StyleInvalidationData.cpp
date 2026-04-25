@@ -406,6 +406,18 @@ void build_invalidation_sets_for_simple_selector(Selector::SimpleSelector const&
         }
         break;
     }
+    case Selector::SimpleSelector::Type::PseudoElement: {
+        // Pseudo-elements like ::slotted(.x) and ::part(...) carry a compound selector argument whose simple
+        // selectors decide which property changes should trigger invalidation against this rule.
+        auto const& pseudo_element = selector.pseudo_element();
+        if (pseudo_element.type() == PseudoElement::Slotted) {
+            for (auto const& compound_selector : pseudo_element.compound_selector().compound_selectors()) {
+                for (auto const& nested_simple : compound_selector.simple_selectors)
+                    build_invalidation_sets_for_simple_selector(nested_simple, invalidation_set, exclude_properties_nested_in_not_pseudo_class, style_invalidation_data, inside_nth_child_selector);
+            }
+        }
+        break;
+    }
     default:
         break;
     }
