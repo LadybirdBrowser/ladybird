@@ -1397,8 +1397,8 @@ Vector<NonnullRefPtr<SessionHistoryEntry>> TraversableNavigable::get_session_his
     // 6. Let i be startingIndex − 1.
     auto i = starting_index - 1;
 
-    // 7. While i > 0:
-    while (i > 0) {
+    // 7. While i >= 0:
+    while (i >= 0) {
         auto& entry = raw_entries[static_cast<unsigned>(i)];
         // 1. If rawEntries[i]'s document state's origin is not same origin with startingOrigin, then break.
         auto entry_origin = entry->document_state()->origin();
