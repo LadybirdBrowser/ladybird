@@ -4480,6 +4480,9 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
         }
         if (m_part_list)
             m_part_list->associated_attribute_changed(value_or_empty);
+        // ::part(...) rules in the outer scope target this element by part name, so the element's computed style must
+        // be recomputed when its part tokens change.
+        set_needs_style_update(true);
     }
 
     // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#reflecting-content-attributes-in-idl-attributes:concept-element-attributes-change-ext
