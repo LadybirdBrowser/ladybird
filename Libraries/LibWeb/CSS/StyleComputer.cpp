@@ -1846,9 +1846,13 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
             PseudoElement::Marker,
             PseudoElement::Placeholder);
 
-        // Bail if no pseudo-element rules matched.
-        if (!did_match_any_pseudo_element_rules && !has_implicit_style)
+        // Bail if no pseudo-element rules matched. Clear any stale cascaded/custom property data so
+        // getComputedStyle() doesn't return values from a previous match.
+        if (!did_match_any_pseudo_element_rules && !has_implicit_style) {
+            abstract_element.set_cascaded_properties(nullptr);
+            abstract_element.set_custom_property_data(nullptr);
             return {};
+        }
     }
 
     auto old_custom_property_data = abstract_element.custom_property_data();
