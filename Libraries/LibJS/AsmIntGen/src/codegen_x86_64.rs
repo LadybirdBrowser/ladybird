@@ -405,6 +405,13 @@ fn emit_instruction(
             }
         }
 
+        // Named-temporary declarations: `temp foo, bar` introduces GPR
+        // temps named `foo` and `bar`; `ftemp baz` introduces an FPR temp.
+        // The register allocator processes these before codegen runs --
+        // by the time we get here they are pure annotations and emit
+        // nothing.
+        "temp" | "ftemp" => {}
+
         // Macro invocations
         _ if program.macros.contains_key(m) => {
             let mac = program.macros[m].clone();

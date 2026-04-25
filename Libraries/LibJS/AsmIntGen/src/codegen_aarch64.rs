@@ -1033,6 +1033,11 @@ fn emit_instruction(
             }
         }
 
+        // Named-temporary declarations: `temp foo, bar` / `ftemp baz`.
+        // The register allocator consumes these before codegen runs; here
+        // they emit nothing.
+        "temp" | "ftemp" => {}
+
         // dispatch_current: dispatch the instruction at current pc (without advancing).
         // Overrides the DSL macro to ensure x21 is set for the next handler.
         "dispatch_current" => {

@@ -305,3 +305,40 @@ fn parse_single_operand(s: &str) -> Operand {
 
     Operand::Register(s.to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_temp_declaration_as_instruction() {
+        let prog = parse(
+            "handler Mov\n    temp foo, bar\n    dispatch_next\nend\n",
+        );
+        let handler = &prog.handlers[0];
+        assert_eq!(handler.instructions.len(), 2);
+        let temp = &handler.instructions[0];
+        assert_eq!(temp.mnemonic, "temp");
+        assert_eq!(temp.operands.len(), 2);
+        match &temp.operands[0] {
+            Operand::Register(name) => assert_eq!(name, "foo"),
+            other => panic!("expected Register, got {other:?}"),
+        }
+        match &temp.operands[1] {
+            Operand::Register(name) => assert_eq!(name, "bar"),
+            other => panic!("expected Register, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_ftemp_declaration_as_instruction() {
+        let prog = parse("handler Mov\n    ftemp baz\nend\n");
+        let temp = &prog.handlers[0].instructions[0];
+        assert_eq!(temp.mnemonic, "ftemp");
+        assert_eq!(temp.operands.len(), 1);
+        match &temp.operands[0] {
+            Operand::Register(name) => assert_eq!(name, "baz"),
+            other => panic!("expected Register, got {other:?}"),
+        }
+    }
+}

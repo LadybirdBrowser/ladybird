@@ -255,9 +255,17 @@
 //! end
 //!
 //! handler OpName, size=N       # Bytecode handler (size optional if in Bytecode.def)
+//!     temp name1, name2, ...   # Declare GPR temporaries (allocator-assigned)
+//!     ftemp name1, ...         # Declare FPR temporaries
 //!     instructions...
 //! end
 //! ```
+//!
+//! Named temporaries declared with `temp` / `ftemp` are scoped to the
+//! enclosing handler or macro body. The register allocator assigns each
+//! to a physical register from the public temp pool; positional aliases
+//! (`t0`-`t8`, `ft0`-`ft3`) remain available for code that wants to pin
+//! a value to a specific platform register.
 //!
 //! Labels within handlers: `.name:` (local, prefixed with handler name in output).
 //!
