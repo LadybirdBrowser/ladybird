@@ -883,7 +883,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
     // Before we insert the children of a list item we need to know the location of the marker.
     // If we do not do this then left-floating elements inside the list item will push the marker to the right,
     // in some cases even causing it to overlap with the non-floating content of the list.
-    CSSPixels left_space_before_children_formatted;
+    SpaceUsedByFloats inline_space_used_before_children_formatted;
     if (is_list_item_box_without_css_content && li_box->marker()) {
         // We need to ensure that our height and width are final before we calculate our left offset.
         // Otherwise, the y at which we calculate the intrusion by floats might be incorrect.
@@ -893,9 +893,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         auto const& marker_state = m_state.get(*li_box->marker());
 
         auto offset_y = max(CSSPixels(0), (li_box->marker()->computed_values().line_height() - marker_state.content_height()) / 2);
-        auto space_used_before_children_formatted = intrusion_by_floats_into_box(list_item_state, offset_y);
-
-        left_space_before_children_formatted = space_used_before_children_formatted.left;
+        inline_space_used_before_children_formatted = intrusion_by_floats_into_box(list_item_state, offset_y);
     }
 
     if (independent_formatting_context) {
@@ -965,7 +963,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
     // Now that our children are formatted we place the ListItemBox with the left space we remembered.
     if (is_list_item_box_without_css_content)
         // The marker pseudo-element will be created from a ListItemMarkerBox
-        layout_list_item_marker(*li_box, left_space_before_children_formatted);
+        layout_list_item_marker(*li_box, inline_space_used_before_children_formatted);
     // Otherwise, it will be a dealt with as a generic pseudo-element with the content of the ::marker pseudo-element.
 
     if (independent_formatting_context || !margins_collapse_through(box, m_state)) {
@@ -1521,7 +1519,7 @@ void BlockFormattingContext::ensure_sizes_correct_for_left_offset_calculation(Li
     }
 }
 
-void BlockFormattingContext::layout_list_item_marker(ListItemBox const& list_item_box, CSSPixels const& left_space_before_list_item_elements_formatted)
+void BlockFormattingContext::layout_list_item_marker(ListItemBox const& list_item_box, SpaceUsedByFloats const& inline_space_used_before_list_item_elements_formatted)
 {
     if (!list_item_box.marker())
         return;
@@ -1540,14 +1538,22 @@ void BlockFormattingContext::layout_list_item_marker(ListItemBox const& list_ite
     auto marker_height = marker_state.content_height();
     auto marker_width = marker_state.content_width();
 
+    auto list_item_direction = list_item_box.computed_values().direction();
+    auto marker_offset_x = list_item_direction == CSS::Direction::Ltr
+        ? inline_space_used_before_list_item_elements_formatted.left - marker_distance - marker_width
+        : list_item_state.content_width() - (inline_space_used_before_list_item_elements_formatted.right - marker_distance);
+    auto marker_offset_y = max(CSSPixels(0), (marker.computed_values().line_height() - marker_height) / 2);
+
     if (marker.list_style_position() == CSS::ListStylePosition::Inside) {
-        list_item_state.set_content_x(list_item_state.offset.x() + marker_width + marker_distance);
-        list_item_state.set_content_width(list_item_state.content_width() - marker_width);
+        // FIXME: Just adjusting the content width and position for an inside marker is wrong, as it will still position
+        //        the marker outside of the box, instead of treating it more like an inline child on the first line.
+        if (list_item_direction == CSS::Direction::Ltr) {
+            list_item_state.set_content_x(list_item_state.offset.x() + marker_width + marker_distance);
+        }
+        list_item_state.set_content_width(list_item_state.content_width() - marker_width - marker_distance);
     }
 
-    auto offset_x = round(left_space_before_list_item_elements_formatted - marker_distance - marker_width);
-    auto offset_y = round(max(CSSPixels(0), (marker.computed_values().line_height() - marker_height) / 2));
-    marker_state.set_content_offset({ offset_x, offset_y });
+    marker_state.set_content_offset({ round(marker_offset_x), round(marker_offset_y) });
 
     if (marker.computed_values().line_height() > list_item_state.content_height())
         list_item_state.set_content_height(marker.computed_values().line_height());

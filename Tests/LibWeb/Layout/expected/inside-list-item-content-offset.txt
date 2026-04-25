@@ -1,7 +1,7 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 418 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,200] [8+0+0 784 0+0+8] [8+0+0 18 0+0+200] children: not-inline
-      ListItemBox <span> at [222,200] [200+0+0 378 0+0+200] [200+0+0 18 0+0+200] children: not-inline
+      ListItemBox <span> at [222,200] [200+0+0 370 0+0+200] [200+0+0 18 0+0+200] children: not-inline
         ListItemMarkerBox <(anonymous)> at [208,206] [0+0+0 6 0+0+0] [0+0+0 6 0+0+0] children: not-inline
       BlockContainer <(anonymous)> at [8,418] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
@@ -9,7 +9,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x418]
     PaintableWithLines (BlockContainer<BODY>) [8,200 784x18]
-      PaintableWithLines (ListItemBox<SPAN>) [222,200 378x18]
+      PaintableWithLines (ListItemBox<SPAN>) [222,200 370x18]
         MarkerPaintable (ListItemMarkerBox(anonymous)) [208,206 6x6]
       PaintableWithLines (BlockContainer(anonymous)) [8,418 784x0]
 
