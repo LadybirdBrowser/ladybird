@@ -240,6 +240,18 @@ static void collect_properties_used_in_has(Selector::SimpleSelector const& selec
         }
         break;
     }
+    case Selector::SimpleSelector::Type::PseudoElement: {
+        // Pseudo-elements like ::slotted(.x:has(...)) carry a compound selector argument whose contents need the same
+        // recursive collection.
+        auto const& pseudo_element = selector.pseudo_element();
+        if (pseudo_element.type() == PseudoElement::Slotted) {
+            for (auto const& compound_selector : pseudo_element.compound_selector().compound_selectors()) {
+                for (auto const& simple_selector : compound_selector.simple_selectors)
+                    collect_properties_used_in_has(simple_selector, style_invalidation_data, metadata);
+            }
+        }
+        break;
+    }
     default:
         break;
     }
