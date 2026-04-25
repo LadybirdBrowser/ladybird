@@ -2,6 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	::part():lang() invalidation
-Fail	::part():lang() invalidation from setAttribute
+2 Pass
+Pass	::part():lang() invalidation
+Pass	::part():lang() invalidation from setAttribute

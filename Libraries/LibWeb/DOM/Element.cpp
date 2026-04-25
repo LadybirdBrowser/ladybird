@@ -4443,32 +4443,45 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
         m_inline_style->set_declarations_from_text(value.value_or(""_string));
         prefetch_inline_style_image_resources(*m_inline_style, document());
         set_needs_style_update(true);
-    } else if (local_name == HTML::AttributeNames::dir) {
-        // https://html.spec.whatwg.org/multipage/dom.html#attr-dir
-        if (value_or_empty.equals_ignoring_ascii_case("ltr"sv))
-            m_dir = Dir::Ltr;
-        else if (value_or_empty.equals_ignoring_ascii_case("rtl"sv))
-            m_dir = Dir::Rtl;
-        else if (value_or_empty.equals_ignoring_ascii_case("auto"sv))
-            m_dir = Dir::Auto;
-        else
-            m_dir = {};
-        // Direction inherits, so descendants' :dir() matches and direction-dependent layout/text need to be recomputed.
-        for_each_shadow_including_inclusive_descendant([](auto& node) {
-            if (auto* element = as_if<Element>(node))
-                element->set_needs_style_update(true);
-            return TraversalDecision::Continue;
-        });
-    } else if (local_name == HTML::AttributeNames::lang) {
-        // Language inherits, so descendants' :lang() matches need to be recomputed in addition to refreshing the
-        // cached language value.
-        for_each_shadow_including_inclusive_descendant([](auto& node) {
+    } else if (local_name == HTML::AttributeNames::dir || local_name == HTML::AttributeNames::lang) {
+        bool const is_dir = local_name == HTML::AttributeNames::dir;
+        if (is_dir) {
+            // https://html.spec.whatwg.org/multipage/dom.html#attr-dir
+            if (value_or_empty.equals_ignoring_ascii_case("ltr"sv))
+                m_dir = Dir::Ltr;
+            else if (value_or_empty.equals_ignoring_ascii_case("rtl"sv))
+                m_dir = Dir::Rtl;
+            else if (value_or_empty.equals_ignoring_ascii_case("auto"sv))
+                m_dir = Dir::Auto;
+            else
+                m_dir = {};
+        }
+        // dir and lang both inherit, so all descendants' :dir() / :lang() matches and direction-dependent layout/text
+        // need to be recomputed.
+        for_each_shadow_including_inclusive_descendant([is_dir](auto& node) {
             if (auto* element = as_if<Element>(node)) {
-                element->invalidate_lang_value();
+                if (!is_dir)
+                    element->invalidate_lang_value();
                 element->set_needs_style_update(true);
             }
             return TraversalDecision::Continue;
         });
+        // :has(:dir(...)) and :has(:lang(...)) on ancestors aren't keyed on any property the regular invalidation
+        // plan tracks, so explicitly schedule the :has() ancestor walk here.
+        auto schedule_on_scope = [this](CSS::StyleScope& scope) {
+            scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(*this);
+        };
+        schedule_on_scope(document().style_scope());
+        for (auto* walker = static_cast<Node*>(this); walker; walker = walker->parent_or_shadow_host()) {
+            if (auto* element = as_if<Element>(*walker)) {
+                if (auto shadow_root = element->shadow_root())
+                    schedule_on_scope(shadow_root->style_scope());
+            }
+            if (auto* shadow_root = as_if<ShadowRoot>(walker->root())) {
+                if (!shadow_root->uses_document_style_sheets())
+                    schedule_on_scope(shadow_root->style_scope());
+            }
+        }
     } else if (local_name == HTML::AttributeNames::part) {
         m_parts.clear();
         if (!value_or_empty.is_empty()) {
@@ -4623,10 +4636,8 @@ Optional<String> Element::lang() const
 
         // 3. If the node's parent is a shadow root
         //      Use the language of that shadow root's host.
-        if (auto parent = parent_element()) {
-            if (parent->is_shadow_root())
-                return parent->shadow_root()->host()->lang().value_or({});
-        }
+        if (auto* parent = this->parent(); parent && parent->is_shadow_root())
+            return static_cast<ShadowRoot const&>(*parent).host()->lang().value_or({});
 
         // 4. If the node's parent element is not null
         //      Use the language of that parent element.
