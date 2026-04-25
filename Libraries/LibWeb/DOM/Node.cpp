@@ -575,10 +575,30 @@ void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::Invalida
         }
         return document().style_scope();
     }();
-    CSS::StyleScope* shadow_style_scope = nullptr;
+
+    // Collect every shadow scope this mutation can flip, in addition to the root scope. This includes the element's
+    // own shadow root (if it's a shadow host) and every enclosing shadow host's shadow root, since :host(...:has(...))
+    // and ::slotted(...) rules in those scopes can observe property changes on this element or its light-DOM children.
+    Vector<GC::Ref<CSS::StyleScope>, 4> additional_scopes;
+    auto add_additional_scope = [&](CSS::StyleScope& scope) {
+        if (&scope == &style_scope)
+            return;
+        for (auto const& existing : additional_scopes) {
+            if (&*existing == &scope)
+                return;
+        }
+        additional_scopes.append(scope);
+    };
     if (auto* element = as_if<Element>(this); element && element->is_shadow_host()) {
         if (auto element_shadow_root = element->shadow_root())
-            shadow_style_scope = &element_shadow_root->style_scope();
+            add_additional_scope(element_shadow_root->style_scope());
+    }
+    for (auto* ancestor = parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
+        auto* element = as_if<Element>(*ancestor);
+        if (!element)
+            continue;
+        if (auto ancestor_shadow_root = element->shadow_root())
+            add_additional_scope(ancestor_shadow_root->style_scope());
     }
 
     bool properties_used_in_has_selectors = false;
@@ -588,8 +608,8 @@ void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::Invalida
             properties_used_in_has_selectors = true;
             counters.has_invalidation_metadata_candidates += metadata->size();
         }
-        if (shadow_style_scope) {
-            if (auto const* metadata = document().style_computer().has_invalidation_metadata_for_property(property, *shadow_style_scope)) {
+        for (auto& scope : additional_scopes) {
+            if (auto const* metadata = document().style_computer().has_invalidation_metadata_for_property(property, scope)) {
                 properties_used_in_has_selectors = true;
                 counters.has_invalidation_metadata_candidates += metadata->size();
             }
@@ -597,8 +617,8 @@ void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::Invalida
     }
     if (properties_used_in_has_selectors) {
         style_scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(*this);
-        if (shadow_style_scope)
-            shadow_style_scope->schedule_ancestors_style_invalidation_due_to_presence_of_has(*this);
+        for (auto& scope : additional_scopes)
+            scope->schedule_ancestors_style_invalidation_due_to_presence_of_has(*this);
     }
 
     if (options.invalidate_self)
@@ -611,8 +631,10 @@ void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::Invalida
 
     if (invalidate_for_style_scope(style_scope))
         return;
-    if (shadow_style_scope)
-        (void)invalidate_for_style_scope(*shadow_style_scope);
+    for (auto& scope : additional_scopes) {
+        if (invalidate_for_style_scope(scope))
+            return;
+    }
 }
 
 Utf16String Node::child_text_content() const
