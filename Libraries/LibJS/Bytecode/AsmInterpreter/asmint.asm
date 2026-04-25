@@ -490,26 +490,29 @@ end
 # ============================================================================
 
 handler Mov
-    load_operand t1, m_src
-    store_operand m_dst, t1
+    temp value
+    load_operand value, m_src
+    store_operand m_dst, value
     dispatch_next
 end
 
 handler Mov2
-    load_operand t1, m_src1
-    store_operand m_dst1, t1
-    load_operand t2, m_src2
-    store_operand m_dst2, t2
+    temp v1, v2
+    load_operand v1, m_src1
+    store_operand m_dst1, v1
+    load_operand v2, m_src2
+    store_operand m_dst2, v2
     dispatch_next
 end
 
 handler Mov3
-    load_operand t1, m_src1
-    store_operand m_dst1, t1
-    load_operand t2, m_src2
-    store_operand m_dst2, t2
-    load_operand t3, m_src3
-    store_operand m_dst3, t3
+    temp v1, v2, v3
+    load_operand v1, m_src1
+    store_operand m_dst1, v1
+    load_operand v2, m_src2
+    store_operand m_dst2, v2
+    load_operand v3, m_src3
+    store_operand m_dst3, v3
     dispatch_next
 end
 
