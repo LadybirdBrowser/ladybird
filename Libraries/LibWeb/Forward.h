@@ -1142,7 +1142,6 @@ class WritableStreamDefaultWriter;
 struct PullIntoDescriptor;
 
 struct Transformer;
-struct UnderlyingSink;
 struct UnderlyingSource;
 
 }

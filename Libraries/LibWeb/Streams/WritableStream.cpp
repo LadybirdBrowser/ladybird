@@ -6,6 +6,7 @@
 
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/UnderlyingSink.h>
 #include <LibWeb/Bindings/WritableStream.h>
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -13,7 +14,6 @@
 #include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamOperations.h>
-#include <LibWeb/Streams/UnderlyingSink.h>
 #include <LibWeb/Streams/WritableStream.h>
 #include <LibWeb/Streams/WritableStreamDefaultController.h>
 #include <LibWeb/Streams/WritableStreamDefaultWriter.h>
@@ -35,7 +35,7 @@ WebIDL::ExceptionOr<GC::Ref<WritableStream>> WritableStream::construct_impl(JS::
     auto underlying_sink = underlying_sink_object.has_value() ? JS::Value(underlying_sink_object.value()) : JS::js_null();
 
     // 2. Let underlyingSinkDict be underlyingSink, converted to an IDL value of type UnderlyingSink.
-    auto underlying_sink_dict = TRY(UnderlyingSink::from_value(vm, underlying_sink));
+    auto underlying_sink_dict = TRY(Bindings::convert_to_idl_value_for_underlying_sink(vm, underlying_sink));
 
     // 3. If underlyingSinkDict["type"] exists, throw a RangeError exception.
     if (underlying_sink_dict.type.has_value())

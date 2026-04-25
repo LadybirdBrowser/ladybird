@@ -54,7 +54,7 @@ GC::Ref<WebIDL::Promise> writable_stream_default_writer_write(WritableStreamDefa
 
 // 5.5.4. Default controllers, https://streams.spec.whatwg.org/#ws-default-controller-abstract-ops
 WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller(WritableStream&, WritableStreamDefaultController&, GC::Ref<StartAlgorithm>, GC::Ref<WriteAlgorithm>, GC::Ref<CloseAlgorithm>, GC::Ref<AbortAlgorithm>, double high_water_mark, GC::Ref<SizeAlgorithm>);
-WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underlying_sink(WritableStream&, JS::Value underlying_sink_value, UnderlyingSink&, double high_water_mark, GC::Ref<SizeAlgorithm> size_algorithm);
+WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underlying_sink(WritableStream&, JS::Value underlying_sink_value, Bindings::UnderlyingSink&, double high_water_mark, GC::Ref<SizeAlgorithm> size_algorithm);
 void writable_stream_default_controller_advance_queue_if_needed(WritableStreamDefaultController&);
 void writable_stream_default_controller_clear_algorithms(WritableStreamDefaultController&);
 void writable_stream_default_controller_close(WritableStreamDefaultController&);
