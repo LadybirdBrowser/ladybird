@@ -1636,55 +1636,48 @@ end
 
 # Inline cache fast path for property access (own + prototype chain).
 handler GetById
-    load_operand t1, m_base
-    # Check base is an object
-    extract_tag t2, t1
-    branch_ne t2, OBJECT_TAG, .try_cache
-    # Extract Object* from NaN-boxed value (sign-extend lower 48 bits)
-    unbox_object t3, t1
-    # Load Object.m_shape
-    load64 t4, [t3, OBJECT_SHAPE]
+    temp base, tag, obj, shape, plc, cache_shape, cache_proto, prop_offset, dict_gen, cur_dict_gen, props, value, result
+    load_operand base, m_base
+    extract_tag tag, base
+    branch_ne tag, OBJECT_TAG, .try_cache
+    unbox_object obj, base
+    load64 shape, [obj, OBJECT_SHAPE]
     # Get PropertyLookupCache* (direct pointer from instruction stream)
-    load64 t5, [pb, pc, m_cache]
-    # Check entry[0].shape and entry[0].prototype.
-    load_pair64 t1, t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE], [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE]
-    branch_ne t1, t4, .try_cache
-    branch_nonzero t0, .proto
+    load64 plc, [pb, pc, m_cache]
+    load_pair64 cache_shape, cache_proto, [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE], [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE]
+    branch_ne cache_shape, shape, .try_cache
+    branch_nonzero cache_proto, .proto
     # Check dictionary generation matches
-    load_pair32 t1, t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROPERTY_OFFSET], [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
-    load32 t2, [t4, SHAPE_DICTIONARY_GENERATION]
-    branch_ne t0, t2, .try_cache
+    load_pair32 prop_offset, dict_gen, [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_PROPERTY_OFFSET], [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
+    load32 cur_dict_gen, [shape, SHAPE_DICTIONARY_GENERATION]
+    branch_ne dict_gen, cur_dict_gen, .try_cache
     # IC hit! Load property value via get_direct (own property)
-    load64 t5, [t3, OBJECT_NAMED_PROPERTIES]
-    load64 t0, [t5, t1, 8]
+    load64 props, [obj, OBJECT_NAMED_PROPERTIES]
+    load64 value, [props, prop_offset, 8]
     # Check value is not an accessor
-    extract_tag t2, t0
-    branch_eq t2, ACCESSOR_TAG, .try_cache
-    store_operand m_dst, t0
+    extract_tag tag, value
+    branch_eq tag, ACCESSOR_TAG, .try_cache
+    store_operand m_dst, value
     dispatch_next
 .proto:
-    # t0 = prototype Object*, t4 = object's shape, t5 = PLC base
-    # Check prototype chain validity (direct pointer, null = invalid)
-    load64 t1, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE_CHAIN_VALIDITY]
-    branch_zero t1, .try_cache
-    load8 t2, [t1, PROTOTYPE_CHAIN_VALIDITY_VALID]
-    branch_zero t2, .try_cache
-    # Check dictionary generation matches
-    load_pair32 t2, t1, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROPERTY_OFFSET], [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
-    load32 t4, [t4, SHAPE_DICTIONARY_GENERATION]
-    branch_ne t1, t4, .try_cache
-    # IC hit! Load property value via get_direct (from prototype)
-    load64 t1, [t0, OBJECT_NAMED_PROPERTIES]
-    load64 t0, [t1, t2, 8]
-    # Check value is not an accessor
-    extract_tag t1, t0
-    branch_eq t1, ACCESSOR_TAG, .try_cache
-    store_operand m_dst, t0
+    # cache_proto = prototype Object*, shape = object's shape, plc = PLC base
+    load64 prop_offset, [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE_CHAIN_VALIDITY]
+    branch_zero prop_offset, .try_cache
+    load8 tag, [prop_offset, PROTOTYPE_CHAIN_VALIDITY_VALID]
+    branch_zero tag, .try_cache
+    load_pair32 prop_offset, dict_gen, [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_PROPERTY_OFFSET], [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
+    load32 cur_dict_gen, [shape, SHAPE_DICTIONARY_GENERATION]
+    branch_ne dict_gen, cur_dict_gen, .try_cache
+    load64 props, [cache_proto, OBJECT_NAMED_PROPERTIES]
+    load64 value, [props, prop_offset, 8]
+    extract_tag tag, value
+    branch_eq tag, ACCESSOR_TAG, .try_cache
+    store_operand m_dst, value
     dispatch_next
 .try_cache:
     # Try all cache entries via C++ helper
-    call_interp asm_try_get_by_id_cache
-    branch_zero t0, .done
+    call_interp asm_try_get_by_id_cache, result
+    branch_zero result, .done
 .slow:
     call_slow_path asm_slow_path_get_by_id
 .done:
@@ -1693,39 +1686,32 @@ end
 
 # Inline cache fast path for own-property store (ChangeOwnProperty).
 handler PutById
-    load_operand t1, m_base
-    # Check base is an object
-    extract_tag t2, t1
-    branch_ne t2, OBJECT_TAG, .try_cache
-    # Extract Object* from NaN-boxed value (sign-extend lower 48 bits)
-    unbox_object t3, t1
-    # Load Object.m_shape
-    load64 t4, [t3, OBJECT_SHAPE]
-    # Get PropertyLookupCache* (direct pointer from instruction stream)
-    load64 t5, [pb, pc, m_cache]
-    # Check entry[0].shape and entry[0].prototype.
-    load_pair64 t1, t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE], [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE]
-    branch_ne t1, t4, .try_cache
-    branch_nonzero t0, .try_cache
-    # Check dictionary generation matches
-    load_pair32 t1, t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROPERTY_OFFSET], [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
-    load32 t2, [t4, SHAPE_DICTIONARY_GENERATION]
-    branch_ne t0, t2, .try_cache
-    # Check current value at property_offset is not an accessor
-    load64 t5, [t3, OBJECT_NAMED_PROPERTIES]
-    load64 t2, [t5, t1, 8]
-    extract_tag t4, t2
-    branch_eq t4, ACCESSOR_TAG, .try_cache
-    # IC hit! Store new value via put_direct
-    # Save property offset in t4 before load_operand clobbers t0 (rax)
-    mov t4, t1
-    load_operand t1, m_src
-    store64 [t5, t4, 8], t1
+    temp base, tag, obj, shape, plc, cache_shape, cache_proto, prop_offset, dict_gen, cur_dict_gen, props, value, src, result
+    load_operand base, m_base
+    extract_tag tag, base
+    branch_ne tag, OBJECT_TAG, .try_cache
+    unbox_object obj, base
+    load64 shape, [obj, OBJECT_SHAPE]
+    load64 plc, [pb, pc, m_cache]
+    load_pair64 cache_shape, cache_proto, [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE], [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE]
+    branch_ne cache_shape, shape, .try_cache
+    branch_nonzero cache_proto, .try_cache
+    load_pair32 prop_offset, dict_gen, [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_PROPERTY_OFFSET], [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
+    load32 cur_dict_gen, [shape, SHAPE_DICTIONARY_GENERATION]
+    branch_ne dict_gen, cur_dict_gen, .try_cache
+    # Check current value at prop_offset is not an accessor
+    load64 props, [obj, OBJECT_NAMED_PROPERTIES]
+    load64 value, [props, prop_offset, 8]
+    extract_tag tag, value
+    branch_eq tag, ACCESSOR_TAG, .try_cache
+    # IC hit! Store new value via put_direct.
+    load_operand src, m_src
+    store64 [props, prop_offset, 8], src
     dispatch_next
 .try_cache:
     # Try all cache entries via C++ helper (handles AddOwnProperty)
-    call_interp asm_try_put_by_id_cache
-    branch_zero t0, .done
+    call_interp asm_try_put_by_id_cache, result
+    branch_zero result, .done
 .slow:
     call_slow_path asm_slow_path_put_by_id
 .done:
