@@ -438,27 +438,29 @@ macro dispatch_current()
 end
 
 # Walk the environment chain using a cached EnvironmentCoordinate.
-# Input: m_cache field offset for the EnvironmentCoordinate in the instruction.
-# Output: t3 = target environment, t2 = binding index.
+# Input: m_cache_field is the offset of the EnvironmentCoordinate inside
+# the bytecode instruction.
+# Output: target_env points at the resolved environment, bind_index holds
+# the binding index within it.
 # On failure (invalid cache, screwed by eval): jumps to fail_label.
-# Clobbers t0, t1, t2, t3, t4.
-macro walk_env_chain(m_cache_field, fail_label)
-    lea t0, [pb, pc]
-    add t0, m_cache_field
-    load_pair32 t1, t2, [t0, ENVIRONMENT_COORDINATE_HOPS], [t0, ENVIRONMENT_COORDINATE_INDEX]
-    mov t4, ENVIRONMENT_COORDINATE_INVALID
-    branch_eq t1, t4, fail_label
-    load64 t3, [exec_ctx, EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT]
-    branch_zero t1, .walk_done
+macro walk_env_chain(m_cache_field, target_env, bind_index, fail_label)
+    temp coord_addr, hops, sentinel, screw
+    lea coord_addr, [pb, pc]
+    add coord_addr, m_cache_field
+    load_pair32 hops, bind_index, [coord_addr, ENVIRONMENT_COORDINATE_HOPS], [coord_addr, ENVIRONMENT_COORDINATE_INDEX]
+    mov sentinel, ENVIRONMENT_COORDINATE_INVALID
+    branch_eq hops, sentinel, fail_label
+    load64 target_env, [exec_ctx, EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT]
+    branch_zero hops, .walk_done
 .walk_loop:
-    load8 t0, [t3, ENVIRONMENT_SCREWED_BY_EVAL]
-    branch_nonzero t0, fail_label
-    load64 t3, [t3, ENVIRONMENT_OUTER]
-    sub t1, 1
-    branch_nonzero t1, .walk_loop
+    load8 screw, [target_env, ENVIRONMENT_SCREWED_BY_EVAL]
+    branch_nonzero screw, fail_label
+    load64 target_env, [target_env, ENVIRONMENT_OUTER]
+    sub hops, 1
+    branch_nonzero hops, .walk_loop
 .walk_done:
-    load8 t0, [t3, ENVIRONMENT_SCREWED_BY_EVAL]
-    branch_nonzero t0, fail_label
+    load8 screw, [target_env, ENVIRONMENT_SCREWED_BY_EVAL]
+    branch_nonzero screw, fail_label
 end
 
 # Pop an inline frame and resume the caller without bouncing through C++.
@@ -966,16 +968,16 @@ end
 
 # Inline environment chain walk + binding value load with TDZ check.
 handler GetBinding
-    walk_env_chain m_cache, .slow
-    # t3 = target environment, t2 = binding index
-    load64 t0, [t3, BINDINGS_DATA_PTR]
-    mul t2, t2, SIZEOF_BINDING
-    add t0, t2
+    temp env, idx, binding, init, value
+    walk_env_chain m_cache, env, idx, .slow
+    load64 binding, [env, BINDINGS_DATA_PTR]
+    mul idx, idx, SIZEOF_BINDING
+    add binding, idx
     # Check binding is initialized (TDZ)
-    load8 t1, [t0, BINDING_INITIALIZED]
-    branch_zero t1, .slow
-    load64 t1, [t0, BINDING_VALUE]
-    store_operand m_dst, t1
+    load8 init, [binding, BINDING_INITIALIZED]
+    branch_zero init, .slow
+    load64 value, [binding, BINDING_VALUE]
+    store_operand m_dst, value
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_get_binding
@@ -983,13 +985,13 @@ end
 
 # Inline environment chain walk + direct binding value load.
 handler GetInitializedBinding
-    walk_env_chain m_cache, .slow
-    # t3 = target environment, t2 = binding index
-    load64 t0, [t3, BINDINGS_DATA_PTR]
-    mul t2, t2, SIZEOF_BINDING
-    add t0, t2
-    load64 t1, [t0, BINDING_VALUE]
-    store_operand m_dst, t1
+    temp env, idx, binding, value
+    walk_env_chain m_cache, env, idx, .slow
+    load64 binding, [env, BINDINGS_DATA_PTR]
+    mul idx, idx, SIZEOF_BINDING
+    add binding, idx
+    load64 value, [binding, BINDING_VALUE]
+    store_operand m_dst, value
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_get_initialized_binding
@@ -997,18 +999,16 @@ end
 
 # Inline environment chain walk + initialize binding (set value + initialized=true).
 handler InitializeLexicalBinding
-    walk_env_chain m_cache, .slow
-    # t3 = target environment, t2 = binding index
-    load64 t3, [t3, BINDINGS_DATA_PTR]
-    mul t2, t2, SIZEOF_BINDING
-    add t3, t2
-    # Store source value into binding
-    # NB: load_operand clobbers t0, so binding address must be in t3.
-    load_operand t1, m_src
-    store64 [t3, BINDING_VALUE], t1
+    temp env, idx, binding, value, one
+    walk_env_chain m_cache, env, idx, .slow
+    load64 binding, [env, BINDINGS_DATA_PTR]
+    mul idx, idx, SIZEOF_BINDING
+    add binding, idx
+    load_operand value, m_src
+    store64 [binding, BINDING_VALUE], value
     # Set initialized = true
-    mov t1, 1
-    store8 [t3, BINDING_INITIALIZED], t1
+    mov one, 1
+    store8 [binding, BINDING_INITIALIZED], one
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_initialize_lexical_binding
@@ -1016,21 +1016,19 @@ end
 
 # Inline environment chain walk + set mutable binding.
 handler SetLexicalBinding
-    walk_env_chain m_cache, .slow
-    # t3 = target environment, t2 = binding index
-    load64 t3, [t3, BINDINGS_DATA_PTR]
-    mul t2, t2, SIZEOF_BINDING
-    add t3, t2
+    temp env, idx, binding, flag, value
+    walk_env_chain m_cache, env, idx, .slow
+    load64 binding, [env, BINDINGS_DATA_PTR]
+    mul idx, idx, SIZEOF_BINDING
+    add binding, idx
     # Check initialized (TDZ)
-    load8 t1, [t3, BINDING_INITIALIZED]
-    branch_zero t1, .slow
+    load8 flag, [binding, BINDING_INITIALIZED]
+    branch_zero flag, .slow
     # Check mutable
-    load8 t1, [t3, BINDING_MUTABLE]
-    branch_zero t1, .slow
-    # Store source value into binding
-    # NB: load_operand clobbers t0, so binding address must be in t3.
-    load_operand t1, m_src
-    store64 [t3, BINDING_VALUE], t1
+    load8 flag, [binding, BINDING_MUTABLE]
+    branch_zero flag, .slow
+    load_operand value, m_src
+    store64 [binding, BINDING_VALUE], value
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_set_lexical_binding
@@ -1352,20 +1350,20 @@ end
 
 # Inline environment chain walk + get callee and this.
 handler GetCalleeAndThisFromEnvironment
-    walk_env_chain m_cache, .slow
-    # t3 = target environment, t2 = binding index
-    load64 t0, [t3, BINDINGS_DATA_PTR]
-    mul t2, t2, SIZEOF_BINDING
-    add t0, t2
+    temp env, idx, binding, init, value
+    walk_env_chain m_cache, env, idx, .slow
+    load64 binding, [env, BINDINGS_DATA_PTR]
+    mul idx, idx, SIZEOF_BINDING
+    add binding, idx
     # TDZ state lives in Binding.initialized; the value slot itself starts as
     # undefined, so checking for EMPTY would miss cached second-hit calls.
-    load8 t1, [t0, BINDING_INITIALIZED]
-    branch_zero t1, .slow
-    load64 t1, [t0, BINDING_VALUE]
-    store_operand m_callee, t1
+    load8 init, [binding, BINDING_INITIALIZED]
+    branch_zero init, .slow
+    load64 value, [binding, BINDING_VALUE]
+    store_operand m_callee, value
     # this = undefined (DeclarativeEnvironment.with_base_object() always returns nullptr)
-    mov t0, UNDEFINED_SHIFTED
-    store_operand m_this_value, t0
+    mov value, UNDEFINED_SHIFTED
+    store_operand m_this_value, value
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_get_callee_and_this
