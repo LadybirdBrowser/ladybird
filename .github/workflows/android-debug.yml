@@ -82,6 +82,7 @@ jobs:
             "system-images;android-30;google_apis;x86_64"
 
       - name: Start Android Emulator
+        timeout-minutes: 10
         run: |
           echo "no" | "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/avdmanager" create avd \
             -n ladybird_emulator \
@@ -92,7 +93,11 @@ jobs:
             -no-window -no-audio -no-snapshot \
             -gpu swiftshader_indirect > /tmp/emulator.log 2>&1 &
           "${ANDROID_SDK_ROOT}/platform-tools/adb" wait-for-device
+          BOOT_DEADLINE=$(( $(date +%s) + 300 ))
           until "${ANDROID_SDK_ROOT}/platform-tools/adb" shell getprop sys.boot_completed 2>/dev/null | grep -q "^1$"; do
+            if [ "$(date +%s)" -gt "$BOOT_DEADLINE" ]; then
+              echo "Emulator did not boot within 5 minutes"; cat /tmp/emulator.log; exit 1
+            fi
             sleep 2
           done
           "${ANDROID_SDK_ROOT}/platform-tools/adb" shell input keyevent 82
@@ -110,6 +115,7 @@ jobs:
       # === ARTIFACTS ===
 
       - name: Upload APK Artifact
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: app-debug
