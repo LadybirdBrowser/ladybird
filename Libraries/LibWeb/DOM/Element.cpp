@@ -4453,9 +4453,20 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
             m_dir = Dir::Auto;
         else
             m_dir = {};
+        // Direction inherits, so descendants' :dir() matches and direction-dependent layout/text need to be recomputed.
+        for_each_shadow_including_inclusive_descendant([](auto& node) {
+            if (auto* element = as_if<Element>(node))
+                element->set_needs_style_update(true);
+            return TraversalDecision::Continue;
+        });
     } else if (local_name == HTML::AttributeNames::lang) {
-        for_each_in_inclusive_subtree_of_type<Element>([](auto& element) {
-            element.invalidate_lang_value();
+        // Language inherits, so descendants' :lang() matches need to be recomputed in addition to refreshing the
+        // cached language value.
+        for_each_shadow_including_inclusive_descendant([](auto& node) {
+            if (auto* element = as_if<Element>(node)) {
+                element->invalidate_lang_value();
+                element->set_needs_style_update(true);
+            }
             return TraversalDecision::Continue;
         });
     } else if (local_name == HTML::AttributeNames::part) {
