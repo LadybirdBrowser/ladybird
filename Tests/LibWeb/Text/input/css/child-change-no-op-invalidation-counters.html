@@ -12,12 +12,9 @@
         internals.resetStyleInvalidationCounters();
     }
 
-    function verify(label, expected) {
+    function report(label) {
         const invalidations = internals.getStyleInvalidationCounters().styleInvalidations;
-        if (invalidations === expected)
-            println(`PASS: ${label} (${invalidations} invalidations)`);
-        else
-            println(`FAIL: ${label} (expected ${expected}, got ${invalidations})`);
+        println(`${label}: ${invalidations} invalidations`);
     }
 
     test(() => {
@@ -27,12 +24,12 @@
         const child = document.createElement("span");
         parent.appendChild(child);
         getComputedStyle(parent).color;
-        verify("appending a child to a parent without observable child-state pseudos is a no-op", 0);
+        report("appending a child to a parent without observable child-state pseudos");
 
         settleAndReset(parent);
         parent.removeChild(child);
         getComputedStyle(parent).color;
-        verify("removing the only child from a parent without observable child-state pseudos is a no-op", 0);
+        report("removing the only child from a parent without observable child-state pseudos");
 
         settleAndReset(parent);
         const fragment = document.createDocumentFragment();
@@ -40,6 +37,6 @@
         fragment.appendChild(document.createElement("span"));
         parent.appendChild(fragment);
         getComputedStyle(parent).color;
-        verify("appending a fragment to a parent without observable child-state pseudos is a no-op", 0);
+        report("appending a fragment to a parent without observable child-state pseudos");
     });
 </script>

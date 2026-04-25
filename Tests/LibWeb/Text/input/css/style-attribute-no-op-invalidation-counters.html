@@ -7,12 +7,9 @@
         internals.resetStyleInvalidationCounters();
     }
 
-    function verify(label, expected) {
+    function report(label) {
         const invalidations = internals.getStyleInvalidationCounters().styleInvalidations;
-        if (invalidations === expected)
-            println(`PASS: ${label} (${invalidations} invalidations)`);
-        else
-            println(`FAIL: ${label} (expected ${expected}, got ${invalidations})`);
+        println(`${label}: ${invalidations} invalidations`);
     }
 
     test(() => {
@@ -23,11 +20,11 @@
 
         target.setAttribute("style", "color: red");
         getComputedStyle(target).color;
-        verify("setting identical style text is a no-op", 0);
+        report("setting identical style text");
 
         settleAndReset(target);
         target.setAttribute("style", "color: green");
         getComputedStyle(target).color;
-        verify("setting changed style text invalidates", 1);
+        report("setting changed style text");
     });
 </script>

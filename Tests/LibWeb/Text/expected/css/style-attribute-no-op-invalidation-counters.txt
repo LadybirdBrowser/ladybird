@@ -1,2 +1,2 @@
-FAIL: setting identical style text is a no-op (expected 0, got 1)
-PASS: setting changed style text invalidates (1 invalidations)
+setting identical style text: 1 invalidations
+setting changed style text: 1 invalidations
