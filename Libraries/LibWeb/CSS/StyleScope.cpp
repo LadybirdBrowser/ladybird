@@ -387,6 +387,12 @@ void StyleScope::collect_selector_insights(Selector const& selector, SelectorIns
                 for (auto const& argument_selector : simple_selector.pseudo_class().argument_selector_list) {
                     collect_selector_insights(*argument_selector, insights);
                 }
+            } else if (simple_selector.type == Selector::SimpleSelector::Type::PseudoElement) {
+                // Pseudo-elements like ::slotted(...) carry a compound selector argument whose contents need the
+                // same insight collection pass.
+                auto const& pseudo_element = simple_selector.pseudo_element();
+                if (pseudo_element.type() == PseudoElement::Slotted)
+                    collect_selector_insights(pseudo_element.compound_selector(), insights);
             }
         }
     }
