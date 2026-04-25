@@ -11,10 +11,12 @@
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Event.h>
 #include <LibWeb/Geolocation/GeolocationCoordinates.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/BrowsingContextGroup.h>
 #include <LibWeb/HTML/DocumentState.h>
+#include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/History.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Navigation.h>
@@ -27,6 +29,7 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/Timer.h>
 
@@ -1774,6 +1777,107 @@ void TraversableNavigable::set_emulated_position_data(Geolocation::EmulatedPosit
 {
     VERIFY(is_top_level_traversable());
     m_emulated_position_data = data;
+}
+
+void TraversableNavigable::queue_print_task(Web::HTML::PrintSettings settings)
+{
+    m_pending_print_settings = move(settings);
+    m_print_pending = true;
+    set_needs_repaint();
+}
+
+// https://www.w3.org/TR/css-page-3/#page-based-margins
+// Viewport is the printable area: paper minus margins. Content overflowing a single page height
+// flows naturally; the frontend slices the bitmap into per-page strips.
+static CSSPixelSize printable_size(Web::HTML::PrintSettings const& settings)
+{
+    auto to_px = [](float mm) { return CSSPixels::nearest_value_for(mm / 25.4f * 96.0f); };
+    return {
+        to_px(settings.paper_width_mm - settings.margin_left_mm - settings.margin_right_mm),
+        to_px(settings.paper_height_mm - settings.margin_top_mm - settings.margin_bottom_mm),
+    };
+}
+
+void TraversableNavigable::with_print_mode(Web::HTML::PrintSettings const& settings, Function<void()>&& callback)
+{
+    auto document = active_document();
+    if (!document)
+        return;
+    auto& page_obj = page();
+
+    set_print_viewport_size(printable_size(settings));
+    page_obj.set_printing(true);
+    document->invalidate_style(DOM::StyleInvalidationReason::NavigableSetViewportSize);
+    document->set_needs_media_query_evaluation();
+    document->evaluate_media_queries_and_report_changes();
+    document->update_layout(DOM::UpdateLayoutReason::ProcessScreenshot);
+
+    callback();
+
+    // This must happen before the next paint_next_frame so the compositor only ever sees the screen
+    // layout; the print display list is already enqueued.
+    page_obj.set_printing(false);
+    set_print_viewport_size({});
+    document->invalidate_style(DOM::StyleInvalidationReason::NavigableSetViewportSize);
+    document->set_needs_media_query_evaluation();
+    document->evaluate_media_queries_and_report_changes();
+    document->update_layout(DOM::UpdateLayoutReason::ProcessScreenshot);
+}
+
+void TraversableNavigable::process_print_tasks()
+{
+    if (!m_print_pending)
+        return;
+    m_print_pending = false;
+
+    // https://www.w3.org/TR/css-page-3/#page-size-a4
+    // A4 portrait with ~0.5 inch margins is the fallback when the UI has not supplied settings.
+    auto settings = m_pending_print_settings.value_or(Web::HTML::PrintSettings {});
+    m_pending_print_settings = {};
+
+    auto document = active_document();
+    if (!document)
+        return;
+
+    auto& page_obj = page();
+    auto& client = page_obj.client();
+
+    // Fire beforeprint before we change any rendering state.
+    if (auto window = document->window())
+        window->dispatch_event(DOM::Event::create(window->realm(), EventNames::beforeprint));
+
+    with_print_mode(settings, [&] {
+        if (!document->layout_node() || !document->layout_node()->paintable_box())
+            return;
+        auto scrollable_overflow_rect = document->layout_node()->paintable_box()->scrollable_overflow_rect();
+        if (!scrollable_overflow_rect.has_value())
+            return;
+
+        auto rect = page_obj.enclosing_device_rect(scrollable_overflow_rect.value());
+        auto bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().template to_type<int>());
+        if (bitmap_or_error.is_error())
+            return;
+
+        auto bitmap = bitmap_or_error.release_value();
+        auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
+        PaintConfig paint_config { .canvas_fill_rect = rect.template to_type<int>() };
+
+        render_screenshot(*painting_surface, paint_config, [bitmap, &client] {
+            client.page_did_finish_rendering_for_print(bitmap->to_shareable_bitmap());
+        });
+    });
+
+    set_needs_repaint();
+}
+
+void TraversableNavigable::finish_print()
+{
+    auto document = active_document();
+    if (!document)
+        return;
+    document->evaluate_media_queries_and_report_changes();
+    if (auto window = document->window())
+        window->dispatch_event(DOM::Event::create(window->realm(), EventNames::afterprint));
 }
 
 void TraversableNavigable::process_screenshot_requests()

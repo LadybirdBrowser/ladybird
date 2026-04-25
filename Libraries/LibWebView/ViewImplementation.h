@@ -30,6 +30,7 @@
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/ColorPickerUpdateState.h>
 #include <LibWeb/HTML/FileFilter.h>
+#include <LibWeb/HTML/PrintSettings.h>
 #include <LibWeb/HTML/SelectItem.h>
 #include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/InputEvent.h>
@@ -178,6 +179,11 @@ public:
     NonnullRefPtr<Core::Promise<LexicalPath>> take_dom_node_screenshot(Web::UniqueNodeID);
     virtual void did_receive_screenshot(Badge<WebContentClient>, Gfx::ShareableBitmap const&);
 
+    void trigger_print(Web::HTML::PrintSettings const& = {});
+    void did_finish_print();
+    void did_receive_print_request(Badge<WebContentClient>);
+    void did_receive_print_bitmap(Badge<WebContentClient>, Gfx::ShareableBitmap const&);
+
     NonnullRefPtr<Core::Promise<String>> request_internal_page_info(PageInfoType);
     void did_receive_internal_page_info(Badge<WebContentClient>, PageInfoType, Optional<Core::AnonymousBuffer> const&);
 
@@ -215,6 +221,8 @@ public:
     Function<void()> on_stop_tooltip_override;
     Function<void(ByteString const&)> on_enter_tooltip_area;
     Function<void()> on_leave_tooltip_area;
+    Function<void()> on_print_request;
+    Function<void(Gfx::ShareableBitmap)> on_request_print_bitmap;
     Function<void(String const& message)> on_request_alert;
     Function<void(String const& message)> on_request_confirm;
     Function<void(String const& message, String const& default_)> on_request_prompt;

@@ -939,6 +939,24 @@ void ConnectionFromClient::take_dom_node_screenshot(u64 page_id, Web::UniqueNode
     page->queue_screenshot_task(node_id);
 }
 
+void ConnectionFromClient::print_page(u64 page_id, Web::HTML::PrintSettings settings)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    page->queue_print_task(settings);
+}
+
+void ConnectionFromClient::finish_print(u64 page_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    page->finish_print();
+}
+
 static void append_page_text(Web::Page& page, StringBuilder& builder)
 {
     auto* document = page.top_level_browsing_context().active_document();
@@ -1067,6 +1085,19 @@ void ConnectionFromClient::request_internal_page_info(u64 page_id, WebView::Page
         if (!builder.is_empty())
             builder.append("\n"sv);
         append_gc_graph(builder);
+    }
+
+    if (has_flag(type, WebView::PageInfoType::PrintLayoutTree)) {
+        if (!builder.is_empty())
+            builder.append("\n"sv);
+        auto& web_page = page->page();
+        if (web_page.top_level_traversable_is_initialized()) {
+            auto navigable = web_page.top_level_traversable();
+            // https://www.w3.org/TR/css-page-3/#page-size-a4
+            navigable->with_print_mode(Web::HTML::PrintSettings {}, [&] {
+                append_layout_tree(web_page, builder);
+            });
+        }
     }
 
     auto buffer = MUST(Core::AnonymousBuffer::create_with_size(builder.length()));

@@ -504,6 +504,7 @@ void EventLoop::update_the_rendering()
         if (navigable->is_traversable()) {
             auto traversable = navigable->traversable_navigable();
             traversable->process_screenshot_requests();
+            traversable->process_print_tasks();
         }
     }
 

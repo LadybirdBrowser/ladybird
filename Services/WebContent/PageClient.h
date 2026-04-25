@@ -13,6 +13,7 @@
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/FileFilter.h>
+#include <LibWeb/HTML/PrintSettings.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BackingStoreManager.h>
 #include <LibWeb/PixelUnits.h>
@@ -103,6 +104,8 @@ public:
     virtual Web::DisplayListPlayerType display_list_player_type() const override;
 
     void queue_screenshot_task(Optional<Web::UniqueNodeID> node_id);
+    void queue_print_task(Web::HTML::PrintSettings);
+    void finish_print();
 
 private:
     PageClient(PageHost&, u64 id);
@@ -146,6 +149,7 @@ private:
     virtual void page_did_create_new_document(Web::DOM::Document&) override;
     virtual void page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document&) override;
     virtual void page_did_finish_loading(URL::URL const&) override;
+    virtual void page_did_request_print() override;
     virtual void page_did_request_alert(String const&) override;
     virtual void page_did_request_confirm(String const&) override;
     virtual void page_did_request_prompt(String const&, String const&) override;
@@ -193,6 +197,7 @@ private:
     virtual void page_did_mutate_dom(FlyString const& type, Web::DOM::Node const& target, Web::DOM::NodeList& added_nodes, Web::DOM::NodeList& removed_nodes, GC::Ptr<Web::DOM::Node> previous_sibling, GC::Ptr<Web::DOM::Node> next_sibling, Optional<String> const& attribute_name) override;
     virtual void page_did_paint(Gfx::IntRect const& content_rect, i32 bitmap_id) override;
     virtual void page_did_take_screenshot(Gfx::ShareableBitmap const& screenshot) override;
+    virtual void page_did_finish_rendering_for_print(Gfx::ShareableBitmap const& bitmap) override;
     virtual void received_message_from_web_ui(String const& name, JS::Value data) override;
     virtual void page_did_start_network_request(u64 request_id, URL::URL const&, ByteString const&, Vector<HTTP::Header> const&, ReadonlyBytes, Optional<String>) override;
     virtual void page_did_receive_network_response_headers(u64 request_id, u32 status_code, Optional<String>, Vector<HTTP::Header> const&) override;

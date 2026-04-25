@@ -20,6 +20,7 @@
 #include <LibWebView/Attribute.h>
 #include <LibWebView/DOMNodeProperties.h>
 #include <LibWebView/PageInfo.h>
+#include <LibWeb/HTML/PrintSettings.h>
 #include <LibWebView/Settings.h>
 
 endpoint WebContentServer
@@ -85,6 +86,9 @@ endpoint WebContentServer
 
     take_document_screenshot(u64 page_id) =|
     take_dom_node_screenshot(u64 page_id, Web::UniqueNodeID node_id) =|
+
+    print_page(u64 page_id, Web::HTML::PrintSettings settings) =|
+    finish_print(u64 page_id) =|
 
     request_internal_page_info(u64 page_id, WebView::PageInfoType type) =|
 

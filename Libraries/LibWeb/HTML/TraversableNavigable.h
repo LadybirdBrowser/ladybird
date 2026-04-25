@@ -13,6 +13,7 @@
 #include <LibWeb/Geolocation/Geolocation.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/NavigationType.h>
+#include <LibWeb/HTML/PrintSettings.h>
 #include <LibWeb/HTML/SessionHistoryTraversalQueue.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/Page/Page.h>
@@ -117,6 +118,11 @@ public:
         set_needs_repaint();
     }
 
+    void with_print_mode(Web::HTML::PrintSettings const&, AK::Function<void()>&& callback);
+    void process_print_tasks();
+    void queue_print_task(Web::HTML::PrintSettings);
+    void finish_print();
+
 private:
     friend class ApplyHistoryStepState;
 
@@ -186,6 +192,8 @@ private:
         Optional<Web::UniqueNodeID> node_id;
     };
     Queue<ScreenshotTask> m_screenshot_tasks;
+    bool m_print_pending { false };
+    Optional<Web::HTML::PrintSettings> m_pending_print_settings;
 };
 
 struct BrowsingContextAndDocument {

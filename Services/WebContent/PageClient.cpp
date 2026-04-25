@@ -424,6 +424,11 @@ void PageClient::page_did_request_media_context_menu(Web::CSSPixelPoint content_
     client().async_did_request_media_context_menu(m_id, page().css_to_device_point(content_position).to_type<int>(), target, modifiers, menu);
 }
 
+void PageClient::page_did_request_print()
+{
+    client().async_did_request_print(m_id);
+}
+
 void PageClient::page_did_request_alert(String const& message)
 {
     client().async_did_request_alert(m_id, message);
@@ -795,6 +800,11 @@ void PageClient::page_did_take_screenshot(Gfx::ShareableBitmap const& screenshot
     client().async_did_take_screenshot(m_id, screenshot);
 }
 
+void PageClient::page_did_finish_rendering_for_print(Gfx::ShareableBitmap const& bitmap)
+{
+    client().async_did_finish_rendering_for_print(m_id, bitmap);
+}
+
 ErrorOr<void> PageClient::connect_to_webdriver(ByteString const& webdriver_endpoint)
 {
     VERIFY(!m_webdriver);
@@ -1014,6 +1024,16 @@ Web::DisplayListPlayerType PageClient::display_list_player_type() const
 void PageClient::queue_screenshot_task(Optional<Web::UniqueNodeID> node_id)
 {
     page().top_level_traversable()->queue_screenshot_task(node_id);
+}
+
+void PageClient::queue_print_task(Web::HTML::PrintSettings settings)
+{
+    page().top_level_traversable()->queue_print_task(settings);
+}
+
+void PageClient::finish_print()
+{
+    page().top_level_traversable()->finish_print();
 }
 
 }

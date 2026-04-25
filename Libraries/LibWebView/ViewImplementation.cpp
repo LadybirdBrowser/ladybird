@@ -847,6 +847,28 @@ void ViewImplementation::did_receive_screenshot(Badge<WebContentClient>, Gfx::Sh
     m_pending_screenshot = nullptr;
 }
 
+void ViewImplementation::trigger_print(Web::HTML::PrintSettings const& settings)
+{
+    client().async_print_page(page_id(), settings);
+}
+
+void ViewImplementation::did_finish_print()
+{
+    client().async_finish_print(page_id());
+}
+
+void ViewImplementation::did_receive_print_request(Badge<WebContentClient>)
+{
+    if (on_print_request)
+        on_print_request();
+}
+
+void ViewImplementation::did_receive_print_bitmap(Badge<WebContentClient>, Gfx::ShareableBitmap const& bitmap)
+{
+    if (on_request_print_bitmap)
+        on_request_print_bitmap(bitmap);
+}
+
 NonnullRefPtr<Core::Promise<String>> ViewImplementation::request_internal_page_info(PageInfoType type)
 {
     auto promise = Core::Promise<String>::construct();

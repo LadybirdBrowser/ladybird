@@ -631,6 +631,7 @@ set(SOURCES
     HTML/PopoverTargetAttributes.cpp
     HTML/PopStateEvent.cpp
     HTML/PotentialCORSRequest.cpp
+    HTML/PrintSettings.cpp
     HTML/PromiseRejectionEvent.cpp
     HTML/RadioNodeList.cpp
     HTML/RenderingThread.cpp

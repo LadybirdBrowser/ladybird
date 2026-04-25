@@ -2829,6 +2829,23 @@ CSSPixelPoint Navigable::to_top_level_position(CSSPixelPoint a_position)
     return position;
 }
 
+CSSPixelSize Navigable::viewport_size() const
+{
+    return m_print_viewport_size.value_or(m_viewport_size);
+}
+
+CSSPixelRect Navigable::viewport_rect() const
+{
+    if (m_print_viewport_size.has_value())
+        return { CSSPixelPoint {}, *m_print_viewport_size };
+    return { m_viewport_scroll_offset, m_viewport_size };
+}
+
+void Navigable::set_print_viewport_size(Optional<CSSPixelSize> size)
+{
+    m_print_viewport_size = move(size);
+}
+
 void Navigable::set_viewport_size(CSSPixelSize size, InvalidateDisplayList invalidate_display_list)
 {
     if (m_viewport_size == size && invalidate_display_list == InvalidateDisplayList::No)

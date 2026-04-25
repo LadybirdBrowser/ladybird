@@ -490,6 +490,7 @@ public:
 
     virtual void page_did_paint([[maybe_unused]] Gfx::IntRect const& content_rect, [[maybe_unused]] i32 bitmap_id) { }
     virtual void page_did_take_screenshot(Gfx::ShareableBitmap const&) { }
+    virtual void page_did_finish_rendering_for_print(Gfx::ShareableBitmap const&) { }
 
     virtual void received_message_from_web_ui([[maybe_unused]] String const& name, [[maybe_unused]] JS::Value data) { }
 

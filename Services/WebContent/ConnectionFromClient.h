@@ -152,6 +152,9 @@ private:
     virtual void take_document_screenshot(u64 page_id) override;
     virtual void take_dom_node_screenshot(u64 page_id, Web::UniqueNodeID node_id) override;
 
+    virtual void print_page(u64 page_id, Web::HTML::PrintSettings) override;
+    virtual void finish_print(u64 page_id) override;
+
     virtual void request_internal_page_info(u64 page_id, WebView::PageInfoType) override;
 
     virtual Messages::WebContentServer::GetSelectedTextResponse get_selected_text(u64 page_id) override;
