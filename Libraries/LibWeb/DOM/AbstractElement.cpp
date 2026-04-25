@@ -219,14 +219,7 @@ String AbstractElement::debug_description() const
 
 CSS::StyleScope const& AbstractElement::style_scope() const
 {
-    auto& root = m_element->root();
-    if (root.is_shadow_root()) {
-        auto& shadow_root = as<DOM::ShadowRoot>(root);
-        if (shadow_root.uses_document_style_sheets())
-            return root.document().style_scope();
-        return shadow_root.style_scope();
-    }
-    return root.document().style_scope();
+    return m_element->style_scope();
 }
 
 HashMap<FlyString, GC::Ref<CSS::CSSAnimation>>* AbstractElement::css_defined_animations() const

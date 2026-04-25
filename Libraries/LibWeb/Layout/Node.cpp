@@ -989,22 +989,11 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
 CSS::StyleScope const& NodeWithStyle::style_scope() const
 {
-    auto resolve_style_scope = [](DOM::Node const& dom_node) -> CSS::StyleScope const& {
-        auto const& root = dom_node.root();
-        if (root.is_shadow_root()) {
-            auto const& shadow_root = static_cast<DOM::ShadowRoot const&>(root);
-            if (shadow_root.uses_document_style_sheets())
-                return root.document().style_scope();
-            return shadow_root.style_scope();
-        }
-        return root.document().style_scope();
-    };
-
     if (auto const* dom_node = this->dom_node())
-        return resolve_style_scope(*dom_node);
+        return dom_node->style_scope();
 
     if (is_generated_for_pseudo_element())
-        return resolve_style_scope(*pseudo_element_generator());
+        return pseudo_element_generator()->style_scope();
 
     if (auto const* parent = this->parent())
         return parent->style_scope();

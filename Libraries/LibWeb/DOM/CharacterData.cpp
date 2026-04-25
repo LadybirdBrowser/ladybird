@@ -163,20 +163,9 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
         });
         // Walk every reachable scope and schedule the :has() ancestors walk, so :has(:dir(...)) on outer subjects can
         // re-evaluate.
-        auto schedule_on_scope = [ancestor](CSS::StyleScope& scope) {
+        ancestor->for_each_style_scope_which_may_observe_the_node([ancestor](CSS::StyleScope& scope) {
             scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(*ancestor);
-        };
-        schedule_on_scope(ancestor->document().style_scope());
-        for (auto* walker = static_cast<DOM::Node*>(ancestor.ptr()); walker; walker = walker->parent_or_shadow_host()) {
-            if (auto* element = as_if<Element>(*walker)) {
-                if (auto shadow_root = element->shadow_root())
-                    schedule_on_scope(shadow_root->style_scope());
-            }
-            if (auto* shadow_root = as_if<ShadowRoot>(walker->root())) {
-                if (!shadow_root->uses_document_style_sheets())
-                    schedule_on_scope(shadow_root->style_scope());
-            }
-        }
+        });
     }
 
     return {};

@@ -4468,20 +4468,9 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
         });
         // :has(:dir(...)) and :has(:lang(...)) on ancestors aren't keyed on any property the regular invalidation
         // plan tracks, so explicitly schedule the :has() ancestor walk here.
-        auto schedule_on_scope = [this](CSS::StyleScope& scope) {
+        for_each_style_scope_which_may_observe_the_node([this](CSS::StyleScope& scope) {
             scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(*this);
-        };
-        schedule_on_scope(document().style_scope());
-        for (auto* walker = static_cast<Node*>(this); walker; walker = walker->parent_or_shadow_host()) {
-            if (auto* element = as_if<Element>(*walker)) {
-                if (auto shadow_root = element->shadow_root())
-                    schedule_on_scope(shadow_root->style_scope());
-            }
-            if (auto* shadow_root = as_if<ShadowRoot>(walker->root())) {
-                if (!shadow_root->uses_document_style_sheets())
-                    schedule_on_scope(shadow_root->style_scope());
-            }
-        }
+        });
     } else if (local_name == HTML::AttributeNames::part) {
         m_parts.clear();
         if (!value_or_empty.is_empty()) {

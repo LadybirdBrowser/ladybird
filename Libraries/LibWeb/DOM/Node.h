@@ -8,6 +8,7 @@
 
 #include <AK/DistinctNumeric.h>
 #include <AK/FlyString.h>
+#include <AK/Function.h>
 #include <AK/GenericShorthands.h>
 #include <AK/TypeCasts.h>
 #include <AK/Vector.h>
@@ -26,6 +27,16 @@
 namespace Web::DOM {
 
 class Document;
+
+}
+
+namespace Web::CSS {
+
+class StyleScope;
+
+}
+
+namespace Web::DOM {
 
 enum class NameOrDescription {
     Name,
@@ -357,6 +368,9 @@ public:
 
     void invalidate_style(StyleInvalidationReason);
     void invalidate_style(StyleInvalidationReason, Vector<CSS::InvalidationSet::Property> const&, StyleInvalidationOptions);
+    CSS::StyleScope& style_scope();
+    CSS::StyleScope const& style_scope() const { return const_cast<Node*>(this)->style_scope(); }
+    void for_each_style_scope_which_may_observe_the_node(Function<void(CSS::StyleScope&)> const&);
 
     void set_document(Badge<Document>, Document&);
     void set_document(Badge<NamedNodeMap>, Document&);
