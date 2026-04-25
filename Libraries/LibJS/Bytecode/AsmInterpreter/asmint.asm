@@ -1147,9 +1147,10 @@ end
 
 # Check if value is TDZ (empty). If not, just continue.
 handler ThrowIfTDZ
-    load_operand t1, m_src
-    mov t0, EMPTY_VALUE
-    branch_eq t1, t0, .slow
+    temp value, empty
+    load_operand value, m_src
+    mov empty, EMPTY_VALUE
+    branch_eq value, empty, .slow
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_throw_if_tdz
@@ -1157,9 +1158,10 @@ end
 
 # Check if value is an object. Only throws on non-object (rare).
 handler ThrowIfNotObject
-    load_operand t1, m_src
-    extract_tag t0, t1
-    branch_ne t0, OBJECT_TAG, .slow
+    temp value, tag
+    load_operand value, m_src
+    extract_tag tag, value
+    branch_ne tag, OBJECT_TAG, .slow
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_throw_if_not_object
@@ -1167,10 +1169,11 @@ end
 
 # Check if value is nullish (undefined or null). Only throws on nullish (rare).
 handler ThrowIfNullish
-    load_operand t1, m_src
-    extract_tag t0, t1
-    and t0, 0xFFFE
-    branch_eq t0, UNDEFINED_TAG, .slow
+    temp value, tag
+    load_operand value, m_src
+    extract_tag tag, value
+    and tag, 0xFFFE
+    branch_eq tag, UNDEFINED_TAG, .slow
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_throw_if_nullish
@@ -1178,14 +1181,15 @@ end
 
 # Fast path for int32: ~value
 handler BitwiseNot
-    load_operand t1, m_src
-    extract_tag t2, t1
-    branch_ne t2, INT32_TAG, .slow
+    temp value, tag, dst
+    load_operand value, m_src
+    extract_tag tag, value
+    branch_ne tag, INT32_TAG, .slow
     # NOT the low 32 bits (not32 zeros upper 32), then re-box
-    mov t3, t1
-    not32 t3
-    box_int32_clean t3, t3
-    store_operand m_dst, t3
+    mov dst, value
+    not32 dst
+    box_int32_clean dst, dst
+    store_operand m_dst, dst
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_bitwise_not
@@ -1201,36 +1205,38 @@ end
 
 # Shift ops: int32-only fast path, shift count masked to 0-31 per spec.
 handler LeftShift
-    load_operand t1, m_lhs
-    load_operand t2, m_rhs
-    extract_tag t3, t1
-    branch_ne t3, INT32_TAG, .slow
-    extract_tag t4, t2
-    branch_ne t4, INT32_TAG, .slow
-    unbox_int32 t3, t1
-    unbox_int32 t4, t2
-    and t4, 31
-    shl t3, t4
-    box_int32 t4, t3
-    store_operand m_dst, t4
+    temp lhs, rhs, lhs_tag, rhs_tag, lhs_int, count, dst
+    load_operand lhs, m_lhs
+    load_operand rhs, m_rhs
+    extract_tag lhs_tag, lhs
+    branch_ne lhs_tag, INT32_TAG, .slow
+    extract_tag rhs_tag, rhs
+    branch_ne rhs_tag, INT32_TAG, .slow
+    unbox_int32 lhs_int, lhs
+    unbox_int32 count, rhs
+    and count, 31
+    shl lhs_int, count
+    box_int32 dst, lhs_int
+    store_operand m_dst, dst
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_left_shift
 end
 
 handler RightShift
-    load_operand t1, m_lhs
-    load_operand t2, m_rhs
-    extract_tag t3, t1
-    branch_ne t3, INT32_TAG, .slow
-    extract_tag t4, t2
-    branch_ne t4, INT32_TAG, .slow
-    unbox_int32 t3, t1
-    unbox_int32 t4, t2
-    and t4, 31
-    sar t3, t4
-    box_int32 t4, t3
-    store_operand m_dst, t4
+    temp lhs, rhs, lhs_tag, rhs_tag, lhs_int, count, dst
+    load_operand lhs, m_lhs
+    load_operand rhs, m_rhs
+    extract_tag lhs_tag, lhs
+    branch_ne lhs_tag, INT32_TAG, .slow
+    extract_tag rhs_tag, rhs
+    branch_ne rhs_tag, INT32_TAG, .slow
+    unbox_int32 lhs_int, lhs
+    unbox_int32 count, rhs
+    and count, 31
+    sar lhs_int, count
+    box_int32 dst, lhs_int
+    store_operand m_dst, dst
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_right_shift
@@ -1239,27 +1245,29 @@ end
 # Unsigned right shift: result is always unsigned, so values > INT32_MAX
 # must be stored as double (can't fit in a signed int32 NaN-box).
 handler UnsignedRightShift
-    load_operand t1, m_lhs
-    load_operand t2, m_rhs
-    extract_tag t3, t1
-    branch_ne t3, INT32_TAG, .slow
-    extract_tag t4, t2
-    branch_ne t4, INT32_TAG, .slow
+    temp lhs, rhs, lhs_tag, rhs_tag, value, count, dst
+    ftemp dst_dbl
+    load_operand lhs, m_lhs
+    load_operand rhs, m_rhs
+    extract_tag lhs_tag, lhs
+    branch_ne lhs_tag, INT32_TAG, .slow
+    extract_tag rhs_tag, rhs
+    branch_ne rhs_tag, INT32_TAG, .slow
     # u32 result = (u32)lhs >> (rhs % 32)
-    mov t3, t1
-    and t3, 0xFFFFFFFF
-    unbox_int32 t4, t2
-    and t4, 31
-    shr t3, t4
+    mov value, lhs
+    and value, 0xFFFFFFFF
+    unbox_int32 count, rhs
+    and count, 31
+    shr value, count
     # If result > INT32_MAX, store as double
-    branch_bit_set t3, 31, .as_double
-    box_int32_clean t3, t3
-    store_operand m_dst, t3
+    branch_bit_set value, 31, .as_double
+    box_int32_clean dst, value
+    store_operand m_dst, dst
     dispatch_next
 .as_double:
-    int_to_double ft0, t3
-    fp_mov t3, ft0
-    store_operand m_dst, t3
+    int_to_double dst_dbl, value
+    fp_mov dst, dst_dbl
+    store_operand m_dst, dst
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_unsigned_right_shift
