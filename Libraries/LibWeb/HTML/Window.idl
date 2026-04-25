@@ -16,6 +16,7 @@ interface Window : EventTarget {
     undefined stop();
     undefined focus();
     undefined blur();
+    undefined print();
 
     [Replaceable] readonly attribute BarProp locationbar;
     [Replaceable] readonly attribute BarProp menubar;
