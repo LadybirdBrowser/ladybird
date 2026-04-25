@@ -45,7 +45,8 @@ void LineBox::add_fragment(Node const& layout_node, size_t start, size_t length,
     if (glyph_run && !text_align_is_justify && !m_fragments.is_empty()
         && &m_fragments.last().layout_node() == &layout_node
         && &m_fragments.last().m_glyph_run->font() == &glyph_run->font()
-        && m_fragments.last().start() + m_fragments.last().length_in_code_units() == start) {
+        && m_fragments.last().start() + m_fragments.last().length_in_code_units() == start
+        && m_fragments.last().m_glyph_run->direction() == glyph_run->direction()) {
         // The fragment we're adding is from the last Layout::Node on the line.
         // Expand the last fragment instead of adding a new one with the same Layout::Node.
         m_fragments.last().m_length_in_code_units += length;
@@ -54,7 +55,7 @@ void LineBox::add_fragment(Node const& layout_node, size_t start, size_t length,
         CSSPixels inline_offset = leading_margin + leading_size + m_inline_length;
         CSSPixels block_offset = 0;
         m_fragments.append(LineBoxFragment { layout_node, start, length, inline_offset, block_offset, content_width,
-            content_height, border_box_top, m_direction, m_writing_mode, move(glyph_run) });
+            content_height, border_box_top, m_writing_mode, move(glyph_run) });
     }
     m_inline_length += leading_margin + leading_size + content_width + trailing_size + trailing_margin;
     m_block_length = max(m_block_length, content_height + border_box_top + border_box_bottom);

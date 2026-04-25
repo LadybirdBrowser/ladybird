@@ -229,7 +229,6 @@ void LineBuilder::update_last_line()
     CSSPixels inline_offset = max(inline_offset_top, inline_offset_bottom);
     CSSPixels block_offset = 0;
 
-    // FIXME: Respect inline direction.
     CSSPixels excess_inline_space = m_available_width_for_current_line.to_px_or_zero() - line_box.inline_length();
 
     if (m_writing_mode != CSS::WritingMode::HorizontalTb) {

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibUnicode/Bidi.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/Layout/BreakNode.h>
@@ -15,13 +16,14 @@
 
 namespace Web::Layout {
 
-InlineLevelIterator::InlineLevelIterator(Layout::InlineFormattingContext& inline_formatting_context, Layout::LayoutState& layout_state, Layout::BlockContainer const& containing_block, LayoutState::UsedValues const& containing_block_used_values, LayoutMode layout_mode)
+InlineLevelIterator::InlineLevelIterator(Layout::InlineFormattingContext& inline_formatting_context, Layout::LayoutState& layout_state, Layout::BlockContainer const& containing_block, LayoutState::UsedValues const& containing_block_used_values, LayoutMode layout_mode, Unicode::BidiParagraph* bidi_paragraph)
     : m_inline_formatting_context(inline_formatting_context)
     , m_layout_state(layout_state)
     , m_containing_block(containing_block)
     , m_containing_block_used_values(containing_block_used_values)
     , m_next_node(containing_block.first_child())
     , m_layout_mode(layout_mode)
+    , m_bidi_paragraph(bidi_paragraph)
 {
     skip_to_next();
     generate_all_items();
@@ -187,41 +189,6 @@ CSSPixels InlineLevelIterator::next_non_whitespace_sequence_width()
     return next_width;
 }
 
-Gfx::GlyphRun::TextType InlineLevelIterator::resolve_text_direction_from_context()
-{
-    VERIFY(m_text_node_context.has_value());
-
-    // Search forward in the pre-generated chunks array to find the next chunk with known direction.
-    // Since chunks are pre-generated, this is just O(1) array access per iteration.
-    Optional<Gfx::GlyphRun::TextType> next_known_direction;
-    auto const& chunks = m_text_node_context->chunk_list->chunks;
-    for (size_t i = m_text_node_context->next_chunk_index; i < chunks.size(); ++i) {
-        auto const& chunk = chunks[i];
-        if (chunk.text_type == Gfx::GlyphRun::TextType::Ltr || chunk.text_type == Gfx::GlyphRun::TextType::Rtl) {
-            next_known_direction = chunk.text_type;
-            break;
-        }
-    }
-
-    auto last_known_direction = m_text_node_context->last_known_direction;
-
-    if (last_known_direction.has_value() && next_known_direction.has_value() && *last_known_direction != *next_known_direction) {
-        switch (m_containing_block->computed_values().direction()) {
-        case CSS::Direction::Ltr:
-            return Gfx::GlyphRun::TextType::Ltr;
-        case CSS::Direction::Rtl:
-            return Gfx::GlyphRun::TextType::Rtl;
-        }
-    }
-
-    if (last_known_direction.has_value())
-        return *last_known_direction;
-    if (next_known_direction.has_value())
-        return *next_known_direction;
-
-    return Gfx::GlyphRun::TextType::ContextDependent;
-}
-
 Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
 {
     if (!m_current_node)
@@ -259,7 +226,6 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
                     .view = {},
                     .font = text_node->computed_values().font_list().first(),
                     .is_all_whitespace = true,
-                    .text_type = Gfx::GlyphRun::TextType::Common,
                 };
                 // Advance the index so the next call will move to the next node
                 m_text_node_context->next_chunk_index = 1;
@@ -272,20 +238,11 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
         }
 
         auto& chunk = chunk_opt.value();
-        auto text_type = chunk.text_type;
-        if (text_type == Gfx::GlyphRun::TextType::Ltr || text_type == Gfx::GlyphRun::TextType::Rtl) {
-            m_text_node_context->last_known_direction = text_type;
-        }
 
         auto do_respect_linebreak = m_text_node_context->should_respect_linebreaks;
         if (do_respect_linebreak && chunk.has_breaking_newline) {
             is_last_chunk = true;
-            if (chunk.is_all_whitespace)
-                text_type = Gfx::GlyphRun::TextType::EndPadding;
         }
-
-        if (text_type == Gfx::GlyphRun::TextType::ContextDependent)
-            text_type = resolve_text_direction_from_context();
 
         if (do_respect_linebreak && chunk.has_breaking_newline)
             return Item { .type = Item::Type::ForcedBreak };
@@ -332,7 +289,13 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
             x = tab_stop_dist.to_float();
         }
 
-        auto glyph_run = Gfx::shape_text({ x, 0 }, letter_spacing.to_float(), chunk.view, chunk.font, text_type);
+        auto direction = Gfx::GlyphRun::Direction::Ltr;
+        if (m_bidi_paragraph && m_bidi_paragraph->get_bidi_level_at(m_current_index_in_text) % 2 == 1) {
+            direction = Gfx::GlyphRun::Direction::Rtl;
+        }
+        m_current_index_in_text += chunk.length;
+
+        auto glyph_run = Gfx::shape_text({ x, 0 }, letter_spacing.to_float(), chunk.view, chunk.font, direction);
 
         CSSPixels chunk_width = CSSPixels::nearest_value_for(glyph_run->width() + x);
 
@@ -425,7 +388,7 @@ void InlineLevelIterator::enter_text_node(Layout::TextNode const& text_node)
     bool do_wrap_lines = text_wrap_mode == CSS::TextWrapMode::Wrap;
     bool do_respect_linebreaks = first_is_one_of(white_space_collapse, CSS::WhiteSpaceCollapse::Preserve, CSS::WhiteSpaceCollapse::PreserveBreaks, CSS::WhiteSpaceCollapse::BreakSpaces);
 
-    auto const& chunks = text_node.chunks_for_layout(do_wrap_lines, do_respect_linebreaks);
+    auto const& chunks = text_node.chunks_for_layout(do_wrap_lines, do_respect_linebreaks, m_bidi_paragraph);
 
     m_text_node_context = TextNodeContext {
         // OPTIMIZATION: The chunk list is cached by the TextNode and only read by this iterator, so keep a pointer

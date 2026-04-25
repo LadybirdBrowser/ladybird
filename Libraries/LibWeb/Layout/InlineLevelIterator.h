@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Noncopyable.h>
+#include <LibUnicode/Bidi.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/LayoutState.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -50,7 +51,7 @@ public:
         }
     };
 
-    InlineLevelIterator(Layout::InlineFormattingContext&, LayoutState&, Layout::BlockContainer const& containing_block, LayoutState::UsedValues const& containing_block_used_values, LayoutMode);
+    InlineLevelIterator(Layout::InlineFormattingContext&, LayoutState&, Layout::BlockContainer const& containing_block, LayoutState::UsedValues const& containing_block_used_values, LayoutMode, Unicode::BidiParagraph*);
 
     Optional<Item&> next();
     CSSPixels next_non_whitespace_sequence_width();
@@ -58,7 +59,6 @@ public:
 private:
     void generate_all_items();
     Optional<Item> generate_next_item();
-    Gfx::GlyphRun::TextType resolve_text_direction_from_context();
     void skip_to_next();
     void compute_next();
 
@@ -79,13 +79,15 @@ private:
     GC::Ptr<Layout::Node const> m_next_node;
     LayoutMode const m_layout_mode;
 
+    Unicode::BidiParagraph* m_bidi_paragraph;
+    size_t m_current_index_in_text { 0 };
+
     struct TextNodeContext {
         TextNode::ChunkList const* chunk_list { nullptr };
         size_t next_chunk_index { 0 };
         bool should_collapse_whitespace {};
         bool should_wrap_lines {};
         bool should_respect_linebreaks {};
-        Optional<Gfx::GlyphRun::TextType> last_known_direction {};
     };
 
     Optional<TextNodeContext> m_text_node_context;

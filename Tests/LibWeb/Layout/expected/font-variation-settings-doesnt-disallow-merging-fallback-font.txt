@@ -2,8 +2,18 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 34 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 18 0+0+8] children: not-inline
       BlockContainer <div#foo> at [8,8] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
-        frag 0 from TextNode start: 0, length: 52, rect: [8,8 350.734375x18] baseline: 13.796875
-            "حسنًا ، hello friends مرحباً أيها ا test لأصدقاء end"
+        frag 0 from TextNode start: 0, length: 5, rect: [8,8 23.375x18] baseline: 13.796875
+            "حسنًا"
+        frag 1 from TextNode start: 5, length: 17, rect: [31.375,8 130.046875x18] baseline: 13.796875
+            " ، hello friends "
+        frag 2 from TextNode start: 22, length: 13, rect: [161.421875,8 74.4375x18] baseline: 13.796875
+            "مرحباً أيها ا"
+        frag 3 from TextNode start: 35, length: 6, rect: [235.859375,8 47.78125x18] baseline: 13.796875
+            " test "
+        frag 4 from TextNode start: 41, length: 7, rect: [283.640625,8 40.90625x18] baseline: 13.796875
+            "لأصدقاء"
+        frag 5 from TextNode start: 48, length: 4, rect: [324.546875,8 34.1875x18] baseline: 13.796875
+            " end"
         TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [8,26] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)

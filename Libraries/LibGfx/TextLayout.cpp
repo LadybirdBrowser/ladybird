@@ -24,10 +24,10 @@ struct GlyphRun::CachedTextBlob {
     float scale { 0 };
 };
 
-GlyphRun::GlyphRun(Vector<DrawGlyph>&& glyphs, NonnullRefPtr<Font const> font, TextType text_type, float width)
+GlyphRun::GlyphRun(Vector<DrawGlyph>&& glyphs, NonnullRefPtr<Font const> font, Direction direction, float width)
     : m_glyphs(move(glyphs))
     , m_font(move(font))
-    , m_text_type(text_type)
+    , m_direction(direction)
     , m_width(width)
 {
 }
@@ -45,7 +45,7 @@ NonnullRefPtr<GlyphRun> GlyphRun::slice(size_t start, size_t length) const
         width += m_glyphs[i].glyph_width;
     }
 
-    return adopt_ref(*new GlyphRun(move(sliced_glyphs), m_font, m_text_type, width));
+    return adopt_ref(*new GlyphRun(move(sliced_glyphs), m_font, m_direction, width));
 }
 
 void GlyphRun::ensure_text_blob(float scale) const
@@ -112,7 +112,7 @@ Vector<float> GlyphRun::get_glyph_intercepts(float scale, float y_top, float y_b
     return intervals;
 }
 
-Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View const& string, FontCascadeList const& font_cascade_list, float letter_spacing)
+Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View const& string, FontCascadeList const& font_cascade_list, GlyphRun::Direction direction, float letter_spacing)
 {
     if (string.is_empty())
         return {};
@@ -124,8 +124,9 @@ Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View 
     Font const* last_font = &font_cascade_list.font_for_code_point(*it, FontCascadeList::TriggerPendingLoads::Yes);
     FloatPoint last_position = baseline_start;
 
-    auto add_run = [&runs, &last_position, letter_spacing](Utf16View const& string, Font const& font) {
-        auto run = shape_text(last_position, letter_spacing, string, font, GlyphRun::TextType::Common);
+    auto add_run = [&runs, &last_position, letter_spacing, direction](Utf16View const& string, Font const& font) {
+        // FIXME: This function should take the text directionality
+        auto run = shape_text(last_position, letter_spacing, string, font, direction);
         last_position.translate_by(run->width(), 0);
         runs.append(*run);
     };
@@ -151,7 +152,7 @@ Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View 
     return runs;
 }
 
-static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font, GlyphRun::TextType text_type)
+static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font, GlyphRun::Direction direction)
 {
     hb_buffer_t* buffer = hb_buffer_create();
 
@@ -163,15 +164,12 @@ static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font
     } else {
         hb_buffer_add_utf16(buffer, reinterpret_cast<u16 const*>(string.utf16_span().data()), string.length_in_code_units(), 0, -1);
         // For non-ASCII, set direction from text_type if known, otherwise guess.
-        if (text_type == GlyphRun::TextType::Ltr) {
+        if (direction == GlyphRun::Direction::Ltr) {
             hb_buffer_set_direction(buffer, HB_DIRECTION_LTR);
-            hb_buffer_guess_segment_properties(buffer);
-        } else if (text_type == GlyphRun::TextType::Rtl) {
-            hb_buffer_set_direction(buffer, HB_DIRECTION_RTL);
-            hb_buffer_guess_segment_properties(buffer);
         } else {
-            hb_buffer_guess_segment_properties(buffer);
+            hb_buffer_set_direction(buffer, HB_DIRECTION_RTL);
         }
+        hb_buffer_guess_segment_properties(buffer);
     }
 
     auto* hb_font = font.harfbuzz_font();
@@ -195,7 +193,7 @@ static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font
     return buffer;
 }
 
-NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf16View const& string, Font const& font, GlyphRun::TextType text_type)
+NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf16View const& string, Font const& font, GlyphRun::Direction direction)
 {
     auto const& metrics = font.pixel_metrics();
     auto& shaping_cache = font.shaping_cache();
@@ -207,7 +205,7 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
             if (code_unit < 128) {
                 auto*& cache_slot = shaping_cache.single_ascii_character_map[code_unit];
                 if (!cache_slot) {
-                    cache_slot = setup_text_shaping(string, font, text_type);
+                    cache_slot = setup_text_shaping(string, font, direction);
                 }
                 return cache_slot;
             }
@@ -217,7 +215,7 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
             it != shaping_cache.map.end()) {
             return it->value;
         }
-        auto* buffer = setup_text_shaping(string, font, text_type);
+        auto* buffer = setup_text_shaping(string, font, direction);
         shaping_cache.map.set(Utf16String::from_utf16(string), buffer);
         return buffer;
     };
@@ -267,12 +265,13 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
         point.translate_by(letter_spacing, 0);
     }
 
-    return adopt_ref(*new GlyphRun(move(glyph_run), font, text_type, point.x() - baseline_start.x()));
+    return adopt_ref(*new GlyphRun(move(glyph_run), font, direction, point.x() - baseline_start.x()));
 }
 
 float measure_text_width(Utf16View const& string, Font const& font, float letter_spacing)
 {
-    auto* buffer = setup_text_shaping(string, font, GlyphRun::TextType::Common);
+    // FIXME: This should probably run the unicode bidi algorithm to figure out the text directionality.
+    auto* buffer = setup_text_shaping(string, font, GlyphRun::Direction::Ltr);
 
     u32 glyph_count;
     auto const* positions = hb_buffer_get_glyph_positions(buffer, &glyph_count);

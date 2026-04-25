@@ -17,6 +17,7 @@
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/Rect.h>
+#include <LibGfx/TextLayout.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/ValueInlines.h>
@@ -308,7 +309,7 @@ Gfx::Path CanvasRenderingContext2D::text_path(Utf16String const& text, float x, 
 
     auto const& font_cascade_list = this->font_cascade_list();
     auto const& font = font_cascade_list->first();
-    auto glyph_runs = Gfx::shape_text({ x, y }, text.utf16_view(), *font_cascade_list,
+    auto glyph_runs = Gfx::shape_text({ x, y }, text.utf16_view(), *font_cascade_list, Gfx::GlyphRun::Direction::Ltr,
         resolved_letter_spacing(drawing_state, canvas_element()));
     Gfx::Path path;
     float text_width = 0;
@@ -828,7 +829,7 @@ CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(Ut
 
     // 3. Let font be the current font of target, as given by that object's font attribute.
     auto glyph_runs = Gfx::shape_text({ 0, 0 }, replaced_text.utf16_view(), *font_cascade_list(),
-        resolved_letter_spacing(drawing_state(), canvas_element()));
+        Gfx::GlyphRun::Direction::Ltr, resolved_letter_spacing(drawing_state(), canvas_element()));
 
     // FIXME: 4. Let language be the target's language.
     // FIXME: 5. If language is "inherit":

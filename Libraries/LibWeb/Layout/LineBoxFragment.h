@@ -18,7 +18,7 @@ class LineBoxFragment {
     friend class LineBox;
 
 public:
-    LineBoxFragment(Node const& layout_node, size_t start, size_t length, CSSPixels inline_offset, CSSPixels block_offset, CSSPixels inline_length, CSSPixels block_length, CSSPixels border_box_top, CSS::Direction, CSS::WritingMode, RefPtr<Gfx::GlyphRun>);
+    LineBoxFragment(Node const& layout_node, size_t start, size_t length, CSSPixels inline_offset, CSSPixels block_offset, CSSPixels inline_length, CSSPixels block_length, CSSPixels border_box_top, CSS::WritingMode, RefPtr<Gfx::GlyphRun>);
 
     Node const& layout_node() const { return m_layout_node; }
     size_t start() const { return m_start; }
@@ -61,10 +61,6 @@ public:
     void set_fully_truncated(bool value) { m_is_fully_truncated = value; }
 
 private:
-    CSS::Direction resolve_glyph_run_direction(Gfx::GlyphRun::TextType) const;
-    void append_glyph_run_ltr(RefPtr<Gfx::GlyphRun> const&, CSSPixels run_width);
-    void append_glyph_run_rtl(RefPtr<Gfx::GlyphRun> const&, CSSPixels run_width);
-
     GC::Ref<Node const> m_layout_node;
     size_t m_start { 0 };
     size_t m_length_in_code_units { 0 };
@@ -74,12 +70,10 @@ private:
     CSSPixels m_block_length;
     CSSPixels m_border_box_top { 0 };
     CSSPixels m_baseline { 0 };
-    CSS::Direction m_direction { CSS::Direction::Ltr };
     CSS::WritingMode m_writing_mode { CSS::WritingMode::HorizontalTb };
 
     RefPtr<Gfx::GlyphRun> m_glyph_run;
     float m_insert_position { 0 };
-    CSS::Direction m_current_insert_direction { CSS::Direction::Ltr };
     bool m_has_trailing_whitespace { false };
     bool m_is_fully_truncated { false };
 };

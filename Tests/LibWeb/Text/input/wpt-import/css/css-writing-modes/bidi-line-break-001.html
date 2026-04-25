@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<title>Test implicit bidi controls do not affect line breaking</title>
+<link rel="help" href="https://drafts.csswg.org/css-writing-modes-3/#unicode-bidi">
+<link rel="author" title="Koji Ishii" href="mailto:kojii@chromium.org">
+<style>
+html {
+  font-size: 10px;
+  line-height: 1;
+}
+.isolate {
+  unicode-bidi: isolate;
+}
+.embed {
+  unicode-bidi: embed;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<div id=log></div>
+<div id="container">
+  <div style="width: 4ch" data-expected-height="20">
+    <span class="isolate" dir="ltr">00</span> <span class="isolate" dir="ltr">00</span>
+  </div>
+  <div style="width: 4ch" data-expected-height="20">
+    <span class="embed" dir="ltr">00</span> <span class="embed" dir="ltr">00</span>
+  </div>
+
+  <div style="width: 4ch" data-expected-height="20">
+    <span dir="ltr">00</span> <span dir="ltr">00</span>
+  </div>
+  <div style="width: 4ch" data-expected-height="20">
+    <bdi dir="ltr">00</bdi> <bdi dir="ltr">00</bdi>
+  </div>
+  <div style="width: 4ch" data-expected-height="20">
+    <bdo dir="ltr">00</bdo> <bdo dir="ltr">00</bdo>
+  </div>
+
+  <div style="width: 4ch" data-expected-height="20">
+    <span class="isolate" dir="ltr">00 </span><span class="isolate" dir="ltr">00</span>
+  </div>
+  <div style="width: 4ch" data-expected-height="20">
+    <span class="embed" dir="ltr">00 </span><span class="embed" dir="ltr">00</span>
+  </div>
+</div>
+<script>
+run();
+function run() {
+  for (let node of document.getElementById('container').children) {
+    test(() => {
+      assert_approx_equals(node.offsetHeight, 20, 1);
+    }, node.innerHTML);
+  }
+}
+</script>
+</body>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>direction/unicode-bidi: span direction rtl, unicode-bidi normal (1)</title>
+
+<link rel="author" title="Richard Ishida" href='mailto:ishida@w3.org'/>
+<link rel="help" href='http://www.w3.org/TR/css-writing-modes-3/#text-direction'/>
+<link rel="match" href='../../../../expected/wpt-import/css/css-writing-modes/reference/bidi-normal-001.html'/>
+<meta name="assert" content='In a ltr context, if direction:rtl and unicode-bidi:normal are applied to an inline element containing mixed direction text, the text in that element will NOT be displayed in rtl order.'/>
+<style type="text/css">
+.test span { direction: rtl; unicode-bidi: normal; }
+
+ /* the following styles are not part of the test */
+.test, .ref { font-size: 150%; border: 1px solid orange; margin: 10px; width: 10em; padding: 5px; clear: both; }
+input { margin: 5px; }
+@font-face {
+    font-family: 'ezra_silregular';
+    src: url('../../fonts/sileot-webfont.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+    }
+.test, .ref { font-family: ezra_silregular, serif; }
+</style>
+</head>
+<body>
+<p class="instructions" dir="ltr">Test passes if the two boxes are identical.</p>
+
+
+<!--Notes:
+Key to entities used below:
+        &#x5d0; ... &#x5d5; - The first six Hebrew letters (strongly RTL).
+        &#x202d; - The LRO (left-to-right-override) formatting character.
+        &#x202c; - The PDF (pop directional formatting) formatting character; closes LRO.
+-->
+
+
+
+<div class="test" dir="ltr">&gt; <span>a &gt; &#x5d0;</span> &gt;</div>
+
+
+<div class="ref" dir="ltr">&#x202d;&gt; a &gt; &#x5d0; &gt;&#x202c;</div>
+
+
+
+
+
+
+</body></html>

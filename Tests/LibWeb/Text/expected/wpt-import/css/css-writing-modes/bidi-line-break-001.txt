@@ -1,0 +1,26 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	
+    <span class="isolate" dir="ltr">00</span> <span class="isolate" dir="ltr">00</span>
+  
+Pass	
+    <span class="embed" dir="ltr">00</span> <span class="embed" dir="ltr">00</span>
+  
+Pass	
+    <span dir="ltr">00</span> <span dir="ltr">00</span>
+  
+Pass	
+    <bdi dir="ltr">00</bdi> <bdi dir="ltr">00</bdi>
+  
+Pass	
+    <bdo dir="ltr">00</bdo> <bdo dir="ltr">00</bdo>
+  
+Pass	
+    <span class="isolate" dir="ltr">00 </span><span class="isolate" dir="ltr">00</span>
+  
+Pass	
+    <span class="embed" dir="ltr">00 </span><span class="embed" dir="ltr">00</span>
+  

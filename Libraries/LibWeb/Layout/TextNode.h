@@ -10,6 +10,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibGfx/TextLayout.h>
+#include <LibUnicode/Bidi.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/DOM/Text.h>
@@ -45,13 +46,12 @@ public:
         bool has_breaking_tab { false };
         bool is_all_whitespace { false };
         bool can_break_after { false };
-        Gfx::GlyphRun::TextType text_type;
     };
 
     class ChunkIterator {
     public:
-        ChunkIterator(TextNode const&, bool should_wrap_lines, bool should_respect_linebreaks);
-        ChunkIterator(TextNode const&, Utf16View const&, Unicode::Segmenter& grapheme_segmenter, Unicode::Segmenter& line_segmenter, CSS::WordBreak, bool should_wrap_lines, bool should_respect_linebreaks);
+        ChunkIterator(TextNode const&, bool should_wrap_lines, bool should_respect_linebreaks, Unicode::BidiParagraph* bidi_paragraph = nullptr, size_t offset_in_bidi_paragraph = 0);
+        ChunkIterator(TextNode const&, Utf16View const&, Unicode::Segmenter& grapheme_segmenter, Unicode::Segmenter& line_segmenter, CSS::WordBreak, bool should_wrap_lines, bool should_respect_linebreaks, Unicode::BidiParagraph* bidi_paragraph = nullptr, size_t offset_in_bidi_paragraph = 0);
 
         bool should_wrap_lines() const { return m_should_wrap_lines; }
         bool should_respect_linebreaks() const { return m_should_respect_linebreaks; }
@@ -64,7 +64,7 @@ public:
 
     private:
         Optional<Chunk> next_without_peek();
-        Optional<Chunk> try_commit_chunk(size_t start, size_t end, bool has_breaking_newline, bool has_breaking_tab, bool can_break_after, Gfx::Font const&, Gfx::GlyphRun::TextType) const;
+        Optional<Chunk> try_commit_chunk(size_t start, size_t end, bool has_breaking_newline, bool has_breaking_tab, bool can_break_after, Gfx::Font const&) const;
 
         [[nodiscard]] bool is_at_line_break_opportunity() const;
         [[nodiscard]] Gfx::Font const& font_for_space(size_t at_index, u32 space_code_point) const;
@@ -83,6 +83,9 @@ public:
         Vector<Chunk> m_peek_queue;
 
         mutable RefPtr<Gfx::Font const> m_last_non_whitespace_font;
+
+        Unicode::BidiParagraph* m_bidi_paragraph;
+        size_t m_offset_in_bidi_paragraph { 0 };
     };
 
     struct ChunkList {
@@ -90,7 +93,7 @@ public:
         bool should_collapse_whitespace { false };
     };
 
-    ChunkList const& chunks_for_layout(bool should_wrap_lines, bool should_respect_linebreaks) const;
+    ChunkList const& chunks_for_layout(bool should_wrap_lines, bool should_respect_linebreaks, Unicode::BidiParagraph*) const;
 
     void invalidate_text_for_rendering();
 

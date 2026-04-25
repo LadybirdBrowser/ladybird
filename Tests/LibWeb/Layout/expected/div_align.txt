@@ -39,46 +39,38 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               "is"
           frag 5 from TextNode start: 12, length: 1, rect: [105.546875,482 8x18] baseline: 13.796875
               " "
-          frag 6 from TextNode start: 13, length: 1, rect: [113.546875,482 3.625x18] baseline: 13.796875
-              "'"
-          frag 7 from TextNode start: 14, length: 4, rect: [117.171875,482 24.671875x18] baseline: 13.796875
-              "full"
-          frag 8 from TextNode start: 18, length: 1, rect: [141.84375,482 6.484375x18] baseline: 13.796875
-              "-"
-          frag 9 from TextNode start: 19, length: 9, rect: [148.328125,482 64.5625x18] baseline: 13.796875
-              "justified"
-          frag 10 from TextNode start: 28, length: 1, rect: [212.890625,482 3.625x18] baseline: 13.796875
-              "'"
-          frag 11 from TextNode start: 29, length: 1, rect: [216.515625,482 8x18] baseline: 13.796875
+          frag 6 from TextNode start: 13, length: 6, rect: [113.546875,482 34.78125x18] baseline: 13.796875
+              "'full-"
+          frag 7 from TextNode start: 19, length: 10, rect: [148.328125,482 68.1875x18] baseline: 13.796875
+              "justified'"
+          frag 8 from TextNode start: 29, length: 1, rect: [216.515625,482 8x18] baseline: 13.796875
               " "
-          frag 12 from TextNode start: 30, length: 3, rect: [224.515625,482 26.8125x18] baseline: 13.796875
+          frag 9 from TextNode start: 30, length: 3, rect: [224.515625,482 26.8125x18] baseline: 13.796875
               "and"
-          frag 13 from TextNode start: 33, length: 1, rect: [251.328125,482 8x18] baseline: 13.796875
+          frag 10 from TextNode start: 33, length: 1, rect: [251.328125,482 8x18] baseline: 13.796875
               " "
-          frag 14 from TextNode start: 34, length: 3, rect: [259.328125,482 24.875x18] baseline: 13.796875
+          frag 11 from TextNode start: 34, length: 3, rect: [259.328125,482 24.875x18] baseline: 13.796875
               "the"
-          frag 15 from TextNode start: 37, length: 1, rect: [284.203125,482 8x18] baseline: 13.796875
+          frag 12 from TextNode start: 37, length: 1, rect: [284.203125,482 8x18] baseline: 13.796875
               " "
-          frag 16 from TextNode start: 38, length: 5, rect: [292.203125,482 43.4375x18] baseline: 13.796875
+          frag 13 from TextNode start: 38, length: 5, rect: [292.203125,482 43.4375x18] baseline: 13.796875
               "green"
-          frag 17 from TextNode start: 43, length: 1, rect: [335.640625,482 8x18] baseline: 13.796875
+          frag 14 from TextNode start: 43, length: 1, rect: [335.640625,482 8x18] baseline: 13.796875
               " "
-          frag 18 from TextNode start: 44, length: 6, rect: [343.640625,482 57.0625x18] baseline: 13.796875
+          frag 15 from TextNode start: 44, length: 6, rect: [343.640625,482 57.0625x18] baseline: 13.796875
               "square"
-          frag 19 from TextNode start: 50, length: 1, rect: [400.703125,482 8x18] baseline: 13.796875
+          frag 16 from TextNode start: 50, length: 1, rect: [400.703125,482 8x18] baseline: 13.796875
               " "
-          frag 20 from TextNode start: 51, length: 2, rect: [408.703125,482 13.90625x18] baseline: 13.796875
+          frag 17 from TextNode start: 51, length: 2, rect: [408.703125,482 13.90625x18] baseline: 13.796875
               "is"
-          frag 21 from TextNode start: 53, length: 1, rect: [422.609375,482 8x18] baseline: 13.796875
+          frag 18 from TextNode start: 53, length: 1, rect: [422.609375,482 8x18] baseline: 13.796875
               " "
-          frag 22 from TextNode start: 54, length: 4, rect: [430.609375,482 26.25x18] baseline: 13.796875
+          frag 19 from TextNode start: 54, length: 4, rect: [430.609375,482 26.25x18] baseline: 13.796875
               "left"
-          frag 23 from TextNode start: 58, length: 1, rect: [456.859375,482 8x18] baseline: 13.796875
+          frag 20 from TextNode start: 58, length: 1, rect: [456.859375,482 8x18] baseline: 13.796875
               " "
-          frag 24 from TextNode start: 59, length: 7, rect: [464.859375,482 51.890625x18] baseline: 13.796875
-              "aligned"
-          frag 25 from TextNode start: 66, length: 1, rect: [516.75,482 3.78125x18] baseline: 13.796875
-              ":"
+          frag 21 from TextNode start: 59, length: 8, rect: [464.859375,482 55.671875x18] baseline: 13.796875
+              "aligned:"
           TextNode <#text> (not painted)
         BlockContainer <div.square> at [28,520] [20+0+0 100 0+0+664] [20+0+0 100 0+0+20] children: not-inline
       BlockContainer <(anonymous)> at [8,640] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline

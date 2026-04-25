@@ -4,6 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ScopeGuard.h>
+#include <AK/Utf16String.h>
+#include <LibUnicode/Bidi.h>
+#include <LibUnicode/ICU.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/Dump.h>
@@ -348,7 +352,33 @@ void InlineFormattingContext::generate_line_boxes()
     auto direction = m_context_box->computed_values().direction();
     auto writing_mode = m_context_box->computed_values().writing_mode();
 
-    InlineLevelIterator iterator(*this, m_state, containing_block(), m_containing_block_used_values, m_layout_mode);
+    OwnPtr<Unicode::BidiParagraph> bidi_paragraph = nullptr;
+    // FIXME: We probably need to do some extra processing here to not intrude into inline-block elements and such,
+    //        instead treating them (and images) like U+FFFC OBJECT REPLACEMENT CHARACTER (see https://www.unicode.org/reports/tr9/#Bidirectional_Character_Types)
+    Optional<Utf16String> text = containing_block().dom_node() ? containing_block().dom_node()->text_content() : Optional<Utf16String> {};
+    if (text.has_value()) {
+        // OPTIMIZATION: For ascii-only LTR text, there is no bidi considerations to be had, so we do not make a bidi
+        //               paragraph.
+        if (!text.value().has_ascii_storage() || direction != CSS::Direction::Ltr) {
+            // https://drafts.csswg.org/css-writing-modes/#bidi-para-direction
+            // In CSS, the paragraph embedding level must be set (following UAX9 clause HL1) according to the 'direction'
+            // property of the paragraph’s containing block rather than by the heuristic given in steps P2 and P3 of the
+            // Unicode algorithm.
+            // FIXME: Compute the correct value to use when 'unicode_bidi' is set to 'plaintext' here.
+            UBiDiLevel embedding_level = 0;
+
+            // There is, however, one exception: when the computed 'unicode-bidi' of the paragraph’s containing block is
+            // 'plaintext', the Unicode heuristics in P2 and P3 are used as described in [UAX9], without the HL1 override.
+            if (m_context_box->computed_values().unicode_bidi() != CSS::UnicodeBidi::Plaintext) {
+                embedding_level = direction == CSS::Direction::Ltr ? 0 : 1;
+            }
+
+            bidi_paragraph = Unicode::BidiParagraph::create(text->utf16_view(), embedding_level);
+            bidi_paragraph = bidi_paragraph.release_nonnull();
+        }
+    }
+
+    InlineLevelIterator iterator(*this, m_state, containing_block(), m_containing_block_used_values, m_layout_mode, bidi_paragraph);
     LineBuilder line_builder(*this, m_state, m_containing_block_used_values, direction, writing_mode);
 
     // NOTE: When we ignore collapsible whitespace chunks at the start of a line,
@@ -481,6 +511,67 @@ void InlineFormattingContext::generate_line_boxes()
     apply_text_overflow_ellipsis(line_boxes);
 
     line_builder.remove_last_line_if_empty();
+
+    // https://www.unicode.org/reports/tr9/#L2
+    // L2. From the highest level found in the text to the lowest odd level on each line, including intermediate levels
+    //     not actually present in the text, reverse any contiguous sequence of characters that are at that level or
+    //     higher.
+    // NB: We go from the highest level found in each line, since anything higher is irrelevant for a given line.
+    auto reverse_fragments = [](LineBox& line_box, size_t start_index, size_t end_index) {
+        auto last_fragment = line_box.fragments()[end_index];
+        auto end_position = last_fragment.inline_offset() + last_fragment.inline_length();
+        auto start_position = line_box.fragments()[start_index].inline_offset();
+        for (auto i = start_index; i <= end_index; i++) {
+            auto& fragment = line_box.fragments()[i];
+            fragment.set_inline_offset(end_position - (fragment.inline_offset() - start_position) - fragment.inline_length());
+        }
+    };
+
+    // FIXME: This whole thing is currently reordering text on a per-fragment-basis, whereas unicode wants us to reorder
+    //        on a per-character basis. This will require us to actually emit multiple fragments for text nodes that
+    //        contain both left-to-right and also right-to-left text.
+    if (bidi_paragraph) {
+        size_t current_index = 0;
+        for (auto& line_box : line_boxes) {
+            size_t const line_index = current_index;
+
+            // https://www.unicode.org/reports/tr9/#BD2
+            // The minimum embedding level of text is zero, and the maximum explicit depth is 125, a value referred to
+            // as max_depth in the rest of this document.
+            u8 highest_level = 0;
+            u8 lowest_odd_level = 125;
+            for (auto& fragment : line_box.fragments()) {
+                auto fragment_level = bidi_paragraph->get_bidi_level_at(current_index);
+                current_index += fragment.length_in_code_units();
+                highest_level = max(highest_level, fragment_level);
+                if (fragment_level % 2 == 1) {
+                    lowest_odd_level = min(lowest_odd_level, fragment_level);
+                }
+            }
+
+            for (auto level = highest_level; level >= lowest_odd_level; level--) {
+                size_t const fragment_count = line_box.fragments().size();
+                current_index = line_index;
+                size_t sequence_start = 0;
+                for (size_t i = 0; i < fragment_count; i++) {
+                    auto fragment_level = bidi_paragraph->get_bidi_level_at(current_index);
+                    auto& fragment = line_box.fragments()[i];
+                    current_index += fragment.length_in_code_units();
+                    if (fragment_level < level) {
+                        if (sequence_start == i) {
+                            sequence_start++;
+                        } else {
+                            reverse_fragments(line_box, sequence_start, i - 1);
+                            sequence_start = i + 1;
+                        }
+                    }
+                }
+                if (sequence_start != fragment_count) {
+                    reverse_fragments(line_box, sequence_start, fragment_count - 1);
+                }
+            }
+        }
+    }
 
     auto const& containing_block = this->containing_block();
     auto text_align = containing_block.computed_values().text_align();

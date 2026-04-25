@@ -32,19 +32,16 @@ struct DrawGlyph {
 
 class GlyphRun : public AtomicRefCounted<GlyphRun> {
 public:
-    enum class TextType {
-        Common,
-        ContextDependent,
-        EndPadding,
+    enum class Direction {
         Ltr,
         Rtl,
     };
 
-    GlyphRun(Vector<DrawGlyph>&& glyphs, NonnullRefPtr<Font const> font, TextType text_type, float width);
+    GlyphRun(Vector<DrawGlyph>&& glyphs, NonnullRefPtr<Font const> font, Direction direction, float width);
     ~GlyphRun();
 
     [[nodiscard]] Font const& font() const { return m_font; }
-    [[nodiscard]] TextType text_type() const { return m_text_type; }
+    [[nodiscard]] Direction direction() const { return m_direction; }
     [[nodiscard]] Vector<DrawGlyph> const& glyphs() const { return m_glyphs; }
     [[nodiscard]] Vector<DrawGlyph>& glyphs() { return m_glyphs; }
     [[nodiscard]] float width() const { return m_width; }
@@ -61,15 +58,15 @@ public:
 private:
     Vector<DrawGlyph> m_glyphs;
     NonnullRefPtr<Font const> m_font;
-    TextType m_text_type;
+    Direction m_direction;
     float m_width { 0 };
 
     struct CachedTextBlob;
     mutable OwnPtr<CachedTextBlob> m_cached_text_blob;
 };
 
-NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf16View const&, Gfx::Font const& font, GlyphRun::TextType);
-Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View const&, FontCascadeList const&, float letter_spacing = 0.f);
+NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf16View const&, Gfx::Font const& font, GlyphRun::Direction);
+Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View const&, FontCascadeList const&, GlyphRun::Direction, float letter_spacing = 0.f);
 float measure_text_width(Utf16View const&, Font const& font, float letter_spacing = 0.f);
 
 }
