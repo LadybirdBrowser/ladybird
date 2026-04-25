@@ -124,6 +124,9 @@ public:
     CSS::PreferredContrast preferred_contrast() const;
     CSS::PreferredMotion preferred_motion() const;
 
+    bool is_printing() const { return m_printing; }
+    void set_printing(bool printing) { m_printing = printing; }
+
     bool is_scripting_enabled() const { return m_is_scripting_enabled; }
     void set_is_scripting_enabled(bool b) { m_is_scripting_enabled = b; }
 
@@ -288,6 +291,7 @@ private:
 
     GC::Ptr<HTML::TraversableNavigable> m_top_level_traversable;
 
+    bool m_printing { false };
     bool m_is_scripting_enabled { true };
     bool m_should_block_pop_ups { true };
     bool m_enable_autoscroll { true };

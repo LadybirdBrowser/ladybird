@@ -274,18 +274,16 @@ String MediaQuery::to_string() const
 
 bool MediaQuery::evaluate(DOM::Document const& document)
 {
-    auto matches_media = [](MediaType const& media) -> MatchResult {
+    auto matches_media = [&document](MediaType const& media) -> MatchResult {
         if (!media.known_type.has_value())
             return MatchResult::False;
         switch (media.known_type.value()) {
         case KnownMediaType::All:
             return MatchResult::True;
         case KnownMediaType::Print:
-            // FIXME: Enable for printing, when we have printing!
-            return MatchResult::False;
+            return document.page().is_printing() ? MatchResult::True : MatchResult::False;
         case KnownMediaType::Screen:
-            // FIXME: Disable for printing, when we have printing!
-            return MatchResult::True;
+            return document.page().is_printing() ? MatchResult::False : MatchResult::True;
         }
         VERIFY_NOT_REACHED();
     };
