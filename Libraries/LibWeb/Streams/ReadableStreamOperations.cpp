@@ -16,6 +16,7 @@
 #include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
+#include <LibWeb/Bindings/UnderlyingSource.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Streams/AbstractOperations.h>
@@ -28,7 +29,6 @@
 #include <LibWeb/Streams/ReadableStreamOperations.h>
 #include <LibWeb/Streams/ReadableStreamPipeTo.h>
 #include <LibWeb/Streams/ReadableStreamTee.h>
-#include <LibWeb/Streams/UnderlyingSource.h>
 #include <LibWeb/Streams/WritableStream.h>
 #include <LibWeb/Streams/WritableStreamDefaultWriter.h>
 #include <LibWeb/Streams/WritableStreamOperations.h>
@@ -1565,7 +1565,7 @@ WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller(ReadableStre
 }
 
 // https://streams.spec.whatwg.org/#set-up-readable-stream-default-controller-from-underlying-source
-WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller_from_underlying_source(ReadableStream& stream, JS::Value underlying_source_value, UnderlyingSource underlying_source, double high_water_mark, GC::Ref<SizeAlgorithm> size_algorithm)
+WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller_from_underlying_source(ReadableStream& stream, JS::Value underlying_source_value, Bindings::UnderlyingSource underlying_source, double high_water_mark, GC::Ref<SizeAlgorithm> size_algorithm)
 {
     auto& realm = stream.realm();
 
@@ -2821,7 +2821,7 @@ WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller(ReadableStream&
 }
 
 // https://streams.spec.whatwg.org/#set-up-readable-byte-stream-controller-from-underlying-source
-WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller_from_underlying_source(ReadableStream& stream, JS::Value underlying_source, UnderlyingSource const& underlying_source_dict, double high_water_mark)
+WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller_from_underlying_source(ReadableStream& stream, JS::Value underlying_source, Bindings::UnderlyingSource const& underlying_source_dict, double high_water_mark)
 {
     auto& realm = stream.realm();
 

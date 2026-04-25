@@ -10,6 +10,7 @@
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ReadableStream.h>
+#include <LibWeb/Bindings/UnderlyingSource.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -23,7 +24,6 @@
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
 #include <LibWeb/Streams/ReadableStreamOperations.h>
 #include <LibWeb/Streams/TransformStream.h>
-#include <LibWeb/Streams/UnderlyingSource.h>
 #include <LibWeb/Streams/WritableStream.h>
 #include <LibWeb/Streams/WritableStreamOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -44,12 +44,12 @@ WebIDL::ExceptionOr<GC::Ref<ReadableStream>> ReadableStream::construct_impl(JS::
     auto underlying_source = underlying_source_object.has_value() ? JS::Value(underlying_source_object.value()) : JS::js_null();
 
     // 2. Let underlyingSourceDict be underlyingSource, converted to an IDL value of type UnderlyingSource.
-    auto underlying_source_dict = TRY(UnderlyingSource::from_value(vm, underlying_source));
+    auto underlying_source_dict = TRY(Bindings::convert_to_idl_value_for_underlying_source(vm, underlying_source));
 
     // 3. Perform ! InitializeReadableStream(this).
 
     // 4. If underlyingSourceDict["type"] is "bytes":
-    if (underlying_source_dict.type.has_value() && underlying_source_dict.type.value() == ReadableStreamType::Bytes) {
+    if (underlying_source_dict.type.has_value() && underlying_source_dict.type.value() == Bindings::ReadableStreamType::Bytes) {
         // 1. If strategy["size"] exists, throw a RangeError exception.
         if (strategy.size)
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Size strategy not allowed for byte stream"sv };

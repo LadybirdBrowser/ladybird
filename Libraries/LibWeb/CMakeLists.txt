@@ -965,7 +965,6 @@ set(SOURCES
     Streams/TransformStream.cpp
     Streams/TransformStreamDefaultController.cpp
     Streams/TransformStreamOperations.cpp
-    Streams/UnderlyingSource.cpp
     Streams/WritableStream.cpp
     Streams/WritableStreamDefaultController.cpp
     Streams/WritableStreamDefaultWriter.cpp
