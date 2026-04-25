@@ -1,0 +1,103 @@
+name: Android Debug APK
+
+on: [push, pull_request]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || format('{0}-{1}', github.ref, github.run_number) }}
+  cancel-in-progress: true
+
+env:
+  # runner.workspace = /home/runner/work/ladybird-android
+  # github.workspace = /home/runner/work/ladybird-android/ladybird-android
+  LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  VCPKG_ROOT: ${{ github.workspace }}/Build/vcpkg
+
+jobs:
+  build:
+    name: Android Debug APK (Ubuntu)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+
+    steps:
+      # For push events check out the branch directly; for pull requests use the
+      # auto-generated merge commit so we validate the merged result.
+      - uses: actions/checkout@v6.0.2
+        if: ${{ github.event_name != 'pull_request' }}
+
+      - uses: actions/checkout@v6.0.2
+        if: ${{ github.event_name == 'pull_request' }}
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+
+      # Sets up Clang, CMake, ninja, nasm, Rust, wasm-tools, vcpkg, and all
+      # other host-side build prerequisites required by Meta/ladybird.py.
+      - name: Set Up Environment
+        uses: ./.github/actions/setup
+        id: setup
+        with:
+          os: 'Linux'
+          arch: 'x86_64'
+          toolchain: 'Clang'
+
+      - name: Set Up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set Up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      # === PREPARE FOR BUILDING ===
+
+      - name: Restore Caches
+        uses: ./.github/actions/cache-restore
+        id: cache-restore
+        with:
+          os: 'Linux'
+          arch: 'Lagom'
+          toolchain: 'Clang'
+          cache_key_extra: 'Android Debug'
+          ccache_path: ${{ env.CCACHE_DIR }}
+          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
+
+      - name: Install Android SDK Components
+        run: |
+          yes | "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+          "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" \
+            "platform-tools" \
+            "build-tools;35.0.0" \
+            "platforms;android-35" \
+            "ndk;29.0.13599879"
+
+      # === BUILD ===
+
+      - name: Build Android Debug APK
+        working-directory: ${{ github.workspace }}/UI/Android
+        run: ./gradlew assembleDebug
+        env:
+          GRADLE_OPTS: '-Xmx4096m'
+          LADYBIRD_CACHE_DIR: ${{ github.workspace }}/Build/caches
+
+      # === ARTIFACTS ===
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: app-debug
+          path: ${{ github.workspace }}/UI/Android/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      # === SAVE CACHES ===
+
+      - name: Save Caches
+        if: always()
+        uses: ./.github/actions/cache-save
+        with:
+          arch: 'Lagom'
+          ccache_path: ${{ env.CCACHE_DIR }}
+          ccache_primary_key: ${{ steps.cache-restore.outputs.ccache_primary_key }}
+          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
+          vcpkg_cache_primary_key: ${{ steps.cache-restore.outputs.vcpkg_cache_primary_key }}
