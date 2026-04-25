@@ -142,7 +142,10 @@ pub fn resolve_label(op: &Operand, handler: &Handler) -> String {
                 name.clone()
             }
         }
-        _ => panic!("expected label operand"),
+        other => panic!(
+            "expected label operand in handler '{}', got {other:?}",
+            handler.name
+        ),
     }
 }
 

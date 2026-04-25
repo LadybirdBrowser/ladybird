@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::allocator::{flatten_and_allocate, handler_uses_named_temps};
 use crate::parser::{AsmInstruction, Handler, ObjectFormat, Operand, Program};
 use crate::registers::{Arch, resolve_register};
 use crate::shared::{
@@ -288,9 +289,29 @@ fn generate_handler(out: &mut String, handler: &Handler, program: &Program) {
 
     let mut state = HandlerState::new();
 
-    // Expand macros and emit instructions
-    for insn in &handler.instructions {
-        emit_instruction(out, insn, handler, program, &mut state);
+    if handler_uses_named_temps(handler, program) {
+        // The allocator pre-expands macros and rewrites named temps to
+        // physical registers, so emit_instruction iterates a flat list and
+        // never re-enters the macro-expansion arm. The shared
+        // unique_counter is consumed for canonicalize_nan fixup labels
+        // continuing after the macro-id range used by the allocator.
+        let mut counter = state.unique_counter;
+        let flat = flatten_and_allocate(handler, program, Arch::X86_64, &mut counter)
+            .unwrap_or_else(|err| {
+                panic!(
+                    "register allocation failed for handler '{}': {}",
+                    err.handler, err.message
+                )
+            });
+        state.unique_counter = counter;
+        for insn in &flat {
+            emit_instruction(out, insn, handler, program, &mut state);
+        }
+    } else {
+        // Existing path: expand macros recursively in emit_instruction.
+        for insn in &handler.instructions {
+            emit_instruction(out, insn, handler, program, &mut state);
+        }
     }
 
     // Emit cold fixup blocks after the main handler body
@@ -382,6 +403,19 @@ fn resolve_pair_memory_op(op: &Operand, handler: &Handler, program: &Program) ->
     let mem = resolve_memory_operand(op, handler, program, Arch::X86_64)
         .expect("x86_64 pair memory operands should always resolve");
     format_x86_memory_operand(&mem)
+}
+
+/// True when writing `dst1` would clobber a register that the second load
+/// of a pair still needs (the base or index of either memory operand).
+/// `mem1` / `mem2` are the already-formatted x86 memory text (e.g.
+/// `[rcx + r10 * 8]`); we check whether the formatted text mentions the
+/// destination register name as a whole word.
+fn pair_dst_aliases_address(dst1: &str, mem1: &str, mem2: &str) -> bool {
+    let mention_in = |s: &str, reg: &str| -> bool {
+        s.split(|c: char| !c.is_ascii_alphanumeric() && c != '_')
+            .any(|tok| tok == reg)
+    };
+    mention_in(mem1, dst1) || mention_in(mem2, dst1)
 }
 
 fn emit_instruction(
@@ -825,8 +859,17 @@ fn emit_instruction(
                 let dst2 = resolve_op(&insn.operands[1], handler, program);
                 let mem1 = resolve_pair_memory_op(&insn.operands[2], handler, program);
                 let mem2 = resolve_pair_memory_op(&insn.operands[3], handler, program);
-                w!(out, "    mov {dst1}, QWORD PTR {mem1}");
-                w!(out, "    mov {dst2}, QWORD PTR {mem2}");
+                // x86 has no real "load pair", so this is two movs. If dst1
+                // is the same physical register as the address's base or
+                // index, writing dst1 first clobbers the address before the
+                // second load can use it; emit dst2 first in that case.
+                if pair_dst_aliases_address(&dst1, &mem1, &mem2) {
+                    w!(out, "    mov {dst2}, QWORD PTR {mem2}");
+                    w!(out, "    mov {dst1}, QWORD PTR {mem1}");
+                } else {
+                    w!(out, "    mov {dst1}, QWORD PTR {mem1}");
+                    w!(out, "    mov {dst2}, QWORD PTR {mem2}");
+                }
             }
         }
 
@@ -848,8 +891,13 @@ fn emit_instruction(
                 let dst2 = resolve_op(&insn.operands[1], handler, program);
                 let mem1 = resolve_pair_memory_op(&insn.operands[2], handler, program);
                 let mem2 = resolve_pair_memory_op(&insn.operands[3], handler, program);
-                w!(out, "    mov {}, DWORD PTR {mem1}", to_32bit_reg(&dst1));
-                w!(out, "    mov {}, DWORD PTR {mem2}", to_32bit_reg(&dst2));
+                if pair_dst_aliases_address(&dst1, &mem1, &mem2) {
+                    w!(out, "    mov {}, DWORD PTR {mem2}", to_32bit_reg(&dst2));
+                    w!(out, "    mov {}, DWORD PTR {mem1}", to_32bit_reg(&dst1));
+                } else {
+                    w!(out, "    mov {}, DWORD PTR {mem1}", to_32bit_reg(&dst1));
+                    w!(out, "    mov {}, DWORD PTR {mem2}", to_32bit_reg(&dst2));
+                }
             }
         }
 
@@ -1518,6 +1566,19 @@ mod tests {
             resolve_pair_memory_op(&memory, &handler, &program),
             "[r9 + rsi]"
         );
+    }
+
+    #[test]
+    fn pair_dst_aliasing_base_keeps_address_alive() {
+        // load_pair64 dst1, dst2, [base + 0], [base + 8] must not start by
+        // writing dst1 if dst1 happens to be the same physical register
+        // as base; the second load would otherwise read from the wrong
+        // address. The codegen swaps the load order in that case.
+        assert!(pair_dst_aliases_address("rcx", "[rcx]", "[rcx + 8]"));
+        assert!(pair_dst_aliases_address("r10", "[r10 + 16]", "[r10 + 24]"));
+        assert!(pair_dst_aliases_address("rdx", "[rcx + rdx * 8]", "[rcx + rdx * 8 + 8]"));
+        assert!(!pair_dst_aliases_address("rax", "[rcx + 16]", "[rcx + 24]"));
+        assert!(!pair_dst_aliases_address("rax", "[r10]", "[r10 + 8]"));
     }
 
     #[test]

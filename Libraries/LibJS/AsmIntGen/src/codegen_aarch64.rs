@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::allocator::{flatten_and_allocate, handler_uses_named_temps};
 use crate::parser::{AsmInstruction, Handler, ObjectFormat, Operand, Program};
 use crate::registers::{Arch, resolve_register};
 use crate::shared::{
@@ -399,8 +400,27 @@ fn generate_handler(
 
     let mut state = HandlerState::new();
 
-    for insn in &handler.instructions {
-        emit_instruction(out, insn, handler, program, &mut state, pinned);
+    if handler_uses_named_temps(handler, program) {
+        // The allocator pre-expands macros and rewrites named temps to
+        // physical registers. The shared unique_counter continues from
+        // the value the allocator left it at, so canonicalize_nan fixup
+        // labels emitted later don't collide with macro-id labels.
+        let mut counter = state.unique_counter;
+        let flat = flatten_and_allocate(handler, program, Arch::Aarch64, &mut counter)
+            .unwrap_or_else(|err| {
+                panic!(
+                    "register allocation failed for handler '{}': {}",
+                    err.handler, err.message
+                )
+            });
+        state.unique_counter = counter;
+        for insn in &flat {
+            emit_instruction(out, insn, handler, program, &mut state, pinned);
+        }
+    } else {
+        for insn in &handler.instructions {
+            emit_instruction(out, insn, handler, program, &mut state, pinned);
+        }
     }
 
     // Emit cold fixup blocks after the main handler body
@@ -604,14 +624,28 @@ fn emit_load_pair(
         return;
     }
 
+    // Fallback to two scalar loads. If dst1 aliases the base register,
+    // writing dst1 first would clobber the address before the second load
+    // can use it; emit dst2 first in that case.
+    let dst1_aliases_base = dst1 == base;
     match element_size {
         4 => {
-            emit_ldr32(out, &to_w_reg(dst1), base, first_offset);
-            emit_ldr32(out, &to_w_reg(dst2), base, first_offset + 4);
+            if dst1_aliases_base {
+                emit_ldr32(out, &to_w_reg(dst2), base, first_offset + 4);
+                emit_ldr32(out, &to_w_reg(dst1), base, first_offset);
+            } else {
+                emit_ldr32(out, &to_w_reg(dst1), base, first_offset);
+                emit_ldr32(out, &to_w_reg(dst2), base, first_offset + 4);
+            }
         }
         8 => {
-            emit_ldr64(out, dst1, base, first_offset);
-            emit_ldr64(out, dst2, base, first_offset + 8);
+            if dst1_aliases_base {
+                emit_ldr64(out, dst2, base, first_offset + 8);
+                emit_ldr64(out, dst1, base, first_offset);
+            } else {
+                emit_ldr64(out, dst1, base, first_offset);
+                emit_ldr64(out, dst2, base, first_offset + 8);
+            }
         }
         _ => unreachable!("unsupported paired load size"),
     }

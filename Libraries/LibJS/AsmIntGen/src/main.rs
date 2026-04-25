@@ -296,6 +296,7 @@
 //! "UNKNOWN" comment for any unhandled mnemonic, which makes it easy to find
 //! missing instructions during development.
 
+mod allocator;
 mod codegen_aarch64;
 mod codegen_x86_64;
 mod instructions;
