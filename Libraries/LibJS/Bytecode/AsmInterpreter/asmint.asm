@@ -419,8 +419,7 @@ end
 # Dispatch the instruction at current pc (without advancing).
 # Clobbers t0.
 macro dispatch_current()
-    load8 t0, [pb, pc]
-    jmp [dispatch, t0, 8]
+    goto_handler pc
 end
 
 # Walk the environment chain using a cached EnvironmentCoordinate.
@@ -793,22 +792,24 @@ end
 # Fast path for ++x: int32 + 1 with overflow check.
 # On overflow, convert to double and add 1.0.
 handler Increment
-    load_operand t1, m_dst
-    extract_tag t2, t1
-    branch_ne t2, INT32_TAG, .slow
-    unbox_int32 t3, t1
-    add32_overflow t3, 1, .overflow
-    box_int32_clean t4, t3
-    store_operand m_dst, t4
+    temp value, tag, int_value, dst
+    ftemp result_dbl, one_dbl
+    load_operand value, m_dst
+    extract_tag tag, value
+    branch_ne tag, INT32_TAG, .slow
+    unbox_int32 int_value, value
+    add32_overflow int_value, 1, .overflow
+    box_int32_clean dst, int_value
+    store_operand m_dst, dst
     dispatch_next
 .overflow:
-    unbox_int32 t3, t1
-    int_to_double ft0, t3
-    mov t0, DOUBLE_ONE
-    fp_mov ft1, t0
-    fp_add ft0, ft1
-    fp_mov t4, ft0
-    store_operand m_dst, t4
+    unbox_int32 int_value, value
+    int_to_double result_dbl, int_value
+    mov dst, DOUBLE_ONE
+    fp_mov one_dbl, dst
+    fp_add result_dbl, one_dbl
+    fp_mov dst, result_dbl
+    store_operand m_dst, dst
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_increment
@@ -816,56 +817,59 @@ end
 
 # Fast path for --x: int32 - 1 with overflow check.
 handler Decrement
-    load_operand t1, m_dst
-    extract_tag t2, t1
-    branch_ne t2, INT32_TAG, .slow
-    unbox_int32 t3, t1
-    sub32_overflow t3, 1, .overflow
-    box_int32_clean t4, t3
-    store_operand m_dst, t4
+    temp value, tag, int_value, dst
+    ftemp result_dbl, one_dbl
+    load_operand value, m_dst
+    extract_tag tag, value
+    branch_ne tag, INT32_TAG, .slow
+    unbox_int32 int_value, value
+    sub32_overflow int_value, 1, .overflow
+    box_int32_clean dst, int_value
+    store_operand m_dst, dst
     dispatch_next
 .overflow:
-    unbox_int32 t3, t1
-    int_to_double ft0, t3
-    mov t0, DOUBLE_ONE
-    fp_mov ft1, t0
-    fp_sub ft0, ft1
-    fp_mov t4, ft0
-    store_operand m_dst, t4
+    unbox_int32 int_value, value
+    int_to_double result_dbl, int_value
+    mov dst, DOUBLE_ONE
+    fp_mov one_dbl, dst
+    fp_sub result_dbl, one_dbl
+    fp_mov dst, result_dbl
+    store_operand m_dst, dst
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_decrement
 end
 
 handler Not
-    load_operand t1, m_src
-    extract_tag t2, t1
+    temp value, tag, nullish_check, truthy, result
+    load_operand value, m_src
+    extract_tag tag, value
     # Boolean fast path
-    branch_eq t2, BOOLEAN_TAG, .is_bool
+    branch_eq tag, BOOLEAN_TAG, .is_bool
     # Int32 fast path
-    branch_eq t2, INT32_TAG, .is_int32
+    branch_eq tag, INT32_TAG, .is_int32
     # Undefined/null -> !nullish = true
-    mov t3, t2
-    and t3, 0xFFFE
-    branch_eq t3, UNDEFINED_TAG, .store_true
+    mov nullish_check, tag
+    and nullish_check, 0xFFFE
+    branch_eq nullish_check, UNDEFINED_TAG, .store_true
     # Slow path for remaining types (object, string, etc)
     # NB: Objects go through slow path to handle [[IsHTMLDDA]]
-    call_helper asm_helper_to_boolean
-    branch_zero t0, .store_true
+    call_helper asm_helper_to_boolean, value, truthy
+    branch_zero truthy, .store_true
     jmp .store_false
 .is_bool:
-    branch_bits_clear t1, 1, .store_true
+    branch_bits_clear value, 1, .store_true
     jmp .store_false
 .is_int32:
-    branch_zero32 t1, .store_true
+    branch_zero32 value, .store_true
     jmp .store_false
 .store_true:
-    mov t0, BOOLEAN_TRUE
-    store_operand m_dst, t0
+    mov result, BOOLEAN_TRUE
+    store_operand m_dst, result
     dispatch_next
 .store_false:
-    mov t0, BOOLEAN_FALSE
-    store_operand m_dst, t0
+    mov result, BOOLEAN_FALSE
+    store_operand m_dst, result
     dispatch_next
 end
 
@@ -876,22 +880,23 @@ end
 handler Return
     # Empty is the internal "no explicit value" marker. Returning it from
     # bytecode means "return undefined" at the JS level.
-    load_operand t0, m_value
-    mov t2, EMPTY_TAG_SHIFTED
-    branch_ne t0, t2, .value_ready
-    mov t0, UNDEFINED_SHIFTED
+    temp value, empty_tag, caller_frame
+    load_operand value, m_value
+    mov empty_tag, EMPTY_TAG_SHIFTED
+    branch_ne value, empty_tag, .value_ready
+    mov value, UNDEFINED_SHIFTED
 .value_ready:
     # Inline JS-to-JS calls resume the caller directly from asm. Top-level
     # returns instead exit back to the outer interpreter entry point.
-    load64 t1, [exec_ctx, EXECUTION_CONTEXT_CALLER_FRAME]
-    branch_zero t1, .top_level
-    pop_inline_frame_and_resume t1, t0
+    load64 caller_frame, [exec_ctx, EXECUTION_CONTEXT_CALLER_FRAME]
+    branch_zero caller_frame, .top_level
+    pop_inline_frame_and_resume caller_frame, value
 .top_level:
     # Top-level return matches VM::run_executable(): write return_value,
     # clear the exception slot, and leave the asm interpreter entirely.
     # values[3] = return_value, values[1] = empty (clear exception)
-    store64 [values, 24], t0
-    store64 [values, 8], t2
+    store64 [values, 24], value
+    store64 [values, 8], empty_tag
     exit
 end
 
@@ -900,29 +905,31 @@ end
 handler End
     # End shares the same inline-frame unwind logic as Return. The only
     # top-level difference is that End preserves the current exception slot.
-    load_operand t0, m_value
-    mov t2, EMPTY_TAG_SHIFTED
-    branch_ne t0, t2, .value_ready
-    mov t0, UNDEFINED_SHIFTED
+    temp value, empty_tag, caller_frame
+    load_operand value, m_value
+    mov empty_tag, EMPTY_TAG_SHIFTED
+    branch_ne value, empty_tag, .value_ready
+    mov value, UNDEFINED_SHIFTED
 .value_ready:
     # Inline frame: resume the caller immediately.
-    load64 t1, [exec_ctx, EXECUTION_CONTEXT_CALLER_FRAME]
-    branch_zero t1, .top_level
-    pop_inline_frame_and_resume t1, t0
+    load64 caller_frame, [exec_ctx, EXECUTION_CONTEXT_CALLER_FRAME]
+    branch_zero caller_frame, .top_level
+    pop_inline_frame_and_resume caller_frame, value
 .top_level:
     # Top-level end: publish the return value and exit without touching
     # values[1], since End does not model a user-visible `return` opcode.
-    store64 [values, 24], t0
+    store64 [values, 24], value
     exit
 end
 
 # Loads running_execution_context().lexical_environment into dst,
 # NaN-boxed as a cell pointer.
 handler GetLexicalEnvironment
-    load64 t0, [exec_ctx, EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT]
-    mov t1, CELL_TAG_SHIFTED
-    or t0, t1
-    store_operand m_dst, t0
+    temp env, tag
+    load64 env, [exec_ctx, EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT]
+    mov tag, CELL_TAG_SHIFTED
+    or env, tag
+    store_operand m_dst, env
     dispatch_next
 end
 
