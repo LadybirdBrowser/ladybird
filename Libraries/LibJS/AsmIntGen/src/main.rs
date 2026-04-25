@@ -284,6 +284,7 @@
 
 mod codegen_aarch64;
 mod codegen_x86_64;
+mod instructions;
 mod parser;
 mod registers;
 mod shared;
