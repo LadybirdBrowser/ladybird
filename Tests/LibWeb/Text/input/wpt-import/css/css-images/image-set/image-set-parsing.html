@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<title>Image set parsing</title>
+<link rel="author" title="Noam Rosenthal" href="mailto:noam.j.rosenthal@gmail.com">
+<link rel="author" title="Traian Captan" href="mailto:tcaptan@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-images-4/#image-set-notation">
+<meta name="assert" content="General image-set parsing  follows CSS Images 4 rules.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<body>
+<script>
+function test_valid_value_variants(property, value, serializedValue) {
+  if (!serializedValue) serializedValue = value;
+  test_valid_value(property, value, serializedValue);
+
+  // The '-webkit-' prefixed 'image-set' is expected to serialize to the same
+  // value as standard 'image-set'.
+  // https://drafts.csswg.org/css-images-4/#deprecated
+  // "Implementations must accept -webkit-image-set() as a parse-time alias of
+  // image-set(). (It’s a valid value, with identical arguments to image-set(),
+  // and is turned into image-set() during parsing.)"
+  test_valid_value(property, "-webkit-" + value, serializedValue);
+}
+
+function test_invalid_value_variants(property, value) {
+  test_invalid_value(property, value);
+  test_invalid_value(property, "-webkit-" + value);
+}
+
+function test_default_resolution_parsing() {
+  // Based on the spec, the resolution is optional and should default
+  // to 1x if not specified.
+  // This set of tests verify this expectation.
+
+  // Test when the only image is missing it's resolution
+  test_valid_value_variants(
+    'background-image',
+    'image-set(url(foo))',
+    'image-set(url("foo") 1x)'
+  );
+
+  // Test when the 1st of 2 images is missing it's resolution
+  test_valid_value_variants(
+    'background-image',
+    'image-set(url(foo), url(bar) 1x)',
+    'image-set(url("foo") 1x, url("bar") 1x)'
+  );
+
+  // Test when the 2nd of 2 images is missing it's resolution
+  test_valid_value_variants(
+    'background-image',
+    'image-set(url(foo) 1x, url(bar))',
+    'image-set(url("foo") 1x, url("bar") 1x)'
+  );
+
+  // Test when both images are missing their resolutions
+  test_valid_value_variants(
+    'background-image',
+    'image-set(url(foo), url(bar))',
+    'image-set(url("foo") 1x, url("bar") 1x)'
+  );
+
+  // Test when the middle of 3 images is missing it's resolution
+  test_valid_value_variants(
+    'background-image',
+    'image-set(url(foo) 1x, url(bar), url(baz) 2x)',
+    'image-set(url("foo") 1x, url("bar") 1x, url("baz") 2x)'
+  );
+}
+
+function test_resolution_units_parsing() {
+  test_valid_value_variants(
+    'background-image',
+    'image-set(url("example.png") 1x)'
+  );
+  test_valid_value_variants(
+    'background-image',
+    'image-set(url("example.png") calc(2x * 3))',
+    'image-set(url("example.png") calc(6dppx))'
+  );
+  test_valid_value_variants(
+    'background-image',
+    'image-set(url("example.png") 1dppx)'
+  );
+  test_valid_value_variants(
+    'background-image',
+    'image-set(url("example.png") calc(1dppx * 1))',
+    'image-set(url("example.png") calc(1dppx))'
+  );
+  test_valid_value_variants(
+    'background-image',
+    'image-set(url("example.png") 1dpi)'
+  );
+  test_valid_value_variants(
+    'background-image',
+    'image-set(url("example.png") calc(96dpi * 2))',
+    'image-set(url("example.png") calc(2dppx))'
+  );
+  test_valid_value_variants(
+    'background-image',
+    'image-set(url("example.png") 1dpcm)'
+  );
+  test_valid_value_variants(
+    'background-image',
+    'image-set(url("example.png") calc(1dpcm * 96/2.54))',
+    'image-set(url("example.png") calc(1dppx))'
+  );
+  test_valid_value_variants(
+    'background-image',
+    'image-set(url("example.png") 1x, url("example.png") 2dppx, "example.png" 250dpi, "example.png" 1dpcm)',
+    'image-set(url("example.png") 1x, url("example.png") 2dppx, url("example.png") 250dpi, url("example.png") 1dpcm)'
+  );
+  test_valid_value_variants(
+    'content',
+    'image-set(url("example.png") 1dpi)'
+  );
+  test_valid_value_variants(
+    'content',
+    'image-set(url("example.png") calc(1 * 96dpi))',
+    'image-set(url("example.png") calc(1dppx))'
+  );
+  test_valid_value_variants(
+    'background-image',
+    'image-set(url("example.png") calc(1dppx * sibling-index()))',
+  );
+  test_valid_value_variants(
+    'background-image',
+    'image-set(url("example.png") calc(1dppx * sign(1em - 10px)))',
+  );
+  test_valid_value_variants(
+    'background-image',
+    'image-set(url("example.png") calc(1dppx * sign(10px)))',
+    'image-set(url("example.png") calc(1dppx))',
+  );
+
+  test_invalid_value_variants(
+    'background-image',
+    'image-set(url("example.png") 1invalidResUnit)'
+  );
+  test_invalid_value_variants(
+    'background-image',
+    'image-set(url("example.png") calc(3 * 4))'
+  );
+  test_invalid_value_variants(
+    'background-image',
+    'image-set(url("example.png") calc(2 - 1))'
+  );
+  test_invalid_value_variants(
+    'background-image',
+    'image-set(url("example.png") calc(2x - 1))'
+  );
+  test_invalid_value_variants(
+    'background-image',
+    'image-set(url("example.png") calc(1 + 4dpi))'
+  );
+}
+
+function test_non_positive_resolutions_parsing() {
+  test_valid_value_variants(
+    'background-image',
+    'image-set(url("example.png") 0x)'
+  );
+  test_valid_value_variants(
+    'background-image',
+    'image-set(url("example.png") 0dppx)'
+  );
+  test_valid_value_variants(
+    'background-image',
+    'image-set(url("example.png") 0dpi)'
+  );
+  test_valid_value_variants(
+    'background-image',
+    'image-set(url("example.png") 0dpcm)'
+  );
+  test_valid_value_variants(
+    'background-image',
+    'image-set(url("example.png") calc(-1 * 1x))',
+    'image-set(url("example.png") calc(-1dppx))',
+  );
+  test_valid_value_variants(
+    'background-image',
+    'image-set(url("example.png") calc(1x + -1x))',
+    'image-set(url("example.png") calc(0dppx))',
+  );
+
+  test_invalid_value_variants(
+    'background-image',
+    'image-set(url("example.png") -1x)'
+  );
+  test_invalid_value_variants(
+    'background-image',
+    'image-set(url("example.png") -3dppx)'
+  );
+  test_invalid_value_variants(
+    'background-image',
+    'image-set(url("example.png") -96dpi)'
+  );
+  test_invalid_value_variants(
+    'background-image',
+    'image-set(url("example.png") -113dpcm)'
+  );
+}
+
+function test_gradient_images_parsing() {
+  test_valid_value_variants(
+    'background-image',
+    "image-set(linear-gradient(black, white) 1x)"
+  );
+  test_valid_value_variants(
+    'background-image',
+    "image-set(repeating-linear-gradient(red, blue 25%) 1x)"
+  );
+  test_valid_value_variants(
+    'background-image',
+    "image-set(radial-gradient(black, white) 1x)"
+  );
+  test_valid_value_variants(
+    'background-image',
+    "image-set(repeating-radial-gradient(red, blue 25%) 1x)"
+  );
+  test_valid_value_variants(
+    'background-image',
+    "image-set(conic-gradient(black, white) 1x)"
+  );
+  test_valid_value_variants(
+    'background-image',
+    "image-set(repeating-conic-gradient(red, blue 25%) 1x)"
+  );
+  test_valid_value_variants(
+    'content',
+    'image-set(linear-gradient(black, white) 1x, url("example.png") 4x)'
+  );
+  test_valid_value_variants(
+    'content',
+    'image-set(url("example.png") 192dpi, linear-gradient(black, white) 1x)'
+  );
+  test_valid_value_variants(
+    'background-image',
+    "image-set(linear-gradient(red) 1x)"
+  );
+
+  test_invalid_value_variants(
+    'cursor',
+    "image-set(linear-gradient(black, white) 1x)"
+  );
+}
+
+function test_image_type_parsing() {
+  test_valid_value_variants(
+    'background-image',
+    'image-set(url("example.png") 1x type("image/png"))'
+  );
+  test_valid_value_variants(
+    'background-image',
+    "image-set(url(example.png) type('image/png'))",
+    'image-set(url("example.png") 1x type("image/png"))'
+  );
+  test_valid_value_variants(
+    'background-image',
+    "image-set(url(example.png) type('image/png') 1x)",
+    'image-set(url("example.png") 1x type("image/png"))'
+  );
+  test_valid_value_variants(
+    'background-image',
+    "image-set(url(example.png) 1x type('image/jpeg'))",
+    'image-set(url("example.png") 1x type("image/jpeg"))'
+  );
+  test_valid_value_variants(
+    'background-image',
+    'image-set(url("x") 1x type("a\\""))',
+  );
+
+  test_invalid_value_variants(
+    'background-image',
+    "image-set(url(example.png) type(image/png))"
+  );
+  test_invalid_value_variants(
+    'background-image',
+    "image-set(url(example.png) type('image/png') type('image/png'))"
+  );
+  test_invalid_value_variants(
+    'background-image',
+    "image-set(url(example.png) type('image/png' 'image/png'))"
+  );
+  test_invalid_value_variants(
+    'background-image',
+    "image-set(url(example.png) type(url('image/png')))"
+  );
+  test_invalid_value_variants(
+    'background-image',
+    "image-set(url(example.png) 1xtype('image/png'))"
+  );
+  test_invalid_value_variants(
+    'background-image',
+    "image-set(type('image/png') url(example.png) 1x)"
+  );
+}
+
+function test_no_images_set_nesting() {
+  // Spec definition:
+  // "The image-set() function can not be nested inside of itself,
+  // either directly or indirectly (as an argument to another <image> type)."
+
+  // Direct nesting
+  test_invalid_value_variants(
+    'background-image',
+    "image-set(image-set(url(example.png)) 2x)"
+  );
+
+  // Indirect nesting
+  test_invalid_value_variants(
+    'background-image',
+    "image-set(image(image-set(url(example.png)) 2x) 2x)"
+  );
+}
+
+function test_image_set_parsing() {
+  test_valid_value_variants('background-image', "image-set(url(example.png) 1x)", 'image-set(url("example.png") 1x)');
+  test_valid_value_variants('background-image', "image-set('example.jpg' 1x)", 'image-set(url("example.jpg") 1x)');
+  test_valid_value_variants('background-image', "image-set(url(example.png) 1x, 'example.png' 2x)", 'image-set(url("example.png") 1x, url("example.png") 2x)');
+  test_valid_value_variants('background-image', "image-set(url(example.png) 1dpcm, 'example.png' 2x)", 'image-set(url("example.png") 1dpcm, url("example.png") 2x)');
+  test_valid_value_variants('background-image', "image-set('example.jpeg' 222dpi, url(example.png) 3.5x)", 'image-set(url("example.jpeg") 222dpi, url("example.png") 3.5x)');
+
+  test_valid_value_variants('content', 'image-set(url("example.png") 1x)', 'image-set(url("example.png") 1x)');
+  test_valid_value_variants('content', 'image-set(url("example.png") 1x, "example.png" 3x)', 'image-set(url("example.png") 1x, url("example.png") 3x)');
+  test_valid_value_variants('border-image-source', 'image-set(url("example.png") 1x)', 'image-set(url("example.png") 1x)');
+  test_valid_value_variants('border-image-source', 'image-set(url("example.png") 1x, "example.png" 3x)', 'image-set(url("example.png") 1x, url("example.png") 3x)');
+
+  test_invalid_value_variants('background-image', 'image-set(url("example.png") -20x)');
+  test_invalid_value_variants('background-image', "image-set(none, url(example.png) 1x)");
+  test_invalid_value_variants('background-image', "image-set()");
+  test_invalid_value_variants('background-image', "image-set('example.jpeg' 92pid url(example.png) 1x)");
+  test_invalid_value_variants('background-image', "image-set(url(example.png) 1x url(example.jpeg))");
+  test_invalid_value_variants('background-image', "image-set(url(example.png) 1x 2x)");
+
+  test_default_resolution_parsing();
+  test_resolution_units_parsing();
+  test_non_positive_resolutions_parsing();
+  test_gradient_images_parsing();
+  test_image_type_parsing();
+  test_no_images_set_nesting();
+}
+
+test_image_set_parsing();
+</script>
