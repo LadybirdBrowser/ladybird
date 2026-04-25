@@ -88,41 +88,43 @@ macro check_both_double(lhs, rhs, fail)
     branch_eq rhs_tag, NAN_BASE_TAG, fail
 end
 
-# Coerce two operands (already in t1/t2) to numeric types for arithmetic/comparison.
-# If both are int32: jumps to both_int_label with t3=sign-extended lhs, t4=sign-extended rhs.
-# If one or both are double: falls through with ft0=lhs as double, ft1=rhs as double.
+# Coerce two operands to numeric types for arithmetic / comparison.
+# If both are int32: jumps to both_int_label with lhs_int / rhs_int holding
+# the sign-extended 64-bit ints.
+# If one or both are double: falls through with lhs_dbl / rhs_dbl holding
+# the values as doubles.
 # If either is not a number (int32 or double): jumps to fail.
-# Clobbers t3, t4.
-macro coerce_to_doubles(both_int_label, fail)
-    extract_tag t3, t1
-    branch_ne t3, INT32_TAG, .lhs_not_int
-    extract_tag t4, t2
-    branch_ne t4, INT32_TAG, .int_rhs_maybe_double
+macro coerce_to_doubles(lhs, rhs, lhs_int, rhs_int, lhs_dbl, rhs_dbl, both_int_label, fail)
+    temp tag
+    extract_tag tag, lhs
+    branch_ne tag, INT32_TAG, .lhs_not_int
+    extract_tag tag, rhs
+    branch_ne tag, INT32_TAG, .int_rhs_maybe_double
     # Both int32
-    unbox_int32 t3, t1
-    unbox_int32 t4, t2
+    unbox_int32 lhs_int, lhs
+    unbox_int32 rhs_int, rhs
     jmp both_int_label
 .int_rhs_maybe_double:
-    # t4 already has rhs tag, known != INT32_TAG
-    check_tag_is_double t4, fail
-    unbox_int32 t3, t1
-    int_to_double ft0, t3
-    fp_mov ft1, t2
+    # tag already has rhs tag, known != INT32_TAG
+    check_tag_is_double tag, fail
+    unbox_int32 lhs_int, lhs
+    int_to_double lhs_dbl, lhs_int
+    fp_mov rhs_dbl, rhs
     jmp .coerced
 .lhs_not_int:
-    # t3 already has lhs tag, known != INT32_TAG
-    check_tag_is_double t3, fail
-    extract_tag t4, t2
-    branch_eq t4, INT32_TAG, .double_rhs_int
-    # t4 already has rhs tag, known != INT32_TAG
-    check_tag_is_double t4, fail
-    fp_mov ft0, t1
-    fp_mov ft1, t2
+    # tag already has lhs tag, known != INT32_TAG
+    check_tag_is_double tag, fail
+    extract_tag tag, rhs
+    branch_eq tag, INT32_TAG, .double_rhs_int
+    # tag already has rhs tag, known != INT32_TAG
+    check_tag_is_double tag, fail
+    fp_mov lhs_dbl, lhs
+    fp_mov rhs_dbl, rhs
     jmp .coerced
 .double_rhs_int:
-    fp_mov ft0, t1
-    unbox_int32 t4, t2
-    int_to_double ft1, t4
+    fp_mov lhs_dbl, lhs
+    unbox_int32 rhs_int, rhs
+    int_to_double rhs_dbl, rhs_int
 .coerced:
 end
 
@@ -251,53 +253,56 @@ end
 
 # Numeric compare with coercion (for jump variants).
 # Uses coerce_to_doubles to handle mixed int32+double operands.
-# Expects t1=lhs, t2=rhs (NaN-boxed values).
 # int_cc: signed comparison branch for int32 (branch_lt_signed, etc.)
 # double_cc: unsigned comparison branch for doubles (branch_fp_less, etc.)
-# Jumps to true_label/false_label/slow_label.
-macro numeric_compare_coerce(int_cc, double_cc, true_label, false_label, slow_label)
-    coerce_to_doubles .both_int, slow_label
-    branch_fp_unordered ft0, ft1, false_label
-    double_cc ft0, ft1, true_label
+# Jumps to true_label / false_label / slow_label.
+macro numeric_compare_coerce(lhs, rhs, int_cc, double_cc, true_label, false_label, slow_label)
+    temp lhs_int, rhs_int
+    ftemp lhs_dbl, rhs_dbl
+    coerce_to_doubles lhs, rhs, lhs_int, rhs_int, lhs_dbl, rhs_dbl, .both_int, slow_label
+    branch_fp_unordered lhs_dbl, rhs_dbl, false_label
+    double_cc lhs_dbl, rhs_dbl, true_label
     jmp false_label
 .both_int:
-    int_cc t3, t4, true_label
+    int_cc lhs_int, rhs_int, true_label
     jmp false_label
 end
 
 # Numeric compare without coercion (for non-jump variants).
 # Only handles both-int32 or both-double fast paths.
-# Expects t1=lhs, t2=rhs (NaN-boxed values).
-macro numeric_compare(int_cc, double_cc, true_label, false_label, slow_label)
-    extract_tag t3, t1
-    branch_ne t3, INT32_TAG, .try_double
-    extract_tag t4, t2
-    branch_ne t4, INT32_TAG, slow_label
-    unbox_int32 t3, t1
-    unbox_int32 t4, t2
-    int_cc t3, t4, true_label
+macro numeric_compare(lhs, rhs, int_cc, double_cc, true_label, false_label, slow_label)
+    temp tag, lhs_int, rhs_int
+    ftemp lhs_dbl, rhs_dbl
+    extract_tag tag, lhs
+    branch_ne tag, INT32_TAG, .try_double
+    extract_tag tag, rhs
+    branch_ne tag, INT32_TAG, slow_label
+    unbox_int32 lhs_int, lhs
+    unbox_int32 rhs_int, rhs
+    int_cc lhs_int, rhs_int, true_label
     jmp false_label
 .try_double:
-    # t3 already has lhs tag
-    check_tag_is_double t3, slow_label
-    check_is_double t2, slow_label
-    fp_mov ft0, t1
-    fp_mov ft1, t2
-    branch_fp_unordered ft0, ft1, false_label
-    double_cc ft0, ft1, true_label
+    # tag already has lhs tag
+    check_tag_is_double tag, slow_label
+    check_is_double rhs, slow_label
+    fp_mov lhs_dbl, lhs
+    fp_mov rhs_dbl, rhs
+    branch_fp_unordered lhs_dbl, rhs_dbl, false_label
+    double_cc lhs_dbl, rhs_dbl, true_label
     jmp false_label
 end
 
 # Epilogue for comparison/equality handlers that produce a boolean result.
 # Defines .store_true, .store_false, and .slow labels.
 macro boolean_result_epilogue(slow_path_func)
+    temp result
 .store_true:
-    mov t0, BOOLEAN_TRUE
-    store_operand m_dst, t0
+    mov result, BOOLEAN_TRUE
+    store_operand m_dst, result
     dispatch_next
 .store_false:
-    mov t0, BOOLEAN_FALSE
-    store_operand m_dst, t0
+    mov result, BOOLEAN_FALSE
+    store_operand m_dst, result
     dispatch_next
 .slow:
     call_slow_path slow_path_func
@@ -306,14 +311,15 @@ end
 # Epilogue for jump comparison/equality handlers.
 # Defines .take_true, .take_false, and .slow labels.
 macro jump_binary_epilogue(slow_path_func)
+    temp target
 .slow:
     call_slow_path slow_path_func
 .take_true:
-    load_label t0, m_true_target
-    goto_handler t0
+    load_label target, m_true_target
+    goto_handler target
 .take_false:
-    load_label t0, m_false_target
-    goto_handler t0
+    load_label target, m_false_target
+    goto_handler target
 end
 
 # Coerce two operands (already in t1/t2) to int32 for bitwise operations.
@@ -529,30 +535,30 @@ end
 # box_double_or_int32 re-boxes double results as Int32 when possible,
 # mirroring JS::Value(double), so downstream int32 fast paths can fire.
 handler Add
-    load_operand t1, m_lhs
-    load_operand t2, m_rhs
-    coerce_to_doubles .both_int, .slow
-    # One or both doubles: ft0=lhs, ft1=rhs
-    fp_add ft0, ft1
-    box_double_or_int32 t5, ft0
-    store_operand m_dst, t5
+    temp lhs, rhs, lhs_int, rhs_int, dst
+    ftemp lhs_dbl, rhs_dbl
+    load_operand lhs, m_lhs
+    load_operand rhs, m_rhs
+    coerce_to_doubles lhs, rhs, lhs_int, rhs_int, lhs_dbl, rhs_dbl, .both_int, .slow
+    fp_add lhs_dbl, rhs_dbl
+    box_double_or_int32 dst, lhs_dbl
+    store_operand m_dst, dst
     dispatch_next
 .both_int:
-    # t3=lhs (sign-extended), t4=rhs (sign-extended)
     # 32-bit add with hardware overflow detection
-    add32_overflow t3, t4, .overflow
-    box_int32_clean t5, t3
-    store_operand m_dst, t5
+    add32_overflow lhs_int, rhs_int, .overflow
+    box_int32_clean dst, lhs_int
+    store_operand m_dst, dst
     dispatch_next
 .overflow:
     # Int32 overflow: convert both to double and redo the operation
-    unbox_int32 t3, t1
-    unbox_int32 t4, t2
-    int_to_double ft0, t3
-    int_to_double ft1, t4
-    fp_add ft0, ft1
-    fp_mov t5, ft0
-    store_operand m_dst, t5
+    unbox_int32 lhs_int, lhs
+    unbox_int32 rhs_int, rhs
+    int_to_double lhs_dbl, lhs_int
+    int_to_double rhs_dbl, rhs_int
+    fp_add lhs_dbl, rhs_dbl
+    fp_mov dst, lhs_dbl
+    store_operand m_dst, dst
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_add
@@ -560,28 +566,28 @@ end
 
 # Same pattern as Add but with subtraction.
 handler Sub
-    load_operand t1, m_lhs
-    load_operand t2, m_rhs
-    coerce_to_doubles .both_int, .slow
-    # One or both doubles: ft0=lhs, ft1=rhs
-    fp_sub ft0, ft1
-    box_double_or_int32 t5, ft0
-    store_operand m_dst, t5
+    temp lhs, rhs, lhs_int, rhs_int, dst
+    ftemp lhs_dbl, rhs_dbl
+    load_operand lhs, m_lhs
+    load_operand rhs, m_rhs
+    coerce_to_doubles lhs, rhs, lhs_int, rhs_int, lhs_dbl, rhs_dbl, .both_int, .slow
+    fp_sub lhs_dbl, rhs_dbl
+    box_double_or_int32 dst, lhs_dbl
+    store_operand m_dst, dst
     dispatch_next
 .both_int:
-    # t3=lhs (sign-extended), t4=rhs (sign-extended)
-    sub32_overflow t3, t4, .overflow
-    box_int32_clean t5, t3
-    store_operand m_dst, t5
+    sub32_overflow lhs_int, rhs_int, .overflow
+    box_int32_clean dst, lhs_int
+    store_operand m_dst, dst
     dispatch_next
 .overflow:
-    unbox_int32 t3, t1
-    unbox_int32 t4, t2
-    int_to_double ft0, t3
-    int_to_double ft1, t4
-    fp_sub ft0, ft1
-    fp_mov t5, ft0
-    store_operand m_dst, t5
+    unbox_int32 lhs_int, lhs
+    unbox_int32 rhs_int, rhs
+    int_to_double lhs_dbl, lhs_int
+    int_to_double rhs_dbl, rhs_int
+    fp_sub lhs_dbl, rhs_dbl
+    fp_mov dst, lhs_dbl
+    store_operand m_dst, dst
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_sub
@@ -590,38 +596,38 @@ end
 # Same pattern as Add but with multiplication.
 # Extra complexity: 0 * negative = -0.0 (must produce negative zero double).
 handler Mul
-    load_operand t1, m_lhs
-    load_operand t2, m_rhs
-    coerce_to_doubles .both_int, .slow
-    # One or both doubles: ft0=lhs, ft1=rhs
-    fp_mul ft0, ft1
-    box_double_or_int32 t5, ft0
-    store_operand m_dst, t5
+    temp lhs, rhs, lhs_int, rhs_int, dst, sign_check
+    ftemp lhs_dbl, rhs_dbl
+    load_operand lhs, m_lhs
+    load_operand rhs, m_rhs
+    coerce_to_doubles lhs, rhs, lhs_int, rhs_int, lhs_dbl, rhs_dbl, .both_int, .slow
+    fp_mul lhs_dbl, rhs_dbl
+    box_double_or_int32 dst, lhs_dbl
+    store_operand m_dst, dst
     dispatch_next
 .both_int:
-    # t3=lhs (sign-extended), t4=rhs (sign-extended)
-    mul32_overflow t3, t4, .overflow
-    branch_nonzero t3, .store_int
+    mul32_overflow lhs_int, rhs_int, .overflow
+    branch_nonzero lhs_int, .store_int
     # Result is 0: check if either operand was negative -> -0.0
-    unbox_int32 t5, t1
-    or t5, t4
-    branch_negative t5, .negative_zero
+    unbox_int32 sign_check, lhs
+    or sign_check, rhs_int
+    branch_negative sign_check, .negative_zero
 .store_int:
-    box_int32_clean t5, t3
-    store_operand m_dst, t5
+    box_int32_clean dst, lhs_int
+    store_operand m_dst, dst
     dispatch_next
 .negative_zero:
-    mov t5, NEGATIVE_ZERO
-    store_operand m_dst, t5
+    mov dst, NEGATIVE_ZERO
+    store_operand m_dst, dst
     dispatch_next
 .overflow:
-    unbox_int32 t3, t1
-    unbox_int32 t4, t2
-    int_to_double ft0, t3
-    int_to_double ft1, t4
-    fp_mul ft0, ft1
-    fp_mov t5, ft0
-    store_operand m_dst, t5
+    unbox_int32 lhs_int, lhs
+    unbox_int32 rhs_int, rhs
+    int_to_double lhs_dbl, lhs_int
+    int_to_double rhs_dbl, rhs_int
+    fp_mul lhs_dbl, rhs_dbl
+    fp_mov dst, lhs_dbl
+    store_operand m_dst, dst
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_mul
@@ -738,30 +744,34 @@ end
 # Jump comparison handlers: use numeric_compare_coerce (handles mixed int32+double)
 # combined with jump_binary_epilogue (provides .take_true, .take_false, .slow labels).
 handler JumpLessThan
-    load_operand t1, m_lhs
-    load_operand t2, m_rhs
-    numeric_compare_coerce branch_lt_signed, branch_fp_less, .take_true, .take_false, .slow
+    temp lhs, rhs
+    load_operand lhs, m_lhs
+    load_operand rhs, m_rhs
+    numeric_compare_coerce lhs, rhs, branch_lt_signed, branch_fp_less, .take_true, .take_false, .slow
     jump_binary_epilogue asm_slow_path_jump_less_than
 end
 
 handler JumpGreaterThan
-    load_operand t1, m_lhs
-    load_operand t2, m_rhs
-    numeric_compare_coerce branch_gt_signed, branch_fp_greater, .take_true, .take_false, .slow
+    temp lhs, rhs
+    load_operand lhs, m_lhs
+    load_operand rhs, m_rhs
+    numeric_compare_coerce lhs, rhs, branch_gt_signed, branch_fp_greater, .take_true, .take_false, .slow
     jump_binary_epilogue asm_slow_path_jump_greater_than
 end
 
 handler JumpLessThanEquals
-    load_operand t1, m_lhs
-    load_operand t2, m_rhs
-    numeric_compare_coerce branch_le_signed, branch_fp_less_or_equal, .take_true, .take_false, .slow
+    temp lhs, rhs
+    load_operand lhs, m_lhs
+    load_operand rhs, m_rhs
+    numeric_compare_coerce lhs, rhs, branch_le_signed, branch_fp_less_or_equal, .take_true, .take_false, .slow
     jump_binary_epilogue asm_slow_path_jump_less_than_equals
 end
 
 handler JumpGreaterThanEquals
-    load_operand t1, m_lhs
-    load_operand t2, m_rhs
-    numeric_compare_coerce branch_ge_signed, branch_fp_greater_or_equal, .take_true, .take_false, .slow
+    temp lhs, rhs
+    load_operand lhs, m_lhs
+    load_operand rhs, m_rhs
+    numeric_compare_coerce lhs, rhs, branch_ge_signed, branch_fp_greater_or_equal, .take_true, .take_false, .slow
     jump_binary_epilogue asm_slow_path_jump_greater_than_equals
 end
 
@@ -1100,30 +1110,34 @@ end
 # both-double fast paths, fall back to slow path for mixed/non-numeric types.
 # The boolean_result_epilogue macro provides .store_true, .store_false, .slow labels.
 handler LessThan
-    load_operand t1, m_lhs
-    load_operand t2, m_rhs
-    numeric_compare branch_lt_signed, branch_fp_less, .store_true, .store_false, .slow
+    temp lhs, rhs
+    load_operand lhs, m_lhs
+    load_operand rhs, m_rhs
+    numeric_compare lhs, rhs, branch_lt_signed, branch_fp_less, .store_true, .store_false, .slow
     boolean_result_epilogue asm_slow_path_less_than
 end
 
 handler LessThanEquals
-    load_operand t1, m_lhs
-    load_operand t2, m_rhs
-    numeric_compare branch_le_signed, branch_fp_less_or_equal, .store_true, .store_false, .slow
+    temp lhs, rhs
+    load_operand lhs, m_lhs
+    load_operand rhs, m_rhs
+    numeric_compare lhs, rhs, branch_le_signed, branch_fp_less_or_equal, .store_true, .store_false, .slow
     boolean_result_epilogue asm_slow_path_less_than_equals
 end
 
 handler GreaterThan
-    load_operand t1, m_lhs
-    load_operand t2, m_rhs
-    numeric_compare branch_gt_signed, branch_fp_greater, .store_true, .store_false, .slow
+    temp lhs, rhs
+    load_operand lhs, m_lhs
+    load_operand rhs, m_rhs
+    numeric_compare lhs, rhs, branch_gt_signed, branch_fp_greater, .store_true, .store_false, .slow
     boolean_result_epilogue asm_slow_path_greater_than
 end
 
 handler GreaterThanEquals
-    load_operand t1, m_lhs
-    load_operand t2, m_rhs
-    numeric_compare branch_ge_signed, branch_fp_greater_or_equal, .store_true, .store_false, .slow
+    temp lhs, rhs
+    load_operand lhs, m_lhs
+    load_operand rhs, m_rhs
+    numeric_compare lhs, rhs, branch_ge_signed, branch_fp_greater_or_equal, .store_true, .store_false, .slow
     boolean_result_epilogue asm_slow_path_greater_than_equals
 end
 
