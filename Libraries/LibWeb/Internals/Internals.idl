@@ -84,9 +84,9 @@ interface Internals {
 
     undefined clearElement(HTMLElement element);
 
-    // Returns a snapshot of the style-invalidation counters for the current document.
-    // Keys: hasAncestorWalkInvocations, hasAncestorWalkVisits, hasMatchInvocations,
-    //       hasResultCacheHits, hasResultCacheMisses.
+    // Returns a snapshot of the style-invalidation and recomputation counters for the current document.
+    // Keys include hasAncestorWalkInvocations, styleInvalidations, elementStyleRecomputations, and
+    // elementStyleNoopRecomputations.
     object getStyleInvalidationCounters();
     undefined resetStyleInvalidationCounters();
 

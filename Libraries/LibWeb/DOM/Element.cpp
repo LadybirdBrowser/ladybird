@@ -897,6 +897,9 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
 {
     VERIFY(parent());
 
+    auto& counters = document().style_invalidation_counters();
+    counters.element_style_recomputations++;
+
     m_style_uses_attr_css_function = false;
     m_style_uses_var_css_function = false;
     m_style_uses_tree_counting_function = false;
@@ -994,8 +997,10 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
     if (had_list_marker || m_computed_properties->display().is_list_item())
         recompute_pseudo_element_style(CSS::PseudoElement::Marker);
 
-    if (invalidation.is_none())
+    if (invalidation.is_none()) {
+        counters.element_style_noop_recomputations++;
         return invalidation;
+    }
 
     if (!invalidation.rebuild_layout_tree && unsafe_layout_node()) {
         // If we're keeping the layout tree, we can just apply the new style to the existing layout tree.
@@ -1027,6 +1032,9 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
 
 CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
 {
+    auto& counters = document().style_invalidation_counters();
+    counters.element_inherited_style_recomputations++;
+
     auto computed_properties = this->computed_properties();
     VERIFY(m_cascaded_properties);
     VERIFY(computed_properties);
@@ -1074,8 +1082,10 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
         invalidation |= CSS::compute_property_invalidation(property_id, old_value.ptr(), &computed_properties->property(property_id));
     }
 
-    if (invalidation.is_none() && property_values_affected_by_inherited_style.is_empty())
+    if (invalidation.is_none() && property_values_affected_by_inherited_style.is_empty()) {
+        counters.element_inherited_style_noop_recomputations++;
         return invalidation;
+    }
 
     AbstractElement abstract_element { *this };
 
@@ -1086,8 +1096,10 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
         invalidation |= CSS::compute_property_invalidation(static_cast<CSS::PropertyID>(property_id), old_value.ptr(), &new_value);
     }
 
-    if (invalidation.is_none())
+    if (invalidation.is_none()) {
+        counters.element_inherited_style_noop_recomputations++;
         return invalidation;
+    }
 
     // NB: unsafe_layout_node() because we're applying recomputed inherited styles during
     //     style recalculation, before layout has been updated.

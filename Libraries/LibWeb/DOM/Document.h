@@ -844,7 +844,7 @@ public:
 
     void set_needs_invalidation_of_elements_affected_by_has() { m_needs_invalidation_of_elements_affected_by_has = true; }
 
-    // Test-only counters for observing :has() invalidation work. See Internals.idl.
+    // Test-only counters for observing style invalidation and recomputation work. See Internals.idl.
     struct StyleInvalidationCounters {
         u64 has_ancestor_walk_invocations { 0 };
         u64 has_ancestor_walk_visits { 0 };
@@ -855,6 +855,10 @@ public:
         u64 has_result_cache_misses { 0 };
         u64 full_style_invalidations { 0 };
         u64 style_invalidations { 0 };
+        u64 element_style_recomputations { 0 };
+        u64 element_style_noop_recomputations { 0 };
+        u64 element_inherited_style_recomputations { 0 };
+        u64 element_inherited_style_noop_recomputations { 0 };
     };
     StyleInvalidationCounters& style_invalidation_counters() const { return m_style_invalidation_counters; }
     void reset_style_invalidation_counters() const { m_style_invalidation_counters = {}; }
