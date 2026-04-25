@@ -622,7 +622,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     auto background_layers = computed_style.background_layers();
 
     for (auto const& layer : background_layers)
-        const_cast<CSS::AbstractImageStyleValue&>(*layer.background_image).load_any_resources(document());
+        const_cast<CSS::AbstractImageStyleValue&>(*layer.background_image).load_any_resources(*this);
 
     computed_values.set_background_layers(move(background_layers));
 
@@ -719,7 +719,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     auto const& list_style_image = computed_style.property(CSS::PropertyID::ListStyleImage);
     if (list_style_image.is_abstract_image()) {
         m_list_style_image = list_style_image.as_abstract_image();
-        const_cast<CSS::AbstractImageStyleValue&>(*m_list_style_image).load_any_resources(document());
+        const_cast<CSS::AbstractImageStyleValue&>(*m_list_style_image).load_any_resources(*this);
     }
 
     computed_values.set_text_decoration_color(computed_style.color(CSS::PropertyID::TextDecorationColor, color_resolution_context));
@@ -871,7 +871,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     } else if (mask_image.is_abstract_image()) {
         auto const& abstract_image = mask_image.as_abstract_image();
         computed_values.set_mask_image(abstract_image);
-        const_cast<CSS::AbstractImageStyleValue&>(abstract_image).load_any_resources(document());
+        const_cast<CSS::AbstractImageStyleValue&>(abstract_image).load_any_resources(*this);
     }
 
     computed_values.set_mask_type(computed_style.mask_type());

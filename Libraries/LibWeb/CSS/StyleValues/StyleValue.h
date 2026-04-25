@@ -68,6 +68,7 @@ namespace Web::CSS {
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(GridTrackSizeList, grid_track_size_list, GridTrackSizeListStyleValue)                     \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(GuaranteedInvalid, guaranteed_invalid, GuaranteedInvalidStyleValue)                       \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Image, image, ImageStyleValue)                                                            \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(ImageSet, image_set, ImageSetStyleValue)                                                  \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Integer, integer, IntegerStyleValue)                                                      \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Keyword, keyword, KeywordStyleValue)                                                      \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Length, length, LengthStyleValue)                                                         \
@@ -127,7 +128,7 @@ public:
 
     bool is_abstract_image() const
     {
-        return AK::first_is_one_of(type(), Type::Image, Type::LinearGradient, Type::ConicGradient, Type::RadialGradient);
+        return AK::first_is_one_of(type(), Type::Image, Type::ImageSet, Type::LinearGradient, Type::ConicGradient, Type::RadialGradient);
     }
     AbstractImageStyleValue const& as_abstract_image() const;
     AbstractImageStyleValue& as_abstract_image() { return const_cast<AbstractImageStyleValue&>(const_cast<StyleValue const&>(*this).as_abstract_image()); }

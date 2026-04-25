@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 150 tests
 
-126 Pass
-24 Fail
+127 Pass
+23 Fail
 Pass	Property scale value 'random(1, 11)'
 Pass	Property scale value 'random(--foo, 2, 12)'
 Pass	Property scale value 'random(--foo element-shared, 3, 13)'
@@ -103,7 +103,7 @@ Fail	Property color value 'rgb(from blue random(51, 10) random(g + 51, g) random
 Pass	Property color value 'color-mix(in srgb, rgb(random(30, 10) 0 0), rgb(random(21, 10) 0 0))'
 Pass	Property math-depth value 'add(random(30, 10))'
 Fail	Property view-transition-name value 'ident("myident" random(30, 10))'
-Fail	Property background-image value 'image-set(url("http://example.com/image.png") calc(random(fixed 0.3, 0, 10) * 1x))'
+Pass	Property background-image value 'image-set(url("http://example.com/image.png") calc(random(fixed 0.3, 0, 10) * 1x))'
 Pass	Property aspect-ratio value 'random(3, 1) / random(9, 6)'
 Pass	Property filter value 'drop-shadow(random(3px, 1px) random(6px, 1px) random(9px, 1px) black)'
 Pass	Property font-variation-settings value '"wght" random(300, 100)'

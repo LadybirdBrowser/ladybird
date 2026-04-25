@@ -427,7 +427,13 @@ private:
     RefPtr<StyleValue const> parse_rect_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_ratio_value(TokenStream<ComponentValue>&);
     RefPtr<StringStyleValue const> parse_string_value(TokenStream<ComponentValue>&);
+    enum class AllowImageSet {
+        No,
+        Yes,
+    };
     RefPtr<AbstractImageStyleValue const> parse_image_value(TokenStream<ComponentValue>&);
+    RefPtr<AbstractImageStyleValue const> parse_image_value(TokenStream<ComponentValue>&, AllowImageSet);
+    RefPtr<ImageSetStyleValue const> parse_image_set_function(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_paint_value(TokenStream<ComponentValue>&);
     enum class PositionParsingMode {
         Normal,

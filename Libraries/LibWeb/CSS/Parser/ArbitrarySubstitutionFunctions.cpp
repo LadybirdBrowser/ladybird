@@ -85,6 +85,22 @@ bool contains_guaranteed_invalid_value(Vector<ComponentValue> const& values)
     return false;
 }
 
+static bool contains_attr_tainted_value(Vector<ComponentValue> const& values)
+{
+    for (auto const& value : values) {
+        if (value.contains_attr_tainted_value())
+            return true;
+    }
+    return false;
+}
+
+static Vector<ComponentValue> mark_as_attr_tainted(Vector<ComponentValue> values)
+{
+    for (auto& value : values)
+        value.set_attr_tainted();
+    return values;
+}
+
 // https://drafts.csswg.org/css-values-5/#replace-an-attr-function
 static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& element, GuardedSubstitutionContexts& guarded_contexts, ArbitrarySubstitutionFunctionArguments const& arguments)
 {
@@ -218,7 +234,7 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
         });
     if (return_from_step_4) {
         if (step_4_result.has_value())
-            return step_4_result.release_value();
+            return mark_as_attr_tainted(step_4_result.release_value());
         return failure();
     }
 
@@ -228,7 +244,7 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
             [](Empty) { return true; },
             [](RawStringKeyword) { return true; },
             [](auto&) { return false; })) {
-        return { Token::create_string(*attribute_value) };
+        return mark_as_attr_tainted({ Token::create_string(*attribute_value) });
     }
 
     // 6. Substitute arbitrary substitution functions in attr value, with «"attribute", attr name» as the substitution
@@ -242,7 +258,7 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
     auto parsed_value = parse_with_a_syntax(ParsingParams { element.document() }, substituted_values, *syntax.get<NonnullOwnPtr<SyntaxNode>>());
     if (parsed_value->is_guaranteed_invalid())
         return failure();
-    return parsed_value->tokenize();
+    return mark_as_attr_tainted(parsed_value->tokenize());
 
     // 7. FAILURE:
     // NB: Step 7 is a lambda defined at the top of the function.
@@ -317,6 +333,7 @@ static Vector<ComponentValue> replace_an_if_function(DOM::AbstractElement& eleme
         // 1. Substitute arbitrary substitution functions in the first <declaration-value> of branch, then parse the
         //    result as an <if-condition>. If parsing returns failure, continue; otherwise, let the result be condition.
         auto substituted_condition = substitute_arbitrary_substitution_functions(element, guarded_contexts, branch.condition);
+        auto condition_is_attr_tainted = contains_attr_tainted_value(substituted_condition);
 
         TokenStream<ComponentValue> tokens { substituted_condition };
         auto maybe_parsed_if_condition = parser.parse_if_condition(tokens);
@@ -339,7 +356,10 @@ static Vector<ComponentValue> replace_an_if_function(DOM::AbstractElement& eleme
         if (!branch.value.has_value())
             return {};
 
-        return substitute_arbitrary_substitution_functions(element, guarded_contexts, branch.value.value());
+        auto result = substitute_arbitrary_substitution_functions(element, guarded_contexts, branch.value.value());
+        if (condition_is_attr_tainted)
+            return mark_as_attr_tainted(move(result));
+        return result;
     }
 
     // 2. Return nothing (an empty sequence of component values).

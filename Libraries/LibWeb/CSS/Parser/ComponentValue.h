@@ -44,6 +44,8 @@ public:
 
     bool is_guaranteed_invalid() const { return m_value.has<GuaranteedInvalidValue>(); }
     bool contains_guaranteed_invalid_value() const;
+    bool contains_attr_tainted_value() const;
+    void set_attr_tainted() { m_attr_tainted = true; }
 
     String to_string() const;
     String to_debug_string() const;
@@ -53,6 +55,7 @@ public:
 
 private:
     Variant<Token, Function, SimpleBlock, GuaranteedInvalidValue> m_value;
+    bool m_attr_tainted { false };
 };
 
 }

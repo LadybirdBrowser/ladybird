@@ -264,6 +264,7 @@ set(SOURCES
     CSS/StyleValues/GridTemplateAreaStyleValue.cpp
     CSS/StyleValues/GridTrackPlacementStyleValue.cpp
     CSS/StyleValues/GridTrackSizeListStyleValue.cpp
+    CSS/StyleValues/ImageSetStyleValue.cpp
     CSS/StyleValues/ImageStyleValue.cpp
     CSS/StyleValues/IntegerStyleValue.cpp
     CSS/StyleValues/KeywordStyleValue.cpp

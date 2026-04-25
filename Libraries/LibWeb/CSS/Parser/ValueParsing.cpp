@@ -52,6 +52,7 @@
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ImageSetStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
@@ -2675,6 +2676,92 @@ RefPtr<StringStyleValue const> Parser::parse_string_value(TokenStream<ComponentV
 
 RefPtr<AbstractImageStyleValue const> Parser::parse_image_value(TokenStream<ComponentValue>& tokens)
 {
+    return parse_image_value(tokens, AllowImageSet::Yes);
+}
+
+RefPtr<ImageSetStyleValue const> Parser::parse_image_set_function(TokenStream<ComponentValue>& tokens)
+{
+    tokens.discard_whitespace();
+    auto const& function_token = tokens.next_token();
+    if (!function_token.is_function("image-set"sv) && !function_token.is_function("-webkit-image-set"sv))
+        return nullptr;
+
+    auto transaction = tokens.begin_transaction();
+    auto const& function = tokens.consume_a_token().function();
+    TokenStream function_tokens { function.value };
+    auto image_set_options_tokens = parse_a_comma_separated_list_of_component_values(function_tokens);
+    function_tokens.discard_whitespace();
+    if (!function_tokens.is_empty())
+        return nullptr;
+
+    Vector<ImageSetStyleValue::Option> options;
+    options.ensure_capacity(image_set_options_tokens.size());
+    for (auto const& option_tokens_list : image_set_options_tokens) {
+        if (option_tokens_list.first_matching([](auto const& component_value) { return component_value.contains_attr_tainted_value(); }).has_value())
+            return nullptr;
+
+        TokenStream option_tokens { option_tokens_list };
+        option_tokens.discard_whitespace();
+
+        RefPtr<AbstractImageStyleValue const> image;
+        if (option_tokens.next_token().is(Token::Type::String)) {
+            auto url = URL { option_tokens.consume_a_token().token().string().to_string() };
+            image = ImageStyleValue::create(url);
+        } else {
+            image = parse_image_value(option_tokens, AllowImageSet::No);
+        }
+        if (!image)
+            return nullptr;
+
+        RefPtr<StyleValue const> resolution;
+        Optional<String> type;
+        while (true) {
+            option_tokens.discard_whitespace();
+            if (option_tokens.is_empty())
+                break;
+
+            if (!resolution) {
+                if (auto parsed_resolution = parse_resolution_value(option_tokens, infinite_range)) {
+                    resolution = parsed_resolution;
+                    continue;
+                }
+            }
+
+            if (!type.has_value() && option_tokens.next_token().is_function("type"sv)) {
+                auto const& type_function = option_tokens.consume_a_token().function();
+                TokenStream type_tokens { type_function.value };
+                type_tokens.discard_whitespace();
+                if (!type_tokens.next_token().is(Token::Type::String))
+                    return nullptr;
+                type = type_tokens.consume_a_token().token().string().to_string();
+                type_tokens.discard_whitespace();
+                if (!type_tokens.is_empty())
+                    return nullptr;
+                continue;
+            }
+
+            return nullptr;
+        }
+
+        if (!resolution)
+            resolution = ResolutionStyleValue::create(Resolution { 1, ResolutionUnit::X });
+
+        options.unchecked_append({
+            .image = image.release_nonnull(),
+            .resolution = resolution.release_nonnull(),
+            .type = move(type),
+        });
+    }
+
+    if (options.is_empty())
+        return nullptr;
+
+    transaction.commit();
+    return ImageSetStyleValue::create(move(options));
+}
+
+RefPtr<AbstractImageStyleValue const> Parser::parse_image_value(TokenStream<ComponentValue>& tokens, AllowImageSet allow_image_set)
+{
     tokens.mark();
     auto url = parse_url_function(tokens);
     if (url.has_value()) {
@@ -2689,6 +2776,11 @@ RefPtr<AbstractImageStyleValue const> Parser::parse_image_value(TokenStream<Comp
         return nullptr;
     }
     tokens.discard_a_mark();
+
+    if (allow_image_set == AllowImageSet::Yes) {
+        if (auto image_set = parse_image_set_function(tokens))
+            return image_set;
+    }
 
     if (auto linear_gradient = parse_linear_gradient_function(tokens))
         return linear_gradient;

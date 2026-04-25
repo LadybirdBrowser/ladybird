@@ -106,4 +106,28 @@ bool ComponentValue::contains_guaranteed_invalid_value() const
         });
 }
 
+bool ComponentValue::contains_attr_tainted_value() const
+{
+    if (m_attr_tainted)
+        return true;
+
+    return m_value.visit(
+        [](Token const&) {
+            return false;
+        },
+        [](SimpleBlock const& block) {
+            return block.value
+                .first_matching([](auto const& it) { return it.contains_attr_tainted_value(); })
+                .has_value();
+        },
+        [](Function const& function) {
+            return function.value
+                .first_matching([](auto const& it) { return it.contains_attr_tainted_value(); })
+                .has_value();
+        },
+        [](GuaranteedInvalidValue const&) {
+            return false;
+        });
+}
+
 }

@@ -341,6 +341,7 @@ class GridTrackPlacementStyleValue;
 class GridTrackSizeList;
 class GridTrackSizeListStyleValue;
 class GuaranteedInvalidStyleValue;
+class ImageSetStyleValue;
 class ImageStyleValue;
 class IntegerStyleValue;
 class InvalidationSet;

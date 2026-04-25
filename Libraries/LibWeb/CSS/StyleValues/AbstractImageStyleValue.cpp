@@ -6,6 +6,7 @@
 
 #include "AbstractImageStyleValue.h"
 #include <LibWeb/CSS/CSSImageValue.h>
+#include <LibWeb/Layout/Node.h>
 
 namespace Web::CSS {
 
@@ -14,6 +15,11 @@ GC::Ref<CSSStyleValue> AbstractImageStyleValue::reify(JS::Realm& realm, FlyStrin
 {
     // AD-HOC: There's no spec description of how to reify as a CSSImageValue.
     return CSSImageValue::create(realm, *this);
+}
+
+void AbstractImageStyleValue::load_any_resources(Layout::NodeWithStyle const& layout_node)
+{
+    load_any_resources(const_cast<DOM::Document&>(layout_node.document()));
 }
 
 ColorStopListElement ColorStopListElement::absolutized(ComputationContext const& context) const
