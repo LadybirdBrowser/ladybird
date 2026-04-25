@@ -369,17 +369,18 @@ end
 # Validate that the callee still points at the expected builtin function.
 # Jumps to fail if the call target has been replaced or is not a function.
 macro validate_callee_builtin(expected_builtin, fail)
-    load_operand t2, m_callee
-    extract_tag t3, t2
-    branch_ne t3, OBJECT_TAG, fail
-    unbox_object t2, t2
-    load8 t3, [t2, OBJECT_FLAGS]
-    and t3, OBJECT_FLAG_IS_FUNCTION
-    branch_zero t3, fail
-    load8 t3, [t2, FUNCTION_OBJECT_BUILTIN_HAS_VALUE]
-    branch_zero t3, fail
-    load8 t3, [t2, FUNCTION_OBJECT_BUILTIN_VALUE]
-    branch_ne t3, expected_builtin, fail
+    temp callee, scratch
+    load_operand callee, m_callee
+    extract_tag scratch, callee
+    branch_ne scratch, OBJECT_TAG, fail
+    unbox_object callee, callee
+    load8 scratch, [callee, OBJECT_FLAGS]
+    and scratch, OBJECT_FLAG_IS_FUNCTION
+    branch_zero scratch, fail
+    load8 scratch, [callee, FUNCTION_OBJECT_BUILTIN_HAS_VALUE]
+    branch_zero scratch, fail
+    load8 scratch, [callee, FUNCTION_OBJECT_BUILTIN_VALUE]
+    branch_ne scratch, expected_builtin, fail
 end
 
 # Load a UTF-16 code unit from a primitive string with resident UTF-16 data.
@@ -2473,82 +2474,92 @@ end
 # Before using the fast path, we validate that the callee is still the
 # original builtin function (user code may have reassigned e.g. Math.abs).
 handler CallBuiltinMathAbs
+    temp arg, tag, int_value, dst
+    ftemp arg_dbl
     validate_callee_builtin BUILTIN_MATH_ABS, .slow
-    load_operand t1, m_argument
-    check_is_double t1, .try_abs_int32
+    load_operand arg, m_argument
+    check_is_double arg, .try_abs_int32
     # abs(double) = clear sign bit (bit 63)
-    clear_bit t1, 63
-    store_operand m_dst, t1
+    clear_bit arg, 63
+    store_operand m_dst, arg
     dispatch_next
 .try_abs_int32:
-    extract_tag t3, t1
-    branch_ne t3, INT32_TAG, .slow
+    extract_tag tag, arg
+    branch_ne tag, INT32_TAG, .slow
     # abs(int32): negate if negative
-    unbox_int32 t3, t1
-    branch_not_negative t3, .abs_positive
-    neg32_overflow t3, .abs_overflow
+    unbox_int32 int_value, arg
+    branch_not_negative int_value, .abs_positive
+    neg32_overflow int_value, .abs_overflow
 .abs_positive:
-    box_int32_clean t4, t3
-    store_operand m_dst, t4
+    box_int32_clean dst, int_value
+    store_operand m_dst, dst
     dispatch_next
 .abs_overflow:
     # INT32_MIN: abs(-2147483648) = 2147483648.0
-    unbox_int32 t3, t1
-    neg t3
-    int_to_double ft0, t3
-    fp_mov t4, ft0
-    store_operand m_dst, t4
+    unbox_int32 int_value, arg
+    neg int_value
+    int_to_double arg_dbl, int_value
+    fp_mov dst, arg_dbl
+    store_operand m_dst, dst
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_call_builtin_math_abs
 end
 
 handler CallBuiltinMathFloor
+    temp arg, dst
+    ftemp arg_dbl
     validate_callee_builtin BUILTIN_MATH_FLOOR, .slow
-    load_operand t1, m_argument
-    check_is_double t1, .slow
-    fp_mov ft0, t1
-    fp_floor ft0, ft0
-    box_double_or_int32 t5, ft0
-    store_operand m_dst, t5
+    load_operand arg, m_argument
+    check_is_double arg, .slow
+    fp_mov arg_dbl, arg
+    fp_floor arg_dbl, arg_dbl
+    box_double_or_int32 dst, arg_dbl
+    store_operand m_dst, dst
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_call_builtin_math_floor
 end
 
 handler CallBuiltinMathCeil
+    temp arg, dst
+    ftemp arg_dbl
     validate_callee_builtin BUILTIN_MATH_CEIL, .slow
-    load_operand t1, m_argument
-    check_is_double t1, .slow
-    fp_mov ft0, t1
-    fp_ceil ft0, ft0
-    box_double_or_int32 t5, ft0
-    store_operand m_dst, t5
+    load_operand arg, m_argument
+    check_is_double arg, .slow
+    fp_mov arg_dbl, arg
+    fp_ceil arg_dbl, arg_dbl
+    box_double_or_int32 dst, arg_dbl
+    store_operand m_dst, dst
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_call_builtin_math_ceil
 end
 
 handler CallBuiltinMathSqrt
+    temp arg, dst
+    ftemp arg_dbl
     validate_callee_builtin BUILTIN_MATH_SQRT, .slow
-    load_operand t1, m_argument
-    check_is_double t1, .slow
-    fp_mov ft0, t1
-    fp_sqrt ft0, ft0
-    box_double_or_int32 t5, ft0
-    store_operand m_dst, t5
+    load_operand arg, m_argument
+    check_is_double arg, .slow
+    fp_mov arg_dbl, arg
+    fp_sqrt arg_dbl, arg_dbl
+    box_double_or_int32 dst, arg_dbl
+    store_operand m_dst, dst
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_call_builtin_math_sqrt
 end
 
 handler CallBuiltinMathExp
+    temp arg, result
+    ftemp arg_dbl
     validate_callee_builtin BUILTIN_MATH_EXP, .slow
-    load_operand t1, m_argument
-    check_is_double t1, .slow
-    fp_mov ft0, t1
-    call_helper asm_helper_math_exp
-    store_operand m_dst, t0
+    load_operand arg, m_argument
+    check_is_double arg, .slow
+    fp_mov arg_dbl, arg
+    call_helper asm_helper_math_exp, arg, result
+    store_operand m_dst, result
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_call_builtin_math_exp
@@ -2831,9 +2842,10 @@ end
 
 # Fast path: if this_value register is already cached (non-empty), skip the slow path.
 handler ResolveThisBinding
-    load64 t0, [values, THIS_VALUE_REG_OFFSET]
-    mov t1, EMPTY_VALUE
-    branch_eq t0, t1, .slow
+    temp this_value, empty
+    load64 this_value, [values, THIS_VALUE_REG_OFFSET]
+    mov empty, EMPTY_VALUE
+    branch_eq this_value, empty, .slow
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_resolve_this_binding
