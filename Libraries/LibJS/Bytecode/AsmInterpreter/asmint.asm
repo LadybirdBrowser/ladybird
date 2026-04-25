@@ -11,9 +11,11 @@
 #   exec_ctx = running ExecutionContext*
 #   dispatch = dispatch table base pointer (256 entries, 8 bytes each)
 #
-# Temporary registers (caller-saved, clobbered by C++ calls):
-#   t0-t8    = general-purpose scratch
-#   ft0-ft3  = floating-point scratch (scalar double)
+# Temporary registers are declared by name with `temp` (GPR) and
+# `ftemp` (FPR) inside each handler or macro; the register allocator
+# assigns them to physical registers from the platform's caller-saved
+# pool. None of the temps survive C++ calls (`call_slow_path`,
+# `call_helper`, `call_interp`, `call_raw_native`).
 #
 # NaN-boxing encoding:
 #   Every JS Value is a 64-bit NaN-boxed value. The upper 16 bits encode the type tag.
@@ -477,24 +479,23 @@ end
 # Input:
 #   caller_frame = ExecutionContext* of the caller
 #   value_reg = NaN-boxed return value
-# Clobbers:
-#   t2, t3, t4
 macro pop_inline_frame_and_resume(caller_frame, value_reg)
-    load_pair32 t2, t4, [exec_ctx, EXECUTION_CONTEXT_CALLER_RETURN_PC], [exec_ctx, EXECUTION_CONTEXT_CALLER_DST_RAW]
-    store32 [caller_frame, EXECUTION_CONTEXT_PROGRAM_COUNTER], t2
-    lea t3, [caller_frame, SIZEOF_EXECUTION_CONTEXT]
-    store64 [t3, t4, 8], value_reg
+    temp ret_pc, dst_idx, value_addr, vm, exe
+    load_pair32 ret_pc, dst_idx, [exec_ctx, EXECUTION_CONTEXT_CALLER_RETURN_PC], [exec_ctx, EXECUTION_CONTEXT_CALLER_DST_RAW]
+    store32 [caller_frame, EXECUTION_CONTEXT_PROGRAM_COUNTER], ret_pc
+    lea value_addr, [caller_frame, SIZEOF_EXECUTION_CONTEXT]
+    store64 [value_addr, dst_idx, 8], value_reg
 
-    load_vm t3
-    store64 [t3, VM_RUNNING_EXECUTION_CONTEXT], caller_frame
-    store64 [t3, VM_INTERPRETER_STACK_TOP], exec_ctx
-    inc32_mem [t3, VM_EXECUTION_GENERATION]
+    load_vm vm
+    store64 [vm, VM_RUNNING_EXECUTION_CONTEXT], caller_frame
+    store64 [vm, VM_INTERPRETER_STACK_TOP], exec_ctx
+    inc32_mem [vm, VM_EXECUTION_GENERATION]
 
     mov exec_ctx, caller_frame
-    load64 t3, [exec_ctx, EXECUTION_CONTEXT_EXECUTABLE]
-    load64 pb, [t3, EXECUTABLE_BYTECODE_DATA]
+    load64 exe, [exec_ctx, EXECUTION_CONTEXT_EXECUTABLE]
+    load64 pb, [exe, EXECUTABLE_BYTECODE_DATA]
     lea values, [exec_ctx, SIZEOF_EXECUTION_CONTEXT]
-    mov pc, t2
+    mov pc, ret_pc
     dispatch_current
 end
 

@@ -1543,9 +1543,11 @@ mod tests {
     fn preserves_scaled_index_memory_operands() {
         let program = test_program();
         let handler = call_handler();
+        // Operands that already resolved to platform registers (post-
+        // allocation) flow through resolve_op unchanged.
         let memory = Operand::Memory {
-            base: "t0".into(),
-            index: Some("t8".into()),
+            base: "rax".into(),
+            index: Some("r11".into()),
             scale: Some("8".into()),
         };
 
@@ -1557,8 +1559,8 @@ mod tests {
         let program = test_program();
         let handler = call_handler();
         let memory = Operand::Memory {
-            base: "t6".into(),
-            index: Some("t3".into()),
+            base: "r9".into(),
+            index: Some("rsi".into()),
             scale: Some("0".into()),
         };
 
@@ -1591,7 +1593,7 @@ mod tests {
         let instruction = AsmInstruction {
             mnemonic: "branch_bits_clear".into(),
             operands: vec![
-                Operand::Register("t2".into()),
+                Operand::Register("rdx".into()),
                 Operand::Constant("HIGH_BIT".into()),
                 Operand::Label(".slow".into()),
             ],

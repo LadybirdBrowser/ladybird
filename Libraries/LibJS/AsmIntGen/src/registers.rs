@@ -79,7 +79,10 @@ pub fn mapping_for(arch: Arch) -> &'static RegisterMapping {
     }
 }
 
-/// Resolve a DSL register name to a platform register name.
+/// Resolve a DSL register name to a platform register name. Only the
+/// pinned names are publicly addressable; named temporaries declared via
+/// `temp` / `ftemp` are mapped to physical registers by the allocator
+/// and substituted into the IR before this function is reached.
 pub fn resolve_register(name: &str, arch: Arch) -> Option<String> {
     let m = mapping_for(arch);
     match name {
@@ -90,24 +93,6 @@ pub fn resolve_register(name: &str, arch: Arch) -> Option<String> {
         "dispatch" => Some(m.dispatch.to_string()),
         "sp" => Some(m.sp.to_string()),
         "fp" => Some(m.fp.to_string()),
-        _ => {
-            // t0-t9 -> temporaries
-            if let Some(idx_str) = name.strip_prefix('t') {
-                if let Ok(idx) = idx_str.parse::<usize>() {
-                    if idx < m.temporaries.len() {
-                        return Some(m.temporaries[idx].to_string());
-                    }
-                }
-            }
-            // ft0-ft3 -> fp temporaries
-            if let Some(idx_str) = name.strip_prefix("ft") {
-                if let Ok(idx) = idx_str.parse::<usize>() {
-                    if idx < m.fp_temporaries.len() {
-                        return Some(m.fp_temporaries[idx].to_string());
-                    }
-                }
-            }
-            None
-        }
+        _ => None,
     }
 }

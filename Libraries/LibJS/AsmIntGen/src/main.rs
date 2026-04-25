@@ -37,20 +37,19 @@
 //!
 //! ## Temporary registers
 //!
-//! | DSL name    | Purpose                                            |
-//! |-------------|----------------------------------------------------|
-//! | `t0`-`t8`   | General-purpose scratch (caller-saved)             |
-//! | `ft0`-`ft3` | Floating-point scratch (caller-saved)              |
+//! Temporaries are introduced by name with `temp` (GPR) and `ftemp` (FPR)
+//! at the top of a handler or macro body; the register allocator assigns
+//! each to a physical register from the platform's caller-saved pool. The
+//! DSL also exposes `sp` and `fp`. None of the temporaries survive C++
+//! calls (`call_slow_path`, `call_helper`, `call_interp`, `call_raw_native`).
 //!
-//! Temporaries are **not preserved across C++ calls** (`call_slow_path`,
-//! `call_helper`, `call_interp`, `call_raw_native`). The DSL also provides
-//! `sp` and `fp`.
-//!
-//! On aarch64, `x9`, `x10`, and `d16` are reserved as codegen scratch and
-//! are not addressable by DSL name. On x86_64 several positional aliases
-//! double as hidden scratch (`rax`=t0, `rcx`=t1, `rdx`=t2, `r11`=t8,
-//! `xmm3`=ft3); the per-instruction metadata in `instructions.rs` records
-//! exactly which DSL ops kill which physical registers.
+//! Some physical registers are reserved as codegen scratch and are not
+//! addressable as DSL names. On aarch64 these are `x9`, `x10`, and `d16`.
+//! On x86_64 the codegen claims `rax`, `rcx`, `r11`, and `xmm3` as scratch
+//! at specific instructions -- the per-instruction metadata in
+//! `instructions.rs` records exactly which physical registers are killed
+//! by each DSL operation, and the allocator avoids placing a live named
+//! temp in any of those.
 //!
 //! ## DSL instruction reference
 //!

@@ -1203,10 +1203,13 @@ end
     }
 
     #[test]
-    fn rejects_shadowing_positional_alias() {
+    fn rejects_shadowing_pinned_register() {
+        // `pc` is a pinned (callee-saved) DSL name; declaring a temp with
+        // that name would silently break dispatch, so the allocator
+        // rejects it up front.
         let src = "
 handler Test
-    temp t0
+    temp pc
 end
 ";
         let err = build(src, Arch::X86_64).expect_err("should reject shadowing");
