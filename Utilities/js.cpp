@@ -65,6 +65,7 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(load_json);
     JS_DECLARE_NATIVE_FUNCTION(last_value_getter);
     JS_DECLARE_NATIVE_FUNCTION(print);
+    JS_DECLARE_NATIVE_FUNCTION(gc);
 };
 
 GC_DEFINE_ALLOCATOR(ReplObject);
@@ -85,6 +86,7 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(load_ini);
     JS_DECLARE_NATIVE_FUNCTION(load_json);
     JS_DECLARE_NATIVE_FUNCTION(print);
+    JS_DECLARE_NATIVE_FUNCTION(gc);
 };
 
 GC_DEFINE_ALLOCATOR(ScriptObject);
@@ -308,6 +310,7 @@ void ReplObject::initialize(JS::Realm& realm)
     define_native_function(realm, "loadINI"_utf16_fly_string, load_ini, 1, attr);
     define_native_function(realm, "loadJSON"_utf16_fly_string, load_json, 1, attr);
     define_native_function(realm, "print"_utf16_fly_string, print, 1, attr);
+    define_native_function(realm, "gc"_utf16_fly_string, gc, 0, attr);
 
     define_native_accessor(
         realm,
@@ -381,6 +384,12 @@ JS_DEFINE_NATIVE_FUNCTION(ReplObject::print)
     return JS::js_undefined();
 }
 
+JS_DEFINE_NATIVE_FUNCTION(ReplObject::gc)
+{
+    vm.heap().collect_garbage();
+    return JS::js_undefined();
+}
+
 void ScriptObject::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
@@ -390,6 +399,7 @@ void ScriptObject::initialize(JS::Realm& realm)
     define_native_function(realm, "loadINI"_utf16_fly_string, load_ini, 1, attr);
     define_native_function(realm, "loadJSON"_utf16_fly_string, load_json, 1, attr);
     define_native_function(realm, "print"_utf16_fly_string, print, 1, attr);
+    define_native_function(realm, "gc"_utf16_fly_string, gc, 0, attr);
 }
 
 JS_DEFINE_NATIVE_FUNCTION(ScriptObject::load_ini)
@@ -408,6 +418,12 @@ JS_DEFINE_NATIVE_FUNCTION(ScriptObject::print)
     if (result.is_error())
         return g_vm->throw_completion<JS::InternalError>(TRY_OR_THROW_OOM(*g_vm, String::formatted("Failed to print value(s): {}", result.error())));
 
+    return JS::js_undefined();
+}
+
+JS_DEFINE_NATIVE_FUNCTION(ScriptObject::gc)
+{
+    vm.heap().collect_garbage();
     return JS::js_undefined();
 }
 
