@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .case .target,
+    .case .subject {
+        color: rgb(255, 0, 0);
+    }
+    .case .target::before {
+        --dir-result: red;
+        content: "";
+    }
+
+    #descendant-compound .target:dir(rtl) { color: rgb(0, 128, 0); }
+    #descendant-turnoff .target:dir(rtl) { color: rgb(0, 128, 0); }
+    #ancestor-child .auto:dir(rtl) > .target { color: rgb(0, 128, 0); }
+    #ancestor-descendant .auto:dir(rtl) .target { color: rgb(0, 128, 0); }
+    #adjacent-sibling .probe:dir(rtl) + .target { color: rgb(0, 128, 0); }
+    #general-sibling .probe:dir(rtl) ~ .target { color: rgb(0, 128, 0); }
+    #negation .target:not(:dir(ltr)) { color: rgb(0, 128, 0); }
+    #is-pseudo .target:is(:dir(rtl)) { color: rgb(0, 128, 0); }
+    #where-pseudo .target:where(:dir(rtl)) { color: rgb(0, 128, 0); }
+    #pseudo-element .target:dir(rtl)::before { --dir-result: green; }
+    #has-subject .subject:has(.target:dir(rtl)) { color: rgb(0, 128, 0); }
+</style>
+
+<div id="descendant-compound" class="case">
+    <div class="auto" dir="auto"><span class="source">a</span><span class="target">.</span></div>
+</div>
+
+<div id="descendant-turnoff" class="case">
+    <div class="auto" dir="auto"><span class="source">&#1488;</span><span class="target">.</span></div>
+</div>
+
+<div id="ancestor-child" class="case">
+    <div class="auto" dir="auto"><span class="source">a</span><span class="target">.</span></div>
+</div>
+
+<div id="ancestor-descendant" class="case">
+    <div class="auto" dir="auto"><span class="source">a</span><span><span class="target">.</span></span></div>
+</div>
+
+<div id="adjacent-sibling" class="case">
+    <div class="auto" dir="auto"><span class="source">a</span><span class="probe">.</span><span class="target">.</span></div>
+</div>
+
+<div id="general-sibling" class="case">
+    <div class="auto" dir="auto"><span class="source">a</span><span class="probe">.</span><span>.</span><span class="target">.</span></div>
+</div>
+
+<div id="negation" class="case">
+    <div class="auto" dir="auto"><span class="source">a</span><span class="target">.</span></div>
+</div>
+
+<div id="is-pseudo" class="case">
+    <div class="auto" dir="auto"><span class="source">a</span><span class="target">.</span></div>
+</div>
+
+<div id="where-pseudo" class="case">
+    <div class="auto" dir="auto"><span class="source">a</span><span class="target">.</span></div>
+</div>
+
+<div id="pseudo-element" class="case">
+    <div class="auto" dir="auto"><span class="source">a</span><span class="target">.</span></div>
+</div>
+
+<div id="has-subject" class="case">
+    <div class="subject"><div class="auto" dir="auto"><span class="source">a</span><span class="target">.</span></div></div>
+</div>
+
+<script>
+    function colorFor(caseId, selector) {
+        return getComputedStyle(document.querySelector(`#${caseId} ${selector}`)).color;
+    }
+
+    function pseudoResultFor(caseId) {
+        return getComputedStyle(document.querySelector(`#${caseId} .target`), "::before").getPropertyValue("--dir-result").trim();
+    }
+
+    function setSourceText(caseId, text) {
+        document.querySelector(`#${caseId} .source`).firstChild.data = text;
+    }
+
+    test(() => {
+        println(`descendant compound before: ${colorFor("descendant-compound", ".target")}`);
+        setSourceText("descendant-compound", "\u05d0");
+        println(`descendant compound after: ${colorFor("descendant-compound", ".target")}`);
+
+        println(`descendant ltr turnoff before: ${colorFor("descendant-turnoff", ".target")}`);
+        setSourceText("descendant-turnoff", "a");
+        println(`descendant ltr turnoff after: ${colorFor("descendant-turnoff", ".target")}`);
+
+        println(`ancestor child combinator before: ${colorFor("ancestor-child", ".target")}`);
+        setSourceText("ancestor-child", "\u05d0");
+        println(`ancestor child combinator after: ${colorFor("ancestor-child", ".target")}`);
+
+        println(`ancestor descendant combinator before: ${colorFor("ancestor-descendant", ".target")}`);
+        setSourceText("ancestor-descendant", "\u05d0");
+        println(`ancestor descendant combinator after: ${colorFor("ancestor-descendant", ".target")}`);
+
+        println(`adjacent sibling combinator before: ${colorFor("adjacent-sibling", ".target")}`);
+        setSourceText("adjacent-sibling", "\u05d0");
+        println(`adjacent sibling combinator after: ${colorFor("adjacent-sibling", ".target")}`);
+
+        println(`general sibling combinator before: ${colorFor("general-sibling", ".target")}`);
+        setSourceText("general-sibling", "\u05d0");
+        println(`general sibling combinator after: ${colorFor("general-sibling", ".target")}`);
+
+        println(`negation before: ${colorFor("negation", ".target")}`);
+        setSourceText("negation", "\u05d0");
+        println(`negation after: ${colorFor("negation", ".target")}`);
+
+        println(`is pseudo before: ${colorFor("is-pseudo", ".target")}`);
+        setSourceText("is-pseudo", "\u05d0");
+        println(`is pseudo after: ${colorFor("is-pseudo", ".target")}`);
+
+        println(`where pseudo before: ${colorFor("where-pseudo", ".target")}`);
+        setSourceText("where-pseudo", "\u05d0");
+        println(`where pseudo after: ${colorFor("where-pseudo", ".target")}`);
+
+        println(`pseudo-element before: ${pseudoResultFor("pseudo-element")}`);
+        setSourceText("pseudo-element", "\u05d0");
+        println(`pseudo-element after: ${pseudoResultFor("pseudo-element")}`);
+
+        println(`has subject before: ${colorFor("has-subject", ".subject")}`);
+        setSourceText("has-subject", "\u05d0");
+        println(`has subject after: ${colorFor("has-subject", ".subject")}`);
+    });
+</script>

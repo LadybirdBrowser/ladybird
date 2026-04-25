@@ -151,12 +151,16 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
         m_word_segmenter->set_segmented_text(m_data);
 
     // dir=auto resolves an element's effective directionality from its text content, so any ancestor with dir=auto
-    // can flip its :dir() match when this text changes. Recompute style on each such ancestor and propagate
+    // can flip its :dir() match when this text changes. Recompute style on each such ancestor's subtree and propagate
     // :has(:dir(...)) invalidation up its ancestor chain.
     for (auto ancestor = parent_element(); ancestor; ancestor = ancestor->parent_element()) {
         if (ancestor->dir() != Element::Dir::Auto)
             continue;
-        ancestor->set_needs_style_update(true);
+        ancestor->for_each_shadow_including_inclusive_descendant([](auto& node) {
+            if (auto* element = as_if<Element>(node))
+                element->set_needs_style_update(true);
+            return TraversalDecision::Continue;
+        });
         // Walk every reachable scope and schedule the :has() ancestors walk, so :has(:dir(...)) on outer subjects can
         // re-evaluate.
         auto schedule_on_scope = [ancestor](CSS::StyleScope& scope) {
