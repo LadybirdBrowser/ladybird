@@ -37,6 +37,8 @@ enum class ActionID {
     TakeVisibleScreenshot,
     TakeFullScreenshot,
 
+    Print,
+
     ManageBookmarks,
     ToggleBookmark,
     ToggleBookmarkViaToolbar,

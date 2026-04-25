@@ -894,6 +894,15 @@ void Application::initialize_actions()
             view->select_all();
     });
 
+    m_print_action = Action::create("Print..."sv, ActionID::Print, [this]() {
+        if (auto view = active_web_view(); view.has_value()) {
+            if (view->on_print_request)
+                view->on_print_request();
+            else
+                view->trigger_print();
+        }
+    });
+
     m_open_about_page_action = Action::create("About Ladybird"sv, ActionID::OpenAboutPage, [this]() {
         open_url_in_new_tab(URL::about_version(), Web::HTML::ActivateTab::Yes);
     });

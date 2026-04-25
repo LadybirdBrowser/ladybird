@@ -136,6 +136,8 @@ public:
     Action& paste_action() { return *m_paste_action; }
     Action& select_all_action() { return *m_select_all_action; }
 
+    Action& print_action() { return *m_print_action; }
+
     Action& open_about_page_action() { return *m_open_about_page_action; }
     Action& open_settings_page_action() { return *m_open_settings_page_action; }
 
@@ -289,6 +291,7 @@ private:
     RefPtr<Action> m_copy_selection_action;
     RefPtr<Action> m_paste_action;
     RefPtr<Action> m_select_all_action;
+    RefPtr<Action> m_print_action;
 
     RefPtr<Action> m_open_about_page_action;
     RefPtr<Action> m_open_settings_page_action;
