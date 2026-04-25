@@ -443,23 +443,44 @@ void Node::invalidate_style(StyleInvalidationReason reason)
         return document().style_scope();
     }();
 
-    if (style_scope.may_have_has_selectors()) {
-        // On insertion and removal the mutated node itself is uninteresting to the
-        // :has() walker (a freshly inserted node has no :has() scope flags yet, and
-        // a removed node is about to leave the tree). Start the walk at the parent,
-        // which was in scope before and reliably carries the correct flags.
+    auto schedule_has_walk_for_parent = [reason](CSS::StyleScope& scope, Node& parent) {
+        if (!scope.may_have_has_selectors())
+            return;
+        scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(parent);
         if (reason == StyleInvalidationReason::NodeRemove || reason == StyleInvalidationReason::NodeInsertBefore) {
-            if (auto* parent = parent_or_shadow_host(); parent) {
-                style_scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(*parent);
-                parent->for_each_child_of_type<Element>([&](auto& element) {
-                    if (element.affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator())
-                        element.invalidate_style_if_affected_by_has();
-                    return IterationDecision::Continue;
-                });
-            }
-        } else if (reason_may_affect_has_selectors(reason)) {
-            style_scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(*this);
+            parent.for_each_child_of_type<Element>([&](auto& element) {
+                if (element.affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator())
+                    element.invalidate_style_if_affected_by_has();
+                return IterationDecision::Continue;
+            });
         }
+    };
+
+    // On insertion and removal the mutated node itself is uninteresting to the
+    // :has() walker (a freshly inserted node has no :has() scope flags yet, and
+    // a removed node is about to leave the tree). Start the walk at the parent,
+    // which was in scope before and reliably carries the correct flags.
+    if (reason == StyleInvalidationReason::NodeRemove || reason == StyleInvalidationReason::NodeInsertBefore) {
+        if (auto* parent = parent_or_shadow_host(); parent) {
+            schedule_has_walk_for_parent(style_scope, *parent);
+            // :host(...:has(...)) rules live in a shadow root that this parent's light-DOM tree cannot reach via
+            // root().style_scope(). Schedule the walk on every enclosing shadow host's style scope so those rules
+            // get re-evaluated too.
+            for (auto* ancestor = parent; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
+                auto* element = as_if<Element>(*ancestor);
+                if (!element)
+                    continue;
+                auto shadow_root = element->shadow_root();
+                if (!shadow_root)
+                    continue;
+                auto& shadow_scope = shadow_root->style_scope();
+                if (&shadow_scope == &style_scope)
+                    continue;
+                schedule_has_walk_for_parent(shadow_scope, *parent);
+            }
+        }
+    } else if (style_scope.may_have_has_selectors() && reason_may_affect_has_selectors(reason)) {
+        style_scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(*this);
     }
 
     // Character data nodes have no style of their own, so once :has() ancestor invalidation has been scheduled there
