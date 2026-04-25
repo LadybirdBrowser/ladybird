@@ -1243,8 +1243,11 @@ fn emit_instruction(
                 let rem = resolve_op(&insn.operands[1], handler, program);
                 let dividend = resolve_op(&insn.operands[2], handler, program);
                 let divisor = resolve_op(&insn.operands[3], handler, program);
-                w!(out, "    sdiv {quot}, {dividend}, {divisor}");
-                w!(out, "    msub {rem}, {quot}, {divisor}, {dividend}");
+                w!(out, "    sdiv x9, {dividend}, {divisor}");
+                w!(out, "    msub {rem}, x9, {divisor}, {dividend}");
+                if quot != rem {
+                    w!(out, "    mov {quot}, x9");
+                }
             }
         }
 

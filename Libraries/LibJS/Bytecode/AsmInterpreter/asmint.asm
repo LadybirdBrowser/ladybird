@@ -1067,47 +1067,47 @@ end
 # coerce_to_doubles here because we never need the both-int32 branch --
 # both operands go straight to FP regs.
 handler Div
-    load_operand t1, m_lhs
-    load_operand t2, m_rhs
-    extract_tag t3, t1
-    branch_eq t3, INT32_TAG, .lhs_is_int32
-    # t3 already has lhs tag
-    check_tag_is_double t3, .slow
-    fp_mov ft0, t1
+    temp lhs, rhs, tag, scratch_int, dst
+    ftemp lhs_dbl, rhs_dbl
+    load_operand lhs, m_lhs
+    load_operand rhs, m_rhs
+    extract_tag tag, lhs
+    branch_eq tag, INT32_TAG, .lhs_is_int32
+    # tag already has lhs tag
+    check_tag_is_double tag, .slow
+    fp_mov lhs_dbl, lhs
     jmp .lhs_ok
 .lhs_is_int32:
-    unbox_int32 t3, t1
-    int_to_double ft0, t3
+    unbox_int32 scratch_int, lhs
+    int_to_double lhs_dbl, scratch_int
 .lhs_ok:
-    # ft0 = lhs as double
-    extract_tag t3, t2
-    branch_eq t3, INT32_TAG, .rhs_is_int32
-    # t3 already has rhs tag
-    check_tag_is_double t3, .slow
-    fp_mov ft1, t2
+    extract_tag tag, rhs
+    branch_eq tag, INT32_TAG, .rhs_is_int32
+    # tag already has rhs tag
+    check_tag_is_double tag, .slow
+    fp_mov rhs_dbl, rhs
     jmp .do_div
 .rhs_is_int32:
-    unbox_int32 t3, t2
-    int_to_double ft1, t3
+    unbox_int32 scratch_int, rhs
+    int_to_double rhs_dbl, scratch_int
 .do_div:
-    # ft0 = lhs, ft1 = rhs
-    fp_div ft0, ft1
+    fp_div lhs_dbl, rhs_dbl
     # Try to store result as int32 if it's an integer in i32 range.
     # NB: We can't use js_to_int32 here because fjcvtzs applies modular
     # reduction (e.g. 2^33 -> 0) which is wrong -- we need a strict
     # round-trip check: truncate to int32, convert back, compare.
-    double_to_int32 t5, ft0, .store_double
+    double_to_int32 dst, lhs_dbl, .store_double
     # Exclude negative zero: -0.0 truncates to 0 but must stay double.
-    branch_nonzero t5, .store_int
-    fp_mov t5, ft0
-    branch_negative t5, .store_double
+    branch_nonzero dst, .store_int
+    fp_mov dst, lhs_dbl
+    branch_negative dst, .store_double
 .store_int:
-    box_int32 t5, t5
-    store_operand m_dst, t5
+    box_int32 dst, dst
+    store_operand m_dst, dst
     dispatch_next
 .store_double:
-    canonicalize_nan t5, ft0
-    store_operand m_dst, t5
+    canonicalize_nan dst, lhs_dbl
+    store_operand m_dst, dst
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_div
@@ -1304,22 +1304,22 @@ end
 # Modulo: int32-only fast path for non-negative dividend.
 # Negative dividend falls to slow path to handle -0 and INT_MIN correctly.
 handler Mod
-    load_operand t1, m_lhs
-    load_operand t2, m_rhs
-    extract_tag t3, t1
-    branch_ne t3, INT32_TAG, .slow
-    extract_tag t4, t2
-    branch_ne t4, INT32_TAG, .slow
-    unbox_int32 t3, t1
-    unbox_int32 t4, t2
+    temp lhs, rhs, lhs_tag, rhs_tag, lhs_int, rhs_int, quot, rem, dst
+    load_operand lhs, m_lhs
+    load_operand rhs, m_rhs
+    extract_tag lhs_tag, lhs
+    branch_ne lhs_tag, INT32_TAG, .slow
+    extract_tag rhs_tag, rhs
+    branch_ne rhs_tag, INT32_TAG, .slow
+    unbox_int32 lhs_int, lhs
+    unbox_int32 rhs_int, rhs
     # Check d == 0
-    branch_zero t4, .slow
+    branch_zero rhs_int, .slow
     # Check n >= 0 (positive fast path avoids INT_MIN/-1 and negative zero)
-    branch_negative t3, .slow
-    # divmod: quotient in t0, remainder in t2
-    divmod t0, t2, t3, t4
-    box_int32 t2, t2
-    store_operand m_dst, t2
+    branch_negative lhs_int, .slow
+    divmod quot, rem, lhs_int, rhs_int
+    box_int32 dst, rem
+    store_operand m_dst, dst
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_mod

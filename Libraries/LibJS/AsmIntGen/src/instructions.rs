@@ -685,8 +685,8 @@ pub const INSTRUCTIONS: &[InstructionInfo] = &[
     ),
     // divmod q, r, n, d: signed divide. On x86, idiv reads/writes rax/rdx,
     // so the named q/r operands MUST resolve to rax/rdx respectively.
-    // aarch64 has no such constraint -- it uses sdiv + msub on the named
-    // registers directly.
+    // aarch64 computes the quotient in x9 first so q may overlap n/d when
+    // only the remainder is live.
     info(
         "divmod",
         &[GprOut, GprOut, GprIn, GprIn],
@@ -698,7 +698,7 @@ pub const INSTRUCTIONS: &[InstructionInfo] = &[
             implicit_outputs: &["rax", "rdx"],
             ..ArchSpec::NONE
         },
-        ArchSpec::NONE,
+        ArchSpec { clobbers_gpr: &["x9"], ..ArchSpec::NONE },
     ),
 
     // ------------------------------------------------------------------
