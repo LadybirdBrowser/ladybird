@@ -586,8 +586,8 @@ void NodeWithStyle::visit_edges(Visitor& visitor)
     for (auto const& layer : computed_values().background_layers())
         layer.background_image->visit_edges(visitor);
 
-    if (m_list_style_image && m_list_style_image->is_image())
-        m_list_style_image->as_image().visit_edges(visitor);
+    if (m_list_style_image)
+        m_list_style_image->visit_edges(visitor);
 
     m_computed_values->visit_edges(visitor);
 }
