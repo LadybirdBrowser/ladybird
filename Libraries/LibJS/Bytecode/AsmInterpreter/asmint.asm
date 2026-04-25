@@ -157,97 +157,99 @@ macro box_double_or_int32(dst, src_fpr)
 end
 
 # Shared same-tag equality dispatch.
-# Expects t3=lhs_tag (known equal to rhs_tag), t1=lhs, t2=rhs.
-# For int32, boolean, object, symbol, undefined, null: bitwise compare.
-# For string: pointer shortcut, else slow. For bigint: always slow.
-# Falls through to .double_compare for doubles.
-macro equality_same_tag(equal_label, not_equal_label, slow_label)
-    branch_any_eq t3, INT32_TAG, BOOLEAN_TAG, .fast_compare
-    branch_any_eq t3, OBJECT_TAG, SYMBOL_TAG, .fast_compare
-    branch_eq t3, STRING_TAG, .string_compare
-    branch_eq t3, BIGINT_TAG, slow_label
+# lhs_tag is known equal to rhs's tag. For int32, boolean, object, symbol,
+# undefined, null: bitwise compare. For string: pointer shortcut, else
+# slow. For bigint: always slow. Falls through to .double_compare for
+# doubles. The macro destroys lhs_tag (clobbers it during the
+# undefined/null check).
+macro equality_same_tag(lhs, rhs, lhs_tag, equal_label, not_equal_label, slow_label)
+    branch_any_eq lhs_tag, INT32_TAG, BOOLEAN_TAG, .fast_compare
+    branch_any_eq lhs_tag, OBJECT_TAG, SYMBOL_TAG, .fast_compare
+    branch_eq lhs_tag, STRING_TAG, .string_compare
+    branch_eq lhs_tag, BIGINT_TAG, slow_label
     # Check undefined/null: (tag & 0xFFFE) == UNDEFINED_TAG matches both.
-    # Safe to clobber t3 here since all other tagged types are handled above.
-    and t3, 0xFFFE
-    branch_eq t3, UNDEFINED_TAG, .fast_compare
+    # Safe to clobber lhs_tag here since every other tagged type is
+    # already routed.
+    and lhs_tag, 0xFFFE
+    branch_eq lhs_tag, UNDEFINED_TAG, .fast_compare
     # Must be a double
     jmp .double_compare
 .string_compare:
-    branch_eq t1, t2, equal_label
+    branch_eq lhs, rhs, equal_label
     jmp slow_label
 .fast_compare:
-    branch_eq t1, t2, equal_label
+    branch_eq lhs, rhs, equal_label
     jmp not_equal_label
 end
 
-# Compare t1/t2 as doubles with NaN awareness.
+# Compare lhs/rhs as doubles with NaN awareness.
 # Defines .double_compare label (referenced by equality_same_tag).
-macro double_equality_compare(equal_label, not_equal_label)
+macro double_equality_compare(lhs, rhs, equal_label, not_equal_label)
+    ftemp lhs_dbl, rhs_dbl
 .double_compare:
-    fp_mov ft0, t1
-    fp_mov ft1, t2
-    branch_fp_unordered ft0, ft1, not_equal_label
-    branch_fp_equal ft0, ft1, equal_label
+    fp_mov lhs_dbl, lhs
+    fp_mov rhs_dbl, rhs
+    branch_fp_unordered lhs_dbl, rhs_dbl, not_equal_label
+    branch_fp_equal lhs_dbl, rhs_dbl, equal_label
     jmp not_equal_label
 end
 
 # Strict equality check core logic.
-# Expects t1=lhs, t2=rhs. Extracts tags into t3/t4.
-# Jumps to equal_label if definitely equal, not_equal_label if definitely not,
-# or slow_label if we can't determine quickly.
-# Handles: int32, boolean, undefined/null, object, symbol (bitwise compare),
-# string (pointer shortcut), bigint (slow), doubles.
-macro strict_equality_core(equal_label, not_equal_label, slow_label)
-    extract_tag t3, t1
-    extract_tag t4, t2
-    branch_ne t3, t4, .diff_tags
-    equality_same_tag equal_label, not_equal_label, slow_label
-    double_equality_compare equal_label, not_equal_label
+# Jumps to equal_label if definitely equal, not_equal_label if definitely
+# not, or slow_label if we can't determine quickly. Handles: int32,
+# boolean, undefined/null, object, symbol (bitwise compare), string
+# (pointer shortcut), bigint (slow), doubles.
+macro strict_equality_core(lhs, rhs, equal_label, not_equal_label, slow_label)
+    temp lhs_tag, rhs_tag, lhs_int
+    ftemp lhs_dbl, rhs_dbl
+    extract_tag lhs_tag, lhs
+    extract_tag rhs_tag, rhs
+    branch_ne lhs_tag, rhs_tag, .diff_tags
+    equality_same_tag lhs, rhs, lhs_tag, equal_label, not_equal_label, slow_label
+    double_equality_compare lhs, rhs, equal_label, not_equal_label
 .diff_tags:
     # Different tags but possibly equal: int32(1) === double(1.0) is true.
     # Handle int32 vs double inline; all other tag mismatches are not equal.
-    branch_eq t3, INT32_TAG, .lhs_int32_diff
-    branch_eq t4, INT32_TAG, .rhs_int32_diff
+    branch_eq lhs_tag, INT32_TAG, .lhs_int32_diff
+    branch_eq rhs_tag, INT32_TAG, .rhs_int32_diff
     # Neither is int32. If both are doubles, compare. Otherwise not equal.
-    # t3/t4 already have the tags, check them directly.
-    check_tag_is_double t3, not_equal_label
-    check_tag_is_double t4, not_equal_label
+    check_tag_is_double lhs_tag, not_equal_label
+    check_tag_is_double rhs_tag, not_equal_label
     jmp .double_compare
 .lhs_int32_diff:
-    # t4 already has rhs tag
-    check_tag_is_double t4, not_equal_label
-    unbox_int32 t3, t1
-    int_to_double ft0, t3
-    fp_mov ft1, t2
-    branch_fp_equal ft0, ft1, equal_label
+    check_tag_is_double rhs_tag, not_equal_label
+    unbox_int32 lhs_int, lhs
+    int_to_double lhs_dbl, lhs_int
+    fp_mov rhs_dbl, rhs
+    branch_fp_equal lhs_dbl, rhs_dbl, equal_label
     jmp not_equal_label
 .rhs_int32_diff:
-    # t3 already has lhs tag
-    check_tag_is_double t3, not_equal_label
-    fp_mov ft0, t1
-    unbox_int32 t4, t2
-    int_to_double ft1, t4
-    branch_fp_equal ft0, ft1, equal_label
+    check_tag_is_double lhs_tag, not_equal_label
+    fp_mov lhs_dbl, lhs
+    unbox_int32 lhs_int, rhs
+    int_to_double rhs_dbl, lhs_int
+    branch_fp_equal lhs_dbl, rhs_dbl, equal_label
     jmp not_equal_label
 end
 
 # Loose equality check core logic.
 # Same as strict_equality_core but with null==undefined cross-type handling.
-macro loose_equality_core(equal_label, not_equal_label, slow_label)
-    extract_tag t3, t1
-    extract_tag t4, t2
-    branch_ne t3, t4, .diff_tags
-    equality_same_tag equal_label, not_equal_label, slow_label
-    double_equality_compare equal_label, not_equal_label
+macro loose_equality_core(lhs, rhs, equal_label, not_equal_label, slow_label)
+    temp lhs_tag, rhs_tag
+    extract_tag lhs_tag, lhs
+    extract_tag rhs_tag, rhs
+    branch_ne lhs_tag, rhs_tag, .diff_tags
+    equality_same_tag lhs, rhs, lhs_tag, equal_label, not_equal_label, slow_label
+    double_equality_compare lhs, rhs, equal_label, not_equal_label
 .diff_tags:
     # null == undefined (and vice versa): (tag & 0xFFFE) == UNDEFINED_TAG
-    and t3, 0xFFFE
-    branch_ne t3, UNDEFINED_TAG, .try_double
-    and t4, 0xFFFE
-    branch_eq t4, UNDEFINED_TAG, equal_label
+    and lhs_tag, 0xFFFE
+    branch_ne lhs_tag, UNDEFINED_TAG, .try_double
+    and rhs_tag, 0xFFFE
+    branch_eq rhs_tag, UNDEFINED_TAG, equal_label
     jmp slow_label
 .try_double:
-    check_both_double t1, t2, slow_label
+    check_both_double lhs, rhs, slow_label
     jmp .double_compare
 end
 
@@ -776,30 +778,34 @@ handler JumpGreaterThanEquals
 end
 
 handler JumpLooselyEquals
-    load_operand t1, m_lhs
-    load_operand t2, m_rhs
-    loose_equality_core .take_true, .take_false, .slow
+    temp lhs, rhs
+    load_operand lhs, m_lhs
+    load_operand rhs, m_rhs
+    loose_equality_core lhs, rhs, .take_true, .take_false, .slow
     jump_binary_epilogue asm_slow_path_jump_loosely_equals
 end
 
 handler JumpLooselyInequals
-    load_operand t1, m_lhs
-    load_operand t2, m_rhs
-    loose_equality_core .take_false, .take_true, .slow
+    temp lhs, rhs
+    load_operand lhs, m_lhs
+    load_operand rhs, m_rhs
+    loose_equality_core lhs, rhs, .take_false, .take_true, .slow
     jump_binary_epilogue asm_slow_path_jump_loosely_inequals
 end
 
 handler JumpStrictlyEquals
-    load_operand t1, m_lhs
-    load_operand t2, m_rhs
-    strict_equality_core .take_true, .take_false, .slow
+    temp lhs, rhs
+    load_operand lhs, m_lhs
+    load_operand rhs, m_rhs
+    strict_equality_core lhs, rhs, .take_true, .take_false, .slow
     jump_binary_epilogue asm_slow_path_jump_strictly_equals
 end
 
 handler JumpStrictlyInequals
-    load_operand t1, m_lhs
-    load_operand t2, m_rhs
-    strict_equality_core .take_false, .take_true, .slow
+    temp lhs, rhs
+    load_operand lhs, m_lhs
+    load_operand rhs, m_rhs
+    strict_equality_core lhs, rhs, .take_false, .take_true, .slow
     jump_binary_epilogue asm_slow_path_jump_strictly_inequals
 end
 
@@ -1325,16 +1331,18 @@ end
 # type-specific comparisons (int32, boolean, undefined/null bitwise compare,
 # double with NaN awareness, string pointer shortcut, bigint -> slow path).
 handler StrictlyEquals
-    load_operand t1, m_lhs
-    load_operand t2, m_rhs
-    strict_equality_core .store_true, .store_false, .slow
+    temp lhs, rhs
+    load_operand lhs, m_lhs
+    load_operand rhs, m_rhs
+    strict_equality_core lhs, rhs, .store_true, .store_false, .slow
     boolean_result_epilogue asm_slow_path_strictly_equals
 end
 
 handler StrictlyInequals
-    load_operand t1, m_lhs
-    load_operand t2, m_rhs
-    strict_equality_core .store_false, .store_true, .slow
+    temp lhs, rhs
+    load_operand lhs, m_lhs
+    load_operand rhs, m_rhs
+    strict_equality_core lhs, rhs, .store_false, .store_true, .slow
     boolean_result_epilogue asm_slow_path_strictly_inequals
 end
 
@@ -1360,16 +1368,18 @@ handler GetCalleeAndThisFromEnvironment
 end
 
 handler LooselyEquals
-    load_operand t1, m_lhs
-    load_operand t2, m_rhs
-    loose_equality_core .store_true, .store_false, .slow
+    temp lhs, rhs
+    load_operand lhs, m_lhs
+    load_operand rhs, m_rhs
+    loose_equality_core lhs, rhs, .store_true, .store_false, .slow
     boolean_result_epilogue asm_slow_path_loosely_equals
 end
 
 handler LooselyInequals
-    load_operand t1, m_lhs
-    load_operand t2, m_rhs
-    loose_equality_core .store_false, .store_true, .slow
+    temp lhs, rhs
+    load_operand lhs, m_lhs
+    load_operand rhs, m_rhs
+    loose_equality_core lhs, rhs, .store_false, .store_true, .slow
     boolean_result_epilogue asm_slow_path_loosely_inequals
 end
 
