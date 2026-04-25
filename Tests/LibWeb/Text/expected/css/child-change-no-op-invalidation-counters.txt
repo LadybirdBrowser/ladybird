@@ -1,0 +1,3 @@
+FAIL: appending a child to a parent without observable child-state pseudos is a no-op (expected 0, got 2)
+FAIL: removing the only child from a parent without observable child-state pseudos is a no-op (expected 0, got 1)
+FAIL: appending a fragment to a parent without observable child-state pseudos is a no-op (expected 0, got 3)
