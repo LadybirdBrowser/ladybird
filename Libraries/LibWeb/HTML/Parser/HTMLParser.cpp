@@ -211,6 +211,9 @@ void HTMLParser::run(HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point
     m_stop_parsing = false;
 
     for (;;) {
+        if (m_parser_pause_flag)
+            break;
+
         auto optional_token = m_tokenizer.next_token(stop_at_insertion_point);
         if (!optional_token.has_value())
             break;
@@ -270,8 +273,10 @@ void HTMLParser::run(URL::URL const& url, HTMLTokenizer::StopAtInsertionPoint st
 {
     m_document->set_url(url);
     m_document->set_source(m_tokenizer.source());
+    m_post_parse_action = [this] { the_end(*m_document, this); };
     run(stop_at_insertion_point);
-    the_end(*m_document, this);
+    if (!m_parser_pause_flag)
+        invoke_post_parse_action();
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#the-end
@@ -340,6 +345,22 @@ void HTMLParser::the_end(GC::Ref<DOM::Document> document, GC::Ptr<HTMLParser> pa
 
 static constexpr int THE_END_TIMEOUT_MS = 15000;
 
+// Perform a microtask checkpoint matching spin_until's pre-check semantics: pending microtasks (e.g. image load-event
+// delayer creation from update_the_image_data step 8) must be drained before checking parser progress. The empty-queue
+// fast path avoids the save/clear/restore of the execution context stack and notify_about_rejected_promises when there
+// is nothing to drain.
+static void perform_pre_progress_microtask_checkpoint()
+{
+    auto& event_loop = main_thread_event_loop();
+    if (event_loop.microtask_queue_empty())
+        return;
+    auto& vm = event_loop.vm();
+    vm.save_execution_context_stack();
+    vm.clear_execution_context_stack();
+    event_loop.perform_a_microtask_checkpoint();
+    vm.restore_execution_context_stack();
+}
+
 GC::Ref<HTMLParserEndState> HTMLParserEndState::create(GC::Ref<DOM::Document> document, GC::Ptr<HTMLParser> parser)
 {
     return document->heap().allocate<HTMLParserEndState>(document, parser);
@@ -372,17 +393,7 @@ void HTMLParserEndState::schedule_progress_check()
         return;
     m_check_pending = true;
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this] {
-        // NOTE: Pending microtasks (e.g. image load event delayer creation from update_the_image_data
-        //       step 8) must be processed before we check conditions, matching spin_until's behavior.
-        //       Skip the checkpoint when the microtask queue is empty to avoid unnecessary work
-        //       (save/restore execution context stack, notify_about_rejected_promises, etc.).
-        if (!main_thread_event_loop().microtask_queue_empty()) {
-            auto& vm = main_thread_event_loop().vm();
-            vm.save_execution_context_stack();
-            vm.clear_execution_context_stack();
-            main_thread_event_loop().perform_a_microtask_checkpoint();
-            vm.restore_execution_context_stack();
-        }
+        perform_pre_progress_microtask_checkpoint();
         check_progress();
         m_check_pending = false;
     }));
@@ -3411,6 +3422,102 @@ void HTMLParser::adjust_foreign_attributes(HTMLToken& token)
     }
 }
 
+void HTMLParser::schedule_resume_check()
+{
+    if (m_resume_check_pending)
+        return;
+    if (!m_parser_pause_flag)
+        return;
+    m_resume_check_pending = true;
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this] {
+        m_resume_check_pending = false;
+        perform_pre_progress_microtask_checkpoint();
+        resume_after_parser_blocking_script();
+    }));
+}
+
+// https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-incdata
+// Async equivalent of "spin the event loop until ... ready to be parser-executed" from the per-iteration block of the
+// "text" insertion mode (steps 4-13). Driven by schedule_resume_check.
+void HTMLParser::resume_after_parser_blocking_script()
+{
+    if (!m_parser_pause_flag)
+        return;
+    if (m_aborted || m_stop_parsing)
+        return;
+
+    auto pending = document().pending_parsing_blocking_script();
+    if (!pending)
+        return;
+
+    // 5. If the parser's Document has a style sheet that is blocking scripts or the script's ready to be
+    //    parser-executed is false: spin the event loop until the parser's Document has no style sheet that is blocking
+    //    scripts and the script's ready to be parser-executed becomes true.
+    // The async equivalent: return without taking the script; schedule_resume_check re-fires this method when the
+    // relevant state changes.
+    if (m_document->has_a_style_sheet_that_is_blocking_scripts())
+        return;
+    if (!pending->is_ready_to_be_parser_executed())
+        return;
+
+    // 1. Let the script be the pending parsing-blocking script.
+    // 2. Set the pending parsing-blocking script to null.
+    auto the_script = document().take_pending_parsing_blocking_script({});
+
+    // FIXME: 3. Start the speculative HTML parser for this instance of the HTML parser.
+
+    // 4. Block the tokenizer for this instance of the HTML parser, such that the event loop will not run tasks that
+    //    invoke the tokenizer.
+    // (No-op: pausing is expressed by returning from run() and m_parser_pause_flag, not a tokenizer-level block flag.)
+
+    // 6. If this parser has been aborted in the meantime, return.
+    if (m_aborted)
+        return;
+
+    // FIXME: 7. Stop the speculative HTML parser for this instance of the HTML parser.
+
+    // 8. Unblock the tokenizer for this instance of the HTML parser, such that tasks that invoke the tokenizer can
+    //    again be run. (No-op, see step 4.)
+
+    // 9. Let the insertion point be just before the next input character.
+    m_tokenizer.update_insertion_point();
+
+    // 10. Increment the parser's script nesting level by one (it should be zero before this step, so this sets it to
+    //     one).
+    VERIFY(script_nesting_level() == 0);
+    increment_script_nesting_level();
+
+    // 11. Execute the script element the script.
+    the_script->execute_script();
+
+    // 12. Decrement the parser's script nesting level by one.
+    decrement_script_nesting_level();
+
+    // If the parser's script nesting level is zero (which it always should be at this point), then set the parser pause
+    // flag to false.
+    VERIFY(script_nesting_level() == 0);
+    m_parser_pause_flag = false;
+
+    // 13. Let the insertion point be undefined again.
+    m_tokenizer.undefine_insertion_point();
+
+    // The spec's "While the pending parsing-blocking script is not null" iteration is realized by run() pausing again
+    // on the next </script> end tag if the executed script set up a new pending blocking script (e.g. via
+    // document.write).
+    run();
+
+    if (m_parser_pause_flag)
+        return;
+
+    invoke_post_parse_action();
+}
+
+void HTMLParser::invoke_post_parse_action()
+{
+    if (auto action = exchange(m_post_parse_action, nullptr))
+        action();
+}
+
 void HTMLParser::increment_script_nesting_level()
 {
     ++m_script_nesting_level;
@@ -3512,59 +3619,13 @@ void HTMLParser::handle_text(HTMLToken& token)
                 return;
             }
 
-            // Otherwise:
-            else {
-                // While the pending parsing-blocking script is not null:
-                while (document().pending_parsing_blocking_script()) {
-                    // 1. Let the script be the pending parsing-blocking script.
-                    // 2. Set the pending parsing-blocking script to null.
-                    auto the_script = document().take_pending_parsing_blocking_script({});
-
-                    // FIXME: 3. Start the speculative HTML parser for this instance of the HTML parser.
-
-                    // 4. Block the tokenizer for this instance of the HTML parser, such that the event loop will not run tasks that invoke the tokenizer.
-                    m_tokenizer.set_blocked(true);
-
-                    // 5. If the parser's Document has a style sheet that is blocking scripts
-                    //    or the script's ready to be parser-executed is false:
-                    if (m_document->has_a_style_sheet_that_is_blocking_scripts() || the_script->is_ready_to_be_parser_executed() == false) {
-                        // spin the event loop until the parser's Document has no style sheet that is blocking scripts
-                        // and the script's ready to be parser-executed becomes true.
-                        main_thread_event_loop().spin_until(GC::create_function(heap(), [&] {
-                            return !m_document->has_a_style_sheet_that_is_blocking_scripts() && the_script->is_ready_to_be_parser_executed();
-                        }));
-                    }
-
-                    // 6. If this parser has been aborted in the meantime, return.
-                    if (m_aborted)
-                        return;
-
-                    // FIXME: 7. Stop the speculative HTML parser for this instance of the HTML parser.
-
-                    // 8. Unblock the tokenizer for this instance of the HTML parser, such that tasks that invoke the tokenizer can again be run.
-                    m_tokenizer.set_blocked(false);
-
-                    // 9. Let the insertion point be just before the next input character.
-                    m_tokenizer.update_insertion_point();
-
-                    // 10. Increment the parser's script nesting level by one (it should be zero before this step, so this sets it to one).
-                    VERIFY(script_nesting_level() == 0);
-                    increment_script_nesting_level();
-
-                    // 11. Execute the script element the script.
-                    the_script->execute_script();
-
-                    // 12. Decrement the parser's script nesting level by one.
-                    decrement_script_nesting_level();
-
-                    // If the parser's script nesting level is zero (which it always should be at this point), then set the parser pause flag to false.
-                    VERIFY(script_nesting_level() == 0);
-                    m_parser_pause_flag = false;
-
-                    // 13. Let the insertion point be undefined again.
-                    m_tokenizer.undefine_insertion_point();
-                }
-            }
+            // -> Otherwise:
+            // The spec's "While the pending parsing-blocking script is not null" loop and the contained "spin the event
+            // loop" step are implemented asynchronously: pause the parser, schedule a resume check, and yield back to
+            // the caller. The remaining steps (4-13) run from resume_after_parser_blocking_script when the script is
+            // ready.
+            m_parser_pause_flag = true;
+            schedule_resume_check();
         }
 
         return;

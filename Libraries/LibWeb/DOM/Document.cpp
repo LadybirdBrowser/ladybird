@@ -910,11 +910,19 @@ WebIDL::ExceptionOr<void> Document::close()
     m_parser->tokenizer().insert_eof();
 
     // 5. If there is a pending parsing-blocking script, then return.
-    if (pending_parsing_blocking_script())
+    if (pending_parsing_blocking_script()) {
+        m_parser->set_post_parse_action([this] { completely_finish_loading(); });
         return {};
+    }
 
     // 6. Run the tokenizer, processing resulting tokens as they are emitted, and stopping when the tokenizer reaches the explicit "EOF" character or spins the event loop.
     m_parser->run();
+
+    // run() may have paused on a blocking script (e.g. from document.write inside an inline script).
+    if (pending_parsing_blocking_script()) {
+        m_parser->set_post_parse_action([this] { completely_finish_loading(); });
+        return {};
+    }
 
     // AD-HOC: This ensures that a load event is fired if the node navigable's container is an iframe.
     completely_finish_loading();
@@ -3601,6 +3609,10 @@ void Document::completely_finish_loading()
             container->dispatch_event(DOM::Event::create(container->realm(), HTML::EventNames::load));
         });
     }
+
+    // AD-HOC: Script-created parsers (iframe document.open/write/close) don't reach set_ready_for_post_load_tasks, so
+    //         the parent's load-event-delay phase wouldn't otherwise be re-evaluated when this iframe finishes loading.
+    container->document().schedule_html_parser_end_check();
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-cookie
@@ -4213,6 +4225,8 @@ void Document::schedule_html_parser_end_check()
 {
     if (m_html_parser_end_state)
         m_html_parser_end_state->schedule_progress_check();
+    if (m_parser)
+        m_parser->schedule_resume_check();
 }
 
 void Document::set_ready_for_post_load_tasks(bool ready)

@@ -93,6 +93,9 @@ public:
 
     size_t script_nesting_level() const { return m_script_nesting_level; }
 
+    void schedule_resume_check();
+    void set_post_parse_action(Function<void()> action) { m_post_parse_action = move(action); }
+
 private:
     HTMLParser(DOM::Document&, ParserScriptingMode, StringView input, StringView encoding);
     HTMLParser(DOM::Document&, ParserScriptingMode);
@@ -163,6 +166,9 @@ private:
     void decrement_script_nesting_level();
     void reset_the_insertion_mode_appropriately();
 
+    void resume_after_parser_blocking_script();
+    void invoke_post_parse_action();
+
     void handle_element_popped(DOM::Element&);
 
     void adjust_mathml_attributes(HTMLToken&);
@@ -203,7 +209,10 @@ private:
     bool m_aborted { false };
     bool m_parser_pause_flag { false };
     bool m_stop_parsing { false };
+    bool m_resume_check_pending { false };
     size_t m_script_nesting_level { 0 };
+
+    Function<void()> m_post_parse_action;
 
     JS::Realm& realm();
 
