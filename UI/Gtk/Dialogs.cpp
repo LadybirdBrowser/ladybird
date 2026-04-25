@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/HTML/PrintSettings.h>
 #include <UI/Gtk/Dialogs.h>
 #include <UI/Gtk/GLibPtr.h>
 #include <UI/Gtk/WebContentView.h>
@@ -201,6 +202,99 @@ void show_file_picker(GtkWindow* parent, WebContentView* view, Web::HTML::FileFi
                 }
                 view->file_picker_closed(move(selected)); }, view);
     }
+}
+
+struct PrintData {
+    WebContentView* view { nullptr };
+    Gfx::ShareableBitmap bitmap;
+    int pages { 0 };
+    double scale { 1.0 };
+};
+
+void show_print_dialog(GtkWindow* parent, WebContentView* view)
+{
+    GObjectPtr<GtkPrintOperation> op { gtk_print_operation_new() };
+    gtk_print_operation_set_job_name(op.ptr(), "Ladybird");
+    gtk_print_operation_set_track_print_status(op.ptr(), TRUE);
+
+    auto* data = new PrintData;
+    data->view = view;
+
+    // Temporarily claim on_request_print_bitmap to deliver bitmap into PrintData.
+    view->on_request_print_bitmap = [data](Gfx::ShareableBitmap bmp) {
+        data->bitmap = bmp;
+    };
+
+    g_signal_connect(op.ptr(), "begin-print", G_CALLBACK(+[](GtkPrintOperation* op, GtkPrintContext* context, gpointer user_data) {
+        auto* data = static_cast<PrintData*>(user_data);
+        // GtkPrintContext dimensions are in points (1 pt = 0.352778 mm)
+        constexpr float pts_to_mm = 0.352778f;
+        Web::HTML::PrintSettings settings;
+        settings.paper_width_mm = static_cast<float>(gtk_print_context_get_width(context)) * pts_to_mm;
+        settings.paper_height_mm = static_cast<float>(gtk_print_context_get_height(context)) * pts_to_mm;
+        // GtkPrintContext dimensions already exclude margins; use zero margins so
+        // with_print_mode renders exactly to the available area.
+        settings.margin_top_mm = 0.0f;
+        settings.margin_right_mm = 0.0f;
+        settings.margin_bottom_mm = 0.0f;
+        settings.margin_left_mm = 0.0f;
+
+        data->view->trigger_print(settings);
+
+        // Spin the GLib main loop until WebContent delivers the bitmap.
+        while (!data->bitmap.is_valid())
+            g_main_context_iteration(nullptr, TRUE);
+
+        double page_width = gtk_print_context_get_width(context);
+        double page_height = gtk_print_context_get_height(context);
+        double bmp_width = data->bitmap.bitmap()->width();
+        data->scale = (bmp_width > 0) ? page_width / bmp_width : 1.0;
+        double scaled_height = data->bitmap.bitmap()->height() * data->scale;
+        data->pages = static_cast<int>(ceil(scaled_height / page_height));
+        if (data->pages < 1)
+            data->pages = 1;
+        gtk_print_operation_set_n_pages(op, data->pages);
+    }),
+        data);
+
+    g_signal_connect(op.ptr(), "draw-page", G_CALLBACK(+[](GtkPrintOperation*, GtkPrintContext* context, gint page_num, gpointer user_data) {
+        auto* data = static_cast<PrintData*>(user_data);
+        auto* bmp = data->bitmap.bitmap();
+        if (!bmp)
+            return;
+        auto* cr = gtk_print_context_get_cairo_context(context);
+        double page_height = gtk_print_context_get_height(context);
+
+        // Paint bitmap via a Cairo image surface (BGRA8888 matches CAIRO_FORMAT_ARGB32 on LE)
+        int width = bmp->width();
+        int height = bmp->height();
+        auto* surface = cairo_image_surface_create_for_data(
+            const_cast<unsigned char*>(bmp->scanline_u8(0)),
+            CAIRO_FORMAT_ARGB32,
+            width, height, bmp->pitch());
+        if (!surface)
+            return;
+
+        cairo_save(cr);
+        cairo_scale(cr, data->scale, data->scale);
+        double y_offset = -page_num * (page_height / data->scale);
+        cairo_set_source_surface(cr, surface, 0, y_offset);
+        cairo_paint(cr);
+        cairo_restore(cr);
+        cairo_surface_destroy(surface);
+    }),
+        data);
+
+    g_signal_connect_swapped(op.ptr(), "done", G_CALLBACK(+[](PrintData* data) {
+        data->view->on_request_print_bitmap = {};
+        if (data->view)
+            data->view->did_finish_print();
+        delete data;
+    }),
+        data);
+
+    g_autoptr(GError) error = nullptr;
+    gtk_print_operation_run(op.ptr(), GTK_PRINT_OPERATION_ACTION_PRINT_DIALOG, parent, &error);
 }
 
 }

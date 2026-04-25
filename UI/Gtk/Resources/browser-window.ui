@@ -240,6 +240,13 @@
           </object>
         </child>
         <child>
+          <object class="GtkButton" id="print_menu_button">
+            <property name="action-name">win.print</property>
+            <property name="icon-name">document-print-symbolic</property>
+            <property name="tooltip-text">Print (Ctrl+P)</property>
+          </object>
+        </child>
+        <child>
           <object class="GtkButton" id="fullscreen_menu_button">
             <property name="action-name">win.fullscreen</property>
             <property name="icon-name">view-fullscreen-symbolic</property>

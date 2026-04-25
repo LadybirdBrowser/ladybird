@@ -175,6 +175,12 @@ void Tab::setup_callbacks()
         m_window.update_zoom_label();
     };
 
+    // Print
+    m_view->on_print_request = [this]() {
+        Dialogs::show_print_dialog(m_window.gtk_window(), m_view.ptr());
+    };
+    // on_request_print_bitmap is set by show_print_dialog internally
+
     // Dialogs
     m_view->on_request_alert = [this](auto const& message) {
         Dialogs::show_alert(m_window.gtk_window(), m_view.ptr(), message);

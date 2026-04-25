@@ -1,5 +1,6 @@
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK4 REQUIRED IMPORTED_TARGET gtk4)
+pkg_check_modules(GTK4_PRINT REQUIRED IMPORTED_TARGET gtk4-unix-print)
 pkg_check_modules(LIBADWAITA REQUIRED IMPORTED_TARGET libadwaita-1>=1.4)
 
 add_executable(ladybird main.cpp)
@@ -41,6 +42,6 @@ target_sources(ladybird PRIVATE
     Widgets/LadybirdWebView.cpp
     "${GTK_GRESOURCE_SOURCE}"
 )
-target_link_libraries(ladybird PRIVATE PkgConfig::GTK4 PkgConfig::LIBADWAITA)
+target_link_libraries(ladybird PRIVATE PkgConfig::GTK4 PkgConfig::GTK4_PRINT PkgConfig::LIBADWAITA)
 add_dependencies(ladybird gtk_ui_resources)
 create_ladybird_bundle(ladybird)

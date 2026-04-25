@@ -129,6 +129,7 @@ void BrowserWindow::register_actions()
     add_action_to_map(G_ACTION_MAP(m_window), "reload", app.reload_action());
     add_action_to_map(G_ACTION_MAP(m_window), "preferences", app.open_settings_page_action());
     add_action_to_map(G_ACTION_MAP(m_window), "about", app.open_about_page_action());
+    add_action_to_map(G_ACTION_MAP(m_window), "print", app.print_action());
 }
 
 void BrowserWindow::setup_ui(AdwApplication* app)
@@ -265,6 +266,7 @@ void BrowserWindow::setup_keyboard_shortcuts()
     set_accels("win.fullscreen", { "F11" });
     set_accels("win.quit", { "<Ctrl>q" });
     set_accels("win.new-window", { "<Ctrl>n" });
+    set_accels("win.print", { "<Ctrl>p" });
 }
 
 void BrowserWindow::on_tab_switched()

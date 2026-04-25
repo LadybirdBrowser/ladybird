@@ -29,6 +29,7 @@ NonnullOwnPtr<Core::EventLoop> Application::create_platform_event_loop()
         adw_init();
         m_adw_application = ADW_APPLICATION(adw_application_new("org.ladybird.Ladybird",
             static_cast<GApplicationFlags>(G_APPLICATION_DEFAULT_FLAGS | G_APPLICATION_HANDLES_OPEN)));
+        g_set_application_name("Ladybird");
         GError* error = nullptr;
         g_application_register(G_APPLICATION(m_adw_application), nullptr, &error);
         if (error) {

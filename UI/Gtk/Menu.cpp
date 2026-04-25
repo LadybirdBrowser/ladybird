@@ -140,6 +140,11 @@ static void initialize_native_control(WebView::Action& action, GSimpleAction* ga
         set_icon("image-x-generic-symbolic");
         break;
 
+    case WebView::ActionID::Print:
+        set_icon("document-print-symbolic");
+        set_accel("<Ctrl>p");
+        break;
+
     case WebView::ActionID::ToggleBookmark:
     case WebView::ActionID::ToggleBookmarkViaToolbar:
         set_icon(action.engaged() ? "starred-symbolic" : "non-starred-symbolic");
