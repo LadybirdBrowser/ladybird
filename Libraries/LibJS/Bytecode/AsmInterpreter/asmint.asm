@@ -61,11 +61,12 @@
 
 # Check if a value is a double (not a NaN-boxed tagged value).
 # All tagged types have (tag & NAN_BASE_TAG) == NAN_BASE_TAG in their upper 16 bits.
-# Clobbers t3. Jumps to fail if not a double.
+# Jumps to fail if not a double.
 macro check_is_double(reg, fail)
-    extract_tag t3, reg
-    and t3, NAN_BASE_TAG
-    branch_eq t3, NAN_BASE_TAG, fail
+    temp tag
+    extract_tag tag, reg
+    and tag, NAN_BASE_TAG
+    branch_eq tag, NAN_BASE_TAG, fail
 end
 
 # Check if an already-extracted tag represents a non-double type.
@@ -76,14 +77,15 @@ macro check_tag_is_double(tag, fail)
 end
 
 # Check if both values are doubles.
-# Clobbers t3, t4. Jumps to fail if either is not a double.
+# Jumps to fail if either is not a number tag.
 macro check_both_double(lhs, rhs, fail)
-    extract_tag t3, lhs
-    and t3, NAN_BASE_TAG
-    branch_eq t3, NAN_BASE_TAG, fail
-    extract_tag t4, rhs
-    and t4, NAN_BASE_TAG
-    branch_eq t4, NAN_BASE_TAG, fail
+    temp lhs_tag, rhs_tag
+    extract_tag lhs_tag, lhs
+    and lhs_tag, NAN_BASE_TAG
+    branch_eq lhs_tag, NAN_BASE_TAG, fail
+    extract_tag rhs_tag, rhs
+    and rhs_tag, NAN_BASE_TAG
+    branch_eq rhs_tag, NAN_BASE_TAG, fail
 end
 
 # Coerce two operands (already in t1/t2) to numeric types for arithmetic/comparison.
@@ -134,16 +136,18 @@ end
 # JS::Value(double) constructor so that downstream int32 fast paths fire.
 # dst: destination GPR for the boxed value.
 # src_fpr: source FPR containing the double result.
-# Clobbers: t1 (x86-64), t3, ft3 (x86-64).
+# The macro uses a macro-local temp; the allocator will pick a register
+# that doesn't conflict with the caller's live values.
 macro box_double_or_int32(dst, src_fpr)
-    double_to_int32 t3, src_fpr, .bdi_not_int
-    branch_zero t3, .bdi_check_neg_zero
-    box_int32 dst, t3
+    temp int_value
+    double_to_int32 int_value, src_fpr, .bdi_not_int
+    branch_zero int_value, .bdi_check_neg_zero
+    box_int32 dst, int_value
     jmp .bdi_done
 .bdi_check_neg_zero:
     fp_mov dst, src_fpr
     branch_negative dst, .bdi_not_int
-    box_int32 dst, t3
+    box_int32 dst, int_value
     jmp .bdi_done
 .bdi_not_int:
     canonicalize_nan dst, src_fpr
