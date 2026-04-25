@@ -433,7 +433,15 @@ static bool reason_may_affect_has_selectors(StyleInvalidationReason reason)
 
 void Node::invalidate_style(StyleInvalidationReason reason)
 {
-    auto& style_scope = root().is_shadow_root() ? static_cast<ShadowRoot&>(root()).style_scope() : document().style_scope();
+    auto& style_scope = [&]() -> CSS::StyleScope& {
+        auto& root = this->root();
+        if (auto* shadow_root = as_if<ShadowRoot>(root)) {
+            if (shadow_root->uses_document_style_sheets())
+                return document().style_scope();
+            return shadow_root->style_scope();
+        }
+        return document().style_scope();
+    }();
 
     if (style_scope.may_have_has_selectors()) {
         // On insertion and removal the mutated node itself is uninteresting to the
@@ -538,7 +546,14 @@ void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::Invalida
         return;
 
     auto& root = this->root();
-    auto& style_scope = root.is_shadow_root() ? static_cast<ShadowRoot&>(root).style_scope() : document().style_scope();
+    auto& style_scope = [&]() -> CSS::StyleScope& {
+        if (auto* shadow_root = as_if<ShadowRoot>(root)) {
+            if (shadow_root->uses_document_style_sheets())
+                return document().style_scope();
+            return shadow_root->style_scope();
+        }
+        return document().style_scope();
+    }();
     CSS::StyleScope* shadow_style_scope = nullptr;
     if (auto* element = as_if<Element>(this); element && element->is_shadow_host()) {
         if (auto element_shadow_root = element->shadow_root())
