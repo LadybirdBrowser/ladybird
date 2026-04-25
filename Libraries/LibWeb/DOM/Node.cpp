@@ -433,9 +433,6 @@ static bool reason_may_affect_has_selectors(StyleInvalidationReason reason)
 
 void Node::invalidate_style(StyleInvalidationReason reason)
 {
-    if (is_character_data())
-        return;
-
     auto& style_scope = root().is_shadow_root() ? static_cast<ShadowRoot&>(root()).style_scope() : document().style_scope();
 
     if (style_scope.may_have_has_selectors()) {
@@ -456,6 +453,11 @@ void Node::invalidate_style(StyleInvalidationReason reason)
             style_scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(*this);
         }
     }
+
+    // Character data nodes have no style of their own, so once :has() ancestor invalidation has been scheduled there
+    // is nothing else to do.
+    if (is_character_data())
+        return;
 
     if (!needs_style_update() && !document().needs_full_style_update()) {
         dbgln_if(STYLE_INVALIDATION_DEBUG, "Invalidate style ({}): {}", to_string(reason), debug_description());
