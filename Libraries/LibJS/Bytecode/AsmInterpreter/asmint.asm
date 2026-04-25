@@ -638,66 +638,69 @@ end
 # For JumpIf/JumpTrue/JumpFalse, a boolean's truth value is just bit 0.
 # For int32, any nonzero low 32 bits means truthy.
 handler JumpIf
-    load_operand t1, m_condition
-    extract_tag t2, t1
+    temp condition, tag, truthy, target
+    load_operand condition, m_condition
+    extract_tag tag, condition
     # Boolean fast path
-    branch_eq t2, BOOLEAN_TAG, .is_bool
+    branch_eq tag, BOOLEAN_TAG, .is_bool
     # Int32 fast path
-    branch_eq t2, INT32_TAG, .is_int32
+    branch_eq tag, INT32_TAG, .is_int32
     # Slow path: call helper to convert to boolean
-    call_helper asm_helper_to_boolean
-    branch_nonzero t0, .take_true
+    call_helper asm_helper_to_boolean, condition, truthy
+    branch_nonzero truthy, .take_true
     jmp .take_false
 .is_bool:
-    branch_bits_set t1, 1, .take_true
+    branch_bits_set condition, 1, .take_true
     jmp .take_false
 .is_int32:
-    branch_nonzero32 t1, .take_true
+    branch_nonzero32 condition, .take_true
     jmp .take_false
 .take_true:
-    load_label t0, m_true_target
-    goto_handler t0
+    load_label target, m_true_target
+    goto_handler target
 .take_false:
-    load_label t0, m_false_target
-    goto_handler t0
+    load_label target, m_false_target
+    goto_handler target
 end
 
 handler JumpTrue
-    load_operand t1, m_condition
-    extract_tag t2, t1
-    branch_eq t2, BOOLEAN_TAG, .is_bool
-    branch_eq t2, INT32_TAG, .is_int32
-    call_helper asm_helper_to_boolean
-    branch_nonzero t0, .take
+    temp condition, tag, truthy, target
+    load_operand condition, m_condition
+    extract_tag tag, condition
+    branch_eq tag, BOOLEAN_TAG, .is_bool
+    branch_eq tag, INT32_TAG, .is_int32
+    call_helper asm_helper_to_boolean, condition, truthy
+    branch_nonzero truthy, .take
     dispatch_next
 .is_bool:
-    branch_bits_set t1, 1, .take
+    branch_bits_set condition, 1, .take
     dispatch_next
 .is_int32:
-    branch_nonzero32 t1, .take
+    branch_nonzero32 condition, .take
     dispatch_next
 .take:
-    load_label t0, m_target
-    goto_handler t0
+    load_label target, m_target
+    goto_handler target
 end
 
 handler JumpFalse
-    load_operand t1, m_condition
-    extract_tag t2, t1
-    branch_eq t2, BOOLEAN_TAG, .is_bool
-    branch_eq t2, INT32_TAG, .is_int32
-    call_helper asm_helper_to_boolean
-    branch_zero t0, .take
+    temp condition, tag, truthy, target
+    load_operand condition, m_condition
+    extract_tag tag, condition
+    branch_eq tag, BOOLEAN_TAG, .is_bool
+    branch_eq tag, INT32_TAG, .is_int32
+    call_helper asm_helper_to_boolean, condition, truthy
+    branch_zero truthy, .take
     dispatch_next
 .is_bool:
-    branch_bits_clear t1, 1, .take
+    branch_bits_clear condition, 1, .take
     dispatch_next
 .is_int32:
-    branch_zero32 t1, .take
+    branch_zero32 condition, .take
     dispatch_next
 .take:
-    load_label t0, m_target
-    goto_handler t0
+    load_label target, m_target
+    goto_handler target
 end
 
 # Nullish check: undefined and null tags differ only in bit 0,
