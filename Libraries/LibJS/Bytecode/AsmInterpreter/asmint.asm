@@ -629,8 +629,9 @@ end
 # ============================================================================
 
 handler Jump
-    load_label t0, m_target
-    goto_handler t0
+    temp target
+    load_label target, m_target
+    goto_handler target
 end
 
 # Conditional jumps: check boolean first (most common), then int32, then slow path.
@@ -702,27 +703,29 @@ end
 # Nullish check: undefined and null tags differ only in bit 0,
 # so (tag & 0xFFFE) == UNDEFINED_TAG matches both.
 handler JumpNullish
-    load_operand t1, m_condition
+    temp condition, tag, target
+    load_operand condition, m_condition
     # Nullish: (tag & 0xFFFE) == 0x7FFE (matches undefined=0x7FFE and null=0x7FFF)
-    extract_tag t2, t1
-    and t2, 0xFFFE
-    branch_eq t2, UNDEFINED_TAG, .nullish
-    load_label t0, m_false_target
-    goto_handler t0
+    extract_tag tag, condition
+    and tag, 0xFFFE
+    branch_eq tag, UNDEFINED_TAG, .nullish
+    load_label target, m_false_target
+    goto_handler target
 .nullish:
-    load_label t0, m_true_target
-    goto_handler t0
+    load_label target, m_true_target
+    goto_handler target
 end
 
 handler JumpUndefined
-    load_operand t1, m_condition
-    mov t0, UNDEFINED_SHIFTED
-    branch_eq t1, t0, .is_undefined
-    load_label t0, m_false_target
-    goto_handler t0
+    temp condition, undef, target
+    load_operand condition, m_condition
+    mov undef, UNDEFINED_SHIFTED
+    branch_eq condition, undef, .is_undefined
+    load_label target, m_false_target
+    goto_handler target
 .is_undefined:
-    load_label t0, m_true_target
-    goto_handler t0
+    load_label target, m_true_target
+    goto_handler target
 end
 
 
