@@ -4483,6 +4483,16 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
         // ::part(...) rules in the outer scope target this element by part name, so the element's computed style must
         // be recomputed when its part tokens change.
         set_needs_style_update(true);
+    } else if (local_name == HTML::AttributeNames::exportparts) {
+        // When exportparts changes on a shadow host, elements with part tokens inside its shadow tree may newly become
+        // or stop being targets of ::part() rules in the outer scope.
+        if (auto shadow_root = this->shadow_root()) {
+            shadow_root->for_each_in_subtree_of_type<Element>([](Element& element) {
+                if (!element.part_names().is_empty())
+                    element.set_needs_style_update(true);
+                return TraversalDecision::Continue;
+            });
+        }
     }
 
     // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#reflecting-content-attributes-in-idl-attributes:concept-element-attributes-change-ext
