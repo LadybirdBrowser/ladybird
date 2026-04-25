@@ -1486,145 +1486,134 @@ end
 
 # Fast path for array[int32_index] = value with Packed/Holey indexed storage.
 handler PutByValue
+    temp kind, base, prop, base_tag, prop_tag, index, obj, flags, storage_kind, size, elements, src, capacity_addr, capacity, slot, empty_tag, kind_byte, addr, src_int32, max, result
+    ftemp src_dbl
     # Only fast-path Normal puts (not Getter/Setter/Own)
-    load8 t0, [pb, pc, m_kind]
-    branch_ne t0, PUT_KIND_NORMAL, .slow
-    load_operand t1, m_base
-    load_operand t2, m_property
-    # Check base is an object
-    extract_tag t3, t1
-    branch_ne t3, OBJECT_TAG, .slow
+    load8 kind, [pb, pc, m_kind]
+    branch_ne kind, PUT_KIND_NORMAL, .slow
+    load_operand base, m_base
+    load_operand prop, m_property
+    extract_tag base_tag, base
+    branch_ne base_tag, OBJECT_TAG, .slow
     # Check property is non-negative int32
-    extract_tag t4, t2
-    branch_ne t4, INT32_TAG, .slow
-    mov t4, t2
-    and t4, 0xFFFFFFFF
-    # Check high bit (negative int32)
-    branch_bit_set t4, 31, .slow
-    # Extract Object*
-    unbox_object t3, t1
-    # Check IsTypedArray flag -- branch to C++ helper early
-    load8 t0, [t3, OBJECT_FLAGS]
-    branch_bits_set t0, OBJECT_FLAG_IS_TYPED_ARRAY, .try_typed_array
+    extract_tag prop_tag, prop
+    branch_ne prop_tag, INT32_TAG, .slow
+    mov index, prop
+    and index, 0xFFFFFFFF
+    branch_bit_set index, 31, .slow
+    unbox_object obj, base
+    # Check IsTypedArray flag -- branch to typed-array path early.
+    load8 flags, [obj, OBJECT_FLAGS]
+    branch_bits_set flags, OBJECT_FLAG_IS_TYPED_ARRAY, .try_typed_array
     # Check !may_interfere_with_indexed_property_access
-    branch_bits_set t0, OBJECT_FLAG_MAY_INTERFERE, .slow
+    branch_bits_set flags, OBJECT_FLAG_MAY_INTERFERE, .slow
     # Packed is the hot path: existing elements can be overwritten directly.
-    load8 t0, [t3, OBJECT_INDEXED_STORAGE_KIND]
-    branch_ne t0, INDEXED_STORAGE_KIND_PACKED, .not_packed
-    # Check index vs array_like_size
-    load32 t5, [t3, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
-    branch_ge_unsigned t4, t5, .slow
-    load64 t5, [t3, OBJECT_INDEXED_ELEMENTS]
-    load_operand t1, m_src
-    store64 [t5, t4, 8], t1
+    load8 storage_kind, [obj, OBJECT_INDEXED_STORAGE_KIND]
+    branch_ne storage_kind, INDEXED_STORAGE_KIND_PACKED, .not_packed
+    load32 size, [obj, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
+    branch_ge_unsigned index, size, .slow
+    load64 elements, [obj, OBJECT_INDEXED_ELEMENTS]
+    load_operand src, m_src
+    store64 [elements, index, 8], src
     dispatch_next
 .not_packed:
-    branch_ne t0, INDEXED_STORAGE_KIND_HOLEY, .slow
+    branch_ne storage_kind, INDEXED_STORAGE_KIND_HOLEY, .slow
     # Holey arrays need a slot load to distinguish existing elements from holes.
-    load32 t5, [t3, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
-    branch_ge_unsigned t4, t5, .slow
-    load64 t5, [t3, OBJECT_INDEXED_ELEMENTS]
-    branch_zero t5, .try_holey_array_slow
-    mov t0, t5
-    sub t0, 8
-    load32 t0, [t0, 0]
-    branch_ge_unsigned t4, t0, .try_holey_array_slow
-    load64 t1, [t5, t4, 8]
-    mov t0, EMPTY_TAG_SHIFTED
-    branch_eq t1, t0, .try_holey_array_slow
-    load_operand t1, m_src
-    store64 [t5, t4, 8], t1
+    load32 size, [obj, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
+    branch_ge_unsigned index, size, .slow
+    load64 elements, [obj, OBJECT_INDEXED_ELEMENTS]
+    branch_zero elements, .try_holey_array_slow
+    mov capacity_addr, elements
+    sub capacity_addr, 8
+    load32 capacity, [capacity_addr, 0]
+    branch_ge_unsigned index, capacity, .try_holey_array_slow
+    load64 slot, [elements, index, 8]
+    mov empty_tag, EMPTY_TAG_SHIFTED
+    branch_eq slot, empty_tag, .try_holey_array_slow
+    load_operand src, m_src
+    store64 [elements, index, 8], src
     dispatch_next
 .try_holey_array_slow:
-    call_interp asm_try_put_by_value_holey_array
-    branch_nonzero t0, .slow
+    call_interp asm_try_put_by_value_holey_array, result
+    branch_nonzero result, .slow
     dispatch_next
 .try_typed_array:
-    # t3 = Object*, t4 = index (u32, non-negative)
     # Load cached data pointer (pre-computed: buffer.data() + byte_offset)
     # nullptr means uncached -> C++ helper will resolve the access.
-    load64 t5, [t3, TYPED_ARRAY_CACHED_DATA_PTR]
-    branch_zero t5, .try_typed_array_slow
+    load64 elements, [obj, TYPED_ARRAY_CACHED_DATA_PTR]
+    branch_zero elements, .try_typed_array_slow
     # Cached pointers only exist for fixed-length typed arrays, so array_length
     # is known to hold a concrete u32 value here.
-    load32 t0, [t3, TYPED_ARRAY_ARRAY_LENGTH_VALUE]
-    branch_ge_unsigned t4, t0, .slow
-    # t5 = data base pointer, t4 = index
-    # Load kind into t2 before load_operand clobbers t0
-    load8 t2, [t3, TYPED_ARRAY_KIND]
-    # Load source value into t1 (clobbers t0)
-    load_operand t1, m_src
-    # Check if source is int32
-    extract_tag t0, t1
-    branch_eq t0, INT32_TAG, .ta_store_int32
-    # Non-int32 value: only handle float typed arrays with double sources
-    branch_eq t2, TYPED_ARRAY_KIND_FLOAT32, .ta_store_float32
-    branch_ne t2, TYPED_ARRAY_KIND_FLOAT64, .try_typed_array_slow
-    # Compute store address before check_is_double clobbers t4
-    mov t0, t4
-    shl t0, 3
-    add t0, t5
-    # Verify value is actually a double
-    check_is_double t1, .try_typed_array_slow
-    # Float64Array: store raw double bits
-    store64 [t0, 0], t1
+    load32 capacity, [obj, TYPED_ARRAY_ARRAY_LENGTH_VALUE]
+    branch_ge_unsigned index, capacity, .slow
+    load8 kind_byte, [obj, TYPED_ARRAY_KIND]
+    load_operand src, m_src
+    extract_tag base_tag, src
+    branch_eq base_tag, INT32_TAG, .ta_store_int32
+    # Non-int32 value: only handle float typed arrays with double sources.
+    branch_eq kind_byte, TYPED_ARRAY_KIND_FLOAT32, .ta_store_float32
+    branch_ne kind_byte, TYPED_ARRAY_KIND_FLOAT64, .try_typed_array_slow
+    # Compute store address before check_is_double mangles its argument.
+    mov addr, index
+    shl addr, 3
+    add addr, elements
+    check_is_double src, .try_typed_array_slow
+    store64 [addr, 0], src
     dispatch_next
 .ta_store_float32:
-    mov t0, t4
-    shl t0, 2
-    add t0, t5
-    check_is_double t1, .try_typed_array_slow
-    fp_mov ft0, t1
-    double_to_float ft0, ft0
-    storef32 [t0, 0], ft0
+    mov addr, index
+    shl addr, 2
+    add addr, elements
+    check_is_double src, .try_typed_array_slow
+    fp_mov src_dbl, src
+    double_to_float src_dbl, src_dbl
+    storef32 [addr, 0], src_dbl
     dispatch_next
 .ta_store_int32:
-    # t1 = NaN-boxed int32, sign-extend it into t0
-    unbox_int32 t0, t1
-    # Dispatch on kind (in t2)
-    branch_any_eq t2, TYPED_ARRAY_KIND_INT32, TYPED_ARRAY_KIND_UINT32, .ta_put_int32
-    branch_eq t2, TYPED_ARRAY_KIND_FLOAT32, .ta_put_float32
-    branch_eq t2, TYPED_ARRAY_KIND_UINT8_CLAMPED, .ta_put_uint8_clamped
-    branch_any_eq t2, TYPED_ARRAY_KIND_UINT8, TYPED_ARRAY_KIND_INT8, .ta_put_uint8
-    branch_any_eq t2, TYPED_ARRAY_KIND_UINT16, TYPED_ARRAY_KIND_INT16, .ta_put_uint16
+    unbox_int32 src_int32, src
+    branch_any_eq kind_byte, TYPED_ARRAY_KIND_INT32, TYPED_ARRAY_KIND_UINT32, .ta_put_int32
+    branch_eq kind_byte, TYPED_ARRAY_KIND_FLOAT32, .ta_put_float32
+    branch_eq kind_byte, TYPED_ARRAY_KIND_UINT8_CLAMPED, .ta_put_uint8_clamped
+    branch_any_eq kind_byte, TYPED_ARRAY_KIND_UINT8, TYPED_ARRAY_KIND_INT8, .ta_put_uint8
+    branch_any_eq kind_byte, TYPED_ARRAY_KIND_UINT16, TYPED_ARRAY_KIND_INT16, .ta_put_uint16
     jmp .try_typed_array_slow
 .ta_put_int32:
-    store32 [t5, t4, 4], t0
+    store32 [elements, index, 4], src_int32
     dispatch_next
 .ta_put_float32:
-    int_to_double ft0, t0
-    double_to_float ft0, ft0
-    mov t3, t4
-    shl t3, 2
-    add t3, t5
-    storef32 [t3, 0], ft0
+    int_to_double src_dbl, src_int32
+    double_to_float src_dbl, src_dbl
+    mov addr, index
+    shl addr, 2
+    add addr, elements
+    storef32 [addr, 0], src_dbl
     dispatch_next
 .ta_put_uint8_clamped:
-    branch_negative t0, .ta_put_uint8_clamped_zero
-    mov t3, 255
-    branch_ge_unsigned t0, t3, .ta_put_uint8_clamped_max
-    store8 [t5, t4], t0
+    branch_negative src_int32, .ta_put_uint8_clamped_zero
+    mov max, 255
+    branch_ge_unsigned src_int32, max, .ta_put_uint8_clamped_max
+    store8 [elements, index], src_int32
     dispatch_next
 .ta_put_uint8_clamped_zero:
-    mov t0, 0
-    store8 [t5, t4], t0
+    mov src_int32, 0
+    store8 [elements, index], src_int32
     dispatch_next
 .ta_put_uint8_clamped_max:
-    mov t0, 255
-    store8 [t5, t4], t0
+    mov src_int32, 255
+    store8 [elements, index], src_int32
     dispatch_next
 .ta_put_uint8:
-    store8 [t5, t4], t0
+    store8 [elements, index], src_int32
     dispatch_next
 .ta_put_uint16:
-    mov t3, t4
-    add t3, t4
-    add t3, t5
-    store16 [t3, 0], t0
+    mov addr, index
+    add addr, index
+    add addr, elements
+    store16 [addr, 0], src_int32
     dispatch_next
 .try_typed_array_slow:
-    call_interp asm_try_put_by_value_typed_array
-    branch_nonzero t0, .slow
+    call_interp asm_try_put_by_value_typed_array, result
+    branch_nonzero result, .slow
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_put_by_value
