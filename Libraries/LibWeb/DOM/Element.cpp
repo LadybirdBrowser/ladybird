@@ -35,6 +35,7 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
 #include <LibWeb/CSS/StylePropertyMap.h>
+#include <LibWeb/CSS/StyleSheetInvalidation.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
@@ -3081,6 +3082,15 @@ void Element::invalidate_style_after_attribute_change(FlyString const& attribute
 
     changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Attribute, .value = attribute_name });
     invalidate_style(StyleInvalidationReason::ElementAttributeChange, changed_properties, style_invalidation_options);
+
+    // If this element hosts a shadow root whose stylesheets have :host()-matching rules, the shadow tree's computed
+    // styles can depend on this host's attributes. Mark the shadow subtree dirty so those rules re-evaluate.
+    if (auto shadow_root = this->shadow_root()) {
+        if (CSS::determine_shadow_root_stylesheet_effects(*shadow_root).may_match_shadow_host) {
+            shadow_root->set_entire_subtree_needs_style_update(true);
+            shadow_root->set_needs_style_update(true);
+        }
+    }
 }
 
 bool Element::is_hidden() const
