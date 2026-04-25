@@ -169,7 +169,7 @@ private:
     VideoTracks m_video_tracks;
     VideoTrackDatas m_video_track_datas;
 
-    RefPtr<AudioMixingSink> m_audio_sink;
+    RefPtr<AudioPlaybackSink> m_audio_sink;
     AudioTracks m_audio_tracks;
     AudioTrackDatas m_audio_track_datas;
 

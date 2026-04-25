@@ -13,7 +13,7 @@ set(SOURCES
     Providers/AudioDataProvider.cpp
     Providers/GenericTimeProvider.cpp
     Providers/VideoDataProvider.cpp
-    Sinks/AudioMixingSink.cpp
+    Sinks/AudioPlaybackSink.cpp
     Sinks/DisplayingVideoSink.cpp
     TimeRanges.cpp
     VideoFrame.cpp

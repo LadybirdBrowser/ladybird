@@ -15,14 +15,14 @@
 #include <LibSync/ConditionVariable.h>
 #include <LibThreading/Thread.h>
 
-#include "AudioMixingSink.h"
+#include "AudioPlaybackSink.h"
 
 namespace Media {
 
 static constexpr size_t MAX_SAMPLES_PER_OUTPUT_BLOCK = 1024;
 static constexpr size_t OUTPUT_BLOCK_QUEUE_CAPACITY = 4;
 
-class AudioMixingSink::OutputThreadData : public AtomicRefCounted<OutputThreadData> {
+class AudioPlaybackSink::OutputThreadData : public AtomicRefCounted<OutputThreadData> {
 public:
     struct TrackMixingData {
         TrackMixingData(NonnullRefPtr<AudioDataProvider> const& provider)
@@ -63,11 +63,11 @@ public:
     Function<void(Track const&)> on_track_started_buffering;
 };
 
-ErrorOr<NonnullRefPtr<AudioMixingSink>> AudioMixingSink::try_create()
+ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create()
 {
     auto weak_ref = TRY(try_make_ref_counted<AudioMixingSinkWeakReference>());
     auto output_thread_data = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) OutputThreadData));
-    auto sink = TRY(try_make_ref_counted<AudioMixingSink>(weak_ref, output_thread_data));
+    auto sink = TRY(try_make_ref_counted<AudioPlaybackSink>(weak_ref, output_thread_data));
     weak_ref->emplace(sink);
 
     output_thread_data->on_track_started_buffering = [weak_self = sink->m_weak_self, &event_loop = sink->m_main_thread_event_loop](Track const& track) {
@@ -128,7 +128,7 @@ ErrorOr<NonnullRefPtr<AudioMixingSink>> AudioMixingSink::try_create()
     return sink;
 }
 
-AudioMixingSink::AudioMixingSink(AudioMixingSinkWeakReference& weak_ref, NonnullRefPtr<OutputThreadData> output_thread_data)
+AudioPlaybackSink::AudioPlaybackSink(AudioMixingSinkWeakReference& weak_ref, NonnullRefPtr<OutputThreadData> output_thread_data)
     : m_main_thread_event_loop(Core::EventLoop::current())
     , m_weak_self(weak_ref)
     , m_output_thread_data(move(output_thread_data))
@@ -141,7 +141,7 @@ AudioMixingSink::AudioMixingSink(AudioMixingSinkWeakReference& weak_ref, Nonnull
     });
 }
 
-AudioMixingSink::~AudioMixingSink()
+AudioPlaybackSink::~AudioPlaybackSink()
 {
     {
         Sync::MutexLocker locker { m_output_thread_data->m_output_mutex };
@@ -151,7 +151,7 @@ AudioMixingSink::~AudioMixingSink()
     m_weak_self->revoke();
 }
 
-void AudioMixingSink::set_provider(Track const& track, RefPtr<AudioDataProvider> const& provider)
+void AudioPlaybackSink::set_provider(Track const& track, RefPtr<AudioDataProvider> const& provider)
 {
     {
         Sync::MutexLocker locker { m_output_thread_data->m_mixing_data_mutex };
@@ -170,7 +170,7 @@ void AudioMixingSink::set_provider(Track const& track, RefPtr<AudioDataProvider>
     }
 }
 
-RefPtr<AudioDataProvider> AudioMixingSink::provider(Track const& track) const
+RefPtr<AudioDataProvider> AudioPlaybackSink::provider(Track const& track) const
 {
     auto mixing_data = m_output_thread_data->m_track_mixing_datas.get(track);
     if (!mixing_data.has_value())
@@ -178,7 +178,7 @@ RefPtr<AudioDataProvider> AudioMixingSink::provider(Track const& track) const
     return mixing_data->provider;
 }
 
-void AudioMixingSink::create_playback_stream()
+void AudioPlaybackSink::create_playback_stream()
 {
     if (m_started_creating_playback_stream)
         return;
@@ -231,7 +231,7 @@ void AudioMixingSink::create_playback_stream()
     });
 }
 
-bool AudioMixingSink::OutputThreadData::mix_one_block_into(AudioBlock& out_block)
+bool AudioPlaybackSink::OutputThreadData::mix_one_block_into(AudioBlock& out_block)
 {
     VERIFY(m_sample_specification.is_valid());
 
@@ -381,7 +381,7 @@ bool AudioMixingSink::OutputThreadData::mix_one_block_into(AudioBlock& out_block
     return true;
 }
 
-ReadonlySpan<float> AudioMixingSink::OutputThreadData::move_output_to_playback_stream_buffer(Span<float> buffer)
+ReadonlySpan<float> AudioPlaybackSink::OutputThreadData::move_output_to_playback_stream_buffer(Span<float> buffer)
 {
     VERIFY(buffer.size() > 0);
 
@@ -433,7 +433,7 @@ ReadonlySpan<float> AudioMixingSink::OutputThreadData::move_output_to_playback_s
     return buffer;
 }
 
-AK::Duration AudioMixingSink::current_time() const
+AK::Duration AudioPlaybackSink::current_time() const
 {
     if (m_temporary_time.has_value())
         return m_temporary_time.value();
@@ -444,7 +444,7 @@ AK::Duration AudioMixingSink::current_time() const
     return m_last_media_time + (stream_time - m_last_stream_time);
 }
 
-void AudioMixingSink::resume()
+void AudioPlaybackSink::resume()
 {
     m_playing = true;
 
@@ -467,11 +467,11 @@ void AudioMixingSink::resume()
             });
         })
         .when_rejected([](auto&& error) {
-            warnln("Unexpected error while resuming AudioMixingSink: {}", error.string_literal());
+            warnln("Unexpected error while resuming AudioPlaybackSink: {}", error.string_literal());
         });
 }
 
-void AudioMixingSink::pause()
+void AudioPlaybackSink::pause()
 {
     m_playing = false;
 
@@ -481,11 +481,11 @@ void AudioMixingSink::pause()
         ->when_resolved([]() {
         })
         .when_rejected([](auto&& error) {
-            warnln("Unexpected error while pausing AudioMixingSink: {}", error.string_literal());
+            warnln("Unexpected error while pausing AudioPlaybackSink: {}", error.string_literal());
         });
 }
 
-void AudioMixingSink::set_time(AK::Duration time)
+void AudioPlaybackSink::set_time(AK::Duration time)
 {
     // If we've already started setting the time, we only need to let the last callback complete
     // and set the media time to the temporary time. The callbacks run synchronously, so this will
@@ -539,11 +539,11 @@ void AudioMixingSink::set_time(AK::Duration time)
             });
         })
         .when_rejected([](auto&& error) {
-            warnln("Unexpected error while setting time on AudioMixingSink: {}", error.string_literal());
+            warnln("Unexpected error while setting time on AudioPlaybackSink: {}", error.string_literal());
         });
 }
 
-void AudioMixingSink::set_volume(double volume)
+void AudioPlaybackSink::set_volume(double volume)
 {
     m_volume = volume;
 

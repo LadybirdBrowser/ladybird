@@ -18,7 +18,7 @@
 
 namespace Media {
 
-class MEDIA_API AudioMixingSink final : public AudioSink
+class MEDIA_API AudioPlaybackSink final : public AudioSink
     , public MediaTimeProvider {
     class AudioMixingSinkWeakReference;
 
@@ -26,9 +26,9 @@ private:
     class OutputThreadData;
 
 public:
-    static ErrorOr<NonnullRefPtr<AudioMixingSink>> try_create();
-    AudioMixingSink(AudioMixingSinkWeakReference&, NonnullRefPtr<OutputThreadData>);
-    virtual ~AudioMixingSink() override;
+    static ErrorOr<NonnullRefPtr<AudioPlaybackSink>> try_create();
+    AudioPlaybackSink(AudioMixingSinkWeakReference&, NonnullRefPtr<OutputThreadData>);
+    virtual ~AudioPlaybackSink() override;
 
     virtual void set_provider(Track const&, RefPtr<AudioDataProvider> const&) override;
     virtual RefPtr<AudioDataProvider> provider(Track const&) const override;
@@ -46,8 +46,8 @@ public:
 private:
     class AudioMixingSinkWeakReference : public AtomicRefCounted<AudioMixingSinkWeakReference> {
     public:
-        void emplace(AudioMixingSink& sink) { m_ptr = &sink; }
-        RefPtr<AudioMixingSink> take_strong() const
+        void emplace(AudioPlaybackSink& sink) { m_ptr = &sink; }
+        RefPtr<AudioPlaybackSink> take_strong() const
         {
             Sync::MutexLocker locker { m_mutex };
             return m_ptr;
@@ -60,7 +60,7 @@ private:
 
     private:
         mutable Sync::Mutex m_mutex;
-        AudioMixingSink* m_ptr { nullptr };
+        AudioPlaybackSink* m_ptr { nullptr };
     };
 
     void create_playback_stream();

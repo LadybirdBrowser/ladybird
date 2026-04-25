@@ -11,7 +11,7 @@
 #include <LibMedia/Providers/AudioDataProvider.h>
 #include <LibMedia/Providers/GenericTimeProvider.h>
 #include <LibMedia/Providers/VideoDataProvider.h>
-#include <LibMedia/Sinks/AudioMixingSink.h>
+#include <LibMedia/Sinks/AudioPlaybackSink.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibMedia/Track.h>
 #include <LibThreading/Thread.h>
@@ -115,7 +115,7 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
         self->set_up_data_providers();
 
         if (!self->m_audio_output_disabled && !self->m_audio_sink && !self->m_audio_tracks.is_empty()) {
-            self->m_audio_sink = MUST(AudioMixingSink::try_create());
+            self->m_audio_sink = MUST(AudioPlaybackSink::try_create());
             self->set_time_provider(*self->m_audio_sink);
             self->m_audio_sink->on_audio_output_error = [self](Error&& error) {
                 if (!self)

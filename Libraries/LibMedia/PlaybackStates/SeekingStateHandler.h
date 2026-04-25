@@ -14,7 +14,7 @@
 #include <LibMedia/Providers/AudioDataProvider.h>
 #include <LibMedia/Providers/VideoDataProvider.h>
 #include <LibMedia/SeekMode.h>
-#include <LibMedia/Sinks/AudioMixingSink.h>
+#include <LibMedia/Sinks/AudioPlaybackSink.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
 
 namespace Media {
