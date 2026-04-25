@@ -666,6 +666,7 @@ set(SOURCES
     HTML/StorageEvent.cpp
     HTML/StructuredSerialize.cpp
     HTML/SubmitEvent.cpp
+    HTML/SupportedImageTypes.cpp
     HTML/SyntaxHighlighter/SyntaxHighlighter.cpp
     HTML/TagNames.cpp
     HTML/TextMetrics.cpp
