@@ -87,7 +87,7 @@ public:
 
     GC::Ref<HTMLCanvasElement> canvas_for_binding() const;
 
-    virtual CanvasRenderingContext2DSettings get_context_attributes() const override { return m_context_attributes; }
+    virtual Bindings::CanvasRenderingContext2DSettings get_context_attributes() const override { return m_context_attributes; }
 
     virtual GC::Ref<TextMetrics> measure_text(Utf16String const&) override;
 
@@ -132,7 +132,7 @@ public:
     void allocate_painting_surface_if_needed();
 
 private:
-    CanvasRenderingContext2D(JS::Realm&, HTMLCanvasElement&, CanvasRenderingContext2DSettings);
+    CanvasRenderingContext2D(JS::Realm&, HTMLCanvasElement&, Bindings::CanvasRenderingContext2DSettings);
 
     virtual bool is_canvas_rendering_context_2d() const final { return true; }
 
@@ -174,7 +174,7 @@ private:
 
     Gfx::IntSize m_size;
     RefPtr<Gfx::PaintingSurface> m_surface;
-    CanvasRenderingContext2DSettings m_context_attributes;
+    Bindings::CanvasRenderingContext2DSettings m_context_attributes;
 };
 
 enum class CanvasImageSourceUsability {

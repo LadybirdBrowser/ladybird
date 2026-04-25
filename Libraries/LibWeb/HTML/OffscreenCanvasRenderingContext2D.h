@@ -89,7 +89,7 @@ public:
 
     virtual void reset_to_default_state() override;
 
-    virtual CanvasRenderingContext2DSettings get_context_attributes() const override { return m_context_attributes; }
+    virtual Bindings::CanvasRenderingContext2DSettings get_context_attributes() const override { return m_context_attributes; }
 
     virtual GC::Ref<TextMetrics> measure_text(Utf16String const&) override;
 
@@ -130,7 +130,7 @@ public:
     void set_size(Gfx::IntSize const&);
 
 private:
-    explicit OffscreenCanvasRenderingContext2D(JS::Realm&, OffscreenCanvas&, CanvasRenderingContext2DSettings);
+    explicit OffscreenCanvasRenderingContext2D(JS::Realm&, OffscreenCanvas&, Bindings::CanvasRenderingContext2DSettings);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -144,7 +144,7 @@ private:
 
     GC::Ref<OffscreenCanvas> m_canvas;
     Gfx::IntSize m_size;
-    CanvasRenderingContext2DSettings m_context_attributes;
+    Bindings::CanvasRenderingContext2DSettings m_context_attributes;
 };
 
 }
