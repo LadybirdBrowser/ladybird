@@ -18,7 +18,8 @@
 
 namespace Media {
 
-class MEDIA_API AudioMixingSink final : public AudioSink {
+class MEDIA_API AudioMixingSink final : public AudioSink
+    , public MediaTimeProvider {
     class AudioMixingSinkWeakReference;
 
 private:
@@ -32,13 +33,10 @@ public:
     virtual void set_provider(Track const&, RefPtr<AudioDataProvider> const&) override;
     virtual RefPtr<AudioDataProvider> provider(Track const&) const override;
 
-    // This section implements the pure virtuals in MediaTimeProvider.
-    // AudioMixingSink cannot inherit from MediaTimeProvider, as AudioSink and MediaTimeProvider both inherit from
-    // AtomicRefCounted. In order to use AudioMixingSink as a MediaTimeProvider, wrap it with WrapperTimeProvider.
-    AK::Duration current_time() const;
-    void resume();
-    void pause();
-    void set_time(AK::Duration);
+    virtual AK::Duration current_time() const override;
+    virtual void resume() override;
+    virtual void pause() override;
+    virtual void set_time(AK::Duration) override;
 
     void set_volume(double);
 

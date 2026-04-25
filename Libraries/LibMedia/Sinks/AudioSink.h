@@ -6,15 +6,15 @@
 
 #pragma once
 
-#include <AK/AtomicRefCounted.h>
 #include <LibMedia/AudioBlock.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
+#include <LibMedia/MediaPipelineNode.h>
 #include <LibMedia/Track.h>
 
 namespace Media {
 
-class MEDIA_API AudioSink : public AtomicRefCounted<AudioSink> {
+class MEDIA_API AudioSink : public virtual MediaPipelineNode {
 public:
     virtual ~AudioSink() = default;
 

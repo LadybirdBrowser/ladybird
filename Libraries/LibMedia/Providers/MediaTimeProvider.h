@@ -6,12 +6,12 @@
 
 #pragma once
 
-#include <AK/AtomicRefCounted.h>
 #include <AK/Time.h>
+#include <LibMedia/MediaPipelineNode.h>
 
 namespace Media {
 
-class MediaTimeProvider : public AtomicRefCounted<MediaTimeProvider> {
+class MediaTimeProvider : public virtual MediaPipelineNode {
 public:
     virtual ~MediaTimeProvider() = default;
 
