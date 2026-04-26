@@ -47,10 +47,10 @@ use crate::ast::*;
 use crate::lexer::ch;
 use crate::u32_from_usize;
 
-use super::ffi::{LiteralValueKind, WellKnownSymbolKind};
+use super::ffi::WellKnownSymbolKind;
 use super::generator::{
-    BlockBoundaryType, ConstantValue, FinallyContext, Generator, ScopedOperand, choose_dst, constant_to_boolean,
-    parse_bigint,
+    BlockBoundaryType, ConstantValue, FinallyContext, Generator, PendingClassBlueprint, PendingClassElement,
+    PendingLiteralValueKind, PendingSharedFunctionData, ScopedOperand, choose_dst, constant_to_boolean, parse_bigint,
 };
 use super::instruction::Instruction;
 use super::operand::*;
@@ -5655,9 +5655,7 @@ fn generate_class_expression(
     };
 
     // Second pass: register method/field SFDs and build element descriptors.
-    let mut ffi_elements = Vec::with_capacity(data.elements.len());
-    // Keep literal string data alive until FFI call.
-    let mut literal_string_storage: Vec<Utf16String> = Vec::new();
+    let mut class_elements = Vec::with_capacity(data.elements.len());
 
     for element_node in &data.elements {
         match &element_node.inner {
@@ -5679,29 +5677,24 @@ fn generate_class_expression(
                 // correctly handles computed keys (Symbols, etc).
                 let sfd_index = if let ExpressionKind::Function(function_id) = &function.inner {
                     let function_data = generator.function_table.take(*function_id);
-                    super::ffi::FFIOptionalU32::some(emit_new_function(generator, function_data, None))
+                    Some(emit_new_function(generator, function_data, None))
                 } else {
-                    super::ffi::FFIOptionalU32::none()
+                    None
                 };
 
                 // Handle computed vs static keys
                 let is_private = is_private_key(key);
 
-                // Point directly into the AST's PrivateIdentifier name (stable address).
-                let (priv_ptr, priv_len) = get_private_identifier_ptr(key);
-
-                ffi_elements.push(super::ffi::FFIClassElement {
+                class_elements.push(PendingClassElement {
                     kind: ffi_kind,
                     is_static: *is_static,
                     is_private,
-                    private_identifier: priv_ptr,
-                    private_identifier_len: priv_len,
+                    private_identifier: get_private_identifier_name(key),
                     shared_function_data_index: sfd_index,
                     has_initializer: false,
-                    literal_value_kind: LiteralValueKind::None,
+                    literal_value_kind: PendingLiteralValueKind::None,
                     literal_value_number: 0.0,
-                    literal_value_string: std::ptr::null(),
-                    literal_value_string_len: 0,
+                    literal_value_string: None,
                 });
             }
             ClassElement::Field {
@@ -5712,38 +5705,38 @@ fn generate_class_expression(
                 // Detect literal initializers and store the value directly,
                 // avoiding function creation for simple cases like x = 0.
                 // This avoids function creation for simple cases.
-                let mut literal_value_kind = LiteralValueKind::None;
+                let mut literal_value_kind = PendingLiteralValueKind::None;
                 let mut literal_value_number: f64 = 0.0;
-                let mut literal_value_string = Utf16String::new();
-                let mut sfd_index = super::ffi::FFIOptionalU32::none();
+                let mut literal_value_string = None;
+                let mut sfd_index = None;
 
                 if let Some(init_expression) = initializer {
                     let is_literal = match &init_expression.inner {
                         ExpressionKind::NumericLiteral(n) => {
-                            literal_value_kind = LiteralValueKind::Number;
+                            literal_value_kind = PendingLiteralValueKind::Number;
                             literal_value_number = *n;
                             true
                         }
                         ExpressionKind::BooleanLiteral(b) => {
                             literal_value_kind = if *b {
-                                LiteralValueKind::BooleanTrue
+                                PendingLiteralValueKind::BooleanTrue
                             } else {
-                                LiteralValueKind::BooleanFalse
+                                PendingLiteralValueKind::BooleanFalse
                             };
                             true
                         }
                         ExpressionKind::NullLiteral => {
-                            literal_value_kind = LiteralValueKind::Null;
+                            literal_value_kind = PendingLiteralValueKind::Null;
                             true
                         }
                         ExpressionKind::StringLiteral(s) => {
-                            literal_value_kind = LiteralValueKind::String;
-                            literal_value_string = (**s).clone();
+                            literal_value_kind = PendingLiteralValueKind::String;
+                            literal_value_string = Some((**s).clone());
                             true
                         }
                         ExpressionKind::Unary { op, operand } if *op == UnaryOp::Minus => {
                             if let ExpressionKind::NumericLiteral(n) = &operand.inner {
-                                literal_value_kind = LiteralValueKind::Number;
+                                literal_value_kind = PendingLiteralValueKind::Number;
                                 literal_value_number = -n;
                                 true
                             } else {
@@ -5803,8 +5796,6 @@ fn generate_class_expression(
                         });
                         let index = emit_new_function(generator, function_data, Some(utf16!("field")));
 
-                        // Set class_field_initializer_name on the SFD.
-                        let sfd_ptr = generator.shared_function_data[index as usize];
                         let key_is_private = is_private_key(key);
                         let key_name: Utf16String = match &key.inner {
                             ExpressionKind::PrivateIdentifier(ident) => ident.name.clone(),
@@ -5814,45 +5805,25 @@ fn generate_class_expression(
                             _ => Utf16String::new(),
                         };
                         if !key_name.is_empty() {
-                            unsafe {
-                                super::ffi::rust_sfd_set_class_field_initializer_name(
-                                    sfd_ptr,
-                                    key_name.as_ptr(),
-                                    key_name.len(),
-                                    key_is_private,
-                                );
-                            }
+                            generator.set_class_field_initializer_name(index, key_name, key_is_private);
                         }
 
-                        sfd_index = super::ffi::FFIOptionalU32::some(index);
+                        sfd_index = Some(index);
                     }
                 }
 
                 let is_private = is_private_key(key);
 
-                let (priv_ptr, priv_len) = get_private_identifier_ptr(key);
-
-                // Keep literal string data alive until FFI call.
-                let (str_ptr, str_len) = if !literal_value_string.is_empty() {
-                    literal_string_storage.push(literal_value_string);
-                    let s = literal_string_storage.last().expect("just pushed an element");
-                    (s.as_ptr(), s.len())
-                } else {
-                    (std::ptr::null(), 0)
-                };
-
-                ffi_elements.push(super::ffi::FFIClassElement {
+                class_elements.push(PendingClassElement {
                     kind: ClassElementKind::Field as u8,
                     is_static: *is_static,
                     is_private,
-                    private_identifier: priv_ptr,
-                    private_identifier_len: priv_len,
+                    private_identifier: get_private_identifier_name(key),
                     shared_function_data_index: sfd_index,
                     has_initializer: initializer.is_some(),
                     literal_value_kind,
                     literal_value_number,
-                    literal_value_string: str_ptr,
-                    literal_value_string_len: str_len,
+                    literal_value_string,
                 });
             }
             ClassElement::StaticInitializer { body } => {
@@ -5878,54 +5849,39 @@ fn generate_class_expression(
                     // the wrapped block.
                     nested_function_ids: None,
                 });
-                let sfd_index = super::ffi::FFIOptionalU32::some(emit_new_function(generator, function_data, None));
+                let sfd_index = Some(emit_new_function(generator, function_data, None));
 
-                ffi_elements.push(super::ffi::FFIClassElement {
+                class_elements.push(PendingClassElement {
                     kind: ClassElementKind::StaticInitializer as u8,
                     is_static: true,
                     is_private: false,
-                    private_identifier: std::ptr::null(),
-                    private_identifier_len: 0,
+                    private_identifier: None,
                     shared_function_data_index: sfd_index,
                     has_initializer: false,
-                    literal_value_kind: LiteralValueKind::None,
+                    literal_value_kind: PendingLiteralValueKind::None,
                     literal_value_number: 0.0,
-                    literal_value_string: std::ptr::null(),
-                    literal_value_string_len: 0,
+                    literal_value_string: None,
                 });
             }
         }
     }
 
     // Get class name and source text
-    let class_name: Option<&[u16]> = data.name.as_ref().map(|n| n.name.as_slice());
     let has_name = data.name.is_some();
-    let (name_ptr, name_len) = class_name
-        .map(|n| (n.as_ptr(), n.len()))
-        .unwrap_or((std::ptr::null(), 0));
 
     let source_start = data.source_text_start as usize;
     let source_end = data.source_text_end as usize;
     let source_text_len = source_end - source_start;
 
-    // Create the ClassBlueprint via FFI
-    let bp_ptr = unsafe {
-        super::ffi::rust_create_class_blueprint(
-            generator.vm_ptr,
-            generator.source_code_ptr,
-            name_ptr,
-            name_len,
-            source_start,
-            source_text_len,
-            constructor_sfd_index,
-            has_super,
-            has_name,
-            ffi_elements.as_ptr(),
-            ffi_elements.len(),
-        )
-    };
-    assert!(!bp_ptr.is_null(), "rust_create_class_blueprint returned null");
-    let blueprint_index = generator.register_class_blueprint(bp_ptr);
+    let blueprint_index = generator.register_class_blueprint(PendingClassBlueprint {
+        name: data.name.as_ref().map(|n| n.name.to_utf16_string()),
+        source_text_offset: source_start,
+        source_text_length: source_text_len,
+        constructor_sfd_index,
+        has_super_class: has_super,
+        has_name,
+        elements: class_elements,
+    });
 
     // Build element_keys operands for the NewClass instruction
     let element_key_ops: Vec<Option<Operand>> = element_keys.iter().map(|k| k.as_ref().map(|s| s.operand())).collect();
@@ -6000,18 +5956,12 @@ fn emit_default_constructor(generator: &mut Generator, has_super: bool) -> u32 {
     function_data.source_text_end = 0;
 
     let subtable = parser.function_table.extract_reachable(&function_data);
-    let sfd_ptr = unsafe {
-        super::ffi::create_shared_function_data(
-            function_data,
-            subtable,
-            generator.vm_ptr,
-            generator.source_code_ptr,
-            generator.strict,
-            None,
-        )
-    };
-    assert!(!sfd_ptr.is_null(), "default constructor creation returned null");
-    generator.register_shared_function_data(sfd_ptr)
+    generator.register_shared_function_data(PendingSharedFunctionData {
+        function_data: Some(function_data),
+        subtable: Some(subtable),
+        name_override: None,
+        class_field_initializer_name: None,
+    })
 }
 
 /// Check if a key expression is a private identifier, return (is_private, private_name).
@@ -6021,11 +5971,11 @@ fn is_private_key(key: &Expression) -> bool {
 
 /// Get a pointer directly into the AST's PrivateIdentifier name.
 /// The pointer remains valid as long as the AST is alive.
-fn get_private_identifier_ptr(key: &Expression) -> (*const u16, usize) {
+fn get_private_identifier_name(key: &Expression) -> Option<Utf16String> {
     if let ExpressionKind::PrivateIdentifier(ident) = &key.inner {
-        (ident.name.as_ptr(), ident.name.len())
+        Some(ident.name.clone())
     } else {
-        (std::ptr::null(), 0)
+        None
     }
 }
 
@@ -7610,18 +7560,12 @@ fn emit_new_function(generator: &mut Generator, data: Box<FunctionData>, name_ov
     );
 
     let subtable = generator.function_table.extract_reachable(&data);
-    let sfd_ptr = unsafe {
-        super::ffi::create_shared_function_data(
-            data,
-            subtable,
-            generator.vm_ptr,
-            generator.source_code_ptr,
-            generator.strict,
-            name_override,
-        )
-    };
-
-    generator.register_shared_function_data(sfd_ptr)
+    generator.register_shared_function_data(PendingSharedFunctionData {
+        function_data: Some(data),
+        subtable: Some(subtable),
+        name_override: name_override.map(Utf16String::from),
+        class_field_initializer_name: None,
+    })
 }
 
 // =============================================================================

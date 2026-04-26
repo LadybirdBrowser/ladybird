@@ -16,7 +16,7 @@ use std::rc::Rc;
 use super::basic_block::{BasicBlock, SourceMapEntry};
 use super::instruction::Instruction;
 use super::operand::*;
-use crate::ast::{LocalType, Position, Utf16String};
+use crate::ast::{FunctionData, FunctionTable, LocalType, Position, Utf16String};
 use crate::u32_from_usize;
 
 /// Identifies an operand that auto-frees its register when the last
@@ -33,6 +33,45 @@ pub struct ScopedOperand {
 pub(crate) struct ScopedOperandInner {
     operand: Operand,
     free_register_pool: Rc<RefCell<Vec<Register>>>,
+}
+
+pub struct PendingSharedFunctionData {
+    pub function_data: Option<Box<FunctionData>>,
+    pub subtable: Option<FunctionTable>,
+    pub name_override: Option<Utf16String>,
+    pub class_field_initializer_name: Option<(Utf16String, bool)>,
+}
+
+#[derive(Clone, Copy)]
+pub enum PendingLiteralValueKind {
+    None,
+    Number,
+    BooleanTrue,
+    BooleanFalse,
+    Null,
+    String,
+}
+
+pub struct PendingClassElement {
+    pub kind: u8,
+    pub is_static: bool,
+    pub is_private: bool,
+    pub private_identifier: Option<Utf16String>,
+    pub shared_function_data_index: Option<u32>,
+    pub has_initializer: bool,
+    pub literal_value_kind: PendingLiteralValueKind,
+    pub literal_value_number: f64,
+    pub literal_value_string: Option<Utf16String>,
+}
+
+pub struct PendingClassBlueprint {
+    pub name: Option<Utf16String>,
+    pub source_text_offset: usize,
+    pub source_text_length: usize,
+    pub constructor_sfd_index: u32,
+    pub has_super_class: bool,
+    pub has_name: bool,
+    pub elements: Vec<PendingClassElement>,
 }
 
 impl std::fmt::Debug for ScopedOperandInner {
@@ -199,13 +238,15 @@ pub struct Generator {
     this_value: ScopedOperand,
 
     // --- Shared function data ---
-    // Opaque pointers to SharedFunctionInstanceData objects.
-    pub shared_function_data: Vec<*mut std::ffi::c_void>,
+    // Pending descriptors for SharedFunctionInstanceData objects. These are
+    // materialized at the C++ boundary so bytecode generation can run without
+    // allocating GC cells.
+    pub shared_function_data: Vec<PendingSharedFunctionData>,
 
     // --- Class blueprints ---
-    // Opaque pointers to heap-allocated ClassBlueprint objects.
-    // Ownership transfers to the Executable during creation.
-    pub class_blueprints: Vec<*mut std::ffi::c_void>,
+    // Pending descriptors for ClassBlueprint objects. Ownership transfers to
+    // the Executable after materialization.
+    pub class_blueprints: Vec<PendingClassBlueprint>,
 
     // --- Length identifier cache ---
     pub length_identifier: Option<PropertyKeyTableIndex>,
@@ -580,17 +621,23 @@ impl Generator {
         Some(key_index)
     }
 
-    /// Register a SharedFunctionInstanceData (opaque pointer) and return its index.
-    pub fn register_shared_function_data(&mut self, ptr: *mut std::ffi::c_void) -> u32 {
+    /// Register a pending SharedFunctionInstanceData descriptor and return its index.
+    pub fn register_shared_function_data(&mut self, data: PendingSharedFunctionData) -> u32 {
         let index = u32_from_usize(self.shared_function_data.len());
-        self.shared_function_data.push(ptr);
+        self.shared_function_data.push(data);
         index
     }
 
-    /// Register a ClassBlueprint (opaque pointer) and return its index.
-    pub fn register_class_blueprint(&mut self, ptr: *mut std::ffi::c_void) -> u32 {
+    pub fn set_class_field_initializer_name(&mut self, index: u32, name: Utf16String, is_private: bool) {
+        if let Some(data) = self.shared_function_data.get_mut(index as usize) {
+            data.class_field_initializer_name = Some((name, is_private));
+        }
+    }
+
+    /// Register a pending ClassBlueprint descriptor and return its index.
+    pub fn register_class_blueprint(&mut self, data: PendingClassBlueprint) -> u32 {
         let index = u32_from_usize(self.class_blueprints.len());
-        self.class_blueprints.push(ptr);
+        self.class_blueprints.push(data);
         index
     }
 

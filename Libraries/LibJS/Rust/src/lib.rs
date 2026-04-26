@@ -1579,7 +1579,7 @@ unsafe fn compile_module_as_async(
         generator.terminate_unterminated_blocks_with_yield();
 
         let assembled = generator.assemble();
-        bytecode::ffi::create_executable(&generator, &assembled, vm_ptr, source_code_ptr)
+        bytecode::ffi::create_executable(&mut generator, &assembled, vm_ptr, source_code_ptr)
     }
 }
 
@@ -2034,7 +2034,7 @@ pub unsafe extern "C" fn rust_compile_function(
 
             write_sfd_metadata(sfd_ptr, &sfd_metadata);
 
-            bytecode::ffi::create_executable(&generator, &assembled, vm_ptr, source_code_ptr)
+            bytecode::ffi::create_executable(&mut generator, &assembled, vm_ptr, source_code_ptr)
         })
     }
 }

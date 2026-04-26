@@ -23,7 +23,9 @@
 
 use std::ffi::c_void;
 
-use super::generator::{AssembledBytecode, ConstantValue, Generator};
+use super::generator::{
+    AssembledBytecode, ConstantValue, Generator, PendingClassBlueprint, PendingClassElement, PendingLiteralValueKind,
+};
 use crate::ast::Utf16String;
 use crate::u32_from_usize;
 
@@ -115,6 +117,17 @@ pub enum LiteralValueKind {
     BooleanFalse = 3,
     Null = 4,
     String = 5,
+}
+
+fn literal_value_kind_to_ffi(kind: PendingLiteralValueKind) -> LiteralValueKind {
+    match kind {
+        PendingLiteralValueKind::None => LiteralValueKind::None,
+        PendingLiteralValueKind::Number => LiteralValueKind::Number,
+        PendingLiteralValueKind::BooleanTrue => LiteralValueKind::BooleanTrue,
+        PendingLiteralValueKind::BooleanFalse => LiteralValueKind::BooleanFalse,
+        PendingLiteralValueKind::Null => LiteralValueKind::Null,
+        PendingLiteralValueKind::String => LiteralValueKind::String,
+    }
 }
 
 /// Well-known symbol IDs for get_well_known_symbol()
@@ -384,6 +397,112 @@ pub unsafe fn create_sfd_for_gdi(
     unsafe { create_shared_function_data(function_data, subtable, vm_ptr, source_code_ptr, is_strict, None) }
 }
 
+unsafe fn materialize_shared_function_data(
+    generator: &mut Generator,
+    vm_ptr: *mut c_void,
+    source_code_ptr: *const c_void,
+) -> Vec<*const c_void> {
+    unsafe {
+        let mut sfd_ptrs = Vec::with_capacity(generator.shared_function_data.len());
+        for pending in &mut generator.shared_function_data {
+            let function_data = pending
+                .function_data
+                .take()
+                .expect("pending shared function data was already materialized");
+            let subtable = pending
+                .subtable
+                .take()
+                .expect("pending shared function data subtable was already materialized");
+            let sfd_ptr = create_shared_function_data(
+                function_data,
+                subtable,
+                vm_ptr,
+                source_code_ptr,
+                generator.strict,
+                pending.name_override.as_ref().map(|name| name.as_slice()),
+            );
+            if let Some((name, is_private)) = &pending.class_field_initializer_name {
+                rust_sfd_set_class_field_initializer_name(sfd_ptr, name.as_ptr(), name.len(), *is_private);
+            }
+            sfd_ptrs.push(sfd_ptr as *const c_void);
+        }
+        sfd_ptrs
+    }
+}
+
+unsafe fn materialize_class_blueprints(
+    generator: &mut Generator,
+    vm_ptr: *mut c_void,
+    source_code_ptr: *const c_void,
+) -> Vec<*mut c_void> {
+    unsafe {
+        generator
+            .class_blueprints
+            .iter()
+            .map(|blueprint| materialize_class_blueprint(blueprint, vm_ptr, source_code_ptr))
+            .collect()
+    }
+}
+
+unsafe fn materialize_class_blueprint(
+    blueprint: &PendingClassBlueprint,
+    vm_ptr: *mut c_void,
+    source_code_ptr: *const c_void,
+) -> *mut c_void {
+    unsafe {
+        let ffi_elements: Vec<FFIClassElement> = blueprint.elements.iter().map(class_element_to_ffi).collect();
+        let (name, name_len) = blueprint
+            .name
+            .as_ref()
+            .map(|name| (name.as_ptr(), name.len()))
+            .unwrap_or((std::ptr::null(), 0));
+        let bp_ptr = rust_create_class_blueprint(
+            vm_ptr,
+            source_code_ptr,
+            name,
+            name_len,
+            blueprint.source_text_offset,
+            blueprint.source_text_length,
+            blueprint.constructor_sfd_index,
+            blueprint.has_super_class,
+            blueprint.has_name,
+            ffi_elements.as_ptr(),
+            ffi_elements.len(),
+        );
+        assert!(!bp_ptr.is_null(), "rust_create_class_blueprint returned null");
+        bp_ptr
+    }
+}
+
+fn class_element_to_ffi(element: &PendingClassElement) -> FFIClassElement {
+    let (private_identifier, private_identifier_len) = element
+        .private_identifier
+        .as_ref()
+        .map(|name| (name.as_ptr(), name.len()))
+        .unwrap_or((std::ptr::null(), 0));
+    let (literal_value_string, literal_value_string_len) = element
+        .literal_value_string
+        .as_ref()
+        .map(|string| (string.as_ptr(), string.len()))
+        .unwrap_or((std::ptr::null(), 0));
+    FFIClassElement {
+        kind: element.kind,
+        is_static: element.is_static,
+        is_private: element.is_private,
+        private_identifier,
+        private_identifier_len,
+        shared_function_data_index: element
+            .shared_function_data_index
+            .map(FFIOptionalU32::some)
+            .unwrap_or_else(FFIOptionalU32::none),
+        has_initializer: element.has_initializer,
+        literal_value_kind: literal_value_kind_to_ffi(element.literal_value_kind),
+        literal_value_number: element.literal_value_number,
+        literal_value_string,
+        literal_value_string_len,
+    }
+}
+
 /// Constant tags for the FFI constant buffer (ABI-compatible).
 #[repr(u8)]
 pub enum ConstantTag {
@@ -441,7 +560,7 @@ fn encode_constants(constants: &[ConstantValue]) -> Vec<u8> {
 /// `vm_ptr` must be a valid `JS::VM*` and `source_code_ptr` a valid
 /// `JS::SourceCode const*`.
 pub unsafe fn create_executable(
-    generator: &Generator,
+    generator: &mut Generator,
     assembled: &AssembledBytecode,
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
@@ -502,15 +621,8 @@ pub unsafe fn create_executable(
             .map(|v| FFIUtf16Slice::from(v.name.as_ref()))
             .collect();
 
-        // Collect shared function data pointers
-        let sfd_ptrs: Vec<*const c_void> = generator
-            .shared_function_data
-            .iter()
-            .map(|ptr| *ptr as *const c_void)
-            .collect();
-
-        // Collect class blueprint pointers
-        let bp_ptrs = &generator.class_blueprints;
+        let sfd_ptrs = materialize_shared_function_data(generator, vm_ptr, source_code_ptr);
+        let bp_ptrs = materialize_class_blueprints(generator, vm_ptr, source_code_ptr);
 
         let ffi_data = FFIExecutableData {
             bytecode: assembled.bytecode.as_ptr(),
