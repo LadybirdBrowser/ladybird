@@ -206,6 +206,7 @@ struct PasswordCredentialData;
 namespace Web::Crypto {
 
 class Crypto;
+class CryptoKey;
 class SubtleCrypto;
 
 }
