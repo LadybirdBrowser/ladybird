@@ -190,6 +190,7 @@
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
+#include <LibWeb/SVG/SVGScriptElement.h>
 #include <LibWeb/SVG/SVGStyleElement.h>
 #include <LibWeb/SVG/SVGTitleElement.h>
 #include <LibWeb/Selection/Selection.h>
@@ -605,6 +606,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_associated_inert_template_document);
     visitor.visit(m_appropriate_template_contents_owner_document);
     visitor.visit(m_pending_parsing_blocking_script);
+    visitor.visit(m_pending_parsing_blocking_svg_script);
     visitor.visit(m_history);
     visitor.visit(m_html_parser_end_state);
     visitor.visit(m_style_computer);
@@ -784,7 +786,7 @@ WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(Vector<TrustedT
     //     point at a time, processing resulting tokens as they are emitted, and stopping when the tokenizer reaches
     //     the insertion point or when the processing of the tokenizer is aborted by the tree construction stage (this
     //     can happen if a script end tag token is emitted by the tokenizer).
-    if (!pending_parsing_blocking_script())
+    if (!has_pending_parsing_blocking_script())
         m_parser->run(HTML::HTMLTokenizer::StopAtInsertionPoint::Yes);
 
     return {};
@@ -912,7 +914,7 @@ WebIDL::ExceptionOr<void> Document::close()
     m_parser->tokenizer().insert_eof();
 
     // 5. If there is a pending parsing-blocking script, then return.
-    if (pending_parsing_blocking_script()) {
+    if (has_pending_parsing_blocking_script()) {
         m_parser->set_post_parse_action([this] { completely_finish_loading(); });
         return {};
     }
@@ -921,7 +923,7 @@ WebIDL::ExceptionOr<void> Document::close()
     m_parser->run();
 
     // run() may have paused on a blocking script (e.g. from document.write inside an inline script).
-    if (pending_parsing_blocking_script()) {
+    if (has_pending_parsing_blocking_script()) {
         m_parser->set_post_parse_action([this] { completely_finish_loading(); });
         return {};
     }
@@ -2627,6 +2629,19 @@ GC::Ref<HTML::HTMLScriptElement> Document::take_pending_parsing_blocking_script(
     VERIFY(m_pending_parsing_blocking_script);
     auto script = m_pending_parsing_blocking_script;
     m_pending_parsing_blocking_script = nullptr;
+    return *script;
+}
+
+void Document::set_pending_parsing_blocking_svg_script(SVG::SVGScriptElement* script)
+{
+    m_pending_parsing_blocking_svg_script = script;
+}
+
+GC::Ref<SVG::SVGScriptElement> Document::take_pending_parsing_blocking_svg_script(Badge<HTML::HTMLParser>)
+{
+    VERIFY(m_pending_parsing_blocking_svg_script);
+    auto script = m_pending_parsing_blocking_svg_script;
+    m_pending_parsing_blocking_svg_script = nullptr;
     return *script;
 }
 

@@ -3458,7 +3458,13 @@ void HTMLParser::resume_after_parser_blocking_script()
         return;
 
     auto pending = document().pending_parsing_blocking_script();
-    if (!pending)
+    auto pending_svg = document().pending_parsing_blocking_svg_script();
+    bool ready = false;
+    if (pending)
+        ready = pending->is_ready_to_be_parser_executed();
+    else if (pending_svg)
+        ready = pending_svg->is_ready_to_be_parser_executed();
+    else
         return;
 
     // 5. If the parser's Document has a style sheet that is blocking scripts or the script's ready to be
@@ -3468,12 +3474,8 @@ void HTMLParser::resume_after_parser_blocking_script()
     // relevant state changes.
     if (m_document->has_a_style_sheet_that_is_blocking_scripts())
         return;
-    if (!pending->is_ready_to_be_parser_executed())
+    if (!ready)
         return;
-
-    // 1. Let the script be the pending parsing-blocking script.
-    // 2. Set the pending parsing-blocking script to null.
-    auto the_script = document().take_pending_parsing_blocking_script({});
 
     // 3. Start the speculative HTML parser for this instance of the HTML parser.
     // (Done at the pause point in the corresponding insertion-mode handler, so that speculation runs during the wait.)
@@ -3500,8 +3502,13 @@ void HTMLParser::resume_after_parser_blocking_script()
     VERIFY(script_nesting_level() == 0);
     increment_script_nesting_level();
 
+    // 1. Let the script be the pending parsing-blocking script.
+    // 2. Set the pending parsing-blocking script to null.
     // 11. Execute the script element the script.
-    the_script->execute_script();
+    if (pending)
+        document().take_pending_parsing_blocking_script({})->execute_script();
+    else
+        document().take_pending_parsing_blocking_svg_script({})->execute_pending_parser_blocking_script({});
 
     // 12. Decrement the parser's script nesting level by one.
     decrement_script_nesting_level();
@@ -4793,12 +4800,19 @@ void HTMLParser::process_using_the_rules_for_foreign_content(HTMLToken& token)
         adjust_foreign_attributes(token);
 
         // Insert a foreign element for the token, with the adjusted current node's namespace and false.
-        (void)insert_foreign_element(token, adjusted_current_node()->namespace_uri(), OnlyAddToElementStack::No);
-
-        // AD-HOC: we don't want to execute script elements just by adding data to it
-        if (token.tag_name() == SVG::TagNames::script && current_node()->namespace_uri() == Namespace::SVG) {
-            auto& script_element = as<SVG::SVGScriptElement>(*current_node());
-            script_element.set_parser_inserted({});
+        // AD-HOC: For SVG script elements, set the parser-inserted flag before the element is
+        //         inserted into the DOM. Otherwise inserted()/attribute_changed() would invoke
+        //         process_the_script_element() with the flag still unset and bypass the
+        //         parser-blocking fetch handling.
+        auto namespace_ = adjusted_current_node()->namespace_uri();
+        if (token.tag_name() == SVG::TagNames::script && namespace_ == Namespace::SVG) {
+            auto adjusted_insertion_location = find_appropriate_place_for_inserting_node();
+            auto element = create_element_for(token, namespace_, *adjusted_insertion_location.parent);
+            as<SVG::SVGScriptElement>(*element).set_parser_inserted({});
+            insert_an_element_at_the_adjusted_insertion_location(element);
+            m_stack_of_open_elements.push(element);
+        } else {
+            (void)insert_foreign_element(token, namespace_, OnlyAddToElementStack::No);
         }
 
         // If the token has its self-closing flag set, then run the appropriate steps from the following list:
@@ -4853,6 +4867,14 @@ void HTMLParser::process_using_the_rules_for_foreign_content(HTMLToken& token)
 
         // Let the insertion point have the value of the old insertion point.
         m_tokenizer.restore_insertion_point();
+
+        // If the SVG script registered itself as a pending parsing-blocking script (external fetch in flight),
+        // pause the parser and schedule a resume check. The parser will resume from
+        // resume_after_parser_blocking_script when the fetch completes.
+        if (document().pending_parsing_blocking_svg_script()) {
+            m_parser_pause_flag = true;
+            schedule_resume_check();
+        }
         return;
     }
 
