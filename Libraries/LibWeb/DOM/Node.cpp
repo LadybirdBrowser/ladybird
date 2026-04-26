@@ -551,11 +551,16 @@ void Node::invalidate_style(StyleInvalidationReason reason)
     };
 
     if (reason == StyleInvalidationReason::NodeInsertBefore || reason == StyleInvalidationReason::NodeRemove) {
-        auto& counters = document().style_invalidation_counters();
-        for (auto* sibling = previous_sibling(); sibling; sibling = sibling->previous_sibling()) {
-            ++counters.previous_sibling_invalidation_walk_visits;
-            if (auto* element = as_if<Element>(sibling); element && previous_sibling_needs_structural_invalidation(*element))
-                mark_entire_subtree_for_style_update(*element);
+        // OPTIMIZATION: Only walk previous siblings if the parent has been observed to contain a child that matches a
+        //               pseudo-class whose match result can depend on siblings after that element. Otherwise, no
+        //               previous sibling can possibly need invalidation due to this insertion or removal.
+        if (auto* parent_node = as_if<ParentNode>(parent()); parent_node && parent_node->has_child_affected_by_backward_structural_changes()) {
+            auto& counters = document().style_invalidation_counters();
+            for (auto* sibling = previous_sibling(); sibling; sibling = sibling->previous_sibling()) {
+                ++counters.previous_sibling_invalidation_walk_visits;
+                if (auto* element = as_if<Element>(sibling); element && previous_sibling_needs_structural_invalidation(*element))
+                    mark_entire_subtree_for_style_update(*element);
+            }
         }
     }
 

@@ -1,0 +1,4 @@
+PASS: no backward-structural rule: append does not invalidate previous siblings | previousSiblingInvalidationWalkVisits=0
+PASS: forward-only rule (:first-child): append does not invalidate previous siblings | previousSiblingInvalidationWalkVisits=0
+PASS: backward-structural rule on unrelated subtree: append does not invalidate previous siblings | previousSiblingInvalidationWalkVisits=0
+PASS: backward-structural rule on fixture: append DOES invalidate previous siblings | previousSiblingInvalidationWalkVisits=20

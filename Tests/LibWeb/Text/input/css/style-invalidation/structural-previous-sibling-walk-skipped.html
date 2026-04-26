@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    test(() => {
+        // Demonstrates that appending a child to a parent does not invalidate the styles of existing previous siblings
+        // when no backward-structural pseudo-class applies to any of that parent's children.
+
+        function buildSubtree(child_count) {
+            const fixture = document.createElement("section");
+            for (let i = 0; i < child_count; ++i) {
+                const child = document.createElement("div");
+                child.appendChild(document.createElement("span"));
+                child.appendChild(document.createElement("span"));
+                fixture.appendChild(child);
+            }
+            return fixture;
+        }
+
+        function appendOneChild(fixture) {
+            const child = document.createElement("div");
+            child.appendChild(document.createElement("span"));
+            child.appendChild(document.createElement("span"));
+            fixture.appendChild(child);
+        }
+
+        function runCase(testName, ruleSetup) {
+            const cleanup = ruleSetup();
+            const fixture = buildSubtree(20);
+            document.body.appendChild(fixture);
+
+            // Force initial style resolution so the existing children have computed styles
+            document.body.offsetWidth;
+
+            resetStyleCounters();
+            appendOneChild(fixture);
+            document.body.offsetWidth;
+
+            const visits = internals.getStyleInvalidationCounters().previousSiblingInvalidationWalkVisits;
+            println(`PASS: ${testName} | previousSiblingInvalidationWalkVisits=${visits}`);
+
+            fixture.remove();
+            cleanup();
+        }
+
+        // Case 1: No backward-structural rule anywhere in the document.
+        //         The optimization skips the previous-sibling walk entirely; only the inserted child has its style
+        //         computed.
+        runCase("no backward-structural rule: append does not invalidate previous siblings", () => () => {});
+
+        // Case 2: A forward-only rule (:first-child) is present.
+        //         This sets the per-element first-child flag during matching, but does NOT set the parent's
+        //         has_child_affected_by_backward_structural_changes flag. The optimization still skips.
+        runCase("forward-only rule (:first-child): append does not invalidate previous siblings", () => {
+            const style = addStyle(document.head, "section > div:first-child { color: rebeccapurple; }");
+            return () => style.remove();
+        });
+
+        // Case 3: A backward-structural rule (:last-child) targets an unrelated subtree.
+        //         The flag is set on that unrelated parent, not on our fixture, so the optimization still skips the
+        //         walk for our fixture.
+        runCase("backward-structural rule on unrelated subtree: append does not invalidate previous siblings", () => {
+            const unrelated = document.createElement("aside");
+            unrelated.appendChild(document.createElement("p"));
+            unrelated.appendChild(document.createElement("p"));
+            document.body.appendChild(unrelated);
+            const style = addStyle(document.head, "aside > p:last-child { color: rebeccapurple; }");
+            document.body.offsetWidth;
+            return () => {
+                unrelated.remove();
+                style.remove();
+            };
+        });
+
+        // Case 4: A backward-structural rule (:last-child) DOES apply to our fixture's children.
+        //         The optimization correctly does not skip the walk — the previously-last child must be re-styled
+        //         when a new last child is appended. This case exists to confirm the optimization does not over-apply.
+        runCase("backward-structural rule on fixture: append DOES invalidate previous siblings", () => {
+            const style = addStyle(document.head, "section > div:last-child { color: rebeccapurple; }");
+            return () => style.remove();
+        });
+    });
+</script>

@@ -42,6 +42,9 @@ public:
 
     GC::Ptr<Element> get_element_by_id(FlyString const& id) const;
 
+    bool has_child_affected_by_backward_structural_changes() const { return m_has_child_affected_by_backward_structural_changes; }
+    void set_has_child_affected_by_backward_structural_changes(bool value) { m_has_child_affected_by_backward_structural_changes = value; }
+
 protected:
     ParentNode(JS::Realm& realm, Document& document, NodeType type)
         : Node(realm, document, type)
@@ -57,6 +60,7 @@ protected:
 
 private:
     GC::Ptr<HTMLCollection> m_children;
+    bool m_has_child_affected_by_backward_structural_changes { false };
 };
 
 template<>

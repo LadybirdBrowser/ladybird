@@ -533,13 +533,13 @@ public:
     void set_affected_by_first_child_pseudo_class(bool value) { m_affected_by_first_child_pseudo_class = value; }
 
     bool affected_by_last_child_pseudo_class() const { return m_affected_by_last_child_pseudo_class; }
-    void set_affected_by_last_child_pseudo_class(bool value) { m_affected_by_last_child_pseudo_class = value; }
+    void set_affected_by_last_child_pseudo_class(bool value);
 
     bool affected_by_forward_positional_pseudo_class() const { return m_affected_by_forward_positional_pseudo_class; }
     void set_affected_by_forward_positional_pseudo_class(bool value) { m_affected_by_forward_positional_pseudo_class = value; }
 
     bool affected_by_backward_positional_pseudo_class() const { return m_affected_by_backward_positional_pseudo_class; }
-    void set_affected_by_backward_positional_pseudo_class(bool value) { m_affected_by_backward_positional_pseudo_class = value; }
+    void set_affected_by_backward_positional_pseudo_class(bool value);
 
     size_t sibling_invalidation_distance() const { return m_sibling_invalidation_distance; }
     void set_sibling_invalidation_distance(size_t value) { m_sibling_invalidation_distance = value; }
