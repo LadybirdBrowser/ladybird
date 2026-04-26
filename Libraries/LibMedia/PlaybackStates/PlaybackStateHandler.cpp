@@ -6,6 +6,7 @@
 
 #include <LibMedia/PlaybackManager.h>
 #include <LibMedia/PlaybackStates/SeekingStateHandler.h>
+#include <LibMedia/Processors/AudioMixer.h>
 
 #include "PlaybackStateHandler.h"
 
@@ -30,7 +31,7 @@ void PlaybackStateHandler::on_track_enabled(Track const& track)
 
     VERIFY(track.type() == TrackType::Audio);
     auto& track_data = manager().get_audio_data_for_track(track);
-    if (!manager().m_audio_sink)
+    if (!manager().m_audio_mixer)
         return;
     track_data.provider->seek(manager().current_time(), nullptr);
 }

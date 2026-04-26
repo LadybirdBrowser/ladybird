@@ -136,7 +136,7 @@ private:
 
     void start_audio_seek(Track const& track)
     {
-        if (!manager().m_audio_sink)
+        if (!manager().m_audio_mixer)
             return;
 
         auto& track_data = manager().get_audio_data_for_track(track);

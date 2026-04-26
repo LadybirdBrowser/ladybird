@@ -12,6 +12,7 @@ namespace Media {
 class CodedFrame;
 class AudioDataProvider;
 class AudioDecoder;
+class AudioMixer;
 class AudioPlaybackSink;
 class AudioSink;
 class DecoderError;

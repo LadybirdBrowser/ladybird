@@ -8,6 +8,7 @@
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/PlaybackStates/StartingStateHandler.h>
+#include <LibMedia/Processors/AudioMixer.h>
 #include <LibMedia/Providers/AudioDataProvider.h>
 #include <LibMedia/Providers/GenericTimeProvider.h>
 #include <LibMedia/Providers/VideoDataProvider.h>
@@ -115,7 +116,8 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
         self->set_up_data_providers();
 
         if (!self->m_audio_output_disabled && !self->m_audio_sink && !self->m_audio_tracks.is_empty()) {
-            self->m_audio_sink = MUST(AudioPlaybackSink::try_create());
+            self->m_audio_mixer = MUST(AudioMixer::try_create());
+            self->m_audio_sink = MUST(AudioPlaybackSink::try_create(*self->m_audio_mixer));
             self->set_time_provider(*self->m_audio_sink);
             self->m_audio_sink->on_audio_output_error = [self](Error&& error) {
                 if (!self)
@@ -123,7 +125,7 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
                 dbgln("Audio output initialization failed with error: {}", error);
                 self->disable_audio();
             };
-            self->m_audio_sink->on_start_buffering = [self](Track const& track) {
+            self->m_audio_mixer->on_start_buffering = [self](Track const& track) {
                 if (!self)
                     return;
                 self->track_started_buffering(track);
@@ -309,6 +311,7 @@ void PlaybackManager::set_time_provider(NonnullRefPtr<MediaTimeProvider> const& 
 
 void PlaybackManager::disable_audio()
 {
+    m_audio_mixer = nullptr;
     m_audio_sink = nullptr;
     set_time_provider(make_ref_counted<GenericTimeProvider>());
 
@@ -348,9 +351,9 @@ void PlaybackManager::enable_an_audio_track(Track const& track)
     auto& track_data = get_audio_data_for_track(track);
     VERIFY(!track_data.enabled);
     track_data.enabled = true;
-    if (m_audio_sink) {
-        VERIFY(m_audio_sink->provider(track) == nullptr);
-        m_audio_sink->set_provider(track, track_data.provider);
+    if (m_audio_mixer) {
+        VERIFY(m_audio_mixer->provider(track) == nullptr);
+        m_audio_mixer->set_provider(track, track_data.provider);
         m_tracks_still_buffering.set(track);
     }
     m_handler->on_track_enabled(track);
@@ -360,9 +363,9 @@ void PlaybackManager::disable_an_audio_track(Track const& track)
 {
     auto& track_data = get_audio_data_for_track(track);
     VERIFY(track_data.enabled);
-    if (m_audio_sink) {
-        VERIFY(m_audio_sink->provider(track) == track_data.provider);
-        m_audio_sink->set_provider(track, nullptr);
+    if (m_audio_mixer) {
+        VERIFY(m_audio_mixer->provider(track) == track_data.provider);
+        m_audio_mixer->set_provider(track, nullptr);
     }
     track_data.enabled = false;
     track_stopped_buffering(track);
@@ -380,8 +383,8 @@ bool PlaybackManager::track_is_enabled(Track const& track) const
     auto const& track_data = get_audio_data_for_track(track);
     if (!track_data.enabled)
         return false;
-    if (m_audio_sink)
-        VERIFY(track_data.provider == m_audio_sink->provider(track));
+    if (m_audio_mixer)
+        VERIFY(track_data.provider == m_audio_mixer->provider(track));
     return true;
 }
 
