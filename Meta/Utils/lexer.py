@@ -29,13 +29,7 @@ class Lexer:
         self.position += 1
         return ch
 
-    def consume_specific_char(self, ch: str) -> bool:
-        if self.peek() == ch:
-            self.position += 1
-            return True
-        return False
-
-    def consume_specific_string(self, string: str) -> bool:
+    def consume_specific(self, string: str) -> bool:
         if self.text.startswith(string, self.position):
             self.position += len(string)
             return True

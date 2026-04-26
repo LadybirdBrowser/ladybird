@@ -127,7 +127,7 @@ def parse(contents: str) -> List[Endpoint]:
     endpoints: List[Endpoint] = []
 
     def assert_specific(ch: str) -> None:
-        if not lexer.consume_specific_char(ch):
+        if not lexer.consume_specific(ch):
             raise RuntimeError(f"Expected '{ch}' at position {lexer.position}, got '{lexer.peek()}'")
 
     def consume_whitespace() -> None:
@@ -169,13 +169,13 @@ def parse(contents: str) -> List[Endpoint]:
         parameter = Parameter()
         parameter_index = len(storage) + 1
 
-        if lexer.consume_specific_char("["):
+        if lexer.consume_specific("["):
             while True:
-                if lexer.consume_specific_char("]"):
+                if lexer.consume_specific("]"):
                     consume_whitespace()
                     break
 
-                if lexer.consume_specific_char(","):
+                if lexer.consume_specific(","):
                     consume_whitespace()
 
                 attribute = lexer.consume_until(lambda c: c in ("]", ","))
@@ -215,7 +215,7 @@ def parse(contents: str) -> List[Endpoint]:
             parse_parameter(storage, message_name)
             consume_whitespace()
 
-            if lexer.consume_specific_char(","):
+            if lexer.consume_specific(","):
                 continue
             if lexer.peek() == ")":
                 break
@@ -282,7 +282,7 @@ def parse(contents: str) -> List[Endpoint]:
         parse_includes()
         consume_whitespace()
 
-        if not lexer.consume_specific_string("endpoint"):
+        if not lexer.consume_specific("endpoint"):
             raise RuntimeError(f"Expected 'endpoint' at position {lexer.position}")
 
         consume_whitespace()
