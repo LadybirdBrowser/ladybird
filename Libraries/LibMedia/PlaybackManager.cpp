@@ -320,16 +320,15 @@ NonnullRefPtr<DisplayingVideoSink> PlaybackManager::get_or_create_the_displaying
 {
     auto& track_data = get_video_data_for_track(track);
     if (track_data.display == nullptr) {
-        track_data.display = MUST(Media::DisplayingVideoSink::try_create(m_time_provider,
+        auto display = MUST(Media::DisplayingVideoSink::try_create(m_time_provider,
             [self = weak(), track](PipelineStatus status) {
                 if (!self)
                     return;
                 self->on_video_sink_state_changed(track, status);
             }));
-        track_data.display->set_producer(track, track_data.producer);
+        MUST(display->connect_input(track_data.producer));
+        track_data.display = move(display);
     }
-
-    VERIFY(track_data.display->producer(track) == track_data.producer);
     return *track_data.display;
 }
 
@@ -337,7 +336,7 @@ void PlaybackManager::remove_the_displaying_video_sink_for_track(Track const& tr
 {
     auto& track_data = get_video_data_for_track(track);
     VERIFY(track_data.display);
-    track_data.display->set_producer(track, nullptr);
+    track_data.display->disconnect_input(track_data.producer);
     track_data.display = nullptr;
     on_video_sink_state_changed(track, PipelineStatus::EndOfStream);
 }
@@ -346,21 +345,17 @@ void PlaybackManager::enable_an_audio_track(Track const& track)
 {
     auto& track_data = get_audio_data_for_track(track);
     VERIFY(!track_data.enabled);
+    if (m_audio_mixer)
+        MUST(m_audio_mixer->connect_input(track_data.producer));
     track_data.enabled = true;
-    if (m_audio_mixer) {
-        VERIFY(m_audio_mixer->producer(track) == nullptr);
-        m_audio_mixer->set_producer(track, track_data.producer);
-    }
 }
 
 void PlaybackManager::disable_an_audio_track(Track const& track)
 {
     auto& track_data = get_audio_data_for_track(track);
     VERIFY(track_data.enabled);
-    if (m_audio_mixer) {
-        VERIFY(m_audio_mixer->producer(track) == track_data.producer);
-        m_audio_mixer->set_producer(track, nullptr);
-    }
+    if (m_audio_mixer)
+        m_audio_mixer->disconnect_input(track_data.producer);
     track_data.enabled = false;
 }
 
@@ -373,11 +368,7 @@ bool PlaybackManager::track_is_enabled(Track const& track) const
 
     VERIFY(track.type() == TrackType::Audio);
     auto const& track_data = get_audio_data_for_track(track);
-    if (!track_data.enabled)
-        return false;
-    if (m_audio_mixer)
-        VERIFY(track_data.producer == m_audio_mixer->producer(track));
-    return true;
+    return track_data.enabled;
 }
 
 void PlaybackManager::start()

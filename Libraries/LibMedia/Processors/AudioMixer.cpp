@@ -21,62 +21,79 @@ AudioMixer::AudioMixer() = default;
 
 AudioMixer::~AudioMixer()
 {
-    auto mixing_datas = [&] {
-        Sync::MutexLocker locker { m_mutex };
-        return move(m_track_mixing_datas);
-    }();
-    for (auto& [track, track_data] : mixing_datas)
-        track_data.producer->set_state_changed_handler(nullptr);
+    Sync::MutexLocker locker { m_mutex };
+    for (auto& [input, input_data] : m_inputs)
+        input->set_state_changed_handler(nullptr);
 }
 
-void AudioMixer::set_producer(Track const& track, RefPtr<DecodedAudioProducer> const& producer)
+ErrorOr<void> AudioMixer::connect_input(NonnullRefPtr<AudioProducer> const& input)
 {
     Sync::MutexLocker locker { m_mutex };
-    if (auto old_track_mixing_data = m_track_mixing_datas.take(track); old_track_mixing_data.has_value())
-        old_track_mixing_data->producer->set_state_changed_handler(nullptr);
-
-    if (producer == nullptr) {
-        dispatch_state(PipelineStatus::EndOfStream);
-        return;
-    }
-
-    // The producer must have its output sample specification set before it starts decoding, or
-    // we'll drop some samples due to a mismatch.
-    m_track_mixing_datas.set(track, TrackMixingData(*producer));
-
-    producer->set_state_changed_handler([this](PipelineStatus status) {
+    VERIFY(!m_inputs.contains(input));
+    m_inputs.set(input, InputMixingData());
+    input->set_state_changed_handler([this](PipelineStatus status) {
         dispatch_state(status);
     });
-
     if (m_sample_specification.is_valid()) {
-        producer->set_output_sample_specification(m_sample_specification);
-        producer->seek(mix_head_timestamp());
-        producer->start();
+        if (auto result = input->set_output_sample_specification(m_sample_specification); result.is_error()) {
+            disconnect_input_while_locked(input);
+            return result.release_error();
+        }
+        input->seek(mix_head_timestamp());
+        if (m_started)
+            input->start();
     }
+    return {};
 }
 
-RefPtr<DecodedAudioProducer> AudioMixer::producer(Track const& track) const
+void AudioMixer::disconnect_input(NonnullRefPtr<AudioProducer> const& input)
 {
-    auto mixing_data = m_track_mixing_datas.get(track);
-    if (!mixing_data.has_value())
-        return nullptr;
-    return mixing_data->producer;
+    Sync::MutexLocker locker { m_mutex };
+    VERIFY(m_inputs.contains(input));
+    disconnect_input_while_locked(input);
 }
 
-void AudioMixer::set_sample_specification(Audio::SampleSpecification sample_specification)
+void AudioMixer::disconnect_input_while_locked(NonnullRefPtr<AudioProducer> const& input)
 {
-    AK::Duration timestamp;
-    {
-        Sync::MutexLocker locker { m_mutex };
-        m_sample_specification = sample_specification;
-        timestamp = mix_head_timestamp();
+    input->set_state_changed_handler(nullptr);
+    m_inputs.remove(input);
+    dispatch_state(PipelineStatus::EndOfStream);
+}
+
+ErrorOr<void> AudioMixer::set_output_sample_specification(Audio::SampleSpecification sample_specification)
+{
+    Sync::MutexLocker locker { m_mutex };
+    if (m_sample_specification == sample_specification)
+        return {};
+    m_sample_specification = sample_specification;
+
+    Vector<NonnullRefPtr<AudioProducer>> failed_inputs;
+    Optional<Error> error;
+    auto timestamp = mix_head_timestamp();
+    for (auto& [input, input_data] : m_inputs) {
+        auto result = input->set_output_sample_specification(m_sample_specification);
+        if (result.is_error()) {
+            failed_inputs.append(input);
+            error = result.release_error();
+            continue;
+        }
+        input->seek(timestamp);
     }
 
-    for (auto& [track, track_data] : m_track_mixing_datas) {
-        track_data.producer->set_output_sample_specification(m_sample_specification);
-        track_data.producer->seek(timestamp);
-        track_data.producer->start();
-    }
+    for (auto const& failed_input : failed_inputs)
+        disconnect_input_while_locked(failed_input);
+
+    if (error.has_value())
+        return error.release_value();
+    return {};
+}
+
+void AudioMixer::start()
+{
+    Sync::MutexLocker locker { m_mutex };
+    m_started = true;
+    for (auto& [input, input_data] : m_inputs)
+        input->start();
 }
 
 Audio::SampleSpecification AudioMixer::sample_specification() const
@@ -86,8 +103,6 @@ Audio::SampleSpecification AudioMixer::sample_specification() const
 
 AK::Duration AudioMixer::mix_head_timestamp() const
 {
-    if (!m_sample_specification.is_valid())
-        return AK::Duration::zero();
     return AK::Duration::from_time_units(m_next_sample_to_write, 1, m_sample_specification.sample_rate());
 }
 
@@ -100,21 +115,21 @@ void AudioMixer::seek(AK::Duration timestamp)
 
         m_next_sample_to_write = timestamp.to_time_units(1, m_sample_specification.sample_rate());
 
-        for (auto& [track, track_data] : m_track_mixing_datas) {
-            track_data.current_block.clear();
-            track_data.last_status = PipelineStatus::Pending;
+        for (auto& [input, input_data] : m_inputs) {
+            input_data.current_block.clear();
+            input_data.last_status = PipelineStatus::Pending;
         }
     }
 
-    if (m_track_mixing_datas.is_empty()) {
+    if (m_inputs.is_empty()) {
         Core::deferred_invoke([self = NonnullRefPtr(*this)] {
             self->dispatch_state(PipelineStatus::EndOfStream);
         });
         return;
     }
 
-    for (auto& [track, track_data] : m_track_mixing_datas)
-        track_data.producer->seek(timestamp);
+    for (auto& [input, input_data] : m_inputs)
+        input->seek(timestamp);
 }
 
 void AudioMixer::set_state_changed_handler(PipelineStateChangeHandler handler)
@@ -143,8 +158,8 @@ PipelineStatus AudioMixer::pull(AudioBlock& into)
     auto combined_status_after_mix = PipelineStatus::EndOfStream;
     i64 latest_mixed_sample = samples_end_cap;
 
-    for (auto& [track, track_data] : m_track_mixing_datas)
-        track_data.next_sample = buffer_start;
+    for (auto& [input, input_data] : m_inputs)
+        input_data.next_sample = buffer_start;
 
     into.emplace(m_sample_specification, buffer_start, [&](AudioBlock::Data& data) {
         data.resize_and_keep_capacity(write_size);
@@ -152,23 +167,31 @@ PipelineStatus AudioMixer::pull(AudioBlock& into)
             data[i] = 0.0f;
 
         while (true) {
-            TrackMixingData* next_mix_target = nullptr;
-            for (auto& [track, track_data] : m_track_mixing_datas) {
-                if (track_data.next_sample >= samples_end_cap)
-                    continue;
-                if (next_mix_target == nullptr || track_data.next_sample < next_mix_target->next_sample)
-                    next_mix_target = &track_data;
-            }
-            if (next_mix_target == nullptr)
+            struct MixTarget {
+                AudioProducer& input;
+                InputMixingData& input_data;
+            };
+            auto mix_target = [&] {
+                Optional<MixTarget> result;
+                for (auto& [input, input_data] : m_inputs) {
+                    if (input_data.next_sample >= samples_end_cap)
+                        continue;
+                    if (!result.has_value() || input_data.next_sample < result->input_data.next_sample)
+                        result = { input, input_data };
+                }
+                return result;
+            }();
+            if (!mix_target.has_value())
                 break;
+            auto [input, input_data] = mix_target.release_value();
 
-            auto& current_block = next_mix_target->current_block;
+            auto& current_block = input_data.current_block;
             auto current_block_is_usable = [&] {
                 if (current_block.is_empty())
                     return false;
                 if (current_block.sample_specification() != m_sample_specification)
                     return false;
-                if (current_block.end_timestamp_in_samples() <= next_mix_target->next_sample)
+                if (current_block.end_timestamp_in_samples() <= input_data.next_sample)
                     return false;
                 return true;
             }();
@@ -176,12 +199,12 @@ PipelineStatus AudioMixer::pull(AudioBlock& into)
             if (!current_block_is_usable) {
                 current_block.clear();
                 AudioBlock new_block;
-                next_mix_target->last_status = next_mix_target->producer->pull(new_block);
-                if (next_mix_target->last_status == PipelineStatus::EndOfStream) {
-                    next_mix_target->next_sample = samples_end_cap;
+                input_data.last_status = input.pull(new_block);
+                if (input_data.last_status == PipelineStatus::EndOfStream) {
+                    input_data.next_sample = samples_end_cap;
                     continue;
                 }
-                if (next_mix_target->last_status != PipelineStatus::HaveData)
+                if (input_data.last_status != PipelineStatus::HaveData)
                     break;
                 VERIFY(!new_block.is_empty());
                 current_block = move(new_block);
@@ -190,11 +213,11 @@ PipelineStatus AudioMixer::pull(AudioBlock& into)
 
             auto first_sample_offset = current_block.timestamp_in_samples();
             if (first_sample_offset >= samples_end_cap) {
-                next_mix_target->next_sample = samples_end_cap;
+                input_data.next_sample = samples_end_cap;
                 continue;
             }
 
-            auto next_sample = max(next_mix_target->next_sample, first_sample_offset);
+            auto next_sample = max(input_data.next_sample, first_sample_offset);
 
             VERIFY(next_sample >= first_sample_offset);
             auto index_in_block = static_cast<size_t>((next_sample - first_sample_offset) * channel_count);
@@ -214,12 +237,12 @@ PipelineStatus AudioMixer::pull(AudioBlock& into)
             for (size_t i = 0; i < write_count; i++)
                 data[index_in_buffer + i] += current_block.data()[index_in_block + i];
 
-            next_mix_target->next_sample = next_sample + static_cast<i64>(write_count / channel_count);
+            input_data.next_sample = next_sample + static_cast<i64>(write_count / channel_count);
         }
 
-        for (auto& [track, track_data] : m_track_mixing_datas) {
-            latest_mixed_sample = min(latest_mixed_sample, track_data.next_sample);
-            combined_status_after_mix = select_combined_pipeline_status(combined_status_after_mix, track_data.last_status);
+        for (auto& [input, input_data] : m_inputs) {
+            latest_mixed_sample = min(latest_mixed_sample, input_data.next_sample);
+            combined_status_after_mix = select_combined_pipeline_status(combined_status_after_mix, input_data.last_status);
         }
     });
 

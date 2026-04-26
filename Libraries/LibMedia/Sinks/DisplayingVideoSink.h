@@ -8,12 +8,12 @@
 
 #include <AK/Function.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/RefPtr.h>
 #include <AK/Time.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Sinks/VideoSink.h>
-#include <LibMedia/Track.h>
 
 namespace Media {
 
@@ -31,8 +31,8 @@ public:
 
     void set_time_provider(NonnullRefPtr<MediaTimeProvider> const&);
 
-    virtual void set_producer(Track const&, RefPtr<DecodedVideoProducer> const&) override;
-    RefPtr<DecodedVideoProducer> producer(Track const&) const override;
+    virtual ErrorOr<void> connect_input(NonnullRefPtr<VideoProducer> const&) override;
+    virtual void disconnect_input(NonnullRefPtr<VideoProducer> const&) override;
 
     virtual void seek(AK::Duration timestamp) override;
 
@@ -40,12 +40,10 @@ public:
     RefPtr<VideoFrame> current_frame();
 
 private:
-    void verify_track(Track const&) const;
     void dispatch_state_if_changed(PipelineStatus);
 
     NonnullRefPtr<MediaTimeProvider> m_time_provider;
-    RefPtr<DecodedVideoProducer> m_producer;
-    Optional<Track> m_track;
+    RefPtr<VideoProducer> m_input;
 
     RefPtr<VideoFrame> m_next_frame;
     RefPtr<VideoFrame> m_current_frame;

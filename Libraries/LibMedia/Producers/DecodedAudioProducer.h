@@ -44,9 +44,9 @@ public:
 
     void set_error_handler(ErrorHandler&&);
     void set_duration_change_handler(BlockEndTimeHandler&&);
-    void set_output_sample_specification(Audio::SampleSpecification);
+    virtual ErrorOr<void> set_output_sample_specification(Audio::SampleSpecification) override;
 
-    void start();
+    virtual void start() override;
     void suspend();
     void resume();
 
@@ -65,7 +65,7 @@ private:
 
         void set_error_handler(ErrorHandler&&);
         void set_duration_change_handler(BlockEndTimeHandler&&);
-        void set_output_sample_specification(Audio::SampleSpecification);
+        ErrorOr<void> set_output_sample_specification(Audio::SampleSpecification);
         void set_state_changed_handler(PipelineStateChangeHandler);
 
         void start();

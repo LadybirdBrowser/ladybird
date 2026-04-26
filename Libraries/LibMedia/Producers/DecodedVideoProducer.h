@@ -45,7 +45,7 @@ public:
     void set_error_handler(ErrorHandler&&);
     void set_duration_change_handler(FrameEndTimeHandler&&);
 
-    void start();
+    virtual void start() override;
     void suspend();
     void resume();
 

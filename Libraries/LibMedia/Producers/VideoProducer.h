@@ -18,6 +18,8 @@ class VideoProducer : public virtual MediaPipelineNode {
 public:
     virtual ~VideoProducer() = default;
 
+    virtual void start() = 0;
+
     virtual PipelineStatus pull(RefPtr<VideoFrame>& into) = 0;
     virtual void set_state_changed_handler(PipelineStateChangeHandler) = 0;
 

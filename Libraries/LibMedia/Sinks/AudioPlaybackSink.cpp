@@ -169,8 +169,13 @@ void AudioPlaybackSink::create_playback_stream()
     auto promise = Audio::PlaybackStream::create(Audio::OutputState::Suspended, target_latency_ms, move(data_callback));
 
     promise->when_resolved([self = NonnullRefPtr(*this)](auto& stream) {
+        if (auto result = self->m_output_thread_data->m_mixer->set_output_sample_specification(stream->sample_specification()); result.is_error()) {
+            if (self->on_audio_output_error)
+                self->on_audio_output_error(result.release_error());
+            return;
+        }
+        self->m_output_thread_data->m_mixer->start();
         self->m_output_thread_data->m_playback_stream = stream;
-        self->m_output_thread_data->m_mixer->set_sample_specification(stream->sample_specification());
         self->set_volume(self->m_volume);
 
         if (self->m_temporary_time.has_value()) {

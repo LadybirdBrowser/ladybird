@@ -64,9 +64,9 @@ void DecodedAudioProducer::set_duration_change_handler(BlockEndTimeHandler&& han
     m_thread_data->set_duration_change_handler(move(handler));
 }
 
-void DecodedAudioProducer::set_output_sample_specification(Audio::SampleSpecification sample_specification)
+ErrorOr<void> DecodedAudioProducer::set_output_sample_specification(Audio::SampleSpecification sample_specification)
 {
-    m_thread_data->set_output_sample_specification(sample_specification);
+    return m_thread_data->set_output_sample_specification(sample_specification);
 }
 
 void DecodedAudioProducer::set_state_changed_handler(PipelineStateChangeHandler handler)
@@ -120,9 +120,10 @@ void DecodedAudioProducer::ThreadData::set_duration_change_handler(BlockEndTimeH
     m_duration_change_handler = move(handler);
 }
 
-void DecodedAudioProducer::ThreadData::set_output_sample_specification(Audio::SampleSpecification sample_specification)
+ErrorOr<void> DecodedAudioProducer::ThreadData::set_output_sample_specification(Audio::SampleSpecification sample_specification)
 {
-    m_converter->set_output_sample_specification(sample_specification).release_value_but_fixme_should_propagate_errors();
+    TRY(m_converter->set_output_sample_specification(sample_specification));
+    return {};
 }
 
 void DecodedAudioProducer::ThreadData::set_state_changed_handler(PipelineStateChangeHandler handler)
