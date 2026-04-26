@@ -8,7 +8,6 @@
  */
 
 #define AK_DONT_REPLACE_STD
-#define SK_SUPPORT_UNSPANNED_APIS
 
 #include <AK/GenericShorthands.h>
 #include <AK/OwnPtr.h>
@@ -25,7 +24,7 @@
 #include <core/SkPath.h>
 #include <effects/SkBlurMaskFilter.h>
 #include <effects/SkDashPathEffect.h>
-#include <effects/SkGradientShader.h>
+#include <effects/SkGradient.h>
 
 namespace Gfx {
 
@@ -54,29 +53,30 @@ static void apply_paint_style(SkPaint& paint, PaintStyle const& style)
     } else if (auto const& linear_gradient = as_if<Gfx::CanvasLinearGradientPaintStyle>(style)) {
         auto const& color_stops = linear_gradient->color_stops();
 
-        Vector<SkColor> colors;
+        Vector<SkColor4f> colors;
         colors.ensure_capacity(color_stops.size());
         Vector<SkScalar> positions;
         positions.ensure_capacity(color_stops.size());
         for (auto const& color_stop : color_stops) {
-            colors.append(to_skia_color(color_stop.color));
+            colors.append(SkColor4f::FromColor(to_skia_color(color_stop.color)));
             positions.append(color_stop.position);
         }
 
         Array points { to_skia_point(linear_gradient->start_point()), to_skia_point(linear_gradient->end_point()) };
 
         SkMatrix matrix;
-        auto shader = SkGradientShader::MakeLinear(points.data(), colors.data(), positions.data(), color_stops.size(), SkTileMode::kClamp, 0, &matrix);
+        SkGradient gradient { { colors.span(), positions.span(), SkTileMode::kClamp }, {} };
+        auto shader = SkShaders::LinearGradient(points.data(), gradient, &matrix);
         paint.setShader(shader);
     } else if (auto const* radial_gradient = as_if<CanvasRadialGradientPaintStyle>(style)) {
         auto const& color_stops = radial_gradient->color_stops();
 
-        Vector<SkColor> colors;
+        Vector<SkColor4f> colors;
         colors.ensure_capacity(color_stops.size());
         Vector<SkScalar> positions;
         positions.ensure_capacity(color_stops.size());
         for (auto const& color_stop : color_stops) {
-            colors.append(to_skia_color(color_stop.color));
+            colors.append(SkColor4f::FromColor(to_skia_color(color_stop.color)));
             positions.append(color_stop.position);
         }
 
@@ -89,7 +89,8 @@ static void apply_paint_style(SkPaint& paint, PaintStyle const& style)
         auto end_sk_point = to_skia_point(end_center);
 
         SkMatrix matrix;
-        auto shader = SkGradientShader::MakeTwoPointConical(start_sk_point, start_radius, end_sk_point, end_radius, colors.data(), positions.data(), color_stops.size(), SkTileMode::kClamp, 0, &matrix);
+        SkGradient gradient { { colors.span(), positions.span(), SkTileMode::kClamp }, {} };
+        auto shader = SkShaders::TwoPointConicalGradient(start_sk_point, start_radius, end_sk_point, end_radius, gradient, &matrix);
         paint.setShader(shader);
     } else if (auto const* canvas_pattern = as_if<CanvasPatternPaintStyle>(style)) {
         auto image = canvas_pattern->image();
@@ -233,7 +234,7 @@ void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::Color color, float thi
     paint.setStrokeCap(to_skia_cap(cap_style));
     paint.setStrokeJoin(to_skia_join(join_style));
     paint.setStrokeMiter(miter_limit);
-    paint.setPathEffect(SkDashPathEffect::Make(dash_array.data(), dash_array.size(), dash_offset));
+    paint.setPathEffect(SkDashPathEffect::Make({ dash_array.data(), dash_array.size() }, dash_offset));
     paint.setBlender(to_skia_blender(compositing_and_blending_operator));
     auto sk_path = to_skia_path(path);
     impl().with_canvas([&](auto& canvas) {
@@ -276,7 +277,7 @@ void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::PaintStyle const& pain
     paint.setStrokeCap(to_skia_cap(cap_style));
     paint.setStrokeJoin(to_skia_join(join_style));
     paint.setStrokeMiter(miter_limit);
-    paint.setPathEffect(SkDashPathEffect::Make(dash_array.data(), dash_array.size(), dash_offset));
+    paint.setPathEffect(SkDashPathEffect::Make({ dash_array.data(), dash_array.size() }, dash_offset));
     paint.setBlender(to_skia_blender(compositing_and_blending_operator));
     impl().with_canvas([&](auto& canvas) {
         canvas.drawPath(sk_path, paint);

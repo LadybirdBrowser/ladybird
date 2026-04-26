@@ -5,7 +5,6 @@
  */
 
 #define AK_DONT_REPLACE_STD
-#define SK_SUPPORT_UNSPANNED_APIS
 
 #include <AK/TypeCasts.h>
 #include <AK/Utf16View.h>
@@ -17,6 +16,7 @@
 #include <LibGfx/TextLayout.h>
 #include <core/SkFont.h>
 #include <core/SkPath.h>
+#include <core/SkPathBuilder.h>
 #include <core/SkPathMeasure.h>
 #include <core/SkTextBlob.h>
 #include <pathops/SkPathOps.h>
@@ -48,21 +48,35 @@ void PathImplSkia::clear()
     m_path->reset();
 }
 
+template<typename Callback>
+static void mutate_path(SkPath& path, Callback&& callback)
+{
+    SkPathBuilder builder(path);
+    callback(builder);
+    path = builder.detach();
+}
+
 void PathImplSkia::move_to(Gfx::FloatPoint const& point)
 {
     m_last_move_to = point;
-    m_path->moveTo(point.x(), point.y());
+    mutate_path(*m_path, [&](SkPathBuilder& builder) {
+        builder.moveTo(point.x(), point.y());
+    });
 }
 
 void PathImplSkia::line_to(Gfx::FloatPoint const& point)
 {
-    m_path->lineTo(point.x(), point.y());
+    mutate_path(*m_path, [&](SkPathBuilder& builder) {
+        builder.lineTo(point.x(), point.y());
+    });
 }
 
 void PathImplSkia::close()
 {
-    m_path->close();
-    m_path->moveTo(m_last_move_to.x(), m_last_move_to.y());
+    mutate_path(*m_path, [&](SkPathBuilder& builder) {
+        builder.close();
+        builder.moveTo(m_last_move_to.x(), m_last_move_to.y());
+    });
 }
 
 void PathImplSkia::elliptical_arc_to(FloatPoint point, FloatSize radii, float x_axis_rotation, bool large_arc, bool sweep)
@@ -71,28 +85,36 @@ void PathImplSkia::elliptical_arc_to(FloatPoint point, FloatSize radii, float x_
     SkScalar skWidth = SkFloatToScalar(radii.width());
     SkScalar skHeight = SkFloatToScalar(radii.height());
     SkScalar skXRotation = SkFloatToScalar(sk_float_radians_to_degrees(x_axis_rotation));
-    SkPath::ArcSize skLargeArc = large_arc ? SkPath::kLarge_ArcSize : SkPath::kSmall_ArcSize;
+    auto skLargeArc = large_arc ? SkPathBuilder::kLarge_ArcSize : SkPathBuilder::kSmall_ArcSize;
     SkPathDirection skSweep = sweep ? SkPathDirection::kCW : SkPathDirection::kCCW;
-    m_path->arcTo(skWidth, skHeight, skXRotation, skLargeArc, skSweep, skPoint.x(), skPoint.y());
+    mutate_path(*m_path, [&](SkPathBuilder& builder) {
+        builder.arcTo(SkPoint::Make(skWidth, skHeight), skXRotation, skLargeArc, skSweep, skPoint);
+    });
 }
 
 void PathImplSkia::arc_to(FloatPoint point, float radius, bool large_arc, bool sweep)
 {
     SkPoint skPoint = SkPoint::Make(point.x(), point.y());
     SkScalar skRadius = SkFloatToScalar(radius);
-    SkPath::ArcSize skLargeArc = large_arc ? SkPath::kLarge_ArcSize : SkPath::kSmall_ArcSize;
+    auto skLargeArc = large_arc ? SkPathBuilder::kLarge_ArcSize : SkPathBuilder::kSmall_ArcSize;
     SkPathDirection skSweep = sweep ? SkPathDirection::kCW : SkPathDirection::kCCW;
-    m_path->arcTo(skRadius, skRadius, 0, skLargeArc, skSweep, skPoint.x(), skPoint.y());
+    mutate_path(*m_path, [&](SkPathBuilder& builder) {
+        builder.arcTo(SkPoint::Make(skRadius, skRadius), 0, skLargeArc, skSweep, skPoint);
+    });
 }
 
 void PathImplSkia::quadratic_bezier_curve_to(FloatPoint through, FloatPoint point)
 {
-    m_path->quadTo(through.x(), through.y(), point.x(), point.y());
+    mutate_path(*m_path, [&](SkPathBuilder& builder) {
+        builder.quadTo(through.x(), through.y(), point.x(), point.y());
+    });
 }
 
 void PathImplSkia::cubic_bezier_curve_to(FloatPoint c1, FloatPoint c2, FloatPoint p2)
 {
-    m_path->cubicTo(c1.x(), c1.y(), c2.x(), c2.y(), p2.x(), p2.y());
+    mutate_path(*m_path, [&](SkPathBuilder& builder) {
+        builder.cubicTo(c1.x(), c1.y(), c2.x(), c2.y(), p2.x(), p2.y());
+    });
 }
 
 void PathImplSkia::text(Utf8View const& string, Font const& font)
@@ -115,18 +137,19 @@ void PathImplSkia::glyph_run(GlyphRun const& glyph_run)
     auto sk_font = glyph_run.font().skia_font(1);
     m_path->setFillType(SkPathFillType::kWinding);
     auto font_ascent = glyph_run.font().pixel_metrics().ascent;
+    SkPathBuilder builder(*m_path);
     for (auto const& glyph : glyph_run.glyphs()) {
-        SkPath glyph_path;
-        if (!sk_font.getPath(static_cast<SkGlyphID>(glyph.glyph_id), &glyph_path))
+        auto glyph_path = sk_font.getPath(static_cast<SkGlyphID>(glyph.glyph_id));
+        if (!glyph_path.has_value())
             continue;
-        glyph_path.offset(glyph.position.x(), glyph.position.y() + font_ascent);
-        m_path->addPath(glyph_path);
+        builder.addPath(glyph_path->makeOffset(glyph.position.x(), glyph.position.y() + font_ascent));
     }
+    *m_path = builder.detach();
 }
 
 void PathImplSkia::offset(Gfx::FloatPoint const& offset)
 {
-    m_path->offset(offset.x(), offset.y());
+    *m_path = m_path->makeOffset(offset.x(), offset.y());
 }
 
 template<typename TextToGlyphs>
@@ -144,15 +167,16 @@ static NonnullOwnPtr<PathImpl> place_text_along_impl(SkPath const& path, Font co
     SkScalar accumulated_distance = 0;
 
     auto output_path = PathImplSkia::create();
+    SkPathBuilder output_builder(output_path->sk_path());
     SkScalar path_length = path_measure.getLength();
 
     for (size_t i = 0; i < length_in_code_points; ++i) {
         SkGlyphID glyph = run_buffer.glyphs[i];
-        SkPath glyph_path;
-        sk_font.getPath(glyph, &glyph_path);
+        auto glyph_path = sk_font.getPath(glyph);
+        if (!glyph_path.has_value())
+            continue;
 
-        SkScalar advance;
-        sk_font.getWidths(&glyph, 1, &advance);
+        SkScalar advance = sk_font.getWidth(glyph);
 
         SkPoint position;
         SkVector tangent;
@@ -168,12 +192,12 @@ static NonnullOwnPtr<PathImpl> place_text_along_impl(SkPath const& path, Font co
         matrix.setTranslate(position.x(), position.y());
         matrix.preRotate(SkRadiansToDegrees(std::atan2(tangent.y(), tangent.x())));
 
-        glyph_path.transform(matrix);
-        output_path->sk_path().addPath(glyph_path);
+        output_builder.addPath(glyph_path->makeTransform(matrix));
 
         accumulated_distance += advance;
     }
 
+    output_path->sk_path() = output_builder.detach();
     return output_path;
 }
 
@@ -182,7 +206,7 @@ NonnullOwnPtr<PathImpl> PathImplSkia::place_text_along(Utf8View const& text, Fon
     auto length_in_code_points = text.length();
 
     return place_text_along_impl(*m_path, font, length_in_code_points, [&](auto const& sk_font, auto const& run_buffer) {
-        sk_font.textToGlyphs(text.as_string().characters_without_null_termination(), text.as_string().length(), SkTextEncoding::kUTF8, run_buffer.glyphs, length_in_code_points);
+        sk_font.textToGlyphs(text.as_string().characters_without_null_termination(), text.as_string().length(), SkTextEncoding::kUTF8, { run_buffer.glyphs, length_in_code_points });
     });
 }
 
@@ -194,13 +218,15 @@ NonnullOwnPtr<PathImpl> PathImplSkia::place_text_along(Utf16View const& text, Fo
     auto length_in_code_points = text.length_in_code_points();
 
     return place_text_along_impl(*m_path, font, length_in_code_points, [&](auto const& sk_font, auto const& run_buffer) {
-        sk_font.textToGlyphs(text.utf16_span().data(), text.length_in_code_units() * sizeof(char16_t), SkTextEncoding::kUTF16, run_buffer.glyphs, length_in_code_points);
+        sk_font.textToGlyphs(text.utf16_span().data(), text.length_in_code_units() * sizeof(char16_t), SkTextEncoding::kUTF16, { run_buffer.glyphs, length_in_code_points });
     });
 }
 
 void PathImplSkia::append_path(Gfx::Path const& other)
 {
-    m_path->addPath(static_cast<PathImplSkia const&>(other.impl()).sk_path());
+    mutate_path(*m_path, [&](SkPathBuilder& builder) {
+        builder.addPath(static_cast<PathImplSkia const&>(other.impl()).sk_path());
+    });
 }
 
 void PathImplSkia::intersect(Gfx::Path const& other)
@@ -251,7 +277,7 @@ NonnullOwnPtr<PathImpl> PathImplSkia::copy_transformed(Gfx::AffineTransform cons
         transform.a(), transform.c(), transform.e(),
         transform.b(), transform.d(), transform.f(),
         0, 0, 1);
-    new_path->sk_path().transform(matrix);
+    new_path->sk_path() = new_path->sk_path().makeTransform(matrix);
     return new_path;
 }
 

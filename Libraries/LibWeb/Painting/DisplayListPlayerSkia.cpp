@@ -5,8 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#define SK_SUPPORT_UNSPANNED_APIS
-
 #include <core/SkBitmap.h>
 #include <core/SkBlurTypes.h>
 #include <core/SkCanvas.h>
@@ -14,11 +12,12 @@
 #include <core/SkFont.h>
 #include <core/SkMaskFilter.h>
 #include <core/SkPath.h>
+#include <core/SkPathBuilder.h>
 #include <core/SkPathEffect.h>
 #include <core/SkRRect.h>
 #include <core/SkSurface.h>
 #include <effects/SkDashPathEffect.h>
-#include <effects/SkGradientShader.h>
+#include <effects/SkGradient.h>
 #include <effects/SkImageFilters.h>
 #include <effects/SkLumaColorFilter.h>
 #include <gpu/ganesh/GrDirectContext.h>
@@ -219,42 +218,42 @@ void DisplayListPlayerSkia::translate(Translate const& command)
     canvas.translate(command.delta.x(), command.delta.y());
 }
 
-static SkGradientShader::Interpolation to_skia_interpolation(CSS::ColorInterpolationMethodStyleValue::ColorInterpolationMethod interpolation_method)
+static SkGradient::Interpolation to_skia_interpolation(CSS::ColorInterpolationMethodStyleValue::ColorInterpolationMethod interpolation_method)
 {
-    SkGradientShader::Interpolation interpolation;
+    SkGradient::Interpolation interpolation;
 
     interpolation_method.visit(
         [&](CSS::RectangularColorSpace color_space) {
             switch (color_space) {
             case CSS::RectangularColorSpace::Srgb:
-                interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kSRGB;
+                interpolation.fColorSpace = SkGradient::Interpolation::ColorSpace::kSRGB;
                 break;
             case CSS::RectangularColorSpace::SrgbLinear:
-                interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kSRGBLinear;
+                interpolation.fColorSpace = SkGradient::Interpolation::ColorSpace::kSRGBLinear;
                 break;
             case CSS::RectangularColorSpace::Lab:
-                interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kLab;
+                interpolation.fColorSpace = SkGradient::Interpolation::ColorSpace::kLab;
                 break;
             case CSS::RectangularColorSpace::Oklab:
-                interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kOKLab;
+                interpolation.fColorSpace = SkGradient::Interpolation::ColorSpace::kOKLab;
                 break;
             case CSS::RectangularColorSpace::DisplayP3:
-                interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kDisplayP3;
+                interpolation.fColorSpace = SkGradient::Interpolation::ColorSpace::kDisplayP3;
                 break;
             case CSS::RectangularColorSpace::A98Rgb:
-                interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kA98RGB;
+                interpolation.fColorSpace = SkGradient::Interpolation::ColorSpace::kA98RGB;
                 break;
             case CSS::RectangularColorSpace::ProphotoRgb:
-                interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kProphotoRGB;
+                interpolation.fColorSpace = SkGradient::Interpolation::ColorSpace::kProphotoRGB;
                 break;
             case CSS::RectangularColorSpace::Rec2020:
-                interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kRec2020;
+                interpolation.fColorSpace = SkGradient::Interpolation::ColorSpace::kRec2020;
                 break;
             case CSS::RectangularColorSpace::DisplayP3Linear:
             case CSS::RectangularColorSpace::XyzD50:
             case CSS::RectangularColorSpace::XyzD65:
                 dbgln("FIXME: Unsupported gradient color space");
-                interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kOKLab;
+                interpolation.fColorSpace = SkGradient::Interpolation::ColorSpace::kOKLab;
                 break;
             case CSS::RectangularColorSpace::Xyz:
                 // NB: Xyz should have been canonicalized to XyzD65 at parse time
@@ -264,36 +263,36 @@ static SkGradientShader::Interpolation to_skia_interpolation(CSS::ColorInterpola
         [&](CSS::ColorInterpolationMethodStyleValue::PolarColorInterpolationMethod const& color_space) {
             switch (color_space.color_space) {
             case CSS::PolarColorSpace::Hsl:
-                interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kHSL;
+                interpolation.fColorSpace = SkGradient::Interpolation::ColorSpace::kHSL;
                 break;
             case CSS::PolarColorSpace::Hwb:
-                interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kHWB;
+                interpolation.fColorSpace = SkGradient::Interpolation::ColorSpace::kHWB;
                 break;
             case CSS::PolarColorSpace::Lch:
-                interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kLCH;
+                interpolation.fColorSpace = SkGradient::Interpolation::ColorSpace::kLCH;
                 break;
             case CSS::PolarColorSpace::Oklch:
-                interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kOKLCH;
+                interpolation.fColorSpace = SkGradient::Interpolation::ColorSpace::kOKLCH;
                 break;
             }
 
             switch (color_space.hue_interpolation_method) {
             case CSS::HueInterpolationMethod::Shorter:
-                interpolation.fHueMethod = SkGradientShader::Interpolation::HueMethod::kShorter;
+                interpolation.fHueMethod = SkGradient::Interpolation::HueMethod::kShorter;
                 break;
             case CSS::HueInterpolationMethod::Longer:
-                interpolation.fHueMethod = SkGradientShader::Interpolation::HueMethod::kLonger;
+                interpolation.fHueMethod = SkGradient::Interpolation::HueMethod::kLonger;
                 break;
             case CSS::HueInterpolationMethod::Increasing:
-                interpolation.fHueMethod = SkGradientShader::Interpolation::HueMethod::kIncreasing;
+                interpolation.fHueMethod = SkGradient::Interpolation::HueMethod::kIncreasing;
                 break;
             case CSS::HueInterpolationMethod::Decreasing:
-                interpolation.fHueMethod = SkGradientShader::Interpolation::HueMethod::kDecreasing;
+                interpolation.fHueMethod = SkGradient::Interpolation::HueMethod::kDecreasing;
                 break;
             }
         });
 
-    interpolation.fInPremul = SkGradientShader::Interpolation::InPremul::kYes;
+    interpolation.fInPremul = SkGradient::Interpolation::InPremul::kYes;
 
     return interpolation;
 }
@@ -331,7 +330,8 @@ void DisplayListPlayerSkia::paint_linear_gradient(PaintLinearGradient const& com
 
     auto color_space = SkColorSpace::MakeSRGB();
     auto interpolation = to_skia_interpolation(linear_gradient_data.interpolation_method);
-    auto shader = SkGradientShader::MakeLinear(points.data(), colors.data(), color_space, positions.data(), positions.size(), SkTileMode::kRepeat, interpolation, &matrix);
+    SkGradient gradient { { colors.span(), positions.span(), SkTileMode::kRepeat, color_space }, interpolation };
+    auto shader = SkShaders::LinearGradient(points.data(), gradient, &matrix);
 
     SkPaint paint;
     paint.setDither(true);
@@ -360,10 +360,8 @@ void DisplayListPlayerSkia::paint_inner_box_shadow(PaintInnerBoxShadow const& co
     auto outer_rect = to_skia_rrect(command.outer_shadow_rect, command.content_corner_radii);
     auto inner_rect = to_skia_rrect(command.inner_shadow_rect, command.inner_shadow_corner_radii);
 
-    SkPath outer_path;
-    outer_path.addRRect(outer_rect);
-    SkPath inner_path;
-    inner_path.addRRect(inner_rect);
+    SkPath outer_path = SkPathBuilder().addRRect(outer_rect).detach();
+    SkPath inner_path = SkPathBuilder().addRRect(inner_rect).detach();
 
     SkPath result_path;
     if (!Op(outer_path, inner_path, SkPathOp::kDifference_SkPathOp, &result_path)) {
@@ -428,13 +426,13 @@ static SkPaint gradient_paint_style_to_skia_paint(Painting::SVGGradientPaintStyl
 
     auto const& color_stops = paint_style.color_stops();
 
-    Vector<SkColor> colors;
+    Vector<SkColor4f> colors;
     colors.ensure_capacity(color_stops.size());
     Vector<SkScalar> positions;
     positions.ensure_capacity(color_stops.size());
 
     for (auto const& color_stop : color_stops) {
-        colors.append(to_skia_color(color_stop.color));
+        colors.append(SkColor4f::FromColor(to_skia_color(color_stop.color)));
         positions.append(color_stop.position);
     }
 
@@ -445,6 +443,7 @@ static SkPaint gradient_paint_style_to_skia_paint(Painting::SVGGradientPaintStyl
 
     auto tile_mode = to_skia_tile_mode(paint_style.spread_method());
 
+    SkGradient gradient { { colors.span(), positions.span(), tile_mode }, {} };
     sk_sp<SkShader> shader;
     if (is<SVGLinearGradientPaintStyle>(paint_style)) {
         auto const& linear_gradient_paint_style = static_cast<SVGLinearGradientPaintStyle const&>(paint_style);
@@ -453,7 +452,7 @@ static SkPaint gradient_paint_style_to_skia_paint(Painting::SVGGradientPaintStyl
             to_skia_point(linear_gradient_paint_style.start_point()),
             to_skia_point(linear_gradient_paint_style.end_point()),
         };
-        shader = SkGradientShader::MakeLinear(points.data(), colors.data(), positions.data(), color_stops.size(), tile_mode, 0, &matrix);
+        shader = SkShaders::LinearGradient(points.data(), gradient, &matrix);
     } else if (is<SVGRadialGradientPaintStyle>(paint_style)) {
         auto const& radial_gradient_paint_style = static_cast<SVGRadialGradientPaintStyle const&>(paint_style);
 
@@ -463,7 +462,7 @@ static SkPaint gradient_paint_style_to_skia_paint(Painting::SVGGradientPaintStyl
         auto start_radius = radial_gradient_paint_style.start_radius();
         auto end_radius = radial_gradient_paint_style.end_radius();
 
-        shader = SkGradientShader::MakeTwoPointConical(start_center, start_radius, end_center, end_radius, colors.data(), positions.data(), color_stops.size(), tile_mode, 0, &matrix);
+        shader = SkShaders::TwoPointConicalGradient(start_center, start_radius, end_center, end_radius, gradient, &matrix);
     }
     paint.setShader(shader);
     if (paint_style.color_space() == Gfx::InterpolationColorSpace::LinearRGB) {
@@ -544,7 +543,7 @@ void DisplayListPlayerSkia::stroke_path(StrokePath const& command)
     paint.setStrokeCap(to_skia_cap(command.cap_style));
     paint.setStrokeJoin(to_skia_join(command.join_style));
     paint.setStrokeMiter(command.miter_limit);
-    paint.setPathEffect(SkDashPathEffect::Make(command.dash_array.data(), command.dash_array.size(), command.dash_offset));
+    paint.setPathEffect(SkDashPathEffect::Make({ command.dash_array.data(), command.dash_array.size() }, command.dash_offset));
     surface().canvas().drawPath(path, paint);
 }
 
@@ -589,7 +588,7 @@ void DisplayListPlayerSkia::draw_line(DrawLine const& command)
         auto dot_count = floor(length / (static_cast<float>(command.thickness) * 2));
         auto interval = length / dot_count;
         SkScalar intervals[] = { 0, interval };
-        paint.setPathEffect(SkDashPathEffect::Make(intervals, 2, 0));
+        paint.setPathEffect(SkDashPathEffect::Make(intervals, 0));
         paint.setStrokeCap(SkPaint::Cap::kRound_Cap);
 
         // NOTE: As Skia doesn't render a dot exactly at the end of a line, we need
@@ -604,7 +603,7 @@ void DisplayListPlayerSkia::draw_line(DrawLine const& command)
         auto dash_count = floor(length / static_cast<float>(command.thickness) / 4) * 2 + 1;
         auto interval = length / dash_count;
         SkScalar intervals[] = { interval, interval };
-        paint.setPathEffect(SkDashPathEffect::Make(intervals, 2, 0));
+        paint.setPathEffect(SkDashPathEffect::Make(intervals, 0));
 
         auto direction = to - from;
         direction.normalize();
@@ -676,7 +675,8 @@ void DisplayListPlayerSkia::paint_radial_gradient(PaintRadialGradient const& com
 
     auto color_space = SkColorSpace::MakeSRGB();
     auto interpolation = to_skia_interpolation(radial_gradient_data.interpolation_method);
-    auto shader = SkGradientShader::MakeRadial(center, size.height(), colors.data(), color_space, positions.data(), positions.size(), tile_mode, interpolation, &matrix);
+    SkGradient gradient { { colors.span(), positions.span(), tile_mode, color_space }, interpolation };
+    auto shader = SkShaders::RadialGradient(center, size.height(), gradient, &matrix);
 
     SkPaint paint;
     paint.setDither(true);
@@ -708,7 +708,8 @@ void DisplayListPlayerSkia::paint_conic_gradient(PaintConicGradient const& comma
     matrix.setRotate(-90 + conic_gradient_data.start_angle, center.x(), center.y());
     auto color_space = SkColorSpace::MakeSRGB();
     auto interpolation = to_skia_interpolation(conic_gradient_data.interpolation_method);
-    auto shader = SkGradientShader::MakeSweep(center.x(), center.y(), colors.data(), color_space, positions.data(), positions.size(), SkTileMode::kRepeat, 0, 360, interpolation, &matrix);
+    SkGradient gradient { { colors.span(), positions.span(), SkTileMode::kRepeat, color_space }, interpolation };
+    auto shader = SkShaders::SweepGradient(SkPoint::Make(center.x(), center.y()), 0, 360, gradient, &matrix);
 
     SkPaint paint;
     paint.setDither(true);
