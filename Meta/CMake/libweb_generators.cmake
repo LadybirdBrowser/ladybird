@@ -273,6 +273,13 @@ function (generate_js_bindings target)
     endfunction()
 
     function(generate_exposed_interface_files)
+        find_package(Python3 REQUIRED COMPONENTS Interpreter)
+        set(window_or_worker_generator "${LADYBIRD_SOURCE_DIR}/Meta/Generators/generate_window_or_worker_interfaces.py")
+        set(window_or_worker_generator_dependencies
+            "${window_or_worker_generator}"
+            "${LADYBIRD_SOURCE_DIR}/Meta/Utils/lexer.py"
+            "${LADYBIRD_SOURCE_DIR}/Meta/Utils/webidl_parser.py")
+
         set(exposed_interface_sources
             IntrinsicDefinitions.cpp IntrinsicDefinitions.h
             DedicatedWorkerExposedInterfaces.cpp DedicatedWorkerExposedInterfaces.h
@@ -282,7 +289,7 @@ function (generate_js_bindings target)
         add_custom_command(
             OUTPUT  ${exposed_interface_sources}
             COMMAND "${CMAKE_COMMAND}" -E make_directory "tmp"
-            COMMAND $<TARGET_FILE:Lagom::GenerateWindowOrWorkerInterfaces> -o "${CMAKE_CURRENT_BINARY_DIR}/tmp" ${LIBWEB_ALL_IDL_FILES_ARGUMENT}
+            COMMAND "${Python3_EXECUTABLE}" "${window_or_worker_generator}" -o "${CMAKE_CURRENT_BINARY_DIR}/tmp" ${LIBWEB_ALL_IDL_FILES_ARGUMENT}
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different tmp/IntrinsicDefinitions.h "Bindings/IntrinsicDefinitions.h"
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different tmp/IntrinsicDefinitions.cpp "Bindings/IntrinsicDefinitions.cpp"
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different tmp/DedicatedWorkerExposedInterfaces.h "Bindings/DedicatedWorkerExposedInterfaces.h"
@@ -293,7 +300,7 @@ function (generate_js_bindings target)
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different tmp/WindowExposedInterfaces.cpp "Bindings/WindowExposedInterfaces.cpp"
             COMMAND "${CMAKE_COMMAND}" -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/tmp"
             VERBATIM
-            DEPENDS Lagom::GenerateWindowOrWorkerInterfaces ${LIBWEB_ALL_IDL_FILES}
+            DEPENDS ${window_or_worker_generator_dependencies} ${LIBWEB_ALL_IDL_FILES}
         )
         target_sources(${target} PRIVATE ${exposed_interface_sources})
         add_custom_target(generate_exposed_interfaces DEPENDS ${exposed_interface_sources})
