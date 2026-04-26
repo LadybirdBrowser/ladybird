@@ -31,6 +31,8 @@ MiddleButtonScrollHandler::MiddleButtonScrollHandler(DOM::Element& container, CS
 
 MiddleButtonScrollHandler::~MiddleButtonScrollHandler()
 {
+    if (!m_container_element->document().layout_is_up_to_date())
+        return;
     if (auto* paintable = m_container_element->document().paintable())
         paintable->set_needs_repaint();
 }
