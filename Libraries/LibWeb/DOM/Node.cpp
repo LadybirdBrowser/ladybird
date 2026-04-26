@@ -551,7 +551,9 @@ void Node::invalidate_style(StyleInvalidationReason reason)
     };
 
     if (reason == StyleInvalidationReason::NodeInsertBefore || reason == StyleInvalidationReason::NodeRemove) {
+        auto& counters = document().style_invalidation_counters();
         for (auto* sibling = previous_sibling(); sibling; sibling = sibling->previous_sibling()) {
+            ++counters.previous_sibling_invalidation_walk_visits;
             if (auto* element = as_if<Element>(sibling); element && previous_sibling_needs_structural_invalidation(*element))
                 mark_entire_subtree_for_style_update(*element);
         }
