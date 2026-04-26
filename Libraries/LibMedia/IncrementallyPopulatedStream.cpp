@@ -259,16 +259,16 @@ IncrementallyPopulatedStream::Cursor::~Cursor()
     VERIFY(m_stream->m_cursors.remove_first_matching([&](Cursor const& cursor) { return this == &cursor; }));
 }
 
-DecoderErrorOr<void> IncrementallyPopulatedStream::Cursor::seek(i64 offset, SeekMode mode)
+DecoderErrorOr<void> IncrementallyPopulatedStream::Cursor::seek(i64 offset, AK::SeekMode mode)
 {
     switch (mode) {
-    case SeekMode::SetPosition:
+    case AK::SeekMode::SetPosition:
         m_position = offset;
         break;
-    case SeekMode::FromCurrentPosition:
+    case AK::SeekMode::FromCurrentPosition:
         m_position += offset;
         break;
-    case SeekMode::FromEndPosition:
+    case AK::SeekMode::FromEndPosition:
         m_position = this->size() + offset;
         break;
     default:

@@ -51,7 +51,7 @@ public:
     public:
         ~Cursor();
 
-        virtual DecoderErrorOr<void> seek(i64 offset, SeekMode mode) override;
+        virtual DecoderErrorOr<void> seek(i64 offset, AK::SeekMode mode) override;
         virtual DecoderErrorOr<size_t> read_into(Bytes bytes) override;
 
         virtual size_t position() const override { return m_position; }
