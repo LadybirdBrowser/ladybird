@@ -88,10 +88,9 @@ public:
         if (!manager().m_audio_sink)
             return;
         track_data.provider->resume();
-        track_data.provider->seek(manager().current_time(), [manager = manager().weak(), track, provider = track_data.provider, sink = manager().m_audio_sink] {
+        track_data.provider->seek(manager().current_time(), [manager = manager().weak(), provider = track_data.provider] {
             if (!manager)
                 return;
-            sink->clear_track_data(track);
             if (manager->state() == PlaybackState::Suspended)
                 provider->suspend();
         });

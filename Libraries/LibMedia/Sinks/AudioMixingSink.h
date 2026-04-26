@@ -38,7 +38,6 @@ public:
     void resume();
     void pause();
     void set_time(AK::Duration);
-    void clear_track_data(Track const&);
 
     void set_volume(double);
 
