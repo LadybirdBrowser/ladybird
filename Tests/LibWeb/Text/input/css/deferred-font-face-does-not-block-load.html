@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<link rel="stylesheet" href="deferred-font-face-does-not-block-load.css">
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        let windowLoaded = false;
+        window.addEventListener("load", () => {
+            windowLoaded = true;
+        }, { once: true });
+
+        await timeout(50);
+
+        const face = [...document.fonts].find(font => font.family === "DeferredFontFace");
+        println(`Window load fired after stylesheet load: ${windowLoaded}`);
+        println(`DeferredFontFace found: ${face !== undefined}`);
+        println(`DeferredFontFace status: ${face?.status}`);
+        done();
+    });
+</script>

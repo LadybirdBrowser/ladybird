@@ -49,6 +49,7 @@ private:
     void handle_src_descriptor_change();
 
     virtual void set_parent_style_sheet(CSSStyleSheet*) override;
+    virtual bool should_block_stylesheet_while_unloaded() const override;
 
     GC::Ptr<CSSStyleSheet> parent_style_sheet_for_subresource() override { return parent_style_sheet(); }
 

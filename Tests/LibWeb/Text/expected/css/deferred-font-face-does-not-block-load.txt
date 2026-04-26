@@ -1,0 +1,3 @@
+Window load fired after stylesheet load: true
+DeferredFontFace found: true
+DeferredFontFace status: unloaded

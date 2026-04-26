@@ -240,4 +240,11 @@ void CSSFontFaceRule::set_parent_style_sheet(CSSStyleSheet* parent_style_sheet)
         m_parent_style_sheet->add_critical_subresource(*this);
 }
 
+bool CSSFontFaceRule::should_block_stylesheet_while_unloaded() const
+{
+    if (!m_css_connected_font_face)
+        return false;
+    return m_css_connected_font_face->has_urls() && !m_css_connected_font_face->has_non_default_unicode_range();
+}
+
 }

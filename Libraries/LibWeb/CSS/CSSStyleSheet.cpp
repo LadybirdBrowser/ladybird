@@ -601,6 +601,9 @@ CSSStyleSheet::LoadingState CSSStyleSheet::loading_state() const
     for (auto const& subresource : m_critical_subresources) {
         switch (subresource.loading_state()) {
         case LoadingState::Unloaded:
+            if (subresource.should_block_stylesheet_while_unloaded())
+                any_loading = true;
+            break;
         case LoadingState::Loading:
             any_loading = true;
             break;

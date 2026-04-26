@@ -50,6 +50,7 @@ public:
 
         virtual GC::Ptr<CSSStyleSheet> parent_style_sheet_for_subresource() = 0;
         LoadingState loading_state() const { return m_loading_state; }
+        virtual bool should_block_stylesheet_while_unloaded() const { return true; }
         virtual void visit_edges(Cell::Visitor&) = 0;
 
         void set_loading_state(LoadingState);

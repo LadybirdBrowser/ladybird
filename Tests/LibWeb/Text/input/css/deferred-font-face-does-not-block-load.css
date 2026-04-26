@@ -1,0 +1,9 @@
+@font-face {
+    font-family: 'DeferredFontFace';
+    src: url('deferred-font-face-does-not-block-load.woff');
+    unicode-range: U+2603;
+}
+
+body {
+    color: green;
+}
