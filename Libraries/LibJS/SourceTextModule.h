@@ -18,6 +18,7 @@ namespace JS {
 namespace FFI {
 
 struct ParsedProgram;
+struct CompiledProgram;
 
 }
 
@@ -31,6 +32,7 @@ public:
 
     static Result<GC::Ref<SourceTextModule>, Vector<ParserError>> parse(StringView source_text, Realm&, StringView filename = {}, Script::HostDefined* host_defined = nullptr);
     static Result<GC::Ref<SourceTextModule>, Vector<ParserError>> parse_from_pre_parsed(FFI::ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm&, Script::HostDefined* host_defined = nullptr);
+    static Result<GC::Ref<SourceTextModule>, Vector<ParserError>> parse_from_pre_compiled(FFI::CompiledProgram* compiled, NonnullRefPtr<SourceCode const> source_code, Realm&, Script::HostDefined* host_defined = nullptr);
 
     virtual Vector<Utf16FlyString> get_exported_names(VM& vm, HashTable<Module const*>& export_star_set) override;
     virtual ResolvedBinding resolve_export(VM& vm, Utf16FlyString const& export_name, Vector<ResolvedBinding> resolve_set = {}) override;

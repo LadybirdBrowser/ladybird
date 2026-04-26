@@ -359,6 +359,11 @@ ParsedProgram* parse_program(u16 const* utf16_data, size_t length_in_code_units,
     return rust_parse_program(utf16_data, length_in_code_units, static_cast<u8>(type), line_number_offset, g_dump_ast, g_dump_ast_use_color);
 }
 
+CompiledProgram* compile_parsed_program_off_thread(ParsedProgram* parsed, size_t length_in_code_units)
+{
+    return rust_compile_parsed_program_off_thread(parsed, length_in_code_units);
+}
+
 bool parsed_program_has_errors(ParsedProgram const* parsed)
 {
     return rust_parsed_program_has_errors(const_cast<ParsedProgram*>(parsed));
@@ -367,6 +372,11 @@ bool parsed_program_has_errors(ParsedProgram const* parsed)
 void free_parsed_program(ParsedProgram* parsed)
 {
     rust_free_parsed_program(parsed);
+}
+
+void free_compiled_program(CompiledProgram* compiled)
+{
+    rust_free_compiled_program(compiled);
 }
 
 Optional<Result<ScriptResult, Vector<ParserError>>> compile_parsed_script(ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm)
@@ -387,6 +397,23 @@ Optional<Result<ScriptResult, Vector<ParserError>>> compile_parsed_script(Parsed
     ScriptGdiBuilder builder;
 
     void* exec_ptr = rust_compile_parsed_script(parsed, &realm.vm(), source_code.ptr(), &builder, length);
+
+    if (!exec_ptr)
+        return Vector<ParserError> {};
+
+    builder.result.executable = static_cast<Bytecode::Executable*>(exec_ptr);
+    return builder.result;
+}
+
+Optional<Result<ScriptResult, Vector<ParserError>>> materialize_compiled_script(CompiledProgram* compiled, NonnullRefPtr<SourceCode const> source_code, Realm& realm)
+{
+    if (!compiled)
+        return {};
+
+    GC::DeferGC defer_gc(realm.vm().heap());
+    ScriptGdiBuilder builder;
+
+    void* exec_ptr = rust_materialize_compiled_script(compiled, &realm.vm(), source_code.ptr(), &builder);
 
     if (!exec_ptr)
         return Vector<ParserError> {};
@@ -477,6 +504,55 @@ Optional<Result<ModuleResult, Vector<ParserError>>> compile_parsed_module(Parsed
 
     void* exec_ptr = rust_compile_parsed_module(parsed, &realm.vm(), source_code.ptr(),
         &builder, &callbacks, &tla_executable, length);
+
+    if (!exec_ptr && !tla_executable)
+        return Vector<ParserError> {};
+
+    if (tla_executable) {
+        auto& vm = realm.vm();
+        auto* tla_exec = static_cast<Bytecode::Executable*>(tla_executable);
+
+        builder.result.tla_shared_data = vm.heap().allocate<SharedFunctionInstanceData>(
+            vm, FunctionKind::Async,
+            "module code with top-level await"_utf16_fly_string,
+            0, 0, true, false, true,
+            Vector<Utf16FlyString> {}, nullptr);
+        builder.result.tla_shared_data->m_is_module_wrapper = true;
+        builder.result.tla_shared_data->m_uses_this = true;
+        builder.result.tla_shared_data->m_function_environment_needed = true;
+        builder.result.tla_shared_data->update_asm_call_metadata();
+        builder.result.tla_shared_data->set_executable(tla_exec);
+    } else {
+        builder.result.executable = static_cast<Bytecode::Executable*>(exec_ptr);
+    }
+
+    return builder.result;
+}
+
+Optional<Result<ModuleResult, Vector<ParserError>>> materialize_compiled_module(CompiledProgram* compiled, NonnullRefPtr<SourceCode const> source_code, Realm& realm)
+{
+    if (!compiled)
+        return {};
+
+    GC::DeferGC defer_gc(realm.vm().heap());
+    ModuleBuilder builder;
+    ModuleCallbacks callbacks {
+        .set_has_top_level_await = module_set_has_top_level_await,
+        .push_import_entry = module_push_import_entry,
+        .push_local_export = module_push_local_export,
+        .push_indirect_export = module_push_indirect_export,
+        .push_star_export = module_push_star_export,
+        .push_requested_module = module_push_requested_module,
+        .set_default_export_binding = module_set_default_export_binding,
+        .push_var_name = module_push_var_name,
+        .push_function = module_push_function,
+        .push_lexical_binding = module_push_lexical_binding,
+    };
+
+    void* tla_executable = nullptr;
+
+    void* exec_ptr = rust_materialize_compiled_module(compiled, &realm.vm(), source_code.ptr(),
+        &builder, &callbacks, &tla_executable);
 
     if (!exec_ptr && !tla_executable)
         return Vector<ParserError> {};

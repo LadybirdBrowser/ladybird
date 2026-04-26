@@ -39,26 +39,27 @@
 
 namespace Web::HTML {
 
-// Submit a parse_program() call to the thread pool, then bounce back to
-// the main thread via deferred_invoke once parsing completes.
-// `on_parsed` is called on the main thread with the Rust ParsedProgram*
-// and the SourceCode.
-// NB: The SourceCode stays on the main thread (inside the heap-allocated
-//     callback). The worker thread only receives raw UTF-16 data pointers.
-//     The callback is heap-allocated so that if the event loop is
-//     destroyed during parsing, we leak it (and any GC::Root objects it
-//     captures) rather than destroying them on the worker thread.
-static void parse_off_thread(NonnullRefPtr<JS::SourceCode const> source_code, JS::RustIntegration::ProgramType type, size_t line_number_offset, Function<void(JS::FFI::ParsedProgram*, NonnullRefPtr<JS::SourceCode const>)> on_parsed)
+struct OffThreadCompiledProgram {
+    JS::FFI::ParsedProgram* parsed { nullptr };
+    JS::FFI::CompiledProgram* compiled { nullptr };
+};
+
+// Submit parsing and top-level bytecode generation to the thread pool, then bounce back to the main thread via
+// deferred_invoke once the worker is done. Syntax errors still come back as a ParsedProgram so the main thread can
+// report them through the same Script/ModuleScript construction paths; successful programs come back as CompiledProgram
+// artifacts whose GC-backed Executable materialization must still happen on the main thread.
+// NB: The SourceCode stays on the main thread inside the heap-allocated callback. The worker thread only receives raw
+//     UTF-16 data pointers, and the callback intentionally leaks if the event loop is destroyed during compilation.
+static void compile_off_thread(NonnullRefPtr<JS::SourceCode const> source_code, JS::RustIntegration::ProgramType type, size_t line_number_offset, Function<void(OffThreadCompiledProgram, NonnullRefPtr<JS::SourceCode const>)> on_compiled)
 {
     // Extract the raw data the parser needs while still on the main thread.
     auto const* utf16_data = source_code->utf16_data();
     auto length = source_code->length_in_code_units();
 
-    // Capture source_code in the callback so it stays alive (on the main
-    // thread) for the duration of parsing and is available when we compile.
-    auto* callback = new Function<void(JS::FFI::ParsedProgram*)>(
-        [on_parsed = move(on_parsed), source_code = move(source_code)](JS::FFI::ParsedProgram* parsed) mutable {
-            on_parsed(parsed, move(source_code));
+    // Capture source_code in the callback so it stays alive on the main thread and is available for materialization.
+    auto* callback = new Function<void(OffThreadCompiledProgram)>(
+        [on_compiled = move(on_compiled), source_code = move(source_code)](OffThreadCompiledProgram result) mutable {
+            on_compiled(result, move(source_code));
         });
 
     auto event_loop_weak = Core::EventLoop::current_weak();
@@ -67,12 +68,17 @@ static void parse_off_thread(NonnullRefPtr<JS::SourceCode const> source_code, JS
                                             callback,
                                             event_loop_weak = move(event_loop_weak)]() {
         auto* parsed = JS::RustIntegration::parse_program(utf16_data, length, type, line_number_offset);
+        OffThreadCompiledProgram result { .parsed = parsed };
+        if (parsed && !JS::RustIntegration::parsed_program_has_errors(parsed)) {
+            result.compiled = JS::RustIntegration::compile_parsed_program_off_thread(parsed, length);
+            result.parsed = nullptr;
+        }
 
         auto origin = event_loop_weak->take();
         if (!origin)
             return;
-        origin->deferred_invoke([parsed, callback]() {
-            (*callback)(parsed);
+        origin->deferred_invoke([result, callback]() {
+            (*callback)(result);
             delete callback;
             // AD-HOC: Perform a microtask checkpoint so that any microtasks queued by the callback (e.g. promise
             //         reactions from react_to_promise during module linking) are drained. Without this, module worker
@@ -438,11 +444,13 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
                 String::from_utf8(response_url_string.view()).release_value_but_fixme_should_propagate_errors(),
                 Utf16String::from_utf8(source_text));
 
-            parse_off_thread(move(source_code), JS::RustIntegration::ProgramType::Script, 1,
+            compile_off_thread(move(source_code), JS::RustIntegration::ProgramType::Script, 1,
                 [response_url = move(response_url), response_url_string = move(response_url_string),
                     muted_errors, on_complete_root = move(on_complete_root),
-                    settings_root = move(settings_root)](auto* parsed, auto source_code) mutable {
-                    auto script = ClassicScript::create_from_pre_parsed(move(response_url_string), move(source_code), *settings_root, move(response_url), parsed, muted_errors);
+                    settings_root = move(settings_root)](auto result, auto source_code) mutable {
+                    auto script = result.compiled
+                        ? ClassicScript::create_from_pre_compiled(move(response_url_string), move(source_code), *settings_root, move(response_url), result.compiled, muted_errors)
+                        : ClassicScript::create_from_pre_parsed(move(response_url_string), move(source_code), *settings_root, move(response_url), result.parsed, muted_errors);
                     on_complete_root->function()(script);
                 });
         } else {
@@ -798,12 +806,14 @@ void fetch_single_module_script(JS::Realm& realm,
                         String::from_utf8(url_string.view()).release_value_but_fixme_should_propagate_errors(),
                         Utf16String::from_utf8(source_text));
 
-                    parse_off_thread(move(source_code), JS::RustIntegration::ProgramType::Module, 0,
+                    compile_off_thread(move(source_code), JS::RustIntegration::ProgramType::Module, 0,
                         [url = move(url), url_string = move(url_string), response_url = move(response_url),
                             module_type_string = move(module_type_string),
                             on_complete_root = move(on_complete_root),
-                            settings_root = move(settings_root)](auto* parsed, auto source_code) mutable {
-                            auto module_script = ModuleScript::create_from_pre_parsed(url_string, move(source_code), *settings_root, move(response_url), parsed).release_value_but_fixme_should_propagate_errors();
+                            settings_root = move(settings_root)](auto result, auto source_code) mutable {
+                            auto module_script = result.compiled
+                                ? ModuleScript::create_from_pre_compiled(url_string, move(source_code), *settings_root, move(response_url), result.compiled).release_value_but_fixme_should_propagate_errors()
+                                : ModuleScript::create_from_pre_parsed(url_string, move(source_code), *settings_root, move(response_url), result.parsed).release_value_but_fixme_should_propagate_errors();
                             settings_root->module_map().set(url, module_type_string, { ModuleMap::EntryType::ModuleScript, module_script });
                             on_complete_root->function()(module_script);
                         });

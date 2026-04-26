@@ -23,6 +23,7 @@ JS_API extern bool g_dump_ast_use_color;
 namespace FFI {
 
 struct ParsedProgram;
+struct CompiledProgram;
 
 }
 
@@ -54,6 +55,7 @@ public:
     virtual ~Script() override;
     static Result<GC::Ref<Script>, Vector<ParserError>> parse(StringView source_text, Realm&, StringView filename = {}, HostDefined* = nullptr, size_t line_number_offset = 1);
     static Result<GC::Ref<Script>, Vector<ParserError>> create_from_parsed(FFI::ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm&, HostDefined* = nullptr);
+    static Result<GC::Ref<Script>, Vector<ParserError>> create_from_compiled(FFI::CompiledProgram* compiled, NonnullRefPtr<SourceCode const> source_code, Realm&, HostDefined* = nullptr);
 
     Realm& realm() { return *m_realm; }
     Vector<LoadedModuleRequest>& loaded_modules() { return m_loaded_modules; }

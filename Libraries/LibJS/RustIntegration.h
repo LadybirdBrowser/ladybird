@@ -25,6 +25,7 @@
 namespace JS::FFI {
 
 struct ParsedProgram;
+struct CompiledProgram;
 
 }
 
@@ -89,16 +90,26 @@ JS_API bool rust_pipeline_available();
 // Parse a program (script or module) without GC interaction. Thread-safe.
 JS_API FFI::ParsedProgram* parse_program(u16 const* utf16_data, size_t length_in_code_units, ProgramType type, size_t line_number_offset = 0);
 
+// Compile a parsed program to bytecode without touching the VM or GC. Thread-safe.
+JS_API FFI::CompiledProgram* compile_parsed_program_off_thread(FFI::ParsedProgram* parsed, size_t length_in_code_units);
+
 // Check if a parsed program has errors. Does not consume the program.
 JS_API bool parsed_program_has_errors(FFI::ParsedProgram const*);
 
 // Free a parsed program without compiling it.
 JS_API void free_parsed_program(FFI::ParsedProgram*);
 
+// Free a compiled program without materializing it.
+JS_API void free_compiled_program(FFI::CompiledProgram*);
+
 // Compile a previously parsed script. Must be called on the main thread.
 // Consumes and frees the Rust ParsedProgram.
 // Returns nullopt if Rust is not available.
 Optional<Result<ScriptResult, Vector<ParserError>>> compile_parsed_script(FFI::ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm);
+
+// Materialize a previously compiled script. Must be called on the main thread.
+// Consumes and frees the Rust CompiledProgram.
+Optional<Result<ScriptResult, Vector<ParserError>>> materialize_compiled_script(FFI::CompiledProgram* compiled, NonnullRefPtr<SourceCode const> source_code, Realm& realm);
 
 // Compile a script. Returns nullopt if Rust is not available.
 Optional<Result<ScriptResult, Vector<ParserError>>> compile_script(StringView source_text, Realm& realm, StringView filename, size_t line_number_offset);
@@ -114,6 +125,10 @@ Optional<Result<EvalResult, String>> compile_eval(
 // Consumes and frees the Rust ParsedProgram.
 // Returns nullopt if Rust is not available.
 Optional<Result<ModuleResult, Vector<ParserError>>> compile_parsed_module(FFI::ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm);
+
+// Materialize a previously compiled module. Must be called on the main thread.
+// Consumes and frees the Rust CompiledProgram.
+Optional<Result<ModuleResult, Vector<ParserError>>> materialize_compiled_module(FFI::CompiledProgram* compiled, NonnullRefPtr<SourceCode const> source_code, Realm& realm);
 
 // Compile a module. Returns nullopt if Rust is not available.
 Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(StringView source_text, Realm& realm, StringView filename);

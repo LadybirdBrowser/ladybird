@@ -121,6 +121,26 @@ pub struct ParsedProgram {
 // SAFETY: Full ownership transfer between threads, never concurrent access.
 unsafe impl Send for ParsedProgram {}
 
+pub struct CompiledProgram {
+    parsed: ParsedProgram,
+    bytecode: CompiledProgramBytecode,
+}
+
+enum CompiledProgramBytecode {
+    Program(CompiledBytecode),
+    AsyncModule(CompiledBytecode),
+}
+
+struct CompiledBytecode {
+    generator: bytecode::generator::Generator,
+    assembled: bytecode::generator::AssembledBytecode,
+}
+
+// SAFETY: This handle owns its parser and bytecode-generator state, and C++ treats it as a move-only handoff object.
+// The Rc/RefCell values inside are only ever touched by one thread at a time: the worker creates the handle, then the
+// main thread consumes or frees it after the event-loop hop.
+unsafe impl Send for CompiledProgram {}
+
 // =============================================================================
 // Internal helpers
 // =============================================================================
@@ -259,9 +279,49 @@ fn new_program_generator(
     generator
 }
 
+/// Shared codegen pipeline: local variable setup → bytecode generation → assembly.
+///
+/// This deliberately stops before `create_executable()`, because executable materialization creates GC-managed objects
+/// and resolves VM-specific constants. Keeping that work separate lets WebContent perform the expensive AST-to-bytecode
+/// pass on a worker thread while preserving all main-thread ownership rules for VM and heap data.
+fn compile_program_body_to_bytecode(
+    generator: &mut bytecode::generator::Generator,
+    program: &ast::Statement,
+    scope_ref: &Rc<RefCell<ast::ScopeData>>,
+) -> bytecode::generator::AssembledBytecode {
+    generator.local_variables = convert_local_variables(&scope_ref.borrow());
+
+    let entry_block = generator.make_block();
+    generator.switch_to_basic_block(entry_block);
+    generator.capture_saved_lexical_environment();
+
+    let result = bytecode::codegen::generate_statement(program, generator, None);
+
+    if !generator.is_current_block_terminated()
+        && let Some(value) = result
+    {
+        generator.emit(bytecode::instruction::Instruction::End { value: value.operand() });
+    }
+    // If result is None, the assembler will add End(undefined) as a fallthrough for unterminated blocks, matching C++.
+
+    generator.assemble()
+}
+
+unsafe fn create_executable_from_compiled_bytecode(
+    bytecode: &mut CompiledBytecode,
+    vm_ptr: *mut c_void,
+    source_code_ptr: *const c_void,
+) -> *mut c_void {
+    unsafe {
+        bytecode.generator.vm_ptr = vm_ptr;
+        bytecode.generator.source_code_ptr = source_code_ptr;
+        bytecode::ffi::create_executable(&mut bytecode.generator, &bytecode.assembled, vm_ptr, source_code_ptr)
+    }
+}
+
 /// Shared compilation pipeline: local variable setup → codegen → assemble → create Executable.
 ///
-/// Called by all three program-level entry points after parsing and scope analysis.
+/// Called by program-level entry points that compile synchronously on the main thread.
 unsafe fn compile_program_body(
     generator: &mut bytecode::generator::Generator,
     program: &ast::Statement,
@@ -269,26 +329,8 @@ unsafe fn compile_program_body(
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
 ) -> *mut c_void {
-    unsafe {
-        generator.local_variables = convert_local_variables(&scope_ref.borrow());
-
-        let entry_block = generator.make_block();
-        generator.switch_to_basic_block(entry_block);
-        generator.capture_saved_lexical_environment();
-
-        let result = bytecode::codegen::generate_statement(program, generator, None);
-
-        if !generator.is_current_block_terminated()
-            && let Some(value) = result
-        {
-            generator.emit(bytecode::instruction::Instruction::End { value: value.operand() });
-        }
-        // If result is None, the assembler will add End(undefined) as a
-        // fallthrough for unterminated blocks, matching C++ compile().
-
-        let assembled = generator.assemble();
-        bytecode::ffi::create_executable(generator, &assembled, vm_ptr, source_code_ptr)
-    }
+    let assembled = compile_program_body_to_bytecode(generator, program, scope_ref);
+    unsafe { bytecode::ffi::create_executable(generator, &assembled, vm_ptr, source_code_ptr) }
 }
 
 // =============================================================================
@@ -490,6 +532,60 @@ pub unsafe extern "C" fn rust_free_parsed_program(parsed: *mut ParsedProgram) {
     }
 }
 
+/// Compile a parsed program to an off-thread bytecode artifact.
+///
+/// Consumes and frees the ParsedProgram. The returned CompiledProgram still needs to be materialized on the main thread
+/// before it becomes a GC-backed Executable.
+///
+/// # Safety
+/// - `parsed` must be a valid pointer from `rust_parse_program()` with no errors.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_compile_parsed_program_off_thread(
+    parsed: *mut ParsedProgram,
+    source_len: usize,
+) -> *mut CompiledProgram {
+    unsafe {
+        abort_on_panic(|| {
+            if parsed.is_null() {
+                return std::ptr::null_mut();
+            }
+
+            let mut parsed = Box::from_raw(parsed);
+            let bytecode = if parsed.has_top_level_await {
+                let mut generator = new_module_async_generator(source_len, std::mem::take(&mut parsed.function_table));
+                let assembled = compile_module_as_async_to_bytecode(&parsed.program, &parsed.scope_ref, &mut generator);
+                CompiledProgramBytecode::AsyncModule(CompiledBytecode { generator, assembled })
+            } else {
+                let mut generator = new_program_generator(
+                    parsed.is_strict_mode,
+                    std::ptr::null_mut(),
+                    std::ptr::null(),
+                    source_len,
+                );
+                generator.function_table = std::mem::take(&mut parsed.function_table);
+                let assembled = compile_program_body_to_bytecode(&mut generator, &parsed.program, &parsed.scope_ref);
+                CompiledProgramBytecode::Program(CompiledBytecode { generator, assembled })
+            };
+
+            Box::into_raw(Box::new(CompiledProgram {
+                parsed: *parsed,
+                bytecode,
+            }))
+        })
+    }
+}
+
+/// Free a CompiledProgram without materializing it.
+///
+/// # Safety
+/// `compiled` must be a valid pointer from `rust_compile_parsed_program_off_thread()`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_free_compiled_program(compiled: *mut CompiledProgram) {
+    unsafe {
+        drop(Box::from_raw(compiled));
+    }
+}
+
 /// Get the AST dump string from a ParsedProgram.
 ///
 /// Generates the dump on first call and caches it. Writes the pointer
@@ -558,6 +654,50 @@ pub unsafe extern "C" fn rust_compile_parsed_script(
                 source_code_ptr,
                 gdi_context,
                 &mut generator.function_table,
+            );
+
+            exec_ptr
+        })
+    }
+}
+
+/// Materialize an off-thread-compiled script. Consumes and frees the CompiledProgram.
+///
+/// # Safety
+/// - `compiled` must be a valid pointer from `rust_compile_parsed_program_off_thread()`.
+/// - `vm_ptr` must be a valid `JS::VM*`.
+/// - `source_code_ptr` must be a valid `JS::SourceCode const*`.
+/// - `gdi_context` must be a valid pointer to a C++ ScriptGdiBuilder.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_materialize_compiled_script(
+    compiled: *mut CompiledProgram,
+    vm_ptr: *mut c_void,
+    source_code_ptr: *const c_void,
+    gdi_context: *mut c_void,
+) -> *mut c_void {
+    unsafe {
+        abort_on_panic(|| {
+            if compiled.is_null() {
+                return std::ptr::null_mut();
+            }
+
+            let mut compiled = Box::from_raw(compiled);
+            let CompiledProgramBytecode::Program(ref mut bytecode) = compiled.bytecode else {
+                return std::ptr::null_mut();
+            };
+
+            let exec_ptr = create_executable_from_compiled_bytecode(bytecode, vm_ptr, source_code_ptr);
+            if exec_ptr.is_null() {
+                return std::ptr::null_mut();
+            }
+
+            extract_script_gdi(
+                &compiled.parsed.scope_ref.borrow(),
+                compiled.parsed.is_strict_mode,
+                vm_ptr,
+                source_code_ptr,
+                gdi_context,
+                &mut bytecode.generator.function_table,
             );
 
             exec_ptr
@@ -1007,6 +1147,67 @@ pub unsafe extern "C" fn rust_compile_parsed_module(
                     vm_ptr,
                     source_code_ptr,
                 )
+            }
+        })
+    }
+}
+
+/// Materialize an off-thread-compiled module. Consumes and frees the CompiledProgram.
+///
+/// # Safety
+/// - `compiled` must be a valid pointer from `rust_compile_parsed_program_off_thread()`.
+/// - `vm_ptr` must be a valid `JS::VM*`.
+/// - `source_code_ptr` must be a valid `JS::SourceCode const*`.
+/// - `module_context` must be a valid `ModuleBuilder*`.
+/// - `callbacks` must point to a valid `ModuleCallbacks`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_materialize_compiled_module(
+    compiled: *mut CompiledProgram,
+    vm_ptr: *mut c_void,
+    source_code_ptr: *const c_void,
+    module_context: *mut c_void,
+    callbacks: *const ModuleCallbacks,
+    tla_executable_out: *mut *mut c_void,
+) -> *mut c_void {
+    unsafe {
+        abort_on_panic(|| {
+            if compiled.is_null() {
+                return std::ptr::null_mut();
+            }
+
+            let mut compiled = Box::from_raw(compiled);
+            let cb = &*callbacks;
+
+            (cb.set_has_top_level_await)(module_context, compiled.parsed.has_top_level_await);
+            extract_module_metadata(&compiled.parsed.scope_ref.borrow(), module_context, cb);
+
+            let bytecode = match &mut compiled.bytecode {
+                CompiledProgramBytecode::Program(bytecode) | CompiledProgramBytecode::AsyncModule(bytecode) => bytecode,
+            };
+            extract_module_declarations(
+                &compiled.parsed.scope_ref.borrow(),
+                vm_ptr,
+                source_code_ptr,
+                module_context,
+                cb,
+                &mut bytecode.generator.function_table,
+            );
+            extract_requested_modules(&compiled.parsed.scope_ref.borrow(), module_context, cb);
+
+            match &mut compiled.bytecode {
+                CompiledProgramBytecode::AsyncModule(bytecode) => {
+                    let exec_ptr = create_executable_from_compiled_bytecode(bytecode, vm_ptr, source_code_ptr);
+                    if !tla_executable_out.is_null() {
+                        *tla_executable_out = exec_ptr;
+                    }
+                    std::ptr::null_mut()
+                }
+                CompiledProgramBytecode::Program(bytecode) => {
+                    if !tla_executable_out.is_null() {
+                        *tla_executable_out = std::ptr::null_mut();
+                    }
+                    create_executable_from_compiled_bytecode(bytecode, vm_ptr, source_code_ptr)
+                }
             }
         })
     }
@@ -1523,6 +1724,59 @@ unsafe fn extract_requested_modules(scope: &ast::ScopeData, ctx: *mut c_void, cb
 ///
 /// Emits async-function wrapping (initial Yield, final Yield) around the
 /// module body statements.
+fn new_module_async_generator(source_len: usize, function_table: ast::FunctionTable) -> bytecode::generator::Generator {
+    let mut generator = bytecode::generator::Generator::new();
+    generator.strict = true;
+    generator.function_table = function_table;
+    generator.source_len = source_len;
+    generator.enclosing_function_kind = ast::FunctionKind::Async;
+    generator
+}
+
+fn compile_module_as_async_to_bytecode(
+    program: &ast::Statement,
+    scope_ref: &Rc<RefCell<ast::ScopeData>>,
+    generator: &mut bytecode::generator::Generator,
+) -> bytecode::generator::AssembledBytecode {
+    use bytecode::instruction::Instruction;
+
+    let scope = scope_ref.borrow();
+
+    // Extract local variables from the program scope so the executable has the correct registers_and_locals_count.
+    // Without this, locals are not saved across await suspension points, causing them to become undefined.
+    generator.local_variables = convert_local_variables(&scope);
+
+    let entry_block = generator.make_block();
+    generator.switch_to_basic_block(entry_block);
+
+    // Async function start: emit initial Yield before GetLexicalEnvironment.
+    let start_block = generator.make_block();
+    let undef = generator.add_constant_undefined();
+    generator.emit(Instruction::Yield {
+        continuation_label: Some(start_block),
+        value: undef.operand(),
+    });
+    generator.switch_to_basic_block(start_block);
+    generator.capture_saved_lexical_environment();
+
+    // Generate module body statements.
+    let _result = bytecode::codegen::generate_statement(program, generator, None);
+
+    // Async function end: emit final Yield (no continuation = done).
+    if !generator.is_current_block_terminated() {
+        let undef = generator.add_constant_undefined();
+        generator.emit(Instruction::Yield {
+            continuation_label: None,
+            value: undef.operand(),
+        });
+    }
+
+    // Terminate all unterminated blocks with Yield.
+    generator.terminate_unterminated_blocks_with_yield();
+
+    generator.assemble()
+}
+
 unsafe fn compile_module_as_async(
     program: &ast::Statement,
     scope_ref: &Rc<RefCell<ast::ScopeData>>,
@@ -1533,52 +1787,11 @@ unsafe fn compile_module_as_async(
     function_table: ast::FunctionTable,
 ) -> *mut c_void {
     unsafe {
-        use bytecode::generator::Generator;
-        use bytecode::instruction::Instruction;
-
-        let scope = scope_ref.borrow();
-        let mut generator = Generator::new();
-        generator.strict = true;
-        generator.function_table = function_table;
+        let mut generator = new_module_async_generator(source_len, function_table);
         generator.vm_ptr = vm_ptr;
         generator.source_code_ptr = source_code_ptr;
-        generator.source_len = source_len;
-        generator.enclosing_function_kind = ast::FunctionKind::Async;
 
-        // Extract local variables from the program scope so the executable has the
-        // correct registers_and_locals_count. Without this, locals are not saved
-        // across await suspension points, causing them to become undefined.
-        generator.local_variables = convert_local_variables(&scope);
-
-        let entry_block = generator.make_block();
-        generator.switch_to_basic_block(entry_block);
-
-        // Async function start: emit initial Yield before GetLexicalEnvironment.
-        let start_block = generator.make_block();
-        let undef = generator.add_constant_undefined();
-        generator.emit(Instruction::Yield {
-            continuation_label: Some(start_block),
-            value: undef.operand(),
-        });
-        generator.switch_to_basic_block(start_block);
-        generator.capture_saved_lexical_environment();
-
-        // Generate module body statements.
-        let _result = bytecode::codegen::generate_statement(program, &mut generator, None);
-
-        // Async function end: emit final Yield (no continuation = done).
-        if !generator.is_current_block_terminated() {
-            let undef = generator.add_constant_undefined();
-            generator.emit(Instruction::Yield {
-                continuation_label: None,
-                value: undef.operand(),
-            });
-        }
-
-        // Terminate all unterminated blocks with Yield.
-        generator.terminate_unterminated_blocks_with_yield();
-
-        let assembled = generator.assemble();
+        let assembled = compile_module_as_async_to_bytecode(program, scope_ref, &mut generator);
         bytecode::ffi::create_executable(&mut generator, &assembled, vm_ptr, source_code_ptr)
     }
 }

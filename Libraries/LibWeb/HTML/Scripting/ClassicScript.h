@@ -27,6 +27,7 @@ public:
     };
     static GC::Ref<ClassicScript> create(ByteString filename, StringView source, EnvironmentSettingsObject&, URL::URL base_url, size_t source_line_number = 1, MutedErrors = MutedErrors::No);
     static GC::Ref<ClassicScript> create_from_pre_parsed(ByteString filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject&, URL::URL base_url, JS::FFI::ParsedProgram* parsed, MutedErrors = MutedErrors::No);
+    static GC::Ref<ClassicScript> create_from_pre_compiled(ByteString filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject&, URL::URL base_url, JS::FFI::CompiledProgram* compiled, MutedErrors = MutedErrors::No);
 
     JS::Script* script_record() { return m_script_record; }
     JS::Script const* script_record() const { return m_script_record; }
