@@ -1455,20 +1455,16 @@ impl Parser<'_> {
                         entry_is_keyword =
                             self.current_token.token_type.is_identifier_name() && !self.match_identifier();
 
-                        // Suppress eval/arguments check for binding pattern property
-                        // keys. C++ uses regular consume() here (no arguments check),
-                        // not consume_and_allow_division().
-                        let saved_prop_key_ctx = self.flags.in_property_key_context;
-                        self.flags.in_property_key_context = true;
-
+                        // Property keys are name tokens, not identifier references,
+                        // so don't run the eval/arguments check on them.
                         if self.match_token(TokenType::StringLiteral) {
-                            let token = self.consume();
+                            let token = self.consume_property_key_token();
                             let (value, _has_octal) = self.parse_string_value(&token);
                             let id = self.make_identifier(entry_start, value);
                             self.scope_collector.register_identifier(id.clone(), None);
                             entry_name = Some(BindingEntryName::Identifier(id));
                         } else if self.match_token(TokenType::BigIntLiteral) {
-                            let token = self.consume();
+                            let token = self.consume_property_key_token();
                             let value = self.token_value(&token);
                             let name_value = if value.last() == Some(&ch(b'n')) {
                                 value[..value.len() - 1].to_vec()
@@ -1479,17 +1475,13 @@ impl Parser<'_> {
                             self.scope_collector.register_identifier(id.clone(), None);
                             entry_name = Some(BindingEntryName::Identifier(id));
                         } else {
-                            let token = self.consume();
+                            let token = self.consume_property_key_token();
                             let name = self.token_identifier_name(&token);
                             entry_name_value = name.clone();
                             let id = self.make_identifier(entry_start, name);
-                            // C++ calls parse_identifier() for binding pattern property
-                            // keys, which registers them. Do the same here.
                             self.scope_collector.register_identifier(id.clone(), None);
                             entry_name = Some(BindingEntryName::Identifier(id));
                         }
-
-                        self.flags.in_property_key_context = saved_prop_key_ctx;
                     } else if self.match_token(TokenType::BracketOpen) {
                         self.consume();
                         let expression = self.parse_expression_any();

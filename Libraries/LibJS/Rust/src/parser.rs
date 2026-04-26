@@ -199,10 +199,6 @@ pub(crate) struct ParserFlags {
     pub new_target_is_valid: bool,
     pub function_might_need_arguments_object: bool,
     pub previous_token_was_period: bool,
-    /// Set during property key parsing to suppress eval/arguments check.
-    /// C++ uses separate `consume()` and `consume_and_allow_division()` methods;
-    /// we emulate this by skipping the check in property key contexts.
-    pub in_property_key_context: bool,
 }
 
 /// Snapshot of parser state for speculative parsing (backtracking).
@@ -491,12 +487,16 @@ impl<'a> Parser<'a> {
 
     pub(crate) fn consume(&mut self) -> Token {
         let old = std::mem::replace(&mut self.current_token, self.lexer.next());
-        // C++ checks for `arguments`/`eval` in `consume_and_allow_division()` which
-        // is used by `consume_identifier()`. We put the check here (in `consume()`)
-        // but skip it when parsing property keys, matching C++'s behavior.
-        if !self.flags.in_property_key_context {
-            self.check_arguments_or_eval(&old);
-        }
+        self.check_arguments_or_eval(&old);
+        self.flags.previous_token_was_period = old.token_type == TokenType::Period;
+        old
+    }
+
+    /// Like `consume()` but skips the `arguments`/`eval` reference check.
+    /// Use this when consuming a token that is syntactically a property key
+    /// rather than an identifier reference (e.g. `{ arguments: 1 }`).
+    pub(crate) fn consume_property_key_token(&mut self) -> Token {
+        let old = std::mem::replace(&mut self.current_token, self.lexer.next());
         self.flags.previous_token_was_period = old.token_type == TokenType::Period;
         old
     }

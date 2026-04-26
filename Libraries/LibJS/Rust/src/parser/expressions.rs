@@ -1680,16 +1680,6 @@ impl Parser<'_> {
     }
 
     pub(crate) fn parse_property_key(&mut self, ident_pos_override: Option<Position>) -> PropertyKey {
-        // Suppress eval/arguments check for property key tokens (C++ uses
-        // regular `consume()` not `consume_and_allow_division()` here).
-        let saved_property_key_ctx = self.flags.in_property_key_context;
-        self.flags.in_property_key_context = true;
-        let result = self.parse_property_key_inner(ident_pos_override);
-        self.flags.in_property_key_context = saved_property_key_ctx;
-        result
-    }
-
-    fn parse_property_key_inner(&mut self, ident_pos_override: Option<Position>) -> PropertyKey {
         let proto_name = utf16!("__proto__");
         let start = self.position();
         match self.current_token_type() {
@@ -1706,7 +1696,7 @@ impl Parser<'_> {
                 }
             }
             TokenType::StringLiteral => {
-                let token = self.consume();
+                let token = self.consume_property_key_token();
                 // C++ calls consume() before push_start() for StringLiteral,
                 // so its position is the token AFTER the string.
                 let after_string = self.position();
@@ -1792,7 +1782,7 @@ impl Parser<'_> {
                     // identifier names). This matters for shorthand properties: { await }
                     // is not valid in class static blocks since await is not an identifier there.
                     let is_ident = self.match_identifier();
-                    let token = self.consume();
+                    let token = self.consume_property_key_token();
                     let value = Utf16String::from(self.token_value(&token));
                     let is_proto = value == proto_name;
                     // C++ uses the object expression start position for identifier-name keys.
@@ -1807,7 +1797,7 @@ impl Parser<'_> {
                     }
                 } else {
                     self.expected("property key");
-                    self.consume();
+                    self.consume_property_key_token();
                     let expression =
                         self.expression(start, ExpressionKind::StringLiteral(Box::new(Utf16String::new())));
                     PropertyKey {
