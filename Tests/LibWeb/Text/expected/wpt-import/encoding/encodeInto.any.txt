@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 111 tests
 
-85 Pass
-26 Fail
+111 Pass
 Pass	encodeInto() into ArrayBuffer with Hi and destination length 0, offset 0, filler 0
 Pass	encodeInto() into SharedArrayBuffer with Hi and destination length 0, offset 0, filler 0
 Pass	encodeInto() into ArrayBuffer with Hi and destination length 0, offset 4, filler 0
@@ -88,30 +87,30 @@ Pass	encodeInto() into ArrayBuffer with ¥¥ and destination length 4, offset 0,
 Pass	encodeInto() into SharedArrayBuffer with ¥¥ and destination length 4, offset 0, filler random
 Pass	encodeInto() into ArrayBuffer with ¥¥ and destination length 4, offset 4, filler random
 Pass	encodeInto() into SharedArrayBuffer with ¥¥ and destination length 4, offset 4, filler random
-Fail	Invalid encodeInto() destination: DataView, backed by: ArrayBuffer
-Fail	Invalid encodeInto() destination: DataView, backed by: SharedArrayBuffer
-Fail	Invalid encodeInto() destination: Int8Array, backed by: ArrayBuffer
-Fail	Invalid encodeInto() destination: Int8Array, backed by: SharedArrayBuffer
-Fail	Invalid encodeInto() destination: Int16Array, backed by: ArrayBuffer
-Fail	Invalid encodeInto() destination: Int16Array, backed by: SharedArrayBuffer
-Fail	Invalid encodeInto() destination: Int32Array, backed by: ArrayBuffer
-Fail	Invalid encodeInto() destination: Int32Array, backed by: SharedArrayBuffer
-Fail	Invalid encodeInto() destination: Uint16Array, backed by: ArrayBuffer
-Fail	Invalid encodeInto() destination: Uint16Array, backed by: SharedArrayBuffer
-Fail	Invalid encodeInto() destination: Uint32Array, backed by: ArrayBuffer
-Fail	Invalid encodeInto() destination: Uint32Array, backed by: SharedArrayBuffer
-Fail	Invalid encodeInto() destination: Uint8ClampedArray, backed by: ArrayBuffer
-Fail	Invalid encodeInto() destination: Uint8ClampedArray, backed by: SharedArrayBuffer
-Fail	Invalid encodeInto() destination: BigInt64Array, backed by: ArrayBuffer
-Fail	Invalid encodeInto() destination: BigInt64Array, backed by: SharedArrayBuffer
-Fail	Invalid encodeInto() destination: BigUint64Array, backed by: ArrayBuffer
-Fail	Invalid encodeInto() destination: BigUint64Array, backed by: SharedArrayBuffer
-Fail	Invalid encodeInto() destination: Float16Array, backed by: ArrayBuffer
-Fail	Invalid encodeInto() destination: Float16Array, backed by: SharedArrayBuffer
-Fail	Invalid encodeInto() destination: Float32Array, backed by: ArrayBuffer
-Fail	Invalid encodeInto() destination: Float32Array, backed by: SharedArrayBuffer
-Fail	Invalid encodeInto() destination: Float64Array, backed by: ArrayBuffer
-Fail	Invalid encodeInto() destination: Float64Array, backed by: SharedArrayBuffer
-Fail	Invalid encodeInto() destination: ArrayBuffer
-Fail	Invalid encodeInto() destination: SharedArrayBuffer
+Pass	Invalid encodeInto() destination: DataView, backed by: ArrayBuffer
+Pass	Invalid encodeInto() destination: DataView, backed by: SharedArrayBuffer
+Pass	Invalid encodeInto() destination: Int8Array, backed by: ArrayBuffer
+Pass	Invalid encodeInto() destination: Int8Array, backed by: SharedArrayBuffer
+Pass	Invalid encodeInto() destination: Int16Array, backed by: ArrayBuffer
+Pass	Invalid encodeInto() destination: Int16Array, backed by: SharedArrayBuffer
+Pass	Invalid encodeInto() destination: Int32Array, backed by: ArrayBuffer
+Pass	Invalid encodeInto() destination: Int32Array, backed by: SharedArrayBuffer
+Pass	Invalid encodeInto() destination: Uint16Array, backed by: ArrayBuffer
+Pass	Invalid encodeInto() destination: Uint16Array, backed by: SharedArrayBuffer
+Pass	Invalid encodeInto() destination: Uint32Array, backed by: ArrayBuffer
+Pass	Invalid encodeInto() destination: Uint32Array, backed by: SharedArrayBuffer
+Pass	Invalid encodeInto() destination: Uint8ClampedArray, backed by: ArrayBuffer
+Pass	Invalid encodeInto() destination: Uint8ClampedArray, backed by: SharedArrayBuffer
+Pass	Invalid encodeInto() destination: BigInt64Array, backed by: ArrayBuffer
+Pass	Invalid encodeInto() destination: BigInt64Array, backed by: SharedArrayBuffer
+Pass	Invalid encodeInto() destination: BigUint64Array, backed by: ArrayBuffer
+Pass	Invalid encodeInto() destination: BigUint64Array, backed by: SharedArrayBuffer
+Pass	Invalid encodeInto() destination: Float16Array, backed by: ArrayBuffer
+Pass	Invalid encodeInto() destination: Float16Array, backed by: SharedArrayBuffer
+Pass	Invalid encodeInto() destination: Float32Array, backed by: ArrayBuffer
+Pass	Invalid encodeInto() destination: Float32Array, backed by: SharedArrayBuffer
+Pass	Invalid encodeInto() destination: Float64Array, backed by: ArrayBuffer
+Pass	Invalid encodeInto() destination: Float64Array, backed by: SharedArrayBuffer
+Pass	Invalid encodeInto() destination: ArrayBuffer
+Pass	Invalid encodeInto() destination: SharedArrayBuffer
 Pass	encodeInto() and a detached output buffer

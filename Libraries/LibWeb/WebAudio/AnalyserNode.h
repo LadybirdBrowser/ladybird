@@ -33,10 +33,10 @@ public:
     virtual WebIDL::UnsignedLong number_of_inputs() override { return 1; }
     virtual WebIDL::UnsignedLong number_of_outputs() override { return 1; }
 
-    WebIDL::ExceptionOr<void> get_float_frequency_data(GC::Root<WebIDL::BufferSource> const& array);   // Float32Array
-    WebIDL::ExceptionOr<void> get_byte_frequency_data(GC::Root<WebIDL::BufferSource> const& array);    // Uint8Array
-    WebIDL::ExceptionOr<void> get_float_time_domain_data(GC::Root<WebIDL::BufferSource> const& array); // Float32Array
-    WebIDL::ExceptionOr<void> get_byte_time_domain_data(GC::Root<WebIDL::BufferSource> const& array);  // Uint8Array
+    WebIDL::ExceptionOr<void> get_float_frequency_data(GC::Root<JS::Float32Array> const&);
+    WebIDL::ExceptionOr<void> get_byte_frequency_data(GC::Root<JS::Uint8Array> const&);
+    WebIDL::ExceptionOr<void> get_float_time_domain_data(GC::Root<JS::Float32Array> const&);
+    WebIDL::ExceptionOr<void> get_byte_time_domain_data(GC::Root<JS::Uint8Array> const&);
 
     unsigned long fft_size() const { return m_fft_size; }
     unsigned long frequency_bin_count() const { return m_fft_size / 2; }

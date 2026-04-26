@@ -230,14 +230,10 @@ WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> DOMMatrixReadOnly::from_matrix(J
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-fromfloat32array
-WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> DOMMatrixReadOnly::from_float32_array(JS::VM& vm, GC::Root<WebIDL::BufferSource> const& array32)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> DOMMatrixReadOnly::from_float32_array(JS::VM& vm, GC::Root<JS::Float32Array> const& array)
 {
-    if (!is<JS::Float32Array>(*array32))
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Float32Array");
-
     auto& realm = *vm.current_realm();
-    auto& float32_array = static_cast<JS::Float32Array&>(*array32->raw_object());
-    ReadonlySpan<float> elements = float32_array.data();
+    ReadonlySpan<float> elements = array->data();
 
     // If array32 has 6 elements, return the result of invoking create a 2d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with a sequence of numbers taking the values from array32 in the provided order.
     if (elements.size() == 6)
@@ -255,14 +251,10 @@ WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> DOMMatrixReadOnly::from_float32_
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-fromfloat64array
-WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> DOMMatrixReadOnly::from_float64_array(JS::VM& vm, GC::Root<WebIDL::BufferSource> const& array64)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> DOMMatrixReadOnly::from_float64_array(JS::VM& vm, GC::Root<JS::Float64Array> const& array)
 {
-    if (!is<JS::Float64Array>(*array64))
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Float64Array");
-
     auto& realm = *vm.current_realm();
-    auto& float64_array = static_cast<JS::Float64Array&>(*array64->raw_object());
-    ReadonlySpan<double> elements = float64_array.data();
+    ReadonlySpan<double> elements = array->data();
 
     // If array64 has 6 elements, return the result of invoking create a 2d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with a sequence of numbers taking the values from array64 in the provided order.
     if (elements.size() == 6)

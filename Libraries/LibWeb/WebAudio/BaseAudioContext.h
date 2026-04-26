@@ -88,7 +88,7 @@ public:
         WebIDL::UnsignedLong number_of_output_channels);
     WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> create_stereo_panner();
 
-    GC::Ref<WebIDL::Promise> decode_audio_data(GC::Root<WebIDL::BufferSource>, GC::Ptr<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>);
+    GC::Ref<WebIDL::Promise> decode_audio_data(GC::Root<JS::ArrayBuffer> const&, GC::Ptr<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>);
 
     void queue_control_message(ControlMessage);
 
@@ -109,7 +109,7 @@ private:
     // https://webaudio.github.io/web-audio-api/#render-quantum-size
     static constexpr WebIDL::UnsignedLong s_render_quantum_size { 128 };
 
-    void queue_a_decoding_operation(GC::Ref<JS::PromiseCapability>, GC::Root<WebIDL::BufferSource>, GC::Ptr<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>);
+    void queue_a_decoding_operation(GC::Ref<JS::PromiseCapability>, GC::Root<JS::ArrayBuffer>, GC::Ptr<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>);
 
     u64 m_next_node_id { 0 };
 

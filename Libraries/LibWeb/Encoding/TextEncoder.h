@@ -37,7 +37,7 @@ public:
     virtual ~TextEncoder() override;
 
     GC::Ref<JS::Uint8Array> encode(String const& input) const;
-    TextEncoderEncodeIntoResult encode_into(String const& source, GC::Root<WebIDL::BufferSource> const& destination) const;
+    TextEncoderEncodeIntoResult encode_into(String const& source, GC::Root<JS::Uint8Array> const& destination) const;
 
 protected:
     // https://encoding.spec.whatwg.org/#dom-textencoder

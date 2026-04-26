@@ -38,7 +38,7 @@ public:
     GC::Ref<AudioParam> detune() const;
     GC::Ref<AudioParam> q() const;
     GC::Ref<AudioParam> gain() const;
-    WebIDL::ExceptionOr<void> get_frequency_response(GC::Root<WebIDL::BufferSource> const&, GC::Root<WebIDL::BufferSource> const&, GC::Root<WebIDL::BufferSource> const&);
+    WebIDL::ExceptionOr<void> get_frequency_response(GC::Root<JS::Float32Array> const&, GC::Root<JS::Float32Array> const&, GC::Root<JS::Float32Array> const&);
 
     static WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, BiquadFilterOptions const& = {});
     static WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, BiquadFilterOptions const& = {});

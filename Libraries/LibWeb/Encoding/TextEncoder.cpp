@@ -51,7 +51,7 @@ GC::Ref<JS::Uint8Array> TextEncoder::encode(String const& input) const
 }
 
 // https://encoding.spec.whatwg.org/#dom-textencoder-encodeinto
-TextEncoderEncodeIntoResult TextEncoder::encode_into(String const& source, GC::Root<WebIDL::BufferSource> const& destination) const
+TextEncoderEncodeIntoResult TextEncoder::encode_into(String const& source, GC::Root<JS::Uint8Array> const& destination) const
 {
     // AD-HOC: Return early if destination is detached. This is not explicitly handled in the spec,
     //         however no bytes are copied as destinations size is always zero in this case.
@@ -59,7 +59,7 @@ TextEncoderEncodeIntoResult TextEncoder::encode_into(String const& source, GC::R
     if (destination->viewed_array_buffer()->is_detached())
         return { 0, 0 };
 
-    auto data = destination->viewed_array_buffer()->buffer().bytes().slice(destination->byte_offset(), destination->byte_length());
+    auto data = destination->data();
 
     // 1. Let read be 0.
     WebIDL::UnsignedLongLong read = 0;
@@ -85,7 +85,7 @@ TextEncoderEncodeIntoResult TextEncoder::encode_into(String const& source, GC::R
 
         // 6.4. Otherwise:
         // 6.4.1. If destination’s byte length − written is greater than or equal to the number of bytes in result, then:
-        if (destination->byte_length() - written >= result.size()) {
+        if (data.size() - written >= result.size()) {
             // 6.4.1.1. If item is greater than U+FFFF, then increment read by 2.
             if (item > 0xffff) {
                 read += 2;

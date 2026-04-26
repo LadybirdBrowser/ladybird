@@ -47,17 +47,10 @@ WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::construct_impl(JS::Realm& rea
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-imagedata-with-data
-WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::create(JS::Realm& realm, GC::Root<WebIDL::BufferSource> const& data, u32 sw, Optional<u32> sh, Optional<ImageDataSettings> const& settings)
+WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::create(JS::Realm& realm, GC::Root<JS::Uint8ClampedArray> const& uint8_clamped_array_data, u32 sw, Optional<u32> sh, Optional<ImageDataSettings> const& settings)
 {
-    auto& vm = realm.vm();
-
-    if (!is<JS::Uint8ClampedArray>(*data->raw_object()))
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Uint8ClampedArray");
-
-    auto& uint8_clamped_array_data = static_cast<JS::Uint8ClampedArray&>(*data->raw_object());
-
     // 1. Let length be the number of bytes in data.
-    auto length = uint8_clamped_array_data.byte_length().length();
+    auto length = uint8_clamped_array_data->byte_length().length();
 
     // 2. If length is not a nonzero integral multiple of four, then throw an "InvalidStateError" DOMException.
     if (length == 0 || length % 4 != 0)
@@ -81,10 +74,10 @@ WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::create(JS::Realm& realm, GC::
 
     // 7. Initialize this given sw, sh, settings set to settings, and source set to data.
     // FIXME: This seems to be a spec issue, sh is an optional but height always have a value.
-    return initialize(realm, height, sw, settings, uint8_clamped_array_data);
+    return initialize(realm, height, sw, settings, *uint8_clamped_array_data);
 }
 
-WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::construct_impl(JS::Realm& realm, GC::Root<WebIDL::BufferSource> const& data, u32 sw, Optional<u32> sh, Optional<ImageDataSettings> const& settings)
+WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::construct_impl(JS::Realm& realm, GC::Root<JS::Uint8ClampedArray> const& data, u32 sw, Optional<u32> sh, Optional<ImageDataSettings> const& settings)
 {
     return ImageData::create(realm, data, sw, move(sh), settings);
 }

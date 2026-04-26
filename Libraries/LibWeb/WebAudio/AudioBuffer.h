@@ -37,8 +37,8 @@ public:
     double duration() const;
     WebIDL::UnsignedLong number_of_channels() const;
     WebIDL::ExceptionOr<GC::Ref<JS::Float32Array>> get_channel_data(WebIDL::UnsignedLong channel) const;
-    WebIDL::ExceptionOr<void> copy_from_channel(GC::Root<WebIDL::BufferSource> const&, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset = 0) const;
-    WebIDL::ExceptionOr<void> copy_to_channel(GC::Root<WebIDL::BufferSource> const&, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset = 0);
+    WebIDL::ExceptionOr<void> copy_from_channel(GC::Root<JS::Float32Array> const&, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset = 0) const;
+    WebIDL::ExceptionOr<void> copy_to_channel(GC::Root<JS::Float32Array> const&, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset = 0);
 
 private:
     explicit AudioBuffer(JS::Realm&, AudioBufferOptions const&);
