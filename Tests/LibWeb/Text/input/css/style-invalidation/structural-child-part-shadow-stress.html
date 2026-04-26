@@ -9,7 +9,7 @@
             "part-shadow-ancestor",
             "part-shadow-host-ancestor",
         ];
-        const stressModes = ["warm", "cold", "pseudo-warm", "pseudo-cold", "detached", "detached-pseudo"];
+        const stressModes = ["warm", "cold"];
         for (const scope of stressScopes) {
             for (const selectorCase of childMutationCases) {
                 for (const mode of stressModes)

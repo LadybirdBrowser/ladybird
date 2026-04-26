@@ -8,18 +8,26 @@
             "document-styled-use-shadow",
             "shadow-internal",
             "shadow-host",
+            "slotted-default",
+            "slotted-named",
+            "slotted-shadow-host-default",
+            "slotted-shadow-host-named",
+            "part-document",
+            "part-shadow-host-document",
+            "part-shadow-internal",
+            "part-shadow-host-internal",
+            "part-shadow-ancestor",
+            "part-shadow-host-ancestor",
         ];
         const modes = [
-            "warm",
-            "cold",
             "pseudo-warm",
             "pseudo-cold",
         ];
 
         for (const scope of stressScopes) {
-            for (const selectorCase of attributeMutationCases) {
+            for (const selectorCase of descendantStateMutationCases) {
                 for (const mode of modes)
-                    runDescendantStressCase(scope, selectorCase, mode, { suite: "descendant attribute" });
+                    runStateStressCase(scope, selectorCase, mode);
             }
         }
     });

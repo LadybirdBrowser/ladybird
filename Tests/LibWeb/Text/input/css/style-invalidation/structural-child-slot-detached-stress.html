@@ -9,7 +9,7 @@
             "slotted-shadow-host-default",
             "slotted-shadow-host-named",
         ];
-        const stressModes = ["warm", "cold"];
+        const stressModes = ["detached", "detached-pseudo"];
         for (const scope of stressScopes) {
             for (const selectorCase of childMutationCases) {
                 for (const mode of stressModes)

@@ -4,16 +4,16 @@
 <script>
     test(() => {
         const stressScopes = [
-            "document",
-            "document-styled-use-shadow",
-            "shadow-internal",
-            "shadow-host",
+            "part-document",
+            "part-shadow-host-document",
+            "part-shadow-internal",
+            "part-shadow-host-internal",
+            "part-shadow-ancestor",
+            "part-shadow-host-ancestor",
         ];
         const modes = [
             "warm",
             "cold",
-            "pseudo-warm",
-            "pseudo-cold",
         ];
 
         for (const scope of stressScopes) {
