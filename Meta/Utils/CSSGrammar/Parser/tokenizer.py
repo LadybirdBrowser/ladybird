@@ -1,5 +1,11 @@
+from math import inf
+
 from Utils.CSSGrammar.Parser.component_values import Keyword
+from Utils.CSSGrammar.Parser.component_values import NumericTypeRangeRestriction
 from Utils.CSSGrammar.Parser.component_values import Type
+from Utils.CSSGrammar.Parser.component_values import is_dimension_percentage_mix_type
+from Utils.CSSGrammar.Parser.component_values import is_dimension_type
+from Utils.CSSGrammar.Parser.component_values import is_numeric_type
 from Utils.CSSGrammar.Parser.token import Token
 from Utils.CSSGrammar.Parser.token import TokenType
 from Utils.lexer import Lexer
@@ -74,6 +80,67 @@ class Tokenizer:
             if not self.lexer.consume_specific_char(","):
                 raise SyntaxError("Expected ',' in custom-ident blacklist")
 
+    # https://drafts.csswg.org/css-values-4/#css-bracketed-range-notation
+    def consume_bracketed_range_notation(self, type_name: str) -> NumericTypeRangeRestriction:
+        self.discard_whitespace()
+
+        # If no range is indicated, either by using the bracketed range notation or in the property description, then
+        # [-∞,∞] is assumed.
+        if not self.lexer.consume_specific_char("["):
+            return NumericTypeRangeRestriction(-inf, inf)
+
+        self.discard_whitespace()
+        minimum = self.consume_bracketed_range_bound(type_name)
+
+        self.discard_whitespace()
+        if not self.lexer.consume_specific_char(","):
+            raise SyntaxError("Expected ',' in bracketed range notation")
+
+        self.discard_whitespace()
+        maximum = self.consume_bracketed_range_bound(type_name)
+
+        self.discard_whitespace()
+        if not self.lexer.consume_specific_char("]"):
+            raise SyntaxError("Expected ']' to close bracketed range notation")
+
+        return NumericTypeRangeRestriction(minimum, maximum)
+
+    def consume_bracketed_range_bound(self, type_name: str) -> float:
+        # Values of -∞ or ∞ must be written without units, even if the value type uses units.
+        if self.lexer.consume_specific_string("-∞"):
+            return -inf
+
+        if self.lexer.consume_specific_string("∞"):
+            return inf
+
+        # FIXME: Do we need to allow non-integer values?
+        bound_value = self.consume_decimal_integer()
+
+        if bound_value != 0 and (is_dimension_percentage_mix_type(type_name) or type_name == "length"):
+            raise SyntaxError("Types with units not resolvable at parse time only support zero and infinite bounds")
+
+        # FIXME: Validate and store the unit, for now we drop it and assume it was the relevant canonical unit.
+        unit = self.lexer.consume_while(is_identifier_character)
+
+        if unit and not is_dimension_type(type_name) and not is_dimension_percentage_mix_type(type_name):
+            raise SyntaxError("Unexpected unit for unitless bound value")
+
+        if not unit and bound_value != 0 and is_dimension_type(type_name):
+            raise SyntaxError("Expected unit for non-zero, non-infinite bound value")
+
+        return float(bound_value)
+
+    def consume_decimal_integer(self) -> int:
+        sign = 1
+        if self.lexer.consume_specific_char("-"):
+            sign = -1
+
+        digits = self.lexer.consume_while(lambda ch: ch.isdigit())
+        if not digits:
+            raise SyntaxError("Expected decimal integer")
+
+        return sign * int(digits)
+
     def consume_a_non_terminal_token(self) -> Token:
         assert self.lexer.consume_specific_char("<")
 
@@ -86,11 +153,14 @@ class Tokenizer:
         if name == "custom-ident":
             custom_ident_blacklist = self.consume_custom_ident_blacklist()
 
-        # FIXME: Support numeric data type bracketed range notations (i.e. <integer [0,10]>)
+        numeric_type_accepted_range = None
+        if is_numeric_type(name) or is_dimension_percentage_mix_type(name):
+            numeric_type_accepted_range = self.consume_bracketed_range_notation(name)
+
         if not self.lexer.consume_specific_char(">"):
             raise SyntaxError("CSSGrammar::Tokenizer: Expected '>'")
 
-        return Token.create_component_value(Type(name, custom_ident_blacklist))
+        return Token.create_component_value(Type(name, custom_ident_blacklist, numeric_type_accepted_range))
 
     def consume_a_keyword_token(self) -> Token:
         value = self.consume_an_identifier()

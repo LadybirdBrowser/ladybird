@@ -1,7 +1,9 @@
+from math import inf
 from typing import TextIO
 
 from Utils.CSSGrammar.Parser.component_values import Keyword
 from Utils.CSSGrammar.Parser.component_values import Type
+from Utils.CSSGrammar.Parser.component_values import is_dimension_percentage_mix_type
 from Utils.CSSGrammar.Parser.grammar_node import CombinatorGrammarNode
 from Utils.CSSGrammar.Parser.grammar_node import CombinatorType
 from Utils.CSSGrammar.Parser.grammar_node import ComponentValueGrammarNode
@@ -9,6 +11,14 @@ from Utils.CSSGrammar.Parser.grammar_node import GrammarNode
 from Utils.CSSGrammar.Parser.parser import parse_value_definition_grammar
 from Utils.utils import snake_casify
 from Utils.utils import title_casify
+
+
+def bound_value_to_code(value: float, type_name: str) -> str:
+    if value == -inf:
+        return "AK::NumericLimits<i32>::min()" if type_name == "integer" else "AK::NumericLimits<float>::lowest()"
+    if value == inf:
+        return "AK::NumericLimits<i32>::max()" if type_name == "integer" else "AK::NumericLimits<float>::max()"
+    return str(value)
 
 
 def generate_css_parser_expression_for_type_component_value(out: TextIO, cpp_name: str, type: Type) -> None:
@@ -23,6 +33,17 @@ def generate_css_parser_expression_for_type_component_value(out: TextIO, cpp_nam
             additional_arguments += f"Array<StringView, {len(type.custom_ident_blacklist)}> {{{disallowed_idents}}}"
 
         additional_arguments += "}"
+
+    if type.numeric_type_accepted_range is not None:
+        minimum = bound_value_to_code(type.numeric_type_accepted_range.minimum, type_name)
+        maximum = bound_value_to_code(type.numeric_type_accepted_range.maximum, type_name)
+        accepted_range = f", {{ {minimum}, {maximum} }}"
+
+        additional_arguments += accepted_range
+
+        # NB: Pass the accepted range twice for dimension-percentage mixes, once for the dimension and once for the percentage.
+        if is_dimension_percentage_mix_type(type.name):
+            additional_arguments += accepted_range
 
     out.write(f"auto {cpp_name} = parse_{type_name}_value(tokens{additional_arguments});\n")
 
