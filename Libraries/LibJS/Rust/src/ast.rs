@@ -101,38 +101,51 @@ impl FunctionTable {
         self.functions.insert(id, data);
     }
 
-    /// Extract a subtable containing all `FunctionId`s reachable from the
-    /// given function body and parameters. This recursively takes nested
-    /// functions so that the returned subtable has everything needed to
-    /// compile the function.
+    /// Extract the nested function subtree needed to compile `data` later.
+    ///
+    /// Parser-created functions carry an explicit child list, so this is
+    /// normally proportional to the number of nested functions instead of the
+    /// size of the function body.
     pub fn extract_reachable(&mut self, data: &FunctionData) -> FunctionTable {
         let mut subtable = FunctionTable::new();
-        // Walk parameters first (default values can contain functions).
-        for param in &data.parameters {
-            if let Some(ref default) = param.default_value {
-                self.collect_from_expression(default, &mut subtable);
+        if let Some(nested_function_ids) = &data.nested_function_ids {
+            for id in nested_function_ids {
+                self.transfer(*id, &mut subtable);
             }
-            if let FunctionParameterBinding::BindingPattern(ref pat) = param.binding {
-                self.collect_from_pattern(pat, &mut subtable);
+        } else {
+            // Synthetic function wrappers created during codegen (for example
+            // class field initializers) do not come from the parser's function
+            // context stack, so keep the structural scan for those rare cases.
+            for param in &data.parameters {
+                if let Some(ref default) = param.default_value {
+                    self.collect_from_expression(default, &mut subtable);
+                }
+                if let FunctionParameterBinding::BindingPattern(ref pat) = param.binding {
+                    self.collect_from_pattern(pat, &mut subtable);
+                }
             }
+            self.collect_from_statement(&data.body, &mut subtable);
         }
-        self.collect_from_statement(&data.body, &mut subtable);
         subtable
     }
 
     fn transfer(&mut self, id: FunctionId, result: &mut FunctionTable) {
         if let Some(data) = self.try_take(id) {
-            // Walk parameters (default values / binding patterns can contain functions).
-            for param in &data.parameters {
-                if let Some(ref default) = param.default_value {
-                    self.collect_from_expression(default, result);
+            if let Some(nested_function_ids) = &data.nested_function_ids {
+                for id in nested_function_ids {
+                    self.transfer(*id, result);
                 }
-                if let FunctionParameterBinding::BindingPattern(ref pat) = param.binding {
-                    self.collect_from_pattern(pat, result);
+            } else {
+                for param in &data.parameters {
+                    if let Some(ref default) = param.default_value {
+                        self.collect_from_expression(default, result);
+                    }
+                    if let FunctionParameterBinding::BindingPattern(ref pat) = param.binding {
+                        self.collect_from_pattern(pat, result);
+                    }
                 }
+                self.collect_from_statement(&data.body, result);
             }
-            // Walk the function body.
-            self.collect_from_statement(&data.body, result);
             result.insert_at(id, data);
         }
     }
@@ -863,6 +876,12 @@ pub struct FunctionData {
     pub is_strict_mode: bool,
     pub is_arrow_function: bool,
     pub parsing_insights: FunctionParsingInsights,
+    /// Parser-created functions know their nested function ids up front, so
+    /// lazy-compile payload extraction can move only that subtree instead of
+    /// re-walking the full body. `None` is reserved for synthetic function
+    /// wrappers built during codegen, where the old structural scan is still
+    /// needed to discover nested functions inside the wrapped AST.
+    pub nested_function_ids: Option<Vec<FunctionId>>,
 }
 
 // =============================================================================

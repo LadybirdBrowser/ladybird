@@ -37,8 +37,8 @@ use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::ast::{
-    BindingPattern, Expression, ExpressionKind, FunctionParameter, FunctionTable, Identifier, PrivateIdentifier,
-    ProgramData, ScopeData, SharedUtf16String, SourceRange, Statement, StatementKind, Utf16String,
+    BindingPattern, Expression, ExpressionKind, FunctionData, FunctionId, FunctionParameter, FunctionTable, Identifier,
+    PrivateIdentifier, ProgramData, ScopeData, SharedUtf16String, SourceRange, Statement, StatementKind, Utf16String,
 };
 use crate::lexer::{Lexer, ch};
 use crate::scope_collector::{ScopeCollector, ScopeCollectorState};
@@ -211,6 +211,7 @@ struct SavedState {
     errors_len: usize,
     flags: ParserFlags,
     scope_collector_state: ScopeCollectorState,
+    function_context_stack_lengths: Vec<usize>,
 }
 
 /// The main JavaScript parser.
@@ -293,6 +294,13 @@ pub struct Parser<'a> {
     /// Side table owning all FunctionData produced during parsing.
     pub function_table: FunctionTable,
 
+    /// Stack of nested function ids discovered while parsing each active function.
+    ///
+    /// When the parser finishes a function, the top list becomes that
+    /// FunctionData's child list. This lets lazy-compile payload extraction move
+    /// a known function subtree instead of walking the function body again.
+    function_context_stack: Vec<Vec<FunctionId>>,
+
     /// Memoization: offsets where arrow function parsing has already failed.
     /// Prevents exponential re-processing of nested expressions like
     /// `(a=(b=(c=0)))` where each failed arrow attempt would otherwise
@@ -341,6 +349,7 @@ impl<'a> Parser<'a> {
             scope_collector: ScopeCollector::new(),
             exported_names: HashSet::new(),
             function_table: FunctionTable::new(),
+            function_context_stack: Vec::new(),
             arrow_function_failed_positions: HashSet::new(),
         }
     }
@@ -360,6 +369,27 @@ impl<'a> Parser<'a> {
 
     pub(crate) fn statement(&self, start: Position, statement: StatementKind) -> Statement {
         Statement::new(self.range_from(start), statement)
+    }
+
+    pub(crate) fn push_function_context(&mut self) {
+        self.function_context_stack.push(Vec::new());
+    }
+
+    pub(crate) fn pop_function_context(&mut self) -> Vec<FunctionId> {
+        self.function_context_stack
+            .pop()
+            .expect("Parser::pop_function_context: no active function context")
+    }
+
+    pub(crate) fn insert_function_data(&mut self, data: FunctionData) -> FunctionId {
+        let function_id = self.function_table.insert(data);
+        if let Some(context) = self.function_context_stack.last_mut() {
+            // The newly parsed function belongs to the innermost function
+            // context. Top-level functions have no parent and remain reachable
+            // through their AST node, as before.
+            context.push(function_id);
+        }
+        function_id
     }
 
     pub(crate) fn make_identifier(&self, start: Position, name: impl Into<SharedUtf16String>) -> Rc<Identifier> {
@@ -719,6 +749,7 @@ impl<'a> Parser<'a> {
             errors_len: self.errors.len(),
             flags: self.flags,
             scope_collector_state: self.scope_collector.save_state(),
+            function_context_stack_lengths: self.function_context_stack.iter().map(Vec::len).collect(),
         });
     }
 
@@ -728,6 +759,15 @@ impl<'a> Parser<'a> {
         self.errors.truncate(state.errors_len);
         self.flags = state.flags;
         self.scope_collector.load_state(state.scope_collector_state);
+        self.function_context_stack
+            .truncate(state.function_context_stack_lengths.len());
+        for (context, len) in self
+            .function_context_stack
+            .iter_mut()
+            .zip(state.function_context_stack_lengths)
+        {
+            context.truncate(len);
+        }
         self.lexer.load_state();
     }
 

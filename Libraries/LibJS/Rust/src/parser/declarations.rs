@@ -406,7 +406,7 @@ impl Parser<'_> {
         );
         let decl_name = fd.name.clone();
         let decl_kind = fd.kind;
-        let function_id = self.function_table.insert(fd);
+        let function_id = self.insert_function_data(fd);
         self.statement(
             start,
             StatementKind::FunctionDeclaration(Box::new(FunctionDeclarationData {
@@ -473,7 +473,7 @@ impl Parser<'_> {
             start,
             saved_might_need_arguments,
         );
-        let function_id = self.function_table.insert(fd);
+        let function_id = self.insert_function_data(fd);
         self.expression(start, ExpressionKind::Function(function_id))
     }
 
@@ -522,6 +522,7 @@ impl Parser<'_> {
         // function body don't steal names from an outer binding context.
         let saved_pattern_bound_names = std::mem::take(&mut self.pattern_bound_names);
 
+        self.push_function_context();
         let parsed = self.parse_formal_parameters();
         self.register_function_parameters_with_scope(&parsed.parameters, &parsed.parameter_info);
 
@@ -548,6 +549,7 @@ impl Parser<'_> {
 
         insights.might_need_arguments_object = self.flags.function_might_need_arguments_object;
         self.flags.function_might_need_arguments_object = saved_might_need_arguments;
+        let nested_function_ids = self.pop_function_context();
 
         FunctionData {
             name,
@@ -560,6 +562,7 @@ impl Parser<'_> {
             is_strict_mode: self.flags.strict_mode || has_use_strict,
             is_arrow_function: false,
             parsing_insights: insights,
+            nested_function_ids: Some(nested_function_ids),
         }
     }
 
@@ -758,7 +761,7 @@ impl Parser<'_> {
                 is_rest: true,
             }];
 
-            let function_id = self.function_table.insert(FunctionData {
+            let function_id = self.insert_function_data(FunctionData {
                 name: ctor_name,
                 source_text_start: start.offset,
                 source_text_end: self.source_text_end_offset(),
@@ -773,12 +776,13 @@ impl Parser<'_> {
                     uses_this_from_environment: true,
                     ..FunctionParsingInsights::default()
                 },
+                nested_function_ids: Some(Vec::new()),
             });
             self.expression(start, ExpressionKind::Function(function_id))
         } else {
             let body = self.statement(start, StatementKind::Block(ScopeData::shared_with_children(Vec::new())));
 
-            let function_id = self.function_table.insert(FunctionData {
+            let function_id = self.insert_function_data(FunctionData {
                 name: ctor_name,
                 source_text_start: start.offset,
                 source_text_end: self.source_text_end_offset(),
@@ -793,6 +797,7 @@ impl Parser<'_> {
                     uses_this_from_environment: true,
                     ..FunctionParsingInsights::default()
                 },
+                nested_function_ids: Some(Vec::new()),
             });
             self.expression(start, ExpressionKind::Function(function_id))
         }

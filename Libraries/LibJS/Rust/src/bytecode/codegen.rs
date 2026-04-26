@@ -5796,6 +5796,10 @@ fn generate_class_expression(
                                 uses_this_from_environment: true,
                                 ..Default::default()
                             },
+                            // This wrapper is synthesized after parsing, so it
+                            // asks FunctionTable to discover nested functions
+                            // from the wrapped initializer expression.
+                            nested_function_ids: None,
                         });
                         let index = emit_new_function(generator, function_data, Some(utf16!("field")));
 
@@ -5869,6 +5873,10 @@ fn generate_class_expression(
                         uses_this_from_environment: true,
                         ..Default::default()
                     },
+                    // Static initializer wrappers are synthesized after parsing;
+                    // keep the structural fallback for nested functions inside
+                    // the wrapped block.
+                    nested_function_ids: None,
                 });
                 let sfd_index = super::ffi::FFIOptionalU32::some(emit_new_function(generator, function_data, None));
 

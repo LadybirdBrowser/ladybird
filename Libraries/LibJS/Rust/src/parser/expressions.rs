@@ -2224,6 +2224,7 @@ impl Parser<'_> {
         // load_state() rollback will undo this.
         self.scope_collector.open_function_scope(None);
         self.scope_collector.set_is_arrow_function();
+        self.push_function_context();
 
         // Set await_expression_is_valid during parameter parsing so that
         // 'await' is rejected as an identifier in async arrow parameters.
@@ -2334,7 +2335,8 @@ impl Parser<'_> {
             self.flags.await_expression_is_valid = saved_await_body;
             self.flags.in_class_static_init_block = saved_static_init;
             self.flags.in_formal_parameter_context = saved_formal_parameter_ctx;
-            let function_id = self.function_table.insert(FunctionData {
+            let nested_function_ids = self.pop_function_context();
+            let function_id = self.insert_function_data(FunctionData {
                 name: None,
                 source_text_start: src_start,
                 source_text_end: self.source_text_end_offset(),
@@ -2345,6 +2347,7 @@ impl Parser<'_> {
                 is_strict_mode: self.flags.strict_mode || has_use_strict,
                 is_arrow_function: true,
                 parsing_insights: insights,
+                nested_function_ids: Some(nested_function_ids),
             });
             Some(self.expression(start, ExpressionKind::Function(function_id)))
         } else {
@@ -2382,7 +2385,8 @@ impl Parser<'_> {
             self.flags.await_expression_is_valid = saved_await_body;
             self.flags.in_class_static_init_block = saved_static_init;
             self.flags.in_formal_parameter_context = saved_formal_parameter_ctx;
-            let function_id = self.function_table.insert(FunctionData {
+            let nested_function_ids = self.pop_function_context();
+            let function_id = self.insert_function_data(FunctionData {
                 name: None,
                 source_text_start: src_start,
                 source_text_end: self.source_text_end_offset(),
@@ -2393,6 +2397,7 @@ impl Parser<'_> {
                 is_strict_mode: self.flags.strict_mode,
                 is_arrow_function: true,
                 parsing_insights: insights,
+                nested_function_ids: Some(nested_function_ids),
             });
             Some(self.expression(start, ExpressionKind::Function(function_id)))
         }
@@ -2434,6 +2439,7 @@ impl Parser<'_> {
         // method body don't steal names from an outer binding context.
         let saved_pattern_bound_names = std::mem::take(&mut self.pattern_bound_names);
 
+        self.push_function_context();
         let parsed = self.parse_formal_parameters();
 
         self.register_function_parameters_with_scope(&parsed.parameters, &parsed.parameter_info);
@@ -2479,7 +2485,8 @@ impl Parser<'_> {
             insights.uses_this_from_environment = true;
         }
 
-        let function_id = self.function_table.insert(FunctionData {
+        let nested_function_ids = self.pop_function_context();
+        let function_id = self.insert_function_data(FunctionData {
             name: None,
             source_text_start: function_start.offset,
             source_text_end: self.source_text_end_offset(),
@@ -2490,6 +2497,7 @@ impl Parser<'_> {
             is_strict_mode: self.flags.strict_mode || has_use_strict,
             is_arrow_function: false,
             parsing_insights: insights,
+            nested_function_ids: Some(nested_function_ids),
         });
         self.expression(start, ExpressionKind::Function(function_id))
     }
