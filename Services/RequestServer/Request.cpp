@@ -386,16 +386,8 @@ NonnullOwnPtr<Request> Request::connect(
     CacheLevel cache_level)
 {
     auto request = adopt_own(*new Request { request_id, client, curl_multi, resolver, move(url) });
-
-    switch (cache_level) {
-    case CacheLevel::ResolveOnly:
-        request->transition_to_state(State::DNSLookup);
-        break;
-    case CacheLevel::CreateConnection:
-        request->transition_to_state(State::Connect);
-        break;
-    }
-
+    request->m_connect_cache_level = cache_level;
+    request->transition_to_state(State::DNSLookup);
     return request;
 }
 
@@ -800,6 +792,9 @@ void Request::handle_dns_lookup_state()
             } else if (first_is_one_of(self.m_type, RequestType::Fetch, RequestType::BackgroundRevalidation)) {
                 self.m_dns_result = move(dns_result);
                 self.transition_to_state(State::RetrieveCookie);
+            } else if (self.m_type == RequestType::Connect && self.m_connect_cache_level == CacheLevel::CreateConnection) {
+                self.m_dns_result = move(dns_result);
+                self.transition_to_state(State::Connect);
             } else {
                 self.transition_to_state(State::Complete);
             }
@@ -843,6 +838,16 @@ void Request::handle_connect_state()
     set_option(CURLOPT_PORT, m_url.port_or_default());
     set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
     set_option(CURLOPT_CONNECT_ONLY, 1L);
+
+    // Pre-populate the multi's hostcache so libcurl skips its threaded resolver entirely.
+    VERIFY(m_dns_result);
+    auto formatted_address = build_curl_resolve_list(*m_dns_result, m_url.serialized_host(), m_url.port_or_default());
+    if (curl_slist* resolve_list = curl_slist_append(nullptr, formatted_address.characters())) {
+        set_option(CURLOPT_RESOLVE, resolve_list);
+        m_curl_string_lists.append(resolve_list);
+    } else {
+        VERIFY_NOT_REACHED();
+    }
 
     mark_lifecycle_event(this, &WireStats::curl_added_at);
     auto result = curl_multi_add_handle(m_curl_multi_handle, m_curl_easy_handle);

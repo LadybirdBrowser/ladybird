@@ -189,6 +189,7 @@ private:
 
     NonnullRefPtr<Resolver> m_resolver;
     RefPtr<DNS::LookupResult const> m_dns_result;
+    CacheLevel m_connect_cache_level { CacheLevel::ResolveOnly };
 
     URL::URL m_url;
     ByteString m_method;
