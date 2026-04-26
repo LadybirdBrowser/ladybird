@@ -299,8 +299,12 @@ public:
                 return {};
 
             auto& result = *it->value;
+            // For completed lookups, treat a previously-asked-about type with no records as a hit (negative cache)
+            // — getaddrinfo and async DNS often return only A when the host has no AAAA. In-flight lookups must
+            // still fall through to the join-pending path, so gate on is_done().
+            auto allow_negative_cache = result.is_done();
             for (auto const& type : desired_types) {
-                if (!result.has_record_of_type(type))
+                if (!result.has_record_of_type(type, allow_negative_cache))
                     return {};
             }
 
