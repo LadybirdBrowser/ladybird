@@ -534,6 +534,9 @@ void DecodedAudioProducer::ThreadData::push_data_and_decode_a_block()
 
             {
                 auto locker = take_lock();
+                queue_size = m_queue.size();
+                if (queue_size < m_queue_max_size)
+                    continue;
                 m_wait_condition.wait();
                 if (should_thread_exit_while_locked())
                     return;
