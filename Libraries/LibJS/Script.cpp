@@ -179,9 +179,7 @@ ThrowCompletionOr<void> Script::global_declaration_instantiation(VM& vm, GlobalE
     }
 
     // 16. For each Parse Node f of functionsToInitialize, do
-    // NB: We iterate in reverse order since we appended the functions
-    //     instead of prepending during pre-computation.
-    for (auto const& function_to_initialize : m_functions_to_initialize.in_reverse()) {
+    for (auto const& function_to_initialize : m_functions_to_initialize) {
         // a. Let fn be the sole element of the BoundNames of f.
         // b. Let fo be InstantiateFunctionObject of f with arguments env and privateEnv.
         auto function = ECMAScriptFunctionObject::create_from_function_data(

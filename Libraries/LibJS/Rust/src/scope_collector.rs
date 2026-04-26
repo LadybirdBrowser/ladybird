@@ -50,7 +50,7 @@
 //!   name within one scope (multiple `foo` refs are grouped together)
 
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::ast::{
@@ -1192,15 +1192,26 @@ impl ScopeCollector {
         let mut non_local_var_count_for_parameter_expressions: usize = 0;
 
         // Build functions_to_initialize by scanning children for FunctionDeclarations.
-        // Walk in reverse order, deduplicating by name.
+        // ECMAScript hoisting keeps the LAST function declaration with a given name,
+        // but we want to emit the resulting list in SOURCE order. Two forward passes:
+        // record the last position for each name, then keep only the entries whose
+        // position matches. Keys are SharedUtf16String so each insert is a cheap
+        // Rc bump rather than a deep clone of the name.
         let mut functions_to_initialize: Vec<crate::ast::FunctionToInit> = Vec::new();
-        let mut seen_function_names: HashSet<Utf16String> = HashSet::new();
+        let mut last_position: HashMap<SharedUtf16String, usize> = HashMap::new();
         {
             let sd = scope_data.borrow();
-            for i in (0..sd.children.len()).rev() {
-                if let crate::ast::StatementKind::FunctionDeclaration(ref fd) = sd.children[i].inner
+            for (i, child) in sd.children.iter().enumerate() {
+                if let crate::ast::StatementKind::FunctionDeclaration(ref fd) = child.inner
                     && let Some(ref name_ident) = fd.name
-                    && seen_function_names.insert(name_ident.name.to_utf16_string())
+                {
+                    last_position.insert(name_ident.name.clone(), i);
+                }
+            }
+            for (i, child) in sd.children.iter().enumerate() {
+                if let crate::ast::StatementKind::FunctionDeclaration(ref fd) = child.inner
+                    && let Some(ref name_ident) = fd.name
+                    && last_position.get(&name_ident.name).copied() == Some(i)
                 {
                     functions_to_initialize.push(crate::ast::FunctionToInit { child_index: i });
                 }
@@ -1215,7 +1226,7 @@ impl ScopeCollector {
             var_names.push(name.clone());
 
             let is_parameter = var.flags.intersects(VarFlags::FORBIDDEN_LEXICAL);
-            let is_function_name = seen_function_names.contains(name);
+            let is_function_name = last_position.contains_key(name.as_slice());
 
             let local_info = if let Some(ref ident) = var.var_identifier {
                 if ident.is_local() {
@@ -1249,7 +1260,7 @@ impl ScopeCollector {
         vars_to_initialize.sort_by(|a, b| a.name.cmp(&b.name));
         var_names.sort();
 
-        if seen_function_names.iter().any(|n| n == utf16!("arguments")) {
+        if last_position.contains_key(utf16!("arguments") as &[u16]) {
             has_function_named_arguments = true;
         }
 
