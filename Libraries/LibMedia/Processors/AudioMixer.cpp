@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/EventLoop.h>
 #include <LibMedia/Processors/AudioMixer.h>
 #include <LibMedia/Producers/DecodedAudioProducer.h>
 
@@ -49,6 +50,7 @@ void AudioMixer::set_producer(Track const& track, RefPtr<DecodedAudioProducer> c
 
     if (m_sample_specification.is_valid()) {
         producer->set_output_sample_specification(m_sample_specification);
+        producer->seek(mix_head_timestamp());
         producer->start();
     }
 }
@@ -63,11 +65,16 @@ RefPtr<DecodedAudioProducer> AudioMixer::producer(Track const& track) const
 
 void AudioMixer::set_sample_specification(Audio::SampleSpecification sample_specification)
 {
-    Sync::MutexLocker locker { m_mutex };
-    m_sample_specification = sample_specification;
+    AK::Duration timestamp;
+    {
+        Sync::MutexLocker locker { m_mutex };
+        m_sample_specification = sample_specification;
+        timestamp = mix_head_timestamp();
+    }
 
     for (auto& [track, track_data] : m_track_mixing_datas) {
         track_data.producer->set_output_sample_specification(m_sample_specification);
+        track_data.producer->seek(timestamp);
         track_data.producer->start();
     }
 }
@@ -77,13 +84,37 @@ Audio::SampleSpecification AudioMixer::sample_specification() const
     return m_sample_specification;
 }
 
-void AudioMixer::reset_to_sample_position(i64 sample_position)
+AK::Duration AudioMixer::mix_head_timestamp() const
 {
-    m_next_sample_to_write = sample_position;
-    for (auto& [track, track_data] : m_track_mixing_datas) {
-        track_data.current_block.clear();
-        track_data.last_status = PipelineStatus::Pending;
+    if (!m_sample_specification.is_valid())
+        return AK::Duration::zero();
+    return AK::Duration::from_time_units(m_next_sample_to_write, 1, m_sample_specification.sample_rate());
+}
+
+void AudioMixer::seek(AK::Duration timestamp)
+{
+    {
+        Sync::MutexLocker locker { m_mutex };
+        if (!m_sample_specification.is_valid())
+            return;
+
+        m_next_sample_to_write = timestamp.to_time_units(1, m_sample_specification.sample_rate());
+
+        for (auto& [track, track_data] : m_track_mixing_datas) {
+            track_data.current_block.clear();
+            track_data.last_status = PipelineStatus::Pending;
+        }
     }
+
+    if (m_track_mixing_datas.is_empty()) {
+        Core::deferred_invoke([self = NonnullRefPtr(*this)] {
+            self->dispatch_state(PipelineStatus::EndOfStream);
+        });
+        return;
+    }
+
+    for (auto& [track, track_data] : m_track_mixing_datas)
+        track_data.producer->seek(timestamp);
 }
 
 void AudioMixer::set_state_changed_handler(PipelineStateChangeHandler handler)

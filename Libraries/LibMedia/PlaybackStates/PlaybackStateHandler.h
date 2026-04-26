@@ -8,6 +8,7 @@
 
 #include <AK/Time.h>
 #include <LibMedia/Forward.h>
+#include <LibMedia/PipelineStatus.h>
 #include <LibMedia/PlaybackStates/AvailableData.h>
 #include <LibMedia/PlaybackStates/PlaybackState.h>
 #include <LibMedia/SeekMode.h>
@@ -37,8 +38,8 @@ public:
     virtual void enter_buffering() = 0;
     virtual void exit_buffering() = 0;
 
-    virtual void on_track_enabled(Track const&);
-    virtual void on_track_disabled(Track const&) { }
+    virtual void on_audio_sink_state_changed(PipelineStatus) { }
+    virtual void on_video_sink_state_changed(Track const&, PipelineStatus) { }
 
 protected:
     PlaybackManager& manager() const { return m_manager; }

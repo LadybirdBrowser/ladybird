@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/RefPtr.h>
+#include <AK/Time.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/MediaPipelineNode.h>
 
@@ -19,6 +20,8 @@ public:
 
     virtual void set_producer(Track const&, RefPtr<DecodedVideoProducer> const&) = 0;
     virtual RefPtr<DecodedVideoProducer> producer(Track const&) const = 0;
+
+    virtual void seek(AK::Duration timestamp) = 0;
 };
 
 }

@@ -33,7 +33,7 @@ void GenericTimeProvider::pause()
     m_monotonic_time_on_resume = {};
 }
 
-void GenericTimeProvider::set_time(AK::Duration time)
+void GenericTimeProvider::seek(AK::Duration time)
 {
     if (m_monotonic_time_on_resume.has_value())
         m_monotonic_time_on_resume.emplace(MonotonicTime::now());

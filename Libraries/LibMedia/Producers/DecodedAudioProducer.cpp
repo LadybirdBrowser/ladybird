@@ -89,9 +89,9 @@ void DecodedAudioProducer::resume()
     m_thread_data->resume();
 }
 
-void DecodedAudioProducer::seek(AK::Duration timestamp, SeekCompletionHandler&& completion_handler)
+void DecodedAudioProducer::seek(AK::Duration timestamp)
 {
-    m_thread_data->seek(timestamp, move(completion_handler));
+    m_thread_data->seek(timestamp);
 }
 
 TimeRanges DecodedAudioProducer::buffered_time_ranges() const
@@ -136,7 +136,10 @@ void DecodedAudioProducer::ThreadData::dispatch_state_if_changed_while_locked(Pi
     if (status == m_last_dispatched_status)
         return;
     m_last_dispatched_status = status;
-    invoke_on_main_thread_while_locked([status](auto& self) {
+    auto seek_id = m_seek_id.load();
+    invoke_on_main_thread_while_locked([status, seek_id](auto& self) {
+        if (self->m_seek_id != seek_id)
+            return;
         if (self->m_state_changed_handler)
             self->m_state_changed_handler(status);
     });
@@ -222,13 +225,15 @@ void DecodedAudioProducer::ThreadData::enter_halting_state(PipelineStatus status
     }
 }
 
-void DecodedAudioProducer::ThreadData::seek(AK::Duration timestamp, SeekCompletionHandler&& completion_handler)
+void DecodedAudioProducer::ThreadData::seek(AK::Duration timestamp)
 {
     auto locker = take_lock();
-    m_seek_completion_handler = move(completion_handler);
     m_seek_id++;
     m_seek_timestamp = timestamp;
+    clear_queue();
+    m_pending_halting_status = PipelineStatus::Pending;
     m_demuxer->set_blocking_reads_aborted_for_track(m_track);
+    dispatch_state_if_changed_while_locked(PipelineStatus::Pending);
     wake();
 }
 
@@ -325,6 +330,8 @@ void DecodedAudioProducer::ThreadData::queue_block(AudioBlock&& block)
     // FIXME: Specify trailing samples in the demuxer, and drop them here or in the audio decoder implementation.
 
     VERIFY(!block.is_empty());
+    if (m_seek_id.load() != m_last_processed_seek_id)
+        return;
     dispatch_block_end_time(block);
     m_queue.enqueue(move(block));
     VERIFY(!m_queue.tail().is_empty());
@@ -359,25 +366,10 @@ DecoderErrorOr<void> DecodedAudioProducer::ThreadData::retrieve_next_block(Audio
     return {};
 }
 
-template<typename Callback>
-void DecodedAudioProducer::ThreadData::process_seek_on_main_thread(u32 seek_id, Callback callback)
-{
-    m_last_processed_seek_id = seek_id;
-    invoke_on_main_thread_while_locked([seek_id, callback = move(callback)](auto& self) mutable {
-        if (self->m_seek_id != seek_id)
-            return;
-        callback(self);
-    });
-}
-
 void DecodedAudioProducer::ThreadData::resolve_seek(u32 seek_id)
 {
-    m_pending_halting_status = PipelineStatus::Pending;
-    process_seek_on_main_thread(seek_id, [](auto& self) {
-        auto handler = move(self->m_seek_completion_handler);
-        if (handler)
-            handler();
-    });
+    m_last_processed_seek_id = seek_id;
+    VERIFY(m_pending_halting_status != PipelineStatus::HaveData);
 }
 
 bool DecodedAudioProducer::ThreadData::handle_seek()
@@ -392,9 +384,7 @@ bool DecodedAudioProducer::ThreadData::handle_seek()
         auto locker = take_lock();
         clear_queue();
         enter_halting_state(PipelineStatus::Error, move(error));
-        process_seek_on_main_thread(seek_id, [](auto& self) {
-            self->m_seek_completion_handler = nullptr;
-        });
+        m_last_processed_seek_id = seek_id;
     };
 
     AK::Duration timestamp;
@@ -463,13 +453,12 @@ bool DecodedAudioProducer::ThreadData::handle_seek()
                 if (current_block.timestamp() > timestamp) {
                     auto locker = take_lock();
                     clear_queue();
+                    resolve_seek(seek_id);
 
                     if (!last_block.is_empty())
                         queue_block(move(last_block));
 
                     queue_block(move(current_block));
-
-                    resolve_seek(seek_id);
                     return true;
                 }
 

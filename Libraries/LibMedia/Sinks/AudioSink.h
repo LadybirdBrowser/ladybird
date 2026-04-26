@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Time.h>
 #include <LibMedia/AudioBlock.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
@@ -20,6 +21,8 @@ public:
 
     virtual void set_producer(Track const&, RefPtr<DecodedAudioProducer> const&) = 0;
     virtual RefPtr<DecodedAudioProducer> producer(Track const&) const = 0;
+
+    virtual void seek(AK::Duration timestamp) = 0;
 };
 
 }

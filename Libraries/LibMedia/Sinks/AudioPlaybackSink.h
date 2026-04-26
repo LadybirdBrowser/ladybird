@@ -30,12 +30,9 @@ public:
     virtual AK::Duration current_time() const override;
     virtual void resume() override;
     virtual void pause() override;
-    virtual void set_time(AK::Duration) override;
+    virtual void seek(AK::Duration) override;
 
     void set_volume(double);
-
-    // FIXME: Temporary stopgap until seeks are passed up the chain to the producers.
-    void pause_audio_processor();
 
     Function<void(Error&&)> on_audio_output_error;
 

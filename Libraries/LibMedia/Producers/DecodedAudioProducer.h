@@ -37,7 +37,6 @@ public:
 
     using ErrorHandler = Function<void(DecoderError&&)>;
     using BlockEndTimeHandler = Function<void(AK::Duration)>;
-    using SeekCompletionHandler = Function<void()>;
 
     static DecoderErrorOr<NonnullRefPtr<DecodedAudioProducer>> try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track);
     DecodedAudioProducer(NonnullRefPtr<ThreadData> const&);
@@ -54,7 +53,7 @@ public:
     virtual PipelineStatus pull(AudioBlock& into) override;
     virtual void set_state_changed_handler(PipelineStateChangeHandler) override;
 
-    void seek(AK::Duration timestamp, SeekCompletionHandler&& = nullptr);
+    virtual void seek(AK::Duration timestamp) override;
 
     TimeRanges buffered_time_ranges() const;
 
@@ -89,8 +88,6 @@ private:
         void flush_decoder();
         DecoderErrorOr<void> retrieve_next_block(AudioBlock&);
         bool handle_seek();
-        template<typename Callback>
-        void process_seek_on_main_thread(u32 seek_id, Callback);
         void resolve_seek(u32 seek_id);
         void push_data_and_decode_a_block();
 
@@ -98,7 +95,7 @@ private:
 
         TimeRanges buffered_time_ranges() const;
 
-        void seek(AK::Duration timestamp, SeekCompletionHandler&&);
+        void seek(AK::Duration timestamp);
 
         [[nodiscard]] Sync::MutexLocker<Sync::Mutex> take_lock() const { return Sync::MutexLocker(m_mutex); }
         void wake() const { m_wait_condition.broadcast(); }
@@ -141,7 +138,6 @@ private:
 
         u32 m_last_processed_seek_id { 0 };
         Atomic<u32> m_seek_id { 0 };
-        SeekCompletionHandler m_seek_completion_handler;
         AK::Duration m_seek_timestamp;
 
         PipelineStateChangeHandler m_state_changed_handler;

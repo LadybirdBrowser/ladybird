@@ -20,6 +20,15 @@ enum class PipelineStatus : u8 {
     Error,
 };
 
+constexpr bool is_waiting_for_data(PipelineStatus status)
+{
+    if (status == PipelineStatus::Pending)
+        return true;
+    if (status == PipelineStatus::Blocked)
+        return true;
+    return false;
+}
+
 constexpr bool can_carry_data(PipelineStatus status)
 {
     if (status == PipelineStatus::HaveData)

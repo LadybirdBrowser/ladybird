@@ -32,14 +32,14 @@ public:
     virtual void set_producer(Track const&, RefPtr<DecodedAudioProducer> const&) override;
     virtual RefPtr<DecodedAudioProducer> producer(Track const&) const override;
 
+    virtual void seek(AK::Duration timestamp) override;
+
     void set_sample_specification(Audio::SampleSpecification);
     Audio::SampleSpecification sample_specification() const;
 
     PipelineStatus pull(AudioBlock& into);
 
     void set_state_changed_handler(PipelineStateChangeHandler);
-
-    void reset_to_sample_position(i64 sample_position);
 
 private:
     struct TrackMixingData {
@@ -55,6 +55,7 @@ private:
     };
 
     void dispatch_state(PipelineStatus);
+    AK::Duration mix_head_timestamp() const;
 
     mutable Sync::Mutex m_mutex;
     Audio::SampleSpecification m_sample_specification;

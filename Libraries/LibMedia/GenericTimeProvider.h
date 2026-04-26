@@ -18,7 +18,7 @@ public:
     virtual AK::Duration current_time() const override;
     virtual void resume() override;
     virtual void pause() override;
-    virtual void set_time(AK::Duration) override;
+    virtual void seek(AK::Duration) override;
 
 private:
     Optional<MonotonicTime> m_monotonic_time_on_resume;

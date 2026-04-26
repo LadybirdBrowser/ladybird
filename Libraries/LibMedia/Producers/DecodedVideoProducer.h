@@ -36,7 +36,6 @@ public:
 
     using ErrorHandler = Function<void(DecoderError&&)>;
     using FrameEndTimeHandler = Function<void(AK::Duration)>;
-    using SeekCompletionHandler = Function<void(AK::Duration)>;
 
     static DecoderErrorOr<NonnullRefPtr<DecodedVideoProducer>> try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const&, Track const&, RefPtr<MediaTimeProvider> const& = nullptr);
 
@@ -53,7 +52,7 @@ public:
     virtual PipelineStatus pull(RefPtr<VideoFrame>& into) override;
     virtual void set_state_changed_handler(PipelineStateChangeHandler) override;
 
-    void seek(AK::Duration timestamp, SeekMode, SeekCompletionHandler&& = nullptr);
+    virtual void seek(AK::Duration timestamp) override;
 
     TimeRanges buffered_time_ranges() const;
 
@@ -77,7 +76,7 @@ private:
 
         PipelineStatus pull(RefPtr<VideoFrame>& into);
 
-        void seek(AK::Duration timestamp, SeekMode, SeekCompletionHandler&&);
+        void seek(AK::Duration timestamp);
 
         void wait_for_start();
         bool should_thread_exit_while_locked() const;
@@ -91,9 +90,7 @@ private:
         void queue_frame(NonnullRefPtr<VideoFrame> const&);
         void dispatch_error(DecoderError&&);
         bool handle_seek();
-        template<typename Callback>
-        void process_seek_on_main_thread(u32 seek_id, Callback);
-        void resolve_seek(u32 seek_id, AK::Duration const& timestamp);
+        void resolve_seek(u32 seek_id);
         void push_data_and_decode_some_frames();
 
         void enter_halting_state(PipelineStatus, Optional<DecoderError>);
@@ -135,9 +132,7 @@ private:
 
         u32 m_last_processed_seek_id { 0 };
         Atomic<u32> m_seek_id { 0 };
-        SeekCompletionHandler m_seek_completion_handler;
         AK::Duration m_seek_timestamp;
-        SeekMode m_seek_mode { SeekMode::Accurate };
 
         PipelineStateChangeHandler m_state_changed_handler;
         PipelineStatus m_last_dispatched_status { PipelineStatus::Pending };

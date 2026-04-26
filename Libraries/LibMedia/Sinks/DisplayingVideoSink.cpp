@@ -6,6 +6,7 @@
 
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/MediaTimeProvider.h>
+#include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Producers/DecodedVideoProducer.h>
 #include <LibMedia/VideoFrame.h>
 
@@ -24,7 +25,11 @@ DisplayingVideoSink::DisplayingVideoSink(NonnullRefPtr<MediaTimeProvider> const&
 {
 }
 
-DisplayingVideoSink::~DisplayingVideoSink() = default;
+DisplayingVideoSink::~DisplayingVideoSink()
+{
+    if (m_producer != nullptr)
+        m_producer->set_state_changed_handler(nullptr);
+}
 
 void DisplayingVideoSink::set_time_provider(NonnullRefPtr<MediaTimeProvider> const& provider)
 {
@@ -42,10 +47,31 @@ void DisplayingVideoSink::verify_track(Track const& track) const
 void DisplayingVideoSink::set_producer(Track const& track, RefPtr<DecodedVideoProducer> const& producer)
 {
     verify_track(track);
+    if (m_producer != nullptr)
+        m_producer->set_state_changed_handler(nullptr);
+
     m_track = track;
     m_producer = producer;
-    if (producer != nullptr)
+    if (producer != nullptr) {
+        producer->set_state_changed_handler([this](PipelineStatus status) {
+            if (!m_seek_pending_display_update)
+                return;
+            if (is_waiting_for_data(status))
+                return;
+            dispatch_state_if_changed(status);
+        });
+        producer->seek(m_time_provider->current_time());
         producer->start();
+    }
+}
+
+void DisplayingVideoSink::seek(AK::Duration timestamp)
+{
+    if (m_producer != nullptr)
+        m_producer->seek(timestamp);
+    m_next_frame.clear();
+    m_last_dispatched_status = PipelineStatus::Pending;
+    m_seek_pending_display_update = true;
 }
 
 RefPtr<DecodedVideoProducer> DisplayingVideoSink::producer(Track const& track) const
@@ -67,15 +93,9 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update()
 {
     if (m_producer == nullptr)
         return DisplayingVideoSinkUpdateResult::NoChange;
-    if (m_pause_updates)
-        return DisplayingVideoSinkUpdateResult::NoChange;
 
     auto current_time = m_time_provider->current_time();
     auto result = DisplayingVideoSinkUpdateResult::NoChange;
-    if (m_has_new_current_frame) {
-        result = DisplayingVideoSinkUpdateResult::NewFrameAvailable;
-        m_has_new_current_frame = false;
-    }
 
     auto last_pull_status = PipelineStatus::Pending;
     while (true) {
@@ -94,35 +114,23 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update()
     auto effective_status = last_pull_status;
     if (m_next_frame != nullptr)
         effective_status = PipelineStatus::HaveData;
+
+    if (m_seek_pending_display_update && !is_waiting_for_data(effective_status)) {
+        if (result != DisplayingVideoSinkUpdateResult::NewFrameAvailable) {
+            m_current_frame.clear();
+            result = DisplayingVideoSinkUpdateResult::NewFrameAvailable;
+        }
+        m_seek_pending_display_update = false;
+    }
+
     dispatch_state_if_changed(effective_status);
 
     return result;
 }
 
-void DisplayingVideoSink::prepare_current_frame_for_next_update()
-{
-    auto update_result = update();
-    if (update_result == DisplayingVideoSinkUpdateResult::NewFrameAvailable)
-        m_has_new_current_frame = true;
-}
-
 RefPtr<VideoFrame> DisplayingVideoSink::current_frame()
 {
     return m_current_frame;
-}
-
-void DisplayingVideoSink::pause_updates()
-{
-    m_pause_updates = true;
-}
-
-void DisplayingVideoSink::resume_updates()
-{
-    m_next_frame = nullptr;
-    m_current_frame = nullptr;
-    m_pause_updates = false;
-    m_has_new_current_frame = true;
-    prepare_current_frame_for_next_update();
 }
 
 }

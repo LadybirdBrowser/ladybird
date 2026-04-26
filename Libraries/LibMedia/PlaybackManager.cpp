@@ -246,6 +246,7 @@ void PlaybackManager::on_audio_sink_state_changed(PipelineStatus status)
 {
     m_audio_buffering = status == PipelineStatus::Blocked;
     update_buffering_state();
+    m_handler->on_audio_sink_state_changed(status);
 }
 
 void PlaybackManager::on_video_sink_state_changed(Track const& track, PipelineStatus status)
@@ -257,6 +258,7 @@ void PlaybackManager::on_video_sink_state_changed(Track const& track, PipelineSt
         if (m_video_tracks_buffering.remove(track))
             update_buffering_state();
     }
+    m_handler->on_video_sink_state_changed(track, status);
 }
 
 void PlaybackManager::update_buffering_state()
@@ -294,7 +296,7 @@ void PlaybackManager::dispatch_error(DecoderError&& error)
 void PlaybackManager::set_time_provider(NonnullRefPtr<MediaTimeProvider> const& provider)
 {
     auto time = current_time();
-    provider->set_time(time);
+    provider->seek(time);
     m_time_provider = provider;
     for (auto& track_data : m_video_track_datas) {
         if (!track_data.display)
@@ -325,7 +327,6 @@ NonnullRefPtr<DisplayingVideoSink> PlaybackManager::get_or_create_the_displaying
                 self->on_video_sink_state_changed(track, status);
             }));
         track_data.display->set_producer(track, track_data.producer);
-        m_handler->on_track_enabled(track);
     }
 
     VERIFY(track_data.display->producer(track) == track_data.producer);
@@ -338,7 +339,6 @@ void PlaybackManager::remove_the_displaying_video_sink_for_track(Track const& tr
     VERIFY(track_data.display);
     track_data.display->set_producer(track, nullptr);
     track_data.display = nullptr;
-    m_handler->on_track_disabled(track);
     on_video_sink_state_changed(track, PipelineStatus::EndOfStream);
 }
 
@@ -351,7 +351,6 @@ void PlaybackManager::enable_an_audio_track(Track const& track)
         VERIFY(m_audio_mixer->producer(track) == nullptr);
         m_audio_mixer->set_producer(track, track_data.producer);
     }
-    m_handler->on_track_enabled(track);
 }
 
 void PlaybackManager::disable_an_audio_track(Track const& track)
@@ -363,7 +362,6 @@ void PlaybackManager::disable_an_audio_track(Track const& track)
         m_audio_mixer->set_producer(track, nullptr);
     }
     track_data.enabled = false;
-    m_handler->on_track_disabled(track);
 }
 
 bool PlaybackManager::track_is_enabled(Track const& track) const

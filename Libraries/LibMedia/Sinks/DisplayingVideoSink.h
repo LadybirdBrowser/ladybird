@@ -34,12 +34,10 @@ public:
     virtual void set_producer(Track const&, RefPtr<DecodedVideoProducer> const&) override;
     RefPtr<DecodedVideoProducer> producer(Track const&) const override;
 
-    [[nodiscard]] DisplayingVideoSinkUpdateResult update();
-    void prepare_current_frame_for_next_update();
-    RefPtr<VideoFrame> current_frame();
+    virtual void seek(AK::Duration timestamp) override;
 
-    void pause_updates();
-    void resume_updates();
+    [[nodiscard]] DisplayingVideoSinkUpdateResult update();
+    RefPtr<VideoFrame> current_frame();
 
 private:
     void verify_track(Track const&) const;
@@ -51,8 +49,7 @@ private:
 
     RefPtr<VideoFrame> m_next_frame;
     RefPtr<VideoFrame> m_current_frame;
-    bool m_pause_updates { false };
-    bool m_has_new_current_frame { false };
+    bool m_seek_pending_display_update { false };
 
     PipelineStateChangeHandler m_on_state_changed;
     PipelineStatus m_last_dispatched_status { PipelineStatus::Pending };

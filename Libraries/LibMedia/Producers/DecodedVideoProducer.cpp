@@ -131,15 +131,18 @@ void DecodedVideoProducer::ThreadData::dispatch_state_if_changed_while_locked(Pi
     if (status == m_last_dispatched_status)
         return;
     m_last_dispatched_status = status;
-    invoke_on_main_thread_while_locked([status](auto& self) {
+    auto seek_id = m_seek_id.load();
+    invoke_on_main_thread_while_locked([status, seek_id](auto& self) {
+        if (self->m_seek_id != seek_id)
+            return;
         if (self->m_state_changed_handler)
             self->m_state_changed_handler(status);
     });
 }
 
-void DecodedVideoProducer::seek(AK::Duration timestamp, SeekMode seek_mode, SeekCompletionHandler&& completion_handler)
+void DecodedVideoProducer::seek(AK::Duration timestamp)
 {
-    m_thread_data->seek(timestamp, seek_mode, move(completion_handler));
+    m_thread_data->seek(timestamp);
 }
 
 DecodedVideoProducer::ThreadData::ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, AK::Duration duration, RefPtr<MediaTimeProvider> const& time_provider)
@@ -213,14 +216,15 @@ DecodedVideoProducer::FrameQueue& DecodedVideoProducer::ThreadData::queue()
     return m_queue;
 }
 
-void DecodedVideoProducer::ThreadData::seek(AK::Duration timestamp, SeekMode seek_mode, SeekCompletionHandler&& completion_handler)
+void DecodedVideoProducer::ThreadData::seek(AK::Duration timestamp)
 {
     auto locker = take_lock();
     m_seek_id++;
-    m_seek_completion_handler = move(completion_handler);
     m_seek_timestamp = timestamp;
-    m_seek_mode = seek_mode;
+    m_queue.clear();
+    m_pending_halting_status = PipelineStatus::Pending;
     m_demuxer->set_blocking_reads_aborted_for_track(m_track);
+    dispatch_state_if_changed_while_locked(PipelineStatus::Pending);
     wake();
 }
 
@@ -309,6 +313,8 @@ void DecodedVideoProducer::ThreadData::dispatch_frame_end_time(CodedFrame const&
 
 void DecodedVideoProducer::ThreadData::queue_frame(NonnullRefPtr<VideoFrame> const& frame)
 {
+    if (m_seek_id.load() != m_last_processed_seek_id)
+        return;
     m_queue.enqueue(frame);
     dispatch_state_if_changed_while_locked(PipelineStatus::HaveData);
 }
@@ -321,25 +327,10 @@ void DecodedVideoProducer::ThreadData::dispatch_error(DecoderError&& error)
         m_error_handler(move(error));
 }
 
-template<typename Callback>
-void DecodedVideoProducer::ThreadData::process_seek_on_main_thread(u32 seek_id, Callback callback)
+void DecodedVideoProducer::ThreadData::resolve_seek(u32 seek_id)
 {
     m_last_processed_seek_id = seek_id;
-    invoke_on_main_thread_while_locked([seek_id, callback = move(callback)](auto& self) mutable {
-        if (self->m_seek_id != seek_id)
-            return;
-        callback(self);
-    });
-}
-
-void DecodedVideoProducer::ThreadData::resolve_seek(u32 seek_id, AK::Duration const& timestamp)
-{
-    m_pending_halting_status = PipelineStatus::Pending;
-    process_seek_on_main_thread(seek_id, [timestamp](auto& self) {
-        auto handler = move(self->m_seek_completion_handler);
-        if (handler)
-            handler(timestamp);
-    });
+    VERIFY(m_pending_halting_status != PipelineStatus::HaveData);
 }
 
 bool DecodedVideoProducer::ThreadData::handle_seek()
@@ -354,24 +345,20 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
         auto locker = take_lock();
         m_queue.clear();
         enter_halting_state(PipelineStatus::Error, move(error));
-        process_seek_on_main_thread(seek_id, [](auto& self) {
-            self->m_seek_completion_handler = nullptr;
-        });
+        m_last_processed_seek_id = seek_id;
     };
 
     AK::Duration timestamp;
-    SeekMode mode { SeekMode::Accurate };
 
     while (true) {
         {
             auto locker = take_lock();
             seek_id = m_seek_id;
             timestamp = m_seek_timestamp;
-            mode = m_seek_mode;
             m_demuxer->reset_blocking_reads_aborted_for_track(m_track);
         }
 
-        auto seek_options = mode == SeekMode::Accurate ? DemuxerSeekOptions::None : DemuxerSeekOptions::Force;
+        auto seek_options = DemuxerSeekOptions::None;
         if (m_decoder_needs_keyframe_next_seek) {
             seek_options |= DemuxerSeekOptions::Force;
             m_decoder_needs_keyframe_next_seek = false;
@@ -386,49 +373,13 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
         if (demuxer_seek_result == DemuxerSeekResult::MovedPosition)
             m_decoder->flush();
 
-        auto is_desired_coded_frame = [mode, timestamp](CodedFrame const& frame) {
-            if (mode == SeekMode::Accurate)
-                return true;
-            if (mode == SeekMode::FastBefore)
-                return frame.is_keyframe();
-            if (mode == SeekMode::FastAfter)
-                return frame.is_keyframe() && frame.timestamp() > timestamp;
-            VERIFY_NOT_REACHED();
-        };
-
-        auto is_desired_decoded_frame = [mode, timestamp](VideoFrame const& frame) {
-            if (mode == SeekMode::Accurate)
-                return frame.timestamp() > timestamp;
-            return true;
-        };
-
-        auto resolved_time = [mode, timestamp](VideoFrame const& frame) {
-            if (mode == SeekMode::Accurate)
-                return timestamp;
-            if (mode == SeekMode::FastBefore)
-                return min(timestamp, frame.timestamp());
-            if (mode == SeekMode::FastAfter)
-                return max(timestamp, frame.timestamp());
-            VERIFY_NOT_REACHED();
-        };
-
         auto new_seek_id = m_seek_id.load();
-        auto found_desired_keyframe = false;
         RefPtr<VideoFrame> last_frame;
 
         while (new_seek_id == seek_id) {
             auto coded_frame_result = m_demuxer->get_next_sample_for_track(m_track);
             if (coded_frame_result.is_error()) {
                 if (coded_frame_result.error().category() == DecoderErrorCategory::EndOfStream) {
-                    if (mode == SeekMode::FastAfter) {
-                        // If we're fast seeking after the provided timestamp and reach the end of the stream, that means we have
-                        // nothing to display. Restart the seek as an accurate seek.
-                        auto locker = take_lock();
-                        seek_id = ++m_seek_id;
-                        m_seek_mode = SeekMode::Accurate;
-                        continue;
-                    }
-
                     m_decoder->signal_end_of_stream();
                 } else {
                     handle_error(coded_frame_result.release_error());
@@ -437,12 +388,6 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
             } else {
                 auto coded_frame = coded_frame_result.release_value();
                 dispatch_frame_end_time(coded_frame);
-
-                if (!found_desired_keyframe)
-                    found_desired_keyframe = is_desired_coded_frame(coded_frame);
-
-                if (!found_desired_keyframe)
-                    continue;
 
                 auto decode_result = m_decoder->receive_coded_data(coded_frame.timestamp(), coded_frame.duration(), coded_frame.data());
                 if (decode_result.is_error()) {
@@ -456,10 +401,9 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
                 if (frame_result.is_error()) {
                     if (frame_result.error().category() == DecoderErrorCategory::EndOfStream) {
                         auto locker = take_lock();
+                        resolve_seek(seek_id);
                         if (last_frame != nullptr)
                             queue_frame(last_frame.release_nonnull());
-
-                        resolve_seek(seek_id, timestamp);
                         return true;
                     }
 
@@ -471,16 +415,15 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
                 }
 
                 auto current_frame = frame_result.release_value();
-                if (is_desired_decoded_frame(*current_frame)) {
+                if (current_frame->timestamp() > timestamp) {
                     auto locker = take_lock();
                     m_queue.clear();
+                    resolve_seek(seek_id);
 
                     if (last_frame != nullptr)
                         queue_frame(last_frame.release_nonnull());
 
                     queue_frame(current_frame);
-
-                    resolve_seek(seek_id, resolved_time(*current_frame));
                     return true;
                 }
 
