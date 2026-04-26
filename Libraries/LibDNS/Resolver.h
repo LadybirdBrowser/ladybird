@@ -16,6 +16,7 @@
 #include <AK/StringView.h>
 #include <AK/TemporaryChange.h>
 #include <AK/Time.h>
+#include <LibCore/EventLoop.h>
 #include <LibCore/Promise.h>
 #include <LibCore/Socket.h>
 #include <LibCore/Timer.h>
@@ -24,6 +25,7 @@
 #include <LibCrypto/PK/RSA.h>
 #include <LibDNS/Message.h>
 #include <LibThreading/RWLockProtected.h>
+#include <LibThreading/ThreadPool.h>
 
 #define TRY_OR_REJECT_PROMISE(promise, expr)          \
     ({                                                \
@@ -350,27 +352,19 @@ public:
 
     NonnullRefPtr<Core::Promise<NonnullRefPtr<LookupResult const>>> lookup(ByteString name, Messages::Class class_, Vector<Messages::ResourceType> desired_types, LookupOptions options = LookupOptions::default_())
     {
-        // Instrumentation: classify how this lookup was satisfied (cache, system
-        // resolver fallback, async DNS query) and how long the synchronous portion
-        // of lookup() blocked the caller. Logs a `wire-dns:` line at exit. The
-        // synchronous portion is what blocks the event loop — anything > a few ms
-        // here is interesting because libcurl is sitting idle while we run.
-        auto lookup_entered_at = MonotonicTime::now();
+        // Classifies how the lookup was satisfied (cache hit, system-resolver fallback, async query) so the
+        // `wire-dns:` log line below can show where event-loop time went when the synchronous portion is slow.
         StringView lookup_path = "unknown"sv;
-        i64 sync_resolve_host_ms = -1;
-        auto log_lookup_on_exit = [&](StringView path) {
-            auto sync_ms = (MonotonicTime::now() - lookup_entered_at).to_milliseconds();
-            if (sync_ms > 5 || sync_resolve_host_ms > 5) {
-                if (sync_resolve_host_ms >= 0) {
-                    dbgln_if(REQUESTSERVER_WIRE_DEBUG, "LibDNS wire-dns: lookup({}) path={} sync={} ms (system-resolve_host={} ms)",
-                        name, path, sync_ms, sync_resolve_host_ms);
-                } else {
-                    dbgln_if(REQUESTSERVER_WIRE_DEBUG, "LibDNS wire-dns: lookup({}) path={} sync={} ms",
-                        name, path, sync_ms);
-                }
-            }
+        Optional<MonotonicTime> lookup_entered_at;
+        if constexpr (REQUESTSERVER_WIRE_DEBUG)
+            lookup_entered_at = MonotonicTime::now();
+        ScopeGuard log_guard = [&] {
+            if constexpr (!REQUESTSERVER_WIRE_DEBUG)
+                return;
+            auto sync_ms = (MonotonicTime::now() - *lookup_entered_at).to_milliseconds();
+            if (sync_ms > 5)
+                dbgln("LibDNS wire-dns: lookup({}) path={} sync={} ms", name, lookup_path, sync_ms);
         };
-        ScopeGuard log_guard = [&] { log_lookup_on_exit(lookup_path); };
 
         flush_cache();
 
@@ -431,41 +425,85 @@ public:
                 return promise;
             }
 
-            // Use system resolver
-            // FIXME: Use an underlying resolver instead.
-            // NB: Core::Socket::resolve_host is the BLOCKING getaddrinfo() fallback. If anything
-            //     in this whole resolver path is going to freeze the event loop for many seconds,
-            //     it is this call. We measure it explicitly so the wire-dns: line surfaces it.
-            dbgln_if(DNS_DEBUG, "Not ready to resolve, using system resolver and skipping cache for {}", name);
-            lookup_path = "system-resolver"sv;
-            auto resolve_started_at = MonotonicTime::now();
-            auto record_or_error = Core::Socket::resolve_host(name, Core::Socket::SocketType::Stream);
-            sync_resolve_host_ms = (MonotonicTime::now() - resolve_started_at).to_milliseconds();
-            if (record_or_error.is_error()) {
-                promise->reject(record_or_error.release_error());
+            // FIXME: Use an underlying async resolver instead of getaddrinfo entirely. Until then, see
+            //        PendingSystemResolution for why we split into two parallel workers.
+            dbgln_if(DNS_DEBUG, "Not ready to resolve, dispatching system resolver to ThreadPool for {}", name);
+
+            RefPtr<PendingSystemResolution> our_state;
+            RefPtr<LookupResult> already_finalized_result;
+            m_pending_system_resolutions.with_write_locked(
+                [&](auto& pending) {
+                    if (auto it = pending.find(name); it != pending.end()) {
+                        auto& existing = *it->value;
+                        // Grace timer may have already finalized the resolution while AAAA is still in
+                        // flight; serve the join-pending caller from the existing result. We resolve the
+                        // promise outside this critical section so a synchronous handler can't reenter
+                        // the resolver and deadlock on m_pending_system_resolutions.
+                        if (existing.promise_resolved) {
+                            already_finalized_result = existing.result;
+                            return;
+                        }
+                        existing.waiting_promises.append(promise);
+                        return;
+                    }
+                    auto result = make_ref_counted<LookupResult>(domain_name);
+                    for (auto const& type : desired_types)
+                        result->will_add_record_of_type(type);
+                    auto state = adopt_ref(*new PendingSystemResolution(result));
+                    state->waiting_promises.append(promise);
+                    pending.set(name, state);
+                    our_state = state;
+                });
+
+            if (already_finalized_result) {
+                lookup_path = "system-resolver-join-finalized"sv;
+                if (already_finalized_result->records().is_empty())
+                    promise->reject(Error::from_string_literal("Could not resolve to IPv4 or IPv6 address"));
+                else
+                    promise->resolve(already_finalized_result.release_nonnull());
                 return promise;
             }
-            auto result = make_ref_counted<LookupResult>(domain_name);
-            auto records = record_or_error.release_value();
 
-            for (auto const& record : records) {
-                record.visit(
-                    [&](IPv4Address const& address) {
-                        result->add_record({ .name = {}, .type = Messages::ResourceType::A, .class_ = Messages::Class::IN, .ttl = 0, .record = Messages::Records::A { address }, .raw = {} });
-                    },
-                    [&](IPv6Address const& address) {
-                        result->add_record({ .name = {}, .type = Messages::ResourceType::AAAA, .class_ = Messages::Class::IN, .ttl = 0, .record = Messages::Records::AAAA { address }, .raw = {} });
-                    });
+            if (!our_state) {
+                lookup_path = "system-resolver-join-pending"sv;
+                return promise;
             }
-            result->finished_request();
-            promise->resolve(result);
+
+            lookup_path = "system-resolver-bg"sv;
+
+            auto main_thread_event_loop_reference = Core::EventLoop::current_weak();
+
+            auto submit_worker = [&, this](Core::Socket::AddressFamily family) {
+                Threading::ThreadPool::the().submit(
+                    [this, name, state = our_state, family,
+                        main_thread_event_loop_reference]() mutable {
+                        auto worker_started_at = MonotonicTime::now();
+                        auto record_or_error = Core::Socket::resolve_host(name, Core::Socket::SocketType::Stream, family);
+                        auto worker_finished_at = MonotonicTime::now();
+                        PendingSystemResolution::SideTiming timing {
+                            .queue_ms = (worker_started_at - state->dispatched_at).to_milliseconds(),
+                            .work_ms = (worker_finished_at - worker_started_at).to_milliseconds(),
+                        };
+
+                        auto main_thread_event_loop = main_thread_event_loop_reference->take();
+                        if (!main_thread_event_loop)
+                            return;
+
+                        main_thread_event_loop->deferred_invoke(
+                            [this, name, state, family,
+                                record_or_error = move(record_or_error),
+                                timing]() mutable {
+                                handle_system_resolver_completion(name, *state, family, move(record_or_error), timing);
+                            });
+                    });
+            };
+
+            submit_worker(Core::Socket::AddressFamily::IPv4Only);
+            submit_worker(Core::Socket::AddressFamily::IPv6Only);
+
             return promise;
         }
 
-        // We arrive here only when an async DNS query will be sent over the wire.
-        // The synchronous portion still includes building the cache entry and
-        // serializing the query, but the actual wait happens asynchronously and
-        // is captured by RequestServer's `wire^:` line as `our-dns`.
         lookup_path = "async-query"sv;
 
         auto already_in_cache = false;
@@ -651,6 +689,135 @@ public:
     }
 
 private:
+    // Per-name state for an in-flight system-resolver lookup. We split the
+    // single AF_UNSPEC `getaddrinfo` call into two parallel calls (AF_INET +
+    // AF_INET6) so that buggy stub resolvers (notably systemd-resolved under
+    // load) can't drop the AAAA half of a coupled query and stall us on it.
+    // The promise resolves as soon as one side returns records, with a small
+    // 50 ms grace window for the other side (Happy Eyeballs v2's Resolution
+    // Delay, RFC 8305) so curl can prefer IPv6 when both are available. The
+    // slower side keeps running and merges its records into the cached
+    // LookupResult so subsequent lookups see the full set.
+    //
+    // `waiting_promises` holds one Promise per `lookup()` caller that joined
+    // this resolution. Each caller MUST get their own Promise — Core::Promise
+    // has a single on_resolution slot, so sharing one promise across callers
+    // means each new `when_resolved` clobbers the previous handler and only
+    // the last caller ever fires.
+    struct PendingSystemResolution
+        : public AtomicRefCounted<PendingSystemResolution>
+        , public Weakable<PendingSystemResolution> {
+        struct SideTiming {
+            i64 queue_ms { 0 };
+            i64 work_ms { 0 };
+        };
+
+        Vector<NonnullRefPtr<Core::Promise<NonnullRefPtr<LookupResult const>>>> waiting_promises;
+        NonnullRefPtr<LookupResult> result;
+        MonotonicTime dispatched_at;
+        Optional<SideTiming> a;
+        Optional<SideTiming> aaaa;
+        bool promise_resolved { false };
+        RefPtr<Core::Timer> grace_timer;
+
+        explicit PendingSystemResolution(NonnullRefPtr<LookupResult> r)
+            : result(move(r))
+            , dispatched_at(MonotonicTime::now())
+        {
+        }
+    };
+
+    // Resolve (or reject) every joined caller's promise from `state` and tear down any pending grace timer.
+    // Idempotent — safe to call from both the main completion path and from the grace timer callback.
+    static void try_finalize_pending_system_resolution(PendingSystemResolution& state)
+    {
+        if (state.promise_resolved)
+            return;
+        state.promise_resolved = true;
+        if (state.grace_timer) {
+            state.grace_timer->stop();
+            state.grace_timer = nullptr;
+        }
+        auto promises = move(state.waiting_promises);
+        if (state.result->records().is_empty()) {
+            for (auto& promise : promises)
+                promise->reject(Error::from_string_literal("Could not resolve to IPv4 or IPv6 address"));
+        } else {
+            for (auto& promise : promises)
+                promise->resolve(state.result);
+        }
+    }
+
+    // Runs on the main thread (deferred-invoked from a ThreadPool worker).
+    void handle_system_resolver_completion(
+        ByteString const& name,
+        PendingSystemResolution& state,
+        Core::Socket::AddressFamily family,
+        ErrorOr<Vector<Variant<IPv4Address, IPv6Address>>> record_or_error,
+        PendingSystemResolution::SideTiming timing)
+    {
+        (family == Core::Socket::AddressFamily::IPv4Only ? state.a : state.aaaa) = timing;
+
+        // Merge this side's records into the (shared, main-thread-only) LookupResult. Late-arriving records still
+        // populate the cache for subsequent lookups.
+        bool got_records_this_side = false;
+        if (!record_or_error.is_error()) {
+            constexpr u32 SYSTEM_RESOLVER_SYNTHETIC_TTL_SECONDS = 60;
+            for (auto const& record : record_or_error.value()) {
+                record.visit(
+                    [&](IPv4Address const& address) {
+                        state.result->add_record({ .name = {}, .type = Messages::ResourceType::A, .class_ = Messages::Class::IN, .ttl = SYSTEM_RESOLVER_SYNTHETIC_TTL_SECONDS, .record = Messages::Records::A { address }, .raw = {} });
+                        got_records_this_side = true;
+                    },
+                    [&](IPv6Address const& address) {
+                        state.result->add_record({ .name = {}, .type = Messages::ResourceType::AAAA, .class_ = Messages::Class::IN, .ttl = SYSTEM_RESOLVER_SYNTHETIC_TTL_SECONDS, .record = Messages::Records::AAAA { address }, .raw = {} });
+                        got_records_this_side = true;
+                    });
+            }
+        }
+
+        bool both_completed = state.a.has_value() && state.aaaa.has_value();
+
+        if (both_completed) {
+            state.result->finished_request();
+            m_cache.with_write_locked([&](auto& cache) {
+                cache.set(name, state.result);
+            });
+            m_pending_system_resolutions.with_write_locked([&](auto& pending) {
+                pending.remove(name);
+            });
+
+            auto total_ms = (MonotonicTime::now() - state.dispatched_at).to_milliseconds();
+            if (total_ms > 5) {
+                dbgln_if(REQUESTSERVER_WIRE_DEBUG, "LibDNS wire-dns: lookup({}) path=system-resolver-bg total={} ms = A(queue {} + work {}) | AAAA(queue {} + work {}) (off event loop)",
+                    name, total_ms,
+                    state.a->queue_ms, state.a->work_ms,
+                    state.aaaa->queue_ms, state.aaaa->work_ms);
+            }
+
+            try_finalize_pending_system_resolution(state);
+            return;
+        }
+
+        if (state.promise_resolved)
+            return;
+
+        if (!got_records_this_side)
+            return;
+
+        // First side has records. Wait briefly so the other side gets a chance to add its records too
+        // (RFC 8305 Resolution Delay, 50 ms).
+        if (state.grace_timer)
+            return;
+        constexpr int RESOLUTION_DELAY_MS = 50;
+        auto weak_state = state.make_weak_ptr();
+        state.grace_timer = Core::Timer::create_single_shot(RESOLUTION_DELAY_MS, [weak_state] {
+            if (auto state = weak_state.strong_ref())
+                try_finalize_pending_system_resolution(*state);
+        });
+        state.grace_timer->start();
+    }
+
     ErrorOr<Messages::Message> parse_one_message()
     {
         if (m_mode == ConnectionMode::UDP)
@@ -1246,6 +1413,7 @@ private:
     }
 
     Threading::RWLockProtected<HashMap<ByteString, NonnullRefPtr<LookupResult>>> m_cache;
+    Threading::RWLockProtected<HashMap<ByteString, NonnullRefPtr<PendingSystemResolution>>> m_pending_system_resolutions;
     Threading::RWLockProtected<NonnullOwnPtr<RedBlackTree<u16, PendingLookup>>> m_pending_lookups;
     Threading::RWLockProtected<Optional<MaybeOwned<Core::Socket>>> m_socket;
     Function<ErrorOr<SocketResult>()> m_create_socket;
