@@ -1354,6 +1354,39 @@ end
     }
 
     #[test]
+    fn aarch64_call_helper_named_input_and_output_share_x0() {
+        // On aarch64, the named-call form can put the dying input and
+        // newly-born output in x0, which is both t0 and the ABI argument
+        // register. That lets codegen skip the legacy x1 -> x0 bridge.
+        let src = "
+handler Test
+    temp value, result
+    load_operand value, m_condition
+    call_helper asm_helper_to_boolean, value, result
+    branch_nonzero result, .take
+    dispatch_next
+.take:
+    load_label value, m_target
+    goto_handler value
+end
+";
+        let out = build(src, Arch::Aarch64).expect("allocation should succeed");
+        let mut saw_call = false;
+        for insn in &out {
+            if insn.mnemonic == "call_helper" {
+                saw_call = true;
+                if let Some(Operand::Register(name)) = insn.operands.get(1) {
+                    assert_eq!(name, "x0", "call_helper input must be pinned to x0");
+                }
+                if let Some(Operand::Register(name)) = insn.operands.get(2) {
+                    assert_eq!(name, "x0", "call_helper output must be pinned to x0");
+                }
+            }
+        }
+        assert!(saw_call);
+    }
+
+    #[test]
     fn rejects_temp_live_across_call() {
         let src = "
 handler Test

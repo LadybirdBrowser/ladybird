@@ -265,9 +265,11 @@ pub const INSTRUCTIONS: &[InstructionInfo] = &[
     // call_helper func [, input_temp, output_temp]
     //   u64 func(u64 value).
     //   1-operand form: reads from t1 / writes to t0 by convention.
-    //   3-operand form: input_temp is pinned to t1 (rcx/x1), output_temp
-    //   is pinned to t0 (rax/x0). Both forms still kill all caller-saved
-    //   registers as per `is_call`.
+    //   3-operand form: input_temp/output_temp are pinned to call/result
+    //   registers. On x86_64 that is rcx -> rax to match the historical
+    //   t1 -> t0 convention; on aarch64 both use x0, matching the ABI
+    //   argument/result register and avoiding the old x1 -> x0 bridge move.
+    //   Both forms still kill all caller-saved registers as per `is_call`.
     info(
         "call_helper",
         &[FuncSymbol, GprIn, GprOut],
@@ -281,9 +283,9 @@ pub const INSTRUCTIONS: &[InstructionInfo] = &[
             ..ArchSpec::NONE
         },
         ArchSpec {
-            implicit_inputs: &["x1"],
+            implicit_inputs: &["x0"],
             implicit_outputs: &["x0"],
-            fixed_operands: &[(1, "x1"), (2, "x0")],
+            fixed_operands: &[(1, "x0"), (2, "x0")],
             ..ArchSpec::NONE
         },
     ),

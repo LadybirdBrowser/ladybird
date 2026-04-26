@@ -1158,11 +1158,19 @@ fn emit_instruction(
         }
 
         // call_helper: NON-TERMINAL call to C++ helper
-        // Passes t1 (x1 on aarch64) as first argument to the helper.
+        // The named 3-operand form passes its input directly in x0; the
+        // legacy 1-operand form still reads from t1 (x1).
         "call_helper" => {
             if let Some(Operand::Register(func_name)) = insn.operands.first() {
-                // t1 on aarch64 is x1. Move to x0 for the call.
-                w!(out, "    mov x0, x1");
+                if let Some(input) = insn.operands.get(1) {
+                    let input = resolve_op(input, handler, program);
+                    if input != "x0" {
+                        w!(out, "    mov x0, {input}");
+                    }
+                } else {
+                    // t1 on aarch64 is x1. Move to x0 for the call.
+                    w!(out, "    mov x0, x1");
+                }
                 w!(out, "    bl CSYM({func_name})");
                 // Result is in x0 (= t0 on aarch64), which is correct.
             }
