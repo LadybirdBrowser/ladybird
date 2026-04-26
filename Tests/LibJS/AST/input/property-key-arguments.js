@@ -9,12 +9,12 @@ function plain_eval_key() {
     return { eval: 1 };
 }
 
-// FIXME: Shorthand `{ arguments }` IS a reference to the binding and
-// should mark the function might-need-arguments. The expected output
-// here currently captures the still-buggy behavior — the function's
-// arguments register is allocated but never initialized, which causes
-// a runtime crash if the property is read. A proper fix needs to also
-// handle the cover-grammar reinterpretation in `({ arguments } = ...)`.
+// Shorthand `{ arguments }` IS a reference to the binding. The parser
+// doesn't fire its conservative might-need-arguments flag here (the
+// shorthand path doesn't go through the eval/arguments check on
+// consume), but scope analysis still allocates a local for `arguments`
+// and the bytecode generator falls back to that signal so the
+// arguments object IS materialized at runtime.
 function shorthand_arguments() {
     return { arguments };
 }

@@ -2417,7 +2417,17 @@ fn compute_sfd_metadata(function_data: &ast::FunctionData) -> bytecode::generato
     }
 
     // §10.2.11 steps 15-18: determine if arguments object is needed.
-    let arguments_object_needed = bsi.might_need_arguments
+    // We trust either the parser's conservative "might need arguments" flag
+    // (set when we consume an `arguments` or `eval` Identifier as a free
+    // reference) OR scope analysis having allocated an ArgumentsObject local
+    // for `arguments`. The latter catches references created without going
+    // through consume(), e.g. shorthand `{ arguments }` in an object literal.
+    // Skip the local-driven path when a function named `arguments` shadows
+    // it; in that case the local belongs to the function declaration, not
+    // a real arguments-object reference.
+    let arguments_object_referenced =
+        bsi.might_need_arguments || (bsi.has_arguments_object_local && !bsi.has_function_named_arguments);
+    let arguments_object_needed = arguments_object_referenced
         && !is_arrow
         && !parameter_names.contains(utf16!("arguments"))
         && body_scope.is_some()

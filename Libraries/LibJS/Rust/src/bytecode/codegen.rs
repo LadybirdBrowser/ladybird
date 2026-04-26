@@ -7634,14 +7634,27 @@ pub fn emit_function_declaration_instantiation(
         }
     }
 
-    // Determine if arguments object is needed (from parsing insights).
+    // Determine if arguments object is needed. The parser's
+    // `might_need_arguments_object` flag is set when an `arguments` or
+    // `eval` Identifier is consumed as a free reference, but it misses
+    // references created without going through consume(), like shorthand
+    // `{ arguments }`. Fall back to checking whether scope analysis
+    // allocated a non-lexical `arguments` local (an ArgumentsObject
+    // binding). Skip the fallback when a function declaration named
+    // `arguments` claims the same local: that local belongs to the
+    // function, not a real arguments-object reference.
+    let function_scope_data = body_scope.function_scope_data.as_ref();
+    let has_function_named_arguments = function_scope_data.is_some_and(|fsd| fsd.has_function_named_arguments);
+    let has_arguments_local = generator
+        .local_variables
+        .iter()
+        .any(|lv| lv.name == utf16!("arguments") && !lv.is_lexically_declared);
     let mut arguments_object_needed = if is_arrow || parameter_names.iter().any(|p| p.name == utf16!("arguments")) {
         false
     } else {
         function_data.parsing_insights.might_need_arguments_object
+            || (has_arguments_local && !has_function_named_arguments)
     };
-
-    let function_scope_data = body_scope.function_scope_data.as_ref();
 
     if let Some(fsd) = function_scope_data {
         if !has_parameter_expressions && fsd.has_function_named_arguments {
