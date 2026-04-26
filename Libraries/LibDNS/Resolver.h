@@ -346,10 +346,33 @@ public:
 
     NonnullRefPtr<Core::Promise<NonnullRefPtr<LookupResult const>>> lookup(ByteString name, Messages::Class class_, Vector<Messages::ResourceType> desired_types, LookupOptions options = LookupOptions::default_())
     {
+        // Instrumentation: classify how this lookup was satisfied (cache, system
+        // resolver fallback, async DNS query) and how long the synchronous portion
+        // of lookup() blocked the caller. Logs a `wire-dns:` line at exit. The
+        // synchronous portion is what blocks the event loop — anything > a few ms
+        // here is interesting because libcurl is sitting idle while we run.
+        auto lookup_entered_at = MonotonicTime::now();
+        StringView lookup_path = "unknown"sv;
+        i64 sync_resolve_host_ms = -1;
+        auto log_lookup_on_exit = [&](StringView path) {
+            auto sync_ms = (MonotonicTime::now() - lookup_entered_at).to_milliseconds();
+            if (sync_ms > 5 || sync_resolve_host_ms > 5) {
+                if (sync_resolve_host_ms >= 0) {
+                    dbgln_if(REQUESTSERVER_WIRE_DEBUG, "LibDNS wire-dns: lookup({}) path={} sync={} ms (system-resolve_host={} ms)",
+                        name, path, sync_ms, sync_resolve_host_ms);
+                } else {
+                    dbgln_if(REQUESTSERVER_WIRE_DEBUG, "LibDNS wire-dns: lookup({}) path={} sync={} ms",
+                        name, path, sync_ms);
+                }
+            }
+        };
+        ScopeGuard log_guard = [&] { log_lookup_on_exit(lookup_path); };
+
         flush_cache();
 
         if (options.repeating_lookup && options.repeating_lookup->times_repeated >= 5) {
             dbgln_if(DNS_DEBUG, "DNS: Repeating lookup for {} timed out", name);
+            lookup_path = "repeat-timeout"sv;
             auto promise = options.repeating_lookup->promise;
             promise->reject(Error::from_string_literal("DNS lookup timed out"));
             m_pending_lookups.with_write_locked([&](auto& lookups) {
@@ -367,6 +390,7 @@ public:
                 result->add_record({ .name = {}, .type = Messages::ResourceType::A, .class_ = Messages::Class::IN, .ttl = 0, .record = Messages::Records::A { maybe_ipv4.release_value() }, .raw = {} });
                 result->finished_request();
                 promise->resolve(move(result));
+                lookup_path = "literal-ipv4"sv;
                 return promise;
             }
         }
@@ -378,6 +402,7 @@ public:
                 result->add_record({ .name = {}, .type = Messages::ResourceType::AAAA, .class_ = Messages::Class::IN, .ttl = 0, .record = Messages::Records::AAAA { maybe_ipv6.release_value() }, .raw = {} });
                 result->finished_request();
                 promise->resolve(move(result));
+                lookup_path = "literal-ipv6"sv;
                 return promise;
             }
         }
@@ -387,6 +412,7 @@ public:
             if (!options.validate_dnssec_locally || result->is_dnssec_validated()) {
                 dbgln_if(DNS_DEBUG, "DNS: Resolved {} from cache", name);
                 promise->resolve(result.release_nonnull());
+                lookup_path = "cache-hit"sv;
                 return promise;
             }
             dbgln_if(DNS_DEBUG, "DNS: Cache entry for {} is not DNSSEC validated (and we expect that), re-resolving", name);
@@ -397,13 +423,20 @@ public:
         if (!has_connection()) {
             if (options.validate_dnssec_locally) {
                 promise->reject(Error::from_string_literal("No connection available to validate DNSSEC"));
+                lookup_path = "no-conn-dnssec-rejected"sv;
                 return promise;
             }
 
             // Use system resolver
             // FIXME: Use an underlying resolver instead.
+            // NB: Core::Socket::resolve_host is the BLOCKING getaddrinfo() fallback. If anything
+            //     in this whole resolver path is going to freeze the event loop for many seconds,
+            //     it is this call. We measure it explicitly so the wire-dns: line surfaces it.
             dbgln_if(DNS_DEBUG, "Not ready to resolve, using system resolver and skipping cache for {}", name);
+            lookup_path = "system-resolver"sv;
+            auto resolve_started_at = MonotonicTime::now();
             auto record_or_error = Core::Socket::resolve_host(name, Core::Socket::SocketType::Stream);
+            sync_resolve_host_ms = (MonotonicTime::now() - resolve_started_at).to_milliseconds();
             if (record_or_error.is_error()) {
                 promise->reject(record_or_error.release_error());
                 return promise;
@@ -424,6 +457,12 @@ public:
             promise->resolve(result);
             return promise;
         }
+
+        // We arrive here only when an async DNS query will be sent over the wire.
+        // The synchronous portion still includes building the cache entry and
+        // serializing the query, but the actual wait happens asynchronously and
+        // is captured by RequestServer's `wire^:` line as `our-dns`.
+        lookup_path = "async-query"sv;
 
         auto already_in_cache = false;
         auto result = m_cache.with_write_locked([&](auto& cache) -> NonnullRefPtr<LookupResult> {
@@ -564,6 +603,7 @@ public:
 
         if (cached_entry) {
             dbgln_if(DNS_DEBUG, "DNS::lookup({}) -> Lookup already underway", name);
+            lookup_path = "join-pending"sv;
             auto user_promise = Core::Promise<NonnullRefPtr<LookupResult const>>::construct();
             promise->on_resolution = [user_promise, cached_promise = cached_entry->promise](auto& result) {
                 user_promise->resolve(*result);

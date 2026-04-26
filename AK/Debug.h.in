@@ -238,6 +238,10 @@
 #    cmakedefine01 REQUESTSERVER_DEBUG
 #endif
 
+#ifndef REQUESTSERVER_WIRE_DEBUG
+#    cmakedefine01 REQUESTSERVER_WIRE_DEBUG
+#endif
+
 #ifndef RESOURCE_DEBUG
 #    cmakedefine01 RESOURCE_DEBUG
 #endif

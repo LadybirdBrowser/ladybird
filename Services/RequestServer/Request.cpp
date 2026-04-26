@@ -6,6 +6,7 @@
  */
 
 #include <AK/GenericShorthands.h>
+#include <AK/HashMap.h>
 #include <LibCore/File.h>
 #include <LibCore/MimeData.h>
 #include <LibCore/Notifier.h>
@@ -24,6 +25,336 @@ namespace RequestServer {
 extern OwnPtr<ResourceSubstitutionMap> g_resource_substitution_map;
 
 static long s_connect_timeout_seconds = 90L;
+
+static void log_network_activity(URL::URL const& url, ByteString const& method, void* curl_easy_handle, int curl_result_code, bool is_revalidation, RequestType type)
+{
+    if constexpr (!REQUESTSERVER_WIRE_DEBUG)
+        return;
+    if (!curl_easy_handle)
+        return;
+
+    auto get_off = [&](auto option) {
+        curl_off_t value = 0;
+        (void)curl_easy_getinfo(curl_easy_handle, option, &value);
+        return value;
+    };
+    auto get_long = [&](auto option) {
+        long value = 0;
+        (void)curl_easy_getinfo(curl_easy_handle, option, &value);
+        return value;
+    };
+
+    long http_status = get_long(CURLINFO_RESPONSE_CODE);
+    long http_version = get_long(CURLINFO_HTTP_VERSION);
+
+    auto queue_us = get_off(CURLINFO_QUEUE_TIME_T);
+    auto namelookup_us = get_off(CURLINFO_NAMELOOKUP_TIME_T);
+    auto connect_us = get_off(CURLINFO_CONNECT_TIME_T);
+    auto appconnect_us = get_off(CURLINFO_APPCONNECT_TIME_T);
+    auto pretransfer_us = get_off(CURLINFO_PRETRANSFER_TIME_T);
+    auto starttransfer_us = get_off(CURLINFO_STARTTRANSFER_TIME_T);
+    auto total_us = get_off(CURLINFO_TOTAL_TIME_T);
+    auto bytes_downloaded = get_off(CURLINFO_SIZE_DOWNLOAD_T);
+    auto bytes_uploaded = get_off(CURLINFO_SIZE_UPLOAD_T);
+    auto download_speed_bps = get_off(CURLINFO_SPEED_DOWNLOAD_T);
+
+    // libcurl phase timings are cumulative from t=0, but skipped phases (e.g. DNS/TCP/TLS on a
+    // reused connection) are reported as 0, breaking the monotonic ordering. Clamp each marker
+    // to the previous one so skipped phases yield a 0-length delta instead of double-counting.
+    auto clamp = [](curl_off_t marker, curl_off_t previous) { return marker > previous ? marker : previous; };
+    auto m_queue = queue_us;
+    auto m_namelookup = clamp(namelookup_us, m_queue);
+    auto m_connect = clamp(connect_us, m_namelookup);
+    auto m_appconnect = clamp(appconnect_us, m_connect);
+    auto m_pretransfer = clamp(pretransfer_us, m_appconnect);
+    auto m_starttransfer = clamp(starttransfer_us, m_pretransfer);
+    auto m_total = clamp(total_us, m_starttransfer);
+
+    auto us_to_ms = [](curl_off_t us) { return static_cast<double>(us) / 1000.0; };
+    auto queue_ms = us_to_ms(m_queue);
+    auto dns_ms = us_to_ms(m_namelookup - m_queue);
+    auto tcp_ms = us_to_ms(m_connect - m_namelookup);
+    auto tls_ms = us_to_ms(m_appconnect - m_connect);
+    auto request_ms = us_to_ms(m_pretransfer - m_appconnect);
+    auto wait_ms = us_to_ms(m_starttransfer - m_pretransfer);
+    auto body_ms = us_to_ms(m_total - m_starttransfer);
+    auto total_ms = us_to_ms(m_total);
+
+    auto kib = [](curl_off_t bytes) { return static_cast<double>(bytes) / 1024.0; };
+
+    StringView http_version_str = "HTTP/?"sv;
+    switch (http_version) {
+    case CURL_HTTP_VERSION_1_0:
+        http_version_str = "HTTP/1.0"sv;
+        break;
+    case CURL_HTTP_VERSION_1_1:
+        http_version_str = "HTTP/1.1"sv;
+        break;
+    case CURL_HTTP_VERSION_2_0:
+        http_version_str = "HTTP/2"sv;
+        break;
+    case CURL_HTTP_VERSION_3:
+        http_version_str = "HTTP/3"sv;
+        break;
+    default:
+        break;
+    }
+
+    StringView kind;
+    if (curl_result_code != CURLE_OK)
+        kind = "FAIL"sv;
+    else if (is_revalidation && http_status == 304)
+        kind = "REVAL-304"sv;
+    else if (is_revalidation)
+        kind = "REVAL-FULL"sv;
+    else
+        kind = "DOWNLOAD"sv;
+
+    StringView background = type == RequestType::BackgroundRevalidation ? " [bg]"sv : ""sv;
+
+    if (curl_result_code != CURLE_OK) {
+        char const* err = curl_easy_strerror(static_cast<CURLcode>(curl_result_code));
+        dbgln_if(REQUESTSERVER_WIRE_DEBUG, "RequestServer wire: {}{} {} {} -> error: {} (after {:.1} ms, wire {:.1} KiB)",
+            kind, background, method, url, err, total_ms, kib(bytes_downloaded));
+        return;
+    }
+
+    auto wire_kibps_during_body = body_ms > 0.0
+        ? kib(bytes_downloaded) / (body_ms / 1000.0)
+        : 0.0;
+
+    dbgln_if(REQUESTSERVER_WIRE_DEBUG, "RequestServer wire: {}{} {} {} {} -> {} | wire {:.1} KiB sent {:.1} KiB | total {:.1} ms = queue {:.1} + dns {:.1} + tcp {:.1} + tls {:.1} + req {:.1} + wait {:.1} + body {:.1} | wire {:.1} KiB/s avg, {:.1} KiB/s during body",
+        kind, background, method, url, http_version_str, http_status,
+        kib(bytes_downloaded), kib(bytes_uploaded),
+        total_ms, queue_ms, dns_ms, tcp_ms, tls_ms, request_ms, wait_ms, body_ms,
+        kib(download_speed_bps), wire_kibps_during_body);
+}
+
+struct WireStats {
+    // Decoded-side (sampled in on_data_received, after curl decompresses)
+    Optional<MonotonicTime> first_chunk_at;
+    Optional<MonotonicTime> last_chunk_at;
+    u64 chunk_count { 0 };
+    u64 total_decoded_bytes { 0 };
+    u64 min_chunk_bytes { NumericLimits<u64>::max() };
+    u64 max_chunk_bytes { 0 };
+    AK::Duration sum_inter_chunk_gaps;
+    AK::Duration max_inter_chunk_gap;
+    u64 stall_count_100ms { 0 };
+    AK::Duration max_stall_started_at;
+    u64 bytes_at_max_stall { 0 };
+
+    // Wire-side (sampled in CURLOPT_XFERINFOFUNCTION, before decompression)
+    Optional<MonotonicTime> first_wire_byte_at;
+    Optional<MonotonicTime> last_wire_byte_at;
+    curl_off_t last_wire_dlnow { 0 };
+    AK::Duration max_wire_gap;
+    AK::Duration max_wire_stall_started_at;
+    curl_off_t wire_bytes_at_max_stall { 0 };
+    u64 wire_stall_count_100ms { 0 };
+
+    // Internal-pipeline lifecycle (set by state-machine handlers).
+    // Lets us see how much wall time we burned in our own code paths
+    // (cache lookup, our DNS resolver, cookie IPC, curl setup) before
+    // libcurl ever saw the request.
+    Optional<MonotonicTime> created_at;
+    Optional<MonotonicTime> dns_started_at;
+    Optional<MonotonicTime> dns_completed_at;
+    Optional<MonotonicTime> cookie_started_at;
+    Optional<MonotonicTime> cookie_completed_at;
+    Optional<MonotonicTime> curl_added_at;
+    Optional<MonotonicTime> complete_observed_at;
+
+    // WebContent-side back-pressure on our outgoing pipe. Updated by
+    // write_queued_bytes_without_blocking when the pipe returns EAGAIN
+    // (WebContent isn't draining fast enough — typically because its main
+    // thread is busy parsing, running JS, etc.). `current_window_started`
+    // is set on entry to a back-pressure window and cleared when we resume
+    // writing successfully.
+    Optional<MonotonicTime> current_pressure_window_started;
+    AK::Duration total_pipe_back_pressure;
+    u64 pipe_back_pressure_events { 0 };
+    u64 max_buffered_bytes { 0 };
+};
+
+static HashMap<Request const*, WireStats>& wire_stats()
+{
+    static HashMap<Request const*, WireStats> map;
+    return map;
+}
+
+static void record_chunk(Request const* request, size_t bytes)
+{
+    if constexpr (!REQUESTSERVER_WIRE_DEBUG)
+        return;
+    auto now = MonotonicTime::now();
+    auto& stats = wire_stats().ensure(request);
+
+    if (stats.chunk_count == 0) {
+        stats.first_chunk_at = now;
+    } else {
+        auto gap = now - *stats.last_chunk_at;
+        stats.sum_inter_chunk_gaps = stats.sum_inter_chunk_gaps + gap;
+        if (gap > stats.max_inter_chunk_gap) {
+            stats.max_inter_chunk_gap = gap;
+            stats.max_stall_started_at = *stats.last_chunk_at - *stats.first_chunk_at;
+            stats.bytes_at_max_stall = stats.total_decoded_bytes;
+        }
+        if (gap > AK::Duration::from_milliseconds(100))
+            stats.stall_count_100ms += 1;
+    }
+
+    stats.last_chunk_at = now;
+    stats.chunk_count += 1;
+    stats.total_decoded_bytes += bytes;
+    if (bytes < stats.min_chunk_bytes)
+        stats.min_chunk_bytes = bytes;
+    if (bytes > stats.max_chunk_bytes)
+        stats.max_chunk_bytes = bytes;
+}
+
+[[maybe_unused]] static int on_xferinfo(void* user_data, curl_off_t /*dltotal*/, curl_off_t dlnow, curl_off_t /*ultotal*/, curl_off_t /*ulnow*/)
+{
+    if constexpr (!REQUESTSERVER_WIRE_DEBUG)
+        return 0;
+    auto* request = static_cast<Request const*>(user_data);
+    if (dlnow <= 0)
+        return 0;
+
+    auto& stats = wire_stats().ensure(request);
+    if (dlnow == stats.last_wire_dlnow)
+        return 0;
+
+    auto now = MonotonicTime::now();
+    if (!stats.first_wire_byte_at.has_value())
+        stats.first_wire_byte_at = now;
+    if (stats.last_wire_byte_at.has_value()) {
+        auto gap = now - *stats.last_wire_byte_at;
+        if (gap > stats.max_wire_gap) {
+            stats.max_wire_gap = gap;
+            stats.max_wire_stall_started_at = *stats.last_wire_byte_at - *stats.first_wire_byte_at;
+            stats.wire_bytes_at_max_stall = stats.last_wire_dlnow;
+        }
+        if (gap > AK::Duration::from_milliseconds(100))
+            stats.wire_stall_count_100ms += 1;
+    }
+    stats.last_wire_byte_at = now;
+    stats.last_wire_dlnow = dlnow;
+    return 0;
+}
+
+static void log_chunk_stats(Request const* request)
+{
+    if constexpr (!REQUESTSERVER_WIRE_DEBUG)
+        return;
+    auto it = wire_stats().find(request);
+    if (it == wire_stats().end())
+        return;
+    auto const& s = it->value;
+    if (s.chunk_count == 0)
+        return;
+
+    auto kib = [](u64 b) { return static_cast<double>(b) / 1024.0; };
+    auto kib_off = [](curl_off_t b) { return static_cast<double>(b) / 1024.0; };
+    auto decoded_span = (s.last_chunk_at.has_value() && s.first_chunk_at.has_value())
+        ? *s.last_chunk_at - *s.first_chunk_at
+        : AK::Duration {};
+    auto decoded_span_ms = decoded_span.to_milliseconds();
+    auto avg_gap_ms = s.chunk_count > 1
+        ? static_cast<double>(s.sum_inter_chunk_gaps.to_microseconds()) / 1000.0 / static_cast<double>(s.chunk_count - 1)
+        : 0.0;
+    auto avg_chunk = s.total_decoded_bytes / s.chunk_count;
+    auto decoded_kibps = decoded_span_ms > 0
+        ? kib(s.total_decoded_bytes) / (static_cast<double>(decoded_span_ms) / 1000.0)
+        : 0.0;
+
+    dbgln_if(REQUESTSERVER_WIRE_DEBUG, "RequestServer wire+:  decoded chunks={} bytes={:.1} KiB span={} ms thru={:.1} KiB/s | gap avg={:.1} ms max={} ms stalls(>100ms)={} | worst gap began at +{} ms after {:.1} KiB decoded | chunk bytes avg={} min={} max={}",
+        s.chunk_count, kib(s.total_decoded_bytes), decoded_span_ms, decoded_kibps,
+        avg_gap_ms, s.max_inter_chunk_gap.to_milliseconds(), s.stall_count_100ms,
+        s.max_stall_started_at.to_milliseconds(), kib(s.bytes_at_max_stall),
+        avg_chunk, s.min_chunk_bytes, s.max_chunk_bytes);
+
+    if (s.first_wire_byte_at.has_value() && s.last_wire_byte_at.has_value()) {
+        auto wire_span = *s.last_wire_byte_at - *s.first_wire_byte_at;
+        auto wire_span_ms = wire_span.to_milliseconds();
+        auto wire_kibps = wire_span_ms > 0
+            ? kib_off(s.last_wire_dlnow) / (static_cast<double>(wire_span_ms) / 1000.0)
+            : 0.0;
+        auto compression_ratio = s.last_wire_dlnow > 0
+            ? static_cast<double>(s.total_decoded_bytes) / static_cast<double>(s.last_wire_dlnow)
+            : 0.0;
+        dbgln_if(REQUESTSERVER_WIRE_DEBUG, "RequestServer wire++: wire bytes={:.1} KiB span={} ms thru={:.1} KiB/s | wire max gap={} ms stalls(>100ms)={} | worst wire gap began at +{} ms after {:.1} KiB on the wire | compression={:.2}x",
+            kib_off(s.last_wire_dlnow), wire_span_ms, wire_kibps,
+            s.max_wire_gap.to_milliseconds(), s.wire_stall_count_100ms,
+            s.max_wire_stall_started_at.to_milliseconds(), kib_off(s.wire_bytes_at_max_stall),
+            compression_ratio);
+    }
+
+    // wire^: pre-network time spent inside RequestServer (cache + our DNS resolver + cookie IPC
+    // + curl setup), and the gap between the wire going quiet and us actually emitting this log
+    // entry. Useful to see if a long "total" was actually our pipeline rather than the network.
+    if (s.created_at.has_value()) {
+        auto delta_ms = [](Optional<MonotonicTime> const& a, Optional<MonotonicTime> const& b) -> i64 {
+            if (!a.has_value() || !b.has_value())
+                return -1;
+            return (*b - *a).to_milliseconds();
+        };
+
+        // Cache + Init + WaitForCache: from creation to start of DNS lookup.
+        auto pre_dns_ms = delta_ms(s.created_at, s.dns_started_at);
+        // Our DNS resolver (note: distinct from libcurl's `dns` field, which is 0 because we
+        // pre-resolve and pass via CURLOPT_RESOLVE).
+        auto our_dns_ms = delta_ms(s.dns_started_at, s.dns_completed_at);
+        // Cookie IPC round-trip to the UI process.
+        auto cookie_ms = delta_ms(s.cookie_started_at, s.cookie_completed_at);
+        // Time from the last completed pre-network step to curl_multi_add_handle.
+        auto curl_setup_ms = [&]() -> i64 {
+            Optional<MonotonicTime> last_pre_curl;
+            if (s.cookie_completed_at.has_value())
+                last_pre_curl = s.cookie_completed_at;
+            else if (s.dns_completed_at.has_value())
+                last_pre_curl = s.dns_completed_at;
+            else
+                last_pre_curl = s.created_at;
+            return delta_ms(last_pre_curl, s.curl_added_at);
+        }();
+        auto pre_curl_total_ms = delta_ms(s.created_at, s.curl_added_at);
+
+        // Drain delay: time between the last byte arriving and check_active_requests draining
+        // the completion. Non-zero would mean we noticed completion later than curl did.
+        Optional<MonotonicTime> last_activity;
+        if (s.last_wire_byte_at.has_value())
+            last_activity = s.last_wire_byte_at;
+        else if (s.last_chunk_at.has_value())
+            last_activity = s.last_chunk_at;
+        auto drain_delay_ms = delta_ms(last_activity, s.complete_observed_at);
+
+        auto fmt_ms = [](i64 ms) -> ByteString {
+            return ms < 0 ? ByteString { "-" } : ByteString::formatted("{}", ms);
+        };
+
+        ByteString back_pressure_summary;
+        if (s.pipe_back_pressure_events > 0) {
+            back_pressure_summary = ByteString::formatted(
+                " | pipe back-pressure events={} total={} ms peak-buffered={} bytes",
+                s.pipe_back_pressure_events,
+                s.total_pipe_back_pressure.to_milliseconds(),
+                s.max_buffered_bytes);
+        }
+
+        dbgln_if(REQUESTSERVER_WIRE_DEBUG, "RequestServer wire^:  internal pre-curl={} ms = cache+init {} + our-dns {} + cookie {} + curl-setup {} | drain delay {} ms{}",
+            fmt_ms(pre_curl_total_ms), fmt_ms(pre_dns_ms), fmt_ms(our_dns_ms),
+            fmt_ms(cookie_ms), fmt_ms(curl_setup_ms), fmt_ms(drain_delay_ms),
+            back_pressure_summary);
+    }
+}
+
+static void mark_lifecycle_event(Request const* request, Optional<MonotonicTime> WireStats::* field)
+{
+    if constexpr (!REQUESTSERVER_WIRE_DEBUG)
+        return;
+    wire_stats().ensure(request).*field = MonotonicTime::now();
+}
 
 NonnullOwnPtr<Request> Request::fetch(
     u64 request_id,
@@ -119,6 +450,8 @@ Request::Request(
     , m_proxy_data(proxy_data)
     , m_response_headers(HTTP::HeaderList::create())
 {
+    if constexpr (REQUESTSERVER_WIRE_DEBUG)
+        wire_stats().ensure(this).created_at = MonotonicTime::now();
 }
 
 Request::Request(
@@ -136,6 +469,8 @@ Request::Request(
     , m_request_headers(HTTP::HeaderList::create())
     , m_response_headers(HTTP::HeaderList::create())
 {
+    if constexpr (REQUESTSERVER_WIRE_DEBUG)
+        wire_stats().ensure(this).created_at = MonotonicTime::now();
 }
 
 Request::~Request()
@@ -159,6 +494,9 @@ Request::~Request()
         else
             m_cache_entry_writer->remove_incomplete_entry();
     }
+
+    if constexpr (REQUESTSERVER_WIRE_DEBUG)
+        wire_stats().remove(this);
 }
 
 void Request::notify_request_unblocked(Badge<HTTP::DiskCache>)
@@ -170,6 +508,8 @@ void Request::notify_request_unblocked(Badge<HTTP::DiskCache>)
 
 void Request::notify_retrieved_http_cookie(Badge<ConnectionFromClient>, StringView cookie)
 {
+    mark_lifecycle_event(this, &WireStats::cookie_completed_at);
+
     if (!cookie.is_empty()) {
         auto header = HTTP::Header::isomorphic_encode("Cookie"sv, cookie);
         m_request_headers->append(move(header));
@@ -180,6 +520,13 @@ void Request::notify_retrieved_http_cookie(Badge<ConnectionFromClient>, StringVi
 
 void Request::notify_fetch_complete(Badge<ConnectionFromClient>, int result_code)
 {
+    mark_lifecycle_event(this, &WireStats::complete_observed_at);
+
+    if (m_type == RequestType::Fetch || m_type == RequestType::BackgroundRevalidation) {
+        log_network_activity(m_url, m_method, m_curl_easy_handle, result_code, is_revalidation_request(), m_type);
+        log_chunk_stats(this);
+    }
+
     if (is_revalidation_request()) {
         if (acquire_status_code() == 304) {
             if (m_type == RequestType::BackgroundRevalidation && m_disk_cache->mode() == HTTP::DiskCache::Mode::Testing)
@@ -435,13 +782,17 @@ void Request::handle_dns_lookup_state()
     auto host = m_url.serialized_host().to_byte_string();
     auto const& dns_info = DNSInfo::the();
 
+    mark_lifecycle_event(this, &WireStats::dns_started_at);
+
     m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }, { .validate_dnssec_locally = dns_info.validate_dnssec_locally })
         ->when_rejected(weak_callback(*this, [host](auto& self, auto const& error) {
+            mark_lifecycle_event(&self, &WireStats::dns_completed_at);
             dbgln("Request::handle_dns_lookup_state: DNS lookup failed for '{}': {}", host, error);
             self.m_network_error = Requests::NetworkError::UnableToResolveHost;
             self.transition_to_state(State::Error);
         }))
         .when_resolved(weak_callback(*this, [host](auto& self, NonnullRefPtr<DNS::LookupResult const> dns_result) {
+            mark_lifecycle_event(&self, &WireStats::dns_completed_at);
             if (dns_result->is_empty() || !dns_result->has_cached_addresses()) {
                 dbgln("Request::handle_dns_lookup_state: DNS lookup failed for '{}'", host);
                 self.m_network_error = Requests::NetworkError::UnableToResolveHost;
@@ -463,6 +814,7 @@ void Request::handle_retrieve_cookie_state()
     }
 
     if (auto connection = ConnectionFromClient::primary_connection(); connection.has_value()) {
+        mark_lifecycle_event(this, &WireStats::cookie_started_at);
         connection->async_retrieve_http_cookie(m_client.client_id(), m_request_id, m_type, m_url);
     } else {
         m_network_error = Requests::NetworkError::RequestServerDied;
@@ -492,6 +844,7 @@ void Request::handle_connect_state()
     set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
     set_option(CURLOPT_CONNECT_ONLY, 1L);
 
+    mark_lifecycle_event(this, &WireStats::curl_added_at);
     auto result = curl_multi_add_handle(m_curl_multi_handle, m_curl_easy_handle);
     VERIFY(result == CURLM_OK);
 }
@@ -601,6 +954,12 @@ void Request::handle_fetch_state()
     set_option(CURLOPT_WRITEFUNCTION, &on_data_received);
     set_option(CURLOPT_WRITEDATA, this);
 
+    if constexpr (REQUESTSERVER_WIRE_DEBUG) {
+        set_option(CURLOPT_NOPROGRESS, 0L);
+        set_option(CURLOPT_XFERINFOFUNCTION, &on_xferinfo);
+        set_option(CURLOPT_XFERINFODATA, this);
+    }
+
     VERIFY(m_dns_result);
     auto formatted_address = build_curl_resolve_list(*m_dns_result, m_url.serialized_host(), m_url.port_or_default());
 
@@ -611,6 +970,7 @@ void Request::handle_fetch_state()
         VERIFY_NOT_REACHED();
     }
 
+    mark_lifecycle_event(this, &WireStats::curl_added_at);
     auto result = curl_multi_add_handle(m_curl_multi_handle, m_curl_easy_handle);
     VERIFY(result == CURLM_OK);
 }
@@ -695,6 +1055,9 @@ size_t Request::on_header_received(void* buffer, size_t size, size_t nmemb, void
 size_t Request::on_data_received(void* buffer, size_t size, size_t nmemb, void* user_data)
 {
     auto& request = *static_cast<Request*>(user_data);
+
+    if (request.m_type == RequestType::Fetch || request.m_type == RequestType::BackgroundRevalidation)
+        record_chunk(&request, size * nmemb);
 
     if (request.is_revalidation_request()) {
         // If we arrive here, we did not receive an HTTP 304 response code. We must remove the cache entry and inform
@@ -822,6 +1185,19 @@ ErrorOr<void> Request::write_queued_bytes_without_blocking()
         });
     }
 
+    if constexpr (REQUESTSERVER_WIRE_DEBUG) {
+        auto& stats = wire_stats().ensure(this);
+        if (stats.current_pressure_window_started.has_value()) {
+            auto window = MonotonicTime::now() - *stats.current_pressure_window_started;
+            stats.total_pipe_back_pressure = stats.total_pipe_back_pressure + window;
+            stats.current_pressure_window_started = {};
+            if (window.to_milliseconds() > 50) {
+                dbgln("RequestServer wire-pipe-pressure: {} {} unblocked after {} ms (peak buffered={} bytes); WebContent likely behind",
+                    m_method, m_url, window.to_milliseconds(), stats.max_buffered_bytes);
+            }
+        }
+    }
+
     while (!m_response_buffer.is_eof()) {
         auto bytes = m_response_buffer.peek_some_contiguous();
 
@@ -829,6 +1205,18 @@ ErrorOr<void> Request::write_queued_bytes_without_blocking()
         if (result.is_error()) {
             if (!first_is_one_of(result.error().code(), EAGAIN, EWOULDBLOCK))
                 return result.release_error();
+
+            if constexpr (REQUESTSERVER_WIRE_DEBUG) {
+                auto& stats = wire_stats().ensure(this);
+                if (!stats.current_pressure_window_started.has_value()) {
+                    stats.current_pressure_window_started = MonotonicTime::now();
+                    stats.pipe_back_pressure_events += 1;
+                    dbgln("RequestServer wire-pipe-pressure: {} {} pipe full, buffering={} bytes",
+                        m_method, m_url, m_response_buffer.used_buffer_size());
+                }
+                if (m_response_buffer.used_buffer_size() > stats.max_buffered_bytes)
+                    stats.max_buffered_bytes = m_response_buffer.used_buffer_size();
+            }
 
             m_client_writer_notifier->set_enabled(true);
             return {};

@@ -8,6 +8,8 @@
 
 #include <AK/Badge.h>
 #include <AK/HashMap.h>
+#include <AK/Optional.h>
+#include <AK/Time.h>
 #include <LibHTTP/Cache/CacheMode.h>
 #include <LibHTTP/Cache/DiskCacheSettings.h>
 #include <LibHTTP/Forward.h>
@@ -91,6 +93,9 @@ private:
     ByteString m_alt_svc_cache_path;
 
     u64 m_next_revalidation_request_id { 0 };
+
+    Optional<MonotonicTime> m_burst_window_started_at;
+    u64 m_requests_in_burst_window { 0 };
 };
 
 constexpr inline uintptr_t websocket_private_tag = 0x1;

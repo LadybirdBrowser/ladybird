@@ -5,6 +5,7 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/Time.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/Environment.h>
 #include <LibCore/StandardPaths.h>
@@ -507,8 +508,17 @@ ErrorOr<void> Application::launch_request_server()
 {
     m_request_server_client = TRY(launch_request_server_process());
 
-    m_request_server_client->on_retrieve_http_cookie = [this](URL::URL const& url) {
-        return m_cookie_jar->get_cookie(url, HTTP::Cookie::Source::Http);
+    m_request_server_client->on_retrieve_http_cookie = [this](URL::URL const& url) -> String {
+        if constexpr (!REQUESTSERVER_WIRE_DEBUG)
+            return m_cookie_jar->get_cookie(url, HTTP::Cookie::Source::Http);
+        auto started_at = MonotonicTime::now();
+        auto cookie = m_cookie_jar->get_cookie(url, HTTP::Cookie::Source::Http);
+        auto elapsed_ms = (MonotonicTime::now() - started_at).to_milliseconds();
+        if (elapsed_ms > 5) {
+            dbgln("UI wire-cookie: get_cookie({}) took {} ms ({} bytes returned)",
+                url, elapsed_ms, cookie.bytes().size());
+        }
+        return cookie;
     };
 
     m_request_server_client->on_request_server_died = [this]() {

@@ -28,6 +28,59 @@ namespace RequestServer {
 static ConnectionFromClient* g_primary_connection = nullptr;
 static IDAllocator s_client_ids;
 
+static constexpr i64 TICK_GAP_THRESHOLD_MS = 100;
+static Optional<MonotonicTime> s_last_tick_at;
+static StringView s_last_tick_label;
+
+// When libcurl asks us (via on_timeout_callback) to wake it up after N ms, we record when. If `curl-timer-fired`
+// then runs close to that time the gap is by design (libcurl's heartbeat) and we suppress the wire-stall log.
+static Optional<MonotonicTime> s_curl_timer_due_at;
+static constexpr i64 CURL_TIMER_ON_TIME_TOLERANCE_MS = 50;
+
+static void note_event_tick(StringView label)
+{
+    if constexpr (!REQUESTSERVER_WIRE_DEBUG)
+        return;
+    auto now = MonotonicTime::now();
+    if (s_last_tick_at.has_value()) {
+        auto gap = (now - *s_last_tick_at).to_milliseconds();
+        if (gap > TICK_GAP_THRESHOLD_MS) {
+            bool curl_timer_fired_on_schedule = false;
+            if (label == "curl-timer-fired"sv && s_curl_timer_due_at.has_value()) {
+                auto overshoot_ms = (now - *s_curl_timer_due_at).to_milliseconds();
+                if (overshoot_ms >= -CURL_TIMER_ON_TIME_TOLERANCE_MS && overshoot_ms <= CURL_TIMER_ON_TIME_TOLERANCE_MS)
+                    curl_timer_fired_on_schedule = true;
+            }
+            if (!curl_timer_fired_on_schedule) {
+                dbgln("RequestServer wire-stall: {} ms event-loop gap before '{}' (previous handler: '{}')",
+                    gap, label, s_last_tick_label);
+            }
+        }
+    }
+    s_last_tick_at = now;
+    s_last_tick_label = label;
+}
+
+static constexpr i64 CURL_CALL_THRESHOLD_MS = 50;
+template<typename F>
+static auto time_curl_call(StringView label, F&& f)
+{
+    if constexpr (!REQUESTSERVER_WIRE_DEBUG)
+        return f();
+    auto start = MonotonicTime::now();
+    auto result = f();
+    auto elapsed_ms = (MonotonicTime::now() - start).to_milliseconds();
+    if (elapsed_ms > CURL_CALL_THRESHOLD_MS)
+        dbgln("RequestServer wire-stall: curl call '{}' took {} ms (synchronous in event loop)", label, elapsed_ms);
+    return result;
+}
+
+// Per-client burst-of-requests counter. Tracks how many `start_request` IPC
+// calls land in a tight window, so we can see if WebContent is dumping a
+// page worth of requests on us in one shot. State lives on ConnectionFromClient.
+static constexpr i64 BURST_WINDOW_MS = 100;
+static constexpr u64 BURST_REPORT_THRESHOLD = 5;
+
 ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, IsPrimaryConnection is_primary_connection, ConnectionMap& connections, Optional<HTTP::DiskCache&> disk_cache)
     : IPC::ConnectionFromClient<RequestClientEndpoint, RequestServerEndpoint>(*this, move(transport), s_client_ids.allocate())
     , m_connections(connections)
@@ -53,7 +106,11 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
     set_option(CURLMOPT_TIMERDATA, this);
 
     m_timer = Core::Timer::create_single_shot(0, [this] {
-        auto result = curl_multi_socket_action(m_curl_multi, CURL_SOCKET_TIMEOUT, 0, nullptr);
+        note_event_tick("curl-timer-fired"sv);
+        s_curl_timer_due_at = {};
+        auto result = time_curl_call("multi_socket_action(timeout)"sv, [this] {
+            return curl_multi_socket_action(m_curl_multi, CURL_SOCKET_TIMEOUT, 0, nullptr);
+        });
         VERIFY(result == CURLM_OK);
         check_active_requests();
     });
@@ -201,7 +258,22 @@ void ConnectionFromClient::set_use_system_dns()
 
 void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, Core::ProxyData proxy_data)
 {
+    note_event_tick("ipc-start-request"sv);
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_request({}, {})", request_id, url);
+
+    if constexpr (REQUESTSERVER_WIRE_DEBUG) {
+        auto now = MonotonicTime::now();
+        if (m_burst_window_started_at.has_value() && (now - *m_burst_window_started_at).to_milliseconds() < BURST_WINDOW_MS) {
+            ++m_requests_in_burst_window;
+        } else {
+            if (m_requests_in_burst_window > BURST_REPORT_THRESHOLD) {
+                dbgln("RequestServer wire-burst: client {} sent {} requests in <{} ms",
+                    client_id(), m_requests_in_burst_window, BURST_WINDOW_MS);
+            }
+            m_burst_window_started_at = now;
+            m_requests_in_burst_window = 1;
+        }
+    }
 
     auto request = Request::fetch(request_id, m_disk_cache, cache_mode, *this, m_curl_multi, m_resolver, move(url), move(method), HTTP::HeaderList::create(move(request_headers)), move(request_body), include_credentials, m_alt_svc_cache_path, proxy_data);
     m_active_requests.set(request_id, move(request));
@@ -209,6 +281,7 @@ void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL:
 
 void ConnectionFromClient::start_revalidation_request(Badge<Request>, ByteString method, URL::URL url, NonnullRefPtr<HTTP::HeaderList> request_headers, ByteBuffer request_body, HTTP::Cookie::IncludeCredentials include_credentials, Core::ProxyData proxy_data)
 {
+    note_event_tick("ipc-start-revalidation"sv);
     auto request_id = m_next_revalidation_request_id++;
 
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_revalidation_request({}, {})", request_id, url);
@@ -237,7 +310,10 @@ int ConnectionFromClient::on_socket_callback(CURL*, int sockfd, int what, void* 
         auto& notifier = notifiers.ensure(sockfd, [client, sockfd, multi = client->m_curl_multi, type, select_flag] {
             auto notifier = Core::Notifier::construct(sockfd, type);
             notifier->on_activation = [client, sockfd, multi, select_flag] {
-                auto result = curl_multi_socket_action(multi, sockfd, select_flag, nullptr);
+                note_event_tick("curl-socket-ready"sv);
+                auto result = time_curl_call("multi_socket_action(socket)"sv, [&] {
+                    return curl_multi_socket_action(multi, sockfd, select_flag, nullptr);
+                });
                 VERIFY(result == CURLM_OK);
 
                 client->check_active_requests();
@@ -261,17 +337,22 @@ int ConnectionFromClient::on_timeout_callback(void*, long timeout_ms, void* user
     if (!client->m_timer)
         return 0;
 
-    if (timeout_ms < 0)
+    if (timeout_ms < 0) {
         client->m_timer->stop();
-    else
+        s_curl_timer_due_at = {};
+    } else {
         client->m_timer->restart(timeout_ms);
+        s_curl_timer_due_at = MonotonicTime::now() + AK::Duration::from_milliseconds(timeout_ms);
+    }
 
     return 0;
 }
 
 void ConnectionFromClient::check_active_requests()
 {
+    note_event_tick("check-active-requests"sv);
     int msgs_in_queue = 0;
+    u64 completions_drained = 0;
     while (auto* msg = curl_multi_info_read(m_curl_multi, &msgs_in_queue)) {
         if (msg->msg != CURLMSG_DONE)
             continue;
@@ -293,9 +374,13 @@ void ConnectionFromClient::check_active_requests()
             continue;
         }
 
+        ++completions_drained;
         auto* request = static_cast<Request*>(application_private);
         request->notify_fetch_complete({}, msg->data.result);
     }
+
+    if (completions_drained > 1)
+        dbgln_if(REQUESTSERVER_WIRE_DEBUG, "RequestServer wire-batch: drained {} completions in one curl multi tick", completions_drained);
 }
 
 Messages::RequestServer::StopRequestResponse ConnectionFromClient::stop_request(u64 request_id)
@@ -325,6 +410,7 @@ void ConnectionFromClient::ensure_connection(u64 request_id, URL::URL url, ::Req
 
 void ConnectionFromClient::retrieved_http_cookie(int client_id, u64 request_id, RequestServer::RequestType request_type, String cookie)
 {
+    note_event_tick("ipc-retrieved-cookie"sv);
     if (auto connection = m_connections.get(client_id); connection.has_value()) {
         auto request = [&]() {
             switch (request_type) {
