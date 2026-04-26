@@ -18,8 +18,8 @@ class MEDIA_API AudioSink : public virtual MediaPipelineNode {
 public:
     virtual ~AudioSink() = default;
 
-    virtual void set_provider(Track const&, RefPtr<AudioDataProvider> const&) = 0;
-    virtual RefPtr<AudioDataProvider> provider(Track const&) const = 0;
+    virtual void set_producer(Track const&, RefPtr<DecodedAudioProducer> const&) = 0;
+    virtual RefPtr<DecodedAudioProducer> producer(Track const&) const = 0;
 };
 
 }

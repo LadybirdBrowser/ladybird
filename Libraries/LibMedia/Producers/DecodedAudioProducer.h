@@ -27,7 +27,7 @@
 namespace Media {
 
 // Retrieves coded data from a demuxer and decodes it asynchronously into audio samples to push to an AudioSink.
-class MEDIA_API AudioDataProvider final : public AtomicRefCounted<AudioDataProvider> {
+class MEDIA_API DecodedAudioProducer final : public AtomicRefCounted<DecodedAudioProducer> {
     class ThreadData;
 
 public:
@@ -39,9 +39,9 @@ public:
     using SeekCompletionHandler = Function<void()>;
     using QueueIsFullHandler = Function<void()>;
 
-    static DecoderErrorOr<NonnullRefPtr<AudioDataProvider>> try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track);
-    AudioDataProvider(NonnullRefPtr<ThreadData> const&);
-    ~AudioDataProvider();
+    static DecoderErrorOr<NonnullRefPtr<DecodedAudioProducer>> try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track);
+    DecodedAudioProducer(NonnullRefPtr<ThreadData> const&);
+    ~DecodedAudioProducer();
 
     void set_error_handler(ErrorHandler&&);
     void set_duration_change_handler(BlockEndTimeHandler&&);

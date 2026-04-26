@@ -17,9 +17,9 @@
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
+#include <LibMedia/MediaTimeProvider.h>
 #include <LibMedia/PlaybackStates/Forward.h>
 #include <LibMedia/PlaybackStates/PlaybackState.h>
-#include <LibMedia/Providers/MediaTimeProvider.h>
 #include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
 #include <LibSync/Mutex.h>
@@ -107,14 +107,14 @@ public:
 private:
     struct VideoTrackData {
         Track track;
-        NonnullRefPtr<VideoDataProvider> provider;
+        NonnullRefPtr<DecodedVideoProducer> producer;
         RefPtr<DisplayingVideoSink> display;
     };
     using VideoTrackDatas = Vector<VideoTrackData, EXPECTED_VIDEO_TRACK_COUNT>;
 
     struct AudioTrackData {
         Track track;
-        NonnullRefPtr<AudioDataProvider> provider;
+        NonnullRefPtr<DecodedAudioProducer> producer;
         bool enabled { false };
     };
     using AudioTrackDatas = Vector<AudioTrackData, EXPECTED_AUDIO_TRACK_COUNT>;
@@ -124,7 +124,7 @@ private:
     void set_time_provider(NonnullRefPtr<MediaTimeProvider> const&);
     void disable_audio();
 
-    void set_up_data_providers();
+    void set_up_producers();
     void track_started_buffering(Track const&);
     void track_stopped_buffering(Track const&);
     void check_for_duration_change(AK::Duration);

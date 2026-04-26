@@ -12,13 +12,13 @@
 
 namespace Media {
 
-// A consumer to be attached to a VideoDataProvider in order to receive video frames from a decoding thread.
+// A consumer to be attached to a DecodedVideoProducer in order to receive video frames from a decoding thread.
 class VideoSink : public AtomicRefCounted<VideoSink> {
 public:
     virtual ~VideoSink() = default;
 
-    virtual void set_provider(Track const&, RefPtr<VideoDataProvider> const&) = 0;
-    virtual RefPtr<VideoDataProvider> provider(Track const&) const = 0;
+    virtual void set_producer(Track const&, RefPtr<DecodedVideoProducer> const&) = 0;
+    virtual RefPtr<DecodedVideoProducer> producer(Track const&) const = 0;
 };
 
 }

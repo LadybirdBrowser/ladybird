@@ -29,8 +29,8 @@ public:
 
     void set_time_provider(NonnullRefPtr<MediaTimeProvider> const&);
 
-    virtual void set_provider(Track const&, RefPtr<VideoDataProvider> const&) override;
-    RefPtr<VideoDataProvider> provider(Track const&) const override;
+    virtual void set_producer(Track const&, RefPtr<DecodedVideoProducer> const&) override;
+    RefPtr<DecodedVideoProducer> producer(Track const&) const override;
 
     [[nodiscard]] DisplayingVideoSinkUpdateResult update();
     void prepare_current_frame_for_next_update();
@@ -45,7 +45,7 @@ private:
     void verify_track(Track const&) const;
 
     NonnullRefPtr<MediaTimeProvider> m_time_provider;
-    RefPtr<VideoDataProvider> m_provider;
+    RefPtr<DecodedVideoProducer> m_producer;
     Optional<Track> m_track;
 
     RefPtr<VideoFrame> m_next_frame;

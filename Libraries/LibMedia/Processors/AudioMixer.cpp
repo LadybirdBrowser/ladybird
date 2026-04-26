@@ -5,7 +5,7 @@
  */
 
 #include <LibMedia/Processors/AudioMixer.h>
-#include <LibMedia/Providers/AudioDataProvider.h>
+#include <LibMedia/Producers/DecodedAudioProducer.h>
 
 namespace Media {
 
@@ -21,29 +21,29 @@ AudioMixer::AudioMixer()
 {
 }
 
-void AudioMixer::set_provider(Track const& track, RefPtr<AudioDataProvider> const& provider)
+void AudioMixer::set_producer(Track const& track, RefPtr<DecodedAudioProducer> const& producer)
 {
     Sync::MutexLocker locker { m_mutex };
     m_track_mixing_datas.remove(track);
-    if (provider == nullptr)
+    if (producer == nullptr)
         return;
 
-    // The provider must have its output sample specification set before it starts decoding, or
+    // The producer must have its output sample specification set before it starts decoding, or
     // we'll drop some samples due to a mismatch.
-    m_track_mixing_datas.set(track, TrackMixingData(*provider));
+    m_track_mixing_datas.set(track, TrackMixingData(*producer));
 
     if (m_sample_specification.is_valid()) {
-        provider->set_output_sample_specification(m_sample_specification);
-        provider->start();
+        producer->set_output_sample_specification(m_sample_specification);
+        producer->start();
     }
 }
 
-RefPtr<AudioDataProvider> AudioMixer::provider(Track const& track) const
+RefPtr<DecodedAudioProducer> AudioMixer::producer(Track const& track) const
 {
     auto mixing_data = m_track_mixing_datas.get(track);
     if (!mixing_data.has_value())
         return nullptr;
-    return mixing_data->provider;
+    return mixing_data->producer;
 }
 
 void AudioMixer::set_sample_specification(Audio::SampleSpecification sample_specification)
@@ -52,8 +52,8 @@ void AudioMixer::set_sample_specification(Audio::SampleSpecification sample_spec
     m_sample_specification = sample_specification;
 
     for (auto& [track, track_data] : m_track_mixing_datas) {
-        track_data.provider->set_output_sample_specification(m_sample_specification);
-        track_data.provider->start();
+        track_data.producer->set_output_sample_specification(m_sample_specification);
+        track_data.producer->start();
     }
 }
 
@@ -84,13 +84,13 @@ bool AudioMixer::mix_one_block_into(AudioBlock& out_block)
     auto buffering = false;
     auto any_track_has_fresh_data = false;
     for (auto& [track, track_data] : m_track_mixing_datas) {
-        auto available_end = track_data.provider->queue_end_sample();
+        auto available_end = track_data.producer->queue_end_sample();
         // A newly-enabled track has no data at the current mix position yet; skip it for clamping so
         // the mixer doesn't stall waiting for it to catch up.
         if (available_end <= buffer_start) {
             track_data.current_block.clear();
             while (true) {
-                auto block = track_data.provider->retrieve_block();
+                auto block = track_data.producer->retrieve_block();
                 if (block.is_empty())
                     break;
                 if (block.end_timestamp_in_samples() >= buffer_start) {
@@ -105,7 +105,7 @@ bool AudioMixer::mix_one_block_into(AudioBlock& out_block)
         any_track_has_fresh_data = true;
         if (available_end < samples_end) {
             samples_end = available_end;
-            if (track_data.provider->is_blocked())
+            if (track_data.producer->is_blocked())
                 buffering = true;
         }
     }
@@ -117,7 +117,7 @@ bool AudioMixer::mix_one_block_into(AudioBlock& out_block)
         if (!buffering) {
             track_data.buffering = false;
         } else {
-            if (!track_data.provider->is_blocked())
+            if (!track_data.producer->is_blocked())
                 continue;
             if (track_data.buffering)
                 continue;
@@ -146,7 +146,7 @@ bool AudioMixer::mix_one_block_into(AudioBlock& out_block)
             auto next_sample = buffer_start;
 
             auto go_to_next_block = [&] {
-                auto new_block = track_data.provider->retrieve_block();
+                auto new_block = track_data.producer->retrieve_block();
                 if (new_block.is_empty())
                     return false;
 

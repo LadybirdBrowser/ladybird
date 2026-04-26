@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibMedia/Providers/MediaTimeProvider.h>
+#include "MediaTimeProvider.h"
 
 namespace Media {
 

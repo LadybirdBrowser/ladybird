@@ -15,7 +15,7 @@
 #include <LibMedia/Containers/Matroska/Reader.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
-#include <LibMedia/Providers/AudioDataProvider.h>
+#include <LibMedia/Producers/DecodedAudioProducer.h>
 #include <LibMedia/VideoDecoder.h>
 #include <LibMedia/VideoFrame.h>
 #include <LibTest/TestCase.h>
@@ -82,17 +82,17 @@ static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_cou
     }());
     auto tracks = TRY_OR_FAIL(demuxer->get_tracks_for_type(Media::TrackType::Audio));
     VERIFY(!tracks.is_empty());
-    auto provider = TRY_OR_FAIL(Media::AudioDataProvider::try_create(Core::EventLoop::current_weak(), demuxer, tracks[0]));
+    auto producer = TRY_OR_FAIL(Media::DecodedAudioProducer::try_create(Core::EventLoop::current_weak(), demuxer, tracks[0]));
 
     auto reached_end = false;
-    provider->set_error_handler([&](Media::DecoderError&& error) {
+    producer->set_error_handler([&](Media::DecoderError&& error) {
         if (error.category() == Media::DecoderErrorCategory::EndOfStream) {
             reached_end = true;
             return;
         }
         FAIL("An error occurred while decoding.");
     });
-    provider->start();
+    producer->start();
 
     auto time_limit = AK::Duration::from_seconds(1);
     auto start_time = MonotonicTime::now_coarse();
@@ -101,7 +101,7 @@ static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_cou
     size_t sample_count = 0;
 
     while (true) {
-        auto block = provider->retrieve_block();
+        auto block = producer->retrieve_block();
         if (block.is_empty()) {
             if (reached_end)
                 break;

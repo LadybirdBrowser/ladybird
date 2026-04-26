@@ -11,12 +11,12 @@
 #include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
-#include <LibMedia/Providers/AudioDataProvider.h>
-#include <LibMedia/Providers/MediaTimeProvider.h>
-#include <LibMedia/Providers/VideoDataProvider.h>
+#include <LibMedia/MediaTimeProvider.h>
+#include <LibMedia/Producers/DecodedAudioProducer.h>
+#include <LibMedia/Producers/DecodedVideoProducer.h>
 #include <LibTest/TestCase.h>
 
-// The following tests attempt to reproduce a race condition in AudioDataProvider and VideoDataProvider
+// The following tests attempt to reproduce a race condition in DecodedAudioProducer and DecodedVideoProducer
 // where rapidly transitioning through states None -> Suspended -> Exit can cause the decoder thread to
 // continue with a null decoder.
 
@@ -36,7 +36,7 @@ static NonnullRefPtr<Media::Demuxer> create_demuxer(NonnullRefPtr<Media::Increme
 
 static constexpr size_t iterations = 100;
 
-TEST_CASE(audio_provider_suspend_then_exit)
+TEST_CASE(audio_producer_suspend_then_exit)
 {
     Core::EventLoop loop;
 
@@ -46,14 +46,14 @@ TEST_CASE(audio_provider_suspend_then_exit)
         auto track = TRY_OR_FAIL(demuxer->get_preferred_track_for_type(Media::TrackType::Audio));
         VERIFY(track.has_value());
 
-        auto provider = TRY_OR_FAIL(Media::AudioDataProvider::try_create(Core::EventLoop::current_weak(), demuxer, track.release_value()));
+        auto producer = TRY_OR_FAIL(Media::DecodedAudioProducer::try_create(Core::EventLoop::current_weak(), demuxer, track.release_value()));
 
-        provider->suspend();
+        producer->suspend();
         MUST(Core::System::sleep_ms(1));
     }
 }
 
-TEST_CASE(video_provider_suspend_then_exit)
+TEST_CASE(video_producer_suspend_then_exit)
 {
     Core::EventLoop loop;
 
@@ -63,14 +63,14 @@ TEST_CASE(video_provider_suspend_then_exit)
         auto track = TRY_OR_FAIL(demuxer->get_preferred_track_for_type(Media::TrackType::Video));
         VERIFY(track.has_value());
 
-        auto provider = TRY_OR_FAIL(Media::VideoDataProvider::try_create(Core::EventLoop::current_weak(), demuxer, track.release_value()));
+        auto producer = TRY_OR_FAIL(Media::DecodedVideoProducer::try_create(Core::EventLoop::current_weak(), demuxer, track.release_value()));
 
-        provider->suspend();
+        producer->suspend();
         MUST(Core::System::sleep_ms(1));
     }
 }
 
-TEST_CASE(audio_provider_start_suspend_then_exit)
+TEST_CASE(audio_producer_start_suspend_then_exit)
 {
     Core::EventLoop loop;
 
@@ -80,16 +80,16 @@ TEST_CASE(audio_provider_start_suspend_then_exit)
         auto track = TRY_OR_FAIL(demuxer->get_preferred_track_for_type(Media::TrackType::Audio));
         VERIFY(track.has_value());
 
-        auto provider = TRY_OR_FAIL(Media::AudioDataProvider::try_create(Core::EventLoop::current_weak(), demuxer, track.release_value()));
+        auto producer = TRY_OR_FAIL(Media::DecodedAudioProducer::try_create(Core::EventLoop::current_weak(), demuxer, track.release_value()));
 
-        provider->start();
+        producer->start();
         MUST(Core::System::sleep_ms(1));
-        provider->suspend();
+        producer->suspend();
         MUST(Core::System::sleep_ms(1));
     }
 }
 
-TEST_CASE(video_provider_start_suspend_then_exit)
+TEST_CASE(video_producer_start_suspend_then_exit)
 {
     Core::EventLoop loop;
 
@@ -99,16 +99,16 @@ TEST_CASE(video_provider_start_suspend_then_exit)
         auto track = TRY_OR_FAIL(demuxer->get_preferred_track_for_type(Media::TrackType::Video));
         VERIFY(track.has_value());
 
-        auto provider = TRY_OR_FAIL(Media::VideoDataProvider::try_create(Core::EventLoop::current_weak(), demuxer, track.release_value()));
+        auto producer = TRY_OR_FAIL(Media::DecodedVideoProducer::try_create(Core::EventLoop::current_weak(), demuxer, track.release_value()));
 
-        provider->start();
+        producer->start();
         MUST(Core::System::sleep_ms(1));
-        provider->suspend();
+        producer->suspend();
         MUST(Core::System::sleep_ms(1));
     }
 }
 
-TEST_CASE(audio_provider_underspecified_5_1_channel_map)
+TEST_CASE(audio_producer_underspecified_5_1_channel_map)
 {
     Core::EventLoop loop;
 
@@ -117,15 +117,15 @@ TEST_CASE(audio_provider_underspecified_5_1_channel_map)
     auto tracks = TRY_OR_FAIL(demuxer->get_tracks_for_type(Media::TrackType::Audio));
     VERIFY(!tracks.is_empty());
 
-    auto provider = TRY_OR_FAIL(Media::AudioDataProvider::try_create(Core::EventLoop::current_weak(), demuxer, tracks[0]));
+    auto producer = TRY_OR_FAIL(Media::DecodedAudioProducer::try_create(Core::EventLoop::current_weak(), demuxer, tracks[0]));
 
-    provider->start();
+    producer->start();
 
     auto time_limit = AK::Duration::from_seconds(1);
     auto start_time = MonotonicTime::now_coarse();
 
     while (true) {
-        auto block = provider->retrieve_block();
+        auto block = producer->retrieve_block();
         if (!block.is_empty()) {
             EXPECT_EQ(block.channel_count(), 6);
             EXPECT_EQ(block.sample_specification().channel_map(), Audio::ChannelMap::surround_5_1());

@@ -23,7 +23,7 @@ void PlaybackStateHandler::on_track_enabled(Track const& track)
         auto& track_data = manager().get_video_data_for_track(track);
         VERIFY(track_data.display != nullptr);
         track_data.display->pause_updates();
-        track_data.provider->seek(manager().current_time(), SeekMode::Accurate, [display = NonnullRefPtr(*track_data.display)](AK::Duration) {
+        track_data.producer->seek(manager().current_time(), SeekMode::Accurate, [display = NonnullRefPtr(*track_data.display)](AK::Duration) {
             display->resume_updates();
         });
         return;
@@ -33,7 +33,7 @@ void PlaybackStateHandler::on_track_enabled(Track const& track)
     auto& track_data = manager().get_audio_data_for_track(track);
     if (!manager().m_audio_mixer)
         return;
-    track_data.provider->seek(manager().current_time(), nullptr);
+    track_data.producer->seek(manager().current_time(), nullptr);
 }
 
 }

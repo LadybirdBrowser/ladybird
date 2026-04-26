@@ -12,7 +12,7 @@
 #include <LibMedia/Audio/Forward.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
-#include <LibMedia/Providers/MediaTimeProvider.h>
+#include <LibMedia/MediaTimeProvider.h>
 
 namespace Media {
 

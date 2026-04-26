@@ -11,7 +11,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
-#include <LibMedia/Providers/AudioDataProvider.h>
+#include <LibMedia/Producers/DecodedAudioProducer.h>
 #include <LibTest/TestCase.h>
 
 template<typename Integer>
@@ -78,17 +78,17 @@ static void decode_and_expect()
 
     auto tracks = TRY_OR_FAIL(demuxer->get_tracks_for_type(Media::TrackType::Audio));
     VERIFY(!tracks.is_empty());
-    auto provider = TRY_OR_FAIL(Media::AudioDataProvider::try_create(Core::EventLoop::current_weak(), demuxer, tracks[0]));
+    auto producer = TRY_OR_FAIL(Media::DecodedAudioProducer::try_create(Core::EventLoop::current_weak(), demuxer, tracks[0]));
 
     bool reached_end_of_stream = false;
-    provider->set_error_handler([&](Media::DecoderError&& error) {
+    producer->set_error_handler([&](Media::DecoderError&& error) {
         if (error.category() == Media::DecoderErrorCategory::EndOfStream) {
             reached_end_of_stream = true;
             return;
         }
         FAIL("An error occurred while decoding generated WAV data.");
     });
-    provider->start();
+    producer->start();
 
     bool saw_negative_full_scale_sample = false;
     bool saw_positive_peak_sample = false;
@@ -96,7 +96,7 @@ static void decode_and_expect()
 
     MonotonicTime deadline = MonotonicTime::now_coarse() + AK::Duration::from_seconds(1);
     while (MonotonicTime::now_coarse() < deadline) {
-        auto block = provider->retrieve_block();
+        auto block = producer->retrieve_block();
         if (block.is_empty()) {
             if (reached_end_of_stream)
                 break;

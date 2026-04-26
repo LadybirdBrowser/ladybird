@@ -26,7 +26,7 @@
 namespace Media {
 
 // Retrieves coded data from a demuxer and decodes it asynchronously into video frames ready for display.
-class MEDIA_API VideoDataProvider final : public AtomicRefCounted<VideoDataProvider> {
+class MEDIA_API DecodedVideoProducer final : public AtomicRefCounted<DecodedVideoProducer> {
     class ThreadData;
 
 public:
@@ -38,10 +38,10 @@ public:
     using SeekCompletionHandler = Function<void(AK::Duration)>;
     using FramesQueueIsFullHandler = Function<void()>;
 
-    static DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const&, Track const&, RefPtr<MediaTimeProvider> const& = nullptr);
+    static DecoderErrorOr<NonnullRefPtr<DecodedVideoProducer>> try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const&, Track const&, RefPtr<MediaTimeProvider> const& = nullptr);
 
-    VideoDataProvider(NonnullRefPtr<ThreadData> const&);
-    ~VideoDataProvider();
+    DecodedVideoProducer(NonnullRefPtr<ThreadData> const&);
+    ~DecodedVideoProducer();
 
     void set_error_handler(ErrorHandler&&);
     void set_duration_change_handler(FrameEndTimeHandler&&);

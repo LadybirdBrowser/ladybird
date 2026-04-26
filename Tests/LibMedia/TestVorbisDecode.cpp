@@ -9,6 +9,6 @@
 
 TEST_CASE(44_1Khz_stereo)
 {
-    // FIXME: 96 samples are marked to be discarded, but AudioDataProvider currently is not aware of this.
+    // FIXME: 96 samples are marked to be discarded, but DecodedAudioProducer currently is not aware of this.
     decode_audio("vorbis/44_1Khz_stereo.ogg"sv, 44100, 2, 352800 + 96);
 }

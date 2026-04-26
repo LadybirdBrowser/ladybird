@@ -11,8 +11,8 @@
 #include <LibMedia/PlaybackManager.h>
 #include <LibMedia/PlaybackStates/Forward.h>
 #include <LibMedia/PlaybackStates/ResumingStateHandler.h>
-#include <LibMedia/Providers/AudioDataProvider.h>
-#include <LibMedia/Providers/VideoDataProvider.h>
+#include <LibMedia/Producers/DecodedAudioProducer.h>
+#include <LibMedia/Producers/DecodedVideoProducer.h>
 #include <LibMedia/SeekMode.h>
 #include <LibMedia/Sinks/AudioPlaybackSink.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
@@ -76,14 +76,14 @@ public:
     {
         if (track.type() == TrackType::Video) {
             auto& track_data = manager().get_video_data_for_track(track);
-            track_data.provider->seek(m_target_timestamp, SeekMode::Accurate, nullptr);
+            track_data.producer->seek(m_target_timestamp, SeekMode::Accurate, nullptr);
             end_video_seek(track);
             return;
         }
 
         VERIFY(track.type() == TrackType::Audio);
         auto& track_data = manager().get_audio_data_for_track(track);
-        track_data.provider->seek(m_target_timestamp, nullptr);
+        track_data.producer->seek(m_target_timestamp, nullptr);
         end_audio_seek(track);
     }
 
@@ -120,10 +120,10 @@ private:
 
         m_video_seeks_pending.set(track);
         track_data.display->pause_updates();
-        track_data.provider->seek(m_target_timestamp, m_mode, [this, weak_manager = manager().weak(), track](AK::Duration provider_timestamp) {
+        track_data.producer->seek(m_target_timestamp, m_mode, [this, weak_manager = manager().weak(), track](AK::Duration producer_timestamp) {
             if (!weak_manager)
                 return;
-            m_chosen_timestamp = max(m_chosen_timestamp, provider_timestamp);
+            m_chosen_timestamp = max(m_chosen_timestamp, producer_timestamp);
             end_video_seek(track);
         });
     }
@@ -145,7 +145,7 @@ private:
 
         m_audio_seeks_pending.set(track);
 
-        track_data.provider->seek(m_chosen_timestamp, [this, weak_manager = manager().weak(), track]() {
+        track_data.producer->seek(m_chosen_timestamp, [this, weak_manager = manager().weak(), track]() {
             if (!weak_manager)
                 return;
             end_audio_seek(track);

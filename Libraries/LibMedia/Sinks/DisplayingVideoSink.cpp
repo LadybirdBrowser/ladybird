@@ -5,8 +5,8 @@
  */
 
 #include <LibMedia/Demuxer.h>
-#include <LibMedia/Providers/MediaTimeProvider.h>
-#include <LibMedia/Providers/VideoDataProvider.h>
+#include <LibMedia/MediaTimeProvider.h>
+#include <LibMedia/Producers/DecodedVideoProducer.h>
 #include <LibMedia/VideoFrame.h>
 
 #include "DisplayingVideoSink.h"
@@ -32,30 +32,30 @@ void DisplayingVideoSink::set_time_provider(NonnullRefPtr<MediaTimeProvider> con
 
 void DisplayingVideoSink::verify_track(Track const& track) const
 {
-    if (m_provider == nullptr)
+    if (m_producer == nullptr)
         return;
     VERIFY(m_track.has_value());
     VERIFY(m_track.value() == track);
 }
 
-void DisplayingVideoSink::set_provider(Track const& track, RefPtr<VideoDataProvider> const& provider)
+void DisplayingVideoSink::set_producer(Track const& track, RefPtr<DecodedVideoProducer> const& producer)
 {
     verify_track(track);
     m_track = track;
-    m_provider = provider;
-    if (provider != nullptr)
-        provider->start();
+    m_producer = producer;
+    if (producer != nullptr)
+        producer->start();
 }
 
-RefPtr<VideoDataProvider> DisplayingVideoSink::provider(Track const& track) const
+RefPtr<DecodedVideoProducer> DisplayingVideoSink::producer(Track const& track) const
 {
     verify_track(track);
-    return m_provider;
+    return m_producer;
 }
 
 DisplayingVideoSinkUpdateResult DisplayingVideoSink::update()
 {
-    if (m_provider == nullptr)
+    if (m_producer == nullptr)
         return DisplayingVideoSinkUpdateResult::NoChange;
     if (m_pause_updates)
         return DisplayingVideoSinkUpdateResult::NoChange;
@@ -69,9 +69,9 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update()
 
     while (true) {
         if (!m_next_frame) {
-            m_next_frame = m_provider->retrieve_frame();
+            m_next_frame = m_producer->retrieve_frame();
             if (!m_next_frame) {
-                if (m_provider->is_blocked() && m_on_start_buffering)
+                if (m_producer->is_blocked() && m_on_start_buffering)
                     m_on_start_buffering();
                 break;
             }

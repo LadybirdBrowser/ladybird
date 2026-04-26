@@ -17,7 +17,7 @@
 #include <LibMedia/AudioBlock.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
-#include <LibMedia/Providers/AudioDataProvider.h>
+#include <LibMedia/Producers/DecodedAudioProducer.h>
 #include <LibMedia/Sinks/AudioSink.h>
 #include <LibMedia/Track.h>
 #include <LibSync/Mutex.h>
@@ -30,8 +30,8 @@ public:
     AudioMixer();
     virtual ~AudioMixer() override = default;
 
-    virtual void set_provider(Track const&, RefPtr<AudioDataProvider> const&) override;
-    virtual RefPtr<AudioDataProvider> provider(Track const&) const override;
+    virtual void set_producer(Track const&, RefPtr<DecodedAudioProducer> const&) override;
+    virtual RefPtr<DecodedAudioProducer> producer(Track const&) const override;
 
     void set_sample_specification(Audio::SampleSpecification);
     Audio::SampleSpecification sample_specification() const;
@@ -44,12 +44,12 @@ public:
 
 private:
     struct TrackMixingData {
-        TrackMixingData(NonnullRefPtr<AudioDataProvider> const& provider)
-            : provider(provider)
+        TrackMixingData(NonnullRefPtr<DecodedAudioProducer> const& producer)
+            : producer(producer)
         {
         }
 
-        NonnullRefPtr<AudioDataProvider> provider;
+        NonnullRefPtr<DecodedAudioProducer> producer;
         AudioBlock current_block;
         bool buffering { false };
     };

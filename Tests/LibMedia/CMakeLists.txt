@@ -1,9 +1,9 @@
 include(audio)
 
 set(TEST_SOURCES
-    TestAudioDataProvider.cpp
     TestCICP.cpp
-    TestDataProviders.cpp
+    TestDataProducers.cpp
+    TestDecodedAudioProducer.cpp
     TestFFmpegAudioNormalization.cpp
     TestFFmpegDemuxer.cpp
     TestH264Decode.cpp
