@@ -32,6 +32,7 @@ protected:
 
 private:
     void setup_worker_ipc_callbacks(JS::Realm&);
+    void release_startup_keep_alive();
 
     WorkerOptions m_worker_options;
     Bindings::AgentType m_agent_type { Bindings::AgentType::DedicatedWorker };

@@ -21,6 +21,12 @@ void WebWorkerClient::did_close_worker()
         on_worker_close();
 }
 
+void WebWorkerClient::did_finish_loading_worker_script()
+{
+    if (on_worker_script_load_success)
+        on_worker_script_load_success();
+}
+
 void WebWorkerClient::did_fail_loading_worker_script()
 {
     if (on_worker_script_load_failure)

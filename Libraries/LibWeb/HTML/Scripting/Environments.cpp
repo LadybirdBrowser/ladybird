@@ -20,6 +20,7 @@
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/UniversalGlobalScope.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WorkerAgentParent.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/SecureContexts/AbstractOperations.h>
@@ -68,6 +69,7 @@ void EnvironmentSettingsObject::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_storage_manager);
     visitor.visit(m_service_worker_registration_object_map);
     visitor.visit(m_service_worker_object_map);
+    visitor.visit(m_worker_agents_to_keep_alive_while_starting);
 }
 
 void EnvironmentSettingsObject::discard_environment()
@@ -77,6 +79,18 @@ void EnvironmentSettingsObject::discard_environment()
 
     // 1. Set client’s discarded flag.
     set_discarded(true);
+}
+
+void EnvironmentSettingsObject::keep_worker_agent_alive_while_starting(WorkerAgentParent& worker_agent)
+{
+    m_worker_agents_to_keep_alive_while_starting.append(worker_agent);
+}
+
+void EnvironmentSettingsObject::release_worker_agent_from_startup_keep_alive(WorkerAgentParent& worker_agent)
+{
+    m_worker_agents_to_keep_alive_while_starting.remove_first_matching([&](auto& agent) {
+        return agent.ptr() == &worker_agent;
+    });
 }
 
 JS::ExecutionContext& EnvironmentSettingsObject::realm_execution_context()

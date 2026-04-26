@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        let completed = 0;
+        const failures = [];
+
+        function finishOne(name) {
+            failures.push(name);
+            if (++completed === 2) {
+                failures.sort().forEach(println);
+                done();
+            }
+        }
+
+        const worker = new Worker("worker-does-not-exist.js");
+        worker.onerror = () => finishOne("worker error");
+
+        const shared = new SharedWorker("shared-worker-does-not-exist.js");
+        shared.onerror = () => finishOne("shared worker error");
+
+        setTimeout(() => internals.gc(), 0);
+    });
+</script>

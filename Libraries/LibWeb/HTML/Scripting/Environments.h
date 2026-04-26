@@ -144,6 +144,9 @@ public:
 
     virtual void discard_environment() override;
 
+    void keep_worker_agent_alive_while_starting(WorkerAgentParent&);
+    void release_worker_agent_from_startup_keep_alive(WorkerAgentParent&);
+
     // FIXME: This method below is from HighResolutionTime spec in section 3. Section for Specification Authors.
     // The following other methods are currently not supported:
     // `current relative timestamp`     https://www.w3.org/TR/hr-time-3/#dfn-current-relative-timestamp
@@ -195,6 +198,8 @@ private:
     // https://w3c.github.io/ServiceWorker/#service-worker-client-discarded-flag
     // A service worker client has an associated discarded flag. It is initially unset.
     bool m_discarded { false };
+
+    Vector<GC::Ref<WorkerAgentParent>> m_worker_agents_to_keep_alive_while_starting;
 };
 
 RunScriptDecision can_run_script(EnvironmentSettingsObject const&);

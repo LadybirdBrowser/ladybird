@@ -113,6 +113,11 @@ Web::PageClient::WorkerAgentResponse PageHost::request_worker_agent(Web::Binding
     return { response.take_handle(), response.take_request_server_handle(), response.take_image_decoder_handle() };
 }
 
+void PageHost::did_finish_loading_worker_script()
+{
+    m_client.async_did_finish_loading_worker_script();
+}
+
 void PageHost::did_fail_loading_worker_script()
 {
     m_client.async_did_fail_loading_worker_script();

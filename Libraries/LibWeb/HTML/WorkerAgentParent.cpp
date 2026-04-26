@@ -38,6 +38,8 @@ void WorkerAgentParent::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
 
+    m_outside_settings->keep_worker_agent_alive_while_starting(*this);
+
     m_message_port = MessagePort::create(realm);
     m_message_port->entangle_with(*m_outside_port);
 
@@ -86,13 +88,13 @@ void WorkerAgentParent::setup_worker_ipc_callbacks(JS::Realm& realm)
             return;
         // https://html.spec.whatwg.org/multipage/webappapis.html#report-an-exception
         // 7.2: If global implements DedicatedWorkerGlobalScope, queue a global task on the DOM manipulation task source with the global's associated Worker's relevant global object to run these steps:
-        auto& outside_settings = *self->m_outside_settings;
+        auto outside_settings = GC::Ref { *self->m_outside_settings };
         auto worker_event_target = GC::Ref { *self->m_worker_event_target };
-        queue_global_task(Task::Source::DOMManipulation, outside_settings.global_object(), GC::create_function(outside_settings.heap(), [&outside_settings, worker_event_target, message = move(message), filename = move(filename), lineno, colno]() {
+        queue_global_task(Task::Source::DOMManipulation, outside_settings->global_object(), GC::create_function(outside_settings->heap(), [outside_settings, worker_event_target, message = move(message), filename = move(filename), lineno, colno]() {
             // 1. Let workerObject be the Worker object associated with global.
             auto& worker_object = as<Worker>(*worker_event_target);
 
-            auto& realm = outside_settings.realm();
+            auto& realm = outside_settings->realm();
 
             // 2. Set notHandled to the result of firing an event named error at workerObject, using ErrorEvent, with the
             //    cancelable attribute initialized to true, and additional attributes initialized according to errorInfo.
@@ -108,20 +110,36 @@ void WorkerAgentParent::setup_worker_ipc_callbacks(JS::Realm& realm)
 
             // 3. If notHandled is true, then report exception for workerObject's relevant global object with omitError set to true.
             if (not_handled)
-                as<WindowOrWorkerGlobalScopeMixin>(outside_settings.global_object()).report_an_exception(error, WindowOrWorkerGlobalScopeMixin::OmitError::Yes);
+                as<WindowOrWorkerGlobalScopeMixin>(outside_settings->global_object()).report_an_exception(error, WindowOrWorkerGlobalScopeMixin::OmitError::Yes);
         }));
+    };
+    m_worker_ipc->on_worker_close = [self = GC::Weak { *this }]() {
+        if (!self)
+            return;
+        self->release_startup_keep_alive();
+    };
+    m_worker_ipc->on_worker_script_load_success = [self = GC::Weak { *this }]() {
+        if (!self)
+            return;
+        self->release_startup_keep_alive();
     };
     m_worker_ipc->on_worker_script_load_failure = [self = GC::Weak { *this }]() {
         if (!self)
             return;
-        auto& outside_settings = *self->m_outside_settings;
-        auto& event_target = *self->m_worker_event_target;
+        auto outside_settings = GC::Ref { *self->m_outside_settings };
+        auto event_target = GC::Ref { *self->m_worker_event_target };
         // See: https://html.spec.whatwg.org/multipage/workers.html#worker-processing-model, onComplete handler for fetching script.
         // 1. Queue a global task on the DOM manipulation task source given worker's relevant global object to fire an event named error at worker.
-        queue_global_task(Task::Source::DOMManipulation, outside_settings.global_object(), GC::create_function(outside_settings.heap(), [&event_target, &outside_settings]() {
-            event_target.dispatch_event(DOM::Event::create(outside_settings.realm(), EventNames::error));
+        queue_global_task(Task::Source::DOMManipulation, outside_settings->global_object(), GC::create_function(outside_settings->heap(), [event_target, outside_settings]() {
+            event_target->dispatch_event(DOM::Event::create(outside_settings->realm(), EventNames::error));
         }));
+        self->release_startup_keep_alive();
     };
+}
+
+void WorkerAgentParent::release_startup_keep_alive()
+{
+    m_outside_settings->release_worker_agent_from_startup_keep_alive(*this);
 }
 
 void WorkerAgentParent::visit_edges(Cell::Visitor& visitor)
