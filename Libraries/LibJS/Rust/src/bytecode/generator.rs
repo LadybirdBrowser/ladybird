@@ -14,6 +14,7 @@ use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use super::basic_block::{BasicBlock, SourceMapEntry};
+use super::ffi::{AbstractOperationKind, WellKnownSymbolKind};
 use super::instruction::Instruction;
 use super::operand::*;
 use crate::ast::{FunctionData, FunctionTable, LocalType, Position, Utf16String};
@@ -568,8 +569,12 @@ impl Generator {
         self.append_constant(ConstantValue::BigInt(value))
     }
 
-    pub fn add_constant_raw_value(&mut self, value: u64) -> ScopedOperand {
-        self.append_constant(ConstantValue::RawValue(value))
+    pub fn add_constant_well_known_symbol(&mut self, symbol: WellKnownSymbolKind) -> ScopedOperand {
+        self.append_constant(ConstantValue::WellKnownSymbol(symbol))
+    }
+
+    pub fn add_constant_abstract_operation(&mut self, operation: AbstractOperationKind) -> ScopedOperand {
+        self.append_constant(ConstantValue::AbstractOperation(operation))
     }
 
     /// Get the constant value for a constant operand.
@@ -1733,13 +1738,15 @@ pub enum ConstantValue {
     Empty,
     String(Utf16String),
     BigInt(String),
-    /// An opaque pre-encoded JS::Value (e.g. well-known symbol, intrinsic function).
-    RawValue(u64),
+    /// A VM-specific well-known symbol resolved when the Executable is materialized.
+    WellKnownSymbol(WellKnownSymbolKind),
+    /// A NativeJavaScriptBackedFunction intrinsic resolved when the Executable is materialized.
+    AbstractOperation(AbstractOperationKind),
 }
 
 /// Convert a constant value to a boolean, matching JS `ToBoolean`.
-/// Returns `None` for opaque `RawValue` constants whose truthiness
-/// cannot be determined at compile time.
+/// Returns `None` for VM-specific constants whose truthiness cannot be
+/// determined until the Executable is materialized.
 pub fn constant_to_boolean(value: &ConstantValue) -> Option<bool> {
     match value {
         ConstantValue::Boolean(b) => Some(*b),
@@ -1747,7 +1754,7 @@ pub fn constant_to_boolean(value: &ConstantValue) -> Option<bool> {
         ConstantValue::Number(n) => Some(*n != 0.0 && !n.is_nan()),
         ConstantValue::String(s) => Some(!s.is_empty()),
         ConstantValue::BigInt(s) => parse_bigint(s).map(|bi| bi != num_bigint::BigInt::ZERO),
-        ConstantValue::RawValue(_) => None,
+        ConstantValue::WellKnownSymbol(_) | ConstantValue::AbstractOperation(_) => None,
     }
 }
 

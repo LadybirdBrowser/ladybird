@@ -130,12 +130,23 @@ fn literal_value_kind_to_ffi(kind: PendingLiteralValueKind) -> LiteralValueKind 
     }
 }
 
-/// Well-known symbol IDs for get_well_known_symbol()
-/// Used to retrieve well known symbols as opaque Values from C++.
+/// Well-known symbol IDs resolved by C++ when materializing an Executable.
 #[repr(u8)]
+#[derive(Debug, Clone, Copy)]
 pub enum WellKnownSymbolKind {
     SymbolIterator = 0,
     SymbolAsyncIterator = 1,
+}
+
+/// NativeJavaScriptBackedFunction intrinsic IDs resolved by C++ when materializing an Executable.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy)]
+pub enum AbstractOperationKind {
+    AsyncIteratorClose = 0,
+    GetMethod = 1,
+    GetIteratorDirect = 2,
+    GetIteratorFromMethod = 3,
+    IteratorComplete = 4,
 }
 
 /// Class element descriptor for ClassBlueprint creation
@@ -277,12 +288,6 @@ unsafe extern "C" {
 
     pub fn rust_number_to_utf16(value: f64, buffer: *mut u16, buffer_len: usize) -> usize;
 
-    // Get a well-known symbol as an opaque Value.
-    pub fn get_well_known_symbol(vm_ptr: *mut c_void, symbol_id: WellKnownSymbolKind) -> u64;
-
-    // Get an intrinsic abstract operation function as an opaque Value.
-    // name/name_len is the function name (e.g. "GetMethod").
-    pub fn get_abstract_operation_function(vm_ptr: *mut c_void, name: *const u16, name_len: usize) -> u64;
 }
 
 /// Create a SharedFunctionInstanceData from a FunctionData.
@@ -514,7 +519,8 @@ pub enum ConstantTag {
     Empty = 5,
     String = 6,
     BigInt = 7,
-    RawValue = 8,
+    WellKnownSymbol = 8,
+    AbstractOperation = 9,
 }
 
 /// Encode constants into a tagged byte buffer for FFI.
@@ -545,9 +551,13 @@ fn encode_constants(constants: &[ConstantValue]) -> Vec<u8> {
                 buffer.extend_from_slice(&len.to_le_bytes());
                 buffer.extend_from_slice(s.as_bytes());
             }
-            ConstantValue::RawValue(encoded) => {
-                buffer.push(ConstantTag::RawValue as u8);
-                buffer.extend_from_slice(&encoded.to_le_bytes());
+            ConstantValue::WellKnownSymbol(symbol) => {
+                buffer.push(ConstantTag::WellKnownSymbol as u8);
+                buffer.push(*symbol as u8);
+            }
+            ConstantValue::AbstractOperation(name) => {
+                buffer.push(ConstantTag::AbstractOperation as u8);
+                buffer.push(*name as u8);
             }
         }
     }

@@ -47,7 +47,7 @@ use crate::ast::*;
 use crate::lexer::ch;
 use crate::u32_from_usize;
 
-use super::ffi::WellKnownSymbolKind;
+use super::ffi::{AbstractOperationKind, WellKnownSymbolKind};
 use super::generator::{
     BlockBoundaryType, ConstantValue, FinallyContext, Generator, PendingClassBlueprint, PendingClassElement,
     PendingLiteralValueKind, PendingSharedFunctionData, ScopedOperand, choose_dst, constant_to_boolean, parse_bigint,
@@ -2928,19 +2928,19 @@ fn try_generate_builtin_abstract_operation(
     }
 
     // Operations that map to intrinsic function calls.
-    let known_operations: &[&[u16]] = &[
-        utf16!("AsyncIteratorClose"),
-        utf16!("GetMethod"),
-        utf16!("GetIteratorDirect"),
-        utf16!("GetIteratorFromMethod"),
-        utf16!("IteratorComplete"),
+    let known_operations: &[(&[u16], AbstractOperationKind)] = &[
+        (utf16!("AsyncIteratorClose"), AbstractOperationKind::AsyncIteratorClose),
+        (utf16!("GetMethod"), AbstractOperationKind::GetMethod),
+        (utf16!("GetIteratorDirect"), AbstractOperationKind::GetIteratorDirect),
+        (
+            utf16!("GetIteratorFromMethod"),
+            AbstractOperationKind::GetIteratorFromMethod,
+        ),
+        (utf16!("IteratorComplete"), AbstractOperationKind::IteratorComplete),
     ];
-    for &op_name in known_operations {
+    for &(op_name, operation) in known_operations {
         if *name == op_name {
-            let intrinsic_value = unsafe {
-                super::ffi::get_abstract_operation_function(generator.vm_ptr, op_name.as_ptr(), op_name.len())
-            };
-            let callee = generator.add_constant_raw_value(intrinsic_value);
+            let callee = generator.add_constant_abstract_operation(operation);
             let undefined = generator.add_constant_undefined();
             let expression_string = generator.intern_string(name);
             let mut argument_holders = Vec::with_capacity(data.arguments.len());
@@ -2971,13 +2971,10 @@ fn try_generate_builtin_constant(generator: &mut Generator, name: &Utf16String) 
         return None;
     }
     if *name == utf16!("SYMBOL_ITERATOR") {
-        let value = unsafe { super::ffi::get_well_known_symbol(generator.vm_ptr, WellKnownSymbolKind::SymbolIterator) };
-        return Some(generator.add_constant_raw_value(value));
+        return Some(generator.add_constant_well_known_symbol(WellKnownSymbolKind::SymbolIterator));
     }
     if *name == utf16!("SYMBOL_ASYNC_ITERATOR") {
-        let value =
-            unsafe { super::ffi::get_well_known_symbol(generator.vm_ptr, WellKnownSymbolKind::SymbolAsyncIterator) };
-        return Some(generator.add_constant_raw_value(value));
+        return Some(generator.add_constant_well_known_symbol(WellKnownSymbolKind::SymbolAsyncIterator));
     }
     if *name == utf16!("MAX_ARRAY_LIKE_INDEX") {
         return Some(generator.add_constant_number(9007199254740991.0));

@@ -695,12 +695,35 @@ static JS::Value decode_constant(JS::VM& vm, uint8_t const*& cursor, uint8_t con
         }();
         return JS::BigInt::create(vm, move(integer));
     }
-    case ConstantTag::RawValue: {
-        VERIFY(cursor + 8 <= end);
-        JS::Value value;
-        memcpy(&value, cursor, 8);
-        cursor += 8;
-        return value;
+    case ConstantTag::WellKnownSymbol: {
+        VERIFY(cursor + 1 <= end);
+        auto symbol_id = static_cast<WellKnownSymbolKind>(*cursor++);
+        switch (symbol_id) {
+        case WellKnownSymbolKind::SymbolIterator:
+            return vm.well_known_symbol_iterator();
+        case WellKnownSymbolKind::SymbolAsyncIterator:
+            return vm.well_known_symbol_async_iterator();
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }
+    case ConstantTag::AbstractOperation: {
+        VERIFY(cursor + 1 <= end);
+        auto operation = static_cast<AbstractOperationKind>(*cursor++);
+        auto& intrinsics = vm.current_realm()->intrinsics();
+        switch (operation) {
+        case AbstractOperationKind::AsyncIteratorClose:
+            return JS::Value(intrinsics.async_iterator_close_abstract_operation_function().ptr());
+        case AbstractOperationKind::GetMethod:
+            return JS::Value(intrinsics.get_method_abstract_operation_function().ptr());
+        case AbstractOperationKind::GetIteratorDirect:
+            return JS::Value(intrinsics.get_iterator_direct_abstract_operation_function().ptr());
+        case AbstractOperationKind::GetIteratorFromMethod:
+            return JS::Value(intrinsics.get_iterator_from_method_abstract_operation_function().ptr());
+        case AbstractOperationKind::IteratorComplete:
+            return JS::Value(intrinsics.iterator_complete_abstract_operation_function().ptr());
+        }
+        VERIFY_NOT_REACHED();
     }
     default:
         VERIFY_NOT_REACHED();
@@ -1107,39 +1130,6 @@ extern "C" size_t rust_format_double(double value, uint8_t* buffer, size_t buffe
     auto len = min(bytes.size(), buffer_len);
     memcpy(buffer, bytes.data(), len);
     return len;
-}
-
-extern "C" uint64_t get_well_known_symbol(void* vm_ptr, WellKnownSymbolKind symbol_id)
-{
-    auto& vm = *static_cast<JS::VM*>(vm_ptr);
-    JS::Value value;
-    switch (symbol_id) {
-    case WellKnownSymbolKind::SymbolIterator:
-        value = vm.well_known_symbol_iterator();
-        break;
-    case WellKnownSymbolKind::SymbolAsyncIterator:
-        value = vm.well_known_symbol_async_iterator();
-        break;
-    default:
-        VERIFY_NOT_REACHED();
-    }
-    return value.encoded();
-}
-
-extern "C" uint64_t get_abstract_operation_function(void* vm_ptr, uint16_t const* name, size_t name_len)
-{
-    auto& vm = *static_cast<JS::VM*>(vm_ptr);
-    auto& intrinsics = vm.current_realm()->intrinsics();
-    auto name_view = JS::RustIntegration::utf16_view_from_bytes(name, name_len);
-    auto name_str = MUST(name_view.to_utf8());
-
-#define __JS_ENUMERATE(snake_name, functionName, length) \
-    if (name_str == #functionName##sv)                   \
-        return JS::Value(intrinsics.snake_name##_abstract_operation_function().ptr()).encoded();
-    JS_ENUMERATE_NATIVE_JAVASCRIPT_BACKED_ABSTRACT_OPERATIONS
-#undef __JS_ENUMERATE
-
-    VERIFY_NOT_REACHED();
 }
 
 }
