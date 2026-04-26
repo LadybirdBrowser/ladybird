@@ -15,6 +15,7 @@
 #include <LibMedia/Containers/Matroska/Reader.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
+#include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Producers/DecodedAudioProducer.h>
 #include <LibMedia/VideoDecoder.h>
 #include <LibMedia/VideoFrame.h>
@@ -84,12 +85,7 @@ static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_cou
     VERIFY(!tracks.is_empty());
     auto producer = TRY_OR_FAIL(Media::DecodedAudioProducer::try_create(Core::EventLoop::current_weak(), demuxer, tracks[0]));
 
-    auto reached_end = false;
-    producer->set_error_handler([&](Media::DecoderError&& error) {
-        if (error.category() == Media::DecoderErrorCategory::EndOfStream) {
-            reached_end = true;
-            return;
-        }
+    producer->set_error_handler([&](Media::DecoderError&&) {
         FAIL("An error occurred while decoding.");
     });
     producer->start();
@@ -99,13 +95,13 @@ static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_cou
 
     i64 last_sample = 0;
     size_t sample_count = 0;
+    auto reached_end = false;
 
     while (true) {
-        auto block = producer->retrieve_block();
-        if (block.is_empty()) {
-            if (reached_end)
-                break;
-        } else {
+        Media::AudioBlock block;
+        auto status = producer->pull(block);
+        if (status == Media::PipelineStatus::HaveData) {
+            EXPECT(!block.is_empty());
             EXPECT_EQ(block.sample_rate(), sample_rate);
             EXPECT_EQ(block.channel_count(), channel_count);
             if (expected_channel_map.has_value())
@@ -115,6 +111,9 @@ static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_cou
             last_sample = block.timestamp_in_samples() + static_cast<i64>(block.sample_count());
 
             sample_count += block.sample_count();
+        } else if (status == Media::PipelineStatus::EndOfStream) {
+            reached_end = true;
+            break;
         }
 
         if (MonotonicTime::now_coarse() - start_time >= time_limit) {

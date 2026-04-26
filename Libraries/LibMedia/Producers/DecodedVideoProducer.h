@@ -9,6 +9,7 @@
 #include <AK/Atomic.h>
 #include <AK/Forward.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/Optional.h>
 #include <AK/Queue.h>
 #include <AK/Time.h>
 #include <LibCore/Forward.h>
@@ -36,7 +37,6 @@ public:
     using ErrorHandler = Function<void(DecoderError&&)>;
     using FrameEndTimeHandler = Function<void(AK::Duration)>;
     using SeekCompletionHandler = Function<void(AK::Duration)>;
-    using FramesQueueIsFullHandler = Function<void()>;
 
     static DecoderErrorOr<NonnullRefPtr<DecodedVideoProducer>> try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const&, Track const&, RefPtr<MediaTimeProvider> const& = nullptr);
 
@@ -45,17 +45,14 @@ public:
 
     void set_error_handler(ErrorHandler&&);
     void set_duration_change_handler(FrameEndTimeHandler&&);
-    void set_frames_queue_is_full_handler(FramesQueueIsFullHandler&&);
 
     void start();
     void suspend();
     void resume();
 
-    RefPtr<VideoFrame> retrieve_frame();
+    virtual PipelineStatus pull(RefPtr<VideoFrame>& into) override;
 
     void seek(AK::Duration timestamp, SeekMode, SeekCompletionHandler&& = nullptr);
-
-    bool is_blocked() const;
 
     TimeRanges buffered_time_ranges() const;
 
@@ -67,7 +64,6 @@ private:
 
         void set_error_handler(ErrorHandler&&);
         void set_duration_change_handler(FrameEndTimeHandler&&);
-        void set_frames_queue_is_full_handler(FramesQueueIsFullHandler&&);
 
         void start();
         DecoderErrorOr<void> create_decoder();
@@ -76,7 +72,8 @@ private:
         void exit();
 
         FrameQueue& queue();
-        NonnullRefPtr<VideoFrame> take_frame();
+
+        PipelineStatus pull(RefPtr<VideoFrame>& into);
 
         void seek(AK::Duration timestamp, SeekMode, SeekCompletionHandler&&);
 
@@ -96,7 +93,8 @@ private:
         void process_seek_on_main_thread(u32 seek_id, Callback);
         void resolve_seek(u32 seek_id, AK::Duration const& timestamp);
         void push_data_and_decode_some_frames();
-        bool is_blocked() const;
+
+        void enter_halting_state(PipelineStatus, Optional<DecoderError>);
 
         TimeRanges buffered_time_ranges() const;
 
@@ -129,8 +127,7 @@ private:
         FrameQueue m_queue;
         FrameEndTimeHandler m_duration_change_handler;
         ErrorHandler m_error_handler;
-        bool m_is_in_error_state { false };
-        FramesQueueIsFullHandler m_frames_queue_is_full_handler;
+        PipelineStatus m_pending_halting_status { PipelineStatus::Pending };
 
         u32 m_last_processed_seek_id { 0 };
         Atomic<u32> m_seek_id { 0 };

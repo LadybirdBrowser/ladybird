@@ -8,6 +8,7 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/Optional.h>
 #include <AK/Queue.h>
 #include <AK/Time.h>
 #include <LibCore/Forward.h>
@@ -37,7 +38,6 @@ public:
     using ErrorHandler = Function<void(DecoderError&&)>;
     using BlockEndTimeHandler = Function<void(AK::Duration)>;
     using SeekCompletionHandler = Function<void()>;
-    using QueueIsFullHandler = Function<void()>;
 
     static DecoderErrorOr<NonnullRefPtr<DecodedAudioProducer>> try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track);
     DecodedAudioProducer(NonnullRefPtr<ThreadData> const&);
@@ -45,19 +45,15 @@ public:
 
     void set_error_handler(ErrorHandler&&);
     void set_duration_change_handler(BlockEndTimeHandler&&);
-    void set_queue_is_full_handler(QueueIsFullHandler&&);
     void set_output_sample_specification(Audio::SampleSpecification);
 
     void start();
     void suspend();
     void resume();
 
-    AudioBlock retrieve_block();
+    virtual PipelineStatus pull(AudioBlock& into) override;
 
     void seek(AK::Duration timestamp, SeekCompletionHandler&& = nullptr);
-
-    bool is_blocked() const;
-    i64 queue_end_sample() const;
 
     TimeRanges buffered_time_ranges() const;
 
@@ -69,7 +65,6 @@ private:
 
         void set_error_handler(ErrorHandler&&);
         void set_duration_change_handler(BlockEndTimeHandler&&);
-        void set_queue_is_full_handler(QueueIsFullHandler&&);
         void set_output_sample_specification(Audio::SampleSpecification);
 
         void start();
@@ -96,8 +91,8 @@ private:
         void process_seek_on_main_thread(u32 seek_id, Callback);
         void resolve_seek(u32 seek_id);
         void push_data_and_decode_a_block();
-        bool is_blocked() const;
-        i64 queue_end_sample() const;
+
+        PipelineStatus pull(AudioBlock& into);
 
         TimeRanges buffered_time_ranges() const;
 
@@ -109,6 +104,8 @@ private:
         AudioDecoder const& decoder() const { return *m_decoder; }
         AudioQueue& queue() { return m_queue; }
         void clear_queue();
+
+        void enter_halting_state(PipelineStatus, Optional<DecoderError>);
 
     private:
         enum class RequestedState : u8 {
@@ -136,9 +133,7 @@ private:
         AudioQueue m_queue;
         BlockEndTimeHandler m_duration_change_handler;
         ErrorHandler m_error_handler;
-        bool m_is_in_error_state { false };
-        QueueIsFullHandler m_queue_is_full_handler;
-        i64 m_queue_end_sample { 0 };
+        PipelineStatus m_pending_halting_status { PipelineStatus::Pending };
 
         u32 m_last_processed_seek_id { 0 };
         Atomic<u32> m_seek_id { 0 };

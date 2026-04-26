@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
 #include <LibCore/EventLoop.h>
@@ -13,6 +14,7 @@
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/MediaTimeProvider.h>
+#include <LibMedia/PipelineStatus.h>
 
 namespace Media {
 
@@ -21,7 +23,7 @@ private:
     class OutputThreadData;
 
 public:
-    static ErrorOr<NonnullRefPtr<AudioPlaybackSink>> try_create(NonnullRefPtr<AudioMixer>);
+    static ErrorOr<NonnullRefPtr<AudioPlaybackSink>> try_create(NonnullRefPtr<AudioMixer>, PipelineStateChangeHandler on_state_changed);
     AudioPlaybackSink(NonnullRefPtr<OutputThreadData>);
     virtual ~AudioPlaybackSink() override;
 
@@ -31,6 +33,9 @@ public:
     virtual void set_time(AK::Duration) override;
 
     void set_volume(double);
+
+    // FIXME: Temporary stopgap until seeks are passed up the chain to the producers.
+    void pause_audio_processor();
 
     Function<void(Error&&)> on_audio_output_error;
 

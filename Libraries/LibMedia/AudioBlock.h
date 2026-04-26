@@ -6,10 +6,10 @@
 
 #pragma once
 
-#include <AK/FixedArray.h>
 #include <AK/Math.h>
 #include <AK/SaturatingMath.h>
 #include <AK/Time.h>
+#include <AK/Vector.h>
 #include <LibMedia/Audio/SampleSpecification.h>
 
 namespace Media {
@@ -30,7 +30,7 @@ public:
     {
         m_sample_specification = {};
         m_timestamp_in_samples = 0;
-        m_data = Data();
+        m_data.clear_with_capacity();
     }
     template<typename Callback>
     void emplace(Audio::SampleSpecification sample_specification, AK::Duration timestamp, Callback data_callback)

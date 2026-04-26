@@ -6,13 +6,17 @@
 
 #pragma once
 
+#include <LibMedia/Forward.h>
 #include <LibMedia/MediaPipelineNode.h>
+#include <LibMedia/PipelineStatus.h>
 
 namespace Media {
 
 class VideoProducer : public virtual MediaPipelineNode {
 public:
     virtual ~VideoProducer() = default;
+
+    virtual PipelineStatus pull(RefPtr<VideoFrame>& into) = 0;
 };
 
 }

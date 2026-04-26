@@ -8,6 +8,7 @@
 #include <AK/Atomic.h>
 #include <AK/AtomicRefCounted.h>
 #include <AK/Time.h>
+#include <LibCore/Forward.h>
 #include <LibMedia/Audio/PlaybackStream.h>
 #include <LibMedia/AudioBlock.h>
 #include <LibMedia/Processors/AudioMixer.h>
@@ -23,15 +24,19 @@ static constexpr size_t OUTPUT_BLOCK_QUEUE_CAPACITY = 4;
 
 class AudioPlaybackSink::OutputThreadData : public AtomicRefCounted<OutputThreadData> {
 public:
-    OutputThreadData(NonnullRefPtr<AudioMixer>&& mixer)
+    OutputThreadData(NonnullRefPtr<AudioMixer>&& mixer, PipelineStateChangeHandler on_state_changed)
         : m_mixer(move(mixer))
+        , m_main_thread_event_loop(Core::EventLoop::current_weak())
+        , m_on_state_changed(move(on_state_changed))
     {
     }
 
     ReadonlySpan<float> move_output_to_playback_stream_buffer(Span<float>);
+    void dispatch_state_if_changed(PipelineStatus);
 
     RefPtr<Audio::PlaybackStream> m_playback_stream;
     NonnullRefPtr<AudioMixer> m_mixer;
+    NonnullRefPtr<Core::WeakEventLoopReference> m_main_thread_event_loop;
 
     mutable Sync::Mutex m_output_mutex;
     mutable Sync::ConditionVariable m_output_condition { m_output_mutex };
@@ -42,14 +47,19 @@ public:
     size_t m_block_count { 0 };
     i64 m_next_sample_to_play { 0 };
 
+    PipelineStateChangeHandler m_on_state_changed;
+    PipelineStatus m_last_pull_status { PipelineStatus::Pending };
+    PipelineStatus m_last_dispatched_status { PipelineStatus::Pending };
+    i64 m_last_real_data_end_in_samples { 0 };
+
     Atomic<bool> m_pause_writing_audio_data { true };
-    bool m_filler_is_waiting_in_output_loop { false };
-    bool m_filler_should_exit { false };
+    bool m_audio_processor_is_waiting_in_output_loop { false };
+    bool m_audio_processor_should_exit { false };
 };
 
-ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(NonnullRefPtr<AudioMixer> mixer)
+ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(NonnullRefPtr<AudioMixer> mixer, PipelineStateChangeHandler on_state_changed)
 {
-    auto output_thread_data = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) OutputThreadData(move(mixer))));
+    auto output_thread_data = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) OutputThreadData(move(mixer), move(on_state_changed))));
     auto sink = TRY(try_make_ref_counted<AudioPlaybackSink>(output_thread_data));
 
     auto thread = TRY(Threading::Thread::try_create("Audio Processor"sv,
@@ -58,10 +68,10 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(NonnullR
                 size_t tail_index;
                 {
                     Sync::MutexLocker locker { output_thread_data->m_output_mutex };
-                    output_thread_data->m_filler_is_waiting_in_output_loop = true;
+                    output_thread_data->m_audio_processor_is_waiting_in_output_loop = true;
                     output_thread_data->m_output_condition.broadcast();
                     while (true) {
-                        if (output_thread_data->m_filler_should_exit)
+                        if (output_thread_data->m_audio_processor_should_exit)
                             break;
                         if (output_thread_data->m_pause_writing_audio_data) {
                             output_thread_data->m_output_condition.wait();
@@ -73,26 +83,35 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(NonnullR
                         }
                         break;
                     }
-                    if (output_thread_data->m_filler_should_exit)
+                    if (output_thread_data->m_audio_processor_should_exit)
                         return 0;
                     if (output_thread_data->m_pause_writing_audio_data)
                         continue;
-                    output_thread_data->m_filler_is_waiting_in_output_loop = false;
+                    output_thread_data->m_audio_processor_is_waiting_in_output_loop = false;
                     tail_index = output_thread_data->m_block_tail;
                 }
 
-                if (!output_thread_data->m_mixer->mix_one_block_into(output_thread_data->m_blocks[tail_index]))
-                    continue;
+                auto& output_block = output_thread_data->m_blocks[tail_index];
+                output_block.clear();
+                auto status = output_thread_data->m_mixer->pull(output_block);
 
                 {
                     Sync::MutexLocker locker { output_thread_data->m_output_mutex };
-                    output_thread_data->m_block_tail = (tail_index + 1) % OUTPUT_BLOCK_QUEUE_CAPACITY;
-                    output_thread_data->m_block_count++;
+                    output_thread_data->m_last_pull_status = status;
+                    if (!output_block.is_empty()) {
+                        VERIFY(can_carry_data(status));
+                        output_thread_data->m_block_tail = (tail_index + 1) % OUTPUT_BLOCK_QUEUE_CAPACITY;
+                        output_thread_data->m_block_count++;
 
-                    if (output_thread_data->m_playback_stream)
-                        output_thread_data->m_playback_stream->notify_data_available();
+                        if (output_thread_data->m_playback_stream)
+                            output_thread_data->m_playback_stream->notify_data_available();
 
-                    output_thread_data->m_output_condition.broadcast();
+                        if (status == PipelineStatus::HaveData)
+                            output_thread_data->m_last_real_data_end_in_samples = output_block.end_timestamp_in_samples();
+
+                        if (!can_carry_data(output_thread_data->m_last_dispatched_status))
+                            output_thread_data->dispatch_state_if_changed(status);
+                    }
                 }
             }
         }));
@@ -114,8 +133,18 @@ AudioPlaybackSink::AudioPlaybackSink(NonnullRefPtr<OutputThreadData> output_thre
 AudioPlaybackSink::~AudioPlaybackSink()
 {
     Sync::MutexLocker locker { m_output_thread_data->m_output_mutex };
-    m_output_thread_data->m_filler_should_exit = true;
+    m_output_thread_data->m_on_state_changed = nullptr;
+    m_output_thread_data->m_audio_processor_should_exit = true;
     m_output_thread_data->m_output_condition.broadcast();
+}
+
+void AudioPlaybackSink::pause_audio_processor()
+{
+    Sync::MutexLocker locker { m_output_thread_data->m_output_mutex };
+    m_output_thread_data->m_pause_writing_audio_data.store(true);
+    m_output_thread_data->m_output_condition.broadcast();
+    while (!m_output_thread_data->m_audio_processor_is_waiting_in_output_loop)
+        m_output_thread_data->m_output_condition.wait();
 }
 
 void AudioPlaybackSink::create_playback_stream()
@@ -203,11 +232,31 @@ ReadonlySpan<float> AudioPlaybackSink::OutputThreadData::move_output_to_playback
         }
     }
 
-    if (samples_written < buffer.size())
+    if (samples_written < buffer.size()) {
         buffer = buffer.trim(samples_written);
+        if (m_last_pull_status == PipelineStatus::Blocked || m_last_pull_status == PipelineStatus::Error)
+            dispatch_state_if_changed(m_last_pull_status);
+    }
+
+    if (m_last_pull_status == PipelineStatus::EndOfStream && m_next_sample_to_play >= m_last_real_data_end_in_samples)
+        dispatch_state_if_changed(PipelineStatus::EndOfStream);
 
     m_output_condition.broadcast();
     return buffer;
+}
+
+void AudioPlaybackSink::OutputThreadData::dispatch_state_if_changed(PipelineStatus status)
+{
+    if (status == m_last_dispatched_status)
+        return;
+    m_last_dispatched_status = status;
+    if (auto event_loop = m_main_thread_event_loop->take(); event_loop.is_alive()) {
+        event_loop->deferred_invoke([self = NonnullRefPtr(*this), status] {
+            Sync::MutexLocker locker { self->m_output_mutex };
+            if (self->m_on_state_changed)
+                self->m_on_state_changed(status);
+        });
+    }
 }
 
 AK::Duration AudioPlaybackSink::current_time() const
@@ -287,13 +336,14 @@ void AudioPlaybackSink::set_time(AK::Duration time)
 
                 {
                     Sync::MutexLocker output_locker { self->m_output_thread_data->m_output_mutex };
-                    while (!self->m_output_thread_data->m_filler_is_waiting_in_output_loop)
+                    while (!self->m_output_thread_data->m_audio_processor_is_waiting_in_output_loop)
                         self->m_output_thread_data->m_output_condition.wait();
                     self->m_output_thread_data->m_block_head = 0;
                     self->m_output_thread_data->m_block_tail = 0;
                     self->m_output_thread_data->m_block_count = 0;
 
                     self->m_output_thread_data->m_mixer->reset_to_sample_position(seek_target_in_samples);
+                    self->m_output_thread_data->m_last_real_data_end_in_samples = seek_target_in_samples;
 
                     self->m_output_thread_data->m_next_sample_to_play = seek_target_in_samples;
 

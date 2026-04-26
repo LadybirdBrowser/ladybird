@@ -18,6 +18,7 @@
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/MediaTimeProvider.h>
+#include <LibMedia/PipelineStatus.h>
 #include <LibMedia/PlaybackStates/Forward.h>
 #include <LibMedia/PlaybackStates/PlaybackState.h>
 #include <LibMedia/TimeRanges.h>
@@ -125,8 +126,9 @@ private:
     void disable_audio();
 
     void set_up_producers();
-    void track_started_buffering(Track const&);
-    void track_stopped_buffering(Track const&);
+    void on_audio_sink_state_changed(PipelineStatus);
+    void on_video_sink_state_changed(Track const&, PipelineStatus);
+    void update_buffering_state();
     void check_for_duration_change(AK::Duration);
     void dispatch_error(DecoderError&&);
 
@@ -180,7 +182,9 @@ private:
     AK::Duration m_duration;
     Optional<AK::UnixDateTime> m_start_time_realtime;
 
-    HashTable<Track> m_tracks_still_buffering;
+    bool m_audio_buffering { false };
+    HashTable<Track> m_video_tracks_buffering;
+    bool m_was_buffering { false };
 
     bool m_is_in_error_state { false };
 };

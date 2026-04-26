@@ -6,13 +6,17 @@
 
 #pragma once
 
+#include <LibMedia/AudioBlock.h>
 #include <LibMedia/MediaPipelineNode.h>
+#include <LibMedia/PipelineStatus.h>
 
 namespace Media {
 
 class AudioProducer : public virtual MediaPipelineNode {
 public:
     virtual ~AudioProducer() = default;
+
+    virtual PipelineStatus pull(AudioBlock& into) = 0;
 };
 
 }

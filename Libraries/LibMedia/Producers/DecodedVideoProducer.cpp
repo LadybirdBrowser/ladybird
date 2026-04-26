@@ -76,19 +76,38 @@ void DecodedVideoProducer::resume()
     m_thread_data->resume();
 }
 
-void DecodedVideoProducer::set_frames_queue_is_full_handler(FramesQueueIsFullHandler&& handler)
+PipelineStatus DecodedVideoProducer::pull(RefPtr<VideoFrame>& into)
 {
-    m_thread_data->set_frames_queue_is_full_handler(move(handler));
+    return m_thread_data->pull(into);
 }
 
-RefPtr<VideoFrame> DecodedVideoProducer::retrieve_frame()
+PipelineStatus DecodedVideoProducer::ThreadData::pull(RefPtr<VideoFrame>& into)
 {
-    auto locker = m_thread_data->take_lock();
-    if (m_thread_data->queue().is_empty())
-        return nullptr;
-    auto result = m_thread_data->take_frame();
-    m_thread_data->wake();
-    return result;
+    auto locker = take_lock();
+    if (!m_queue.is_empty()) {
+        into = m_queue.dequeue();
+        wake();
+        return PipelineStatus::HaveData;
+    }
+    if (m_pending_halting_status != PipelineStatus::Pending)
+        return m_pending_halting_status;
+    if (m_demuxer->is_read_blocked_for_track(m_track))
+        return PipelineStatus::Blocked;
+    return PipelineStatus::Pending;
+}
+
+void DecodedVideoProducer::ThreadData::enter_halting_state(PipelineStatus status, Optional<DecoderError> error)
+{
+    if (error.has_value() && error->category() == DecoderErrorCategory::Aborted)
+        return;
+
+    VERIFY(status == PipelineStatus::EndOfStream || status == PipelineStatus::Error);
+    m_pending_halting_status = status;
+    if (error.has_value()) {
+        invoke_on_main_thread_while_locked([error = error.release_value()](auto const& self) mutable {
+            self->dispatch_error(move(error));
+        });
+    }
 }
 
 void DecodedVideoProducer::seek(AK::Duration timestamp, SeekMode seek_mode, SeekCompletionHandler&& completion_handler)
@@ -111,11 +130,6 @@ DecoderErrorOr<void> DecodedVideoProducer::ThreadData::create_decoder()
     auto codec_initialization_data = TRY(m_demuxer->get_codec_initialization_data_for_track(m_track));
     m_decoder = TRY(FFmpeg::FFmpegVideoDecoder::try_create(codec_id, codec_initialization_data));
     return {};
-}
-
-bool DecodedVideoProducer::is_blocked() const
-{
-    return m_thread_data->is_blocked();
 }
 
 TimeRanges DecodedVideoProducer::buffered_time_ranges() const
@@ -144,11 +158,6 @@ void DecodedVideoProducer::ThreadData::set_duration_change_handler(FrameEndTimeH
     m_duration_change_handler = move(handler);
 }
 
-void DecodedVideoProducer::ThreadData::set_frames_queue_is_full_handler(FramesQueueIsFullHandler&& handler)
-{
-    m_frames_queue_is_full_handler = move(handler);
-}
-
 void DecodedVideoProducer::ThreadData::suspend()
 {
     auto locker = take_lock();
@@ -175,11 +184,6 @@ void DecodedVideoProducer::ThreadData::exit()
 DecodedVideoProducer::FrameQueue& DecodedVideoProducer::ThreadData::queue()
 {
     return m_queue;
-}
-
-NonnullRefPtr<VideoFrame> DecodedVideoProducer::ThreadData::take_frame()
-{
-    return m_queue.dequeue();
 }
 
 void DecodedVideoProducer::ThreadData::seek(AK::Duration timestamp, SeekMode seek_mode, SeekCompletionHandler&& completion_handler)
@@ -242,12 +246,8 @@ bool DecodedVideoProducer::ThreadData::handle_suspension()
             return true;
 
         auto result = create_decoder();
-        if (result.is_error()) {
-            m_is_in_error_state = true;
-            invoke_on_main_thread_while_locked([error = result.release_error()](auto const& self) mutable {
-                self->dispatch_error(move(error));
-            });
-        }
+        if (result.is_error())
+            enter_halting_state(PipelineStatus::Error, result.release_error());
     }
 
     // Suspension must be woken with a seek, or we will throw decoding errors.
@@ -306,7 +306,7 @@ void DecodedVideoProducer::ThreadData::process_seek_on_main_thread(u32 seek_id, 
 
 void DecodedVideoProducer::ThreadData::resolve_seek(u32 seek_id, AK::Duration const& timestamp)
 {
-    m_is_in_error_state = false;
+    m_pending_halting_status = PipelineStatus::Pending;
     process_seek_on_main_thread(seek_id, [timestamp](auto& self) {
         auto handler = move(self->m_seek_completion_handler);
         if (handler)
@@ -323,16 +323,12 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
         return false;
 
     auto handle_error = [&](DecoderError&& error) {
-        m_is_in_error_state = true;
-        {
-            auto locker = take_lock();
-            m_queue.clear();
-            process_seek_on_main_thread(seek_id,
-                [error = move(error)](auto& self) mutable {
-                    self->dispatch_error(move(error));
-                    self->m_seek_completion_handler = nullptr;
-                });
-        }
+        auto locker = take_lock();
+        m_queue.clear();
+        enter_halting_state(PipelineStatus::Error, move(error));
+        process_seek_on_main_thread(seek_id, [](auto& self) {
+            self->m_seek_completion_handler = nullptr;
+        });
     };
 
     AK::Duration timestamp;
@@ -476,17 +472,19 @@ void DecodedVideoProducer::ThreadData::push_data_and_decode_some_frames()
     //        Demuxers currently can't report the next keyframe in a convenient way, so that will need implementing
     //        before this functionality can exist.
 
-    auto set_error_and_wait_for_seek = [this](DecoderError&& error) {
+    auto set_halting_status_and_wait_for_seek = [this](PipelineStatus status, Optional<DecoderError> error) {
         {
             auto locker = take_lock();
-            m_is_in_error_state = true;
-            invoke_on_main_thread_while_locked([error = move(error)](auto const& self) mutable {
-                self->dispatch_error(move(error));
-            });
+            enter_halting_state(status, move(error));
         }
 
-        dbgln_if(PLAYBACK_MANAGER_DEBUG, "Decoded Video Producer: Encountered an error, waiting for a seek to start decoding again...");
-        while (m_is_in_error_state) {
+        dbgln_if(PLAYBACK_MANAGER_DEBUG, "Decoded Video Producer: Reached a halting pull status, waiting for a seek to start decoding again...");
+        while (true) {
+            {
+                auto locker = take_lock();
+                if (m_pending_halting_status == PipelineStatus::Pending)
+                    return;
+            }
             if (handle_seek())
                 break;
             {
@@ -503,7 +501,7 @@ void DecodedVideoProducer::ThreadData::push_data_and_decode_some_frames()
         if (sample_result.error().category() == DecoderErrorCategory::EndOfStream) {
             m_decoder->signal_end_of_stream();
         } else {
-            set_error_and_wait_for_seek(sample_result.release_error());
+            set_halting_status_and_wait_for_seek(PipelineStatus::Error, sample_result.release_error());
             return;
         }
     } else {
@@ -512,7 +510,7 @@ void DecodedVideoProducer::ThreadData::push_data_and_decode_some_frames()
 
         auto decode_result = m_decoder->receive_coded_data(coded_frame.timestamp(), coded_frame.duration(), coded_frame.data());
         if (decode_result.is_error()) {
-            set_error_and_wait_for_seek(decode_result.release_error());
+            set_halting_status_and_wait_for_seek(PipelineStatus::Error, decode_result.release_error());
             return;
         }
     }
@@ -522,7 +520,10 @@ void DecodedVideoProducer::ThreadData::push_data_and_decode_some_frames()
         if (frame_result.is_error()) {
             if (frame_result.error().category() == DecoderErrorCategory::NeedsMoreInput)
                 break;
-            set_error_and_wait_for_seek(frame_result.release_error());
+            if (frame_result.error().category() == DecoderErrorCategory::EndOfStream)
+                set_halting_status_and_wait_for_seek(PipelineStatus::EndOfStream, {});
+            else
+                set_halting_status_and_wait_for_seek(PipelineStatus::Error, frame_result.release_error());
             break;
         }
 
@@ -535,12 +536,6 @@ void DecodedVideoProducer::ThreadData::push_data_and_decode_some_frames()
             }();
 
             while (queue_size >= m_queue_max_size) {
-                if (m_frames_queue_is_full_handler) {
-                    invoke_on_main_thread([](auto const& self) {
-                        self->m_frames_queue_is_full_handler();
-                    });
-                }
-
                 if (handle_seek())
                     return;
 
@@ -563,11 +558,6 @@ void DecodedVideoProducer::ThreadData::push_data_and_decode_some_frames()
             queue_frame(frame);
         }
     }
-}
-
-bool DecodedVideoProducer::ThreadData::is_blocked() const
-{
-    return m_demuxer->is_read_blocked_for_track(m_track);
 }
 
 TimeRanges DecodedVideoProducer::ThreadData::buffered_time_ranges() const

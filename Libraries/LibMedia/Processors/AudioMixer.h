@@ -7,16 +7,15 @@
 #pragma once
 
 #include <AK/Atomic.h>
-#include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
-#include <LibCore/EventLoop.h>
 #include <LibMedia/Audio/Forward.h>
 #include <LibMedia/Audio/SampleSpecification.h>
 #include <LibMedia/AudioBlock.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
+#include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Producers/DecodedAudioProducer.h>
 #include <LibMedia/Sinks/AudioSink.h>
 #include <LibMedia/Track.h>
@@ -36,11 +35,9 @@ public:
     void set_sample_specification(Audio::SampleSpecification);
     Audio::SampleSpecification sample_specification() const;
 
-    bool mix_one_block_into(AudioBlock& out_block);
+    PipelineStatus pull(AudioBlock& into);
 
     void reset_to_sample_position(i64 sample_position);
-
-    Function<void(Track const&)> on_start_buffering;
 
 private:
     struct TrackMixingData {
@@ -51,10 +48,9 @@ private:
 
         NonnullRefPtr<DecodedAudioProducer> producer;
         AudioBlock current_block;
-        bool buffering { false };
+        i64 next_sample { 0 };
+        PipelineStatus last_status { PipelineStatus::Pending };
     };
-
-    Core::EventLoop& m_main_thread_event_loop;
 
     mutable Sync::Mutex m_mutex;
     Audio::SampleSpecification m_sample_specification;

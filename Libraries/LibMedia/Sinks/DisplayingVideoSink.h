@@ -6,10 +6,12 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Time.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
+#include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Sinks/VideoSink.h>
 #include <LibMedia/Track.h>
 
@@ -22,9 +24,9 @@ enum class DisplayingVideoSinkUpdateResult : u8 {
 
 class MEDIA_API DisplayingVideoSink final : public VideoSink {
 public:
-    static ErrorOr<NonnullRefPtr<DisplayingVideoSink>> try_create(NonnullRefPtr<MediaTimeProvider> const&);
+    static ErrorOr<NonnullRefPtr<DisplayingVideoSink>> try_create(NonnullRefPtr<MediaTimeProvider> const&, PipelineStateChangeHandler on_state_changed);
 
-    DisplayingVideoSink(NonnullRefPtr<MediaTimeProvider> const&);
+    DisplayingVideoSink(NonnullRefPtr<MediaTimeProvider> const&, PipelineStateChangeHandler);
     virtual ~DisplayingVideoSink() override;
 
     void set_time_provider(NonnullRefPtr<MediaTimeProvider> const&);
@@ -39,10 +41,9 @@ public:
     void pause_updates();
     void resume_updates();
 
-    Function<void()> m_on_start_buffering;
-
 private:
     void verify_track(Track const&) const;
+    void dispatch_state_if_changed(PipelineStatus);
 
     NonnullRefPtr<MediaTimeProvider> m_time_provider;
     RefPtr<DecodedVideoProducer> m_producer;
@@ -52,6 +53,9 @@ private:
     RefPtr<VideoFrame> m_current_frame;
     bool m_pause_updates { false };
     bool m_has_new_current_frame { false };
+
+    PipelineStateChangeHandler m_on_state_changed;
+    PipelineStatus m_last_dispatched_status { PipelineStatus::Pending };
 };
 
 }

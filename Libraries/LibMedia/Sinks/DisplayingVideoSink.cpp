@@ -13,13 +13,14 @@
 
 namespace Media {
 
-ErrorOr<NonnullRefPtr<DisplayingVideoSink>> DisplayingVideoSink::try_create(NonnullRefPtr<MediaTimeProvider> const& time_provider)
+ErrorOr<NonnullRefPtr<DisplayingVideoSink>> DisplayingVideoSink::try_create(NonnullRefPtr<MediaTimeProvider> const& time_provider, PipelineStateChangeHandler on_state_changed)
 {
-    return TRY(try_make_ref_counted<DisplayingVideoSink>(time_provider));
+    return TRY(try_make_ref_counted<DisplayingVideoSink>(time_provider, move(on_state_changed)));
 }
 
-DisplayingVideoSink::DisplayingVideoSink(NonnullRefPtr<MediaTimeProvider> const& time_provider)
+DisplayingVideoSink::DisplayingVideoSink(NonnullRefPtr<MediaTimeProvider> const& time_provider, PipelineStateChangeHandler on_state_changed)
     : m_time_provider(time_provider)
+    , m_on_state_changed(move(on_state_changed))
 {
 }
 
@@ -53,6 +54,15 @@ RefPtr<DecodedVideoProducer> DisplayingVideoSink::producer(Track const& track) c
     return m_producer;
 }
 
+void DisplayingVideoSink::dispatch_state_if_changed(PipelineStatus status)
+{
+    if (status == m_last_dispatched_status)
+        return;
+    m_last_dispatched_status = status;
+    if (m_on_state_changed)
+        m_on_state_changed(status);
+}
+
 DisplayingVideoSinkUpdateResult DisplayingVideoSink::update()
 {
     if (m_producer == nullptr)
@@ -67,20 +77,25 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update()
         m_has_new_current_frame = false;
     }
 
+    auto last_pull_status = PipelineStatus::Pending;
     while (true) {
-        if (!m_next_frame) {
-            m_next_frame = m_producer->retrieve_frame();
-            if (!m_next_frame) {
-                if (m_producer->is_blocked() && m_on_start_buffering)
-                    m_on_start_buffering();
+        if (m_next_frame == nullptr) {
+            last_pull_status = m_producer->pull(m_next_frame);
+            if (last_pull_status != PipelineStatus::HaveData)
                 break;
-            }
+            VERIFY(m_next_frame != nullptr);
         }
         if (m_next_frame->timestamp() > current_time)
             break;
         m_current_frame = m_next_frame.release_nonnull();
         result = DisplayingVideoSinkUpdateResult::NewFrameAvailable;
     }
+
+    auto effective_status = last_pull_status;
+    if (m_next_frame != nullptr)
+        effective_status = PipelineStatus::HaveData;
+    dispatch_state_if_changed(effective_status);
+
     return result;
 }
 

@@ -179,6 +179,9 @@ private:
         m_video_seeks_pending.clear();
         m_audio_seeks_pending.clear();
 
+        if (manager().m_audio_sink)
+            manager().m_audio_sink->pause_audio_processor();
+
         for (auto const& track : manager().video_tracks())
             start_video_seek(track);
 
