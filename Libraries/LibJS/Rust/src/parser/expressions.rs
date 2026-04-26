@@ -875,9 +875,9 @@ impl Parser<'_> {
                     if matches!(lhs.inner, ExpressionKind::Super) {
                         self.syntax_error("Cannot access private field or method via 'super'");
                     }
-                    // C++ uses rule_start (period position) for property identifiers.
-                    let id = self.parse_private_identifier(start);
-                    let property = self.expression(start, ExpressionKind::PrivateIdentifier(Box::new(id)));
+                    let property_start = self.position();
+                    let id = self.parse_private_identifier(property_start);
+                    let property = self.expression(property_start, ExpressionKind::PrivateIdentifier(Box::new(id)));
                     (
                         self.expression(
                             start,
@@ -890,10 +890,10 @@ impl Parser<'_> {
                         ForbiddenTokens::none(),
                     )
                 } else if self.match_identifier_name() {
+                    let property_start = self.position();
                     let token = self.consume();
-                    // C++ uses rule_start (period position) for property identifiers.
-                    let property_identifier = self.make_identifier(start, self.token_identifier_name(&token));
-                    let property = self.expression(start, ExpressionKind::Identifier(property_identifier));
+                    let property_identifier = self.make_identifier(property_start, self.token_identifier_name(&token));
+                    let property = self.expression(property_start, ExpressionKind::Identifier(property_identifier));
                     (
                         self.expression(
                             start,
@@ -1418,11 +1418,11 @@ impl Parser<'_> {
         let mut has_proto_setter = false;
         while !self.match_token(TokenType::CurlyClose) && !self.done() {
             if self.match_token(TokenType::TripleDot) {
+                let spread_start = self.position();
                 self.consume();
                 let expression = self.parse_assignment_expression();
-                // C++ uses object expression start position for all ObjectProperty nodes.
                 properties.push(ObjectProperty {
-                    range: self.range_from(start),
+                    range: self.range_from(spread_start),
                     property_type: ObjectPropertyType::Spread,
                     key: Box::new(expression),
                     is_computed: false,
@@ -1493,31 +1493,13 @@ impl Parser<'_> {
             self.consume();
         }
 
-        // In C++, identifiers matching match_identifier() are consumed directly in
-        // parse_object_expression and get the object's rule_start position. This applies
-        // even after consuming an `async` prefix. Only get/set prefix and generator `*`
-        // cause the key to go through parse_property_key with its own position.
-        // NB: C++ match_identifier() returns true for most EscapedKeyword tokens
-        // (like escaped reserved words "if", "while", etc.), only rejecting
-        // let/yield/await under specific conditions. Rust's match_identifier()
-        // is more restrictive, so we add explicit EscapedKeyword handling here.
-        let is_cpp_identifier = self.match_identifier()
-            || (self.current_token.token_type == TokenType::EscapedKeyword && {
-                let value = self.token_value(&self.current_token);
-                value != utf16!("let") && value != utf16!("yield") && value != utf16!("await")
-            });
-        let ident_override = if !is_getter && !is_setter && !is_generator && is_cpp_identifier {
-            Some(obj_start)
-        } else {
-            None
-        };
         let PropertyKey {
             expression: key,
             name: key_value,
             is_proto,
             is_computed,
             is_identifier,
-        } = self.parse_property_key(ident_override);
+        } = self.parse_property_key();
 
         // https://tc39.es/ecma262/#sec-object-initializer
         // Private names are not allowed in object literals, even inside class bodies.
@@ -1679,7 +1661,7 @@ impl Parser<'_> {
         ) || next.token_type.is_identifier_name()
     }
 
-    pub(crate) fn parse_property_key(&mut self, ident_pos_override: Option<Position>) -> PropertyKey {
+    pub(crate) fn parse_property_key(&mut self) -> PropertyKey {
         let proto_name = utf16!("__proto__");
         let start = self.position();
         match self.current_token_type() {
@@ -1759,12 +1741,10 @@ impl Parser<'_> {
                 if value == utf16!("#constructor") {
                     self.syntax_error("Private property with name '#constructor' is not allowed");
                 }
-                // C++ uses the class start position for private identifiers in class elements.
-                let key_start = ident_pos_override.unwrap_or(start);
                 let expression = self.expression(
-                    key_start,
+                    start,
                     ExpressionKind::PrivateIdentifier(Box::new(PrivateIdentifier {
-                        range: self.range_from(key_start),
+                        range: self.range_from(start),
                         name: value.clone(),
                     })),
                 );
@@ -1785,9 +1765,7 @@ impl Parser<'_> {
                     let token = self.consume_property_key_token();
                     let value = Utf16String::from(self.token_value(&token));
                     let is_proto = value == proto_name;
-                    // C++ uses the object expression start position for identifier-name keys.
-                    let key_start = ident_pos_override.unwrap_or(start);
-                    let expression = self.expression(key_start, ExpressionKind::StringLiteral(Box::new(value.clone())));
+                    let expression = self.expression(start, ExpressionKind::StringLiteral(Box::new(value.clone())));
                     PropertyKey {
                         expression,
                         name: Some(value),
@@ -1824,11 +1802,11 @@ impl Parser<'_> {
                 continue;
             }
             if self.match_token(TokenType::TripleDot) {
+                let spread_start = self.position();
                 self.consume();
                 let expression = self.parse_assignment_expression();
-                // C++ uses the array's rule_start ([ position) for SpreadExpression.
                 elements.push(Some(
-                    self.expression(start, ExpressionKind::Spread(Box::new(expression))),
+                    self.expression(spread_start, ExpressionKind::Spread(Box::new(expression))),
                 ));
             } else {
                 elements.push(Some(self.parse_assignment_expression()));

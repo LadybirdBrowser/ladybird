@@ -7,7 +7,7 @@ Program (script) @1:1
          │  ├─ BindingPattern (array)
          │  │  └─ entry
          │  │     └─ alias
-         │  │        └─ Identifier "a" [variable:0] @1:10
+         │  │        └─ Identifier "a" [variable:0] @1:11
          │  └─ Identifier "b" [argument:1] @1:10
          └─ body
             └─ FunctionBody @1:9

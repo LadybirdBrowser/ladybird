@@ -7,8 +7,8 @@ Program (script) @1:1
                ├─ BindingPattern (object)
                │  └─ entry
                │     └─ name
-               │        └─ Identifier "eval" [global] @2:6
+               │        └─ Identifier "eval" [global] @2:8
                └─ ObjectExpression @2:17
                   └─ ObjectProperty @2:17
-                     ├─ StringLiteral "eval" @2:17
+                     ├─ StringLiteral "eval" @2:19
                      └─ NumericLiteral 1 @2:25

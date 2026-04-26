@@ -73,7 +73,7 @@ Program (script) @3:1
 │        │           └─ CallExpression @30:17
 │        │              ├─ MemberExpression @30:12
 │        │              │  ├─ Identifier "fns" [variable:0] (var) @30:9
-│        │              │  └─ Identifier "push" @30:12
+│        │              │  └─ Identifier "push" @30:13
 │        │              └─ FunctionExpression "" @30:18
 │        │                 └─ body
 │        │                    └─ FunctionBody @31:13
@@ -107,7 +107,7 @@ Program (script) @3:1
          │           └─ CallExpression @40:17
          │              ├─ MemberExpression @40:12
          │              │  ├─ Identifier "fns" [variable:0] (var) @40:9
-         │              │  └─ Identifier "push" @40:12
+         │              │  └─ Identifier "push" @40:13
          │              └─ FunctionExpression "" @40:18
          │                 └─ body
          │                    └─ FunctionBody @41:13

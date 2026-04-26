@@ -10,7 +10,7 @@ Program (module) [strict] @1:1
          │        └─ BlockStatement @1:17
          └─ elements
             └─ ClassMethod @1:17
-               ├─ StringLiteral "valueOf" @1:17
+               ├─ StringLiteral "valueOf" @1:31
                └─ FunctionExpression "" [strict] @1:31
                   └─ body
                      └─ FunctionBody @1:43

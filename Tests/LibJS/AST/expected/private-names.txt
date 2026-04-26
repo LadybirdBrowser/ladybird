@@ -7,20 +7,20 @@ Program (script) @1:1
       │        └─ BlockStatement @1:1
       └─ elements
          ├─ ClassField @1:1
-         │  ├─ PrivateIdentifier "#x" @1:1
+         │  ├─ PrivateIdentifier "#x" @2:5
          │  └─ initializer
          │     └─ NumericLiteral 1 @2:10
          ├─ ClassMethod (getter) @1:1
-         │  ├─ PrivateIdentifier "#y" @1:1
+         │  ├─ PrivateIdentifier "#y" @3:9
          │  └─ FunctionExpression "" [strict] [uses-this] @3:5
          │     └─ body
          │        └─ FunctionBody @4:9
          │           └─ ReturnStatement @4:9
          │              └─ MemberExpression @4:20
          │                 ├─ ThisExpression @4:16
-         │                 └─ PrivateIdentifier "#x" @4:20
+         │                 └─ PrivateIdentifier "#x" @4:21
          ├─ ClassMethod (setter) @1:1
-         │  ├─ PrivateIdentifier "#y" @1:1
+         │  ├─ PrivateIdentifier "#y" @6:9
          │  └─ FunctionExpression "" [strict] [uses-this] @6:5
          │     ├─ parameters
          │     │  └─ Identifier "v" [argument:0] @6:12
@@ -30,14 +30,14 @@ Program (script) @1:1
          │              └─ AssignmentExpression (=) @7:17
          │                 ├─ MemberExpression @7:13
          │                 │  ├─ ThisExpression @7:9
-         │                 │  └─ PrivateIdentifier "#x" @7:13
+         │                 │  └─ PrivateIdentifier "#x" @7:14
          │                 └─ Identifier "v" [argument:0] @7:19
          └─ ClassMethod @1:1
-            ├─ StringLiteral "method" @1:1
+            ├─ StringLiteral "method" @9:5
             └─ FunctionExpression "" [strict] [uses-this] @9:5
                └─ body
                   └─ FunctionBody @10:9
                      └─ ReturnStatement @10:9
                         └─ MemberExpression @10:20
                            ├─ ThisExpression @10:16
-                           └─ PrivateIdentifier "#x" @10:20
+                           └─ PrivateIdentifier "#x" @10:21

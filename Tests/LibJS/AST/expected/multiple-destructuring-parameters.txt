@@ -7,20 +7,20 @@ Program (script) @1:1
 │        │  ├─ BindingPattern (object)
 │        │  │  └─ entry
 │        │  │     ├─ name
-│        │  │     │  └─ Identifier "a" [global] @1:10
+│        │  │     │  └─ Identifier "a" [global] @1:12
 │        │  │     └─ alias
-│        │  │        └─ Identifier "b" [variable:0] @1:10
+│        │  │        └─ Identifier "b" [variable:0] @1:15
 │        │  ├─ BindingPattern (object)
 │        │  │  ├─ entry
 │        │  │  │  ├─ name
-│        │  │  │  │  └─ Identifier "c" [global] @1:20
+│        │  │  │  │  └─ Identifier "c" [global] @1:22
 │        │  │  │  └─ alias
-│        │  │  │     └─ Identifier "d" [variable:1] @1:20
+│        │  │  │     └─ Identifier "d" [variable:1] @1:25
 │        │  │  └─ entry
 │        │  │     ├─ name
-│        │  │     │  └─ Identifier "e" [global] @1:20
+│        │  │     │  └─ Identifier "e" [global] @1:28
 │        │  │     └─ alias
-│        │  │        └─ Identifier "g" [variable:2] @1:20
+│        │  │        └─ Identifier "g" [variable:2] @1:31
 │        │  └─ Identifier "h" [argument:2] @1:10
 │        └─ body
 │           └─ FunctionBody @1:9

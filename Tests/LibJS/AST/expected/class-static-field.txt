@@ -7,6 +7,6 @@ Program (script) @1:1
       │        └─ BlockStatement @1:1
       └─ elements
          └─ ClassField static @1:1
-            ├─ StringLiteral "x" @1:1
+            ├─ StringLiteral "x" @2:12
             └─ initializer
                └─ NumericLiteral 1 @2:16

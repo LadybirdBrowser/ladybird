@@ -7,5 +7,5 @@ Program (script) @1:1
          └─ ReturnStatement @2:5
             └─ ObjectExpression @2:12
                └─ ObjectProperty @2:12
-                  ├─ StringLiteral "x" @2:12
+                  ├─ StringLiteral "x" @2:14
                   └─ Identifier "x" [argument:0] @2:12

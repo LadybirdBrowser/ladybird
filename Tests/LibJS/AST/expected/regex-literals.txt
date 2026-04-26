@@ -32,7 +32,7 @@ Program (script) @2:1
 │  │  └─ CallExpression @16:16
 │  │     ├─ MemberExpression @16:11
 │  │     │  ├─ RegExpLiteral /test/ @16:5
-│  │     │  └─ Identifier "test" @16:11
+│  │     │  └─ Identifier "test" @16:12
 │  │     └─ StringLiteral "test" @16:23
 │  └─ consequent
 │     └─ BlockStatement @16:26

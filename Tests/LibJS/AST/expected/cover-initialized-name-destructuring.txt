@@ -10,7 +10,7 @@ Program (script) @5:1
          │     │        └─ BindingPattern (object)
          │     │           └─ entry
          │     │              ├─ name
-         │     │              │  └─ Identifier "a" [global] @6:6
+         │     │              │  └─ Identifier "a" [global] @6:8
          │     │              └─ initializer
          │     │                 └─ NumericLiteral 0 @6:12
          │     └─ ArrayExpression @6:19
@@ -22,7 +22,7 @@ Program (script) @5:1
                │        └─ MemberExpression @7:14
                │           ├─ ObjectExpression @7:6
                │           │  └─ ObjectProperty @7:6
-               │           │     ├─ StringLiteral "a" @7:6
+               │           │     ├─ StringLiteral "a" @7:8
                │           │     └─ NumericLiteral 0 @7:11
-               │           └─ Identifier "x" @7:14
+               │           └─ Identifier "x" @7:15
                └─ ArrayExpression @7:20

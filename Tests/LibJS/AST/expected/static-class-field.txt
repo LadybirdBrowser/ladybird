@@ -9,11 +9,11 @@ Program (script) @2:1
 │        │        └─ BlockStatement @2:9
 │        └─ elements
 │           ├─ ClassField static @2:9
-│           │  ├─ StringLiteral "x" @2:9
+│           │  ├─ StringLiteral "x" @3:12
 │           │  └─ initializer
 │           │     └─ NumericLiteral 1 @3:16
 │           └─ ClassField static @2:9
-│              ├─ StringLiteral "y" @2:9
+│              ├─ StringLiteral "y" @4:12
 │              └─ initializer
 │                 └─ NumericLiteral 2 @4:16
 └─ VariableDeclaration (var) @8:1

@@ -7,16 +7,16 @@ Program (script) @1:1
       │        └─ BlockStatement @1:1
       └─ elements
          ├─ ClassField @1:1
-         │  └─ PrivateIdentifier "#x" @1:1
+         │  └─ PrivateIdentifier "#x" @2:5
          └─ ClassMethod @1:1
-            ├─ StringLiteral "method" @1:1
+            ├─ StringLiteral "method" @3:5
             └─ FunctionExpression "" [strict] [uses-this] @3:5
                └─ body
                   └─ FunctionBody @4:9
                      ├─ ExpressionStatement @4:9
                      │  └─ MemberExpression @4:13
                      │     ├─ ThisExpression @4:9
-                     │     └─ PrivateIdentifier "#x" @4:13
+                     │     └─ PrivateIdentifier "#x" @4:14
                      ├─ ExpressionStatement @5:9
                      │  └─ OptionalChain @5:13
                      │     ├─ ThisExpression @5:9

@@ -5,7 +5,7 @@ Program (script) @3:1
 │        └─ ReturnStatement @4:5
 │           └─ ObjectExpression @4:12
 │              └─ ObjectProperty @4:12
-│                 ├─ StringLiteral "arguments" @4:12
+│                 ├─ StringLiteral "arguments" @4:14
 │                 └─ NumericLiteral 1 @4:25
 ├─ FunctionDeclaration "plain_eval_key" @8:1
 │  └─ body
@@ -13,7 +13,7 @@ Program (script) @3:1
 │        └─ ReturnStatement @9:5
 │           └─ ObjectExpression @9:12
 │              └─ ObjectProperty @9:12
-│                 ├─ StringLiteral "eval" @9:12
+│                 ├─ StringLiteral "eval" @9:14
 │                 └─ NumericLiteral 1 @9:20
 ├─ FunctionDeclaration "shorthand_arguments" @18:1
 │  └─ body
@@ -21,7 +21,7 @@ Program (script) @3:1
 │        └─ ReturnStatement @19:5
 │           └─ ObjectExpression @19:12
 │              └─ ObjectProperty @19:12
-│                 ├─ StringLiteral "arguments" @19:12
+│                 ├─ StringLiteral "arguments" @19:14
 │                 └─ Identifier "arguments" [variable:0] @19:12
 ├─ FunctionDeclaration "computed_arguments_key" [might-need-arguments] @24:1
 │  └─ body
@@ -47,12 +47,12 @@ Program (script) @3:1
 │        │     ├─ BindingPattern (object)
 │        │     │  └─ entry
 │        │     │     ├─ name
-│        │     │     │  └─ Identifier "arguments" [variable:0] @37:9
+│        │     │     │  └─ Identifier "arguments" [variable:0] @37:11
 │        │     │     └─ alias
-│        │     │        └─ Identifier "x" [variable:1] @37:9
+│        │     │        └─ Identifier "x" [variable:1] @37:22
 │        │     └─ ObjectExpression @37:28
 │        │        └─ ObjectProperty @37:28
-│        │           ├─ StringLiteral "arguments" @37:28
+│        │           ├─ StringLiteral "arguments" @37:30
 │        │           └─ NumericLiteral 1 @37:41
 │        └─ ReturnStatement @38:5
 │           └─ Identifier "x" [variable:1] @38:12
@@ -64,10 +64,10 @@ Program (script) @3:1
                └─ MemberExpression @43:41
                   ├─ ObjectExpression @43:12
                   │  └─ ObjectProperty (method) @43:12
-                  │     ├─ StringLiteral "arguments" @43:12
+                  │     ├─ StringLiteral "arguments" @43:14
                   │     └─ FunctionExpression "" @43:14
                   │        └─ body
                   │           └─ FunctionBody @43:28
                   │              └─ ReturnStatement @43:28
                   │                 └─ NumericLiteral 1 @43:35
-                  └─ Identifier "arguments" @43:41
+                  └─ Identifier "arguments" @43:42

@@ -9,7 +9,7 @@ Program (script) @2:1
 │        │        └─ BlockStatement @2:9
 │        └─ elements
 │           └─ ClassMethod @2:9
-│              ├─ StringLiteral "method" @2:9
+│              ├─ StringLiteral "method" @3:5
 │              └─ FunctionExpression "" [strict] @3:5
 │                 └─ body
 │                    └─ FunctionBody @4:9
@@ -26,7 +26,7 @@ Program (script) @2:1
 │        │     │        └─ BlockStatement @10:5
 │        │     └─ elements
 │        │        └─ ClassMethod @10:5
-│        │           ├─ StringLiteral "method" @10:5
+│        │           ├─ StringLiteral "method" @11:9
 │        │           └─ FunctionExpression "" [strict] @11:9
 │        │              └─ body
 │        │                 └─ FunctionBody @12:13
@@ -71,20 +71,20 @@ Program (script) @2:1
          │     │        └─ BlockStatement @31:5
          │     └─ elements
          │        ├─ ClassField static @31:5
-         │        │  ├─ StringLiteral "x" @31:5
+         │        │  ├─ StringLiteral "x" @32:16
          │        │  └─ initializer
          │        │     └─ NumericLiteral 1 @32:20
          │        └─ ClassMethod static @31:5
-         │           ├─ StringLiteral "method" @31:5
+         │           ├─ StringLiteral "method" @33:16
          │           └─ FunctionExpression "" [strict] @33:16
          │              └─ body
          │                 └─ FunctionBody @34:13
          │                    └─ ReturnStatement @34:13
          │                       └─ MemberExpression @34:23
          │                          ├─ Identifier "Baz" @34:20
-         │                          └─ Identifier "x" @34:23
+         │                          └─ Identifier "x" @34:24
          └─ ReturnStatement @37:5
             └─ CallExpression @37:22
                └─ MemberExpression @37:15
                   ├─ Identifier "Baz" [variable:0] @37:12
-                  └─ Identifier "method" @37:15
+                  └─ Identifier "method" @37:16

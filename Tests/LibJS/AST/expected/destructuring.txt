@@ -7,10 +7,10 @@ Program (script) @1:1
          │     ├─ BindingPattern (array)
          │     │  ├─ entry
          │     │  │  └─ alias
-         │     │  │     └─ Identifier "a" [variable:0] @2:9
+         │     │  │     └─ Identifier "a" [variable:0] @2:10
          │     │  └─ entry
          │     │     └─ alias
-         │     │        └─ Identifier "b" [variable:1] @2:9
+         │     │        └─ Identifier "b" [variable:1] @2:13
          │     └─ ArrayExpression @2:18
          │        ├─ NumericLiteral 1 @2:19
          │        └─ NumericLiteral 2 @2:22
@@ -19,18 +19,18 @@ Program (script) @1:1
          │     ├─ BindingPattern (object)
          │     │  ├─ entry
          │     │  │  └─ name
-         │     │  │     └─ Identifier "x" [variable:2] @3:9
+         │     │  │     └─ Identifier "x" [variable:2] @3:11
          │     │  └─ entry
          │     │     ├─ name
-         │     │     │  └─ Identifier "y" [global] @3:9
+         │     │     │  └─ Identifier "y" [global] @3:14
          │     │     └─ alias
-         │     │        └─ Identifier "z" [variable:3] @3:9
+         │     │        └─ Identifier "z" [variable:3] @3:17
          │     └─ ObjectExpression @3:23
          │        ├─ ObjectProperty @3:23
-         │        │  ├─ StringLiteral "x" @3:23
+         │        │  ├─ StringLiteral "x" @3:25
          │        │  └─ NumericLiteral 3 @3:28
          │        └─ ObjectProperty @3:23
-         │           ├─ StringLiteral "y" @3:23
+         │           ├─ StringLiteral "y" @3:31
          │           └─ NumericLiteral 4 @3:34
          └─ ReturnStatement @4:5
             └─ BinaryExpression (+) @4:22

@@ -11,7 +11,7 @@ Program (script) @1:1
 │              ├─ Identifier "a" [argument:0] @2:12
 │              └─ MemberExpression @2:20
 │                 ├─ Identifier "rest" [argument:1] @2:16
-│                 └─ Identifier "length" @2:20
+│                 └─ Identifier "length" @2:21
 ├─ FunctionDeclaration "default_params" @5:1
 │  ├─ parameters
 │  │  ├─ Identifier "a" [argument:0] @5:25
@@ -29,10 +29,10 @@ Program (script) @1:1
 │  │  └─ BindingPattern (array)
 │  │     ├─ entry
 │  │     │  └─ alias
-│  │     │     └─ Identifier "x" [variable:0] @9:29
+│  │     │     └─ Identifier "x" [variable:0] @9:30
 │  │     └─ entry
 │  │        └─ alias
-│  │           └─ Identifier "y" [variable:1] @9:29
+│  │           └─ Identifier "y" [variable:1] @9:33
 │  └─ body
 │     └─ FunctionBody @10:5
 │        └─ ReturnStatement @10:5
@@ -44,10 +44,10 @@ Program (script) @1:1
 │  │  └─ BindingPattern (object)
 │  │     ├─ entry
 │  │     │  └─ name
-│  │     │     └─ Identifier "a" [variable:0] @13:30
+│  │     │     └─ Identifier "a" [variable:0] @13:32
 │  │     └─ entry
 │  │        └─ name
-│  │           └─ Identifier "b" [variable:1] @13:30
+│  │           └─ Identifier "b" [variable:1] @13:35
 │  └─ body
 │     └─ FunctionBody @14:5
 │        └─ ReturnStatement @14:5
@@ -60,7 +60,7 @@ Program (script) @1:1
    │  ├─ BindingPattern (object)
    │  │  └─ entry
    │  │     └─ name
-   │  │        └─ Identifier "x" [variable:0] @17:23
+   │  │        └─ Identifier "x" [variable:0] @17:25
    │  └─ rest
    │     └─ Identifier "rest" [argument:2] @17:16
    └─ body
@@ -72,4 +72,4 @@ Program (script) @1:1
                │  └─ Identifier "x" [variable:0] @18:20
                └─ MemberExpression @18:28
                   ├─ Identifier "rest" [argument:2] @18:24
-                  └─ Identifier "length" @18:28
+                  └─ Identifier "length" @18:29

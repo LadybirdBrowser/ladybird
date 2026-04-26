@@ -61,10 +61,10 @@ Program (script) @2:1
 │           │        └─ BindingPattern (array)
 │           │           ├─ entry
 │           │           │  └─ alias
-│           │           │     └─ Identifier "a" [variable:0] @25:14
+│           │           │     └─ Identifier "a" [variable:0] @25:15
 │           │           └─ entry
 │           │              └─ alias
-│           │                 └─ Identifier "b" [variable:1] @25:14
+│           │                 └─ Identifier "b" [variable:1] @25:18
 │           ├─ rhs
 │           │  └─ Identifier "pairs" [argument:0] @25:24
 │           └─ body

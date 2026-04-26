@@ -44,7 +44,7 @@ Program (script) @2:1
 │  │  └─ BindingPattern (object)
 │  │     └─ entry
 │  │        └─ name
-│  │           └─ Identifier "x" @23:38
+│  │           └─ Identifier "x" @23:40
 │  └─ body
 │     └─ FunctionBody @24:5
 │        └─ ReturnStatement @24:5
@@ -60,4 +60,4 @@ Program (script) @2:1
          └─ ReturnStatement @29:5
             └─ MemberExpression @29:21
                ├─ Identifier "arguments" [variable:0] @29:12
-               └─ Identifier "length" @29:21
+               └─ Identifier "length" @29:22

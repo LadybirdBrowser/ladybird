@@ -23,10 +23,10 @@ Program (script) @2:1
 │           │     └─ ThrowStatement @13:9
 │           │        └─ ObjectExpression @13:15
 │           │           ├─ ObjectProperty @13:15
-│           │           │  ├─ StringLiteral "msg" @13:15
+│           │           │  ├─ StringLiteral "msg" @13:17
 │           │           │  └─ StringLiteral "oops" @13:28
 │           │           └─ ObjectProperty @13:15
-│           │              ├─ StringLiteral "code" @13:15
+│           │              ├─ StringLiteral "code" @13:30
 │           │              └─ NumericLiteral 42 @13:36
 │           └─ handler
 │              └─ CatchClause @14:7
@@ -34,10 +34,10 @@ Program (script) @2:1
 │                 │  └─ BindingPattern (object)
 │                 │     ├─ entry
 │                 │     │  └─ name
-│                 │     │     └─ Identifier "msg" [variable:1] @14:14
+│                 │     │     └─ Identifier "msg" [variable:1] @14:16
 │                 │     └─ entry
 │                 │        └─ name
-│                 │           └─ Identifier "code" [variable:0] @14:14
+│                 │           └─ Identifier "code" [variable:0] @14:21
 │                 └─ BlockStatement @14:29
 │                    └─ ReturnStatement @15:9
 │                       └─ BinaryExpression (+) @15:20
@@ -89,7 +89,7 @@ Program (script) @2:1
 │           │     │  │     └─ ThrowStatement @44:13
 │           │     │  │        └─ ObjectExpression @44:19
 │           │     │  │           └─ ObjectProperty @44:19
-│           │     │  │              ├─ StringLiteral "a" @44:19
+│           │     │  │              ├─ StringLiteral "a" @44:21
 │           │     │  │              └─ NumericLiteral 1 @44:24
 │           │     │  └─ handler
 │           │     │     └─ CatchClause @45:11
@@ -97,14 +97,14 @@ Program (script) @2:1
 │           │     │        │  └─ BindingPattern (object)
 │           │     │        │     └─ entry
 │           │     │        │        └─ name
-│           │     │        │           └─ Identifier "a" [variable:0] @45:18
+│           │     │        │           └─ Identifier "a" [variable:0] @45:20
 │           │     │        └─ BlockStatement @45:25
 │           │     │           └─ ExpressionStatement @46:13
 │           │     │              └─ Identifier "a" [variable:0] @46:13
 │           │     └─ ThrowStatement @48:9
 │           │        └─ ObjectExpression @48:15
 │           │           └─ ObjectProperty @48:15
-│           │              ├─ StringLiteral "b" @48:15
+│           │              ├─ StringLiteral "b" @48:17
 │           │              └─ NumericLiteral 2 @48:20
 │           └─ handler
 │              └─ CatchClause @49:7
@@ -112,7 +112,7 @@ Program (script) @2:1
 │                 │  └─ BindingPattern (object)
 │                 │     └─ entry
 │                 │        └─ name
-│                 │           └─ Identifier "b" [variable:1] @49:14
+│                 │           └─ Identifier "b" [variable:1] @49:16
 │                 └─ BlockStatement @49:21
 │                    └─ ReturnStatement @50:9
 │                       └─ Identifier "b" [variable:1] @50:16

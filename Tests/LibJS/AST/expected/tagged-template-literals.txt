@@ -6,7 +6,7 @@ Program (script) @1:1
 │        ├─ tag
 │        │  └─ MemberExpression @1:15
 │        │     ├─ Identifier "String" [global] @1:9
-│        │     └─ Identifier "raw" @1:15
+│        │     └─ Identifier "raw" @1:16
 │        └─ template
 │           └─ TemplateLiteral @1:19
 │              └─ StringLiteral "foo

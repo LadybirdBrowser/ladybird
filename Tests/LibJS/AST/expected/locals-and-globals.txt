@@ -24,5 +24,5 @@ Program (script) @1:1
    └─ CallExpression @7:12
       ├─ MemberExpression @7:8
       │  ├─ Identifier "console" [global] @7:1
-      │  └─ Identifier "log" @7:8
+      │  └─ Identifier "log" @7:9
       └─ Identifier "x" [global] (var) @7:13

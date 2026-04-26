@@ -4,7 +4,7 @@ Program (script) @1:1
 │     ├─ Identifier "o" [global] (var) @1:5
 │     └─ ObjectExpression @1:9
 │        └─ ObjectProperty @1:9
-│           ├─ StringLiteral "x" @1:9
+│           ├─ StringLiteral "x" @1:11
 │           └─ NumericLiteral 42 @1:14
 ├─ VariableDeclaration (var) @2:1
 │  └─ VariableDeclarator @2:1

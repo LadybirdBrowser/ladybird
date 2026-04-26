@@ -62,7 +62,7 @@ Program (script) @4:1
 │  │  └─ BindingPattern (object)
 │  │     └─ entry
 │  │        └─ name
-│  │           └─ Identifier "x" [variable:0] @32:26
+│  │           └─ Identifier "x" [variable:0] @32:28
 │  │     └─ default
 │  │        └─ Identifier "shadow" (var) @32:34
 │  └─ body

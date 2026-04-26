@@ -9,12 +9,12 @@ Program (script) @1:1
       ├─ BindingPattern (object)
       │  ├─ entry
       │  │  ├─ name
-      │  │  │  └─ Identifier "__proto__" [global] @2:2
+      │  │  │  └─ Identifier "__proto__" [global] @2:4
       │  │  └─ alias
       │  │     └─ Identifier "x" [global] (var) @2:15
       │  └─ entry
       │     ├─ name
-      │     │  └─ Identifier "__proto__" [global] @2:2
+      │     │  └─ Identifier "__proto__" [global] @2:18
       │     └─ alias
       │        └─ Identifier "y" [global] (var) @2:29
       └─ ObjectExpression @2:35

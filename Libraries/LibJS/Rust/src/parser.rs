@@ -256,11 +256,6 @@ pub struct Parser<'a> {
     /// Set during synthesize_binding_pattern to allow MemberExpressions as binding targets.
     allow_member_expressions: bool,
 
-    /// Position of the opening bracket/brace in binding patterns.
-    /// Used so all identifiers inside a binding pattern share the pattern's start position,
-    /// matching C++ parser behavior.
-    binding_pattern_start: Option<Position>,
-
     /// True while parsing a class body that has an `extends` clause.
     pub(crate) class_has_super_class: bool,
     /// Depth counter for class bodies — used to reject `#name` outside classes.
@@ -333,7 +328,6 @@ impl<'a> Parser<'a> {
             last_class_name: Utf16String::default(),
             pattern_bound_names: Vec::new(),
             allow_member_expressions: false,
-            binding_pattern_start: None,
             class_has_super_class: false,
             class_scope_depth: 0,
             has_default_export_name: false,

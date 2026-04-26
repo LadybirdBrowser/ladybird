@@ -12,7 +12,7 @@ Program (script) @1:1
          │        └─ ReturnStatement @4:9
          │           └─ ObjectExpression @4:16
          │              └─ ObjectProperty @4:16
-         │                 ├─ StringLiteral "x" @4:16
+         │                 ├─ StringLiteral "x" @4:18
          │                 └─ NumericLiteral 42 @4:21
          └─ ReturnStatement @6:5
             └─ Identifier "x" [variable:1] (var) @6:12

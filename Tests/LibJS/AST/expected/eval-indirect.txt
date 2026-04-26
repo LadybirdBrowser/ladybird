@@ -43,13 +43,13 @@ Program (script) @2:1
 │        │     ├─ Identifier "obj" [variable:0] (var) @19:9
 │        │     └─ ObjectExpression @19:15
 │        │        └─ ObjectProperty @19:15
-│        │           ├─ StringLiteral "eval" @19:15
+│        │           ├─ StringLiteral "eval" @19:17
 │        │           └─ Identifier "eval" [global] @19:15
 │        ├─ ExpressionStatement @20:5
 │        │  └─ CallExpression @20:13
 │        │     ├─ MemberExpression @20:8
 │        │     │  ├─ Identifier "obj" [variable:0] (var) @20:5
-│        │     │  └─ Identifier "eval" @20:8
+│        │     │  └─ Identifier "eval" @20:9
 │        │     └─ StringLiteral "x" @20:17
 │        └─ ReturnStatement @21:5
 │           └─ Identifier "x" [variable:1] (let) @21:12

@@ -4,10 +4,10 @@ Program (script) @1:1
 │  │  └─ BindingPattern (array)
 │  │     ├─ entry
 │  │     │  └─ alias
-│  │     │     └─ Identifier "x" [variable:0] @1:29
+│  │     │     └─ Identifier "x" [variable:0] @1:30
 │  │     └─ entry
 │  │        └─ alias
-│  │           └─ Identifier "y" [variable:1] @1:29
+│  │           └─ Identifier "y" [variable:1] @1:33
 │  └─ body
 │     └─ FunctionBody @2:5
 │        └─ ReturnStatement @2:5
@@ -19,10 +19,10 @@ Program (script) @1:1
 │  │  └─ BindingPattern (object)
 │  │     ├─ entry
 │  │     │  └─ name
-│  │     │     └─ Identifier "a" [variable:0] @5:30
+│  │     │     └─ Identifier "a" [variable:0] @5:32
 │  │     └─ entry
 │  │        └─ name
-│  │           └─ Identifier "b" [variable:1] @5:30
+│  │           └─ Identifier "b" [variable:1] @5:35
 │  └─ body
 │     └─ FunctionBody @6:5
 │        └─ ReturnStatement @6:5
@@ -35,7 +35,7 @@ Program (script) @1:1
 │  │  ├─ BindingPattern (object)
 │  │  │  └─ entry
 │  │  │     └─ name
-│  │  │        └─ Identifier "x" [variable:0] @9:23
+│  │  │        └─ Identifier "x" [variable:0] @9:25
 │  │  └─ rest
 │  │     └─ Identifier "rest" [argument:2] @9:16
 │  └─ body
@@ -47,18 +47,18 @@ Program (script) @1:1
 │              │  └─ Identifier "x" [variable:0] @10:20
 │              └─ MemberExpression @10:28
 │                 ├─ Identifier "rest" [argument:2] @10:24
-│                 └─ Identifier "length" @10:28
+│                 └─ Identifier "length" @10:29
 ├─ FunctionDeclaration "nested" @13:1
 │  ├─ parameters
 │  │  └─ BindingPattern (object)
 │  │     └─ entry
 │  │        ├─ name
-│  │        │  └─ Identifier "a" [global] @13:17
+│  │        │  └─ Identifier "a" [global] @13:19
 │  │        └─ alias
 │  │           └─ BindingPattern (object)
 │  │              └─ entry
 │  │                 └─ name
-│  │                    └─ Identifier "b" [variable:0] @13:22
+│  │                    └─ Identifier "b" [variable:0] @13:24
 │  └─ body
 │     └─ FunctionBody @14:5
 │        └─ ReturnStatement @14:5
@@ -68,7 +68,7 @@ Program (script) @1:1
 │  │  └─ BindingPattern (object)
 │  │     └─ entry
 │  │        ├─ name
-│  │        │  └─ Identifier "x" [variable:0] @17:24
+│  │        │  └─ Identifier "x" [variable:0] @17:26
 │  │        └─ initializer
 │  │           └─ NumericLiteral 10 @17:30
 │  │     └─ default
@@ -82,9 +82,9 @@ Program (script) @1:1
    │  └─ BindingPattern (object)
    │     └─ entry
    │        ├─ name
-   │        │  └─ Identifier "a" [global] @21:18
+   │        │  └─ Identifier "a" [global] @21:20
    │        └─ alias
-   │           └─ Identifier "renamed" [variable:0] @21:18
+   │           └─ Identifier "renamed" [variable:0] @21:23
    └─ body
       └─ FunctionBody @22:5
          └─ ReturnStatement @22:5

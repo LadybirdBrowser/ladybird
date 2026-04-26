@@ -19,7 +19,7 @@ Program (script) @1:1
       │        └─ BlockStatement @7:1
       └─ elements
          └─ ClassMethod @7:1
-            ├─ StringLiteral "bar" @7:1
+            ├─ StringLiteral "bar" @8:12
             └─ FunctionExpression async* "" [strict] @8:5
                └─ body
                   └─ FunctionBody @9:9

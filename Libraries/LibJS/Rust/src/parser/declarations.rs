@@ -938,17 +938,7 @@ impl Parser<'_> {
                 is_identifier: false,
             }
         } else {
-            // C++ only uses class start position for Identifier and PrivateIdentifier
-            // tokens (handled directly in the switch). Keywords like `return` go through
-            // parse_property_key which uses its own position.
-            let key_override = if self.current_token.token_type == TokenType::Identifier
-                || self.current_token.token_type == TokenType::PrivateIdentifier
-            {
-                Some(class_start)
-            } else {
-                None
-            };
-            self.parse_property_key(key_override)
+            self.parse_property_key()
         };
 
         // https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
@@ -1381,12 +1371,6 @@ impl Parser<'_> {
                 entries: Vec::new(),
             };
         }
-        // Save the position before consuming '[' or '{'. C++ uses
-        // rule_start.position() (from push_start()) for all identifiers inside
-        // the binding pattern. Each recursive call gets its own push_start(),
-        // so nested patterns use the inner pattern's start position.
-        let outer_pattern_start = self.binding_pattern_start;
-        self.binding_pattern_start = Some(self.position());
         self.consume();
 
         let kind = if is_object {
@@ -1445,8 +1429,7 @@ impl Parser<'_> {
                         || self.match_token(TokenType::NumericLiteral)
                         || self.match_token(TokenType::BigIntLiteral)
                     {
-                        // C++ uses the binding pattern start position for all name identifiers.
-                        let entry_start = self.binding_pattern_start.unwrap_or_else(|| self.position());
+                        let entry_start = self.position();
 
                         if self.match_token(TokenType::StringLiteral) || self.match_token(TokenType::NumericLiteral) {
                             needs_alias = true;
@@ -1517,7 +1500,7 @@ impl Parser<'_> {
                             let nested = self.parse_binding_pattern();
                             entry_alias = Some(BindingEntryAlias::BindingPattern(Box::new(nested)));
                         } else if self.match_identifier_name() {
-                            let alias_start = self.binding_pattern_start.unwrap_or_else(|| self.position());
+                            let alias_start = self.position();
                             let token = self.consume();
                             let name = self.token_identifier_name(&token);
                             let id = self.make_identifier(alias_start, name.clone());
@@ -1564,7 +1547,7 @@ impl Parser<'_> {
                 let nested = self.parse_binding_pattern();
                 entry_alias = Some(BindingEntryAlias::BindingPattern(Box::new(nested)));
             } else if self.match_identifier_name() {
-                let alias_start = self.binding_pattern_start.unwrap_or_else(|| self.position());
+                let alias_start = self.position();
                 let token = self.consume();
                 let name = self.token_identifier_name(&token);
                 let id = self.make_identifier(alias_start, name.clone());
@@ -1615,7 +1598,6 @@ impl Parser<'_> {
         }
 
         self.consume_token(closing_token);
-        self.binding_pattern_start = outer_pattern_start;
         BindingPattern { kind, entries }
     }
 

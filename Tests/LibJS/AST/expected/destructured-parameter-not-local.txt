@@ -4,7 +4,7 @@ Program (script) @2:1
 │  │  └─ BindingPattern (object)
 │  │     └─ entry
 │  │        └─ name
-│  │           └─ Identifier "x" @2:30
+│  │           └─ Identifier "x" @2:32
 │  └─ body
 │     └─ FunctionBody @3:5
 │        └─ ReturnStatement @3:5
@@ -18,10 +18,10 @@ Program (script) @2:1
 │  │  └─ BindingPattern (object)
 │  │     ├─ entry
 │  │     │  └─ name
-│  │     │     └─ Identifier "a" @9:23
+│  │     │     └─ Identifier "a" @9:25
 │  │     └─ entry
 │  │        └─ name
-│  │           └─ Identifier "b" @9:23
+│  │           └─ Identifier "b" @9:28
 │  └─ body
 │     └─ FunctionBody @10:5
 │        ├─ ExpressionStatement @10:5
@@ -37,7 +37,7 @@ Program (script) @2:1
 │  │  ├─ BindingPattern (object)
 │  │  │  └─ entry
 │  │  │     └─ name
-│  │  │        └─ Identifier "x" @15:23
+│  │  │        └─ Identifier "x" @15:25
 │  │  └─ Identifier "obj" [argument:1] @15:23
 │  └─ body
 │     └─ FunctionBody @16:5
@@ -53,7 +53,7 @@ Program (script) @2:1
 │  │  └─ BindingPattern (object)
 │  │     └─ entry
 │  │        └─ name
-│  │           └─ Identifier "x" @22:27
+│  │           └─ Identifier "x" @22:29
 │  └─ body
 │     └─ FunctionBody @23:5
 │        └─ ReturnStatement @23:5
@@ -66,10 +66,10 @@ Program (script) @2:1
    │  └─ BindingPattern (array)
    │     ├─ entry
    │     │  └─ alias
-   │     │     └─ Identifier "a" [variable:0] @28:33
+   │     │     └─ Identifier "a" [variable:0] @28:34
    │     └─ entry
    │        └─ alias
-   │           └─ Identifier "b" [variable:1] @28:33
+   │           └─ Identifier "b" [variable:1] @28:37
    └─ body
       └─ FunctionBody @29:5
          └─ ReturnStatement @29:5

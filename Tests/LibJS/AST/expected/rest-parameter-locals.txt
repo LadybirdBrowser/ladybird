@@ -8,7 +8,7 @@ Program (script) @2:1
 │        └─ ReturnStatement @3:5
 │           └─ MemberExpression @3:16
 │              ├─ Identifier "args" [argument:0] @3:12
-│              └─ Identifier "length" @3:16
+│              └─ Identifier "length" @3:17
 └─ FunctionDeclaration "rest_with_arguments" [might-need-arguments] @8:1
    ├─ parameters
    │  └─ rest
@@ -19,7 +19,7 @@ Program (script) @2:1
             └─ BinaryExpression (+) @9:24
                ├─ MemberExpression @9:16
                │  ├─ Identifier "args" [argument:0] @9:12
-               │  └─ Identifier "length" @9:16
+               │  └─ Identifier "length" @9:17
                └─ MemberExpression @9:35
                   ├─ Identifier "arguments" [variable:0] @9:26
-                  └─ Identifier "length" @9:35
+                  └─ Identifier "length" @9:36

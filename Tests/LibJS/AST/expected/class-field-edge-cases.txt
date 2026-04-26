@@ -16,7 +16,7 @@ Program (script) @1:1
 │     │        └─ BlockStatement @5:1
 │     └─ elements
 │        └─ ClassField static @5:1
-│           └─ StringLiteral "a" @5:1
+│           └─ StringLiteral "a" @6:12
 └─ ClassDeclaration @9:1
    └─ ClassExpression "C" @9:1
       ├─ constructor
@@ -25,8 +25,8 @@ Program (script) @1:1
       │        └─ BlockStatement @9:1
       └─ elements
          └─ ClassField @9:1
-            ├─ StringLiteral "super_field" @9:1
+            ├─ StringLiteral "super_field" @10:5
             └─ initializer
                └─ MemberExpression @10:24
                   ├─ SuperExpression @10:19
-                  └─ Identifier "foo" @10:24
+                  └─ Identifier "foo" @10:25
