@@ -246,6 +246,16 @@ unsafe extern "C" {
         is_private: bool,
     );
 
+    pub fn rust_sfd_set_precompiled_executable(
+        sfd_ptr: *mut c_void,
+        executable_ptr: *mut c_void,
+        uses_this: bool,
+        function_environment_needed: bool,
+        function_environment_bindings_count: usize,
+        might_need_arguments_object: bool,
+        contains_direct_call_to_eval: bool,
+    );
+
     pub fn rust_create_class_blueprint(
         vm_ptr: *mut c_void,
         source_code_ptr: *const c_void,
@@ -428,6 +438,29 @@ unsafe fn materialize_shared_function_data(
             );
             if let Some((name, is_private)) = &pending.class_field_initializer_name {
                 rust_sfd_set_class_field_initializer_name(sfd_ptr, name.as_ptr(), name.len(), *is_private);
+            }
+            if let Some(precompiled) = pending.precompiled_function.as_mut() {
+                precompiled.generator.vm_ptr = vm_ptr;
+                precompiled.generator.source_code_ptr = source_code_ptr;
+                let executable_ptr = create_executable(
+                    &mut precompiled.generator,
+                    &precompiled.assembled,
+                    vm_ptr,
+                    source_code_ptr,
+                );
+                assert!(
+                    !executable_ptr.is_null(),
+                    "materialize_shared_function_data: eager function executable materialization failed"
+                );
+                rust_sfd_set_precompiled_executable(
+                    sfd_ptr,
+                    executable_ptr,
+                    precompiled.metadata.uses_this,
+                    precompiled.metadata.function_environment_needed,
+                    precompiled.metadata.function_environment_bindings_count,
+                    precompiled.metadata.might_need_arguments,
+                    precompiled.metadata.contains_eval,
+                );
             }
             sfd_ptrs.push(sfd_ptr as *const c_void);
         }

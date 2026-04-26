@@ -17,7 +17,7 @@ use super::basic_block::{BasicBlock, SourceMapEntry};
 use super::ffi::{AbstractOperationKind, WellKnownSymbolKind};
 use super::instruction::Instruction;
 use super::operand::*;
-use crate::ast::{FunctionData, FunctionTable, LocalType, Position, Utf16String};
+use crate::ast::{FunctionData, FunctionId, FunctionTable, LocalType, Position, Utf16String};
 use crate::u32_from_usize;
 
 /// Identifies an operand that auto-frees its register when the last
@@ -41,6 +41,25 @@ pub struct PendingSharedFunctionData {
     pub subtable: Option<FunctionTable>,
     pub name_override: Option<Utf16String>,
     pub class_field_initializer_name: Option<(Utf16String, bool)>,
+    pub should_eager_compile: bool,
+    pub precompiled_function: Option<Box<PrecompiledFunction>>,
+}
+
+/// Metadata computed from scope analysis for a SharedFunctionInstanceData.
+pub struct FunctionSfdMetadata {
+    pub uses_this: bool,
+    pub function_environment_needed: bool,
+    pub function_environment_bindings_count: usize,
+    pub var_environment_bindings_count: usize,
+    pub might_need_arguments: bool,
+    pub contains_eval: bool,
+}
+
+/// GC-free compiled bytecode for a function that top-level code will immediately invoke.
+pub struct PrecompiledFunction {
+    pub generator: Box<Generator>,
+    pub assembled: AssembledBytecode,
+    pub metadata: FunctionSfdMetadata,
 }
 
 #[derive(Clone, Copy)]
@@ -243,6 +262,8 @@ pub struct Generator {
     // materialized at the C++ boundary so bytecode generation can run without
     // allocating GC cells.
     pub shared_function_data: Vec<PendingSharedFunctionData>,
+    pub eager_compile_function_ids: HashSet<FunctionId>,
+    pub eager_compile_direct_iifes: bool,
 
     // --- Class blueprints ---
     // Pending descriptors for ClassBlueprint objects. Ownership transfers to
@@ -392,6 +413,8 @@ impl Generator {
                 }),
             },
             shared_function_data: Vec::new(),
+            eager_compile_function_ids: HashSet::new(),
+            eager_compile_direct_iifes: false,
             class_blueprints: Vec::new(),
             length_identifier: None,
             current_unwind_handler: None,

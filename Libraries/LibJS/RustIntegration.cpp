@@ -11,6 +11,7 @@
 #include <AK/kmalloc.h>
 #include <LibGC/DeferGC.h>
 #include <LibJS/Bytecode/ClassBlueprint.h>
+#include <LibJS/Bytecode/Debug.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/IdentifierTable.h>
 #include <LibJS/Bytecode/PropertyKeyTable.h>
@@ -1019,6 +1020,30 @@ extern "C" void rust_sfd_set_class_field_initializer_name(
     } else {
         shared.m_class_field_initializer_name = JS::PropertyKey(utf16_name.to_utf16_string());
     }
+}
+
+extern "C" void rust_sfd_set_precompiled_executable(
+    void* sfd_ptr,
+    void* executable_ptr,
+    bool uses_this,
+    bool function_environment_needed,
+    size_t function_environment_bindings_count,
+    bool might_need_arguments_object,
+    bool contains_direct_call_to_eval)
+{
+    auto& shared = *static_cast<JS::SharedFunctionInstanceData*>(sfd_ptr);
+    auto& executable = *static_cast<JS::Bytecode::Executable*>(executable_ptr);
+
+    shared.m_uses_this = uses_this;
+    shared.m_function_environment_needed = function_environment_needed;
+    shared.m_function_environment_bindings_count = function_environment_bindings_count;
+    shared.m_might_need_arguments_object = might_need_arguments_object;
+    shared.m_contains_direct_call_to_eval = contains_direct_call_to_eval;
+    shared.set_executable(executable);
+    executable.name = shared.m_name;
+    if (Bytecode::g_dump_bytecode)
+        executable.dump();
+    shared.clear_compile_inputs();
 }
 
 extern "C" void* rust_create_class_blueprint(

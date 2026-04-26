@@ -319,6 +319,39 @@ unsafe fn create_executable_from_compiled_bytecode(
     }
 }
 
+fn precompile_eager_functions(generator: &mut bytecode::generator::Generator) {
+    for pending in &mut generator.shared_function_data {
+        if !pending.should_eager_compile || pending.precompiled_function.is_some() {
+            continue;
+        }
+
+        let function_data = pending
+            .function_data
+            .take()
+            .expect("pending eager function data was already materialized");
+        let subtable = pending
+            .subtable
+            .take()
+            .expect("pending eager function subtable was already materialized");
+        let payload = ast::FunctionPayload {
+            data: *function_data,
+            function_table: subtable,
+        };
+        let (function_data, precompiled) = compile_function_payload_to_bytecode(
+            payload,
+            generator.source_len,
+            generator.builtin_abstract_operations_enabled,
+        );
+
+        pending.function_data = Some(function_data);
+        // The precompiled executable owns any nested lazy function payloads. Keep
+        // an empty payload here only until materialization creates the SFD; it is
+        // immediately cleared after the precompiled executable is attached.
+        pending.subtable = Some(ast::FunctionTable::new());
+        pending.precompiled_function = Some(precompiled);
+    }
+}
+
 /// Shared compilation pipeline: local variable setup → codegen → assemble → create Executable.
 ///
 /// Called by program-level entry points that compile synchronously on the main thread.
@@ -553,7 +586,9 @@ pub unsafe extern "C" fn rust_compile_parsed_program_off_thread(
             let mut parsed = Box::from_raw(parsed);
             let bytecode = if parsed.has_top_level_await {
                 let mut generator = new_module_async_generator(source_len, std::mem::take(&mut parsed.function_table));
+                generator.eager_compile_direct_iifes = true;
                 let assembled = compile_module_as_async_to_bytecode(&parsed.program, &parsed.scope_ref, &mut generator);
+                precompile_eager_functions(&mut generator);
                 CompiledProgramBytecode::AsyncModule(CompiledBytecode { generator, assembled })
             } else {
                 let mut generator = new_program_generator(
@@ -562,8 +597,10 @@ pub unsafe extern "C" fn rust_compile_parsed_program_off_thread(
                     std::ptr::null(),
                     source_len,
                 );
+                generator.eager_compile_direct_iifes = true;
                 generator.function_table = std::mem::take(&mut parsed.function_table);
                 let assembled = compile_program_body_to_bytecode(&mut generator, &parsed.program, &parsed.scope_ref);
+                precompile_eager_functions(&mut generator);
                 CompiledProgramBytecode::Program(CompiledBytecode { generator, assembled })
             };
 
@@ -2154,117 +2191,131 @@ pub unsafe extern "C" fn rust_compile_function(
                 return std::ptr::null_mut();
             }
             let payload = Box::from_raw(rust_function_ast as *mut ast::FunctionPayload);
-            let function_data = Box::new(payload.data);
+            let (_function_data, mut precompiled) =
+                compile_function_payload_to_bytecode(*payload, source_len, builtin_abstract_operations_enabled);
 
-            let body_scope = match &function_data.body.inner {
-                StatementKind::FunctionBody { scope, .. } => Some(scope),
-                StatementKind::Block(scope) => Some(scope),
-                _ => None,
-            };
+            precompiled.generator.vm_ptr = vm_ptr;
+            precompiled.generator.source_code_ptr = source_code_ptr;
 
-            // Compute SFD metadata before codegen so the generator can use
-            // function_environment_needed to optimize `this` access.
-            let sfd_metadata = compute_sfd_metadata(&function_data);
+            write_sfd_metadata(sfd_ptr, &precompiled.metadata);
 
-            let mut generator = bytecode::generator::Generator::new();
-            generator.strict = function_data.is_strict_mode;
-            generator.function_environment_needed = sfd_metadata.function_environment_needed;
-            generator.builtin_abstract_operations_enabled = builtin_abstract_operations_enabled;
-            generator.function_table = payload.function_table;
-            generator.vm_ptr = vm_ptr;
-            generator.source_code_ptr = source_code_ptr;
-            generator.source_len = source_len;
-            generator.enclosing_function_kind = function_data.kind;
-
-            if let Some(scope) = body_scope {
-                generator.local_variables = convert_local_variables(&scope.borrow());
-            }
-
-            let entry_block = generator.make_block();
-            generator.switch_to_basic_block(entry_block);
-
-            // https://tc39.es/ecma262/#sec-async-functions-abstract-operations-async-function-start
-            // For async (non-generator) functions, emit the initial Yield BEFORE
-            // GetLexicalEnvironment so that parameter evaluation errors are caught
-            // by the async promise wrapper. This matches C++ ordering.
-            if generator.is_in_async_function() && !generator.is_in_generator_function() {
-                let start_block = generator.make_block();
-                let undef = generator.add_constant_undefined();
-                generator.emit(bytecode::instruction::Instruction::Yield {
-                    continuation_label: Some(start_block),
-                    value: undef.operand(),
-                });
-                generator.switch_to_basic_block(start_block);
-            }
-
-            generator.capture_saved_lexical_environment();
-
-            if let Some(scope) = body_scope {
-                bytecode::codegen::emit_function_declaration_instantiation(
-                    &mut generator,
-                    &function_data,
-                    &scope.borrow(),
-                    sfd_metadata.var_environment_bindings_count,
-                );
-            }
-
-            // https://tc39.es/ecma262/#sec-generatorstart
-            // For generator functions (including async generators), emit the initial Yield
-            // AFTER FDI. Parameter evaluation happens synchronously before the generator starts.
-            if generator.is_in_generator_function() {
-                let start_block = generator.make_block();
-                let undef = generator.add_constant_undefined();
-                generator.emit(bytecode::instruction::Instruction::Yield {
-                    continuation_label: Some(start_block),
-                    value: undef.operand(),
-                });
-                generator.switch_to_basic_block(start_block);
-            }
-
-            let result = bytecode::codegen::generate_statement(&function_data.body, &mut generator, None);
-
-            if !generator.is_current_block_terminated() {
-                if generator.is_in_generator_or_async_function() {
-                    // Generator/async functions end with Yield (no continuation = done).
-                    let undef = generator.add_constant_undefined();
-                    generator.emit(bytecode::instruction::Instruction::Yield {
-                        continuation_label: None,
-                        value: undef.operand(),
-                    });
-                } else if let Some(value) = result {
-                    generator.emit(bytecode::instruction::Instruction::End { value: value.operand() });
-                }
-                // If result is None, the assembler will add End(undefined) as a
-                // fallthrough for unterminated blocks, matching C++ compile().
-            }
-
-            // For generator/async functions, terminate all unterminated blocks with Yield.
-            if generator.is_in_generator_or_async_function() {
-                generator.terminate_unterminated_blocks_with_yield();
-            }
-
-            let assembled = generator.assemble();
-
-            write_sfd_metadata(sfd_ptr, &sfd_metadata);
-
-            bytecode::ffi::create_executable(&mut generator, &assembled, vm_ptr, source_code_ptr)
+            bytecode::ffi::create_executable(
+                &mut precompiled.generator,
+                &precompiled.assembled,
+                vm_ptr,
+                source_code_ptr,
+            )
         })
     }
+}
+
+fn compile_function_payload_to_bytecode(
+    payload: ast::FunctionPayload,
+    source_len: usize,
+    builtin_abstract_operations_enabled: bool,
+) -> (Box<ast::FunctionData>, Box<bytecode::generator::PrecompiledFunction>) {
+    let function_data = Box::new(payload.data);
+
+    let body_scope = match &function_data.body.inner {
+        StatementKind::FunctionBody { scope, .. } => Some(scope),
+        StatementKind::Block(scope) => Some(scope),
+        _ => None,
+    };
+
+    // Compute SFD metadata before codegen so the generator can use
+    // function_environment_needed to optimize `this` access.
+    let sfd_metadata = compute_sfd_metadata(&function_data);
+
+    let mut generator = bytecode::generator::Generator::new();
+    generator.strict = function_data.is_strict_mode;
+    generator.function_environment_needed = sfd_metadata.function_environment_needed;
+    generator.builtin_abstract_operations_enabled = builtin_abstract_operations_enabled;
+    generator.function_table = payload.function_table;
+    generator.source_len = source_len;
+    generator.enclosing_function_kind = function_data.kind;
+
+    if let Some(scope) = body_scope {
+        generator.local_variables = convert_local_variables(&scope.borrow());
+    }
+
+    let entry_block = generator.make_block();
+    generator.switch_to_basic_block(entry_block);
+
+    // https://tc39.es/ecma262/#sec-async-functions-abstract-operations-async-function-start
+    // For async (non-generator) functions, emit the initial Yield BEFORE
+    // GetLexicalEnvironment so that parameter evaluation errors are caught
+    // by the async promise wrapper. This matches C++ ordering.
+    if generator.is_in_async_function() && !generator.is_in_generator_function() {
+        let start_block = generator.make_block();
+        let undef = generator.add_constant_undefined();
+        generator.emit(bytecode::instruction::Instruction::Yield {
+            continuation_label: Some(start_block),
+            value: undef.operand(),
+        });
+        generator.switch_to_basic_block(start_block);
+    }
+
+    generator.capture_saved_lexical_environment();
+
+    if let Some(scope) = body_scope {
+        bytecode::codegen::emit_function_declaration_instantiation(
+            &mut generator,
+            &function_data,
+            &scope.borrow(),
+            sfd_metadata.var_environment_bindings_count,
+        );
+    }
+
+    // https://tc39.es/ecma262/#sec-generatorstart
+    // For generator functions (including async generators), emit the initial Yield
+    // AFTER FDI. Parameter evaluation happens synchronously before the generator starts.
+    if generator.is_in_generator_function() {
+        let start_block = generator.make_block();
+        let undef = generator.add_constant_undefined();
+        generator.emit(bytecode::instruction::Instruction::Yield {
+            continuation_label: Some(start_block),
+            value: undef.operand(),
+        });
+        generator.switch_to_basic_block(start_block);
+    }
+
+    let result = bytecode::codegen::generate_statement(&function_data.body, &mut generator, None);
+
+    if !generator.is_current_block_terminated() {
+        if generator.is_in_generator_or_async_function() {
+            // Generator/async functions end with Yield (no continuation = done).
+            let undef = generator.add_constant_undefined();
+            generator.emit(bytecode::instruction::Instruction::Yield {
+                continuation_label: None,
+                value: undef.operand(),
+            });
+        } else if let Some(value) = result {
+            generator.emit(bytecode::instruction::Instruction::End { value: value.operand() });
+        }
+        // If result is None, the assembler will add End(undefined) as a
+        // fallthrough for unterminated blocks, matching C++ compile().
+    }
+
+    // For generator/async functions, terminate all unterminated blocks with Yield.
+    if generator.is_in_generator_or_async_function() {
+        generator.terminate_unterminated_blocks_with_yield();
+    }
+
+    let assembled = generator.assemble();
+
+    (
+        function_data,
+        Box::new(bytecode::generator::PrecompiledFunction {
+            generator: Box::new(generator),
+            assembled,
+            metadata: sfd_metadata,
+        }),
+    )
 }
 
 // =============================================================================
 // SFD metadata computation (ECMA-262 section 10.2.11)
 // =============================================================================
-
-/// Metadata computed from scope analysis for a SharedFunctionInstanceData.
-struct SfdMetadata {
-    uses_this: bool,
-    function_environment_needed: bool,
-    function_environment_bindings_count: usize,
-    var_environment_bindings_count: usize,
-    might_need_arguments: bool,
-    contains_eval: bool,
-}
 
 /// Intermediate scope analysis data extracted from the function body scope.
 struct BodyScopeInfo {
@@ -2283,7 +2334,7 @@ struct BodyScopeInfo {
 
 /// Compute FDI runtime metadata matching the C++ SharedFunctionInstanceData
 /// constructor (ECMA-262 §10.2.11).
-fn compute_sfd_metadata(function_data: &ast::FunctionData) -> SfdMetadata {
+fn compute_sfd_metadata(function_data: &ast::FunctionData) -> bytecode::generator::FunctionSfdMetadata {
     let body_scope = match &function_data.body.inner {
         ast::StatementKind::FunctionBody { scope, .. } => Some(scope),
         _ => None,
@@ -2442,7 +2493,7 @@ fn compute_sfd_metadata(function_data: &ast::FunctionData) -> SfdMetadata {
         || bsi.uses_this_from_env
         || bsi.contains_eval;
 
-    SfdMetadata {
+    bytecode::generator::FunctionSfdMetadata {
         uses_this: bsi.uses_this,
         function_environment_needed,
         function_environment_bindings_count,
@@ -2456,7 +2507,7 @@ fn compute_sfd_metadata(function_data: &ast::FunctionData) -> SfdMetadata {
 ///
 /// # Safety
 /// `sfd_ptr` must be a valid `JS::SharedFunctionInstanceData*`.
-unsafe fn write_sfd_metadata(sfd_ptr: *mut c_void, metadata: &SfdMetadata) {
+unsafe fn write_sfd_metadata(sfd_ptr: *mut c_void, metadata: &bytecode::generator::FunctionSfdMetadata) {
     unsafe {
         rust_sfd_set_metadata(
             sfd_ptr,

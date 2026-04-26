@@ -517,6 +517,7 @@ fn generate_function_expression(
     function_id: FunctionId,
     preferred_dst: Option<&ScopedOperand>,
 ) -> ScopedOperand {
+    let should_eager_compile = generator.eager_compile_function_ids.contains(&function_id);
     let data = generator.function_table.take(function_id);
     let has_name = data.name.is_some();
 
@@ -561,6 +562,13 @@ fn generate_function_expression(
     let lhs_name_str: Option<Utf16String> = lhs_name.map(|index| generator.identifier_table[index.0 as usize].clone());
     let name_override = if !has_name { lhs_name_str.as_deref() } else { None };
     let shared_function_data_index = emit_new_function(generator, data, name_override);
+    if should_eager_compile
+        && let Some(pending) = generator
+            .shared_function_data
+            .get_mut(shared_function_data_index as usize)
+    {
+        pending.should_eager_compile = true;
+    }
     let home_object = generator.home_objects.last().map(|ho| ho.operand());
     generator.emit(Instruction::NewFunction {
         dst: dst.operand(),
@@ -2996,6 +3004,13 @@ fn generate_call_expression(
     preferred_dst: Option<&ScopedOperand>,
     is_new: bool,
 ) -> Option<ScopedOperand> {
+    if generator.eager_compile_direct_iifes
+        && !is_new
+        && let ExpressionKind::Function(function_id) = &data.callee.inner
+    {
+        generator.eager_compile_function_ids.insert(*function_id);
+    }
+
     // Check for builtin abstract operations before anything else.
     if !is_new && let Some(result) = try_generate_builtin_abstract_operation(generator, data, preferred_dst) {
         return result;
@@ -5958,6 +5973,8 @@ fn emit_default_constructor(generator: &mut Generator, has_super: bool) -> u32 {
         subtable: Some(subtable),
         name_override: None,
         class_field_initializer_name: None,
+        should_eager_compile: false,
+        precompiled_function: None,
     })
 }
 
@@ -7562,6 +7579,8 @@ fn emit_new_function(generator: &mut Generator, data: Box<FunctionData>, name_ov
         subtable: Some(subtable),
         name_override: name_override.map(Utf16String::from),
         class_field_initializer_name: None,
+        should_eager_compile: false,
+        precompiled_function: None,
     })
 }
 
