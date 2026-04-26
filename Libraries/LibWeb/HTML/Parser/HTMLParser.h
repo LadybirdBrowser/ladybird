@@ -131,6 +131,11 @@ private:
 
     void stop_parsing() { m_stop_parsing = true; }
 
+    // https://html.spec.whatwg.org/multipage/parsing.html#start-the-speculative-html-parser
+    void start_the_speculative_html_parser();
+    // https://html.spec.whatwg.org/multipage/parsing.html#stop-the-speculative-html-parser
+    void stop_the_speculative_html_parser();
+
     void generate_implied_end_tags(FlyString const& exception = {});
     void generate_all_implied_end_tags_thoroughly();
     GC::Ref<DOM::Element> create_element_for(HTMLToken const&, Optional<FlyString> const& namespace_, DOM::Node& intended_parent);
@@ -220,6 +225,9 @@ private:
     GC::Ptr<HTMLHeadElement> m_head_element;
     GC::Ptr<HTMLFormElement> m_form_element;
     GC::Ptr<DOM::Element> m_context_element;
+
+    // https://html.spec.whatwg.org/multipage/parsing.html#active-speculative-html-parser
+    GC::Ptr<SpeculativeHTMLParser> m_active_speculative_html_parser;
 
     Vector<HTMLToken> m_pending_table_character_tokens;
 

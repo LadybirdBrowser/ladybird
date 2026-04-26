@@ -643,6 +643,8 @@ void Document::visit_edges(Cell::Visitor& visitor)
 
     visitor.visit(m_associated_animation_timelines);
     visitor.visit(m_list_of_available_images);
+    for (auto& it : m_map_of_preloaded_resources)
+        visitor.visit(it.value);
 
     for (auto* form_associated_element : m_form_associated_elements_with_form_attribute)
         visitor.visit(form_associated_element->form_associated_element_to_html_element());

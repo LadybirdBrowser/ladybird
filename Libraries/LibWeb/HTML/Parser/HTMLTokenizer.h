@@ -132,6 +132,8 @@ public:
 
     auto const& source() const { return m_source; }
 
+    String unparsed_input() const;
+
     void insert_input_at_insertion_point(StringView input);
     void insert_eof();
     bool is_eof_inserted();

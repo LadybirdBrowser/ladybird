@@ -50,6 +50,7 @@
 #include <LibWeb/FileAPI/BlobURLStore.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/PreloadEntry.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
@@ -230,11 +231,18 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
             fetch_params->set_preloaded_response_candidate(response);
         });
 
-        // FIXME: 3. Let foundPreloadedResource be the result of invoking consume a preloaded resource for request’s
+        // 3. Let foundPreloadedResource be the result of invoking consume a preloaded resource for request’s
         //    window, given request’s URL, request’s destination, request’s mode, request’s credentials mode,
         //    request’s integrity metadata, and onPreloadedResponseAvailable.
-        auto found_preloaded_resource = false;
-        (void)on_preloaded_response_available;
+        auto& window = as<HTML::Window>(request.client()->global_object());
+        auto found_preloaded_resource = HTML::consume_a_preloaded_resource(
+            window,
+            request.url(),
+            request.destination(),
+            request.mode(),
+            request.credentials_mode(),
+            request.integrity_metadata(),
+            on_preloaded_response_available);
 
         // 4. If foundPreloadedResource is true and fetchParams’s preloaded response candidate is null, then set
         //    fetchParams’s preloaded response candidate to "pending".

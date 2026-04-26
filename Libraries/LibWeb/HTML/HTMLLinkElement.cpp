@@ -500,17 +500,6 @@ void HTMLLinkElement::fetch_and_process_linked_preconnect_resource()
     preconnect(create_link_options());
 }
 
-// https://html.spec.whatwg.org/multipage/links.html#translate-a-preload-destination
-static Variant<Empty, Optional<Fetch::Infrastructure::Request::Destination>> translate_a_preload_destination(Optional<String> const& destination)
-{
-    // 1. If destination is not "fetch", "font", "image", "script", "style", or "track", then return null.
-    if (!destination.has_value() || !destination->is_one_of("fetch"sv, "font"sv, "image"sv, "script"sv, "style"sv, "track"sv))
-        return {};
-
-    // 2. Return the result of translating destination.
-    return Fetch::Infrastructure::translate_potential_destination(*destination);
-}
-
 // https://html.spec.whatwg.org/multipage/links.html#link-type-preload:fetch-and-process-the-linked-resource-2
 void HTMLLinkElement::fetch_and_process_linked_preload_resource()
 {
@@ -701,7 +690,7 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, GC::Ptr<GC::Functi
     entry->integrity_metadata = options.integrity;
 
     // 7. Let key be the result of creating a preload key given request.
-    auto key = PreloadKey::create(*request);
+    auto key = create_a_preload_key(*request);
 
     // 8. If options's document is null, then set request's initiator type to "early hint".
     if (!options.document)
@@ -752,12 +741,13 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, GC::Ptr<GC::Functi
     controller_holder->set_controller(*m_fetch_controller);
 
     // 12. Let commit be the following steps given a Document document:
-    auto commit = GC::Function<void(DOM::Document&)>::create(realm.heap(), [entry, report_timing](DOM::Document& document) {
+    auto commit = GC::Function<void(DOM::Document&)>::create(realm.heap(), [entry, report_timing, key = move(key)](DOM::Document& document) {
         // 1. If entry's response is not null, then call reportTiming given document.
         if (entry->response)
             report_timing->function()(document);
 
-        // FIXME: 2. Set document's map of preloaded resources[key] to entry.
+        // 2. Set document's map of preloaded resources[key] to entry.
+        document.map_of_preloaded_resources().set(key, entry);
     });
 
     // 13. If options's document is null, then set options's on document ready to commit. Otherwise, call commit with
@@ -1068,27 +1058,6 @@ void HTMLLinkElement::LinkProcessingOptions::visit_edges(Cell::Visitor& visitor)
     visitor.visit(on_document_ready);
 }
 
-// https://html.spec.whatwg.org/multipage/links.html#create-a-preload-key
-HTMLLinkElement::PreloadKey HTMLLinkElement::PreloadKey::create(Fetch::Infrastructure::Request const& request)
-{
-    // To create a preload key for a request request, return a new preload key whose URL is request's URL, destination
-    // is request's destination, mode is request's mode, and credentials mode is request's credentials mode.
-    return PreloadKey {
-        .url = request.url(),
-        .destination = request.destination(),
-        .mode = request.mode(),
-        .credentials_mode = request.credentials_mode(),
-    };
-}
-
-void HTMLLinkElement::PreloadEntry::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(response);
-    visitor.visit(on_response_available);
-}
-
 GC_DEFINE_ALLOCATOR(HTMLLinkElement::LinkProcessingOptions);
-GC_DEFINE_ALLOCATOR(HTMLLinkElement::PreloadEntry);
 
 }

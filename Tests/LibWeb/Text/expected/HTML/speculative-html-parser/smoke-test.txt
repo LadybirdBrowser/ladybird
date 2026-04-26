@@ -1,0 +1,1 @@
+speculative HTML parser smoke test: OK

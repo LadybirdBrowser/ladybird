@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<!--
+    This test exercises the speculative HTML parser code path: when the parser blocks on a
+    synchronous external <script>, the speculative parser walks the unparsed input and emits
+    speculative fetches for resources it finds (links, images, scripts), with appropriate
+    skipping inside <template> and foreign-content subtrees.
+
+    The script above (include.js) is a sync external blocking script. While the parser is
+    blocked waiting for it, the speculative parser scans the rest of the document below.
+
+    The page below intentionally contains a variety of constructs to exercise the various
+    code paths in SpeculativeHTMLParser::process_start_tag and speculative_fetch:
+      - <link rel=stylesheet> (style fetch)
+      - <link rel=preload as=image> (preload fetch)
+      - <img src> (image fetch)
+      - <base href> (base URL update)
+      - <template><script src=trap.js></template> (skipped — inside template)
+      - <svg><script href=trap.js></svg> (skipped — inside foreign content)
+      - duplicate URLs (deduped via list_of_speculative_fetch_urls)
+
+    The test passes if the page loads to completion without crashing and the test() callback
+    runs as expected.
+-->
+<base href="./does-not-matter/">
+<link rel="stylesheet" href="./does-not-exist.css">
+<link rel="preload" as="image" href="./does-not-exist.png">
+<img src="./does-not-exist.png">
+<img src="./does-not-exist.png">
+<template><script src="./trap.js"></script></template>
+<svg><script href="./trap.js"></script></svg>
+
+<script>
+    test(() => {
+        println("speculative HTML parser smoke test: OK");
+    });
+</script>
