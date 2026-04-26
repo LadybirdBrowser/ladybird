@@ -229,6 +229,15 @@ void ImageSetStyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
 {
     Base::set_style_sheet(style_sheet);
     m_style_sheet = style_sheet;
+
+    // Propagate the style sheet to candidate images whose type() filter does not exclude them. This ensures the
+    // candidate images register themselves as pending image resources on the style sheet, so their fetches start when
+    // the style sheet is associated with the document, properly delaying the document's load event.
+    for (auto const& option : m_options) {
+        if (option.type.has_value() && !HTML::is_supported_image_type(*option.type))
+            continue;
+        const_cast<AbstractImageStyleValue&>(*option.image).set_style_sheet(style_sheet);
+    }
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> ImageSetStyleValue::absolutized(ComputationContext const& context) const
