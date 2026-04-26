@@ -25,6 +25,7 @@ private:
     virtual void inserted() override;
     virtual void removed_from(IsSubtreeRoot, DOM::Node* old_ancestor, DOM::Node& old_root) override;
     virtual void moved_from(IsSubtreeRoot, GC::Ptr<Node> old_ancestor) override;
+    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 };
 
 }

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // 1x1 valid PNGs (red and blue) used to observe re-evaluation of the picture's source set.
+    const RED_PNG_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwADhQGAWjR9awAAAABJRU5ErkJggg==";
+    const BLUE_PNG_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgAAIAAAUAAen63NgAAAAASUVORK5CYII=";
+
+    asyncTest(async done => {
+        const picture = document.createElement("picture");
+        const source = document.createElement("source");
+        source.setAttribute("srcset", RED_PNG_DATA_URL);
+        const img = document.createElement("img");
+
+        picture.appendChild(source);
+        picture.appendChild(img);
+        document.body.appendChild(picture);
+
+        // Wait for first load: img picks up the source's srcset.
+        await new Promise(resolve => img.addEventListener("load", resolve, { once: true }));
+        const firstSrc = img.currentSrc;
+
+        // https://html.spec.whatwg.org/multipage/images.html#relevant-mutations
+        // "The element's parent is a picture element and a source element that is a previous
+        //  sibling has its srcset, sizes, media, type, width or height attributes set, changed,
+        //  or removed."
+        // Mutating the source's srcset must trigger update-the-image-data on the img.
+        const secondLoaded = new Promise(resolve => img.addEventListener("load", resolve, { once: true }));
+        source.setAttribute("srcset", BLUE_PNG_DATA_URL);
+        await secondLoaded;
+        const secondSrc = img.currentSrc;
+
+        println(`first matches red: ${firstSrc === RED_PNG_DATA_URL}`);
+        println(`second matches blue: ${secondSrc === BLUE_PNG_DATA_URL}`);
+        println(`re-evaluated on srcset mutation: ${firstSrc !== secondSrc}`);
+
+        // Inserting a new <source> as a previous sibling of the img must also trigger re-eval.
+        const thirdLoaded = new Promise(resolve => img.addEventListener("load", resolve, { once: true }));
+        const newSource = document.createElement("source");
+        newSource.setAttribute("srcset", RED_PNG_DATA_URL);
+        picture.insertBefore(newSource, source);
+        await thirdLoaded;
+        println(`re-evaluated on source insertion: ${img.currentSrc === RED_PNG_DATA_URL}`);
+
+        // Removing that source must again trigger re-eval, falling back to the remaining source.
+        const fourthLoaded = new Promise(resolve => img.addEventListener("load", resolve, { once: true }));
+        picture.removeChild(newSource);
+        await fourthLoaded;
+        println(`re-evaluated on source removal: ${img.currentSrc === BLUE_PNG_DATA_URL}`);
+
+        done();
+    });
+</script>
