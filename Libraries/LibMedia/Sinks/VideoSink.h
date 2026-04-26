@@ -6,14 +6,14 @@
 
 #pragma once
 
-#include <AK/AtomicRefCounted.h>
 #include <AK/RefPtr.h>
 #include <LibMedia/Forward.h>
+#include <LibMedia/MediaPipelineNode.h>
 
 namespace Media {
 
 // A consumer to be attached to a DecodedVideoProducer in order to receive video frames from a decoding thread.
-class VideoSink : public AtomicRefCounted<VideoSink> {
+class VideoSink : public virtual MediaPipelineNode {
 public:
     virtual ~VideoSink() = default;
 

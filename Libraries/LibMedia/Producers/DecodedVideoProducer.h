@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Atomic.h>
-#include <AK/AtomicRefCounted.h>
 #include <AK/Forward.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Queue.h>
@@ -17,6 +16,7 @@
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
+#include <LibMedia/Producers/VideoProducer.h>
 #include <LibMedia/SeekMode.h>
 #include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
@@ -26,7 +26,7 @@
 namespace Media {
 
 // Retrieves coded data from a demuxer and decodes it asynchronously into video frames ready for display.
-class MEDIA_API DecodedVideoProducer final : public AtomicRefCounted<DecodedVideoProducer> {
+class MEDIA_API DecodedVideoProducer : public VideoProducer {
     class ThreadData;
 
 public:

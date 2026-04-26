@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/AtomicRefCounted.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Queue.h>
@@ -18,6 +17,7 @@
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
+#include <LibMedia/Producers/AudioProducer.h>
 #include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
 #include <LibSync/ConditionVariable.h>
@@ -27,7 +27,7 @@
 namespace Media {
 
 // Retrieves coded data from a demuxer and decodes it asynchronously into audio samples to push to an AudioSink.
-class MEDIA_API DecodedAudioProducer final : public AtomicRefCounted<DecodedAudioProducer> {
+class MEDIA_API DecodedAudioProducer final : public AudioProducer {
     class ThreadData;
 
 public:
