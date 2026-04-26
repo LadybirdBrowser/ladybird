@@ -1081,40 +1081,40 @@ DecoderErrorOr<void> Reader::parse_cues(Streamer& streamer)
     return {};
 }
 
+size_t Reader::find_cue_point_index_at_or_before(Vector<TrackCuePoint> const& cue_points, Optional<AK::Duration> total_duration, AK::Duration target)
+{
+    VERIFY(!cue_points.is_empty());
+
+    // Take a guess at where in the cues the target will be and correct from there.
+    size_t index = 0;
+    if (total_duration.has_value() && total_duration->to_nanoseconds() > 0)
+        index = clamp(((target.to_nanoseconds() * cue_points.size()) / total_duration->to_nanoseconds()), 0, cue_points.size() - 1);
+    dbgln_if(MATROSKA_DEBUG, "Finding Matroska cue points for timestamp {}ms starting from cue at {}ms", target.to_milliseconds(), cue_points[index].timestamp.to_milliseconds());
+
+    if (cue_points[index].timestamp > target) {
+        while (index > 0 && cue_points[index].timestamp > target) {
+            --index;
+            dbgln_if(MATROSKA_DEBUG, "Checking previous cue point {}ms", cue_points[index].timestamp.to_milliseconds());
+        }
+        if (cue_points[index].timestamp > target)
+            return 0;
+        return index;
+    }
+
+    while (index + 1 < cue_points.size()) {
+        auto const& next_cue_point = cue_points[index + 1];
+        dbgln_if(MATROSKA_DEBUG, "Checking future cue point {}ms", next_cue_point.timestamp.to_milliseconds());
+        if (next_cue_point.timestamp > target)
+            break;
+        ++index;
+    }
+    return index;
+}
+
 DecoderErrorOr<void> Reader::seek_to_cue_for_timestamp(SampleIterator& iterator, AK::Duration const& timestamp, Vector<TrackCuePoint> const& cue_points, CuePointTarget target)
 {
-    // Take a guess at where in the cues the timestamp will be and correct from there.
-    auto duration = m_segment_information.duration();
-    size_t index = 0;
-    if (duration.has_value())
-        index = clamp(((timestamp.to_nanoseconds() * cue_points.size()) / duration->to_nanoseconds()), 0, cue_points.size() - 1);
-
-    auto const* prev_cue_point = &cue_points[index];
-    dbgln_if(MATROSKA_DEBUG, "Finding Matroska cue points for timestamp {}ms starting from cue at {}ms", timestamp.to_milliseconds(), prev_cue_point->timestamp.to_milliseconds());
-
-    if (prev_cue_point->timestamp == timestamp) {
-        TRY(iterator.seek_to_cue_point(*prev_cue_point, target));
-        return {};
-    }
-
-    if (prev_cue_point->timestamp > timestamp) {
-        while (index > 0 && prev_cue_point->timestamp > timestamp) {
-            prev_cue_point = &cue_points[--index];
-            dbgln_if(MATROSKA_DEBUG, "Checking previous cue point {}ms", prev_cue_point->timestamp.to_milliseconds());
-        }
-        TRY(iterator.seek_to_cue_point(*prev_cue_point, target));
-        return {};
-    }
-
-    while (++index < cue_points.size()) {
-        auto const& cue_point = cue_points[index];
-        dbgln_if(MATROSKA_DEBUG, "Checking future cue point {}ms", cue_point.timestamp.to_milliseconds());
-        if (cue_point.timestamp > timestamp)
-            break;
-        prev_cue_point = &cue_point;
-    }
-
-    TRY(iterator.seek_to_cue_point(*prev_cue_point, target));
+    auto index = find_cue_point_index_at_or_before(cue_points, m_segment_information.duration(), timestamp);
+    TRY(iterator.seek_to_cue_point(cue_points[index], target));
     return {};
 }
 

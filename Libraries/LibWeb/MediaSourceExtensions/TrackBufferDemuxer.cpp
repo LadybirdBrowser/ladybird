@@ -179,6 +179,38 @@ Media::DecoderErrorOr<ReadonlyBytes> TrackBufferDemuxer::get_codec_initializatio
     return m_codec_initialization_data.bytes();
 }
 
+AK::Duration TrackBufferDemuxer::select_fast_seek_target_for_track(Media::Track const&, AK::Duration target, Media::SeekMode mode)
+{
+    Sync::MutexLocker locker { m_mutex };
+    if (m_coded_frames.is_empty())
+        return target;
+
+    size_t nearby_index = 0;
+    binary_search(m_coded_frames, target, &nearby_index, [](AK::Duration needle, Media::CodedFrame const& frame) {
+        return needle <=> frame.timestamp();
+    });
+
+    if (mode == Media::SeekMode::FastBefore) {
+        if (m_coded_frames[nearby_index].timestamp() > target)
+            return target;
+        for (auto i = nearby_index; i-- > 0;) {
+            if (m_coded_frames[i].is_keyframe())
+                return m_coded_frames[i].timestamp();
+        }
+        return target;
+    }
+
+    VERIFY(mode == Media::SeekMode::FastAfter);
+    auto start = nearby_index;
+    if (m_coded_frames[start].timestamp() < target)
+        start++;
+    for (auto i = start; i < m_coded_frames.size(); i++) {
+        if (m_coded_frames[i].is_keyframe())
+            return m_coded_frames[i].timestamp();
+    }
+    return target;
+}
+
 Media::DecoderErrorOr<Media::DemuxerSeekResult> TrackBufferDemuxer::seek_to_most_recent_keyframe(Media::Track const&, AK::Duration timestamp, Media::DemuxerSeekOptions)
 {
     Sync::MutexLocker locker { m_mutex };

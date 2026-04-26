@@ -42,6 +42,7 @@ public:
     virtual Media::DecoderErrorOr<Media::CodedFrame> get_next_sample_for_track(Media::Track const&) override;
     virtual Media::DecoderErrorOr<Media::CodecID> get_codec_id_for_track(Media::Track const&) override;
     virtual Media::DecoderErrorOr<ReadonlyBytes> get_codec_initialization_data_for_track(Media::Track const&) override;
+    virtual AK::Duration select_fast_seek_target_for_track(Media::Track const&, AK::Duration target, Media::SeekMode) override;
     virtual Media::DecoderErrorOr<Media::DemuxerSeekResult> seek_to_most_recent_keyframe(Media::Track const&, AK::Duration, Media::DemuxerSeekOptions) override;
     virtual Media::DecoderErrorOr<AK::Duration> duration_of_track(Media::Track const&) override;
     virtual Media::DecoderErrorOr<AK::Duration> total_duration() override;

@@ -52,6 +52,7 @@ public:
     virtual PipelineStatus pull(RefPtr<VideoFrame>& into) override;
     virtual void set_state_changed_handler(PipelineStateChangeHandler) override;
 
+    AK::Duration select_fast_seek_target(AK::Duration timestamp, SeekMode);
     virtual void seek(AK::Duration timestamp) override;
 
     TimeRanges buffered_time_ranges() const;
@@ -77,6 +78,7 @@ private:
         PipelineStatus pull(RefPtr<VideoFrame>& into);
 
         void seek(AK::Duration timestamp);
+        AK::Duration select_fast_seek_target(AK::Duration target, SeekMode) const;
 
         void wait_for_start();
         bool should_thread_exit_while_locked() const;

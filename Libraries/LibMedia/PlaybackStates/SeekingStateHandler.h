@@ -78,9 +78,24 @@ public:
     }
 
 private:
+    AK::Duration choose_timestamp() const
+    {
+        if (m_mode == SeekMode::Accurate)
+            return m_target_timestamp;
+        Optional<AK::Duration> latest_fast_seek_target;
+        for (auto const& video_track_data : manager().m_video_track_datas) {
+            if (video_track_data.display == nullptr)
+                continue;
+            auto fast_seek_target = video_track_data.producer->select_fast_seek_target(m_target_timestamp, m_mode);
+            if (!latest_fast_seek_target.has_value() || fast_seek_target > latest_fast_seek_target.value())
+                latest_fast_seek_target = fast_seek_target;
+        }
+        return latest_fast_seek_target.value_or(m_target_timestamp);
+    }
+
     void begin_seek()
     {
-        m_chosen_timestamp = m_target_timestamp;
+        m_chosen_timestamp = choose_timestamp();
         m_video_seeks_pending.clear();
         m_audio_seek_pending = false;
 

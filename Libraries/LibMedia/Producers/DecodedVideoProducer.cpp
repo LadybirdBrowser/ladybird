@@ -140,6 +140,11 @@ void DecodedVideoProducer::ThreadData::dispatch_state_if_changed_while_locked(Pi
     });
 }
 
+AK::Duration DecodedVideoProducer::select_fast_seek_target(AK::Duration timestamp, SeekMode mode)
+{
+    return m_thread_data->select_fast_seek_target(timestamp, mode);
+}
+
 void DecodedVideoProducer::seek(AK::Duration timestamp)
 {
     m_thread_data->seek(timestamp);
@@ -226,6 +231,11 @@ void DecodedVideoProducer::ThreadData::seek(AK::Duration timestamp)
     m_demuxer->set_blocking_reads_aborted_for_track(m_track);
     dispatch_state_if_changed_while_locked(PipelineStatus::Pending);
     wake();
+}
+
+AK::Duration DecodedVideoProducer::ThreadData::select_fast_seek_target(AK::Duration target, SeekMode mode) const
+{
+    return m_demuxer->select_fast_seek_target_for_track(m_track, target, mode);
 }
 
 void DecodedVideoProducer::ThreadData::wait_for_start()

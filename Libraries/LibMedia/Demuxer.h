@@ -16,6 +16,7 @@
 #include "CodecID.h"
 #include "CodedFrame.h"
 #include "DecoderError.h"
+#include "SeekMode.h"
 #include "TimeRanges.h"
 #include "Track.h"
 
@@ -50,6 +51,7 @@ public:
 
     virtual DecoderErrorOr<ReadonlyBytes> get_codec_initialization_data_for_track(Track const&) = 0;
 
+    virtual AK::Duration select_fast_seek_target_for_track(Track const&, AK::Duration target, SeekMode) = 0;
     virtual DecoderErrorOr<DemuxerSeekResult> seek_to_most_recent_keyframe(Track const&, AK::Duration timestamp, DemuxerSeekOptions = DemuxerSeekOptions::None) = 0;
 
     virtual DecoderErrorOr<AK::Duration> duration_of_track(Track const&) = 0;
