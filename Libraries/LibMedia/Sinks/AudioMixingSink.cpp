@@ -264,15 +264,17 @@ void AudioMixingSink::resume()
     if (!m_playback_stream)
         return;
     m_playback_stream->resume()
-        ->when_resolved([weak_self = m_weak_self, &playback_stream = *m_playback_stream](auto new_device_time) {
+        ->when_resolved([weak_self = m_weak_self, &playback_stream = *m_playback_stream](auto new_stream_time) {
             auto self = weak_self->take_strong();
             if (!self)
                 return;
             if (self->m_playback_stream != &playback_stream)
                 return;
 
-            self->m_main_thread_event_loop.deferred_invoke([self, new_device_time]() {
-                self->m_last_stream_time = new_device_time;
+            self->m_main_thread_event_loop.deferred_invoke([self, new_stream_time]() {
+                auto new_media_time = self->m_last_media_time + (new_stream_time - self->m_last_stream_time);
+                self->m_last_stream_time = new_stream_time;
+                self->m_last_media_time = new_media_time;
             });
         })
         .when_rejected([](auto&& error) {
@@ -287,20 +289,7 @@ void AudioMixingSink::pause()
     if (!m_playback_stream)
         return;
     m_playback_stream->drain_buffer_and_suspend()
-        ->when_resolved([weak_self = m_weak_self, &playback_stream = *m_playback_stream]() {
-            auto self = weak_self->take_strong();
-            if (!self)
-                return;
-            if (self->m_playback_stream != &playback_stream)
-                return;
-
-            auto new_stream_time = self->m_playback_stream->total_time_played();
-            auto new_media_time = AK::Duration::from_time_units(self->m_next_sample_to_write, 1, self->m_sample_specification.sample_rate());
-
-            self->m_main_thread_event_loop.deferred_invoke([self, new_stream_time, new_media_time]() {
-                self->m_last_stream_time = new_stream_time;
-                self->m_last_media_time = new_media_time;
-            });
+        ->when_resolved([]() {
         })
         .when_rejected([](auto&& error) {
             warnln("Unexpected error while pausing AudioMixingSink: {}", error.string_literal());
