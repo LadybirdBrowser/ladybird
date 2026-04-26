@@ -18,16 +18,34 @@ ErrorOr<NonnullRefPtr<AudioMixer>> AudioMixer::try_create()
 
 AudioMixer::AudioMixer() = default;
 
+AudioMixer::~AudioMixer()
+{
+    auto mixing_datas = [&] {
+        Sync::MutexLocker locker { m_mutex };
+        return move(m_track_mixing_datas);
+    }();
+    for (auto& [track, track_data] : mixing_datas)
+        track_data.producer->set_state_changed_handler(nullptr);
+}
+
 void AudioMixer::set_producer(Track const& track, RefPtr<DecodedAudioProducer> const& producer)
 {
     Sync::MutexLocker locker { m_mutex };
-    m_track_mixing_datas.remove(track);
-    if (producer == nullptr)
+    if (auto old_track_mixing_data = m_track_mixing_datas.take(track); old_track_mixing_data.has_value())
+        old_track_mixing_data->producer->set_state_changed_handler(nullptr);
+
+    if (producer == nullptr) {
+        dispatch_state(PipelineStatus::EndOfStream);
         return;
+    }
 
     // The producer must have its output sample specification set before it starts decoding, or
     // we'll drop some samples due to a mismatch.
     m_track_mixing_datas.set(track, TrackMixingData(*producer));
+
+    producer->set_state_changed_handler([this](PipelineStatus status) {
+        dispatch_state(status);
+    });
 
     if (m_sample_specification.is_valid()) {
         producer->set_output_sample_specification(m_sample_specification);
@@ -66,6 +84,17 @@ void AudioMixer::reset_to_sample_position(i64 sample_position)
         track_data.current_block.clear();
         track_data.last_status = PipelineStatus::Pending;
     }
+}
+
+void AudioMixer::set_state_changed_handler(PipelineStateChangeHandler handler)
+{
+    m_state_changed_handler = move(handler);
+}
+
+void AudioMixer::dispatch_state(PipelineStatus status)
+{
+    if (m_state_changed_handler)
+        m_state_changed_handler(status);
 }
 
 PipelineStatus AudioMixer::pull(AudioBlock& into)

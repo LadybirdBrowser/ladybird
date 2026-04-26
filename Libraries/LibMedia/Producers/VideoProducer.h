@@ -17,6 +17,7 @@ public:
     virtual ~VideoProducer() = default;
 
     virtual PipelineStatus pull(RefPtr<VideoFrame>& into) = 0;
+    virtual void set_state_changed_handler(PipelineStateChangeHandler) = 0;
 };
 
 }

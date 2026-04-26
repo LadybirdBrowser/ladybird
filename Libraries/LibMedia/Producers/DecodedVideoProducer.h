@@ -51,6 +51,7 @@ public:
     void resume();
 
     virtual PipelineStatus pull(RefPtr<VideoFrame>& into) override;
+    virtual void set_state_changed_handler(PipelineStateChangeHandler) override;
 
     void seek(AK::Duration timestamp, SeekMode, SeekCompletionHandler&& = nullptr);
 
@@ -64,6 +65,7 @@ private:
 
         void set_error_handler(ErrorHandler&&);
         void set_duration_change_handler(FrameEndTimeHandler&&);
+        void set_state_changed_handler(PipelineStateChangeHandler);
 
         void start();
         DecoderErrorOr<void> create_decoder();
@@ -95,6 +97,8 @@ private:
         void push_data_and_decode_some_frames();
 
         void enter_halting_state(PipelineStatus, Optional<DecoderError>);
+
+        void dispatch_state_if_changed_while_locked(PipelineStatus);
 
         TimeRanges buffered_time_ranges() const;
 
@@ -134,6 +138,9 @@ private:
         SeekCompletionHandler m_seek_completion_handler;
         AK::Duration m_seek_timestamp;
         SeekMode m_seek_mode { SeekMode::Accurate };
+
+        PipelineStateChangeHandler m_state_changed_handler;
+        PipelineStatus m_last_dispatched_status { PipelineStatus::Pending };
     };
 
     NonnullRefPtr<ThreadData> m_thread_data;

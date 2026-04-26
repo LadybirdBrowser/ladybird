@@ -81,6 +81,11 @@ PipelineStatus DecodedVideoProducer::pull(RefPtr<VideoFrame>& into)
     return m_thread_data->pull(into);
 }
 
+void DecodedVideoProducer::set_state_changed_handler(PipelineStateChangeHandler handler)
+{
+    m_thread_data->set_state_changed_handler(move(handler));
+}
+
 PipelineStatus DecodedVideoProducer::ThreadData::pull(RefPtr<VideoFrame>& into)
 {
     auto locker = take_lock();
@@ -89,11 +94,15 @@ PipelineStatus DecodedVideoProducer::ThreadData::pull(RefPtr<VideoFrame>& into)
         wake();
         return PipelineStatus::HaveData;
     }
-    if (m_pending_halting_status != PipelineStatus::Pending)
-        return m_pending_halting_status;
-    if (m_demuxer->is_read_blocked_for_track(m_track))
-        return PipelineStatus::Blocked;
-    return PipelineStatus::Pending;
+    auto status = [&] {
+        if (m_pending_halting_status != PipelineStatus::Pending)
+            return m_pending_halting_status;
+        if (m_demuxer->is_read_blocked_for_track(m_track))
+            return PipelineStatus::Blocked;
+        return PipelineStatus::Pending;
+    }();
+    dispatch_state_if_changed_while_locked(status);
+    return status;
 }
 
 void DecodedVideoProducer::ThreadData::enter_halting_state(PipelineStatus status, Optional<DecoderError> error)
@@ -103,11 +112,29 @@ void DecodedVideoProducer::ThreadData::enter_halting_state(PipelineStatus status
 
     VERIFY(status == PipelineStatus::EndOfStream || status == PipelineStatus::Error);
     m_pending_halting_status = status;
+    dispatch_state_if_changed_while_locked(status);
     if (error.has_value()) {
         invoke_on_main_thread_while_locked([error = error.release_value()](auto const& self) mutable {
             self->dispatch_error(move(error));
         });
     }
+}
+
+void DecodedVideoProducer::ThreadData::set_state_changed_handler(PipelineStateChangeHandler handler)
+{
+    auto locker = take_lock();
+    m_state_changed_handler = move(handler);
+}
+
+void DecodedVideoProducer::ThreadData::dispatch_state_if_changed_while_locked(PipelineStatus status)
+{
+    if (status == m_last_dispatched_status)
+        return;
+    m_last_dispatched_status = status;
+    invoke_on_main_thread_while_locked([status](auto& self) {
+        if (self->m_state_changed_handler)
+            self->m_state_changed_handler(status);
+    });
 }
 
 void DecodedVideoProducer::seek(AK::Duration timestamp, SeekMode seek_mode, SeekCompletionHandler&& completion_handler)
@@ -283,6 +310,7 @@ void DecodedVideoProducer::ThreadData::dispatch_frame_end_time(CodedFrame const&
 void DecodedVideoProducer::ThreadData::queue_frame(NonnullRefPtr<VideoFrame> const& frame)
 {
     m_queue.enqueue(frame);
+    dispatch_state_if_changed_while_locked(PipelineStatus::HaveData);
 }
 
 void DecodedVideoProducer::ThreadData::dispatch_error(DecoderError&& error)

@@ -69,6 +69,11 @@ void DecodedAudioProducer::set_output_sample_specification(Audio::SampleSpecific
     m_thread_data->set_output_sample_specification(sample_specification);
 }
 
+void DecodedAudioProducer::set_state_changed_handler(PipelineStateChangeHandler handler)
+{
+    m_thread_data->set_state_changed_handler(move(handler));
+}
+
 void DecodedAudioProducer::start()
 {
     m_thread_data->start();
@@ -118,6 +123,23 @@ void DecodedAudioProducer::ThreadData::set_duration_change_handler(BlockEndTimeH
 void DecodedAudioProducer::ThreadData::set_output_sample_specification(Audio::SampleSpecification sample_specification)
 {
     m_converter->set_output_sample_specification(sample_specification).release_value_but_fixme_should_propagate_errors();
+}
+
+void DecodedAudioProducer::ThreadData::set_state_changed_handler(PipelineStateChangeHandler handler)
+{
+    auto locker = take_lock();
+    m_state_changed_handler = move(handler);
+}
+
+void DecodedAudioProducer::ThreadData::dispatch_state_if_changed_while_locked(PipelineStatus status)
+{
+    if (status == m_last_dispatched_status)
+        return;
+    m_last_dispatched_status = status;
+    invoke_on_main_thread_while_locked([status](auto& self) {
+        if (self->m_state_changed_handler)
+            self->m_state_changed_handler(status);
+    });
 }
 
 void DecodedAudioProducer::ThreadData::start()
@@ -174,11 +196,15 @@ PipelineStatus DecodedAudioProducer::ThreadData::pull(AudioBlock& into)
         wake();
         return PipelineStatus::HaveData;
     }
-    if (m_pending_halting_status != PipelineStatus::Pending)
-        return m_pending_halting_status;
-    if (m_demuxer->is_read_blocked_for_track(m_track))
-        return PipelineStatus::Blocked;
-    return PipelineStatus::Pending;
+    auto status = [&] {
+        if (m_pending_halting_status != PipelineStatus::Pending)
+            return m_pending_halting_status;
+        if (m_demuxer->is_read_blocked_for_track(m_track))
+            return PipelineStatus::Blocked;
+        return PipelineStatus::Pending;
+    }();
+    dispatch_state_if_changed_while_locked(status);
+    return status;
 }
 
 void DecodedAudioProducer::ThreadData::enter_halting_state(PipelineStatus status, Optional<DecoderError> error)
@@ -188,6 +214,7 @@ void DecodedAudioProducer::ThreadData::enter_halting_state(PipelineStatus status
 
     VERIFY(status == PipelineStatus::EndOfStream || status == PipelineStatus::Error);
     m_pending_halting_status = status;
+    dispatch_state_if_changed_while_locked(status);
     if (error.has_value()) {
         invoke_on_main_thread_while_locked([error = error.release_value()](auto const& self) mutable {
             self->dispatch_error(move(error));
@@ -301,6 +328,7 @@ void DecodedAudioProducer::ThreadData::queue_block(AudioBlock&& block)
     dispatch_block_end_time(block);
     m_queue.enqueue(move(block));
     VERIFY(!m_queue.tail().is_empty());
+    dispatch_state_if_changed_while_locked(PipelineStatus::HaveData);
 }
 
 void DecodedAudioProducer::ThreadData::dispatch_error(DecoderError&& error)

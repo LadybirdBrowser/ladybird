@@ -52,6 +52,7 @@ public:
     void resume();
 
     virtual PipelineStatus pull(AudioBlock& into) override;
+    virtual void set_state_changed_handler(PipelineStateChangeHandler) override;
 
     void seek(AK::Duration timestamp, SeekCompletionHandler&& = nullptr);
 
@@ -66,6 +67,7 @@ private:
         void set_error_handler(ErrorHandler&&);
         void set_duration_change_handler(BlockEndTimeHandler&&);
         void set_output_sample_specification(Audio::SampleSpecification);
+        void set_state_changed_handler(PipelineStateChangeHandler);
 
         void start();
         DecoderErrorOr<void> create_decoder();
@@ -105,6 +107,8 @@ private:
         AudioQueue& queue() { return m_queue; }
         void clear_queue();
 
+        void dispatch_state_if_changed_while_locked(PipelineStatus);
+
         void enter_halting_state(PipelineStatus, Optional<DecoderError>);
 
     private:
@@ -139,6 +143,9 @@ private:
         Atomic<u32> m_seek_id { 0 };
         SeekCompletionHandler m_seek_completion_handler;
         AK::Duration m_seek_timestamp;
+
+        PipelineStateChangeHandler m_state_changed_handler;
+        PipelineStatus m_last_dispatched_status { PipelineStatus::Pending };
     };
 
     NonnullRefPtr<ThreadData> m_thread_data;

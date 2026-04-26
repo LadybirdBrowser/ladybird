@@ -17,6 +17,7 @@ public:
     virtual ~AudioProducer() = default;
 
     virtual PipelineStatus pull(AudioBlock& into) = 0;
+    virtual void set_state_changed_handler(PipelineStateChangeHandler) = 0;
 };
 
 }

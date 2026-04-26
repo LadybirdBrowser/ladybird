@@ -55,12 +55,21 @@ public:
     Atomic<bool> m_pause_writing_audio_data { true };
     bool m_audio_processor_is_waiting_in_output_loop { false };
     bool m_audio_processor_should_exit { false };
+    bool m_waiting_for_upstream_data { false };
 };
 
 ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(NonnullRefPtr<AudioMixer> mixer, PipelineStateChangeHandler on_state_changed)
 {
     auto output_thread_data = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) OutputThreadData(move(mixer), move(on_state_changed))));
     auto sink = TRY(try_make_ref_counted<AudioPlaybackSink>(output_thread_data));
+
+    sink->m_output_thread_data->m_mixer->set_state_changed_handler([&output_thread_data = *output_thread_data](PipelineStatus status) {
+        if (status == PipelineStatus::Pending)
+            return;
+        Sync::MutexLocker locker { output_thread_data.m_output_mutex };
+        output_thread_data.m_waiting_for_upstream_data = false;
+        output_thread_data.m_output_condition.broadcast();
+    });
 
     auto thread = TRY(Threading::Thread::try_create("Audio Processor"sv,
         [output_thread_data]() -> intptr_t {
@@ -81,6 +90,10 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(NonnullR
                             output_thread_data->m_output_condition.wait();
                             continue;
                         }
+                        if (output_thread_data->m_waiting_for_upstream_data) {
+                            output_thread_data->m_output_condition.wait();
+                            continue;
+                        }
                         break;
                     }
                     if (output_thread_data->m_audio_processor_should_exit)
@@ -88,6 +101,7 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(NonnullR
                     if (output_thread_data->m_pause_writing_audio_data)
                         continue;
                     output_thread_data->m_audio_processor_is_waiting_in_output_loop = false;
+                    output_thread_data->m_waiting_for_upstream_data = true;
                     tail_index = output_thread_data->m_block_tail;
                 }
 
@@ -105,6 +119,8 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(NonnullR
 
                         if (output_thread_data->m_playback_stream)
                             output_thread_data->m_playback_stream->notify_data_available();
+
+                        output_thread_data->m_waiting_for_upstream_data = false;
 
                         if (status == PipelineStatus::HaveData)
                             output_thread_data->m_last_real_data_end_in_samples = output_block.end_timestamp_in_samples();
@@ -132,6 +148,8 @@ AudioPlaybackSink::AudioPlaybackSink(NonnullRefPtr<OutputThreadData> output_thre
 
 AudioPlaybackSink::~AudioPlaybackSink()
 {
+    m_output_thread_data->m_mixer->set_state_changed_handler(nullptr);
+
     Sync::MutexLocker locker { m_output_thread_data->m_output_mutex };
     m_output_thread_data->m_on_state_changed = nullptr;
     m_output_thread_data->m_audio_processor_should_exit = true;
@@ -173,6 +191,7 @@ void AudioPlaybackSink::create_playback_stream()
 
         {
             Sync::MutexLocker locker { self->m_output_thread_data->m_output_mutex };
+            self->m_output_thread_data->m_waiting_for_upstream_data = false;
             self->m_output_thread_data->m_pause_writing_audio_data = false;
             self->m_output_thread_data->m_output_condition.broadcast();
         }
@@ -347,6 +366,7 @@ void AudioPlaybackSink::set_time(AK::Duration time)
 
                     self->m_output_thread_data->m_next_sample_to_play = seek_target_in_samples;
 
+                    self->m_output_thread_data->m_waiting_for_upstream_data = false;
                     self->m_output_thread_data->m_pause_writing_audio_data = false;
                     self->m_output_thread_data->m_output_condition.broadcast();
                 }
