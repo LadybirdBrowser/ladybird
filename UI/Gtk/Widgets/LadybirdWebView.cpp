@@ -16,6 +16,8 @@
 struct LadybirdWebView {
     GtkWidget parent_instance;
     Ladybird::WebContentView* impl { nullptr };
+    double last_mouse_x { 0 };
+    double last_mouse_y { 0 };
 };
 
 struct LadybirdWebViewClass {
@@ -125,6 +127,8 @@ static void on_mouse_released(GtkGestureClick* gesture, gint n_press, gdouble x,
 static void on_mouse_motion(GtkEventControllerMotion* controller, gdouble x, gdouble y, gpointer user_data)
 {
     auto* self = LADYBIRD_WEB_VIEW(user_data);
+    self->last_mouse_x = x;
+    self->last_mouse_y = y;
     if (!self->impl)
         return;
 
@@ -176,10 +180,15 @@ static gboolean on_scroll(GtkEventControllerScroll* controller, gdouble dx, gdou
         wheel_delta_y = static_cast<int>(dy * scroll_lines * scroll_step_size * device_pixel_ratio);
     }
 
+    // GDK scroll events on Wayland do not carry reliable pointer coordinates, so we
+    // use the last position recorded by the motion controller instead.
+    auto position = Web::DevicePixelPoint { static_cast<int>(self->last_mouse_x * device_pixel_ratio), static_cast<int>(self->last_mouse_y * device_pixel_ratio) };
+
     Web::MouseEvent event {
         .type = Web::MouseEvent::Type::MouseWheel,
-        .position = {},
-        .screen_position = {},
+        .position = position,
+        // FIXME: This should be absolute screen coordinates, but Wayland does not expose window positions to applications.
+        .screen_position = position,
         .button = Web::UIEvents::MouseButton::None,
         .buttons = Web::UIEvents::MouseButton::None,
         .modifiers = Ladybird::gdk_modifier_to_web(state),
