@@ -5024,8 +5024,9 @@ void Document::unload(GC::Ptr<Document>)
 
     // FIXME: 17. Set oldDocument's has been scrolled by the user to false.
 
-    // FIXME: 18. Run any unloading document cleanup steps for oldDocument that are defined by this specification and other
+    // 18. Run any unloading document cleanup steps for oldDocument that are defined by this specification and other
     //     applicable specifications.
+    run_unloading_cleanup_steps();
 
     // 19. If oldDocument's salvageable state is false, then destroy oldDocument.
     if (!m_salvageable)
