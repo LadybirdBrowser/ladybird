@@ -19,23 +19,23 @@ block0:
 outer$541206d9 nested-function-decl-source-order.js:12:5
   Registers: 11
   Blocks:    1
-  Locals:    alpha~0, beta~1, delta~2, dup~3, gamma~4
+  Locals:    alpha~0, beta~1, dup~2, gamma~3, delta~4
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] Mov3 dst1:alpha~0, src1:Undefined, dst2:beta~1, src2:Undefined, dst3:delta~2, src3:Undefined
-  [  20] Mov2 dst1:dup~3, src1:Undefined, dst2:gamma~4, src2:Undefined
+  [   0] Mov3 dst1:alpha~0, src1:Undefined, dst2:beta~1, src2:Undefined, dst3:dup~2, src3:Undefined
+  [  20] Mov2 dst1:gamma~3, src1:Undefined, dst2:delta~4, src2:Undefined
   [  38] NewFunction dst:alpha~0, shared_function_data_index:0
   [  50] NewFunction dst:beta~1, shared_function_data_index:1
-  [  68] NewFunction dst:gamma~4, shared_function_data_index:2
-  [  80] NewFunction dst:dup~3, shared_function_data_index:3
-  [  98] NewFunction dst:delta~2, shared_function_data_index:4
+  [  68] NewFunction dst:gamma~3, shared_function_data_index:2
+  [  80] NewFunction dst:dup~2, shared_function_data_index:3
+  [  98] NewFunction dst:delta~4, shared_function_data_index:4
   [  b0] Call dst:reg5, callee:alpha~0, this_value:Undefined, alpha
   [  d0] Call dst:reg6, callee:beta~1, this_value:Undefined, beta
-  [  f0] Call dst:reg7, callee:gamma~4, this_value:Undefined, gamma
-  [ 110] Call dst:reg8, callee:delta~2, this_value:Undefined, delta
-  [ 130] Call dst:reg9, callee:dup~3, this_value:Undefined, dup
+  [  f0] Call dst:reg7, callee:gamma~3, this_value:Undefined, gamma
+  [ 110] Call dst:reg8, callee:delta~4, this_value:Undefined, delta
+  [ 130] Call dst:reg9, callee:dup~2, this_value:Undefined, dup
   [ 150] NewArray dst:reg10, elements:[reg5, reg6, reg7, reg8, reg9]
   [ 178] Return value:reg10
 

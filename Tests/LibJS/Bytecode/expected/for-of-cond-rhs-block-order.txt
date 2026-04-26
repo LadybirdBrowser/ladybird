@@ -14,7 +14,7 @@ block0:
 f$0adf9089 for-of-cond-rhs-block-order.js:2:21
   Registers: 17
   Blocks:    20
-  Locals:    n~0, r~1
+  Locals:    r~0, n~1
   Constants:
     [0] = Bool(false)
     [1] = Undefined
@@ -68,7 +68,7 @@ block9:
   [ 1c8] Jump target:block10
 
 block10:
-  [ 1d0] Mov dst:r~1, src:reg16
+  [ 1d0] Mov dst:r~0, src:reg16
   [ 1e0] JumpFalse condition:reg12, target:block12
 
 block11:
@@ -80,11 +80,11 @@ block12:
   [ 220] JumpTrue condition:reg12, target:block11
 
 block13:
-  [ 230] Mov dst:n~0, src:reg16
+  [ 230] Mov dst:n~1, src:reg16
   [ 240] JumpFalse condition:reg12, target:block15
 
 block14:
-  [ 250] ThrowIfTDZ src:r~1
+  [ 250] ThrowIfTDZ src:r~0
   [ 258] Jump target:block2
 
 block15:

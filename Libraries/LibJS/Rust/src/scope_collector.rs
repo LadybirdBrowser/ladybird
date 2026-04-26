@@ -49,6 +49,7 @@
 //! - `IdentifierGroup` — a set of identifier references with the same
 //!   name within one scope (multiple `foo` refs are grouped together)
 
+use indexmap::IndexMap;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -189,8 +190,8 @@ struct ScopeRecord {
     scope_level: ScopeLevel,
     scope_data: Option<Rc<RefCell<ScopeData>>>,
 
-    variables: HashMap<Utf16String, ScopeVariable>,
-    identifier_groups: HashMap<SharedUtf16String, IdentifierGroup>,
+    variables: IndexMap<Utf16String, ScopeVariable>,
+    identifier_groups: IndexMap<SharedUtf16String, IdentifierGroup>,
     functions_to_hoist: Vec<HoistableFunction>,
 
     // Parameter tracking
@@ -221,8 +222,8 @@ impl ScopeRecord {
             scope_type,
             scope_level,
             scope_data,
-            variables: HashMap::new(),
-            identifier_groups: HashMap::new(),
+            variables: IndexMap::new(),
+            identifier_groups: IndexMap::new(),
             functions_to_hoist: Vec::new(),
             has_function_parameters: false,
             parameter_names: Vec::new(),
@@ -931,13 +932,11 @@ impl ScopeCollector {
     /// - It's NOT used inside a `with` statement
     /// - The scope chain is NOT poisoned by `eval()`
     fn resolve_identifiers(records: &mut [ScopeRecord], index: usize, initiated_by_eval: bool, suppress_globals: bool) {
+        // identifier_groups is an IndexMap, so iteration is in source order
+        // of first reference. Local variable indices follow that order.
         let groups = std::mem::take(&mut records[index].identifier_groups);
-        // Sort groups by name for deterministic local variable indices
-        // (HashMap iteration order is arbitrary).
-        let mut sorted_groups: Vec<_> = groups.into_iter().collect();
-        sorted_groups.sort_by(|a, b| a.0.cmp(&b.0));
         let mut propagate_to_parent: Vec<(SharedUtf16String, IdentifierGroup)> = Vec::new();
-        for (name, mut group) in sorted_groups {
+        for (name, mut group) in groups {
             // Annotate each Identifier AST node with its declaration kind,
             // so the bytecode generator knows how to handle TDZ checks, etc.
             if let Some(dk) = group.declaration_kind {
@@ -1256,9 +1255,8 @@ impl ScopeCollector {
             });
         }
 
-        // Sort by name for deterministic output (HashMap iteration order is arbitrary).
-        vars_to_initialize.sort_by(|a, b| a.name.cmp(&b.name));
-        var_names.sort();
+        // vars_to_initialize and var_names follow source order via the
+        // insertion order of `record.variables`, which is now an IndexMap.
 
         if last_position.contains_key(utf16!("arguments") as &[u16]) {
             has_function_named_arguments = true;

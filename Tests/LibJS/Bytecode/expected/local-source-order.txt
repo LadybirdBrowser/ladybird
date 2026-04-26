@@ -1,0 +1,26 @@
+$da832d31 local-source-order.js:12:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetGlobal dst:reg6, `source_order_locals`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, source_order_locals
+  [  38] End value:reg5
+
+
+source_order_locals$7988cb5f local-source-order.js:6:5
+  Registers: 7
+  Blocks:    1
+  Locals:    zebra~0, yak~1, aardvark~2
+  Constants:
+    [0] = Int32(1)
+    [1] = Int32(2)
+    [2] = Int32(3)
+
+block0:
+  [   0] Mov3 dst1:zebra~0, src1:Int32(1), dst2:yak~1, src2:Int32(2), dst3:aardvark~2, src3:Int32(3)
+  [  20] Add dst:reg5, lhs:zebra~0, rhs:yak~1
+  [  30] Add dst:reg6, lhs:reg5, rhs:aardvark~2
+  [  40] Return value:reg6

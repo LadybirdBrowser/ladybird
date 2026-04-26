@@ -14,21 +14,21 @@ block0:
 f$2bc22ddd delete-expression-register.js:3:7
   Registers: 7
   Blocks:    3
-  Locals:    arguments~0, x~1
+  Locals:    x~0, arguments~1
   Constants:
     [0] = Undefined
     [1] = Bool(false)
     [2] = Int32(0)
 
 block0:
-  [   0] CreateArguments dst:arguments~0, is_immutable:false
-  [  10] Mov3 dst1:x~1, src1:Undefined, dst2:x~1, src2:Bool(false), dst3:reg5, src3:x~1
-  [  30] JumpTrue condition:x~1, target:block2
+  [   0] CreateArguments dst:arguments~1, is_immutable:false
+  [  10] Mov3 dst1:x~0, src1:Undefined, dst2:x~0, src2:Bool(false), dst3:reg5, src3:x~0
+  [  30] JumpTrue condition:x~0, target:block2
 
 block1:
-  [  40] DeleteByValue dst:reg6, base:arguments~0, property:Int32(0)
+  [  40] DeleteByValue dst:reg6, base:arguments~1, property:Int32(0)
   [  50] Mov dst:reg5, src:reg6
 
 block2:
-  [  60] Mov dst:x~1, src:reg5
-  [  70] Return value:x~1
+  [  60] Mov dst:x~0, src:reg5
+  [  70] Return value:x~0

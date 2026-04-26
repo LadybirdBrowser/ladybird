@@ -375,6 +375,7 @@ version = "0.1.0"
 dependencies = [
  "bytecode_def",
  "cbindgen",
+ "indexmap",
  "libunicode_rust",
  "num-bigint",
  "num-integer",
