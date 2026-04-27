@@ -89,6 +89,7 @@ struct StyleInvalidationData {
     HashMap<FlyString, Vector<HasInvalidationMetadata>> attribute_names_used_in_has_selectors;
     HashMap<FlyString, Vector<HasInvalidationMetadata>> tag_names_used_in_has_selectors;
     HashMap<PseudoClass, Vector<HasInvalidationMetadata>> pseudo_classes_used_in_has_selectors;
+    bool has_selectors_sensitive_to_featureless_subtree_changes { false };
 
     void build_invalidation_sets_for_selector(Selector const& selector);
 };

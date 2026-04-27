@@ -418,6 +418,77 @@ GC::Ptr<HTML::Navigable> Node::navigable() const
     }
 }
 
+static bool has_any_has_invalidation_metadata(CSS::StyleInvalidationData const& data)
+{
+    return !data.ids_used_in_has_selectors.is_empty()
+        || !data.class_names_used_in_has_selectors.is_empty()
+        || !data.attribute_names_used_in_has_selectors.is_empty()
+        || !data.tag_names_used_in_has_selectors.is_empty()
+        || !data.pseudo_classes_used_in_has_selectors.is_empty()
+        || data.has_selectors_sensitive_to_featureless_subtree_changes;
+}
+
+static bool element_has_feature_used_in_has_selector(Element const& element, CSS::StyleInvalidationData const& data)
+{
+    if (data.tag_names_used_in_has_selectors.contains(element.local_name()))
+        return true;
+    // Selector metadata stores tag and attribute names lowercased. For non-HTML elements this is only a conservative
+    // scheduling hint; the actual :has() match still uses selector matching with the element's namespace semantics.
+    if (element.namespace_uri() != Namespace::HTML
+        && data.tag_names_used_in_has_selectors.contains(element.lowercased_local_name()))
+        return true;
+    if (auto id = element.id(); id.has_value() && data.ids_used_in_has_selectors.contains(*id))
+        return true;
+    for (auto const& class_name : element.class_names()) {
+        if (data.class_names_used_in_has_selectors.contains(class_name))
+            return true;
+    }
+    bool attribute_used_in_has = false;
+    element.for_each_attribute([&](FlyString const& name, String const&) {
+        if (data.attribute_names_used_in_has_selectors.contains(name))
+            attribute_used_in_has = true;
+        if (element.namespace_uri() != Namespace::HTML
+            && data.attribute_names_used_in_has_selectors.contains(name.to_ascii_lowercase()))
+            attribute_used_in_has = true;
+    });
+    if (attribute_used_in_has)
+        return true;
+    for (auto const& pseudo_class_entry : data.pseudo_classes_used_in_has_selectors) {
+        CSS::InvalidationSet pseudo_class_set;
+        pseudo_class_set.set_needs_invalidate_pseudo_class(pseudo_class_entry.key);
+        if (element.includes_properties_from_invalidation_set(pseudo_class_set))
+            return true;
+    }
+    return false;
+}
+
+static bool subtree_has_feature_used_in_has_selector(Node& node, CSS::StyleScope const& style_scope)
+{
+    auto const* data = style_scope.m_style_invalidation_data.ptr();
+    if (!data || !has_any_has_invalidation_metadata(*data))
+        return true;
+
+    // Some :has() arguments can match because a node exists, stops existing, or changes position, even when that
+    // node has no tag/class/id/attribute/pseudo-class metadata we can compare against. Examples include :has(*),
+    // :has(:not(.x)), :has(:empty), and child-index pseudo-classes. Keep the old conservative walk for those.
+    if (data->has_selectors_sensitive_to_featureless_subtree_changes)
+        return true;
+
+    bool found = false;
+    node.for_each_in_inclusive_subtree([&](Node& node) {
+        if (node.is_character_data()) {
+            found = true;
+            return TraversalDecision::Break;
+        }
+        if (auto* element = as_if<Element>(node); element && element_has_feature_used_in_has_selector(*element, *data)) {
+            found = true;
+            return TraversalDecision::Break;
+        }
+        return TraversalDecision::Continue;
+    });
+    return found;
+}
+
 static bool reason_may_affect_has_selectors(StyleInvalidationReason reason)
 {
     // :has() selectors match based on DOM state only (structure, attributes, pseudo-classes). Reasons that don't change
@@ -471,17 +542,27 @@ void Node::invalidate_style(StyleInvalidationReason reason)
 {
     auto& style_scope = this->style_scope();
 
-    auto schedule_has_walk_for_parent = [reason](CSS::StyleScope& scope, Node& parent) {
+    auto schedule_has_walk_for_parent = [this, reason](CSS::StyleScope& scope, Node& parent) {
         if (!scope.may_have_has_selectors())
             return;
+        bool is_child_list_mutation = reason == StyleInvalidationReason::NodeRemove || reason == StyleInvalidationReason::NodeInsertBefore;
+        bool has_sibling_combinator_has_selectors = is_child_list_mutation && scope.may_have_has_selectors_with_relative_selector_that_has_sibling_combinator();
+
+        // Sibling-combinator :has() selectors are sensitive to featureless insertions/removals because a plain node can
+        // still change adjacency and following-sibling relationships.
+        bool may_affect_has_match = is_character_data() || subtree_has_feature_used_in_has_selector(*this, scope) || has_sibling_combinator_has_selectors;
+        if (!may_affect_has_match)
+            return;
+
         scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(parent);
-        if (reason == StyleInvalidationReason::NodeRemove || reason == StyleInvalidationReason::NodeInsertBefore) {
-            parent.for_each_child_of_type<Element>([&](auto& element) {
-                if (element.affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator())
-                    element.invalidate_style_if_affected_by_has();
-                return IterationDecision::Continue;
-            });
-        }
+
+        if (!has_sibling_combinator_has_selectors)
+            return;
+        parent.for_each_child_of_type<Element>([&](auto& element) {
+            if (element.affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator())
+                element.invalidate_style_if_affected_by_has();
+            return IterationDecision::Continue;
+        });
     };
 
     // On insertion and removal the mutated node itself is uninteresting to the
