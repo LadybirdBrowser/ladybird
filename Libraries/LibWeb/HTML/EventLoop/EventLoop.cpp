@@ -119,9 +119,6 @@ void EventLoop::spin_until(GC::Ref<GC::Function<bool()>> goal_condition)
 // https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model
 void EventLoop::process()
 {
-    if (m_skip_event_loop_processing_steps)
-        return;
-
     // 1. Let oldestTask and taskStartTime be null.
     GC::Ptr<Task> oldest_task;
     [[maybe_unused]] double task_start_time = 0;

@@ -141,8 +141,6 @@ private:
 
     bool m_execution_paused { false };
 
-    bool m_skip_event_loop_processing_steps { false };
-
     bool m_running_rendering_task { false };
 
     GC::Ptr<GC::Function<void()>> m_rendering_task_function;
