@@ -1894,7 +1894,8 @@ bool Element::includes_properties_from_invalidation_set(CSS::InvalidationSet con
         case CSS::InvalidationSet::Property::Type::PseudoClass: {
             switch (property.value.get<CSS::PseudoClass>()) {
             case CSS::PseudoClass::Has:
-                return true;
+                return affected_by_has_pseudo_class_in_subject_position()
+                    || affected_by_has_pseudo_class_in_non_subject_position();
             case CSS::PseudoClass::Enabled: {
                 return matches_enabled_pseudo_class();
             }
@@ -1909,6 +1910,21 @@ bool Element::includes_properties_from_invalidation_set(CSS::InvalidationSet con
             }
             case CSS::PseudoClass::PlaceholderShown: {
                 return matches_placeholder_shown_pseudo_class();
+            }
+            case CSS::PseudoClass::Empty: {
+                if (!has_children())
+                    return true;
+                if (first_child_of_type<DOM::Element>())
+                    return false;
+                bool has_nonempty_text_child = false;
+                for_each_child_of_type<DOM::Text>([&](auto const& text_child) {
+                    if (!text_child.data().is_empty()) {
+                        has_nonempty_text_child = true;
+                        return IterationDecision::Break;
+                    }
+                    return IterationDecision::Continue;
+                });
+                return !has_nonempty_text_child;
             }
             case CSS::PseudoClass::AnyLink:
             case CSS::PseudoClass::Link:

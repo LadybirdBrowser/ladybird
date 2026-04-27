@@ -464,7 +464,7 @@ static bool element_has_feature_used_in_has_selector(Element const& element, CSS
 
 static bool subtree_has_feature_used_in_has_selector(Node& node, CSS::StyleScope const& style_scope)
 {
-    auto const* data = style_scope.m_style_invalidation_data.ptr();
+    auto const* data = style_scope.m_rule_cache ? &style_scope.m_rule_cache->style_invalidation_data : nullptr;
     if (!data || !has_any_has_invalidation_metadata(*data))
         return true;
 
@@ -609,6 +609,7 @@ static void invalidate_style_after_same_parent_move(Node& node, StyleInvalidatio
             bool has_sibling_combinator_has_selectors = scope.may_have_has_selectors_with_relative_selector_that_has_sibling_combinator();
             if (!node.is_character_data() && !subtree_has_feature_used_in_has_selector(node, scope) && !has_sibling_combinator_has_selectors)
                 return;
+            scope.record_pending_has_invalidation_mutation_features(*parent, node, true);
             scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(*parent);
             if (!has_sibling_combinator_has_selectors)
                 return;
@@ -653,7 +654,7 @@ void Node::invalidate_style(StyleInvalidationReason reason)
         bool may_affect_has_match = is_character_data() || subtree_has_feature_used_in_has_selector(*this, scope) || has_sibling_combinator_has_selectors;
         if (!may_affect_has_match)
             return;
-
+        scope.record_pending_has_invalidation_mutation_features(parent, *this, true);
         scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(parent);
 
         if (!has_sibling_combinator_has_selectors)
@@ -678,6 +679,7 @@ void Node::invalidate_style(StyleInvalidationReason reason)
             });
         }
     } else if (style_scope.may_have_has_selectors() && reason_may_affect_has_selectors(reason)) {
+        style_scope.record_pending_has_invalidation_mutation_features(*this, *this, false);
         style_scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(*this);
     }
 
@@ -760,9 +762,12 @@ void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::Invalida
         }
     }
     if (properties_used_in_has_selectors) {
+        style_scope.record_pending_has_invalidation_mutation_features(*this, properties);
         style_scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(*this);
-        for (auto& scope : additional_scopes)
+        for (auto& scope : additional_scopes) {
+            scope->record_pending_has_invalidation_mutation_features(*this, properties);
             scope->schedule_ancestors_style_invalidation_due_to_presence_of_has(*this);
+        }
     }
 
     if (options.invalidate_self)

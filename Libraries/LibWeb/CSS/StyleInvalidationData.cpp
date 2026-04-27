@@ -419,6 +419,7 @@ void build_invalidation_sets_for_simple_selector(Selector::SimpleSelector const&
         case PseudoClass::Enabled:
         case PseudoClass::Defined:
         case PseudoClass::Disabled:
+        case PseudoClass::Empty:
         case PseudoClass::PlaceholderShown:
         case PseudoClass::Checked:
         case PseudoClass::Has: {

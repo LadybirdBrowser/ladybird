@@ -68,6 +68,24 @@ static bool is_pseudo_element_only_compound(Selector::CompoundSelector const& co
     return true;
 }
 
+// :has() in the rightmost set filters by an element's previously recorded "affected by :has()" flags. Those flags
+// are not yet set for a brand-new rule that has never been matched, so :has() on its own can't narrow the walk.
+// Treat a rightmost set whose only targetable feature is :has() as if it had no targetable features, so we fall
+// back to whole-subtree invalidation.
+static bool rightmost_set_has_targetable_features(InvalidationSet const& rightmost_set)
+{
+    bool found_targetable = false;
+    rightmost_set.for_each_property([&](InvalidationSet::Property const& property) {
+        if (property.type == InvalidationSet::Property::Type::PseudoClass
+            && property.value.get<PseudoClass>() == PseudoClass::Has) {
+            return IterationDecision::Continue;
+        }
+        found_targetable = true;
+        return IterationDecision::Break;
+    });
+    return found_targetable;
+}
+
 struct AnchorInvalidationRule {
     InvalidationSet anchor_set;
     RefPtr<Selector> anchor_selector;
@@ -120,7 +138,7 @@ void extend_style_sheet_invalidation_set_with_style_rule(StyleSheetInvalidationS
         for (auto const& simple : rightmost.simple_selectors)
             build_invalidation_sets_for_simple_selector(simple, rightmost_set, ExcludePropertiesNestedInNotPseudoClass::No, throwaway_data, InsideNthChildPseudoClass::No);
 
-        if (rightmost_set.has_properties()) {
+        if (rightmost_set_has_targetable_features(rightmost_set)) {
             result.invalidation_set.include_all_from(rightmost_set);
             continue;
         }
