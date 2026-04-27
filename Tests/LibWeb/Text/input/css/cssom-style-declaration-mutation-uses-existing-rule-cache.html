@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .target { color: rgb(255, 0, 0); }
+</style>
+<div class="target"></div>
+<script>
+    test(() => {
+        const target = document.querySelector(".target");
+        const rule = document.styleSheets[0].cssRules[0];
+
+        println(`Before mutation: ${getComputedStyle(target).color}`);
+
+        rule.style.color = "rgb(0, 128, 0)";
+
+        println(`After mutation: ${getComputedStyle(target).color}`);
+    });
+</script>

@@ -420,51 +420,7 @@ void CSSStyleSheet::for_each_owning_style_scope(Function<void(StyleScope&)> cons
 void CSSStyleSheet::invalidate_owners(DOM::StyleInvalidationReason reason, ShadowRootStylesheetEffects const* previous_sheet_effects)
 {
     m_did_match = {};
-
-    for (auto& document_or_shadow_root : m_owning_documents_or_shadow_roots) {
-        auto& style_scope = document_or_shadow_root->is_shadow_root()
-            ? as<DOM::ShadowRoot>(*document_or_shadow_root).style_scope()
-            : document_or_shadow_root->document().style_scope();
-
-        style_scope.invalidate_rule_cache();
-        style_scope.node().invalidate_style(reason);
-
-        auto* shadow_root = as_if<DOM::ShadowRoot>(style_scope.node());
-        if (!shadow_root)
-            continue;
-
-        invalidate_assigned_elements_for_dirty_slots(*shadow_root);
-
-        auto* host = shadow_root->host();
-        if (!host)
-            continue;
-
-        auto effects = determine_shadow_root_stylesheet_effects(*shadow_root);
-        if (effects.may_match_light_dom_under_shadow_host && !effects.may_match_shadow_host) {
-            host->invalidate_style(reason);
-        } else if (effects.may_match_light_dom_under_shadow_host) {
-            host->root().invalidate_style(reason);
-        } else if (effects.may_affect_assigned_nodes_via_slots) {
-            host->invalidate_style(reason);
-        } else if (effects.may_match_shadow_host) {
-            host->invalidate_style(reason);
-            shadow_root->set_needs_style_update(true);
-        } else if (previous_sheet_effects) {
-            // `replaceSync("")`, `deleteRule()`, or disabling the last host-reaching rule can remove all evidence of
-            // host-side effects from the post-mutation stylesheet set. Fall back to the pre-mutation snapshot so the
-            // host side still gets the right invalidation.
-            if (previous_sheet_effects->may_match_light_dom_under_shadow_host && !previous_sheet_effects->may_match_shadow_host) {
-                host->invalidate_style(reason);
-            } else if (previous_sheet_effects->may_match_light_dom_under_shadow_host) {
-                host->root().invalidate_style(reason);
-            } else if (previous_sheet_effects->may_affect_assigned_nodes_via_slots) {
-                host->invalidate_style(reason);
-            } else if (previous_sheet_effects->may_match_shadow_host) {
-                host->invalidate_style(reason);
-                shadow_root->set_needs_style_update(true);
-            }
-        }
-    }
+    invalidate_style_for_style_sheet_owners(*this, reason, ShouldInvalidateRuleCache::Yes, previous_sheet_effects);
 }
 
 GC::Ptr<DOM::Document> CSSStyleSheet::owning_document() const

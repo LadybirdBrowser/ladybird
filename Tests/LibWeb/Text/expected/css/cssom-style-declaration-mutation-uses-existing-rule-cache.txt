@@ -1,0 +1,2 @@
+Before mutation: rgb(255, 0, 0)
+After mutation: rgb(0, 128, 0)

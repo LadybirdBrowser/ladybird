@@ -45,6 +45,11 @@ struct ShadowRootStylesheetEffects {
     bool may_affect_assigned_nodes_via_slots { false };
 };
 
+enum class ShouldInvalidateRuleCache {
+    No,
+    Yes,
+};
+
 // Extend `result` with the invalidation effects of `style_rule`'s selectors. Falls back to a whole-subtree
 // invalidation flag inside `result` when a selector is not amenable to targeted invalidation.
 void extend_style_sheet_invalidation_set_with_style_rule(StyleSheetInvalidationSet& result, CSSStyleRule const& style_rule);
@@ -71,6 +76,10 @@ void invalidate_assigned_elements_for_dirty_slots(DOM::ShadowRoot&);
 // Summarize how `style_sheet` can escape the shadow subtree across all shadow roots it is owned by. Used to snapshot
 // the pre-mutation reach of a sheet whose own rules are about to change.
 ShadowRootStylesheetEffects determine_shadow_root_stylesheet_effects(CSSStyleSheet const&);
+
+// Invalidate style for every document or shadow root that owns `style_sheet`, including any host-side fallout for
+// shadow-root selectors. Callers choose whether the rule cache must be invalidated for the mutation they perform.
+void invalidate_style_for_style_sheet_owners(CSSStyleSheet const& style_sheet, DOM::StyleInvalidationReason, ShouldInvalidateRuleCache, ShadowRootStylesheetEffects const* previous_sheet_effects = nullptr);
 
 // Apply a targeted invalidation to all documents and shadow roots that own `style_sheet` in response to inserting
 // `style_rule` into it.

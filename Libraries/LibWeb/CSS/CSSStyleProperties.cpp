@@ -8,12 +8,14 @@
 #include <LibWeb/Bindings/CSSStyleProperties.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleSheetInvalidation.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
@@ -1402,6 +1404,11 @@ void CSSStyleProperties::invalidate_owners(DOM::StyleInvalidationReason reason)
 {
     if (auto rule = parent_rule()) {
         if (auto sheet = rule->parent_style_sheet()) {
+            if (rule->type() == CSSRule::Type::Style || rule->type() == CSSRule::Type::NestedDeclarations) {
+                invalidate_style_for_style_sheet_owners(*sheet, reason, ShouldInvalidateRuleCache::No);
+                return;
+            }
+
             sheet->invalidate_owners(reason);
         }
     }

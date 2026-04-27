@@ -548,6 +548,48 @@ ShadowRootStylesheetEffects determine_shadow_root_stylesheet_effects(CSSStyleShe
     return effects;
 }
 
+static bool invalidate_shadow_host_side_for_style_sheet_change(DOM::ShadowRoot& shadow_root, DOM::StyleInvalidationReason reason, ShadowRootStylesheetEffects const& effects)
+{
+    auto* host = shadow_root.host();
+    if (!host)
+        return false;
+
+    if (effects.may_match_light_dom_under_shadow_host && !effects.may_match_shadow_host) {
+        host->invalidate_style(reason);
+    } else if (effects.may_match_light_dom_under_shadow_host) {
+        host->root().invalidate_style(reason);
+    } else if (effects.may_affect_assigned_nodes_via_slots) {
+        host->invalidate_style(reason);
+    } else if (effects.may_match_shadow_host) {
+        host->invalidate_style(reason);
+        shadow_root.set_needs_style_update(true);
+    } else {
+        return false;
+    }
+
+    return true;
+}
+
+void invalidate_style_for_style_sheet_owners(CSSStyleSheet const& style_sheet, DOM::StyleInvalidationReason reason, ShouldInvalidateRuleCache rule_cache_invalidation, ShadowRootStylesheetEffects const* previous_sheet_effects)
+{
+    style_sheet.for_each_owning_style_scope([&](StyleScope& style_scope) {
+        if (rule_cache_invalidation == ShouldInvalidateRuleCache::Yes)
+            style_scope.invalidate_rule_cache();
+
+        style_scope.node().invalidate_style(reason);
+
+        auto* shadow_root = as_if<DOM::ShadowRoot>(style_scope.node());
+        if (!shadow_root)
+            return;
+
+        invalidate_assigned_elements_for_dirty_slots(*shadow_root);
+        bool invalidated_host_side = invalidate_shadow_host_side_for_style_sheet_change(*shadow_root, reason, determine_shadow_root_stylesheet_effects(*shadow_root));
+
+        if (!invalidated_host_side && previous_sheet_effects)
+            invalidate_shadow_host_side_for_style_sheet_change(*shadow_root, reason, *previous_sheet_effects);
+    });
+}
+
 void invalidate_owners_for_inserted_keyframes_rule(CSSStyleSheet const& style_sheet, CSSKeyframesRule const& keyframes_rule)
 {
     for (auto& document_or_shadow_root : style_sheet.owning_documents_or_shadow_roots()) {
