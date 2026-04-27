@@ -765,6 +765,19 @@ ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element& elemen
             return GridTrackSizeListStyleValue::create(interpolated_grid_tack_size_list.release_value());
         }
 
+        if (property_id == PropertyID::StrokeDasharray) {
+            // https://svgwg.org/svg2-draft/painting.html#StrokeDashing
+            // If either start or end compute to none or are invalid, start or end are combined using the discrete animation type.
+            if (!from->is_value_list() || !to->is_value_list())
+                return interpolate_discrete(from, to, delta, allow_discrete);
+
+            // Otherwise, repeat both dash patterns of start and end value list until the length of elements in
+            // both value lists match. Each item is then combined by computed value.
+            if (auto result = interpolate_repeatable_list(element, calculation_context, from, to, delta, allow_discrete))
+                return result.release_nonnull();
+            return interpolate_discrete(from, to, delta, allow_discrete);
+        }
+
         // FIXME: Handle all custom animatable properties
         [[fallthrough]];
     }

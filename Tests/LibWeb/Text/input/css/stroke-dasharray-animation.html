@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<style>
+@keyframes same-length {
+    from { stroke-dasharray: 10px 20px; }
+    to { stroke-dasharray: 30px 40px; }
+}
+@keyframes lcm {
+    from { stroke-dasharray: 20px 40px 10px; }
+    to { stroke-dasharray: 40px 20px; }
+}
+@keyframes none-to-list {
+    from { stroke-dasharray: none; }
+    to { stroke-dasharray: 10px 20px; }
+}
+@keyframes list-to-none {
+    from { stroke-dasharray: 10px 20px; }
+    to { stroke-dasharray: none; }
+}
+.same-length    { animation: same-length    1s linear -0.5s  paused; }
+.lcm            { animation: lcm            1s linear -0.5s  paused; }
+.none-list-low  { animation: none-to-list   1s linear -0.25s paused; }
+.none-list-high { animation: none-to-list   1s linear -0.75s paused; }
+.list-none-high { animation: list-to-none   1s linear -0.75s paused; }
+</style>
+<svg width="50" height="50">
+    <rect id="same-length"    class="same-length"    width="40" height="40" stroke="black" />
+    <rect id="lcm"            class="lcm"            width="40" height="40" stroke="black" />
+    <rect id="none-list-low"  class="none-list-low"  width="40" height="40" stroke="black" />
+    <rect id="none-list-high" class="none-list-high" width="40" height="40" stroke="black" />
+    <rect id="list-none-high" class="list-none-high" width="40" height="40" stroke="black" />
+</svg>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    for (const id of ["same-length", "lcm", "none-list-low", "none-list-high", "list-none-high"]) {
+        const el = document.getElementById(id);
+        println(`${id}: ${getComputedStyle(el).strokeDasharray}`);
+    }
+});
+</script>
