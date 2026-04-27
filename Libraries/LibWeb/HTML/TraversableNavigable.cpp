@@ -599,6 +599,33 @@ void ApplyHistoryStepState::start()
     // 8. For each navigable of changingNavigables:
     auto changing_navigables = m_traversable->get_all_navigables_whose_current_session_history_entry_will_change_or_reload(m_target_step);
     for (auto& navigable : changing_navigables) {
+        // AD-HOC: For a synchronous (same-document) application of a history step, skip a navigable that has just
+        //         been claimed by a fresh ongoing navigation. Apply the history step would otherwise transition the
+        //         navigable's ongoing navigation through "traversal" and back to null, which informs the navigation
+        //         API about aborting (cancelling the in-flight navigation's navigate event) and then trips the
+        //         "ongoing navigation is no longer navigationId" bail-out in navigate's deferred steps, leaving the
+        //         in-flight navigation stranded.
+        //
+        //         The race shows up when a click capture handler calls history.replaceState and the link's
+        //         cross-document activation behavior runs in the same task: the replaceState's queued sync step
+        //         finalizes after the link nav has already entered begin_navigation, and wipes its id. Real-world
+        //         example: Shopify storefronts running hCaptcha (which hooks click and replaceStates to the current
+        //         URL for analytics). The page silently never moves.
+        //
+        //         No major engine reproduces this. Chromium runs sync same-document nav entirely in-task and never
+        //         enters a parallel traversal queue, WebKit doesn't track navigation IDs at all, and Gecko routes
+        //         sync replaceState directly through history without entering SetOngoingNavigation. The strictly
+        //         correct long-term fix is to bypass the traversal queue for sync same-document navigations to
+        //         match Chromium; until then, skipping the transient when the navigable is already mid-navigation
+        //         matches the observable behavior of all three.
+        //
+        //         Cross-document and traversal applications still process every changing navigable: the "traversal"
+        //         transition there is not transient. It precedes an actual document switch that takes ownership.
+        if (m_synchronous_navigation == TraversableNavigable::SynchronousNavigation::Yes
+            && navigable->ongoing_navigation().has<String>()) {
+            continue;
+        }
+
         // 1. Let targetEntry be the result of getting the target history entry given navigable and targetStep.
         auto target_entry = navigable->get_the_target_history_entry(m_target_step);
 

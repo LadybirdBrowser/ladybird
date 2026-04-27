@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+
+        // Page 2 is the navigation target. It posts a message to the parent
+        // when it loads, which is how the test detects that the link click
+        // produced a real cross-document navigation. (The iframe is cross-
+        // origin to the test page, so we cannot inspect its contentDocument.)
+        const page2Body = `<!DOCTYPE html><script>parent.postMessage("loaded-page2", "*");<\/script>`;
+        const page2Url = await server.createEcho("GET", "/link-after-replace-state-page2", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: page2Body,
+        });
+
+        // Page 1 mimics sites (e.g. Shopify storefronts running hCaptcha)
+        // that record analytics on link click by calling history.replaceState
+        // before the link's activation behavior runs. The same-document step
+        // queued by replaceState used to race with the link's deferred
+        // cross-document work, overriding the navigable's ongoing navigation
+        // and aborting the link's deferred steps; the page would stay stuck
+        // on page 1 forever. Page 1 self-clicks the link on load so we don't
+        // have to reach into the iframe across the origin boundary.
+        const page1Body = `<!DOCTYPE html>
+            <a id="link" href="${page2Url}">go</a>
+            <script>
+                document.getElementById("link").addEventListener("click", () => {
+                    history.replaceState({}, "", location.href);
+                });
+                document.getElementById("link").click();
+            <\/script>`;
+        const page1Url = await server.createEcho("GET", "/link-after-replace-state-page1", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: page1Body,
+        });
+
+        const result = await new Promise(resolve => {
+            const iframe = document.createElement("iframe");
+            const timer = setTimeout(() => resolve("FAIL (timed out)"), 5000);
+            window.addEventListener("message", e => {
+                if (e.source === iframe.contentWindow && e.data === "loaded-page2") {
+                    clearTimeout(timer);
+                    iframe.remove();
+                    resolve("PASS");
+                }
+            });
+            document.body.appendChild(iframe);
+            iframe.src = page1Url;
+        });
+        println(result);
+    });
+</script>
