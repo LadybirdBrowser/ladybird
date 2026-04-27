@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <AK/ByteBuffer.h>
 #include <AK/Forward.h>
 #include <AK/Function.h>
 #include <AK/Optional.h>
@@ -22,6 +23,10 @@ public:
     virtual bool validate(StringView);
     virtual ErrorOr<String> to_utf8(StringView);
 
+    // Returns the number of trailing bytes that form an incomplete sequence and must be buffered
+    // until more input arrives. Used by StreamingDecoder for chunked decoding.
+    virtual size_t incomplete_tail_length(ReadonlyBytes) const { return 0; }
+
 protected:
     virtual ~Decoder() = default;
     virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) = 0;
@@ -32,12 +37,14 @@ public:
     virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) override;
     virtual bool validate(StringView) override;
     virtual ErrorOr<String> to_utf8(StringView) override;
+    virtual size_t incomplete_tail_length(ReadonlyBytes) const override;
 };
 
 class TEXTCODEC_API UTF16BEDecoder final : public Decoder {
 public:
     virtual bool validate(StringView) override;
     virtual ErrorOr<String> to_utf8(StringView) override;
+    virtual size_t incomplete_tail_length(ReadonlyBytes) const override;
 
 private:
     virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)>) override { VERIFY_NOT_REACHED(); }
@@ -47,6 +54,7 @@ class TEXTCODEC_API UTF16LEDecoder final : public Decoder {
 public:
     virtual bool validate(StringView) override;
     virtual ErrorOr<String> to_utf8(StringView) override;
+    virtual size_t incomplete_tail_length(ReadonlyBytes) const override;
 
 private:
     virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)>) override { VERIFY_NOT_REACHED(); }
@@ -87,37 +95,59 @@ public:
 class TEXTCODEC_API GB18030Decoder final : public Decoder {
 public:
     virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) override;
+    virtual size_t incomplete_tail_length(ReadonlyBytes) const override;
 };
 
 class TEXTCODEC_API Big5Decoder final : public Decoder {
 public:
     virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) override;
+    virtual size_t incomplete_tail_length(ReadonlyBytes) const override;
 };
 
 class TEXTCODEC_API EUCJPDecoder final : public Decoder {
 public:
     virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) override;
+    virtual size_t incomplete_tail_length(ReadonlyBytes) const override;
 };
 
 class TEXTCODEC_API ISO2022JPDecoder final : public Decoder {
 public:
     virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) override;
+    virtual size_t incomplete_tail_length(ReadonlyBytes) const override;
 };
 
 class TEXTCODEC_API ShiftJISDecoder final : public Decoder {
 public:
     virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) override;
+    virtual size_t incomplete_tail_length(ReadonlyBytes) const override;
 };
 
 class TEXTCODEC_API EUCKRDecoder final : public Decoder {
 public:
     virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) override;
+    virtual size_t incomplete_tail_length(ReadonlyBytes) const override;
 };
 
 class TEXTCODEC_API ReplacementDecoder final : public Decoder {
 public:
     virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) override;
     virtual bool validate(StringView input) override { return input.is_empty(); }
+};
+
+// Preserves incomplete trailing decoder tokens when callers provide input in chunks.
+class TEXTCODEC_API StreamingDecoder final {
+public:
+    explicit StreamingDecoder(Decoder& decoder)
+        : m_decoder(decoder)
+    {
+    }
+
+    ErrorOr<String> to_utf8(ReadonlyBytes);
+    ErrorOr<String> finish();
+
+private:
+    Decoder& m_decoder;
+    ByteBuffer m_pending_input;
 };
 
 // This will return a decoder for the exact name specified, skipping get_standardized_encoding.

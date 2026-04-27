@@ -8,7 +8,9 @@
  */
 
 #include <AK/BinarySearch.h>
+#include <AK/CharacterTypes.h>
 #include <AK/StringBuilder.h>
+#include <AK/UnicodeUtils.h>
 #include <AK/Utf16View.h>
 #include <AK/Utf8View.h>
 #include <LibTextCodec/Decoder.h>
@@ -350,6 +352,341 @@ ErrorOr<String> Decoder::to_utf8(StringView input)
     StringBuilder builder(input.length());
     TRY(process(input, [&builder](u32 c) { return builder.try_append_code_point(c); }));
     return builder.to_string_without_validation();
+}
+
+// Tail-length helpers for chunked decoding. Each returns the number of trailing bytes that must
+// be buffered until more input arrives, because they form an incomplete trailing sequence per the
+// Encoding Standard's decoder handler byte ranges.
+// https://encoding.spec.whatwg.org/#interface-textdecoder
+
+static bool is_utf8_continuation_byte(u8 byte)
+{
+    return (byte & 0xc0) == 0x80;
+}
+
+static Optional<size_t> utf8_sequence_length(u8 lead)
+{
+    if (lead <= 0x7f)
+        return 1;
+    if (lead >= 0xc2 && lead <= 0xdf)
+        return 2;
+    if (lead >= 0xe0 && lead <= 0xef)
+        return 3;
+    if (lead >= 0xf0 && lead <= 0xf4)
+        return 4;
+    return {};
+}
+
+size_t UTF8Decoder::incomplete_tail_length(ReadonlyBytes bytes) const
+{
+    // The longest UTF-8 sequence is 4 bytes, so the lead of any incomplete trailing sequence is
+    // at most 3 positions before the end. Scan backward to find the lead and decide.
+    auto max_back = min(bytes.size(), 4uz);
+    for (size_t back = 0; back < max_back; ++back) {
+        auto byte = bytes[bytes.size() - 1 - back];
+        if (is_utf8_continuation_byte(byte))
+            continue;
+
+        auto seq_len = utf8_sequence_length(byte);
+        size_t seen = back + 1;
+        if (!seq_len.has_value() || *seq_len <= seen)
+            return 0;
+        return seen;
+    }
+    return 0;
+}
+
+static size_t incomplete_utf16_tail_length(ReadonlyBytes bytes, bool big_endian)
+{
+    if (bytes.size() % 2 != 0)
+        return 1;
+    if (bytes.size() < 2)
+        return 0;
+
+    auto high = bytes[bytes.size() - 2];
+    auto low = bytes[bytes.size() - 1];
+    u16 code_unit = big_endian
+        ? (static_cast<u16>(high) << 8) | low
+        : (static_cast<u16>(low) << 8) | high;
+    if (AK::UnicodeUtils::is_utf16_high_surrogate(code_unit))
+        return 2;
+    return 0;
+}
+
+size_t UTF16BEDecoder::incomplete_tail_length(ReadonlyBytes bytes) const
+{
+    return incomplete_utf16_tail_length(bytes, true);
+}
+
+size_t UTF16LEDecoder::incomplete_tail_length(ReadonlyBytes bytes) const
+{
+    return incomplete_utf16_tail_length(bytes, false);
+}
+
+static bool is_gb18030_lead_byte(u8 byte)
+{
+    return byte >= 0x81 && byte <= 0xfe;
+}
+
+static bool is_gb18030_two_byte_trail(u8 byte)
+{
+    return (byte >= 0x40 && byte <= 0x7e) || (byte >= 0x80 && byte <= 0xfe);
+}
+
+size_t GB18030Decoder::incomplete_tail_length(ReadonlyBytes bytes) const
+{
+    for (size_t i = 0; i < bytes.size();) {
+        auto byte = bytes[i];
+        if (byte <= 0x80) {
+            ++i;
+            continue;
+        }
+
+        if (!is_gb18030_lead_byte(byte)) {
+            ++i;
+            continue;
+        }
+
+        if (i + 1 >= bytes.size())
+            return bytes.size() - i;
+
+        auto second = bytes[i + 1];
+        if (is_ascii_digit(second)) {
+            if (i + 2 >= bytes.size())
+                return bytes.size() - i;
+
+            auto third = bytes[i + 2];
+            if (is_gb18030_lead_byte(third)) {
+                if (i + 3 >= bytes.size())
+                    return bytes.size() - i;
+
+                auto fourth = bytes[i + 3];
+                if (is_ascii_digit(fourth)) {
+                    i += 4;
+                    continue;
+                }
+            }
+
+            ++i;
+            continue;
+        }
+
+        if (is_gb18030_two_byte_trail(second)) {
+            i += 2;
+            continue;
+        }
+
+        ++i;
+    }
+
+    return 0;
+}
+
+static bool is_big5_lead_byte(u8 byte)
+{
+    return byte >= 0x81 && byte <= 0xfe;
+}
+
+static bool is_big5_trail_byte(u8 byte)
+{
+    return (byte >= 0x40 && byte <= 0x7e) || (byte >= 0xa1 && byte <= 0xfe);
+}
+
+size_t Big5Decoder::incomplete_tail_length(ReadonlyBytes bytes) const
+{
+    for (size_t i = 0; i < bytes.size();) {
+        auto byte = bytes[i];
+        if (byte <= 0x7f) {
+            ++i;
+            continue;
+        }
+
+        if (!is_big5_lead_byte(byte)) {
+            ++i;
+            continue;
+        }
+
+        if (i + 1 >= bytes.size())
+            return bytes.size() - i;
+
+        if (is_big5_trail_byte(bytes[i + 1]))
+            i += 2;
+        else
+            ++i;
+    }
+
+    return 0;
+}
+
+static bool is_euc_jp_lead_byte(u8 byte)
+{
+    return byte == 0x8e || byte == 0x8f || (byte >= 0xa1 && byte <= 0xfe);
+}
+
+static bool is_euc_jp_trail_byte(u8 byte)
+{
+    return byte >= 0xa1 && byte <= 0xfe;
+}
+
+size_t EUCJPDecoder::incomplete_tail_length(ReadonlyBytes bytes) const
+{
+    for (size_t i = 0; i < bytes.size();) {
+        auto byte = bytes[i];
+        if (byte <= 0x7f) {
+            ++i;
+            continue;
+        }
+
+        if (!is_euc_jp_lead_byte(byte)) {
+            ++i;
+            continue;
+        }
+
+        if (byte == 0x8f) {
+            if (i + 1 >= bytes.size())
+                return bytes.size() - i;
+            if (!is_euc_jp_trail_byte(bytes[i + 1])) {
+                ++i;
+                continue;
+            }
+            if (i + 2 >= bytes.size())
+                return bytes.size() - i;
+            if (is_euc_jp_trail_byte(bytes[i + 2]))
+                i += 3;
+            else
+                i += 2;
+            continue;
+        }
+
+        if (i + 1 >= bytes.size())
+            return bytes.size() - i;
+
+        if (byte == 0x8e) {
+            if (bytes[i + 1] >= 0xa1 && bytes[i + 1] <= 0xdf)
+                i += 2;
+            else
+                ++i;
+            continue;
+        }
+
+        if (is_euc_jp_trail_byte(bytes[i + 1]))
+            i += 2;
+        else
+            ++i;
+    }
+
+    return 0;
+}
+
+static bool is_shift_jis_lead_byte(u8 byte)
+{
+    return (byte >= 0x81 && byte <= 0x9f) || (byte >= 0xe0 && byte <= 0xfc);
+}
+
+static bool is_shift_jis_trail_byte(u8 byte)
+{
+    return (byte >= 0x40 && byte <= 0x7e) || (byte >= 0x80 && byte <= 0xfc);
+}
+
+size_t ShiftJISDecoder::incomplete_tail_length(ReadonlyBytes bytes) const
+{
+    for (size_t i = 0; i < bytes.size();) {
+        auto byte = bytes[i];
+        if (byte <= 0x80 || (byte >= 0xa1 && byte <= 0xdf)) {
+            ++i;
+            continue;
+        }
+
+        if (!is_shift_jis_lead_byte(byte)) {
+            ++i;
+            continue;
+        }
+
+        if (i + 1 >= bytes.size())
+            return bytes.size() - i;
+
+        if (is_shift_jis_trail_byte(bytes[i + 1]))
+            i += 2;
+        else
+            ++i;
+    }
+
+    return 0;
+}
+
+static bool is_euc_kr_lead_byte(u8 byte)
+{
+    return byte >= 0x81 && byte <= 0xfe;
+}
+
+static bool is_euc_kr_trail_byte(u8 byte)
+{
+    return byte >= 0x41 && byte <= 0xfe;
+}
+
+size_t EUCKRDecoder::incomplete_tail_length(ReadonlyBytes bytes) const
+{
+    for (size_t i = 0; i < bytes.size();) {
+        auto byte = bytes[i];
+        if (byte <= 0x7f) {
+            ++i;
+            continue;
+        }
+
+        if (!is_euc_kr_lead_byte(byte)) {
+            ++i;
+            continue;
+        }
+
+        if (i + 1 >= bytes.size())
+            return bytes.size() - i;
+
+        if (is_euc_kr_trail_byte(bytes[i + 1]))
+            i += 2;
+        else
+            ++i;
+    }
+
+    return 0;
+}
+
+size_t ISO2022JPDecoder::incomplete_tail_length(ReadonlyBytes bytes) const
+{
+    if (bytes.is_empty())
+        return 0;
+
+    if (bytes[bytes.size() - 1] == 0x1b)
+        return 1;
+    if (bytes.size() >= 2 && bytes[bytes.size() - 2] == 0x1b && (bytes[bytes.size() - 1] == 0x24 || bytes[bytes.size() - 1] == 0x28))
+        return 2;
+    return 0;
+}
+
+ErrorOr<String> StreamingDecoder::to_utf8(ReadonlyBytes input)
+{
+    ReadonlyBytes bytes;
+    if (m_pending_input.is_empty()) {
+        bytes = input;
+    } else {
+        TRY(m_pending_input.try_append(input));
+        bytes = m_pending_input.bytes();
+    }
+
+    auto tail_length = m_decoder.incomplete_tail_length(bytes);
+    auto decoded = TRY(m_decoder.to_utf8(StringView(bytes.slice(0, bytes.size() - tail_length))));
+
+    if (tail_length == 0)
+        m_pending_input.clear();
+    else
+        m_pending_input = TRY(ByteBuffer::copy(bytes.slice(bytes.size() - tail_length, tail_length)));
+    return decoded;
+}
+
+ErrorOr<String> StreamingDecoder::finish()
+{
+    auto decoded = TRY(m_decoder.to_utf8(StringView(m_pending_input.bytes())));
+    m_pending_input.clear();
+    return decoded;
 }
 
 ErrorOr<void> UTF8Decoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
