@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	getComputedStyle gets invalidated in display: none subtrees due to inherited changes to an ancestor
+Pass	getComputedStyle gets invalidated in display: none subtrees due to inherited changes to an ancestor shadow host

@@ -370,6 +370,7 @@ public:
 
     void update_style();
     void update_style_if_needed_for_element(AbstractElement const&);
+    void update_style_for_element(AbstractElement const&);
     [[nodiscard]] bool element_needs_style_update(AbstractElement const&) const;
     void update_layout(UpdateLayoutReason);
     void update_layout_if_needed_for_node(Node const&, UpdateLayoutReason);

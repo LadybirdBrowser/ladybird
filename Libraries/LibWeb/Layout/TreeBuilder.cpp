@@ -17,6 +17,7 @@
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleInvalidation.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -674,7 +675,16 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
             if (auto old_backdrop_node = element.get_pseudo_element_node(CSS::PseudoElement::Backdrop))
                 old_backdrop_node->remove();
             element.clear_pseudo_element_nodes({});
-            VERIFY(!element.needs_style_update());
+            // Elements inside a `display:none` subtree are skipped by
+            // `Document::update_style_recursively`, so a bypass path (top-layer iteration, slot
+            // projection, SVG mask/clip-path or pattern reference) may reach an element whose
+            // `needs_style_update` flag is still set or whose `computed_properties` is null. Route
+            // through `update_style_for_element`, which seeds the style computer's ancestor filter
+            // so descendant-combinator selectors continue to match during the lazy re-cascade.
+            if (element.needs_style_update() || !element.computed_properties()) {
+                document.update_style_for_element({ element });
+                element.set_needs_style_update(false);
+            }
             style = element.computed_properties();
             display = style->display();
             if (display.is_none())
