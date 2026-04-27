@@ -98,6 +98,16 @@ Optional<FlyString> get_the_effective_directive_for_request(GC::Ref<Fetch::Infra
         return Names::ConnectSrc;
 
     switch (request->destination().value()) {
+    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#process-a-navigate-fetch
+    // destination
+    //     "document" (NOTE: The destination is updated below when navigable has a container.)
+    // If navigable's container is non-null:
+    //     2. Set request's destination to navigable's container's local name.
+    // AD-HOC: CSP's effective directive algorithm does not have a "document" case, but falling through to connect-src
+    //         applies fetch directives to top-level document navigations. Treat these navigation requests as not having
+    //         a fetch directive.
+    case Fetch::Infrastructure::Request::Destination::Document:
+        return OptionalNone {};
     // "manifest"
     //      1. Return manifest-src.
     case Fetch::Infrastructure::Request::Destination::Manifest:

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async () => {
+        const server = httpTestServer();
+        const targetURL = await server.createEcho("GET", "/top-level-navigation-not-blocked-by-connect-src-target", {
+            status: 200,
+            headers: {
+                "Content-Type": "text/html",
+            },
+            body: `<script>internals.signalTestIsDone("PASS\\n");</scr` + `ipt>`,
+        });
+
+        const meta = document.createElement("meta");
+        meta.httpEquiv = "Content-Security-Policy";
+        meta.content = "connect-src 'none'";
+        document.head.appendChild(meta);
+
+        location.href = targetURL;
+    });
+</script>
