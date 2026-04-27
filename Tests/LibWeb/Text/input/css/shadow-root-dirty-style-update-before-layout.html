@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host">host text</div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        const sheet = new CSSStyleSheet();
+
+        shadowRoot.innerHTML = "<slot></slot>";
+        shadowRoot.adoptedStyleSheets = [sheet];
+
+        sheet.replaceSync("slot { color: rgb(0, 128, 0); }");
+        getComputedStyle(shadowRoot.querySelector("slot")).color;
+
+        sheet.replaceSync("slot { color: rgb(0, 0, 255); }");
+        document.body.innerText;
+
+        println(`Slot color after forced layout: ${getComputedStyle(shadowRoot.querySelector("slot")).color}`);
+    });
+</script>

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function createShadowTree(styleText, className) {
+        const host = document.createElement("div");
+        document.body.appendChild(host);
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `
+            <style>${styleText}</style>
+            <div class="${className}">target</div>
+        `;
+        return shadowRoot.querySelector(`.${className}`);
+    }
+
+    test(() => {
+        for (let i = 0; i < 20; ++i)
+            createShadowTree(".bystander { color: rgb(255, 0, 0); }", "bystander");
+
+        getComputedStyle(document.body).color;
+        internals.resetStyleInvalidationCounters();
+
+        const target = createShadowTree("@media (min-width: 1px) { .target { color: rgb(0, 128, 0); } }", "target");
+        println(`Target color: ${getComputedStyle(target).color}`);
+
+        const invalidations = internals.getStyleInvalidationCounters().styleInvalidations;
+        if (invalidations <= 15)
+            println(`PASS: shadow media query invalidation stayed scoped (${invalidations} invalidations)`);
+        else
+            println(`FAIL: shadow media query invalidation was too broad (${invalidations} invalidations)`);
+    });
+</script>

@@ -170,8 +170,10 @@ void StyleInvalidator::perform_pending_style_invalidations(Node& node, bool inva
         auto& element = static_cast<Element&>(node);
         if (auto shadow_root = element.shadow_root()) {
             perform_pending_style_invalidations(*shadow_root, invalidate_entire_subtree);
-            if (invalidate_entire_subtree)
-                node.set_child_needs_style_update(true);
+            if (invalidate_entire_subtree || shadow_root->needs_style_update() || shadow_root->child_needs_style_update()) {
+                for (auto* ancestor = &node; ancestor; ancestor = ancestor->parent_or_shadow_host())
+                    ancestor->set_child_needs_style_update(true);
+            }
         }
     }
 

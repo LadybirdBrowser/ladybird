@@ -57,6 +57,7 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
+#include <LibWeb/CSS/StyleSheetInvalidation.h>
 #include <LibWeb/CSS/StyleSheetList.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
@@ -4024,26 +4025,32 @@ void Document::evaluate_media_queries_and_report_changes()
 
 void Document::evaluate_media_rules()
 {
-    bool any_media_queries_changed_match_state = false;
+    bool document_media_queries_changed_match_state = false;
     style_scope().for_each_active_css_style_sheet([&](CSS::CSSStyleSheet& style_sheet) {
         if (style_sheet.evaluate_media_queries(*this))
-            any_media_queries_changed_match_state = true;
+            document_media_queries_changed_match_state = true;
     });
 
     for_each_shadow_root([&](auto& shadow_root) {
+        bool shadow_root_media_queries_changed_match_state = false;
         shadow_root.style_scope().for_each_active_css_style_sheet([&](CSS::CSSStyleSheet& style_sheet) {
             if (style_sheet.evaluate_media_queries(*this))
-                any_media_queries_changed_match_state = true;
+                shadow_root_media_queries_changed_match_state = true;
         });
+
+        if (!shadow_root_media_queries_changed_match_state)
+            return;
+
+        shadow_root.style_scope().invalidate_rule_cache();
+        shadow_root.invalidate_style(StyleInvalidationReason::MediaQueryChangedMatchState);
+        CSS::invalidate_assigned_elements_for_dirty_slots(shadow_root);
+
+        if (auto* host = shadow_root.host())
+            host->root().invalidate_style(StyleInvalidationReason::MediaQueryChangedMatchState);
     });
 
-    if (any_media_queries_changed_match_state) {
-        // FIXME: Make this more efficient
+    if (document_media_queries_changed_match_state) {
         style_scope().invalidate_rule_cache();
-        for_each_shadow_root([&](auto& shadow_root) {
-            shadow_root.style_scope().invalidate_rule_cache();
-        });
-
         invalidate_style(StyleInvalidationReason::MediaQueryChangedMatchState);
     }
 }
