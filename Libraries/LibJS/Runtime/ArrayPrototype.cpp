@@ -872,6 +872,17 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::index_of)
         k = max(length + n, 0);
     }
 
+    // OPTIMIZATION: Simple packed arrays have an own data property for every index below their length,
+    // so HasProperty and Get cannot produce side effects or observe prototype indexed properties.
+    if (auto* array = as_if<Array>(*object); array && array->is_simple_packed_array() && array->indexed_array_like_size() == length) {
+        auto elements = array->indexed_packed_elements_span();
+        for (; k < elements.size(); ++k) {
+            if (is_strictly_equal(search_element, elements[k]))
+                return Value(k);
+        }
+        return Value(-1);
+    }
+
     // 10. Repeat, while k < len,
     for (; k < length; ++k) {
         auto property_key = PropertyKey { k };
