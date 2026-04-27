@@ -659,6 +659,11 @@ static bool matches_optimal_value_pseudo_class(DOM::Element const& element, HTML
 static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoClassSelector const& pseudo_class, DOM::AbstractElement const& target, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, GC::Ptr<DOM::ParentNode const> scope, SelectorKind selector_kind)
 {
     context.attempted_pseudo_class_matches.set(pseudo_class.type, true);
+    auto note_structural_pseudo_class_match_attempt = [&] {
+        if (&target.element() != context.subject)
+            const_cast<DOM::Element&>(target.element()).set_affected_by_structural_pseudo_class_in_non_subject_position();
+    };
+
     switch (pseudo_class.type) {
     case CSS::PseudoClass::__Count:
         VERIFY_NOT_REACHED();
@@ -715,6 +720,7 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         auto& target_element = const_cast<DOM::Element&>(target.element());
         if (context.collect_per_element_selector_involvement_metadata) {
             target_element.set_affected_by_first_child_pseudo_class(true);
+            note_structural_pseudo_class_match_attempt();
         }
         return !target_element.previous_element_sibling();
     }
@@ -724,6 +730,7 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         auto& target_element = const_cast<DOM::Element&>(target.element());
         if (context.collect_per_element_selector_involvement_metadata) {
             target_element.set_affected_by_last_child_pseudo_class(true);
+            note_structural_pseudo_class_match_attempt();
         }
         return !target_element.next_element_sibling();
     }
@@ -734,6 +741,7 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         if (context.collect_per_element_selector_involvement_metadata) {
             target_element.set_affected_by_first_child_pseudo_class(true);
             target_element.set_affected_by_last_child_pseudo_class(true);
+            note_structural_pseudo_class_match_attempt();
         }
         return !(target_element.previous_element_sibling() || target_element.next_element_sibling());
     }
@@ -774,6 +782,7 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
             return false;
         if (context.collect_per_element_selector_involvement_metadata) {
             const_cast<DOM::Element&>(target.element()).set_affected_by_forward_positional_pseudo_class(true);
+            note_structural_pseudo_class_match_attempt();
         }
         return !previous_sibling_with_same_type(target.element());
     case CSS::PseudoClass::LastOfType:
@@ -781,6 +790,7 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
             return false;
         if (context.collect_per_element_selector_involvement_metadata) {
             const_cast<DOM::Element&>(target.element()).set_affected_by_backward_positional_pseudo_class(true);
+            note_structural_pseudo_class_match_attempt();
         }
         return !next_sibling_with_same_type(target.element());
     case CSS::PseudoClass::OnlyOfType: {
@@ -790,6 +800,7 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         if (context.collect_per_element_selector_involvement_metadata) {
             target_element.set_affected_by_forward_positional_pseudo_class(true);
             target_element.set_affected_by_backward_positional_pseudo_class(true);
+            note_structural_pseudo_class_match_attempt();
         }
         return !previous_sibling_with_same_type(target_element) && !next_sibling_with_same_type(target_element);
     }
@@ -903,6 +914,7 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
             default:
                 VERIFY_NOT_REACHED();
             }
+            note_structural_pseudo_class_match_attempt();
         }
 
         auto matches_selector_list = [&context, shadow_host](CSS::SelectorList const& list, DOM::Element const& element) {
@@ -1600,6 +1612,8 @@ bool matches_compound_selector(CSS::Selector const& selector, int component_list
     case CSS::Selector::Combinator::NextSibling:
         if (context.collect_per_element_selector_involvement_metadata) {
             const_cast<DOM::Element&>(element.element()).set_affected_by_direct_sibling_combinator(true);
+            if (&element.element() != context.subject)
+                const_cast<DOM::Element&>(element.element()).set_affected_by_sibling_combinator_in_non_subject_position();
             auto new_sibling_invalidation_distance = max(selector.sibling_invalidation_distance(), element.element().sibling_invalidation_distance());
             const_cast<DOM::Element&>(element.element()).set_sibling_invalidation_distance(new_sibling_invalidation_distance);
         }
@@ -1613,6 +1627,8 @@ bool matches_compound_selector(CSS::Selector const& selector, int component_list
     case CSS::Selector::Combinator::SubsequentSibling:
         if (context.collect_per_element_selector_involvement_metadata) {
             const_cast<DOM::Element&>(element.element()).set_affected_by_indirect_sibling_combinator(true);
+            if (&element.element() != context.subject)
+                const_cast<DOM::Element&>(element.element()).set_affected_by_sibling_combinator_in_non_subject_position();
         }
         VERIFY(component_list_index != 0);
         for (auto* sibling = element.element().previous_element_sibling(); sibling; sibling = sibling->previous_element_sibling()) {
