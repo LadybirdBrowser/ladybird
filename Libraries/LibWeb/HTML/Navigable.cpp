@@ -2932,30 +2932,28 @@ void Navigable::inform_the_navigation_api_about_child_navigable_destruction()
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#inform-the-navigation-api-about-aborting-navigation
 void Navigable::inform_the_navigation_api_about_aborting_navigation()
 {
-    // FIXME: 1. If this algorithm is running on navigable's active window's relevant agent's event loop, then continue on to the following steps.
-    // Otherwise, queue a global task on the navigation and traversal task source given navigable's active window to run the following steps.
+    // 1. If this algorithm is running on navigable's active window's relevant agent's event loop, then continue on to the following steps.
+    //    Otherwise, queue a global task on the navigation and traversal task source given navigable's active window to run the following steps.
+    // NB: WebContent uses a single main-thread event loop, so the active window's relevant agent is always running on
+    //     the current event loop and we run the steps inline. Queuing here would defer the abort past the creation of
+    //     a new ongoing navigate event by a subsequent fire_a_push_replace_reload_navigate_event, causing the deferred
+    //     abort to cancel that newer event.
 
     // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
     if (!active_window())
         return;
 
-    queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this] {
-        // AD-HOC: The active window may have become null between when this task was queued and when it runs.
-        if (!active_window())
-            return;
+    HTML::TemporaryExecutionContext execution_context { active_window()->realm() };
 
-        HTML::TemporaryExecutionContext execution_context { active_window()->realm() };
+    // 2. Let navigation be navigable's active window's navigation API.
+    auto navigation = active_window()->navigation();
 
-        // 2. Let navigation be navigable's active window's navigation API.
-        auto navigation = active_window()->navigation();
+    // 3. If navigation's ongoing navigate event is null, then return.
+    if (navigation->ongoing_navigate_event() == nullptr)
+        return;
 
-        // 3. If navigation's ongoing navigate event is null, then return.
-        if (navigation->ongoing_navigate_event() == nullptr)
-            return;
-
-        // 4. Abort the ongoing navigation given navigation.
-        navigation->abort_the_ongoing_navigation();
-    }));
+    // 4. Abort the ongoing navigation given navigation.
+    navigation->abort_the_ongoing_navigation();
 }
 
 bool Navigable::is_focused() const
