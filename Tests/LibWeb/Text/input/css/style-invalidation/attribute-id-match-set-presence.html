@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<style>
+    .active [id] .target { --style-invalidation-probe: match; content: ""; }
+</style>
+<div id="ancestor">
+    <div>
+        <span id="unmatched" class="target"></span>
+    </div>
+    <div id="holder">
+        <span id="matched" class="target"></span>
+    </div>
+</div>
+<script>
+    let nextScopeId = 0;
+
+    function appendTarget(parent) {
+        const target = makeElement("span", { className: "target" });
+        parent.appendChild(target);
+        return target;
+    }
+
+    function runIdRemovalCase(name, selector, build) {
+        const scope = `id-removal-${nextScopeId++}`;
+        const fixture = makeElement("section", { className: scope });
+        document.body.appendChild(fixture);
+        const style = addStyle(document.head, `.${scope} ${selector} { ${MATCH_DECLARATION} }`);
+
+        try {
+            const { target, subject } = build(fixture);
+            assertEqual(`${name} initial`, readProbe(target), MATCH);
+
+            resetStyleCounters();
+            subject.removeAttribute("id");
+            assertEqual(`${name} after id removal`, readProbe(target), BASE);
+            assertCounter(`${name} avoids full invalidation`, "fullStyleInvalidations", 0);
+            printPassWithCounters(name);
+        } finally {
+            style.remove();
+            fixture.remove();
+        }
+    }
+
+    test(() => {
+        const ancestor = document.getElementById("ancestor");
+        const unmatched = document.getElementById("unmatched");
+        const matched = document.getElementById("matched");
+
+        assertEqual("initial unmatched", readProbe(unmatched), BASE);
+        assertEqual("initial matched", readProbe(matched), BASE);
+
+        resetStyleCounters();
+        ancestor.classList.add("active");
+        assertEqual("unmatched after ancestor class change", readProbe(unmatched), BASE);
+        assertEqual("matched after ancestor class change", readProbe(matched), MATCH);
+        printPassWithCounters("attribute id match set requires id attribute presence");
+
+        runIdRemovalCase("[id] descendant loses match", "[id] .target", fixture => {
+            const subject = makeElement("div", { id: "holder" });
+            const wrapper = makeElement("span");
+            const target = appendTarget(wrapper);
+            subject.appendChild(wrapper);
+            fixture.appendChild(subject);
+            return { subject, target };
+        });
+
+        runIdRemovalCase("[id] child loses match", "[id] > .target", fixture => {
+            const subject = makeElement("div", { id: "holder" });
+            const target = appendTarget(subject);
+            fixture.appendChild(subject);
+            return { subject, target };
+        });
+
+        runIdRemovalCase("typed [id] descendant loses match", "div[id] .target", fixture => {
+            const subject = makeElement("div", { id: "holder" });
+            const target = appendTarget(subject);
+            fixture.appendChild(subject);
+            return { subject, target };
+        });
+
+        runIdRemovalCase("[id=\"holder\"] descendant loses match", "[id=\"holder\"] .target", fixture => {
+            const subject = makeElement("div", { id: "holder" });
+            const target = appendTarget(subject);
+            fixture.appendChild(subject);
+            return { subject, target };
+        });
+
+        runIdRemovalCase("[id^=\"hold\"] descendant loses match", "[id^=\"hold\"] .target", fixture => {
+            const subject = makeElement("div", { id: "holder" });
+            const target = appendTarget(subject);
+            fixture.appendChild(subject);
+            return { subject, target };
+        });
+
+        runIdRemovalCase("[id$=\"der\"] descendant loses match", "[id$=\"der\"] .target", fixture => {
+            const subject = makeElement("div", { id: "holder" });
+            const target = appendTarget(subject);
+            fixture.appendChild(subject);
+            return { subject, target };
+        });
+
+        runIdRemovalCase("[id][data-state] descendant loses match", "[id][data-state] .target", fixture => {
+            const subject = makeElement("div", { id: "holder", attributes: { "data-state": "on" } });
+            const target = appendTarget(subject);
+            fixture.appendChild(subject);
+            return { subject, target };
+        });
+
+        runIdRemovalCase(".outer [id] descendant loses match", ".outer [id] .target", fixture => {
+            const outer = makeElement("div", { className: "outer" });
+            const subject = makeElement("div", { id: "holder" });
+            const target = appendTarget(subject);
+            outer.appendChild(subject);
+            fixture.appendChild(outer);
+            return { subject, target };
+        });
+
+        runIdRemovalCase("[id] adjacent sibling loses match", "[id] + .target", fixture => {
+            const subject = makeElement("div", { id: "holder" });
+            const target = makeElement("span", { className: "target" });
+            fixture.append(subject, target);
+            return { subject, target };
+        });
+
+        runIdRemovalCase("[id] general sibling loses match", "[id] ~ .target", fixture => {
+            const subject = makeElement("div", { id: "holder" });
+            fixture.append(subject, makeElement("span"), makeElement("span"));
+            const target = makeElement("span", { className: "target" });
+            fixture.appendChild(target);
+            return { subject, target };
+        });
+
+        runIdRemovalCase("[id] deep descendant loses match", "[id] .middle .target", fixture => {
+            const subject = makeElement("div", { id: "holder" });
+            const middle = makeElement("span", { className: "middle" });
+            const target = appendTarget(middle);
+            subject.appendChild(middle);
+            fixture.appendChild(subject);
+            return { subject, target };
+        });
+    });
+</script>

@@ -1,0 +1,82 @@
+PASS: same-parent move preserves unchanged descendant styles | styleInvalidations=0, fullStyleInvalidations=0, elementStyleRecomputations=51, elementStyleNoopRecomputations=50, elementInheritedStyleRecomputations=0, elementInheritedStyleNoopRecomputations=0, hasAncestorWalkInvocations=0, hasInvalidationMetadataCandidates=0, hasMatchInvocations=0, hasResultCacheHits=0, hasResultCacheMisses=0
+PASS: same-parent move invalidates descendants: first-child descendant begins matching
+PASS: same-parent move invalidates descendants: first-child child combinator begins matching
+PASS: same-parent move invalidates descendants: first-child descendant stops matching
+PASS: same-parent move invalidates descendants: last-child descendant begins matching
+PASS: same-parent move invalidates descendants: last-child descendant stops matching
+PASS: same-parent move invalidates descendants: nth-child descendant begins matching
+PASS: same-parent move invalidates descendants: nth-last-child descendant begins matching
+PASS: same-parent move invalidates descendants: first-of-type descendant begins matching
+PASS: same-parent move invalidates descendants: last-of-type descendant begins matching
+PASS: same-parent move invalidates descendants: not first-child descendant stops matching
+PASS: same-parent move invalidates descendants: is first-child descendant begins matching
+PASS: same-parent move invalidates descendants: where first-child descendant begins matching with id and attribute
+PASS: same-parent move invalidates descendants: first-child descendant remains tracked after moved root recompute
+PASS: same-parent move invalidates sibling-combinator ancestors: adjacent sibling ancestor begins matching
+PASS: same-parent move invalidates sibling-combinator ancestors: adjacent sibling ancestor stops matching
+PASS: same-parent move invalidates sibling-combinator ancestors: subsequent sibling ancestor begins matching
+PASS: same-parent move invalidates sibling-combinator ancestors: subsequent sibling ancestor stops matching
+PASS: same-parent move invalidates sibling-combinator ancestors: adjacent child selector begins matching
+PASS: same-parent move invalidates sibling-combinator ancestors: adjacent nested descendant begins matching
+PASS: same-parent move invalidates sibling-combinator ancestors: adjacent selector with type begins matching
+PASS: same-parent move invalidates sibling-combinator ancestors: adjacent selector with id begins matching
+PASS: same-parent move invalidates sibling-combinator ancestors: adjacent selector with attribute begins matching
+PASS: same-parent move invalidates sibling-combinator ancestors: compound adjacent ancestor begins matching
+PASS: same-parent move invalidates sibling-combinator ancestors: is adjacent ancestor begins matching
+PASS: same-parent move invalidates sibling-combinator ancestors: where adjacent ancestor begins matching
+PASS: same-parent move invalidates sibling-combinator ancestors: not adjacent ancestor stops matching
+PASS: same-parent move invalidates sibling-combinator ancestors: outer context adjacent ancestor begins matching
+PASS: same-parent move invalidates sibling-combinator ancestors: outer child context adjacent ancestor begins matching
+PASS: same-parent move invalidates sibling-combinator ancestors: two anchors adjacent ancestor begins matching against second anchor
+PASS: same-parent move invalidates sibling-combinator ancestors: adjacent ancestor stays matching after unrelated same-parent move
+PASS: same-parent move invalidates sibling-combinator ancestors: adjacent ancestor stays unmatched after unrelated same-parent move
+PASS: same-parent move invalidates sibling-combinator ancestors: subsequent ancestor with intervening node begins matching
+PASS: same-parent move invalidates sibling-combinator ancestors: adjacent custom element ancestor begins matching
+PASS: same-parent move invalidates sibling-combinator ancestors: shadow tree adjacent ancestor begins matching
+PASS: same-parent move invalidates sibling-combinator ancestors: shadow tree adjacent ancestor stops matching
+PASS: same-parent move invalidates sibling :has(): next sibling begins matching after featureless spacer moves after wrapper
+PASS: same-parent move invalidates sibling :has(): next sibling stops matching after featureless spacer moves before wrapper
+PASS: same-parent move invalidates sibling :has(): next sibling universal begins matching when featureless element moves after anchor
+PASS: same-parent move invalidates sibling :has(): next sibling universal stops matching when featureless element moves before anchor
+PASS: same-parent move invalidates sibling :has(): subsequent sibling universal begins matching when featureless element moves to following side
+PASS: same-parent move invalidates sibling :has(): subsequent sibling universal stops matching when featureless element moves to preceding side
+PASS: same-parent move invalidates sibling :has(): negated next sibling begins matching after featureless spacer blocks wrapper
+PASS: same-parent move invalidates sibling :has(): negated next sibling stops matching after featureless spacer unblocks wrapper
+PASS: same-parent move invalidates sibling :has(): descendant of anchor begins matching when anchor gains next sibling match
+PASS: same-parent move invalidates sibling :has(): descendant of anchor stops matching when anchor loses next sibling match
+PASS: same-parent move invalidates sibling :has(): nested sibling argument begins matching after featureless spacer moves
+PASS: same-parent move invalidates sibling :has(): child sibling argument begins matching after featureless spacer moves
+PASS: same-parent move invalidates sibling :has(): is next sibling argument begins matching after featureless spacer moves
+PASS: same-parent move invalidates sibling :has(): where attribute next sibling argument begins matching after featureless spacer moves
+PASS: same-parent move invalidates sibling :has(): compound anchor begins matching after featureless spacer moves
+PASS: same-parent move invalidates sibling :has(): descendant selector around anchor begins matching after featureless spacer moves
+PASS: same-parent move invalidates sibling :has(): child selector around anchor begins matching after featureless spacer moves
+PASS: same-parent move invalidates sibling :has(): second anchor begins matching while first anchor remains unaffected
+PASS: same-parent move invalidates sibling :has(): next sibling match survives move elsewhere in same parent
+PASS: same-parent move invalidates sibling :has(): next sibling mismatch survives move elsewhere in same parent
+PASS: same-parent move invalidates sibling :has(): previous anchor begins matching when featureless spacer moves between anchors
+PASS: same-parent move invalidates sibling :has(): previous anchor stops matching when featureless spacer moves between anchor and wrapper
+PASS: same-parent move invalidates sibling :has(): shadow tree next sibling begins matching after featureless spacer moves
+PASS: same-parent move invalidates sibling :has(): shadow tree next sibling stops matching after featureless spacer moves
+PASS: same-parent move invalidates sibling :has(): featureless custom element spacer begins next sibling match
+PASS: same-parent move invalidates sibling :has(): featureless custom element spacer stops next sibling match
+PASS: same-parent move schedules :has() before dirty-ancestor bailout: outer descendant first-child begins after class-dirty container bailout
+PASS: same-parent move schedules :has() before dirty-ancestor bailout: outer descendant first-child stops after class-dirty container bailout
+PASS: same-parent move schedules :has() before dirty-ancestor bailout: outer child first-child begins after class-dirty container bailout
+PASS: same-parent move schedules :has() before dirty-ancestor bailout: outer descendant last-child begins after class-dirty container bailout
+PASS: same-parent move schedules :has() before dirty-ancestor bailout: outer descendant nth-child begins after class-dirty container bailout
+PASS: same-parent move schedules :has() before dirty-ancestor bailout: outer descendant first-of-type begins after class-dirty container bailout
+PASS: same-parent move schedules :has() before dirty-ancestor bailout: outer descendant last-of-type begins after class-dirty container bailout
+PASS: same-parent move schedules :has() before dirty-ancestor bailout: outer negated first-child stops after class-dirty container bailout
+PASS: same-parent move schedules :has() before dirty-ancestor bailout: outer is first-child begins after class-dirty container bailout
+PASS: same-parent move schedules :has() before dirty-ancestor bailout: outer where first-child begins after class-dirty container bailout
+PASS: same-parent move schedules :has() before dirty-ancestor bailout: outer adjacent sibling begins after class-dirty container bailout
+PASS: same-parent move schedules :has() before dirty-ancestor bailout: outer adjacent sibling stops after class-dirty container bailout
+PASS: same-parent move schedules :has() before dirty-ancestor bailout: outer subsequent sibling begins after class-dirty container bailout
+PASS: same-parent move schedules :has() before dirty-ancestor bailout: descendant target outside dirty subtree begins after outer has changes
+PASS: same-parent move schedules :has() before dirty-ancestor bailout: moved descendant target begins after moved ancestor first-child changes
+PASS: same-parent move schedules :has() before dirty-ancestor bailout: outer descendant first-child begins after attribute-dirty container bailout
+PASS: same-parent move schedules :has() before dirty-ancestor bailout: outer descendant first-child begins with section dirty ancestor
+PASS: same-parent move schedules :has() before dirty-ancestor bailout: outer descendant first-child begins with custom moved element
+PASS: same-parent move schedules :has() before dirty-ancestor bailout: outer descendant first-child remains matched after unrelated dirty same-parent move
+PASS: same-parent move schedules :has() before dirty-ancestor bailout: outer descendant first-child remains unmatched after unrelated dirty same-parent move

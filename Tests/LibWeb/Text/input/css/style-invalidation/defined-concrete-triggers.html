@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<style>
+    x-late:not(:defined) .late-target { --style-invalidation-probe: match; content: ""; }
+    x-other:not(:defined) .other-target { --style-invalidation-probe: match; content: ""; }
+</style>
+<x-late>
+    <span id="late-target" class="late-target"></span>
+</x-late>
+<x-other>
+    <span class="other-target"></span>
+    <span class="other-target"></span>
+    <span class="other-target"></span>
+    <span class="other-target"></span>
+    <span class="other-target"></span>
+    <span class="other-target"></span>
+    <span class="other-target"></span>
+    <span class="other-target"></span>
+</x-other>
+<script>
+    test(() => {
+        const lateTarget = document.getElementById("late-target");
+        const otherTarget = document.querySelector(".other-target");
+
+        assertEqual("initial late target", readProbe(lateTarget), MATCH);
+        assertEqual("initial other target", readProbe(otherTarget), MATCH);
+
+        resetStyleCounters();
+        customElements.define("x-late", class extends HTMLElement {});
+        assertEqual("late target after definition", readProbe(lateTarget), BASE);
+        assertEqual("other target after unrelated definition", readProbe(otherTarget), MATCH);
+        assertCounter(":defined trigger left unrelated custom element descendants clean", "elementStyleRecomputations", 2);
+        printPassWithCounters(":defined invalidation is keyed by the defined element");
+    });
+</script>

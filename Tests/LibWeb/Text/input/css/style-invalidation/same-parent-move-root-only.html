@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    test(() => {
+        const style = addStyle(
+            document.head,
+            `
+                .moved:first-child { --root-position: first; }
+                .moved:first-child { border-top: 3px solid rgb(4, 5, 6); }
+                .descendant { color: rgb(1, 2, 3); }
+            `
+        );
+        const fixture = makeElement("section");
+        document.body.appendChild(fixture);
+
+        const moved = makeElement("div", { className: "moved" });
+        for (let i = 0; i < 50; ++i)
+            moved.appendChild(makeElement("span", { className: "descendant", text: `item ${i}` }));
+        const before = makeElement("div");
+        fixture.append(before, moved);
+
+        document.body.offsetWidth;
+        resetStyleCounters();
+
+        fixture.moveBefore(moved, before);
+        assertEqual("moved root became first child", getComputedStyle(moved).getPropertyValue("--root-position").trim(), "first");
+        assertEqual("moved root non-inherited style changed", getComputedStyle(moved).borderTopWidth, "3px");
+        assertEqual("descendant style stayed valid", getComputedStyle(moved.lastChild).color, "rgb(1, 2, 3)");
+        printPassWithCounters("same-parent move preserves unchanged descendant styles");
+
+        style.remove();
+        fixture.remove();
+
+        function runMovedAncestorDescendantCase(name, cssText, setup, mutate, expectedAfter) {
+            const style = addStyle(document.head, cssText);
+            const fixture = makeElement("section");
+            document.body.appendChild(fixture);
+            const context = setup(fixture);
+
+            document.body.offsetWidth;
+            resetStyleCounters();
+
+            mutate(context, fixture);
+            assertEqual(name, readProbe(context.target), expectedAfter);
+            println(`PASS: same-parent move invalidates descendants: ${name}`);
+
+            style.remove();
+            fixture.remove();
+        }
+
+        runMovedAncestorDescendantCase(
+            "first-child descendant begins matching",
+            `.moved:first-child .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const before = makeElement("div");
+                const moved = makeElement("div", { className: "moved" });
+                const target = makeElement("span", { className: "target" });
+                moved.appendChild(target);
+                fixture.append(before, moved);
+                return { before, moved, target };
+            },
+            ({ before, moved }, fixture) => fixture.moveBefore(moved, before),
+            MATCH
+        );
+
+        runMovedAncestorDescendantCase(
+            "first-child child combinator begins matching",
+            `.moved:first-child > .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const before = makeElement("div");
+                const moved = makeElement("div", { className: "moved" });
+                const target = makeElement("span", { className: "target" });
+                moved.appendChild(target);
+                fixture.append(before, moved);
+                return { before, moved, target };
+            },
+            ({ before, moved }, fixture) => fixture.moveBefore(moved, before),
+            MATCH
+        );
+
+        runMovedAncestorDescendantCase(
+            "first-child descendant stops matching",
+            `.moved:first-child .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const moved = makeElement("div", { className: "moved" });
+                const after = makeElement("div");
+                const target = makeElement("span", { className: "target" });
+                moved.appendChild(target);
+                fixture.append(moved, after);
+                return { after, moved, target };
+            },
+            ({ after, moved }, fixture) => fixture.moveBefore(moved, after.nextSibling),
+            BASE
+        );
+
+        runMovedAncestorDescendantCase(
+            "last-child descendant begins matching",
+            `.moved:last-child .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const moved = makeElement("div", { className: "moved" });
+                const after = makeElement("div");
+                const target = makeElement("span", { className: "target" });
+                moved.appendChild(target);
+                fixture.append(moved, after);
+                return { after, moved, target };
+            },
+            ({ after, moved }, fixture) => fixture.moveBefore(moved, after.nextSibling),
+            MATCH
+        );
+
+        runMovedAncestorDescendantCase(
+            "last-child descendant stops matching",
+            `.moved:last-child .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const before = makeElement("div");
+                const moved = makeElement("div", { className: "moved" });
+                const target = makeElement("span", { className: "target" });
+                moved.appendChild(target);
+                fixture.append(before, moved);
+                return { before, moved, target };
+            },
+            ({ before, moved }, fixture) => fixture.moveBefore(moved, before),
+            BASE
+        );
+
+        runMovedAncestorDescendantCase(
+            "nth-child descendant begins matching",
+            `.moved:nth-child(2) .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const first = makeElement("div");
+                const second = makeElement("div");
+                const moved = makeElement("div", { className: "moved" });
+                const target = makeElement("span", { className: "target" });
+                moved.appendChild(target);
+                fixture.append(first, second, moved);
+                return { second, moved, target };
+            },
+            ({ second, moved }, fixture) => fixture.moveBefore(moved, second),
+            MATCH
+        );
+
+        runMovedAncestorDescendantCase(
+            "nth-last-child descendant begins matching",
+            `.moved:nth-last-child(2) .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const moved = makeElement("div", { className: "moved" });
+                const middle = makeElement("div");
+                const last = makeElement("div");
+                const target = makeElement("span", { className: "target" });
+                moved.appendChild(target);
+                fixture.append(moved, middle, last);
+                return { last, moved, target };
+            },
+            ({ last, moved }, fixture) => fixture.moveBefore(moved, last),
+            MATCH
+        );
+
+        runMovedAncestorDescendantCase(
+            "first-of-type descendant begins matching",
+            `.moved:first-of-type .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const before = makeElement("div");
+                const spacer = makeElement("span");
+                const moved = makeElement("div", { className: "moved" });
+                const target = makeElement("span", { className: "target" });
+                moved.appendChild(target);
+                fixture.append(before, spacer, moved);
+                return { before, moved, target };
+            },
+            ({ before, moved }, fixture) => fixture.moveBefore(moved, before),
+            MATCH
+        );
+
+        runMovedAncestorDescendantCase(
+            "last-of-type descendant begins matching",
+            `.moved:last-of-type .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const moved = makeElement("div", { className: "moved" });
+                const spacer = makeElement("span");
+                const after = makeElement("div");
+                const target = makeElement("span", { className: "target" });
+                moved.appendChild(target);
+                fixture.append(moved, spacer, after);
+                return { after, moved, target };
+            },
+            ({ after, moved }, fixture) => fixture.moveBefore(moved, after.nextSibling),
+            MATCH
+        );
+
+        runMovedAncestorDescendantCase(
+            "not first-child descendant stops matching",
+            `.moved:not(:first-child) .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const before = makeElement("div");
+                const moved = makeElement("div", { className: "moved" });
+                const target = makeElement("span", { className: "target" });
+                moved.appendChild(target);
+                fixture.append(before, moved);
+                return { before, moved, target };
+            },
+            ({ before, moved }, fixture) => fixture.moveBefore(moved, before),
+            BASE
+        );
+
+        runMovedAncestorDescendantCase(
+            "is first-child descendant begins matching",
+            `.moved:is(:first-child, .fallback) .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const before = makeElement("div");
+                const moved = makeElement("div", { className: "moved" });
+                const target = makeElement("span", { className: "target" });
+                moved.appendChild(target);
+                fixture.append(before, moved);
+                return { before, moved, target };
+            },
+            ({ before, moved }, fixture) => fixture.moveBefore(moved, before),
+            MATCH
+        );
+
+        runMovedAncestorDescendantCase(
+            "where first-child descendant begins matching with id and attribute",
+            `.moved#subject[data-kind="primary"]:where(:first-child) .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const before = makeElement("div");
+                const moved = makeElement("div", { id: "subject", className: "moved", attributes: { "data-kind": "primary" } });
+                const target = makeElement("span", { className: "target" });
+                moved.appendChild(target);
+                fixture.append(before, moved);
+                return { before, moved, target };
+            },
+            ({ before, moved }, fixture) => fixture.moveBefore(moved, before),
+            MATCH
+        );
+
+        runMovedAncestorDescendantCase(
+            "first-child descendant remains tracked after moved root recompute",
+            `
+                .moved:first-child .target { ${MATCH_DECLARATION} }
+                .moved.touched { border-top: 1px solid rgb(4, 5, 6); }
+            `,
+            fixture => {
+                const moved = makeElement("div", { className: "moved" });
+                const after = makeElement("div");
+                const target = makeElement("span", { className: "target" });
+                moved.appendChild(target);
+                fixture.append(moved, after);
+                return { after, moved, target };
+            },
+            ({ after, moved }, fixture) => {
+                moved.classList.add("touched");
+                assertEqual("moved root recomputed before same-parent move", getComputedStyle(moved).borderTopWidth, "1px");
+                fixture.moveBefore(moved, after.nextSibling);
+            },
+            BASE
+        );
+
+        function runMovedSiblingAncestorDescendantCase(name, cssText, setup, mutate, expectedAfter) {
+            const fixture = makeElement("section");
+            document.body.appendChild(fixture);
+            const context = setup(fixture);
+            const style = addStyle(context.styleRoot || document.head, cssText);
+
+            readProbe(context.target);
+            document.body.offsetWidth;
+            resetStyleCounters();
+
+            mutate(context, fixture);
+            assertEqual(name, readProbe(context.target), expectedAfter);
+            println(`PASS: same-parent move invalidates sibling-combinator ancestors: ${name}`);
+
+            style.remove();
+            fixture.remove();
+        }
+
+        function makeMovedWithTarget(tagName = "div") {
+            const moved = makeElement(tagName, { className: tagName === "div" ? "moved" : "" });
+            const target = makeElement("span", { className: "target" });
+            moved.appendChild(target);
+            return { moved, target };
+        }
+
+        runMovedSiblingAncestorDescendantCase(
+            "adjacent sibling ancestor begins matching",
+            `.anchor + .moved .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const { moved, target } = makeMovedWithTarget();
+                const anchor = makeElement("div", { className: "anchor" });
+                fixture.append(moved, anchor);
+                return { anchor, moved, target };
+            },
+            ({ anchor, moved }) => moved.parentNode.moveBefore(moved, anchor.nextSibling),
+            MATCH
+        );
+
+        runMovedSiblingAncestorDescendantCase(
+            "adjacent sibling ancestor stops matching",
+            `.anchor + .moved .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const anchor = makeElement("div", { className: "anchor" });
+                const { moved, target } = makeMovedWithTarget();
+                const after = makeElement("div");
+                fixture.append(anchor, moved, after);
+                return { anchor, moved, after, target };
+            },
+            ({ after, moved }) => moved.parentNode.moveBefore(moved, after.nextSibling),
+            BASE
+        );
+
+        runMovedSiblingAncestorDescendantCase(
+            "subsequent sibling ancestor begins matching",
+            `.anchor ~ .moved .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const { moved, target } = makeMovedWithTarget();
+                const anchor = makeElement("div", { className: "anchor" });
+                fixture.append(moved, anchor);
+                return { anchor, moved, target };
+            },
+            ({ anchor, moved }) => moved.parentNode.moveBefore(moved, anchor.nextSibling),
+            MATCH
+        );
+
+        runMovedSiblingAncestorDescendantCase(
+            "subsequent sibling ancestor stops matching",
+            `.anchor ~ .moved .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const anchor = makeElement("div", { className: "anchor" });
+                const spacer = makeElement("div");
+                const { moved, target } = makeMovedWithTarget();
+                fixture.append(anchor, spacer, moved);
+                return { anchor, moved, target };
+            },
+            ({ anchor, moved }) => moved.parentNode.moveBefore(moved, anchor),
+            BASE
+        );
+
+        runMovedSiblingAncestorDescendantCase(
+            "adjacent child selector begins matching",
+            `.anchor + .moved > .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const { moved, target } = makeMovedWithTarget();
+                const anchor = makeElement("div", { className: "anchor" });
+                fixture.append(moved, anchor);
+                return { anchor, moved, target };
+            },
+            ({ anchor, moved }) => moved.parentNode.moveBefore(moved, anchor.nextSibling),
+            MATCH
+        );
+
+        runMovedSiblingAncestorDescendantCase(
+            "adjacent nested descendant begins matching",
+            `.anchor + .moved .inner .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const moved = makeElement("div", { className: "moved" });
+                const inner = makeElement("span", { className: "inner" });
+                const target = makeElement("span", { className: "target" });
+                inner.appendChild(target);
+                moved.appendChild(inner);
+                const anchor = makeElement("div", { className: "anchor" });
+                fixture.append(moved, anchor);
+                return { anchor, moved, target };
+            },
+            ({ anchor, moved }) => moved.parentNode.moveBefore(moved, anchor.nextSibling),
+            MATCH
+        );
+
+        runMovedSiblingAncestorDescendantCase(
+            "adjacent selector with type begins matching",
+            `.anchor + article .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const { moved, target } = makeMovedWithTarget("article");
+                const anchor = makeElement("div", { className: "anchor" });
+                fixture.append(moved, anchor);
+                return { anchor, moved, target };
+            },
+            ({ anchor, moved }) => moved.parentNode.moveBefore(moved, anchor.nextSibling),
+            MATCH
+        );
+
+        runMovedSiblingAncestorDescendantCase(
+            "adjacent selector with id begins matching",
+            `.anchor + #moved-subject .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const moved = makeElement("div", { id: "moved-subject" });
+                const target = makeElement("span", { className: "target" });
+                moved.appendChild(target);
+                const anchor = makeElement("div", { className: "anchor" });
+                fixture.append(moved, anchor);
+                return { anchor, moved, target };
+            },
+            ({ anchor, moved }) => moved.parentNode.moveBefore(moved, anchor.nextSibling),
+            MATCH
+        );
+
+        runMovedSiblingAncestorDescendantCase(
+            "adjacent selector with attribute begins matching",
+            `.anchor + [data-moved] .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const moved = makeElement("div", { attributes: { "data-moved": "" } });
+                const target = makeElement("span", { className: "target" });
+                moved.appendChild(target);
+                const anchor = makeElement("div", { className: "anchor" });
+                fixture.append(moved, anchor);
+                return { anchor, moved, target };
+            },
+            ({ anchor, moved }) => moved.parentNode.moveBefore(moved, anchor.nextSibling),
+            MATCH
+        );
+
+        runMovedSiblingAncestorDescendantCase(
+            "compound adjacent ancestor begins matching",
+            `.anchor + .moved[data-moved].primary .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const moved = makeElement("div", { className: "moved primary", attributes: { "data-moved": "" } });
+                const target = makeElement("span", { className: "target" });
+                moved.appendChild(target);
+                const anchor = makeElement("div", { className: "anchor" });
+                fixture.append(moved, anchor);
+                return { anchor, moved, target };
+            },
+            ({ anchor, moved }) => moved.parentNode.moveBefore(moved, anchor.nextSibling),
+            MATCH
+        );
+
+        runMovedSiblingAncestorDescendantCase(
+            "is adjacent ancestor begins matching",
+            `.anchor + :is(.moved, .other) .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const { moved, target } = makeMovedWithTarget();
+                const anchor = makeElement("div", { className: "anchor" });
+                fixture.append(moved, anchor);
+                return { anchor, moved, target };
+            },
+            ({ anchor, moved }) => moved.parentNode.moveBefore(moved, anchor.nextSibling),
+            MATCH
+        );
+
+        runMovedSiblingAncestorDescendantCase(
+            "where adjacent ancestor begins matching",
+            `.anchor + :where(.moved) .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const { moved, target } = makeMovedWithTarget();
+                const anchor = makeElement("div", { className: "anchor" });
+                fixture.append(moved, anchor);
+                return { anchor, moved, target };
+            },
+            ({ anchor, moved }) => moved.parentNode.moveBefore(moved, anchor.nextSibling),
+            MATCH
+        );
+
+        runMovedSiblingAncestorDescendantCase(
+            "not adjacent ancestor stops matching",
+            `.anchor + .moved:not(.blocked) .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const anchor = makeElement("div", { className: "anchor" });
+                const { moved, target } = makeMovedWithTarget();
+                const after = makeElement("div");
+                fixture.append(anchor, moved, after);
+                return { after, moved, target };
+            },
+            ({ after, moved }) => moved.parentNode.moveBefore(moved, after.nextSibling),
+            BASE
+        );
+
+        runMovedSiblingAncestorDescendantCase(
+            "outer context adjacent ancestor begins matching",
+            `.outer .anchor + .moved .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const outer = makeElement("div", { className: "outer" });
+                const { moved, target } = makeMovedWithTarget();
+                const anchor = makeElement("div", { className: "anchor" });
+                outer.append(moved, anchor);
+                fixture.appendChild(outer);
+                return { anchor, moved, target };
+            },
+            ({ anchor, moved }) => moved.parentNode.moveBefore(moved, anchor.nextSibling),
+            MATCH
+        );
+
+        runMovedSiblingAncestorDescendantCase(
+            "outer child context adjacent ancestor begins matching",
+            `.outer > .anchor + .moved .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const outer = makeElement("div", { className: "outer" });
+                const { moved, target } = makeMovedWithTarget();
+                const anchor = makeElement("div", { className: "anchor" });
+                outer.append(moved, anchor);
+                fixture.appendChild(outer);
+                return { anchor, moved, target };
+            },
+            ({ anchor, moved }) => moved.parentNode.moveBefore(moved, anchor.nextSibling),
+            MATCH
+        );
+
+        runMovedSiblingAncestorDescendantCase(
+            "two anchors adjacent ancestor begins matching against second anchor",
+            `.anchor + .moved .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const firstAnchor = makeElement("div", { className: "anchor" });
+                const spacer = makeElement("div");
+                const { moved, target } = makeMovedWithTarget();
+                const secondAnchor = makeElement("div", { className: "anchor" });
+                fixture.append(firstAnchor, spacer, moved, secondAnchor);
+                return { secondAnchor, moved, target };
+            },
+            ({ secondAnchor, moved }) => moved.parentNode.moveBefore(moved, secondAnchor.nextSibling),
+            MATCH
+        );
+
+        runMovedSiblingAncestorDescendantCase(
+            "adjacent ancestor stays matching after unrelated same-parent move",
+            `.anchor + .moved .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const anchor = makeElement("div", { className: "anchor" });
+                const { moved, target } = makeMovedWithTarget();
+                const unrelated = makeElement("div");
+                const after = makeElement("div");
+                fixture.append(anchor, moved, unrelated, after);
+                return { unrelated, after, target };
+            },
+            ({ unrelated, after }) => unrelated.parentNode.moveBefore(unrelated, after.nextSibling),
+            MATCH
+        );
+
+        runMovedSiblingAncestorDescendantCase(
+            "adjacent ancestor stays unmatched after unrelated same-parent move",
+            `.anchor + .moved .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const { moved, target } = makeMovedWithTarget();
+                const anchor = makeElement("div", { className: "anchor" });
+                const unrelated = makeElement("div");
+                const after = makeElement("div");
+                fixture.append(moved, anchor, unrelated, after);
+                return { unrelated, after, target };
+            },
+            ({ unrelated, after }) => unrelated.parentNode.moveBefore(unrelated, after.nextSibling),
+            BASE
+        );
+
+        runMovedSiblingAncestorDescendantCase(
+            "subsequent ancestor with intervening node begins matching",
+            `.anchor ~ .moved .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const { moved, target } = makeMovedWithTarget();
+                const anchor = makeElement("div", { className: "anchor" });
+                const spacer = makeElement("div");
+                fixture.append(moved, anchor, spacer);
+                return { anchor, spacer, moved, target };
+            },
+            ({ spacer, moved }) => moved.parentNode.moveBefore(moved, spacer.nextSibling),
+            MATCH
+        );
+
+        runMovedSiblingAncestorDescendantCase(
+            "adjacent custom element ancestor begins matching",
+            `.anchor + x-moved .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const { moved, target } = makeMovedWithTarget("x-moved");
+                const anchor = makeElement("div", { className: "anchor" });
+                fixture.append(moved, anchor);
+                return { anchor, moved, target };
+            },
+            ({ anchor, moved }) => moved.parentNode.moveBefore(moved, anchor.nextSibling),
+            MATCH
+        );
+
+        runMovedSiblingAncestorDescendantCase(
+            "shadow tree adjacent ancestor begins matching",
+            `.anchor + .moved .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const host = makeElement("div");
+                const shadowRoot = host.attachShadow({ mode: "open" });
+                const { moved, target } = makeMovedWithTarget();
+                const anchor = makeElement("div", { className: "anchor" });
+                shadowRoot.append(moved, anchor);
+                fixture.appendChild(host);
+                return { anchor, moved, target, styleRoot: shadowRoot };
+            },
+            ({ anchor, moved }) => moved.parentNode.moveBefore(moved, anchor.nextSibling),
+            MATCH
+        );
+
+        runMovedSiblingAncestorDescendantCase(
+            "shadow tree adjacent ancestor stops matching",
+            `.anchor + .moved .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const host = makeElement("div");
+                const shadowRoot = host.attachShadow({ mode: "open" });
+                const anchor = makeElement("div", { className: "anchor" });
+                const { moved, target } = makeMovedWithTarget();
+                const after = makeElement("div");
+                shadowRoot.append(anchor, moved, after);
+                fixture.appendChild(host);
+                return { moved, after, target, styleRoot: shadowRoot };
+            },
+            ({ after, moved }) => moved.parentNode.moveBefore(moved, after.nextSibling),
+            BASE
+        );
+
+        function runHasSiblingMoveCase(name, cssText, setup, mutate, expectedAfter) {
+            const fixture = makeElement("section");
+            document.body.appendChild(fixture);
+            const context = setup(fixture);
+            const style = addStyle(context.styleRoot || document.head, cssText);
+
+            readProbe(context.target);
+            document.body.offsetWidth;
+            resetStyleCounters();
+
+            mutate(context, fixture);
+            assertEqual(name, readProbe(context.target), expectedAfter);
+            println(`PASS: same-parent move invalidates sibling :has(): ${name}`);
+
+            style.remove();
+            fixture.remove();
+        }
+
+        function appendAnchorSpacerWrapper(fixture) {
+            const anchor = makeElement("div", { className: "anchor" });
+            const spacer = makeElement("div");
+            const wrapper = makeElement("div", { className: "wrapper" });
+            fixture.append(anchor, spacer, wrapper);
+            return { anchor, spacer, wrapper, target: anchor };
+        }
+
+        runHasSiblingMoveCase(
+            "next sibling begins matching after featureless spacer moves after wrapper",
+            `.anchor:has(+ .wrapper) { ${MATCH_DECLARATION} }`,
+            appendAnchorSpacerWrapper,
+            ({ spacer, wrapper }) => spacer.parentNode.moveBefore(spacer, wrapper.nextSibling),
+            MATCH
+        );
+
+        runHasSiblingMoveCase(
+            "next sibling stops matching after featureless spacer moves before wrapper",
+            `.anchor:has(+ .wrapper) { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const anchor = makeElement("div", { className: "anchor" });
+                const wrapper = makeElement("div", { className: "wrapper" });
+                const spacer = makeElement("div");
+                fixture.append(anchor, wrapper, spacer);
+                return { anchor, spacer, wrapper, target: anchor };
+            },
+            ({ spacer, wrapper }) => spacer.parentNode.moveBefore(spacer, wrapper),
+            BASE
+        );
+
+        runHasSiblingMoveCase(
+            "next sibling universal begins matching when featureless element moves after anchor",
+            `.anchor:has(+ *) { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const spacer = makeElement("div");
+                const anchor = makeElement("div", { className: "anchor" });
+                fixture.append(spacer, anchor);
+                return { anchor, spacer, target: anchor };
+            },
+            ({ anchor, spacer }) => spacer.parentNode.moveBefore(spacer, anchor.nextSibling),
+            MATCH
+        );
+
+        runHasSiblingMoveCase(
+            "next sibling universal stops matching when featureless element moves before anchor",
+            `.anchor:has(+ *) { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const anchor = makeElement("div", { className: "anchor" });
+                const spacer = makeElement("div");
+                fixture.append(anchor, spacer);
+                return { anchor, spacer, target: anchor };
+            },
+            ({ anchor, spacer }) => spacer.parentNode.moveBefore(spacer, anchor),
+            BASE
+        );
+
+        runHasSiblingMoveCase(
+            "subsequent sibling universal begins matching when featureless element moves to following side",
+            `.anchor:has(~ *) { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const spacer = makeElement("div");
+                const anchor = makeElement("div", { className: "anchor" });
+                fixture.append(spacer, anchor);
+                return { anchor, spacer, target: anchor };
+            },
+            ({ anchor, spacer }) => spacer.parentNode.moveBefore(spacer, anchor.nextSibling),
+            MATCH
+        );
+
+        runHasSiblingMoveCase(
+            "subsequent sibling universal stops matching when featureless element moves to preceding side",
+            `.anchor:has(~ *) { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const anchor = makeElement("div", { className: "anchor" });
+                const spacer = makeElement("div");
+                fixture.append(anchor, spacer);
+                return { anchor, spacer, target: anchor };
+            },
+            ({ anchor, spacer }) => spacer.parentNode.moveBefore(spacer, anchor),
+            BASE
+        );
+
+        runHasSiblingMoveCase(
+            "negated next sibling begins matching after featureless spacer blocks wrapper",
+            `.anchor:not(:has(+ .wrapper)) { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const anchor = makeElement("div", { className: "anchor" });
+                const wrapper = makeElement("div", { className: "wrapper" });
+                const spacer = makeElement("div");
+                fixture.append(anchor, wrapper, spacer);
+                return { anchor, spacer, wrapper, target: anchor };
+            },
+            ({ spacer, wrapper }) => spacer.parentNode.moveBefore(spacer, wrapper),
+            MATCH
+        );
+
+        runHasSiblingMoveCase(
+            "negated next sibling stops matching after featureless spacer unblocks wrapper",
+            `.anchor:not(:has(+ .wrapper)) { ${MATCH_DECLARATION} }`,
+            appendAnchorSpacerWrapper,
+            ({ spacer, wrapper }) => spacer.parentNode.moveBefore(spacer, wrapper.nextSibling),
+            BASE
+        );
+
+        runHasSiblingMoveCase(
+            "descendant of anchor begins matching when anchor gains next sibling match",
+            `.anchor:has(+ .wrapper) .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const anchor = makeElement("div", { className: "anchor" });
+                const target = makeElement("span", { className: "target" });
+                const spacer = makeElement("div");
+                const wrapper = makeElement("div", { className: "wrapper" });
+                anchor.appendChild(target);
+                fixture.append(anchor, spacer, wrapper);
+                return { anchor, spacer, wrapper, target };
+            },
+            ({ spacer, wrapper }) => spacer.parentNode.moveBefore(spacer, wrapper.nextSibling),
+            MATCH
+        );
+
+        runHasSiblingMoveCase(
+            "descendant of anchor stops matching when anchor loses next sibling match",
+            `.anchor:has(+ .wrapper) .target { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const anchor = makeElement("div", { className: "anchor" });
+                const target = makeElement("span", { className: "target" });
+                const wrapper = makeElement("div", { className: "wrapper" });
+                const spacer = makeElement("div");
+                anchor.appendChild(target);
+                fixture.append(anchor, wrapper, spacer);
+                return { anchor, spacer, wrapper, target };
+            },
+            ({ spacer, wrapper }) => spacer.parentNode.moveBefore(spacer, wrapper),
+            BASE
+        );
+
+        runHasSiblingMoveCase(
+            "nested sibling argument begins matching after featureless spacer moves",
+            `.anchor:has(+ .wrapper .inner) { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const { anchor, spacer, wrapper } = appendAnchorSpacerWrapper(fixture);
+                wrapper.appendChild(makeElement("span", { className: "inner" }));
+                return { anchor, spacer, wrapper, target: anchor };
+            },
+            ({ spacer, wrapper }) => spacer.parentNode.moveBefore(spacer, wrapper.nextSibling),
+            MATCH
+        );
+
+        runHasSiblingMoveCase(
+            "child sibling argument begins matching after featureless spacer moves",
+            `.anchor:has(+ .wrapper > .inner) { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const { anchor, spacer, wrapper } = appendAnchorSpacerWrapper(fixture);
+                wrapper.appendChild(makeElement("span", { className: "inner" }));
+                return { anchor, spacer, wrapper, target: anchor };
+            },
+            ({ spacer, wrapper }) => spacer.parentNode.moveBefore(spacer, wrapper.nextSibling),
+            MATCH
+        );
+
+        runHasSiblingMoveCase(
+            "is next sibling argument begins matching after featureless spacer moves",
+            `.anchor:has(+ :is(.wrapper, .alternate)) { ${MATCH_DECLARATION} }`,
+            appendAnchorSpacerWrapper,
+            ({ spacer, wrapper }) => spacer.parentNode.moveBefore(spacer, wrapper.nextSibling),
+            MATCH
+        );
+
+        runHasSiblingMoveCase(
+            "where attribute next sibling argument begins matching after featureless spacer moves",
+            `.anchor:has(+ :where(.wrapper[data-kind="primary"])) { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const anchor = makeElement("div", { className: "anchor" });
+                const spacer = makeElement("div");
+                const wrapper = makeElement("div", { className: "wrapper", attributes: { "data-kind": "primary" } });
+                fixture.append(anchor, spacer, wrapper);
+                return { anchor, spacer, wrapper, target: anchor };
+            },
+            ({ spacer, wrapper }) => spacer.parentNode.moveBefore(spacer, wrapper.nextSibling),
+            MATCH
+        );
+
+        runHasSiblingMoveCase(
+            "compound anchor begins matching after featureless spacer moves",
+            `.anchor.special[data-kind="primary"]:has(+ .wrapper) { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const anchor = makeElement("div", { className: "anchor special", attributes: { "data-kind": "primary" } });
+                const spacer = makeElement("div");
+                const wrapper = makeElement("div", { className: "wrapper" });
+                fixture.append(anchor, spacer, wrapper);
+                return { anchor, spacer, wrapper, target: anchor };
+            },
+            ({ spacer, wrapper }) => spacer.parentNode.moveBefore(spacer, wrapper.nextSibling),
+            MATCH
+        );
+
+        runHasSiblingMoveCase(
+            "descendant selector around anchor begins matching after featureless spacer moves",
+            `.outer .anchor:has(+ .wrapper) { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const outer = makeElement("div", { className: "outer" });
+                const anchor = makeElement("div", { className: "anchor" });
+                const spacer = makeElement("div");
+                const wrapper = makeElement("div", { className: "wrapper" });
+                outer.append(anchor, spacer, wrapper);
+                fixture.appendChild(outer);
+                return { anchor, spacer, wrapper, target: anchor };
+            },
+            ({ spacer, wrapper }) => spacer.parentNode.moveBefore(spacer, wrapper.nextSibling),
+            MATCH
+        );
+
+        runHasSiblingMoveCase(
+            "child selector around anchor begins matching after featureless spacer moves",
+            `.outer > .anchor:has(+ .wrapper) { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const outer = makeElement("div", { className: "outer" });
+                const anchor = makeElement("div", { className: "anchor" });
+                const spacer = makeElement("div");
+                const wrapper = makeElement("div", { className: "wrapper" });
+                outer.append(anchor, spacer, wrapper);
+                fixture.appendChild(outer);
+                return { anchor, spacer, wrapper, target: anchor };
+            },
+            ({ spacer, wrapper }) => spacer.parentNode.moveBefore(spacer, wrapper.nextSibling),
+            MATCH
+        );
+
+        runHasSiblingMoveCase(
+            "second anchor begins matching while first anchor remains unaffected",
+            `.anchor:has(+ .wrapper) { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const firstAnchor = makeElement("div", { className: "anchor" });
+                const firstWrapper = makeElement("div", { className: "wrapper" });
+                const secondAnchor = makeElement("div", { className: "anchor" });
+                const spacer = makeElement("div");
+                const secondWrapper = makeElement("div", { className: "wrapper" });
+                fixture.append(firstAnchor, firstWrapper, secondAnchor, spacer, secondWrapper);
+                return { firstAnchor, firstWrapper, anchor: secondAnchor, spacer, wrapper: secondWrapper, target: secondAnchor };
+            },
+            ({ spacer, wrapper }) => spacer.parentNode.moveBefore(spacer, wrapper.nextSibling),
+            MATCH
+        );
+
+        runHasSiblingMoveCase(
+            "next sibling match survives move elsewhere in same parent",
+            `.anchor:has(+ .wrapper) { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const anchor = makeElement("div", { className: "anchor" });
+                const wrapper = makeElement("div", { className: "wrapper" });
+                const spacer = makeElement("div");
+                const tail = makeElement("div");
+                fixture.append(anchor, wrapper, spacer, tail);
+                return { anchor, spacer, tail, target: anchor };
+            },
+            ({ spacer, tail }) => spacer.parentNode.moveBefore(spacer, tail.nextSibling),
+            MATCH
+        );
+
+        runHasSiblingMoveCase(
+            "next sibling mismatch survives move elsewhere in same parent",
+            `.anchor:has(+ .wrapper) { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const anchor = makeElement("div", { className: "anchor" });
+                const spacer = makeElement("div");
+                const other = makeElement("div");
+                const wrapper = makeElement("div", { className: "wrapper" });
+                fixture.append(anchor, spacer, other, wrapper);
+                return { anchor, spacer, other, target: anchor };
+            },
+            ({ spacer, other }) => spacer.parentNode.moveBefore(spacer, other.nextSibling),
+            BASE
+        );
+
+        runHasSiblingMoveCase(
+            "previous anchor begins matching when featureless spacer moves between anchors",
+            `.anchor:has(+ .wrapper) { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const firstAnchor = makeElement("div", { className: "anchor" });
+                const spacer = makeElement("div");
+                const wrapper = makeElement("div", { className: "wrapper" });
+                const secondAnchor = makeElement("div", { className: "anchor" });
+                fixture.append(firstAnchor, spacer, wrapper, secondAnchor);
+                return { firstAnchor, spacer, wrapper, secondAnchor, target: firstAnchor };
+            },
+            ({ spacer, secondAnchor }) => spacer.parentNode.moveBefore(spacer, secondAnchor.nextSibling),
+            MATCH
+        );
+
+        runHasSiblingMoveCase(
+            "previous anchor stops matching when featureless spacer moves between anchor and wrapper",
+            `.anchor:has(+ .wrapper) { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const firstAnchor = makeElement("div", { className: "anchor" });
+                const wrapper = makeElement("div", { className: "wrapper" });
+                const secondAnchor = makeElement("div", { className: "anchor" });
+                const spacer = makeElement("div");
+                fixture.append(firstAnchor, wrapper, secondAnchor, spacer);
+                return { firstAnchor, spacer, wrapper, secondAnchor, target: firstAnchor };
+            },
+            ({ spacer, wrapper }) => spacer.parentNode.moveBefore(spacer, wrapper),
+            BASE
+        );
+
+        runHasSiblingMoveCase(
+            "shadow tree next sibling begins matching after featureless spacer moves",
+            `.anchor:has(+ .wrapper) { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const host = makeElement("div");
+                const shadowRoot = host.attachShadow({ mode: "open" });
+                const anchor = makeElement("div", { className: "anchor" });
+                const spacer = makeElement("div");
+                const wrapper = makeElement("div", { className: "wrapper" });
+                shadowRoot.append(anchor, spacer, wrapper);
+                fixture.appendChild(host);
+                return { anchor, spacer, wrapper, target: anchor, styleRoot: shadowRoot };
+            },
+            ({ spacer, wrapper }) => spacer.parentNode.moveBefore(spacer, wrapper.nextSibling),
+            MATCH
+        );
+
+        runHasSiblingMoveCase(
+            "shadow tree next sibling stops matching after featureless spacer moves",
+            `.anchor:has(+ .wrapper) { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const host = makeElement("div");
+                const shadowRoot = host.attachShadow({ mode: "open" });
+                const anchor = makeElement("div", { className: "anchor" });
+                const wrapper = makeElement("div", { className: "wrapper" });
+                const spacer = makeElement("div");
+                shadowRoot.append(anchor, wrapper, spacer);
+                fixture.appendChild(host);
+                return { anchor, spacer, wrapper, target: anchor, styleRoot: shadowRoot };
+            },
+            ({ spacer, wrapper }) => spacer.parentNode.moveBefore(spacer, wrapper),
+            BASE
+        );
+
+        runHasSiblingMoveCase(
+            "featureless custom element spacer begins next sibling match",
+            `.anchor:has(+ .wrapper) { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const anchor = makeElement("div", { className: "anchor" });
+                const spacer = makeElement("x-spacer");
+                const wrapper = makeElement("div", { className: "wrapper" });
+                fixture.append(anchor, spacer, wrapper);
+                return { anchor, spacer, wrapper, target: anchor };
+            },
+            ({ spacer, wrapper }) => spacer.parentNode.moveBefore(spacer, wrapper.nextSibling),
+            MATCH
+        );
+
+        runHasSiblingMoveCase(
+            "featureless custom element spacer stops next sibling match",
+            `.anchor:has(+ .wrapper) { ${MATCH_DECLARATION} }`,
+            fixture => {
+                const anchor = makeElement("div", { className: "anchor" });
+                const wrapper = makeElement("div", { className: "wrapper" });
+                const spacer = makeElement("x-spacer");
+                fixture.append(anchor, wrapper, spacer);
+                return { anchor, spacer, wrapper, target: anchor };
+            },
+            ({ spacer, wrapper }) => spacer.parentNode.moveBefore(spacer, wrapper),
+            BASE
+        );
+
+        function runDirtyAncestorHasMoveCase(name, cssText, setup, dirty, mutate, expectedAfter) {
+            const style = addStyle(document.head, cssText);
+            const fixture = makeElement("section");
+            document.body.appendChild(fixture);
+            const context = setup(fixture);
+
+            readProbe(context.target);
+            document.body.offsetWidth;
+            resetStyleCounters();
+
+            dirty(context, fixture);
+            mutate(context, fixture);
+            assertEqual(name, readProbe(context.target), expectedAfter);
+            println(`PASS: same-parent move schedules :has() before dirty-ancestor bailout: ${name}`);
+
+            style.remove();
+            fixture.remove();
+        }
+
+        const dirtyByClass = ({ dirtyAncestor }) => dirtyAncestor.classList.add("dirty");
+        const dirtyByAttribute = ({ dirtyAncestor }) => dirtyAncestor.setAttribute("data-dirty", "");
+
+        function setupOuterContainerWithMoved(fixture, options = {}) {
+            const outer = makeElement("div", { className: "outer" });
+            const dirtyAncestor = makeElement(options.dirtyTag || "div", { className: "container" });
+            const before = makeElement(options.beforeTag || "div", { className: options.beforeClass || "" });
+            const moved = makeElement(options.movedTag || "div", { className: options.movedClass || "moved" });
+            const after = makeElement(options.afterTag || "div", { className: options.afterClass || "" });
+            if (options.targetInsideMoved)
+                moved.appendChild(makeElement("span", { className: "target" }));
+            dirtyAncestor.append(before, moved, after);
+            outer.appendChild(dirtyAncestor);
+            fixture.appendChild(outer);
+            return { outer, dirtyAncestor, before, moved, after, target: options.readMovedTarget ? moved.firstChild : outer };
+        }
+
+        runDirtyAncestorHasMoveCase(
+            "outer descendant first-child begins after class-dirty container bailout",
+            `.outer:has(.moved:first-child) { ${MATCH_DECLARATION} } :nth-child(1 of .dirty) { color: rgb(9, 8, 7); }`,
+            fixture => setupOuterContainerWithMoved(fixture),
+            dirtyByClass,
+            ({ before, moved }) => moved.parentNode.moveBefore(moved, before),
+            MATCH
+        );
+
+        runDirtyAncestorHasMoveCase(
+            "outer descendant first-child stops after class-dirty container bailout",
+            `.outer:has(.moved:first-child) { ${MATCH_DECLARATION} } :nth-child(1 of .dirty) { color: rgb(9, 8, 7); }`,
+            fixture => {
+                const context = setupOuterContainerWithMoved(fixture);
+                context.dirtyAncestor.moveBefore(context.moved, context.before);
+                return context;
+            },
+            dirtyByClass,
+            ({ after, moved }) => moved.parentNode.moveBefore(moved, after.nextSibling),
+            BASE
+        );
+
+        runDirtyAncestorHasMoveCase(
+            "outer child first-child begins after class-dirty container bailout",
+            `.outer:has(> .container > .moved:first-child) { ${MATCH_DECLARATION} } :nth-child(1 of .dirty) { color: rgb(9, 8, 7); }`,
+            fixture => setupOuterContainerWithMoved(fixture),
+            dirtyByClass,
+            ({ before, moved }) => moved.parentNode.moveBefore(moved, before),
+            MATCH
+        );
+
+        runDirtyAncestorHasMoveCase(
+            "outer descendant last-child begins after class-dirty container bailout",
+            `.outer:has(.moved:last-child) { ${MATCH_DECLARATION} } :nth-child(1 of .dirty) { color: rgb(9, 8, 7); }`,
+            fixture => setupOuterContainerWithMoved(fixture),
+            dirtyByClass,
+            ({ after, moved }) => moved.parentNode.moveBefore(moved, after.nextSibling),
+            MATCH
+        );
+
+        runDirtyAncestorHasMoveCase(
+            "outer descendant nth-child begins after class-dirty container bailout",
+            `.outer:has(.moved:nth-child(2)) { ${MATCH_DECLARATION} } :nth-child(1 of .dirty) { color: rgb(9, 8, 7); }`,
+            fixture => {
+                const context = setupOuterContainerWithMoved(fixture);
+                context.dirtyAncestor.appendChild(makeElement("div"));
+                return context;
+            },
+            dirtyByClass,
+            ({ before, moved }) => moved.parentNode.moveBefore(moved, before.nextSibling),
+            MATCH
+        );
+
+        runDirtyAncestorHasMoveCase(
+            "outer descendant first-of-type begins after class-dirty container bailout",
+            `.outer:has(.moved:first-of-type) { ${MATCH_DECLARATION} } :nth-child(1 of .dirty) { color: rgb(9, 8, 7); }`,
+            fixture => setupOuterContainerWithMoved(fixture, { beforeClass: "other", beforeTag: "span" }),
+            dirtyByClass,
+            ({ before, moved }) => moved.parentNode.moveBefore(moved, before),
+            MATCH
+        );
+
+        runDirtyAncestorHasMoveCase(
+            "outer descendant last-of-type begins after class-dirty container bailout",
+            `.outer:has(.moved:last-of-type) { ${MATCH_DECLARATION} } :nth-child(1 of .dirty) { color: rgb(9, 8, 7); }`,
+            fixture => setupOuterContainerWithMoved(fixture, { afterClass: "other", afterTag: "span" }),
+            dirtyByClass,
+            ({ after, moved }) => moved.parentNode.moveBefore(moved, after.nextSibling),
+            MATCH
+        );
+
+        runDirtyAncestorHasMoveCase(
+            "outer negated first-child stops after class-dirty container bailout",
+            `.outer:has(.moved:not(:first-child)) { ${MATCH_DECLARATION} } :nth-child(1 of .dirty) { color: rgb(9, 8, 7); }`,
+            fixture => setupOuterContainerWithMoved(fixture),
+            dirtyByClass,
+            ({ before, moved }) => moved.parentNode.moveBefore(moved, before),
+            BASE
+        );
+
+        runDirtyAncestorHasMoveCase(
+            "outer is first-child begins after class-dirty container bailout",
+            `.outer:has(.moved:is(:first-child, .fallback)) { ${MATCH_DECLARATION} } :nth-child(1 of .dirty) { color: rgb(9, 8, 7); }`,
+            fixture => setupOuterContainerWithMoved(fixture),
+            dirtyByClass,
+            ({ before, moved }) => moved.parentNode.moveBefore(moved, before),
+            MATCH
+        );
+
+        runDirtyAncestorHasMoveCase(
+            "outer where first-child begins after class-dirty container bailout",
+            `.outer:has(.moved:where(:first-child)) { ${MATCH_DECLARATION} } :nth-child(1 of .dirty) { color: rgb(9, 8, 7); }`,
+            fixture => setupOuterContainerWithMoved(fixture),
+            dirtyByClass,
+            ({ before, moved }) => moved.parentNode.moveBefore(moved, before),
+            MATCH
+        );
+
+        runDirtyAncestorHasMoveCase(
+            "outer adjacent sibling begins after class-dirty container bailout",
+            `.outer:has(.anchor + .moved) { ${MATCH_DECLARATION} } :nth-child(1 of .dirty) { color: rgb(9, 8, 7); }`,
+            fixture => setupOuterContainerWithMoved(fixture, { beforeClass: "anchor" }),
+            dirtyByClass,
+            ({ before, moved }) => moved.parentNode.moveBefore(moved, before.nextSibling),
+            MATCH
+        );
+
+        runDirtyAncestorHasMoveCase(
+            "outer adjacent sibling stops after class-dirty container bailout",
+            `.outer:has(.anchor + .moved) { ${MATCH_DECLARATION} } :nth-child(1 of .dirty) { color: rgb(9, 8, 7); }`,
+            fixture => {
+                const context = setupOuterContainerWithMoved(fixture, { beforeClass: "anchor" });
+                context.dirtyAncestor.moveBefore(context.moved, context.before.nextSibling);
+                return context;
+            },
+            dirtyByClass,
+            ({ after, moved }) => moved.parentNode.moveBefore(moved, after.nextSibling),
+            BASE
+        );
+
+        runDirtyAncestorHasMoveCase(
+            "outer subsequent sibling begins after class-dirty container bailout",
+            `.outer:has(.anchor ~ .moved) { ${MATCH_DECLARATION} } :nth-child(1 of .dirty) { color: rgb(9, 8, 7); }`,
+            fixture => setupOuterContainerWithMoved(fixture, { afterClass: "anchor" }),
+            dirtyByClass,
+            ({ after, moved }) => moved.parentNode.moveBefore(moved, after.nextSibling),
+            MATCH
+        );
+
+        runDirtyAncestorHasMoveCase(
+            "descendant target outside dirty subtree begins after outer has changes",
+            `.outer:has(.moved:first-child) > .target { ${MATCH_DECLARATION} } :nth-child(1 of .dirty) { color: rgb(9, 8, 7); }`,
+            fixture => {
+                const context = setupOuterContainerWithMoved(fixture);
+                const target = makeElement("span", { className: "target" });
+                context.outer.appendChild(target);
+                context.target = target;
+                return context;
+            },
+            dirtyByClass,
+            ({ before, moved }) => moved.parentNode.moveBefore(moved, before),
+            MATCH
+        );
+
+        runDirtyAncestorHasMoveCase(
+            "moved descendant target begins after moved ancestor first-child changes",
+            `.outer:has(.moved:first-child) .moved .target { ${MATCH_DECLARATION} } :nth-child(1 of .dirty) { color: rgb(9, 8, 7); }`,
+            fixture => setupOuterContainerWithMoved(fixture, { targetInsideMoved: true, readMovedTarget: true }),
+            dirtyByClass,
+            ({ before, moved }) => moved.parentNode.moveBefore(moved, before),
+            MATCH
+        );
+
+        runDirtyAncestorHasMoveCase(
+            "outer descendant first-child begins after attribute-dirty container bailout",
+            `.outer:has(.moved:first-child) { ${MATCH_DECLARATION} } :nth-child(1 of [data-dirty]) { color: rgb(9, 8, 7); }`,
+            fixture => setupOuterContainerWithMoved(fixture),
+            dirtyByAttribute,
+            ({ before, moved }) => moved.parentNode.moveBefore(moved, before),
+            MATCH
+        );
+
+        runDirtyAncestorHasMoveCase(
+            "outer descendant first-child begins with section dirty ancestor",
+            `.outer:has(.moved:first-child) { ${MATCH_DECLARATION} } :nth-child(1 of .dirty) { color: rgb(9, 8, 7); }`,
+            fixture => setupOuterContainerWithMoved(fixture, { dirtyTag: "section" }),
+            dirtyByClass,
+            ({ before, moved }) => moved.parentNode.moveBefore(moved, before),
+            MATCH
+        );
+
+        runDirtyAncestorHasMoveCase(
+            "outer descendant first-child begins with custom moved element",
+            `.outer:has(x-moved:first-child) { ${MATCH_DECLARATION} } :nth-child(1 of .dirty) { color: rgb(9, 8, 7); }`,
+            fixture => setupOuterContainerWithMoved(fixture, { movedTag: "x-moved", movedClass: "" }),
+            dirtyByClass,
+            ({ before, moved }) => moved.parentNode.moveBefore(moved, before),
+            MATCH
+        );
+
+        runDirtyAncestorHasMoveCase(
+            "outer descendant first-child remains matched after unrelated dirty same-parent move",
+            `.outer:has(.moved:first-child) { ${MATCH_DECLARATION} } :nth-child(1 of .dirty) { color: rgb(9, 8, 7); }`,
+            fixture => {
+                const context = setupOuterContainerWithMoved(fixture);
+                context.dirtyAncestor.moveBefore(context.moved, context.before);
+                context.unrelated = makeElement("div");
+                context.dirtyAncestor.appendChild(context.unrelated);
+                return context;
+            },
+            dirtyByClass,
+            ({ unrelated, after }) => unrelated.parentNode.moveBefore(unrelated, after.nextSibling),
+            MATCH
+        );
+
+        runDirtyAncestorHasMoveCase(
+            "outer descendant first-child remains unmatched after unrelated dirty same-parent move",
+            `.outer:has(.moved:first-child) { ${MATCH_DECLARATION} } :nth-child(1 of .dirty) { color: rgb(9, 8, 7); }`,
+            fixture => {
+                const context = setupOuterContainerWithMoved(fixture);
+                context.unrelated = makeElement("div");
+                context.dirtyAncestor.appendChild(context.unrelated);
+                return context;
+            },
+            dirtyByClass,
+            ({ unrelated, after }) => unrelated.parentNode.moveBefore(unrelated, after.nextSibling),
+            BASE
+        );
+    });
+</script>

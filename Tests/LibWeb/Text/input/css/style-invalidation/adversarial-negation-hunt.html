@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    let nextScopeId = 0;
+    let nextCustomElementId = 0;
+
+    function reportCase(failures, name, actual, expected) {
+        if (actual === expected) {
+            println(`PASS: ${name}`);
+            return;
+        }
+        println(`FAIL: ${name}: expected ${expected}, got ${actual}`);
+        failures.push(name);
+    }
+
+    function runDefinedNegationCase(failures, name, selector, makeDefinedElement) {
+        const scope = `defined-negation-${nextScopeId++}`;
+        const customElementName = `x-defined-neg-${nextCustomElementId++}`;
+        const fixture = makeElement("section", { className: scope });
+        const subject = makeDefinedElement(customElementName);
+        const target = makeElement("span", { className: "target" });
+        subject.appendChild(target);
+        fixture.appendChild(subject);
+        document.body.appendChild(fixture);
+        const style = addStyle(document.head, `.${scope} ${selector(customElementName)} .target { ${MATCH_DECLARATION} }`);
+
+        try {
+            reportCase(failures, `${name} initial`, readProbe(target), BASE);
+            resetStyleCounters();
+            customElements.define(customElementName, class extends HTMLElement {});
+            reportCase(failures, `${name} after definition`, readProbe(target), MATCH);
+        } finally {
+            style.remove();
+            fixture.remove();
+        }
+    }
+
+    function runHasMoveCase(failures, name, hasSelector, setup, mutate, expectedInitial, expectedAfter) {
+        const scope = `has-negation-${nextScopeId++}`;
+        const fixture = makeElement("section", { className: scope });
+        document.body.appendChild(fixture);
+        const context = setup(fixture);
+        const style = addStyle(document.head, `.${scope} ${hasSelector} .target { ${MATCH_DECLARATION} }`);
+
+        try {
+            reportCase(failures, `${name} initial`, readProbe(context.target), expectedInitial);
+            resetStyleCounters();
+            mutate(context, fixture);
+            reportCase(failures, `${name} after mutation`, readProbe(context.target), expectedAfter);
+        } finally {
+            style.remove();
+            fixture.remove();
+        }
+    }
+
+    function anchorWithTarget() {
+        const anchor = makeElement("div", { className: "anchor" });
+        const target = makeElement("span", { className: "target" });
+        anchor.appendChild(target);
+        return { anchor, target };
+    }
+
+    test(() => {
+        const failures = [];
+
+        runDefinedNegationCase(failures, ":defined:not(.foo) descendant begins matching", name => `${name}:defined:not(.foo)`, name => makeElement(name));
+        runDefinedNegationCase(failures, ":defined:not(#foo) descendant begins matching", name => `${name}:defined:not(#foo)`, name => makeElement(name));
+        runDefinedNegationCase(failures, ":defined:not([data-foo]) descendant begins matching", name => `${name}:defined:not([data-foo])`, name => makeElement(name));
+        runDefinedNegationCase(failures, ":defined:not(.foo):not([data-foo]) descendant begins matching", name => `${name}:defined:not(.foo):not([data-foo])`, name => makeElement(name));
+        runDefinedNegationCase(failures, ":defined:is(:not(.foo)) descendant begins matching", name => `${name}:defined:is(:not(.foo))`, name => makeElement(name));
+        runDefinedNegationCase(failures, ":defined:where(:not([data-foo])) descendant begins matching", name => `${name}:defined:where(:not([data-foo]))`, name => makeElement(name));
+        runDefinedNegationCase(failures, ":defined:not(.foo) child combinator begins matching", name => `${name}:defined:not(.foo)`, name => makeElement(name));
+        runDefinedNegationCase(failures, ":defined:not(.foo) with non-matching id begins matching", name => `${name}:defined:not(.foo)`, name => makeElement(name, { id: "bar" }));
+        runDefinedNegationCase(failures, ":defined:not(.foo) with unrelated attribute begins matching", name => `${name}:defined:not(.foo)`, name => makeElement(name, { attributes: { "data-bar": "" } }));
+        runDefinedNegationCase(failures, ":defined:not(.foo, [data-foo]) descendant begins matching", name => `${name}:defined:not(.foo, [data-foo])`, name => makeElement(name));
+
+        runHasMoveCase(
+            failures,
+            ":has(+ :not(.foo)) starts matching after adjacent same-parent move",
+            ".anchor:has(+ :not(.foo))",
+            fixture => {
+                const { anchor, target } = anchorWithTarget();
+                const foo = makeElement("div", { className: "foo" });
+                const moved = makeElement("div");
+                fixture.append(anchor, foo, moved);
+                return { anchor, target, foo, moved };
+            },
+            ({ foo, moved }, fixture) => fixture.moveBefore(moved, foo),
+            BASE,
+            MATCH
+        );
+
+        runHasMoveCase(
+            failures,
+            ":has(+ :not(.foo)) stops matching after adjacent same-parent move",
+            ".anchor:has(+ :not(.foo))",
+            fixture => {
+                const { anchor, target } = anchorWithTarget();
+                const moved = makeElement("div");
+                const foo = makeElement("div", { className: "foo" });
+                fixture.append(anchor, moved, foo);
+                return { anchor, target, foo, moved };
+            },
+            ({ moved }, fixture) => fixture.moveBefore(moved, null),
+            MATCH,
+            BASE
+        );
+
+        runHasMoveCase(
+            failures,
+            ":has(~ :not(.foo)) starts matching after same-parent move from before anchor",
+            ".anchor:has(~ :not(.foo))",
+            fixture => {
+                const moved = makeElement("div");
+                const { anchor, target } = anchorWithTarget();
+                const foo = makeElement("div", { className: "foo" });
+                fixture.append(moved, anchor, foo);
+                return { anchor, target, foo, moved };
+            },
+            ({ foo, moved }, fixture) => fixture.moveBefore(moved, foo),
+            BASE,
+            MATCH
+        );
+
+        runHasMoveCase(
+            failures,
+            ":has(~ :not(.foo)) stops matching after same-parent move before anchor",
+            ".anchor:has(~ :not(.foo))",
+            fixture => {
+                const { anchor, target } = anchorWithTarget();
+                const moved = makeElement("div");
+                const foo = makeElement("div", { className: "foo" });
+                fixture.append(anchor, moved, foo);
+                return { anchor, target, foo, moved };
+            },
+            ({ anchor, moved }, fixture) => fixture.moveBefore(moved, anchor),
+            MATCH,
+            BASE
+        );
+
+        runHasMoveCase(
+            failures,
+            ":has(+ :not([data-foo])) starts matching after adjacent same-parent move",
+            ".anchor:has(+ :not([data-foo]))",
+            fixture => {
+                const { anchor, target } = anchorWithTarget();
+                const dataFoo = makeElement("div", { attributes: { "data-foo": "" } });
+                const moved = makeElement("div");
+                fixture.append(anchor, dataFoo, moved);
+                return { anchor, target, dataFoo, moved };
+            },
+            ({ dataFoo, moved }, fixture) => fixture.moveBefore(moved, dataFoo),
+            BASE,
+            MATCH
+        );
+
+        runHasMoveCase(
+            failures,
+            ":has(+ :not(#foo)) starts matching after adjacent same-parent move",
+            ".anchor:has(+ :not(#foo))",
+            fixture => {
+                const { anchor, target } = anchorWithTarget();
+                const foo = makeElement("div", { id: "foo" });
+                const moved = makeElement("div");
+                fixture.append(anchor, foo, moved);
+                return { anchor, target, foo, moved };
+            },
+            ({ foo, moved }, fixture) => fixture.moveBefore(moved, foo),
+            BASE,
+            MATCH
+        );
+
+        runHasMoveCase(
+            failures,
+            ":has(+ :not(.foo) .inside) starts matching after adjacent subtree move",
+            ".anchor:has(+ :not(.foo) .inside)",
+            fixture => {
+                const { anchor, target } = anchorWithTarget();
+                const foo = makeElement("div", { className: "foo" });
+                const moved = makeElement("div");
+                moved.appendChild(makeElement("span", { className: "inside" }));
+                fixture.append(anchor, foo, moved);
+                return { anchor, target, foo, moved };
+            },
+            ({ foo, moved }, fixture) => fixture.moveBefore(moved, foo),
+            BASE,
+            MATCH
+        );
+
+        runHasMoveCase(
+            failures,
+            ":has(+ :not(.foo):not([data-foo])) starts matching after adjacent same-parent move",
+            ".anchor:has(+ :not(.foo):not([data-foo]))",
+            fixture => {
+                const { anchor, target } = anchorWithTarget();
+                const foo = makeElement("div", { className: "foo", attributes: { "data-foo": "" } });
+                const moved = makeElement("div");
+                fixture.append(anchor, foo, moved);
+                return { anchor, target, foo, moved };
+            },
+            ({ foo, moved }, fixture) => fixture.moveBefore(moved, foo),
+            BASE,
+            MATCH
+        );
+
+        runHasMoveCase(
+            failures,
+            ":has(+ :is(:not(.foo))) starts matching after adjacent same-parent move",
+            ".anchor:has(+ :is(:not(.foo)))",
+            fixture => {
+                const { anchor, target } = anchorWithTarget();
+                const foo = makeElement("div", { className: "foo" });
+                const moved = makeElement("div");
+                fixture.append(anchor, foo, moved);
+                return { anchor, target, foo, moved };
+            },
+            ({ foo, moved }, fixture) => fixture.moveBefore(moved, foo),
+            BASE,
+            MATCH
+        );
+
+        runHasMoveCase(
+            failures,
+            ":has(+ :where(:not([data-foo]))) starts matching after adjacent same-parent move",
+            ".anchor:has(+ :where(:not([data-foo])))",
+            fixture => {
+                const { anchor, target } = anchorWithTarget();
+                const dataFoo = makeElement("div", { attributes: { "data-foo": "" } });
+                const moved = makeElement("div");
+                fixture.append(anchor, dataFoo, moved);
+                return { anchor, target, dataFoo, moved };
+            },
+            ({ dataFoo, moved }, fixture) => fixture.moveBefore(moved, dataFoo),
+            BASE,
+            MATCH
+        );
+
+        runHasMoveCase(
+            failures,
+            ":has(+ :not(span)) starts matching after adjacent same-parent move",
+            ".anchor:has(+ :not(span))",
+            fixture => {
+                const { anchor, target } = anchorWithTarget();
+                const span = makeElement("span");
+                const moved = makeElement("div");
+                fixture.append(anchor, span, moved);
+                return { anchor, target, span, moved };
+            },
+            ({ span, moved }, fixture) => fixture.moveBefore(moved, span),
+            BASE,
+            MATCH
+        );
+
+        runHasMoveCase(
+            failures,
+            ":has(+ :not(.foo, #foo)) starts matching after adjacent same-parent move",
+            ".anchor:has(+ :not(.foo, #foo))",
+            fixture => {
+                const { anchor, target } = anchorWithTarget();
+                const foo = makeElement("div", { className: "foo", id: "foo" });
+                const moved = makeElement("div");
+                fixture.append(anchor, foo, moved);
+                return { anchor, target, foo, moved };
+            },
+            ({ foo, moved }, fixture) => fixture.moveBefore(moved, foo),
+            BASE,
+            MATCH
+        );
+
+        runHasMoveCase(
+            failures,
+            ":has(~ :not([data-foo])) starts matching after same-parent move from before anchor",
+            ".anchor:has(~ :not([data-foo]))",
+            fixture => {
+                const moved = makeElement("div");
+                const { anchor, target } = anchorWithTarget();
+                const dataFoo = makeElement("div", { attributes: { "data-foo": "" } });
+                fixture.append(moved, anchor, dataFoo);
+                return { anchor, target, dataFoo, moved };
+            },
+            ({ dataFoo, moved }, fixture) => fixture.moveBefore(moved, dataFoo),
+            BASE,
+            MATCH
+        );
+
+        runHasMoveCase(
+            failures,
+            ":has(~ :not(#foo)) stops matching after same-parent move before anchor",
+            ".anchor:has(~ :not(#foo))",
+            fixture => {
+                const { anchor, target } = anchorWithTarget();
+                const moved = makeElement("div");
+                const foo = makeElement("div", { id: "foo" });
+                fixture.append(anchor, moved, foo);
+                return { anchor, target, foo, moved };
+            },
+            ({ anchor, moved }, fixture) => fixture.moveBefore(moved, anchor),
+            MATCH,
+            BASE
+        );
+
+        println(`TOTAL FAILURES: ${failures.length}`);
+        for (const failure of failures)
+            println(`BUG: ${failure}`);
+        if (failures.length)
+            throw new Error(`Found ${failures.length} style invalidation bug(s)`);
+    });
+</script>

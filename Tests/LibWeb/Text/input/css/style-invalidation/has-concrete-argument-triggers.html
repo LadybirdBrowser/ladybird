@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<style>
+    .anchor:has(.needle) .needle-target { --style-invalidation-probe: match; content: ""; }
+    .anchor:has(.other) .other-target { --style-invalidation-probe: match; content: ""; }
+</style>
+<div id="anchor" class="anchor">
+    <span id="mutating"></span>
+    <span id="needle-target" class="needle-target"></span>
+    <span class="other-target"></span>
+    <span class="other-target"></span>
+    <span class="other-target"></span>
+    <span class="other-target"></span>
+    <span class="other-target"></span>
+    <span class="other-target"></span>
+    <span class="other-target"></span>
+    <span class="other-target"></span>
+</div>
+<script>
+    test(() => {
+        const mutating = document.getElementById("mutating");
+        const needleTarget = document.getElementById("needle-target");
+        const otherTarget = document.querySelector(".other-target");
+
+        assertEqual("initial needle target", readProbe(needleTarget), BASE);
+        assertEqual("initial other target", readProbe(otherTarget), BASE);
+
+        resetStyleCounters();
+        mutating.classList.add("needle");
+        assertEqual("needle target after relevant mutation", readProbe(needleTarget), MATCH);
+        assertEqual("other target after unrelated mutation", readProbe(otherTarget), BASE);
+        printPassWithCounters("class mutation invalidates affected :has() rule");
+
+        resetStyleCounters();
+        mutating.classList.add("other");
+        assertEqual("other target after relevant mutation", readProbe(otherTarget), MATCH);
+        printPassWithCounters("class mutation still invalidates matching :has() rule");
+    });
+</script>

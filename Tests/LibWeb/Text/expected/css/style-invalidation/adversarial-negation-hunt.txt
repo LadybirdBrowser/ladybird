@@ -1,0 +1,49 @@
+PASS: :defined:not(.foo) descendant begins matching initial
+PASS: :defined:not(.foo) descendant begins matching after definition
+PASS: :defined:not(#foo) descendant begins matching initial
+PASS: :defined:not(#foo) descendant begins matching after definition
+PASS: :defined:not([data-foo]) descendant begins matching initial
+PASS: :defined:not([data-foo]) descendant begins matching after definition
+PASS: :defined:not(.foo):not([data-foo]) descendant begins matching initial
+PASS: :defined:not(.foo):not([data-foo]) descendant begins matching after definition
+PASS: :defined:is(:not(.foo)) descendant begins matching initial
+PASS: :defined:is(:not(.foo)) descendant begins matching after definition
+PASS: :defined:where(:not([data-foo])) descendant begins matching initial
+PASS: :defined:where(:not([data-foo])) descendant begins matching after definition
+PASS: :defined:not(.foo) child combinator begins matching initial
+PASS: :defined:not(.foo) child combinator begins matching after definition
+PASS: :defined:not(.foo) with non-matching id begins matching initial
+PASS: :defined:not(.foo) with non-matching id begins matching after definition
+PASS: :defined:not(.foo) with unrelated attribute begins matching initial
+PASS: :defined:not(.foo) with unrelated attribute begins matching after definition
+PASS: :defined:not(.foo, [data-foo]) descendant begins matching initial
+PASS: :defined:not(.foo, [data-foo]) descendant begins matching after definition
+PASS: :has(+ :not(.foo)) starts matching after adjacent same-parent move initial
+PASS: :has(+ :not(.foo)) starts matching after adjacent same-parent move after mutation
+PASS: :has(+ :not(.foo)) stops matching after adjacent same-parent move initial
+PASS: :has(+ :not(.foo)) stops matching after adjacent same-parent move after mutation
+PASS: :has(~ :not(.foo)) starts matching after same-parent move from before anchor initial
+PASS: :has(~ :not(.foo)) starts matching after same-parent move from before anchor after mutation
+PASS: :has(~ :not(.foo)) stops matching after same-parent move before anchor initial
+PASS: :has(~ :not(.foo)) stops matching after same-parent move before anchor after mutation
+PASS: :has(+ :not([data-foo])) starts matching after adjacent same-parent move initial
+PASS: :has(+ :not([data-foo])) starts matching after adjacent same-parent move after mutation
+PASS: :has(+ :not(#foo)) starts matching after adjacent same-parent move initial
+PASS: :has(+ :not(#foo)) starts matching after adjacent same-parent move after mutation
+PASS: :has(+ :not(.foo) .inside) starts matching after adjacent subtree move initial
+PASS: :has(+ :not(.foo) .inside) starts matching after adjacent subtree move after mutation
+PASS: :has(+ :not(.foo):not([data-foo])) starts matching after adjacent same-parent move initial
+PASS: :has(+ :not(.foo):not([data-foo])) starts matching after adjacent same-parent move after mutation
+PASS: :has(+ :is(:not(.foo))) starts matching after adjacent same-parent move initial
+PASS: :has(+ :is(:not(.foo))) starts matching after adjacent same-parent move after mutation
+PASS: :has(+ :where(:not([data-foo]))) starts matching after adjacent same-parent move initial
+PASS: :has(+ :where(:not([data-foo]))) starts matching after adjacent same-parent move after mutation
+PASS: :has(+ :not(span)) starts matching after adjacent same-parent move initial
+PASS: :has(+ :not(span)) starts matching after adjacent same-parent move after mutation
+PASS: :has(+ :not(.foo, #foo)) starts matching after adjacent same-parent move initial
+PASS: :has(+ :not(.foo, #foo)) starts matching after adjacent same-parent move after mutation
+PASS: :has(~ :not([data-foo])) starts matching after same-parent move from before anchor initial
+PASS: :has(~ :not([data-foo])) starts matching after same-parent move from before anchor after mutation
+PASS: :has(~ :not(#foo)) stops matching after same-parent move before anchor initial
+PASS: :has(~ :not(#foo)) stops matching after same-parent move before anchor after mutation
+TOTAL FAILURES: 0

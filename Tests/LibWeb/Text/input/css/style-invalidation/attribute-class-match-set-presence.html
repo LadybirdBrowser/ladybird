@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<style id="class-presence-style">
+    [data-active] [class] span { --style-invalidation-probe: match; content: ""; }
+</style>
+<div id="ancestor">
+    <div>
+        <span id="unmatched"></span>
+        <span id="unmatched-2"></span>
+        <span id="unmatched-3"></span>
+    </div>
+    <div class="holder">
+        <span id="matched"></span>
+    </div>
+</div>
+<script>
+    let nextScopeId = 0;
+
+    function appendTarget(parent) {
+        const target = makeElement("span", { className: "target" });
+        parent.appendChild(target);
+        return target;
+    }
+
+    function runClassRemovalCase(name, selector, build) {
+        const scope = `class-removal-${nextScopeId++}`;
+        const fixture = makeElement("section", { className: scope });
+        document.body.appendChild(fixture);
+        const style = addStyle(document.head, `.${scope} ${selector} { ${MATCH_DECLARATION} }`);
+
+        try {
+            const { target, subject } = build(fixture);
+            assertEqual(`${name} initial`, readProbe(target), MATCH);
+
+            resetStyleCounters();
+            subject.removeAttribute("class");
+            assertEqual(`${name} after class removal`, readProbe(target), BASE);
+            assertCounter(`${name} avoids full invalidation`, "fullStyleInvalidations", 0);
+            printPassWithCounters(name);
+        } finally {
+            style.remove();
+            fixture.remove();
+        }
+    }
+
+    test(() => {
+        const ancestor = document.getElementById("ancestor");
+        const unmatched = document.getElementById("unmatched");
+        const unmatched2 = document.getElementById("unmatched-2");
+        const unmatched3 = document.getElementById("unmatched-3");
+        const matched = document.getElementById("matched");
+
+        assertEqual("initial unmatched", readProbe(unmatched), BASE);
+        assertEqual("initial unmatched 2", readProbe(unmatched2), BASE);
+        assertEqual("initial unmatched 3", readProbe(unmatched3), BASE);
+        assertEqual("initial matched", readProbe(matched), BASE);
+
+        resetStyleCounters();
+        ancestor.setAttribute("data-active", "");
+        assertEqual("unmatched after ancestor attribute change", readProbe(unmatched), BASE);
+        assertEqual("unmatched 2 after ancestor attribute change", readProbe(unmatched2), BASE);
+        assertEqual("unmatched 3 after ancestor attribute change", readProbe(unmatched3), BASE);
+        assertEqual("matched after ancestor attribute change", readProbe(matched), MATCH);
+        printPassWithCounters("attribute class match set requires class attribute presence");
+        document.getElementById("class-presence-style").remove();
+
+        runClassRemovalCase("[class] descendant loses match", "[class] .target", fixture => {
+            const subject = makeElement("div", { className: "holder" });
+            const wrapper = makeElement("span");
+            const target = appendTarget(wrapper);
+            subject.appendChild(wrapper);
+            fixture.appendChild(subject);
+            return { subject, target };
+        });
+
+        runClassRemovalCase("[class] child loses match", "[class] > .target", fixture => {
+            const subject = makeElement("div", { className: "holder" });
+            const target = appendTarget(subject);
+            fixture.appendChild(subject);
+            return { subject, target };
+        });
+
+        runClassRemovalCase("typed [class] descendant loses match", "div[class] .target", fixture => {
+            const subject = makeElement("div", { className: "holder" });
+            const target = appendTarget(subject);
+            fixture.appendChild(subject);
+            return { subject, target };
+        });
+
+        runClassRemovalCase("[class=\"holder\"] descendant loses match", "[class=\"holder\"] .target", fixture => {
+            const subject = makeElement("div", { className: "holder" });
+            const target = appendTarget(subject);
+            fixture.appendChild(subject);
+            return { subject, target };
+        });
+
+        runClassRemovalCase("[class~=\"holder\"] descendant loses match", "[class~=\"holder\"] .target", fixture => {
+            const subject = makeElement("div", { className: "holder extra" });
+            const target = appendTarget(subject);
+            fixture.appendChild(subject);
+            return { subject, target };
+        });
+
+        runClassRemovalCase("[class^=\"hold\"] descendant loses match", "[class^=\"hold\"] .target", fixture => {
+            const subject = makeElement("div", { className: "holder" });
+            const target = appendTarget(subject);
+            fixture.appendChild(subject);
+            return { subject, target };
+        });
+
+        runClassRemovalCase("[class][data-state] descendant loses match", "[class][data-state] .target", fixture => {
+            const subject = makeElement("div", { className: "holder", attributes: { "data-state": "on" } });
+            const target = appendTarget(subject);
+            fixture.appendChild(subject);
+            return { subject, target };
+        });
+
+        runClassRemovalCase(".outer [class] descendant loses match", ".outer [class] .target", fixture => {
+            const outer = makeElement("div", { className: "outer" });
+            const subject = makeElement("div", { className: "holder" });
+            const target = appendTarget(subject);
+            outer.appendChild(subject);
+            fixture.appendChild(outer);
+            return { subject, target };
+        });
+
+        runClassRemovalCase("[class] adjacent sibling loses match", "[class] + .target", fixture => {
+            const subject = makeElement("div", { className: "holder" });
+            const target = makeElement("span", { className: "target" });
+            fixture.append(subject, target);
+            return { subject, target };
+        });
+
+        runClassRemovalCase("[class] general sibling loses match", "[class] ~ .target", fixture => {
+            const subject = makeElement("div", { className: "holder" });
+            fixture.append(subject, makeElement("span"), makeElement("span"));
+            const target = makeElement("span", { className: "target" });
+            fixture.appendChild(target);
+            return { subject, target };
+        });
+
+        runClassRemovalCase("[class] deep descendant loses match", "[class] .middle .target", fixture => {
+            const subject = makeElement("div", { className: "holder" });
+            const middle = makeElement("span", { className: "middle" });
+            const target = appendTarget(middle);
+            subject.appendChild(middle);
+            fixture.appendChild(subject);
+            return { subject, target };
+        });
+    });
+</script>

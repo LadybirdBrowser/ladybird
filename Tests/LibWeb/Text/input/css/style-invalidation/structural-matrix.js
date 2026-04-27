@@ -26,6 +26,15 @@ function styleCounterSummary() {
     );
 }
 
+function styleCounters() {
+    return internals.getStyleInvalidationCounters();
+}
+
+function assertCounter(testName, counterName, expected) {
+    const actual = styleCounters()[counterName];
+    assertEqual(testName, actual, expected);
+}
+
 function printPassWithCounters(testName) {
     println(`PASS: ${testName} | ${styleCounterSummary()}`);
 }

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    let nextScopeId = 0;
+
+    function runStructuralCase(name, hasArgument, buildMutation, options = {}) {
+        const scope = `concrete-structural-${nextScopeId++}`;
+        const fixture = makeElement("section", { className: scope });
+        const anchor = makeElement("div", { className: "anchor" });
+        const target = makeElement("span", { className: "target" });
+        anchor.appendChild(target);
+        fixture.appendChild(anchor);
+        document.body.appendChild(fixture);
+
+        const style = addStyle(document.head, `.${scope} .anchor:has(${hasArgument}) .target { ${MATCH_DECLARATION} }`);
+
+        try {
+            if (options.initiallyPresent) {
+                const initialNode = buildMutation();
+                anchor.appendChild(initialNode);
+                assertEqual(`${name} initial`, readProbe(target), MATCH);
+
+                resetStyleCounters();
+                initialNode.remove();
+                assertEqual(`${name} after removal`, readProbe(target), BASE);
+            } else {
+                assertEqual(`${name} initial`, readProbe(target), BASE);
+
+                resetStyleCounters();
+                anchor.appendChild(buildMutation());
+                assertEqual(`${name} after insertion`, readProbe(target), MATCH);
+            }
+
+            assertCounter(`${name} avoids full invalidation`, "fullStyleInvalidations", 0);
+            printPassWithCounters(name);
+        } finally {
+            style.remove();
+            fixture.remove();
+        }
+    }
+
+    test(() => {
+        runStructuralCase("inserted class argument invalidates descendant fanout", ".needle", () => {
+            return makeElement("span", { className: "needle" });
+        });
+
+        runStructuralCase("removed class argument invalidates descendant fanout", ".needle", () => {
+            return makeElement("span", { className: "needle" });
+        }, { initiallyPresent: true });
+
+        runStructuralCase("inserted id argument invalidates descendant fanout", "#needle-id", () => {
+            return makeElement("span", { id: "needle-id" });
+        });
+
+        runStructuralCase("removed id argument invalidates descendant fanout", "#needle-id", () => {
+            return makeElement("span", { id: "needle-id" });
+        }, { initiallyPresent: true });
+
+        runStructuralCase("inserted attribute argument invalidates descendant fanout", "[data-needle]", () => {
+            return makeElement("span", { attributes: { "data-needle": "" } });
+        });
+
+        runStructuralCase("removed attribute argument invalidates descendant fanout", "[data-needle]", () => {
+            return makeElement("span", { attributes: { "data-needle": "" } });
+        }, { initiallyPresent: true });
+
+        runStructuralCase("inserted tag argument invalidates descendant fanout", "em", () => {
+            return makeElement("em");
+        });
+
+        runStructuralCase("removed tag argument invalidates descendant fanout", "em", () => {
+            return makeElement("em");
+        }, { initiallyPresent: true });
+
+        runStructuralCase("inserted nested class argument invalidates descendant fanout", ".nested-needle", () => {
+            const wrapper = makeElement("span");
+            wrapper.appendChild(makeElement("span", { className: "nested-needle" }));
+            return wrapper;
+        });
+
+        runStructuralCase("inserted fragment class argument invalidates descendant fanout", ".fragment-needle", () => {
+            const fragment = document.createDocumentFragment();
+            fragment.appendChild(makeElement("span"));
+            fragment.appendChild(makeElement("span", { className: "fragment-needle" }));
+            return fragment;
+        });
+
+        runStructuralCase("inserted :is class argument invalidates descendant fanout", ":is(.is-needle)", () => {
+            return makeElement("span", { className: "is-needle" });
+        });
+
+        runStructuralCase("inserted :where attribute argument invalidates descendant fanout", ":where([data-where-needle])", () => {
+            return makeElement("span", { attributes: { "data-where-needle": "" } });
+        });
+
+        runStructuralCase("inserted compound class attribute argument invalidates descendant fanout", ".compound-needle[data-compound-needle]", () => {
+            return makeElement("span", { className: "compound-needle", attributes: { "data-compound-needle": "" } });
+        });
+    });
+</script>

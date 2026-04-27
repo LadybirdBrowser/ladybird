@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    function appendTarget(outer, options = {}) {
+        const target = makeElement("span", { className: "target" });
+        if (options.nested) {
+            const wrapper = makeElement("div", { className: "target-wrapper" });
+            wrapper.appendChild(target);
+            outer.appendChild(wrapper);
+        } else {
+            outer.appendChild(target);
+        }
+        return target;
+    }
+
+    function adjacentFixture(fixture, options = {}) {
+        const outer = makeElement(options.outerTagName || "section", { className: options.outerClassName || "outer" });
+        if (options.outerId)
+            outer.id = options.outerId;
+        const a = makeElement(options.aTagName || "span", {
+            id: options.aId,
+            className: options.aClassName || "a",
+            attributes: options.aAttributes,
+        });
+        const b = makeElement(options.bTagName || "span", {
+            id: options.bId,
+            className: options.bClassName || "b",
+            attributes: options.bAttributes,
+        });
+        const spacer = makeElement(options.spacerTagName || "span", {
+            className: options.spacerClassName || "",
+            attributes: options.spacerAttributes,
+        });
+        const before = makeElement("span");
+        const after = makeElement("span");
+
+        if (options.spacerBeforeA)
+            outer.append(spacer, a, b);
+        else if (options.spacerAfterB)
+            outer.append(a, b, spacer);
+        else if (options.spacerBetween)
+            outer.append(a, spacer, b);
+        else
+            outer.append(a, b, spacer);
+
+        const target = appendTarget(outer, { nested: options.nestedTarget });
+        fixture.append(before, outer, after);
+        return { fixture, outer, a, b, spacer, before, after, target };
+    }
+
+    function nestedAdjacentFixture(fixture, options = {}) {
+        const context = adjacentFixture(fixture, options);
+        const container = makeElement("div", { className: "container" });
+        context.a.replaceWith(container);
+        container.append(context.a, context.b);
+        if (options.spacerBetween)
+            context.a.after(context.spacer);
+        else if (options.spacerAfterB)
+            context.b.after(context.spacer);
+        else
+            context.outer.appendChild(context.spacer);
+        return { ...context, container };
+    }
+
+    function shadowAdjacentFixture(fixture, options = {}) {
+        const host = makeElement("div");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        fixture.appendChild(host);
+        const context = adjacentFixture(shadowRoot, options);
+        return { ...context, styleRoot: shadowRoot };
+    }
+
+    function runSiblingHasCase(selectorCase) {
+        const fixture = makeElement("section");
+        document.body.appendChild(fixture);
+        const context = selectorCase.setup(fixture);
+        const style = addStyle(context.styleRoot || document.head, selectorCase.cssText);
+        try {
+            const initial = readProbe(context.target);
+            resetStyleCounters();
+            selectorCase.mutate(context);
+            const after = readProbe(context.target);
+            println(`RESULT: ${selectorCase.name}: initial=${initial} expectedInitial=${selectorCase.initial ? MATCH : BASE}, after=${after} expectedAfter=${selectorCase.after ? MATCH : BASE}`);
+            printPassWithCounters(`non-subject :has sibling combinator: ${selectorCase.name}`);
+        } finally {
+            style.remove();
+            fixture.remove();
+        }
+    }
+
+    const siblingHasCases = [
+        {
+            name: "adjacent match stops after plain element inserted between operands",
+            cssText: `.outer:has(.a + .b) .target { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => adjacentFixture(fixture),
+            mutate: ({ a, spacer }) => a.after(spacer),
+        },
+        {
+            name: "adjacent match starts after plain middle element is removed",
+            cssText: `.outer:has(.a + .b) .target { ${MATCH_DECLARATION} }`,
+            initial: false,
+            after: true,
+            setup: fixture => adjacentFixture(fixture, { spacerBetween: true }),
+            mutate: ({ spacer }) => spacer.remove(),
+        },
+        {
+            name: "adjacent match starts after plain middle element moves after right operand",
+            cssText: `.outer:has(.a + .b) .target { ${MATCH_DECLARATION} }`,
+            initial: false,
+            after: true,
+            setup: fixture => adjacentFixture(fixture, { spacerBetween: true }),
+            mutate: ({ b, spacer }) => b.after(spacer),
+        },
+        {
+            name: "adjacent match stops after trailing plain element moves between operands",
+            cssText: `.outer:has(.a + .b) .target { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => adjacentFixture(fixture, { spacerAfterB: true }),
+            mutate: ({ a, spacer }) => a.after(spacer),
+        },
+        {
+            name: "adjacent attribute right operand stops after plain insertion",
+            cssText: `.outer:has(.a + [data-b]) .target { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => adjacentFixture(fixture, { bClassName: "", bAttributes: { "data-b": "" } }),
+            mutate: ({ a, spacer }) => a.after(spacer),
+        },
+        {
+            name: "adjacent id left operand stops after plain insertion",
+            cssText: `.outer:has(#left + .b) .target { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => adjacentFixture(fixture, { aClassName: "", aId: "left" }),
+            mutate: ({ a, spacer }) => a.after(spacer),
+        },
+        {
+            name: "adjacent tag operands stop after plain insertion",
+            cssText: `.outer:has(em + strong) .target { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => adjacentFixture(fixture, { aTagName: "em", aClassName: "", bTagName: "strong", bClassName: "" }),
+            mutate: ({ a, spacer }) => a.after(spacer),
+        },
+        {
+            name: "child-scoped adjacent operands stop after plain insertion",
+            cssText: `.outer:has(> .a + .b) .target { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => adjacentFixture(fixture),
+            mutate: ({ a, spacer }) => a.after(spacer),
+        },
+        {
+            name: "nested target is invalidated when adjacent match stops",
+            cssText: `.outer:has(.a + .b) .target-wrapper .target { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => adjacentFixture(fixture, { nestedTarget: true }),
+            mutate: ({ a, spacer }) => a.after(spacer),
+        },
+        {
+            name: "direct child target is invalidated when adjacent match stops",
+            cssText: `.outer:has(.a + .b) > .target { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => adjacentFixture(fixture),
+            mutate: ({ a, spacer }) => a.after(spacer),
+        },
+        {
+            name: "is right operand stops after plain insertion",
+            cssText: `.outer:has(.a + :is(.b, .fallback)) .target { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => adjacentFixture(fixture),
+            mutate: ({ a, spacer }) => a.after(spacer),
+        },
+        {
+            name: "where left operand stops after plain insertion",
+            cssText: `.outer:has(:where(.a) + .b) .target { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => adjacentFixture(fixture),
+            mutate: ({ a, spacer }) => a.after(spacer),
+        },
+        {
+            name: "selector list argument stops after plain insertion",
+            cssText: `.outer:has(.unused, .a + .b) .target { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => adjacentFixture(fixture),
+            mutate: ({ a, spacer }) => a.after(spacer),
+        },
+        {
+            name: "descendant container adjacent argument stops after plain insertion",
+            cssText: `.outer:has(.container .a + .b) .target { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => nestedAdjacentFixture(fixture),
+            mutate: ({ a, spacer }) => a.after(spacer),
+        },
+        {
+            name: "descendant container adjacent argument starts after middle removal",
+            cssText: `.outer:has(.container .a + .b) .target { ${MATCH_DECLARATION} }`,
+            initial: false,
+            after: true,
+            setup: fixture => nestedAdjacentFixture(fixture, { spacerBetween: true }),
+            mutate: ({ spacer }) => spacer.remove(),
+        },
+        {
+            name: "outer id anchor with adjacent argument stops after plain insertion",
+            cssText: `#outer-anchor:has(.a + .b) .target { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => adjacentFixture(fixture, { outerId: "outer-anchor" }),
+            mutate: ({ a, spacer }) => a.after(spacer),
+        },
+        {
+            name: "outer class chain anchor with adjacent argument stops after plain insertion",
+            cssText: `.fixture-shell .outer.special:has(.a + .b) .target { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => {
+                fixture.className = "fixture-shell";
+                return adjacentFixture(fixture, { outerClassName: "outer special" });
+            },
+            mutate: ({ a, spacer }) => a.after(spacer),
+        },
+        {
+            name: "custom element spacer stops adjacent match",
+            cssText: `.outer:has(.a + .b) .target { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => adjacentFixture(fixture, { spacerTagName: "x-spacer" }),
+            mutate: ({ a, spacer }) => a.after(spacer),
+        },
+        {
+            name: "shadow-local adjacent match stops after plain insertion",
+            cssText: `.outer:has(.a + .b) .target { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => shadowAdjacentFixture(fixture),
+            mutate: ({ a, spacer }) => a.after(spacer),
+        },
+        {
+            name: "shadow-local adjacent match starts after middle removal",
+            cssText: `.outer:has(.a + .b) .target { ${MATCH_DECLARATION} }`,
+            initial: false,
+            after: true,
+            setup: fixture => shadowAdjacentFixture(fixture, { spacerBetween: true }),
+            mutate: ({ spacer }) => spacer.remove(),
+        },
+        {
+            name: "subsequent sibling with structural pseudo stops after plain insertion",
+            cssText: `.outer:has(.a ~ .b:nth-child(2)) .target { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: false,
+            setup: fixture => adjacentFixture(fixture),
+            mutate: ({ a, spacer }) => a.after(spacer),
+        },
+        {
+            name: "subsequent sibling with structural pseudo starts after middle removal",
+            cssText: `.outer:has(.a ~ .b:nth-child(2)) .target { ${MATCH_DECLARATION} }`,
+            initial: false,
+            after: true,
+            setup: fixture => adjacentFixture(fixture, { spacerBetween: true }),
+            mutate: ({ spacer }) => spacer.remove(),
+        },
+        {
+            name: "adjacent match survives plain insertion before operands",
+            cssText: `.outer:has(.a + .b) .target { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: true,
+            setup: fixture => adjacentFixture(fixture),
+            mutate: ({ a, spacer }) => a.before(spacer),
+        },
+        {
+            name: "adjacent mismatch survives plain insertion when right operand does not match",
+            cssText: `.outer:has(.a + .b) .target { ${MATCH_DECLARATION} }`,
+            initial: false,
+            after: false,
+            setup: fixture => adjacentFixture(fixture, { bClassName: "c" }),
+            mutate: ({ a, spacer }) => a.after(spacer),
+        },
+        {
+            name: "adjacent match survives removing unrelated trailing plain element",
+            cssText: `.outer:has(.a + .b) .target { ${MATCH_DECLARATION} }`,
+            initial: true,
+            after: true,
+            setup: fixture => adjacentFixture(fixture, { spacerAfterB: true }),
+            mutate: ({ spacer }) => spacer.remove(),
+        },
+    ];
+
+    test(() => {
+        for (const selectorCase of siblingHasCases)
+            runSiblingHasCase(selectorCase);
+    });
+</script>

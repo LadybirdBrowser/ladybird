@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    function settle(anchor) {
+        readProbe(anchor);
+        document.documentElement.classList.add("__settle__");
+        readProbe(anchor);
+        document.documentElement.classList.remove("__settle__");
+        readProbe(anchor);
+    }
+
+    function makeNodeForFeature(feature) {
+        switch (feature.kind) {
+        case "class":
+            return makeElement("span", { className: feature.name });
+        case "id":
+            return makeElement("span", { id: feature.name });
+        case "attribute":
+            return makeElement("span", { attributes: { [feature.name]: "" } });
+        case "tag":
+            return makeElement(feature.name);
+        case "pseudo":
+            if (feature.name === "checked")
+                return makeElement("input", { attributes: { type: "checkbox", checked: "" } });
+            if (feature.name === "disabled")
+                return makeElement("button", { attributes: { disabled: "" } });
+            if (feature.name === "required")
+                return makeElement("input", { attributes: { required: "" } });
+            throw new Error(`Unknown pseudo feature ${feature.name}`);
+        default:
+            throw new Error(`Unknown feature kind ${feature.kind}`);
+        }
+    }
+
+    const positiveFeatureSelectors = [
+        { name: "class", selector: ".needle", feature: { kind: "class", name: "needle" } },
+        { name: "id", selector: "#needle-id", feature: { kind: "id", name: "needle-id" } },
+        { name: "attribute", selector: "[data-needle]", feature: { kind: "attribute", name: "data-needle" } },
+        { name: "tag", selector: "em", feature: { kind: "tag", name: "em" } },
+        { name: "checked pseudo", selector: ":checked", feature: { kind: "pseudo", name: "checked" } },
+        { name: "disabled pseudo", selector: ":disabled", feature: { kind: "pseudo", name: "disabled" } },
+        { name: "required pseudo", selector: ":required", feature: { kind: "pseudo", name: "required" } },
+        { name: "compound class tag", selector: "em.needle", feature: { kind: "tag", name: "em" }, decorate: element => element.classList.add("needle") },
+    ];
+
+    const unrelatedMutations = [
+        {
+            name: "append plain element",
+            mutate: ({ unrelated }) => unrelated.appendChild(makeElement("span")),
+        },
+        {
+            name: "append other class",
+            mutate: ({ unrelated }) => unrelated.appendChild(makeElement("span", { className: "other" })),
+        },
+        {
+            name: "append other id",
+            mutate: ({ unrelated }) => unrelated.appendChild(makeElement("span", { id: "other-id" })),
+        },
+        {
+            name: "append other attribute",
+            mutate: ({ unrelated }) => unrelated.appendChild(makeElement("span", { attributes: { "data-other": "" } })),
+        },
+        {
+            name: "append other tag",
+            mutate: ({ unrelated }) => unrelated.appendChild(makeElement("strong")),
+        },
+        {
+            name: "append nested unrelated subtree",
+            mutate: ({ unrelated }) => {
+                const wrapper = makeElement("div");
+                wrapper.append(makeElement("span", { className: "other" }), makeElement("strong"));
+                unrelated.appendChild(wrapper);
+            },
+        },
+        {
+            name: "append document fragment with unrelated children",
+            mutate: ({ unrelated }) => {
+                const fragment = document.createDocumentFragment();
+                fragment.append(makeElement("span"), makeElement("strong", { attributes: { "data-other": "" } }));
+                unrelated.appendChild(fragment);
+            },
+        },
+        {
+            name: "remove unrelated child",
+            before: ({ unrelated }) => unrelated.appendChild(makeElement("span", { className: "other" })),
+            mutate: ({ existing }) => existing.remove(),
+        },
+        {
+            name: "move unrelated sibling before unrelated root",
+            before: ({ fixture }) => fixture.appendChild(makeElement("div")),
+            mutate: ({ fixture, unrelated, existing }) => fixture.moveBefore(existing, unrelated),
+        },
+        {
+            name: "replace unrelated child with plain element",
+            before: ({ unrelated }) => unrelated.appendChild(makeElement("span", { className: "other" })),
+            mutate: ({ existing }) => existing.replaceWith(makeElement("span")),
+        },
+        {
+            name: "insert unrelated before anchor",
+            mutate: ({ fixture, anchor }) => fixture.insertBefore(makeElement("span"), anchor),
+        },
+        {
+            name: "append unrelated after fixture",
+            mutate: ({ fixture }) => {
+                const sibling = makeElement("div");
+                fixture.after(sibling);
+                return () => sibling.remove();
+            },
+        },
+    ];
+
+    function runUnrelatedStructuralCase(featureCase, mutationCase) {
+        const style = addStyle(document.head, `.anchor:has(${featureCase.selector}) { ${MATCH_DECLARATION} }`);
+        const fixture = makeElement("section");
+        const anchor = makeElement("div", { className: "anchor" });
+        const unrelated = makeElement("div");
+        fixture.append(anchor, unrelated);
+        document.body.appendChild(fixture);
+
+        try {
+            assertEqual(`${featureCase.name} / ${mutationCase.name} initial`, readProbe(anchor), BASE);
+            settle(anchor);
+
+            const existing = mutationCase.before?.({ fixture, anchor, unrelated });
+            resetStyleCounters();
+            const cleanup = mutationCase.mutate({ fixture, anchor, unrelated, existing });
+            assertEqual(`${featureCase.name} / ${mutationCase.name} after mutation`, readProbe(anchor), BASE);
+            assertCounter(`${featureCase.name} / ${mutationCase.name} skipped :has matching`, "hasMatchInvocations", 0);
+            printPassWithCounters(`unrelated structural mutation skips :has walk: ${featureCase.name} / ${mutationCase.name}`);
+            if (typeof cleanup === "function")
+                cleanup();
+        } finally {
+            style.remove();
+            fixture.remove();
+        }
+    }
+
+    const relatedMutations = [
+        {
+            name: "append matching child",
+            mutate: ({ anchor, featureCase }) => {
+                const node = makeNodeForFeature(featureCase.feature);
+                featureCase.decorate?.(node);
+                anchor.appendChild(node);
+            },
+        },
+        {
+            name: "append matching nested descendant",
+            selectorWrapper: selector => `.wrapper ${selector}`,
+            mutate: ({ anchor, featureCase }) => {
+                const wrapper = makeElement("div", { className: "wrapper" });
+                const node = makeNodeForFeature(featureCase.feature);
+                featureCase.decorate?.(node);
+                wrapper.appendChild(node);
+                anchor.appendChild(wrapper);
+            },
+        },
+        {
+            name: "append matching fragment child",
+            mutate: ({ anchor, featureCase }) => {
+                const fragment = document.createDocumentFragment();
+                const node = makeNodeForFeature(featureCase.feature);
+                featureCase.decorate?.(node);
+                fragment.append(makeElement("span"), node);
+                anchor.appendChild(fragment);
+            },
+        },
+        {
+            name: "move matching child into anchor",
+            before: ({ fixture, featureCase }) => {
+                const node = makeNodeForFeature(featureCase.feature);
+                featureCase.decorate?.(node);
+                fixture.appendChild(node);
+                return node;
+            },
+            mutate: ({ anchor, existing }) => anchor.appendChild(existing),
+        },
+    ];
+
+    function runRelatedStructuralCase(featureCase, mutationCase) {
+        const selector = mutationCase.selectorWrapper?.(featureCase.selector) ?? featureCase.selector;
+        const style = addStyle(document.head, `.anchor:has(${selector}) { ${MATCH_DECLARATION} }`);
+        const fixture = makeElement("section");
+        const anchor = makeElement("div", { className: "anchor" });
+        fixture.appendChild(anchor);
+        document.body.appendChild(fixture);
+
+        try {
+            assertEqual(`${featureCase.name} / ${mutationCase.name} initial`, readProbe(anchor), BASE);
+            const existing = mutationCase.before?.({ fixture, anchor, featureCase });
+            resetStyleCounters();
+            mutationCase.mutate({ fixture, anchor, existing, featureCase });
+            assertEqual(`${featureCase.name} / ${mutationCase.name} after mutation`, readProbe(anchor), MATCH);
+            printPassWithCounters(`related structural mutation keeps :has walk: ${featureCase.name} / ${mutationCase.name}`);
+        } finally {
+            style.remove();
+            fixture.remove();
+        }
+    }
+
+    const featurelessSensitiveCases = [
+        {
+            name: "child universal insertion",
+            selector: "> *",
+            setup: ({ anchor }) => ({ anchor }),
+            mutate: ({ anchor }) => anchor.appendChild(makeElement("span")),
+            expectedInitial: BASE,
+            expectedAfter: MATCH,
+        },
+        {
+            name: "descendant universal insertion",
+            selector: "*",
+            setup: ({ anchor }) => ({ anchor }),
+            mutate: ({ anchor }) => anchor.appendChild(makeElement("span")),
+            expectedInitial: BASE,
+            expectedAfter: MATCH,
+        },
+        {
+            name: "child :not(class) insertion",
+            selector: "> :not(.foo)",
+            setup: ({ anchor }) => ({ anchor }),
+            mutate: ({ anchor }) => anchor.appendChild(makeElement("span")),
+            expectedInitial: BASE,
+            expectedAfter: MATCH,
+        },
+        {
+            name: "adjacent :not(class) starts matching",
+            selector: "+ :not(.foo)",
+            setup: ({ fixture, anchor }) => {
+                const foo = makeElement("div", { className: "foo" });
+                const moved = makeElement("div");
+                fixture.append(foo, moved);
+                return { anchor, foo, moved };
+            },
+            mutate: ({ fixture, foo, moved }) => fixture.moveBefore(moved, foo),
+            expectedInitial: BASE,
+            expectedAfter: MATCH,
+        },
+        {
+            name: "adjacent :not(class) stops matching",
+            selector: "+ :not(.foo)",
+            setup: ({ fixture, anchor }) => {
+                const moved = makeElement("div");
+                const foo = makeElement("div", { className: "foo" });
+                fixture.append(moved, foo);
+                return { anchor, moved, foo };
+            },
+            mutate: ({ fixture, moved }) => fixture.moveBefore(moved, null),
+            expectedInitial: MATCH,
+            expectedAfter: BASE,
+        },
+        {
+            name: "following :not(id) starts matching",
+            selector: "~ :not(#foo)",
+            setup: ({ fixture, anchor }) => {
+                const moved = makeElement("div");
+                const foo = makeElement("div", { id: "foo" });
+                fixture.insertBefore(moved, anchor);
+                fixture.appendChild(foo);
+                return { anchor, moved, foo };
+            },
+            mutate: ({ fixture, foo, moved }) => fixture.moveBefore(moved, foo),
+            expectedInitial: BASE,
+            expectedAfter: MATCH,
+        },
+        {
+            name: "following :not(attribute) stops matching",
+            selector: "~ :not([data-foo])",
+            setup: ({ fixture, anchor }) => {
+                const moved = makeElement("div");
+                const foo = makeElement("div", { attributes: { "data-foo": "" } });
+                fixture.append(moved, foo);
+                return { anchor, moved, foo };
+            },
+            mutate: ({ fixture, anchor, moved }) => fixture.moveBefore(moved, anchor),
+            expectedInitial: MATCH,
+            expectedAfter: BASE,
+        },
+        {
+            name: "child :not(tag) insertion",
+            selector: "> :not(span)",
+            setup: ({ anchor }) => ({ anchor }),
+            mutate: ({ anchor }) => anchor.appendChild(makeElement("div")),
+            expectedInitial: BASE,
+            expectedAfter: MATCH,
+        },
+        {
+            name: "child :is(:not(class)) insertion",
+            selector: "> :is(:not(.foo))",
+            setup: ({ anchor }) => ({ anchor }),
+            mutate: ({ anchor }) => anchor.appendChild(makeElement("span")),
+            expectedInitial: BASE,
+            expectedAfter: MATCH,
+        },
+        {
+            name: "child :where(:not(attribute)) insertion",
+            selector: "> :where(:not([data-foo]))",
+            setup: ({ anchor }) => ({ anchor }),
+            mutate: ({ anchor }) => anchor.appendChild(makeElement("span")),
+            expectedInitial: BASE,
+            expectedAfter: MATCH,
+        },
+        {
+            name: "child :not(class, id) insertion",
+            selector: "> :not(.foo, #foo)",
+            setup: ({ anchor }) => ({ anchor }),
+            mutate: ({ anchor }) => anchor.appendChild(makeElement("span")),
+            expectedInitial: BASE,
+            expectedAfter: MATCH,
+        },
+        {
+            name: "descendant :not(class) nested insertion",
+            selector: ":not(.foo)",
+            setup: ({ anchor }) => ({ anchor }),
+            mutate: ({ anchor }) => {
+                const wrapper = makeElement("div", { className: "foo" });
+                wrapper.appendChild(makeElement("span"));
+                anchor.appendChild(wrapper);
+            },
+            expectedInitial: BASE,
+            expectedAfter: MATCH,
+        },
+        {
+            name: "child :empty insertion",
+            selector: "> :empty",
+            setup: ({ anchor }) => ({ anchor }),
+            mutate: ({ anchor }) => anchor.appendChild(makeElement("span")),
+            expectedInitial: BASE,
+            expectedAfter: MATCH,
+        },
+        {
+            name: "child :empty stops matching after text append",
+            selector: "> :empty",
+            setup: ({ anchor }) => {
+                const child = makeElement("span");
+                anchor.appendChild(child);
+                return { anchor, child };
+            },
+            mutate: ({ child }) => child.appendChild(document.createTextNode("x")),
+            expectedInitial: MATCH,
+            expectedAfter: BASE,
+        },
+        {
+            name: "child :first-child insertion",
+            selector: "> :first-child",
+            setup: ({ anchor }) => ({ anchor }),
+            mutate: ({ anchor }) => anchor.appendChild(makeElement("span")),
+            expectedInitial: BASE,
+            expectedAfter: MATCH,
+        },
+        {
+            name: "child :last-child insertion",
+            selector: "> :last-child",
+            setup: ({ anchor }) => ({ anchor }),
+            mutate: ({ anchor }) => anchor.appendChild(makeElement("span")),
+            expectedInitial: BASE,
+            expectedAfter: MATCH,
+        },
+        {
+            name: "child :only-child stops matching",
+            selector: "> :only-child",
+            setup: ({ anchor }) => {
+                anchor.appendChild(makeElement("span"));
+                return { anchor };
+            },
+            mutate: ({ anchor }) => anchor.appendChild(makeElement("span")),
+            expectedInitial: MATCH,
+            expectedAfter: BASE,
+        },
+        {
+            name: "child :nth-child(2) starts matching",
+            selector: "> :nth-child(2)",
+            setup: ({ anchor }) => {
+                anchor.appendChild(makeElement("span"));
+                return { anchor };
+            },
+            mutate: ({ anchor }) => anchor.appendChild(makeElement("span")),
+            expectedInitial: BASE,
+            expectedAfter: MATCH,
+        },
+        {
+            name: "child :nth-last-child(2) starts matching",
+            selector: "> :nth-last-child(2)",
+            setup: ({ anchor }) => {
+                anchor.appendChild(makeElement("span"));
+                return { anchor };
+            },
+            mutate: ({ anchor }) => anchor.appendChild(makeElement("span")),
+            expectedInitial: BASE,
+            expectedAfter: MATCH,
+        },
+        {
+            name: "child :only-of-type stops matching",
+            selector: "> :only-of-type",
+            setup: ({ anchor }) => {
+                anchor.appendChild(makeElement("span"));
+                return { anchor };
+            },
+            mutate: ({ anchor }) => anchor.appendChild(makeElement("span")),
+            expectedInitial: MATCH,
+            expectedAfter: BASE,
+        },
+    ];
+
+    function runFeaturelessSensitiveCase(caseData) {
+        const style = addStyle(document.head, `.anchor:has(${caseData.selector}) { ${MATCH_DECLARATION} }`);
+        const fixture = makeElement("section");
+        const anchor = makeElement("div", { className: "anchor" });
+        fixture.appendChild(anchor);
+        document.body.appendChild(fixture);
+
+        try {
+            const context = caseData.setup({ fixture, anchor });
+            assertEqual(`${caseData.name} initial`, readProbe(anchor), caseData.expectedInitial);
+            resetStyleCounters();
+            caseData.mutate({ fixture, anchor, ...context });
+            assertEqual(`${caseData.name} after mutation`, readProbe(anchor), caseData.expectedAfter);
+            printPassWithCounters(`featureless-sensitive structural mutation keeps :has walk: ${caseData.name}`);
+        } finally {
+            style.remove();
+            fixture.remove();
+        }
+    }
+
+    const unprobeablePseudoCases = [
+        {
+            name: "child :focus insertion with unrelated metadata",
+            selector: "> :focus",
+            setup: ({ fixture }) => {
+                const input = makeElement("input");
+                fixture.appendChild(input);
+                input.focus();
+                return { input };
+            },
+            mutate: ({ anchor, input }) => anchor.appendChild(input),
+        },
+        {
+            name: "descendant :focus insertion through wrapper with unrelated metadata",
+            selector: ":focus",
+            setup: ({ fixture }) => {
+                const wrapper = makeElement("div");
+                const input = makeElement("input");
+                wrapper.appendChild(input);
+                fixture.appendChild(wrapper);
+                input.focus();
+                return { wrapper };
+            },
+            mutate: ({ anchor, wrapper }) => anchor.appendChild(wrapper),
+        },
+        {
+            name: "child :focus-within insertion with unrelated metadata",
+            selector: "> :focus-within",
+            setup: ({ fixture }) => {
+                const wrapper = makeElement("div");
+                const input = makeElement("input");
+                wrapper.appendChild(input);
+                fixture.appendChild(wrapper);
+                input.focus();
+                return { wrapper };
+            },
+            mutate: ({ anchor, wrapper }) => anchor.appendChild(wrapper),
+        },
+        {
+            name: "child :focus-visible insertion with unrelated metadata",
+            selector: "> :focus-visible",
+            setup: ({ fixture }) => {
+                const input = makeElement("input");
+                fixture.appendChild(input);
+                input.focus();
+                return { input };
+            },
+            mutate: ({ anchor, input }) => anchor.appendChild(input),
+        },
+        {
+            name: "child :default checkbox insertion with unrelated metadata",
+            selector: "> :default",
+            setup: () => ({ input: makeElement("input", { attributes: { type: "checkbox", checked: "" } }) }),
+            mutate: ({ anchor, input }) => anchor.appendChild(input),
+        },
+        {
+            name: "descendant :default selected option insertion with unrelated metadata",
+            selector: ":default",
+            setup: () => {
+                const select = makeElement("select");
+                select.appendChild(makeElement("option", { attributes: { selected: "" } }));
+                return { select };
+            },
+            mutate: ({ anchor, select }) => anchor.appendChild(select),
+        },
+        {
+            name: "child :valid insertion with unrelated metadata",
+            selector: "> :valid",
+            setup: () => ({ input: makeElement("input", { attributes: { required: "", value: "x" } }) }),
+            mutate: ({ anchor, input }) => anchor.appendChild(input),
+        },
+        {
+            name: "child :invalid insertion with unrelated metadata",
+            selector: "> :invalid",
+            setup: () => ({ input: makeElement("input", { attributes: { required: "" } }) }),
+            mutate: ({ anchor, input }) => anchor.appendChild(input),
+        },
+        {
+            name: "child :open insertion with unrelated metadata",
+            selector: "> :open",
+            setup: () => ({ details: makeElement("details", { attributes: { open: "" } }) }),
+            mutate: ({ anchor, details }) => anchor.appendChild(details),
+        },
+        {
+            name: "child :read-only insertion with unrelated metadata",
+            selector: "> :read-only",
+            setup: () => ({ input: makeElement("input", { attributes: { readonly: "" } }) }),
+            mutate: ({ anchor, input }) => anchor.appendChild(input),
+        },
+        {
+            name: "child :read-write insertion with unrelated metadata",
+            selector: "> :read-write",
+            setup: () => ({ input: makeElement("input") }),
+            mutate: ({ anchor, input }) => anchor.appendChild(input),
+        },
+        {
+            name: "child :is(:focus) insertion with unrelated metadata",
+            selector: "> :is(:focus)",
+            setup: ({ fixture }) => {
+                const input = makeElement("input");
+                fixture.appendChild(input);
+                input.focus();
+                return { input };
+            },
+            mutate: ({ anchor, input }) => anchor.appendChild(input),
+        },
+        {
+            name: "child :where(:invalid) insertion with unrelated metadata",
+            selector: "> :where(:invalid)",
+            setup: () => ({ input: makeElement("input", { attributes: { required: "" } }) }),
+            mutate: ({ anchor, input }) => anchor.appendChild(input),
+        },
+    ];
+
+    function runUnprobeablePseudoCase(caseData) {
+        const style = addStyle(document.head, `
+            .anchor:has(.metadata-sentinel) { color: rgb(1, 2, 3); }
+            .anchor:has(${caseData.selector}) { ${MATCH_DECLARATION} }
+        `);
+        const fixture = makeElement("section");
+        const anchor = makeElement("div", { className: "anchor" });
+        fixture.appendChild(anchor);
+        document.body.appendChild(fixture);
+
+        try {
+            const context = caseData.setup({ fixture, anchor });
+            assertEqual(`${caseData.name} initial`, readProbe(anchor), BASE);
+            resetStyleCounters();
+            caseData.mutate({ fixture, anchor, ...context });
+            assertEqual(`${caseData.name} after mutation`, readProbe(anchor), MATCH);
+            printPassWithCounters(`unprobeable pseudo structural mutation keeps :has walk: ${caseData.name}`);
+        } finally {
+            if (document.activeElement instanceof HTMLElement)
+                document.activeElement.blur();
+            style.remove();
+            fixture.remove();
+        }
+    }
+
+    const caseSensitiveNameCases = [
+        {
+            name: "svg camel-case tag insertion",
+            selector: "linearGradient",
+            mutate: ({ anchor }) => anchor.appendChild(makeSvgElement("linearGradient")),
+            expectedAfter: MATCH,
+        },
+        {
+            name: "svg camel-case tag nested insertion",
+            selector: "defs linearGradient",
+            mutate: ({ anchor }) => {
+                const defs = makeSvgElement("defs");
+                defs.appendChild(makeSvgElement("linearGradient"));
+                anchor.appendChild(defs);
+            },
+            expectedAfter: MATCH,
+        },
+        {
+            name: "svg camel-case tag inside html subtree",
+            selector: "svg linearGradient",
+            mutate: ({ anchor }) => {
+                const svg = makeSvgElement("svg");
+                svg.appendChild(makeSvgElement("linearGradient"));
+                anchor.appendChild(svg);
+            },
+            expectedAfter: MATCH,
+        },
+        {
+            name: "svg case-sensitive attribute insertion",
+            selector: "[viewBox]",
+            mutate: ({ anchor }) => anchor.appendChild(makeSvgElement("svg", { attributes: { viewBox: "0 0 10 10" } })),
+            expectedAfter: MATCH,
+        },
+        {
+            name: "svg case-sensitive attribute nested insertion",
+            selector: "symbol[viewBox]",
+            mutate: ({ anchor }) => anchor.appendChild(makeSvgElement("symbol", { attributes: { viewBox: "0 0 10 10" } })),
+            expectedAfter: MATCH,
+        },
+        {
+            name: "mathml case-sensitive attribute insertion",
+            selector: "[definitionURL]",
+            mutate: ({ anchor }) => {
+                const semantics = document.createElementNS("http://www.w3.org/1998/Math/MathML", "semantics");
+                semantics.setAttribute("definitionURL", "urn:example");
+                anchor.appendChild(semantics);
+            },
+            expectedAfter: MATCH,
+        },
+        {
+            name: "svg lower-case selector does not match camel-case attribute",
+            selector: "[viewbox]",
+            mutate: ({ anchor }) => anchor.appendChild(makeSvgElement("svg", { attributes: { viewBox: "0 0 10 10" } })),
+            expectedAfter: BASE,
+        },
+    ];
+
+    function runCaseSensitiveNameCase(caseData) {
+        const style = addStyle(document.head, `.anchor:has(${caseData.selector}) { ${MATCH_DECLARATION} }`);
+        const fixture = makeElement("section");
+        const anchor = makeElement("div", { className: "anchor" });
+        fixture.appendChild(anchor);
+        document.body.appendChild(fixture);
+
+        try {
+            assertEqual(`${caseData.name} initial`, readProbe(anchor), BASE);
+            resetStyleCounters();
+            caseData.mutate({ fixture, anchor });
+            assertEqual(`${caseData.name} after mutation`, readProbe(anchor), caseData.expectedAfter);
+            printPassWithCounters(`case-sensitive name structural mutation keeps :has walk: ${caseData.name}`);
+        } finally {
+            style.remove();
+            fixture.remove();
+        }
+    }
+
+    const siblingRelationshipCases = [
+        {
+            name: "featureless insertion breaks adjacent subject match",
+            selector: "+ .needle",
+            setup: ({ fixture, anchor }) => {
+                const needle = makeElement("div", { className: "needle" });
+                fixture.appendChild(needle);
+                return { anchor, target: anchor, reference: needle };
+            },
+            mutate: ({ fixture, reference }) => fixture.insertBefore(makeElement("div"), reference),
+            expectedInitial: MATCH,
+            expectedAfter: BASE,
+        },
+        {
+            name: "featureless removal restores adjacent subject match",
+            selector: "+ .needle",
+            setup: ({ fixture, anchor }) => {
+                const blocker = makeElement("div");
+                const needle = makeElement("div", { className: "needle" });
+                fixture.append(blocker, needle);
+                return { anchor, target: anchor, blocker };
+            },
+            mutate: ({ blocker }) => blocker.remove(),
+            expectedInitial: BASE,
+            expectedAfter: MATCH,
+        },
+        {
+            name: "featureless insertion breaks complex following subject match",
+            selector: "~ .tail:is(.previous + .scope ~ .marker)",
+            setup: ({ fixture, anchor }) => {
+                const previous = makeElement("div", { className: "previous" });
+                const scope = makeElement("div", { className: "scope" });
+                const tail = makeElement("div", { className: "tail marker" });
+                fixture.append(previous, scope, tail);
+                return { anchor, target: anchor, reference: scope };
+            },
+            mutate: ({ fixture, reference }) => fixture.insertBefore(makeElement("div"), reference),
+            expectedInitial: MATCH,
+            expectedAfter: BASE,
+        },
+        {
+            name: "featureless removal restores complex following subject match",
+            selector: "~ .tail:is(.previous + .scope ~ .marker)",
+            setup: ({ fixture, anchor }) => {
+                const previous = makeElement("div", { className: "previous" });
+                const blocker = makeElement("div");
+                const scope = makeElement("div", { className: "scope" });
+                const tail = makeElement("div", { className: "tail marker" });
+                fixture.append(previous, blocker, scope, tail);
+                return { anchor, target: anchor, blocker };
+            },
+            mutate: ({ blocker }) => blocker.remove(),
+            expectedInitial: BASE,
+            expectedAfter: MATCH,
+        },
+        {
+            name: "featureless insertion updates non-subject sibling target",
+            rule: ".anchor:has(+ .wrapper .needle) ~ .target",
+            setup: ({ fixture }) => {
+                const anchor = fixture.querySelector(".anchor");
+                const wrapper = makeElement("div", { className: "wrapper" });
+                wrapper.appendChild(makeElement("span", { className: "needle" }));
+                const target = makeElement("div", { className: "target" });
+                fixture.append(wrapper, target);
+                return { anchor, target, reference: wrapper };
+            },
+            mutate: ({ fixture, reference }) => fixture.insertBefore(makeElement("div"), reference),
+            expectedInitial: MATCH,
+            expectedAfter: BASE,
+        },
+        {
+            name: "featureless removal updates non-subject sibling target",
+            rule: ".anchor:has(+ .wrapper .needle) ~ .target",
+            setup: ({ fixture }) => {
+                const anchor = fixture.querySelector(".anchor");
+                const blocker = makeElement("div");
+                const wrapper = makeElement("div", { className: "wrapper" });
+                wrapper.appendChild(makeElement("span", { className: "needle" }));
+                const target = makeElement("div", { className: "target" });
+                fixture.append(blocker, wrapper, target);
+                return { anchor, target, blocker };
+            },
+            mutate: ({ blocker }) => blocker.remove(),
+            expectedInitial: BASE,
+            expectedAfter: MATCH,
+        },
+    ];
+
+    function runSiblingRelationshipCase(caseData) {
+        const rule = caseData.rule ?? `.anchor:has(${caseData.selector})`;
+        const style = addStyle(document.head, `${rule} { ${MATCH_DECLARATION} }`);
+        const fixture = makeElement("section");
+        const anchor = makeElement("div", { className: "anchor" });
+        fixture.appendChild(anchor);
+        document.body.appendChild(fixture);
+
+        try {
+            const context = caseData.setup({ fixture, anchor });
+            assertEqual(`${caseData.name} initial`, readProbe(context.target), caseData.expectedInitial);
+            resetStyleCounters();
+            caseData.mutate({ fixture, anchor, ...context });
+            assertEqual(`${caseData.name} after mutation`, readProbe(context.target), caseData.expectedAfter);
+            printPassWithCounters(`sibling relationship mutation keeps sibling-aware :has updates: ${caseData.name}`);
+        } finally {
+            style.remove();
+            fixture.remove();
+        }
+    }
+
+    test(() => {
+        for (const featureCase of positiveFeatureSelectors) {
+            for (const mutationCase of unrelatedMutations)
+                runUnrelatedStructuralCase(featureCase, mutationCase);
+            for (const mutationCase of relatedMutations)
+                runRelatedStructuralCase(featureCase, mutationCase);
+        }
+
+        for (const caseData of featurelessSensitiveCases)
+            runFeaturelessSensitiveCase(caseData);
+
+        for (const caseData of unprobeablePseudoCases)
+            runUnprobeablePseudoCase(caseData);
+
+        for (const caseData of caseSensitiveNameCases)
+            runCaseSensitiveNameCase(caseData);
+
+        for (const caseData of siblingRelationshipCases)
+            runSiblingRelationshipCase(caseData);
+    });
+</script>

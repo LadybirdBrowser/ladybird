@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    let nextScopeId = 0;
+
+    function scopedFixture(name, selector) {
+        const scope = `attribute-match-edge-${nextScopeId++}`;
+        const fixture = makeElement("section", { className: scope });
+        document.body.appendChild(fixture);
+        const style = addStyle(document.head, `.${scope} ${selector} { ${MATCH_DECLARATION} }`);
+        return { scope, fixture, style };
+    }
+
+    function cleanupFixture(fixture, style) {
+        style.remove();
+        fixture.remove();
+    }
+
+    function runClassPresenceCase(name, selector, build, mutate) {
+        const { fixture, style } = scopedFixture(name, selector);
+        try {
+            const targets = build(fixture);
+
+            for (const [label, target, expected] of targets.before)
+                assertEqual(`${name} initial ${label}`, readProbe(target), expected);
+
+            resetStyleCounters();
+            mutate(targets);
+
+            for (const [label, target, expected] of targets.after)
+                assertEqual(`${name} after mutation ${label}`, readProbe(target), expected);
+
+            printPassWithCounters(name);
+        } finally {
+            cleanupFixture(fixture, style);
+        }
+    }
+
+    function runGenericAttributeRemovalCase() {
+        const { fixture, style } = scopedFixture(
+            "generic attribute removal keeps descendants current",
+            "[data-state] span"
+        );
+
+        try {
+            const subject = makeElement("div", { attributes: { "data-state": "on" } });
+            const target = makeElement("span");
+            subject.appendChild(target);
+            fixture.appendChild(subject);
+
+            assertEqual("generic attribute removal initial", readProbe(target), MATCH);
+
+            resetStyleCounters();
+            subject.removeAttribute("data-state");
+            assertEqual("generic attribute removal after mutation", readProbe(target), BASE);
+            printPassWithCounters("generic attribute removal keeps descendants current");
+        } finally {
+            cleanupFixture(fixture, style);
+        }
+    }
+
+    function runShadowClassPresenceCase() {
+        const host = makeElement("div");
+        document.body.appendChild(host);
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        const style = addStyle(shadowRoot, `[data-active] [class] span { ${MATCH_DECLARATION} }`);
+        const ancestor = makeElement("div");
+        shadowRoot.appendChild(ancestor);
+
+        const cleanBranch = makeElement("div");
+        const unmatched = makeElement("span");
+        const unmatched2 = makeElement("span");
+        cleanBranch.append(unmatched, unmatched2);
+
+        const matchingBranch = makeElement("div", { className: "holder" });
+        const matched = makeElement("span");
+        matchingBranch.appendChild(matched);
+
+        ancestor.append(cleanBranch, matchingBranch);
+
+        try {
+            assertEqual("shadow initial unmatched", readProbe(unmatched), BASE);
+            assertEqual("shadow initial unmatched 2", readProbe(unmatched2), BASE);
+            assertEqual("shadow initial matched", readProbe(matched), BASE);
+
+            resetStyleCounters();
+            ancestor.setAttribute("data-active", "");
+
+            assertEqual("shadow after mutation unmatched", readProbe(unmatched), BASE);
+            assertEqual("shadow after mutation unmatched 2", readProbe(unmatched2), BASE);
+            assertEqual("shadow after mutation matched", readProbe(matched), MATCH);
+            printPassWithCounters("shadow tree class attribute presence keeps unrelated branch clean");
+        } finally {
+            style.remove();
+            host.remove();
+        }
+    }
+
+    test(() => {
+        runClassPresenceCase(
+            "coalesced class removal remains current",
+            "[data-active] [class] span",
+            fixture => {
+                const ancestor = makeElement("div", { attributes: { "data-active": "" } });
+                const subject = makeElement("div", { className: "holder" });
+                const target = makeElement("span");
+                subject.appendChild(target);
+                ancestor.appendChild(subject);
+                fixture.appendChild(ancestor);
+                return {
+                    ancestor,
+                    subject,
+                    before: [["target", target, MATCH]],
+                    after: [["target", target, BASE]],
+                };
+            },
+            ({ ancestor, subject }) => {
+                subject.removeAttribute("class");
+                ancestor.removeAttribute("data-active");
+                ancestor.setAttribute("data-active", "");
+            }
+        );
+
+        runClassPresenceCase(
+            "adjacent sibling class presence keeps unrelated branch clean",
+            "[data-active] [class] + span",
+            fixture => {
+                const ancestor = makeElement("div");
+                const cleanBranch = makeElement("div");
+                const cleanAnchor = makeElement("span");
+                const unmatched = makeElement("span");
+                const cleanAnchor2 = makeElement("span");
+                const unmatched2 = makeElement("span");
+                cleanBranch.append(cleanAnchor, unmatched, cleanAnchor2, unmatched2);
+
+                const matchingBranch = makeElement("div");
+                const anchor = makeElement("span", { className: "holder" });
+                const matched = makeElement("span");
+                matchingBranch.append(anchor, matched);
+
+                ancestor.append(cleanBranch, matchingBranch);
+                fixture.appendChild(ancestor);
+                return {
+                    ancestor,
+                    before: [
+                        ["unmatched", unmatched, BASE],
+                        ["unmatched 2", unmatched2, BASE],
+                        ["matched", matched, BASE],
+                    ],
+                    after: [
+                        ["unmatched", unmatched, BASE],
+                        ["unmatched 2", unmatched2, BASE],
+                        ["matched", matched, MATCH],
+                    ],
+                };
+            },
+            ({ ancestor }) => {
+                ancestor.setAttribute("data-active", "");
+            }
+        );
+
+        runClassPresenceCase(
+            "general sibling class presence keeps unrelated branch clean",
+            "[data-active] [class] ~ span",
+            fixture => {
+                const ancestor = makeElement("div");
+                const cleanBranch = makeElement("div");
+                const cleanAnchor = makeElement("span");
+                const unmatched = makeElement("span");
+                const unmatched2 = makeElement("span");
+                cleanBranch.append(cleanAnchor, unmatched, unmatched2);
+
+                const matchingBranch = makeElement("div");
+                const anchor = makeElement("span", { className: "holder" });
+                const spacer = makeElement("span");
+                const matched = makeElement("span");
+                matchingBranch.append(anchor, spacer, matched);
+
+                ancestor.append(cleanBranch, matchingBranch);
+                fixture.appendChild(ancestor);
+                return {
+                    ancestor,
+                    before: [
+                        ["unmatched", unmatched, BASE],
+                        ["unmatched 2", unmatched2, BASE],
+                        ["matched", matched, BASE],
+                    ],
+                    after: [
+                        ["unmatched", unmatched, BASE],
+                        ["unmatched 2", unmatched2, BASE],
+                        ["matched", matched, MATCH],
+                    ],
+                };
+            },
+            ({ ancestor }) => {
+                ancestor.setAttribute("data-active", "");
+            }
+        );
+
+        runGenericAttributeRemovalCase();
+        runShadowClassPresenceCase();
+    });
+</script>

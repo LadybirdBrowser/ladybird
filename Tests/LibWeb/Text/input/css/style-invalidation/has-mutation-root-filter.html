@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    function runMutationRootCase(name, selector, unrelatedMutation, relatedMutation) {
+        const style = addStyle(document.head, `:root:has(.flag) .subgrid:has(${selector}) { ${MATCH_DECLARATION} }`);
+        const fixture = makeElement("section");
+        const flag = makeElement("div", { className: "flag" });
+        const outsideMatch = makeElement("div", { attributes: { "view-type": "compactView", "data-needle": "" } });
+        outsideMatch.id = "needle-id";
+        outsideMatch.className = "needle";
+        const subgrid = makeElement("div", { className: "subgrid" });
+        fixture.append(flag, outsideMatch, subgrid);
+        document.body.appendChild(fixture);
+
+        assertEqual(`${name} initial`, readProbe(subgrid), BASE);
+        fixture.appendChild(makeElement("div"));
+        document.body.offsetWidth;
+
+        resetStyleCounters();
+        unrelatedMutation({ fixture, subgrid });
+        assertEqual(`${name} after unrelated mutation`, readProbe(subgrid), BASE);
+        assertCounter(`${name} unrelated mutation avoided :has selector matching`, "hasMatchInvocations", 0);
+        printPassWithCounters(`actual mutation root skips unrelated :has anchor: ${name}`);
+
+        resetStyleCounters();
+        relatedMutation({ subgrid });
+        assertEqual(`${name} after related mutation`, readProbe(subgrid), MATCH);
+        printPassWithCounters(`actual mutation root keeps related :has anchor: ${name}`);
+
+        style.remove();
+        fixture.remove();
+    }
+
+    test(() => {
+        runMutationRootCase(
+            "attribute argument",
+            `[view-type="compactView"]`,
+            ({ fixture }) => fixture.appendChild(makeElement("div")),
+            ({ subgrid }) => subgrid.appendChild(makeElement("div", { attributes: { "view-type": "compactView" } }))
+        );
+        runMutationRootCase(
+            "class argument",
+            `.needle`,
+            ({ fixture }) => fixture.appendChild(makeElement("span", { className: "other" })),
+            ({ subgrid }) => subgrid.appendChild(makeElement("span", { className: "needle" }))
+        );
+        runMutationRootCase(
+            "id argument",
+            `#needle-id`,
+            ({ fixture }) => fixture.appendChild(makeElement("span", { id: "other-id" })),
+            ({ subgrid }) => subgrid.appendChild(makeElement("span", { id: "needle-id" }))
+        );
+        runMutationRootCase(
+            "tag argument",
+            `em`,
+            ({ fixture }) => fixture.appendChild(makeElement("strong")),
+            ({ subgrid }) => subgrid.appendChild(makeElement("em"))
+        );
+        runMutationRootCase(
+            "child combinator argument",
+            `> .needle`,
+            ({ fixture }) => fixture.appendChild(makeElement("span", { className: "needle" })),
+            ({ subgrid }) => subgrid.appendChild(makeElement("span", { className: "needle" }))
+        );
+        runMutationRootCase(
+            "descendant combinator argument",
+            `.wrapper .needle`,
+            ({ fixture }) => {
+                const wrapper = makeElement("div", { className: "wrapper" });
+                wrapper.appendChild(makeElement("span", { className: "needle" }));
+                fixture.appendChild(wrapper);
+            },
+            ({ subgrid }) => {
+                const wrapper = makeElement("div", { className: "wrapper" });
+                wrapper.appendChild(makeElement("span", { className: "needle" }));
+                subgrid.appendChild(wrapper);
+            }
+        );
+    });
+</script>
