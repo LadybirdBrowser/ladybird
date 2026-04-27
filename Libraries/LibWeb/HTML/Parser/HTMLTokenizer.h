@@ -164,6 +164,7 @@ private:
         RanOutOfCharacters,
     };
     [[nodiscard]] ConsumeNextResult consume_next_if_match(StringView, StopAtInsertionPoint, CaseSensitivity = CaseSensitivity::CaseSensitive);
+    bool should_pause_before_next_input_character(StopAtInsertionPoint) const;
 
     void create_new_token(HTMLToken::Type);
     bool current_end_tag_token_is_appropriate() const;

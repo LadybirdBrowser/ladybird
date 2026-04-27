@@ -31,14 +31,14 @@ namespace Web::HTML {
         SWITCH_TO_WITH_UNCLEAN_BUILDER(new_state); \
     } while (0)
 
-#define SWITCH_TO_WITH_UNCLEAN_BUILDER(new_state)                                                 \
-    do {                                                                                          \
-        will_switch_to(State::new_state);                                                         \
-        m_state = State::new_state;                                                               \
-        if (stop_at_insertion_point == StopAtInsertionPoint::Yes && is_insertion_point_reached()) \
-            return {};                                                                            \
-        CONSUME_NEXT_INPUT_CHARACTER;                                                             \
-        goto new_state;                                                                           \
+#define SWITCH_TO_WITH_UNCLEAN_BUILDER(new_state)                              \
+    do {                                                                       \
+        will_switch_to(State::new_state);                                      \
+        m_state = State::new_state;                                            \
+        if (should_pause_before_next_input_character(stop_at_insertion_point)) \
+            return {};                                                         \
+        CONSUME_NEXT_INPUT_CHARACTER;                                          \
+        goto new_state;                                                        \
     } while (0)
 
 #define RECONSUME_IN(new_state)              \
@@ -194,6 +194,26 @@ static inline void log_parse_error(SourceLocation const& location = SourceLocati
     dbgln_if(TOKENIZER_TRACE_DEBUG, "Parse error (tokenization) {}", location);
 }
 
+bool HTMLTokenizer::should_pause_before_next_input_character(StopAtInsertionPoint stop_at_insertion_point) const
+{
+    if (stop_at_insertion_point != StopAtInsertionPoint::Yes || !m_insertion_point.has_value())
+        return false;
+
+    if (m_current_offset >= *m_insertion_point)
+        return true;
+
+    if (m_current_offset < static_cast<ssize_t>(m_decoded_input.size())
+        && m_decoded_input[m_current_offset] == '\r'
+        && m_current_offset + 1 == *m_insertion_point) {
+        // Newline normalization needs one code point of lookahead for CRLF. If document.write()
+        // stops the tokenizer immediately after a CR, wait for more input before deciding whether
+        // it is a CRLF pair or a standalone CR.
+        return true;
+    }
+
+    return false;
+}
+
 Optional<u32> HTMLTokenizer::next_code_point(StopAtInsertionPoint stop_at_insertion_point)
 {
     if (m_current_offset >= static_cast<ssize_t>(m_decoded_input.size()))
@@ -276,7 +296,7 @@ _StartOfFunction:
         return {};
 
     for (;;) {
-        if (stop_at_insertion_point == StopAtInsertionPoint::Yes && is_insertion_point_reached())
+        if (should_pause_before_next_input_character(stop_at_insertion_point))
             return {};
 
         auto current_input_character = next_code_point(stop_at_insertion_point);

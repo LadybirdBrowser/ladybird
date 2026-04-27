@@ -2,11 +2,10 @@ Harness status: OK
 
 Found 49 tests
 
-48 Pass
-1 Fail
+49 Pass
 Pass	html5lib_domjs-unsafe.html b76df4b192c11a5ef7a3e895a7dd2aaea2dcc5c7
 Pass	html5lib_domjs-unsafe.html da5cf60e732fcf20d288e772e51a7a9ccd3471e4
-Fail	html5lib_domjs-unsafe.html c32f77685b52841e1685110a8a6fac17b3ae127a
+Pass	html5lib_domjs-unsafe.html c32f77685b52841e1685110a8a6fac17b3ae127a
 Pass	html5lib_domjs-unsafe.html 4fd39e063b0ad1fa82274d6de3122859f76934a8
 Pass	html5lib_domjs-unsafe.html 7208fbe8702c37cf180b1c736c984f5340517408
 Pass	html5lib_domjs-unsafe.html 7b5dd0bcb2a92ebf1974a0ec6017a798e774ca5b
