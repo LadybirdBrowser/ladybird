@@ -117,12 +117,13 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
 
         if (!self->m_audio_output_disabled && !self->m_audio_sink && !self->m_audio_tracks.is_empty()) {
             self->m_audio_mixer = MUST(AudioMixer::try_create());
-            self->m_audio_sink = MUST(AudioPlaybackSink::try_create(*self->m_audio_mixer,
+            self->m_audio_sink = MUST(AudioPlaybackSink::try_create(
                 [self](PipelineStatus status) {
                     if (!self)
                         return;
                     self->on_audio_sink_state_changed(status);
                 }));
+            MUST(self->m_audio_sink->connect_input(*self->m_audio_mixer));
             self->set_time_provider(*self->m_audio_sink);
             self->m_audio_sink->on_audio_output_error = [self](Error&& error) {
                 if (!self)
