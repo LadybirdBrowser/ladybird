@@ -126,6 +126,7 @@ void StyleInvalidator::apply_sibling_invalidation(Element& element, StyleInvalid
 void StyleInvalidator::perform_pending_style_invalidations(Node& node, bool invalidate_entire_subtree)
 {
     invalidate_entire_subtree |= node.entire_subtree_needs_style_update();
+    auto* element = as_if<Element>(node);
 
     if (invalidate_entire_subtree) {
         node.set_needs_style_update_internal(true);
@@ -143,7 +144,7 @@ void StyleInvalidator::perform_pending_style_invalidations(Node& node, bool inva
             m_active_descendant_invalidations.extend(*pending_invalidations);
         }
 
-        if (auto* element = as_if<Element>(node)) {
+        if (element) {
             size_t invalidation_index = 0;
             while (invalidation_index < m_active_descendant_invalidations.size()) {
                 auto const& pending_invalidation = m_active_descendant_invalidations[invalidation_index++];
@@ -162,6 +163,9 @@ void StyleInvalidator::perform_pending_style_invalidations(Node& node, bool inva
             }
         }
     }
+
+    if (element)
+        element->clear_removed_attributes_for_style_invalidation();
 
     for (auto* child = node.first_child(); child; child = child->next_sibling())
         perform_pending_style_invalidations(*child, invalidate_entire_subtree);

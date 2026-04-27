@@ -1889,9 +1889,7 @@ bool Element::includes_properties_from_invalidation_set(CSS::InvalidationSet con
         case CSS::InvalidationSet::Property::Type::TagName:
             return local_name() == property.name();
         case CSS::InvalidationSet::Property::Type::Attribute: {
-            if (property.name() == HTML::AttributeNames::id || property.name() == HTML::AttributeNames::class_)
-                return true;
-            return has_attribute(property.name());
+            return has_attribute(property.name()) || m_removed_attributes_for_style_invalidation.contains_slow(property.name());
         }
         case CSS::InvalidationSet::Property::Type::PseudoClass: {
             switch (property.value.get<CSS::PseudoClass>()) {
@@ -3097,6 +3095,9 @@ void Element::invalidate_style_after_attribute_change(FlyString const& attribute
         changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::Required });
         changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::Optional });
     }
+
+    if (!new_value.has_value() && !m_removed_attributes_for_style_invalidation.contains_slow(attribute_name))
+        m_removed_attributes_for_style_invalidation.append(attribute_name);
 
     changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Attribute, .value = attribute_name });
     invalidate_style(StyleInvalidationReason::ElementAttributeChange, changed_properties, style_invalidation_options);
