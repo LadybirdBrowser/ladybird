@@ -35,6 +35,7 @@ private:
         Yes,
     };
     void update_layout_tree(DOM::Node&, Context&, MustCreateSubtree);
+    TraversalDecision clear_stale_layout_and_paint_node(DOM::Node&, DOM::Node const* content_visibility_hidden_root = nullptr);
 
     void push_parent(Layout::NodeWithStyle& node) { m_ancestor_stack.append(node); }
     void pop_parent() { m_ancestor_stack.take_last(); }

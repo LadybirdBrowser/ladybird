@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<body>
+<div id="hidden">
+    <svg>
+        <defs>
+            <mask id="mask">
+                <rect id="mask-rect" width="100" height="100" fill="white"></rect>
+            </mask>
+        </defs>
+    </svg>
+</div>
+<svg id="visible" width="100" height="100">
+    <rect id="target" width="100" height="100" fill="green" mask="url(#mask)"></rect>
+</svg>
+<script>
+    document.body.offsetWidth;
+    hidden.style.contentVisibility = "hidden";
+    document.body.offsetWidth;
+</script>

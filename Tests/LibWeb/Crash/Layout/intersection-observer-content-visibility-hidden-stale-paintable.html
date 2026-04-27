@@ -1,0 +1,41 @@
+<!doctype html>
+<style>
+    body { margin: 0; }
+    .spacer { height: 4000px; }
+    #wrapper {
+        content-visibility: auto;
+        contain-intrinsic-size: 1000px;
+        transform: translateX(1px);
+        height: 1000px;
+    }
+    #target {
+        position: absolute;
+        inset: 0;
+        width: 100px;
+        height: 100px;
+        background: green;
+        transform: translateX(1px);
+    }
+</style>
+<div class="spacer"></div>
+<div id="wrapper">
+    <div id="target"></div>
+</div>
+<script>
+    const wrapper = document.getElementById("wrapper");
+    const target = document.getElementById("target");
+
+    new IntersectionObserver(() => {}).observe(target);
+
+    requestAnimationFrame(() => {
+        scrollTo(0, 4500);
+
+        requestAnimationFrame(() => {
+            wrapper.style.contentVisibility = "hidden";
+
+            requestAnimationFrame(() => {
+                internals.signalTestIsDone("PASS");
+            });
+        });
+    });
+</script>
