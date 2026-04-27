@@ -15,6 +15,7 @@
 #include <LibWeb/Bindings/FontFace.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
+#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFace.h>
@@ -737,8 +738,6 @@ GC::Ref<WebIDL::Promise> FontFace::load()
     // 3. Otherwise, set font face’s status attribute to "loading", return font face’s [[FontStatusPromise]],
     //    and continue executing the rest of this algorithm asynchronously.
     m_status = Bindings::FontFaceLoadStatus::Loading;
-    if (m_css_font_face_rule)
-        m_css_font_face_rule->set_loading_state(CSSStyleSheet::LoadingState::Loading);
 
     // AD-HOC: Switch the containing FontFaceSets to "loading" for URL-backed fonts too, mirroring the step the
     //         constructor performs for BufferSource-backed fonts.
@@ -764,8 +763,6 @@ GC::Ref<WebIDL::Promise> FontFace::load()
                 //    is "NetworkError" and set font face’s status attribute to "error".
                 if (!maybe_typeface) {
                     m_status = Bindings::FontFaceLoadStatus::Error;
-                    if (m_css_font_face_rule)
-                        m_css_font_face_rule->set_loading_state(CSSStyleSheet::LoadingState::Error);
                     WebIDL::reject_promise(realm(), m_font_status_promise, WebIDL::NetworkError::create(realm(), "Failed to load font"_utf16));
 
                     // For each FontFaceSet font face is in:
@@ -787,8 +784,6 @@ GC::Ref<WebIDL::Promise> FontFace::load()
                     m_parsed_font = maybe_typeface;
                     m_status = Bindings::FontFaceLoadStatus::Loaded;
                     WebIDL::resolve_promise(realm(), m_font_status_promise, this);
-                    if (m_css_font_face_rule)
-                        m_css_font_face_rule->set_loading_state(CSSStyleSheet::LoadingState::Loaded);
 
                     if (auto font_computer = this->font_computer(); font_computer.has_value())
                         font_computer->register_font_face(*this);

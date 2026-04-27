@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+var xhr = new XMLHttpRequest();
+xhr.open("POST", "/echo", false);
+xhr.setRequestHeader("Content-Type", "application/json");
+xhr.send(JSON.stringify({
+    method: "GET",
+    path: "/echo/font-face-unused-unicode-range.css",
+    status: 200,
+    headers: {"Content-Type": "text/css", "Cache-Control": "no-store"},
+    body: "@font-face { font-family: 'NeverUsed'; src: url('https://invalid.example/never.woff2') format('woff2'); unicode-range: U+E000-F8FF; }",
+}));
+</script>
+<link rel="stylesheet" href="/echo/font-face-unused-unicode-range.css">
+<script>
+asyncTest((done) => {
+    window.addEventListener("load", () => {
+        println("load event fired");
+        done();
+    });
+});
+</script>
