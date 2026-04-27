@@ -185,7 +185,7 @@ Optional<StyleProperty const&> CSSStyleProperties::custom_property(FlyString con
         auto& element = owner_node()->element();
         auto pseudo_element = owner_node()->pseudo_element();
 
-        element.document().update_style();
+        element.document().update_style_for_element(*owner_node());
 
         auto data = element.custom_property_data(pseudo_element);
         if (!data)
@@ -584,10 +584,11 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
             // always need update_layout() to ensure both style and layout tree are up to date.
             abstract_element.document().update_layout(DOM::UpdateLayoutReason::ResolvedCSSStyleDeclarationProperty);
             layout_node = abstract_element.layout_node();
-        } else if (abstract_element.document().element_needs_style_update(abstract_element)) {
-            // Just ensure styles are up to date.
-            abstract_element.document().update_style();
         }
+        // Ensure styles are up to date. update_layout()/update_style() skip display:none subtrees,
+        // so the leaf and its inheritance ancestors may still be stale at this point.
+        if (abstract_element.document().element_needs_style_update(abstract_element))
+            abstract_element.document().update_style_for_element(abstract_element);
 
         // FIXME: Somehow get custom properties if there's no layout node.
         if (property_name_and_id.is_custom_property()) {

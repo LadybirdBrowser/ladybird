@@ -17,6 +17,7 @@
 #include <AK/InsertionSort.h>
 #include <AK/JsonObjectSerializer.h>
 #include <AK/Random.h>
+#include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
 #include <AK/Time.h>
 #include <AK/Utf8View.h>
@@ -1896,12 +1897,21 @@ bool Document::layout_is_up_to_date() const
     //     This requires a full style recompute, not just inherited style update.
     bool children_need_full_style_recompute = node_invalidation.rebuild_layout_tree;
     bool descendant_style_recompute_needed = ancestor_needs_descendant_style_recompute || node_invalidation.recompute_descendant_styles;
-    if (needs_full_style_update
-        || node.child_needs_style_update()
-        || children_need_inherited_style_update
-        || recompute_elements_depending_on_custom_properties
-        || children_need_full_style_recompute
-        || descendant_style_recompute_needed) {
+
+    // OPTIMIZATION: Descendants of a display:none element are not rendered and their computed style is not observable
+    //               except through on-demand reads, which call Document::update_style_for_element to refresh the path
+    //               lazily. We can therefore skip the descent entirely. The exception is when display itself just
+    //               changed or the document needs a full style update. In those cases descendants must be re-cascaded
+    //               eagerly.
+    bool const skip_display_none_descent = is_display_none && !needs_full_style_update && !children_need_full_style_recompute;
+
+    if (!skip_display_none_descent
+        && (needs_full_style_update
+            || node.child_needs_style_update()
+            || children_need_inherited_style_update
+            || recompute_elements_depending_on_custom_properties
+            || children_need_full_style_recompute
+            || descendant_style_recompute_needed)) {
         if (node.is_element()) {
             if (auto shadow_root = static_cast<DOM::Element&>(node).shadow_root()) {
                 if (needs_full_style_update
@@ -1946,7 +1956,8 @@ bool Document::layout_is_up_to_date() const
         });
     }
 
-    node.set_child_needs_style_update(false);
+    if (!skip_display_none_descent)
+        node.set_child_needs_style_update(false);
 
     if (node.is_element())
         style_computer.pop_ancestor(static_cast<Element const&>(node));
@@ -2011,6 +2022,64 @@ void Document::update_style_if_needed_for_element(AbstractElement const& abstrac
 {
     if (element_needs_style_update(abstract_element))
         update_style();
+}
+
+void Document::update_style_for_element(AbstractElement const& abstract_element)
+{
+    // Refresh computed properties for an abstract element after style update has skipped a display:none subtree it lives
+    // inside. This walks up to the topmost display:none ancestor on the inheritance chain and re-cascades each element on
+    // the path back down to the target so that observers like `getComputedStyle()` see fresh values.
+
+    if (!m_is_running_update_layout && element_needs_style_update(abstract_element))
+        update_style();
+
+    // Single walk up the inheritance chain: collect each ancestor and remember the index of the topmost display:none
+    // entry seen. Pseudo-element styles are refreshed when the originating element is recomputed, so don't put the
+    // pseudo on the path.
+    GC::RootVector<GC::Ref<Element>> inheritance_chain { heap() };
+    if (!abstract_element.pseudo_element().has_value())
+        inheritance_chain.append(const_cast<Element&>(abstract_element.element()));
+
+    Optional<size_t> topmost_display_none_index;
+    for (auto cursor = abstract_element.element_to_inherit_style_from(); cursor.has_value(); cursor = cursor->element_to_inherit_style_from()) {
+        auto& ancestor = const_cast<Element&>(cursor->element());
+        inheritance_chain.append(ancestor);
+        if (auto const* properties = ancestor.computed_properties().ptr(); properties && properties->display().is_none())
+            topmost_display_none_index = inheritance_chain.size() - 1;
+    }
+
+    if (!topmost_display_none_index.has_value())
+        return;
+
+    // Re-cascading the inheritance chain requires the style computer's ancestor filter to reflect each recomputed
+    // element's DOM ancestors, so that descendant-combinator selectors match correctly. The filter is empty at this
+    // point because the normal top-down `update_style` traversal skipped the display:none subtree, so we have to seed
+    // it ourselves.
+    GC::RootVector<GC::Ref<Element>> ancestor_chain { heap() };
+    for (auto* cursor = inheritance_chain[*topmost_display_none_index].ptr(); cursor; cursor = cursor->parent_or_shadow_host_element())
+        ancestor_chain.append(*cursor);
+
+    auto& style_computer = this->style_computer();
+    for (size_t i = ancestor_chain.size(); i > 0; --i)
+        style_computer.push_ancestor(ancestor_chain[i - 1]);
+
+    ScopeGuard pop_ancestor_chain = [&] {
+        for (auto& ancestor : ancestor_chain)
+            style_computer.pop_ancestor(ancestor);
+    };
+
+    ScopeGuard pop_path_ancestors = [&] {
+        for (size_t i = 1; i < *topmost_display_none_index; ++i)
+            style_computer.pop_ancestor(inheritance_chain[i]);
+    };
+
+    for (size_t i = *topmost_display_none_index; i > 0; --i) {
+        auto& element = inheritance_chain[i - 1];
+        bool did_change_custom_properties = false;
+        element->recompute_style(did_change_custom_properties);
+        if (i > 1)
+            style_computer.push_ancestor(element);
+    }
 }
 
 bool Document::element_needs_style_update(AbstractElement const& abstract_element) const

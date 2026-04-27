@@ -1,1 +1,1 @@
-@font-face only sheet add: fullStyleInvalidations=0, styleInvalidations=3, elementStyleRecomputations=2, elementStyleNoopRecomputations=1
+@font-face only sheet add: fullStyleInvalidations=0, styleInvalidations=3, elementStyleRecomputations=1, elementStyleNoopRecomputations=1

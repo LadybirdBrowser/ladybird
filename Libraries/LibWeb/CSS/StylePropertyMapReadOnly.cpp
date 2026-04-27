@@ -120,7 +120,7 @@ WebIDL::ExceptionOr<bool> StylePropertyMapReadOnly::has(String property_name)
             // registered custom property, and every non-registered custom property which is not set to its initial
             // value on this"
             // Ensure style is computed on the element before we try to read it, so we can check custom properties.
-            element.document().update_style();
+            element.document().update_style_for_element(element);
             if (property->is_custom_property()) {
                 if (element.get_custom_property(property->name()))
                     return true;
@@ -146,7 +146,7 @@ WebIDL::UnsignedLong StylePropertyMapReadOnly::size() const
             // registered custom property, and every non-registered custom property which is not set to its initial
             // value on this"
             // Ensure style is computed on the element before we try to read it.
-            element.document().update_style();
+            element.document().update_style_for_element(element);
 
             // Some custom properties set on the element might also be in the registered custom properties set, so we
             // want the size of the union of the two sets.
@@ -173,7 +173,7 @@ RefPtr<StyleValue const> StylePropertyMapReadOnly::get_style_value(Source& sourc
             // registered custom property, and every non-registered custom property which is not set to its initial
             // value on this"
             // Ensure style is computed on the element before we try to read it.
-            element.document().update_style();
+            element.document().update_style_for_element(element);
             if (property.is_custom_property()) {
                 if (auto custom_property = element.get_custom_property(property.name()))
                     return custom_property;
