@@ -11,6 +11,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
+#include <AK/Vector.h>
 #include <LibGC/Cell.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Export.h>
@@ -141,8 +142,8 @@ public:
     bool is_insertion_point_defined() const { return m_insertion_point.has_value(); }
     bool is_insertion_point_reached() { return m_insertion_point.has_value() && m_current_offset >= *m_insertion_point; }
     void undefine_insertion_point() { m_insertion_point = {}; }
-    void store_insertion_point() { m_old_insertion_point = m_insertion_point; }
-    void restore_insertion_point() { m_insertion_point = move(m_old_insertion_point); }
+    void store_old_insertion_point() { m_old_insertion_points.append(m_insertion_point); }
+    void restore_old_insertion_point() { m_insertion_point = m_old_insertion_points.take_last(); }
     void update_insertion_point() { m_insertion_point = m_current_offset; }
 
     // This permanently cuts off the tokenizer input stream.
@@ -200,7 +201,8 @@ private:
     Vector<u32> m_decoded_input;
 
     Optional<ssize_t> m_insertion_point;
-    Optional<ssize_t> m_old_insertion_point;
+    // Spec algorithms have an "old insertion point" local; reentrant script execution can nest those locals.
+    Vector<Optional<ssize_t>> m_old_insertion_points;
 
     ssize_t m_current_offset { 0 };
     ssize_t m_prev_offset { 0 };

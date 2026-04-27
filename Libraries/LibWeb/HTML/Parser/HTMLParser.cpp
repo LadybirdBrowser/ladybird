@@ -3598,7 +3598,7 @@ void HTMLParser::handle_text(HTMLToken& token)
         m_insertion_mode = m_original_insertion_mode;
 
         // Let the old insertion point have the same value as the current insertion point.
-        m_tokenizer.store_insertion_point();
+        m_tokenizer.store_old_insertion_point();
 
         // Let the insertion point be just before the next input character.
         m_tokenizer.update_insertion_point();
@@ -3624,7 +3624,7 @@ void HTMLParser::handle_text(HTMLToken& token)
             m_parser_pause_flag = false;
 
         // Let the insertion point have the value of the old insertion point.
-        m_tokenizer.restore_insertion_point();
+        m_tokenizer.restore_old_insertion_point();
 
         // At this stage, if the pending parsing-blocking script is not null, then:
         if (document().pending_parsing_blocking_script()) {
@@ -4844,7 +4844,7 @@ void HTMLParser::process_using_the_rules_for_foreign_content(HTMLToken& token)
         // Pop the current node off the stack of open elements.
         auto& script_element = as<SVG::SVGScriptElement>(*m_stack_of_open_elements.pop());
         // Let the old insertion point have the same value as the current insertion point.
-        m_tokenizer.store_insertion_point();
+        m_tokenizer.store_old_insertion_point();
         // Let the insertion point be just before the next input character.
         m_tokenizer.update_insertion_point();
         // Increment the parser's script nesting level by one.
@@ -4866,7 +4866,7 @@ void HTMLParser::process_using_the_rules_for_foreign_content(HTMLToken& token)
             m_parser_pause_flag = false;
 
         // Let the insertion point have the value of the old insertion point.
-        m_tokenizer.restore_insertion_point();
+        m_tokenizer.restore_old_insertion_point();
 
         // If the SVG script registered itself as a pending parsing-blocking script (external fetch in flight),
         // pause the parser and schedule a resume check. The parser will resume from

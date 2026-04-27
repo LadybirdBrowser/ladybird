@@ -2904,7 +2904,7 @@ void HTMLTokenizer::parser_did_run(Badge<HTMLParser>)
     if (m_current_offset > 0
         && static_cast<size_t>(m_current_offset) == m_decoded_input.size()
         && (!m_insertion_point.has_value() || *m_insertion_point == 0)
-        && (!m_old_insertion_point.has_value() || *m_old_insertion_point == 0)) {
+        && m_old_insertion_points.is_empty()) {
         m_decoded_input.clear();
         m_current_offset = 0;
         m_prev_offset = 0;
@@ -2925,7 +2925,8 @@ void HTMLTokenizer::insert_input_at_insertion_point(StringView input)
     Vector<u32> new_decoded_input;
     new_decoded_input.ensure_capacity(m_decoded_input.size() + input.length());
 
-    auto before = m_decoded_input.span().slice(0, *m_insertion_point);
+    auto insertion_point = *m_insertion_point;
+    auto before = m_decoded_input.span().slice(0, insertion_point);
     new_decoded_input.append(before.data(), before.size());
 
     auto utf8_to_insert = MUST(String::from_utf8(input));
@@ -2935,11 +2936,15 @@ void HTMLTokenizer::insert_input_at_insertion_point(StringView input)
         ++code_points_inserted;
     }
 
-    auto after = m_decoded_input.span().slice(*m_insertion_point);
+    auto after = m_decoded_input.span().slice(insertion_point);
     new_decoded_input.append(after.data(), after.size());
     m_decoded_input = move(new_decoded_input);
 
     m_insertion_point.value() += code_points_inserted;
+    for (auto& old_insertion_point : m_old_insertion_points) {
+        if (old_insertion_point.has_value() && insertion_point <= *old_insertion_point)
+            old_insertion_point.value() += code_points_inserted;
+    }
 }
 
 void HTMLTokenizer::insert_eof()
