@@ -550,6 +550,33 @@ static void invalidate_structurally_affected_siblings(Node& node, StyleInvalidat
         return element.affected_by_direct_sibling_combinator() && current_sibling_distance <= element.sibling_invalidation_distance();
     };
 
+    // The structural change might flip whether `element` matches selectors like :nth-child or `~`/`+`, but those
+    // pseudo-classes and combinators only affect `element` itself unless some descendant selector also depends on
+    // `element`'s position. Mark just `element` when descendants don't observe its position; mark the entire
+    // subtree only when they do.
+    auto mark_sibling_for_style_update = [](Element& element) {
+        auto mark_descendant_shadow_roots_for_style_update = [](Element& element) {
+            element.for_each_shadow_including_inclusive_descendant([](Node& inclusive_descendant) {
+                auto* descendant_element = as_if<Element>(inclusive_descendant);
+                if (!descendant_element)
+                    return TraversalDecision::Continue;
+                auto shadow_root = descendant_element->shadow_root();
+                if (!shadow_root)
+                    return TraversalDecision::Continue;
+                shadow_root->set_entire_subtree_needs_style_update(true);
+                shadow_root->set_needs_style_update(true);
+                return TraversalDecision::Continue;
+            });
+        };
+
+        if (element.affected_by_structural_pseudo_class_in_non_subject_position() || element.affected_by_sibling_combinator_in_non_subject_position()) {
+            element.set_entire_subtree_needs_style_update(true);
+        } else {
+            element.set_needs_style_update(true);
+            mark_descendant_shadow_roots_for_style_update(element);
+        }
+    };
+
     if (reason == StyleInvalidationReason::NodeInsertBefore || reason == StyleInvalidationReason::NodeRemove) {
         // OPTIMIZATION: Only walk previous siblings if the parent has been observed to contain a child that matches a
         //               pseudo-class whose match result can depend on siblings after that element. Otherwise, no
@@ -559,7 +586,7 @@ static void invalidate_structurally_affected_siblings(Node& node, StyleInvalidat
             for (auto* sibling = node.previous_sibling(); sibling; sibling = sibling->previous_sibling()) {
                 ++counters.previous_sibling_invalidation_walk_visits;
                 if (auto* element = as_if<Element>(sibling); element && previous_sibling_needs_structural_invalidation(*element))
-                    element->set_entire_subtree_needs_style_update(true);
+                    mark_sibling_for_style_update(*element);
             }
         }
     }
@@ -576,7 +603,7 @@ static void invalidate_structurally_affected_siblings(Node& node, StyleInvalidat
                 needs_to_invalidate = true;
             }
             if (needs_to_invalidate)
-                element->set_entire_subtree_needs_style_update(true);
+                mark_sibling_for_style_update(*element);
             current_sibling_distance++;
         }
     }
