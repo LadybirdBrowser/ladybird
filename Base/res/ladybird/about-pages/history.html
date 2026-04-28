@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <title>History</title>
+        <link rel="icon" type="image/png" href="resource://icons/48x48/app-browser.png" />
+        <link rel="stylesheet" type="text/css" href="resource://ladybird/ladybird.css" />
+        <link rel="stylesheet" type="text/css" href="resource://ladybird/about-pages/webui.css" />
+        <style>
+            .history-status {
+                color: var(--secondary-text-color);
+                font-size: 13px;
+            }
+
+            .history-content {
+                display: flex;
+                flex-direction: column;
+                gap: 18px;
+            }
+
+            .history-empty {
+                color: var(--secondary-text-color);
+                padding: 36px 12px;
+                text-align: center;
+                font-size: 14px;
+            }
+
+            .history-groups {
+                display: flex;
+                flex-direction: column;
+                gap: 18px;
+            }
+
+            .history-group {
+                border-top: 1px solid var(--separator-color);
+                padding-top: 18px;
+            }
+
+            .history-group:first-child {
+                border-top: none;
+                padding-top: 0;
+            }
+
+            .history-group-title {
+                margin: 0 0 12px 0;
+                font-size: 14px;
+                font-weight: 600;
+            }
+
+            .history-entry-list {
+                display: flex;
+                flex-direction: column;
+            }
+
+            .history-entry {
+                display: flex;
+                align-items: center;
+                gap: 14px;
+
+                border-radius: 8px;
+                padding: 10px 8px;
+            }
+
+            .history-entry:hover {
+                background-color: var(--item-hover-color);
+            }
+
+            .history-entry + .history-entry {
+                margin-top: 4px;
+            }
+
+            .entry-favicon {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+
+                width: 32px;
+                height: 32px;
+                border-radius: 8px;
+                overflow: hidden;
+
+                background-color: var(--icon-background-color);
+                color: var(--icon-color);
+                font-size: 13px;
+                font-weight: 700;
+                text-transform: uppercase;
+            }
+
+            .entry-favicon img {
+                width: 100%;
+                height: 100%;
+            }
+
+            .entry-main {
+                display: flex;
+                flex: 1;
+                align-items: center;
+                justify-content: space-between;
+                gap: 16px;
+                min-width: 0;
+            }
+
+            .entry-text {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+                min-width: 0;
+            }
+
+            .entry-title {
+                color: inherit;
+                font-size: 14px;
+                font-weight: 600;
+                text-decoration: none;
+            }
+
+            .entry-title:hover {
+                text-decoration: underline;
+            }
+
+            .entry-url {
+                color: var(--secondary-text-color);
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+
+                font-size: 13px;
+            }
+
+            .entry-meta {
+                color: var(--secondary-text-color);
+                flex-shrink: 0;
+                text-align: right;
+                font-size: 12px;
+                white-space: nowrap;
+            }
+
+            .entry-actions {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                flex-shrink: 0;
+                position: relative;
+            }
+
+            .history-actions {
+                display: flex;
+                justify-content: center;
+            }
+
+            .visually-hidden {
+                position: absolute;
+                width: 1px;
+                height: 1px;
+                margin: -1px;
+                padding: 0;
+                overflow: hidden;
+                clip: rect(0, 0, 0, 0);
+                border: 0;
+            }
+
+            @media (max-width: 640px) {
+                .history-entry {
+                    align-items: flex-start;
+                }
+
+                .entry-main {
+                    flex-direction: column;
+                    align-items: flex-start;
+                }
+
+                .entry-meta {
+                    text-align: left;
+                }
+
+                .entry-actions {
+                    width: 100%;
+                    justify-content: flex-end;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <picture>
+                <source srcset="resource://icons/128x128/app-browser.png" media="(prefers-color-scheme: dark)" />
+                <img src="resource://icons/128x128/app-browser-dark.png" />
+            </picture>
+            <h1>History</h1>
+        </header>
+
+        <div class="search-container">
+            <label class="visually-hidden" for="history-search">Search history</label>
+            <svg
+                class="search-icon"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+            >
+                <circle cx="11" cy="11" r="7" />
+                <line x1="16" y1="16" x2="22" y2="22" />
+            </svg>
+            <input
+                id="history-search"
+                type="search"
+                class="search-input"
+                placeholder="Search history"
+                spellcheck="false"
+            />
+        </div>
+
+        <div class="card">
+            <div class="card-body history-content">
+                <div id="history-status" class="history-status">Loading history...</div>
+                <div id="history-empty" class="history-empty hidden"></div>
+                <div id="history-groups" class="history-groups"></div>
+                <div id="history-actions" class="history-actions hidden">
+                    <button id="load-more" class="secondary-button">Load more</button>
+                </div>
+            </div>
+        </div>
+
+        <script type="module">
+            const PAGE_SIZE = 50;
+            const SEARCH_DEBOUNCE_DELAY = 200;
+
+            const searchInput = document.querySelector("#history-search");
+            const historyStatus = document.querySelector("#history-status");
+            const historyEmpty = document.querySelector("#history-empty");
+            const historyGroups = document.querySelector("#history-groups");
+            const historyActions = document.querySelector("#history-actions");
+            const loadMoreButton = document.querySelector("#load-more");
+
+            const timeFormatter = new Intl.DateTimeFormat([], { timeStyle: "short" });
+            const dateFormatter = new Intl.DateTimeFormat([], {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+            });
+
+            let searchTimer = null;
+            let latestRequestId = 0;
+            let openMenu = null;
+            let state = {
+                entries: [],
+                hasMore: false,
+                isLoading: false,
+                query: "",
+            };
+
+            function pluralize(count, singular, plural = `${singular}s`) {
+                return `${count} ${count === 1 ? singular : plural}`;
+            }
+
+            function startOfDay(date) {
+                return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+            }
+
+            function historyDayLabel(timestamp) {
+                const entryDate = new Date(timestamp);
+                const today = startOfDay(new Date());
+                const entryDay = startOfDay(entryDate);
+                const dayDelta = Math.round((today.getTime() - entryDay.getTime()) / 86400000);
+
+                if (dayDelta === 0) return "Today";
+                if (dayDelta === 1) return "Yesterday";
+
+                return dateFormatter.format(entryDate);
+            }
+
+            function entryTimeLabel(entry) {
+                const timeLabel = timeFormatter.format(new Date(entry.lastVisitedTime));
+                if (entry.visitCount <= 1) return timeLabel;
+                return `${timeLabel} - ${pluralize(entry.visitCount, "visit")}`;
+            }
+
+            function faviconFallbackLabel(entry) {
+                const source = entry.title || entry.siteKey || entry.url;
+                const firstAlphaNumeric = Array.from(source).find(character => /[a-z0-9]/i.test(character));
+                return firstAlphaNumeric ? firstAlphaNumeric.toUpperCase() : "?";
+            }
+
+            function createElement(tagName, properties = {}, children = []) {
+                const element = document.createElement(tagName);
+                Object.assign(element, properties);
+                element.append(...children);
+                return element;
+            }
+
+            function createFavicon(entry) {
+                if (entry.faviconBase64Png) {
+                    return createElement("div", { className: "entry-favicon" }, [
+                        createElement("img", {
+                            src: `data:image/png;base64,${entry.faviconBase64Png}`,
+                            alt: "",
+                        }),
+                    ]);
+                }
+
+                return createElement("div", {
+                    className: "entry-favicon",
+                    textContent: faviconFallbackLabel(entry),
+                });
+            }
+
+            function refreshHistory() {
+                state.entries = [];
+                state.hasMore = false;
+                render();
+                requestHistory(0);
+            }
+
+            function removeEntry(entry) {
+                const name = entry.title || entry.url;
+                if (!window.confirm(`Remove ${name} from browsing history?`)) return;
+
+                ladybird.sendMessage("removeHistoryEntry", { url: entry.url });
+                refreshHistory();
+            }
+
+            function forgetSite(entry) {
+                if (!entry.siteKey) return;
+
+                if (!window.confirm(`Forget all history from ${entry.siteKey}?`)) return;
+
+                ladybird.sendMessage("forgetHistorySite", { url: entry.url });
+                refreshHistory();
+            }
+
+            function closeOpenMenu() {
+                if (!openMenu) return;
+
+                openMenu.dropdown.classList.add("hidden");
+                openMenu.toggle.setAttribute("aria-expanded", "false");
+                openMenu = null;
+            }
+
+            function createEntryMenu(entry, title) {
+                const toggle = createElement("button", {
+                    className: "menu-toggle",
+                    title: "History entry options",
+                    innerHTML: `
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <circle cx="12" cy="5" r="2" />
+                            <circle cx="12" cy="12" r="2" />
+                            <circle cx="12" cy="19" r="2" />
+                        </svg>
+                    `,
+                });
+                toggle.setAttribute("aria-label", `Actions for ${title}`);
+                toggle.setAttribute("aria-haspopup", "menu");
+                toggle.setAttribute("aria-expanded", "false");
+
+                const forgetButton = createElement("button", {
+                    className: "menu-item",
+                    textContent: "Forget site",
+                    onclick: event => {
+                        event.preventDefault();
+                        closeOpenMenu();
+                        forgetSite(entry);
+                    },
+                });
+                forgetButton.setAttribute("role", "menuitem");
+                if (!entry.siteKey) forgetButton.classList.add("hidden");
+
+                const removeButton = createElement("button", {
+                    className: "menu-item",
+                    textContent: "Remove from history",
+                    onclick: event => {
+                        event.preventDefault();
+                        closeOpenMenu();
+                        removeEntry(entry);
+                    },
+                });
+                removeButton.setAttribute("role", "menuitem");
+
+                const dropdown = createElement("div", { className: "menu-dropdown hidden" }, [
+                    forgetButton,
+                    removeButton,
+                ]);
+                dropdown.setAttribute("role", "menu");
+
+                const menu = createElement("div", { className: "entry-actions" }, [toggle, dropdown]);
+
+                toggle.addEventListener("click", event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    if (openMenu?.dropdown === dropdown) {
+                        closeOpenMenu();
+                        return;
+                    }
+
+                    closeOpenMenu();
+                    dropdown.classList.remove("hidden");
+                    toggle.setAttribute("aria-expanded", "true");
+                    openMenu = { dropdown, toggle, menu };
+                });
+
+                return menu;
+            }
+
+            function createEntryRow(entry) {
+                const title = entry.title || entry.url;
+
+                return createElement("div", { className: "history-entry" }, [
+                    createFavicon(entry),
+                    createElement("div", { className: "entry-main" }, [
+                        createElement("div", { className: "entry-text" }, [
+                            createElement("a", {
+                                className: "entry-title",
+                                href: entry.url,
+                                textContent: title,
+                            }),
+                            createElement("div", {
+                                className: "entry-url",
+                                textContent: entry.url,
+                                title: entry.url,
+                            }),
+                        ]),
+                        createElement("div", { className: "entry-meta", textContent: entryTimeLabel(entry) }),
+                    ]),
+                    createEntryMenu(entry, title),
+                ]);
+            }
+
+            function renderEntries() {
+                closeOpenMenu();
+                historyGroups.replaceChildren();
+
+                let currentGroup = null;
+                let currentList = null;
+
+                state.entries.forEach(entry => {
+                    const groupLabel = historyDayLabel(entry.lastVisitedTime);
+                    if (groupLabel !== currentGroup) {
+                        currentGroup = groupLabel;
+                        currentList = createElement("div", { className: "history-entry-list" });
+                        historyGroups.append(
+                            createElement("section", { className: "history-group" }, [
+                                createElement("h2", { className: "history-group-title", textContent: groupLabel }),
+                                currentList,
+                            ])
+                        );
+                    }
+
+                    currentList.append(createEntryRow(entry));
+                });
+            }
+
+            function renderStatus() {
+                if (state.isLoading && state.entries.length === 0) {
+                    historyStatus.textContent = "Loading history...";
+                    return;
+                }
+
+                if (state.query) {
+                    if (state.isLoading) {
+                        historyStatus.textContent = `Searching for "${state.query}"...`;
+                        return;
+                    }
+
+                    historyStatus.textContent =
+                        state.entries.length === 0
+                            ? `No results for "${state.query}".`
+                            : `${pluralize(state.entries.length, "result")} loaded for "${state.query}".`;
+                    return;
+                }
+
+                if (state.isLoading) {
+                    historyStatus.textContent = "Loading more history...";
+                    return;
+                }
+
+                historyStatus.textContent =
+                    state.entries.length === 0
+                        ? "No browsing history yet."
+                        : `${pluralize(state.entries.length, "entry", "entries")} loaded.`;
+            }
+
+            function renderEmptyState() {
+                const shouldShowEmpty = !state.isLoading && state.entries.length === 0;
+                historyEmpty.classList.toggle("hidden", !shouldShowEmpty);
+
+                if (!shouldShowEmpty) return;
+
+                historyEmpty.textContent = state.query
+                    ? "No history entries match this search."
+                    : "Pages you visit will show up here, grouped by day.";
+            }
+
+            function renderLoadMore() {
+                const shouldShowLoadMore = state.hasMore || state.isLoading;
+                historyActions.classList.toggle("hidden", !shouldShowLoadMore);
+                loadMoreButton.disabled = state.isLoading;
+                loadMoreButton.textContent = state.isLoading ? "Loading..." : "Load more";
+            }
+
+            function render() {
+                renderStatus();
+                renderEntries();
+                renderEmptyState();
+                renderLoadMore();
+            }
+
+            function requestHistory(offset) {
+                const requestId = ++latestRequestId;
+                const query = searchInput.value.trim();
+                offset = offset || state.entries.length;
+
+                state.isLoading = true;
+                state.query = query;
+                render();
+
+                ladybird.sendMessage("loadHistoryEntries", {
+                    requestId,
+                    query,
+                    offset,
+                    limit: PAGE_SIZE,
+                });
+            }
+
+            function scheduleSearch() {
+                clearTimeout(searchTimer);
+                searchTimer = setTimeout(() => refreshHistory(), SEARCH_DEBOUNCE_DELAY);
+            }
+
+            searchInput.addEventListener("input", scheduleSearch);
+            searchInput.addEventListener("search", scheduleSearch);
+            loadMoreButton.addEventListener("click", () => {
+                if (!state.isLoading) requestHistory();
+            });
+            document.addEventListener("click", event => {
+                if (!openMenu || openMenu.menu.contains(event.target)) return;
+                closeOpenMenu();
+            });
+            document.addEventListener("keydown", event => {
+                if (event.key === "Escape") closeOpenMenu();
+            });
+
+            document.addEventListener("WebUILoaded", () => {
+                requestHistory(0);
+            });
+
+            document.addEventListener("WebUIMessage", event => {
+                if (event.detail.name !== "loadHistoryEntries") return;
+
+                const data = event.detail.data;
+                if (data.requestId !== latestRequestId) return;
+
+                state.isLoading = false;
+                state.hasMore = Boolean(data.hasMore);
+                state.query = data.query || "";
+
+                if (data.offset === 0) {
+                    state.entries = data.entries;
+                } else {
+                    state.entries = state.entries.concat(data.entries);
+                }
+
+                render();
+            });
+        </script>
+    </body>
+</html>
