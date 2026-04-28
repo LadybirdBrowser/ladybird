@@ -178,13 +178,17 @@ impl Parser<'_> {
         // parse_primary_expression), NOT during consume(). This avoids
         // falsely flagging parameter names like `function f(arguments)`.
         if let ExpressionKind::Identifier(ref id) = expression.inner
-            && id.name == utf16!("arguments")
+            && self.resolve_name(id.name) == utf16!("arguments")
         {
             // https://tc39.es/ecma262/#sec-class-static-initialization-blocks
             // It is a Syntax Error if ContainsArguments of ClassStaticBlockBody is true.
             if self.flags.in_class_static_init_block {
                 self.syntax_error("'arguments' is not allowed in class static initialization blocks");
-            } else if !self.flags.strict_mode && !self.scope_collector.has_declaration_in_current_function(&id.name) {
+            } else if !self.flags.strict_mode
+                && !self
+                    .scope_collector
+                    .has_declaration_in_current_function(self.interner.lookup(id.name))
+            {
                 self.scope_collector
                     .set_contains_access_to_arguments_object_in_non_strict_mode();
             }
@@ -446,7 +450,7 @@ impl Parser<'_> {
                     return (arrow, false);
                 }
                 let token = self.consume_and_check_identifier();
-                let id = self.make_identifier(start, self.token_identifier_name(&token));
+                let id = self.make_identifier(start, &token);
                 self.scope_collector.register_identifier(id.clone(), None);
                 (self.expression(start, ExpressionKind::Identifier(id)), true)
             }
@@ -582,13 +586,13 @@ impl Parser<'_> {
                         self.syntax_error("'yield' is not allowed as an identifier in this context");
                     }
                     let token = self.consume_and_check_identifier();
-                    let id = self.make_identifier(start, self.token_identifier_name(&token));
+                    let id = self.make_identifier(start, &token);
                     self.scope_collector.register_identifier(id.clone(), None);
                     (self.expression(start, ExpressionKind::Identifier(id)), true)
                 } else if self.match_token(TokenType::EscapedKeyword) {
                     self.syntax_error("Keyword must not contain escaped characters");
                     let token = self.consume_and_check_identifier();
-                    let id = self.make_identifier(start, self.token_identifier_name(&token));
+                    let id = self.make_identifier(start, &token);
                     self.scope_collector.register_identifier(id.clone(), None);
                     (self.expression(start, ExpressionKind::Identifier(id)), true)
                 } else {
@@ -801,7 +805,7 @@ impl Parser<'_> {
                     // they get resolved as locals during analyze().
                     let bound_names: Vec<_> = self.pattern_bound_names.drain(..).collect();
                     for (name, id) in &bound_names {
-                        self.check_identifier_name_for_assignment_validity(name, false);
+                        self.check_identifier_name_for_assignment_validity(*name, false);
                         self.scope_collector.register_identifier(id.clone(), None);
                     }
                     self.pattern_bound_names = saved_bound_names;
@@ -829,7 +833,7 @@ impl Parser<'_> {
                     self.syntax_error("Invalid left-hand side in assignment");
                 }
                 if let ExpressionKind::Identifier(ref id) = lhs.inner {
-                    self.check_identifier_name_for_assignment_validity(&id.name, false);
+                    self.check_identifier_name_for_assignment_validity(id.name, false);
                 }
                 self.consume();
                 let rhs = self.parse_expression(min_precedence, Associativity::Right, forbidden);
@@ -892,7 +896,7 @@ impl Parser<'_> {
                 } else if self.match_identifier_name() {
                     let property_start = self.position();
                     let token = self.consume();
-                    let property_identifier = self.make_identifier(property_start, self.token_identifier_name(&token));
+                    let property_identifier = self.make_identifier(property_start, &token);
                     let property = self.expression(property_start, ExpressionKind::Identifier(property_identifier));
                     (
                         self.expression(
@@ -966,7 +970,7 @@ impl Parser<'_> {
                     self.syntax_error("Invalid left-hand side in postfix operation");
                 }
                 if let ExpressionKind::Identifier(ref id) = lhs.inner {
-                    self.check_identifier_name_for_assignment_validity(&id.name, false);
+                    self.check_identifier_name_for_assignment_validity(id.name, false);
                 }
                 self.consume();
                 (
@@ -986,7 +990,7 @@ impl Parser<'_> {
                     self.syntax_error("Invalid left-hand side in postfix operation");
                 }
                 if let ExpressionKind::Identifier(ref id) = lhs.inner {
-                    self.check_identifier_name_for_assignment_validity(&id.name, false);
+                    self.check_identifier_name_for_assignment_validity(id.name, false);
                 }
                 self.consume();
                 (
@@ -1021,7 +1025,7 @@ impl Parser<'_> {
                     self.syntax_error("Invalid left-hand side in prefix operation");
                 }
                 if let ExpressionKind::Identifier(ref id) = expression.inner {
-                    self.check_identifier_name_for_assignment_validity(&id.name, false);
+                    self.check_identifier_name_for_assignment_validity(id.name, false);
                 }
                 self.expression(
                     start,
@@ -1039,7 +1043,7 @@ impl Parser<'_> {
                     self.syntax_error("Invalid left-hand side in prefix operation");
                 }
                 if let ExpressionKind::Identifier(ref id) = expression.inner {
-                    self.check_identifier_name_for_assignment_validity(&id.name, false);
+                    self.check_identifier_name_for_assignment_validity(id.name, false);
                 }
                 self.expression(
                     start,
@@ -1188,7 +1192,7 @@ impl Parser<'_> {
         // Check the actual callee expression kind, matching C++ which does
         // is<Identifier>(callee) && callee.string() == "eval".
         if let ExpressionKind::Identifier(ref id) = callee.inner
-            && id.name == utf16!("eval")
+            && self.resolve_name(id.name) == utf16!("eval")
         {
             self.scope_collector.set_contains_direct_call_to_eval();
             self.scope_collector.set_uses_this();
@@ -1277,7 +1281,7 @@ impl Parser<'_> {
                             let property_start = self.position();
                             let token = self.consume();
                             references.push(OptionalChainReference::MemberReference {
-                                identifier: self.make_identifier(property_start, self.token_identifier_name(&token)),
+                                identifier: self.make_identifier(property_start, &token),
                                 mode: OptionalChainMode::Optional,
                             });
                         } else {
@@ -1305,7 +1309,7 @@ impl Parser<'_> {
                     let property_start = self.position();
                     let token = self.consume();
                     references.push(OptionalChainReference::MemberReference {
-                        identifier: self.make_identifier(property_start, self.token_identifier_name(&token)),
+                        identifier: self.make_identifier(property_start, &token),
                         mode: OptionalChainMode::NotOptional,
                     });
                 } else {
@@ -1594,7 +1598,8 @@ impl Parser<'_> {
             && is_identifier
             && let Some(kv) = &key_value
         {
-            let id = self.make_identifier(obj_start, kv.clone());
+            let interned = self.intern(kv);
+            let id = self.make_identifier_from_id(obj_start, interned);
             self.scope_collector.register_identifier(id.clone(), None);
             let value = self.expression(obj_start, ExpressionKind::Identifier(id));
             self.consume(); // consume '='
@@ -1625,7 +1630,8 @@ impl Parser<'_> {
                 let name_str = String::from_utf16_lossy(&kv);
                 self.syntax_error(&format!("'{name_str}' is a reserved keyword"));
             }
-            let id = self.make_identifier(obj_start, kv);
+            let interned = self.intern(&kv);
+            let id = self.make_identifier_from_id(obj_start, interned);
             self.scope_collector.register_identifier(id.clone(), None);
             let value = self.expression(obj_start, ExpressionKind::Identifier(id));
             return ObjectProperty {
@@ -1741,11 +1747,12 @@ impl Parser<'_> {
                 if value == utf16!("#constructor") {
                     self.syntax_error("Private property with name '#constructor' is not allowed");
                 }
+                let name_id = self.intern(&value);
                 let expression = self.expression(
                     start,
                     ExpressionKind::PrivateIdentifier(Box::new(PrivateIdentifier {
                         range: self.range_from(start),
-                        name: value.clone(),
+                        name: name_id,
                     })),
                 );
                 PropertyKey {
@@ -2229,7 +2236,8 @@ impl Parser<'_> {
                 self.syntax_error("'await' is a reserved identifier in async functions");
             }
             // C++ uses rule_start (arrow function start, which is `async` for async arrows).
-            let binding = Rc::new(Identifier::new(self.range_from(start), value.clone().into()));
+            let name_id = self.intern(&value);
+            let binding = Rc::new(Identifier::new(self.range_from(start), name_id));
             parsed = ParsedParameters {
                 parameters: vec![FunctionParameter {
                     binding: FunctionParameterBinding::Identifier(binding.clone()),

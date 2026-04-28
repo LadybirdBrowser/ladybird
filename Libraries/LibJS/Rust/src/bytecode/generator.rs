@@ -10,14 +10,17 @@
 //! needed for bytecode generation from the AST.
 
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::rc::Rc;
+
+use fxhash::FxHashMap;
 
 use super::basic_block::{BasicBlock, SourceMapEntry};
 use super::ffi::{AbstractOperationKind, WellKnownSymbolKind};
 use super::instruction::Instruction;
 use super::operand::*;
 use crate::ast::{FunctionData, FunctionId, FunctionTable, LocalType, Position, Utf16String};
+use crate::string_interner::{InternedId, StringInterner};
 use crate::u32_from_usize;
 
 /// Identifies an operand that auto-frees its register when the last
@@ -76,7 +79,7 @@ pub struct PendingClassElement {
     pub kind: u8,
     pub is_static: bool,
     pub is_private: bool,
-    pub private_identifier: Option<Utf16String>,
+    pub private_identifier: Option<InternedId>,
     pub shared_function_data_index: Option<u32>,
     pub has_initializer: bool,
     pub literal_value_kind: PendingLiteralValueKind,
@@ -199,17 +202,17 @@ pub struct Generator {
     null_constant: Option<ScopedOperand>,
     undefined_constant: Option<ScopedOperand>,
     empty_constant: Option<ScopedOperand>,
-    int32_constants: HashMap<i32, ScopedOperand>,
-    double_constants: HashMap<u64, ScopedOperand>,
-    string_constants: HashMap<Utf16String, ScopedOperand>,
+    int32_constants: FxHashMap<i32, ScopedOperand>,
+    double_constants: FxHashMap<u64, ScopedOperand>,
+    string_constants: FxHashMap<Utf16String, ScopedOperand>,
 
     // --- String/identifier/property tables (with deduplication) ---
     pub string_table: Vec<Utf16String>,
-    string_table_index: HashMap<Utf16String, StringTableIndex>,
+    string_table_index: FxHashMap<Utf16String, StringTableIndex>,
     pub identifier_table: Vec<Utf16String>,
-    identifier_table_index: HashMap<Utf16String, IdentifierTableIndex>,
+    identifier_table_index: FxHashMap<Utf16String, IdentifierTableIndex>,
     pub property_key_table: Vec<Utf16String>,
-    property_key_table_index: HashMap<Utf16String, PropertyKeyTableIndex>,
+    property_key_table_index: FxHashMap<Utf16String, PropertyKeyTableIndex>,
     pub compiled_regexes: Vec<*mut std::ffi::c_void>,
 
     // --- Scope/unwind state ---
@@ -280,7 +283,7 @@ pub struct Generator {
     // --- AnnexB function names ---
     // Names approved for AnnexB.3.3 hoisting by the scope collector.
     // Populated during FDI, checked in switch case codegen.
-    pub annexb_function_names: HashSet<Utf16String>,
+    pub annexb_function_names: HashSet<InternedId>,
 
     // --- Builtin abstract operations ---
     // When true, calls to known abstract operations (e.g. IsCallable, GetMethod)
@@ -299,6 +302,11 @@ pub struct Generator {
     // Side table owning all FunctionData from the parser. Codegen
     // takes ownership of individual entries via `take()`.
     pub function_table: crate::ast::FunctionTable,
+
+    // --- String interner ---
+    // Shared interner from the parser. Used to resolve InternedId values
+    // in Identifier AST nodes to actual string data during codegen.
+    pub interner: StringInterner,
 }
 
 macro_rules! singleton_constant {
@@ -358,15 +366,15 @@ impl Generator {
             null_constant: None,
             undefined_constant: None,
             empty_constant: None,
-            int32_constants: HashMap::new(),
-            double_constants: HashMap::new(),
-            string_constants: HashMap::new(),
+            int32_constants: FxHashMap::default(),
+            double_constants: FxHashMap::default(),
+            string_constants: FxHashMap::default(),
             string_table: Vec::new(),
-            string_table_index: HashMap::new(),
+            string_table_index: FxHashMap::default(),
             identifier_table: Vec::new(),
-            identifier_table_index: HashMap::new(),
+            identifier_table_index: FxHashMap::default(),
             property_key_table: Vec::new(),
-            property_key_table_index: HashMap::new(),
+            property_key_table_index: FxHashMap::default(),
             compiled_regexes: Vec::new(),
             boundaries: Vec::new(),
             continuable_scopes: Vec::new(),
@@ -424,6 +432,7 @@ impl Generator {
             source_code_ptr: std::ptr::null(),
             source_len: 0,
             function_table: crate::ast::FunctionTable::new(),
+            interner: StringInterner::new(),
             free_register_pool,
         }
     }
@@ -624,6 +633,32 @@ impl Generator {
         property_key_table,
         property_key_table_index
     );
+
+    /// Resolve an InternedId to a string slice using the interner.
+    #[inline]
+    pub fn resolve_name(&self, id: InternedId) -> &[u16] {
+        self.interner.lookup(id)
+    }
+
+    /// Intern an identifier by InternedId (resolves through the interner).
+    #[inline]
+    pub fn intern_identifier_by_id(&mut self, id: InternedId) -> IdentifierTableIndex {
+        let s = self.interner.lookup(id).to_vec();
+        self.intern_identifier(&s)
+    }
+
+    /// Intern a property key by InternedId (resolves through the interner).
+    #[inline]
+    pub fn intern_property_key_by_id(&mut self, id: InternedId) -> PropertyKeyTableIndex {
+        let s = self.interner.lookup(id).to_vec();
+        self.intern_property_key(&s)
+    }
+
+    /// Resolve an InternedId name to Utf16String (owned copy for FFI/storage).
+    #[inline]
+    pub fn resolve_name_owned(&self, id: InternedId) -> Utf16String {
+        Utf16String(self.interner.lookup(id).to_vec())
+    }
 
     /// If `operand` is a constant string that is not an array index, intern it
     /// as a property key and return the index. Uses split borrows to avoid

@@ -10,6 +10,7 @@
 //! the C++ `outln` calls.
 
 use crate::ast::*;
+use crate::string_interner::StringInterner;
 use std::cell::RefCell;
 use std::fmt::Write;
 
@@ -68,6 +69,7 @@ struct DumpState<'a> {
     use_color: bool,
     output: Option<&'a RefCell<String>>,
     function_table: &'a FunctionTable,
+    interner: &'a StringInterner,
 }
 
 impl DumpState<'_> {
@@ -118,6 +120,7 @@ fn child_state<'a>(state: &DumpState<'a>, is_last: bool) -> DumpState<'a> {
         use_color: state.use_color,
         output: state.output,
         function_table: state.function_table,
+        interner: state.interner,
     }
 }
 
@@ -303,7 +306,7 @@ fn dump_labeled_statement(label: &str, statement: &Statement, is_last: bool, sta
 // Entry point
 // ============================================================================
 
-pub fn dump_program(program: &Statement, use_color: bool, function_table: &FunctionTable) {
+pub fn dump_program(program: &Statement, use_color: bool, function_table: &FunctionTable, interner: &StringInterner) {
     let state = DumpState {
         prefix: String::new(),
         is_last: false,
@@ -311,12 +314,17 @@ pub fn dump_program(program: &Statement, use_color: bool, function_table: &Funct
         use_color,
         output: None,
         function_table,
+        interner,
     };
     dump_statement(program, &state);
     println!();
 }
 
-pub fn dump_program_to_string(program: &Statement, function_table: &FunctionTable) -> String {
+pub fn dump_program_to_string(
+    program: &Statement,
+    function_table: &FunctionTable,
+    interner: &StringInterner,
+) -> String {
     let output = RefCell::new(String::new());
     let state = DumpState {
         prefix: String::new(),
@@ -325,6 +333,7 @@ pub fn dump_program_to_string(program: &Statement, function_table: &FunctionTabl
         use_color: false,
         output: Some(&output),
         function_table,
+        interner,
     };
     dump_statement(program, &state);
     output.into_inner()
@@ -690,7 +699,7 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
                 state,
                 "PrivateIdentifier",
                 &expression.range,
-                color_string_utf16(state, &ident.name)
+                color_string_utf16(state, state.interner.lookup(ident.name))
             );
         }
 
@@ -813,7 +822,7 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
                             &format!(
                                 "{} {}{}",
                                 color_node_name(state, "PrivateIdentifier"),
-                                color_string_utf16(state, &private_identifier.name),
+                                color_string_utf16(state, state.interner.lookup(private_identifier.name)),
                                 format_position(state, &private_identifier.range)
                             ),
                         );
@@ -944,7 +953,10 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
 
 fn dump_identifier(ident: &Identifier, range: &SourceRange, state: &DumpState) {
     let mut desc = color_node_name(state, "Identifier");
-    desc.push_str(&format!(" {}", color_string_utf16(state, &ident.name)));
+    desc.push_str(&format!(
+        " {}",
+        color_string_utf16(state, state.interner.lookup(ident.name))
+    ));
     if ident.is_local() {
         let kind = if ident.local_type.get() == Some(LocalType::Argument) {
             "argument"
@@ -991,7 +1003,7 @@ fn dump_function(function_data: &FunctionData, class_name: &str, range: &SourceR
         desc.push('*');
     }
     let name_str = match &function_data.name {
-        Some(ident) => utf16_to_string(&ident.name),
+        Some(ident) => utf16_to_string(state.interner.lookup(ident.name)),
         None => String::new(),
     };
     desc.push_str(&format!(" {}", color_string(state, &name_str)));
@@ -1066,7 +1078,7 @@ fn dump_function(function_data: &FunctionData, class_name: &str, range: &SourceR
 
 fn dump_class(class_data: &ClassData, range: &SourceRange, state: &DumpState, root_state: &DumpState) {
     let name_str = match &class_data.name {
-        Some(ident) => utf16_to_string(&ident.name),
+        Some(ident) => utf16_to_string(state.interner.lookup(ident.name)),
         None => String::new(),
     };
     print_node(

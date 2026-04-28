@@ -26,7 +26,7 @@ use std::ffi::c_void;
 use std::fmt;
 use std::rc::Rc;
 
-use std::collections::HashMap;
+use fxhash::FxHashMap;
 
 // =============================================================================
 // Function table (side table for FunctionData)
@@ -47,7 +47,7 @@ pub struct FunctionId(u32);
 /// moved out exactly once (during codegen / GDI). This eliminates the
 /// deep clone that was previously required in `create_shared_function_data`.
 pub struct FunctionTable {
-    functions: HashMap<FunctionId, Box<FunctionData>>,
+    functions: FxHashMap<FunctionId, Box<FunctionData>>,
     next_id: u32,
 }
 
@@ -60,7 +60,7 @@ impl Default for FunctionTable {
 impl FunctionTable {
     pub fn new() -> Self {
         Self {
-            functions: HashMap::default(),
+            functions: FxHashMap::default(),
             next_id: 0,
         }
     }
@@ -458,10 +458,12 @@ impl FunctionTable {
 }
 
 /// Bundles a `FunctionData` with a subtable of all nested functions
-/// reachable from its body. Stored as the raw pointer in C++ SFDs.
+/// reachable from its body, plus the parser interner used by its interned
+/// identifiers. Stored as the raw pointer in C++ SFDs.
 pub struct FunctionPayload {
     pub data: FunctionData,
     pub function_table: FunctionTable,
+    pub interner: crate::string_interner::StringInterner,
 }
 
 // =============================================================================
@@ -800,7 +802,7 @@ pub enum LocalType {
 #[derive(Clone, Debug)]
 pub struct Identifier {
     pub range: SourceRange,
-    pub name: SharedUtf16String,
+    pub name: crate::string_interner::InternedId,
     // Scope analysis results — set by scope collector after parsing.
     pub local_type: Cell<Option<LocalType>>,
     pub local_index: Cell<u32>,
@@ -810,7 +812,7 @@ pub struct Identifier {
 }
 
 impl Identifier {
-    pub fn new(range: SourceRange, name: SharedUtf16String) -> Self {
+    pub fn new(range: SourceRange, name: crate::string_interner::InternedId) -> Self {
         Self {
             range,
             name,
@@ -830,7 +832,7 @@ impl Identifier {
 #[derive(Clone, Debug)]
 pub struct PrivateIdentifier {
     pub range: SourceRange,
-    pub name: Utf16String,
+    pub name: crate::string_interner::InternedId,
 }
 
 // =============================================================================

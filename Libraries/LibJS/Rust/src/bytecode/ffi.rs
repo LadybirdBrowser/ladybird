@@ -320,6 +320,7 @@ pub unsafe fn create_shared_function_data(
     source_code_ptr: *const c_void,
     is_strict: bool,
     name_override: Option<&[u16]>,
+    interner: &crate::string_interner::StringInterner,
 ) -> *mut c_void {
     unsafe {
         use crate::ast::FunctionParameterBinding;
@@ -331,7 +332,8 @@ pub unsafe fn create_shared_function_data(
         let (name_ptr, name_len) = if let Some(name) = name_override {
             (name.as_ptr(), name.len())
         } else if let Some(ref name_ident) = function_data.name {
-            (name_ident.name.as_ptr(), name_ident.name.len())
+            let name_slice = interner.lookup(name_ident.name);
+            (name_slice.as_ptr(), name_slice.len())
         } else {
             (std::ptr::null(), 0)
         };
@@ -346,7 +348,7 @@ pub unsafe fn create_shared_function_data(
                 .iter()
                 .map(|p| {
                     if let FunctionParameterBinding::Identifier(ref id) = p.binding {
-                        FFIUtf16Slice::from(id.name.as_ref())
+                        FFIUtf16Slice::from(interner.lookup(id.name))
                     } else {
                         unreachable!("has_simple_parameter_list guarantees all bindings are identifiers")
                     }
@@ -367,6 +369,7 @@ pub unsafe fn create_shared_function_data(
         let payload = Box::new(crate::ast::FunctionPayload {
             data: *function_data,
             function_table: subtable,
+            interner: interner.clone(),
         });
         let rust_ast_ptr = Box::into_raw(payload) as *mut c_void;
 
@@ -408,8 +411,19 @@ pub unsafe fn create_sfd_for_gdi(
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
     is_strict: bool,
+    interner: &crate::string_interner::StringInterner,
 ) -> *mut c_void {
-    unsafe { create_shared_function_data(function_data, subtable, vm_ptr, source_code_ptr, is_strict, None) }
+    unsafe {
+        create_shared_function_data(
+            function_data,
+            subtable,
+            vm_ptr,
+            source_code_ptr,
+            is_strict,
+            None,
+            interner,
+        )
+    }
 }
 
 unsafe fn materialize_shared_function_data(
@@ -435,6 +449,7 @@ unsafe fn materialize_shared_function_data(
                 source_code_ptr,
                 generator.strict,
                 pending.name_override.as_ref().map(|name| name.as_slice()),
+                &generator.interner,
             );
             if let Some((name, is_private)) = &pending.class_field_initializer_name {
                 rust_sfd_set_class_field_initializer_name(sfd_ptr, name.as_ptr(), name.len(), *is_private);
@@ -477,7 +492,7 @@ unsafe fn materialize_class_blueprints(
         generator
             .class_blueprints
             .iter()
-            .map(|blueprint| materialize_class_blueprint(blueprint, vm_ptr, source_code_ptr))
+            .map(|blueprint| materialize_class_blueprint(blueprint, vm_ptr, source_code_ptr, &generator.interner))
             .collect()
     }
 }
@@ -486,9 +501,14 @@ unsafe fn materialize_class_blueprint(
     blueprint: &PendingClassBlueprint,
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
+    interner: &crate::string_interner::StringInterner,
 ) -> *mut c_void {
     unsafe {
-        let ffi_elements: Vec<FFIClassElement> = blueprint.elements.iter().map(class_element_to_ffi).collect();
+        let ffi_elements: Vec<FFIClassElement> = blueprint
+            .elements
+            .iter()
+            .map(|e| class_element_to_ffi(e, interner))
+            .collect();
         let (name, name_len) = blueprint
             .name
             .as_ref()
@@ -512,11 +532,16 @@ unsafe fn materialize_class_blueprint(
     }
 }
 
-fn class_element_to_ffi(element: &PendingClassElement) -> FFIClassElement {
+fn class_element_to_ffi(
+    element: &PendingClassElement,
+    interner: &crate::string_interner::StringInterner,
+) -> FFIClassElement {
     let (private_identifier, private_identifier_len) = element
         .private_identifier
-        .as_ref()
-        .map(|name| (name.as_ptr(), name.len()))
+        .map(|id| {
+            let s = interner.lookup(id);
+            (s.as_ptr(), s.len())
+        })
         .unwrap_or((std::ptr::null(), 0));
     let (literal_value_string, literal_value_string_len) = element
         .literal_value_string

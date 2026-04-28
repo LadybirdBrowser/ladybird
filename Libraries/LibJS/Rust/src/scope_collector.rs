@@ -49,16 +49,16 @@
 //! - `IdentifierGroup` — a set of identifier references with the same
 //!   name within one scope (multiple `foo` refs are grouped together)
 
+use fxhash::FxHashMap;
 use indexmap::IndexMap;
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::ast::{
-    FunctionScopeData, Identifier, LocalBinding, LocalVarKind, LocalVariable, ScopeData, SharedUtf16String,
-    Utf16String, VarToInit,
+    FunctionScopeData, Identifier, LocalBinding, LocalVarKind, LocalVariable, ScopeData, Utf16String, VarToInit,
 };
 use crate::parser::{DeclarationKind, FunctionKind, ParseError, ProgramType};
+use crate::string_interner::{InternedId, StringInterner};
 use crate::u32_from_usize;
 
 // === Enums ===
@@ -191,7 +191,7 @@ struct ScopeRecord {
     scope_data: Option<Rc<RefCell<ScopeData>>>,
 
     variables: IndexMap<Utf16String, ScopeVariable>,
-    identifier_groups: IndexMap<SharedUtf16String, IdentifierGroup>,
+    identifier_groups: IndexMap<InternedId, IdentifierGroup>,
     functions_to_hoist: Vec<HoistableFunction>,
 
     // Parameter tracking
@@ -658,7 +658,12 @@ impl ScopeCollector {
 
     // === Function parameters ===
 
-    pub fn set_function_parameters(&mut self, entries: &[ParameterEntry], has_parameter_expressions: bool) {
+    pub fn set_function_parameters(
+        &mut self,
+        entries: &[ParameterEntry],
+        has_parameter_expressions: bool,
+        interner: &StringInterner,
+    ) {
         let index = self.current.expect("no current scope");
         self.records[index].has_function_parameters = true;
         self.records[index].has_parameter_expressions = has_parameter_expressions;
@@ -693,14 +698,14 @@ impl ScopeCollector {
         // declares the same name, it must not be optimized to a local, since the
         // default expression needs to resolve it from the outer scope.
         if has_parameter_expressions {
-            let names_to_mark: Vec<SharedUtf16String> = self.records[index]
+            let names_to_mark: Vec<InternedId> = self.records[index]
                 .identifier_groups
                 .keys()
-                .filter(|name| !self.records[index].has_flag(name, VarFlags::FORBIDDEN_LEXICAL))
-                .cloned()
+                .filter(|name| !self.records[index].has_flag(interner.lookup(**name), VarFlags::FORBIDDEN_LEXICAL))
+                .copied()
                 .collect();
             for name in names_to_mark {
-                self.records[index].variable(&name).flags |= VarFlags::REFERENCED_IN_FORMAL_PARAMETERS;
+                self.records[index].variable(interner.lookup(name)).flags |= VarFlags::REFERENCED_IN_FORMAL_PARAMETERS;
             }
         }
     }
@@ -845,32 +850,38 @@ impl ScopeCollector {
 
     // === Post-parse analysis ===
 
-    pub fn analyze(&mut self, initiated_by_eval: bool) {
-        self.analyze_inner(initiated_by_eval, false);
+    pub fn analyze(&mut self, initiated_by_eval: bool, interner: &StringInterner) {
+        self.analyze_inner(initiated_by_eval, false, interner);
     }
 
     /// Like analyze(), but suppresses marking identifiers as global.
     /// Used for dynamic functions (new Function(...)) where the source is
     /// parsed as a Script but identifiers must not use GetGlobal/SetGlobal,
     /// matching the C++ path which parses as a FunctionExpression.
-    pub fn analyze_as_dynamic_function(&mut self) {
-        self.analyze_inner(false, true);
+    pub fn analyze_as_dynamic_function(&mut self, interner: &StringInterner) {
+        self.analyze_inner(false, true, interner);
     }
 
-    fn analyze_inner(&mut self, initiated_by_eval: bool, suppress_globals: bool) {
+    fn analyze_inner(&mut self, initiated_by_eval: bool, suppress_globals: bool, interner: &StringInterner) {
         if !self.records.is_empty() {
-            self.analyze_recursive(0, initiated_by_eval, suppress_globals);
+            self.analyze_recursive(0, initiated_by_eval, suppress_globals, interner);
         }
     }
 
     /// Analyze a scope and all its descendants, bottom-up.
     /// Children are analyzed first so that unresolved identifiers bubble up
     /// to their parent, and eval poisoning propagates outward.
-    fn analyze_recursive(&mut self, index: usize, initiated_by_eval: bool, suppress_globals: bool) {
+    fn analyze_recursive(
+        &mut self,
+        index: usize,
+        initiated_by_eval: bool,
+        suppress_globals: bool,
+        interner: &StringInterner,
+    ) {
         // Process children first (bottom-up traversal).
         let children = std::mem::take(&mut self.records[index].children);
         for child_index in children {
-            self.analyze_recursive(child_index, initiated_by_eval, suppress_globals);
+            self.analyze_recursive(child_index, initiated_by_eval, suppress_globals, interner);
         }
 
         // Steps 1-3 must run even for scopes without scope_data (e.g. catch
@@ -881,9 +892,9 @@ impl ScopeCollector {
         // 1. Propagate eval() flags from children to parent.
         Self::propagate_eval_poisoning(&mut self.records, index);
         // 2. Match identifier references to declarations; optimize as locals.
-        Self::resolve_identifiers(&mut self.records, index, initiated_by_eval, suppress_globals);
+        Self::resolve_identifiers(&mut self.records, index, initiated_by_eval, suppress_globals, interner);
         // 3. Annex B: hoist block-scoped functions to enclosing function scope.
-        Self::hoist_functions(&mut self.records, index);
+        Self::hoist_functions(&mut self.records, index, interner);
 
         // 4. For function-like scopes, build the var declaration list that
         //    the bytecode generator uses to initialize function-scoped variables.
@@ -893,7 +904,7 @@ impl ScopeCollector {
                 || st == ScopeType::ClassStaticInit
                 || st == ScopeType::ClassField;
             if needs_fsd {
-                Self::build_function_scope_data(&self.records, index);
+                Self::build_function_scope_data(&self.records, index, interner);
             }
         }
     }
@@ -931,11 +942,17 @@ impl ScopeCollector {
     /// - It's NOT captured by a nested function
     /// - It's NOT used inside a `with` statement
     /// - The scope chain is NOT poisoned by `eval()`
-    fn resolve_identifiers(records: &mut [ScopeRecord], index: usize, initiated_by_eval: bool, suppress_globals: bool) {
+    fn resolve_identifiers(
+        records: &mut [ScopeRecord],
+        index: usize,
+        initiated_by_eval: bool,
+        suppress_globals: bool,
+        interner: &StringInterner,
+    ) {
         // identifier_groups is an IndexMap, so iteration is in source order
         // of first reference. Local variable indices follow that order.
         let groups = std::mem::take(&mut records[index].identifier_groups);
-        let mut propagate_to_parent: Vec<(SharedUtf16String, IdentifierGroup)> = Vec::new();
+        let mut propagate_to_parent: Vec<(InternedId, IdentifierGroup)> = Vec::new();
         for (name, mut group) in groups {
             // Annotate each Identifier AST node with its declaration kind,
             // so the bytecode generator knows how to handle TDZ checks, etc.
@@ -945,9 +962,10 @@ impl ScopeCollector {
                 }
             }
 
+            let name_str = interner.lookup(name);
             let var_flags = records[index]
                 .variables
-                .get(name.as_slice())
+                .get(name_str)
                 .map_or(VarFlags::EMPTY, |v| v.flags);
 
             // Determine what kind of local variable this is (if any).
@@ -969,7 +987,7 @@ impl ScopeCollector {
             // references to `arguments` resolve to the enclosing function's.
             if records[index].scope_type == ScopeType::Function
                 && !records[index].is_arrow_function
-                && name == utf16!("arguments")
+                && name_str == utf16!("arguments")
             {
                 local_var_kind = Some(LocalVarKind::ArgumentsObject);
             }
@@ -993,7 +1011,7 @@ impl ScopeCollector {
                 if let Some(parent_index) = records[index].parent {
                     records[parent_index]
                         .identifier_groups
-                        .entry(name.clone())
+                        .entry(name)
                         .or_insert_with(|| IdentifierGroup {
                             captured_by_nested_function: false,
                             used_inside_with_statement: false,
@@ -1005,7 +1023,7 @@ impl ScopeCollector {
                 continue;
             }
 
-            let hoistable = records[index].has_hoistable_function_named(&name);
+            let hoistable = records[index].has_hoistable_function_named(name_str);
 
             // ClassDeclaration with IsBound: skip entirely.
             if records[index].scope_type == ScopeType::ClassDeclaration && var_flags.intersects(VarFlags::BOUND) {
@@ -1030,7 +1048,7 @@ impl ScopeCollector {
             if records[index].scope_type == ScopeType::Function {
                 if var_flags.intersects(VarFlags::PARAMETER_CANDIDATE)
                     && (!records[index].contains_access_to_arguments_object_in_non_strict_mode
-                        || records[index].has_rest_parameter_with_name(&name))
+                        || records[index].has_rest_parameter_with_name(name_str))
                 {
                     is_function_parameter = true;
                 } else if var_flags.intersects(VarFlags::FORBIDDEN_LEXICAL) {
@@ -1068,7 +1086,7 @@ impl ScopeCollector {
                 {
                     records[parent_index]
                         .identifier_groups
-                        .entry(name.clone())
+                        .entry(name)
                         .or_insert_with(|| IdentifierGroup {
                             captured_by_nested_function: false,
                             used_inside_with_statement: false,
@@ -1097,7 +1115,7 @@ impl ScopeCollector {
                         let mut sd = scope_data.borrow_mut();
 
                         if is_function_parameter {
-                            let argument_index = records[ls].get_parameter_index(&name);
+                            let argument_index = records[ls].get_parameter_index(name_str);
                             if let Some(ai) = argument_index {
                                 for id in &group.identifiers {
                                     id.local_index.set(ai);
@@ -1106,7 +1124,7 @@ impl ScopeCollector {
                             } else {
                                 let lvi = u32_from_usize(sd.local_variables.len());
                                 sd.local_variables.push(LocalVariable {
-                                    name: name.to_utf16_string(),
+                                    name: Utf16String::from(name_str),
                                     kind: LocalVarKind::Var,
                                 });
                                 for id in &group.identifiers {
@@ -1118,7 +1136,7 @@ impl ScopeCollector {
                             let kind = local_var_kind.expect("local_var_kind must be set for local variables");
                             let lvi = u32_from_usize(sd.local_variables.len());
                             sd.local_variables.push(LocalVariable {
-                                name: name.to_utf16_string(),
+                                name: Utf16String::from(name_str),
                                 kind,
                             });
                             for id in &group.identifiers {
@@ -1172,7 +1190,7 @@ impl ScopeCollector {
     // - vars_to_initialize: var-declared names and their local variable indices
     // - functions_to_initialize: function declarations to instantiate (in reverse order)
     // - arguments object metadata (has_argument_parameter, has_function_named_arguments, etc.)
-    fn build_function_scope_data(records: &[ScopeRecord], index: usize) {
+    fn build_function_scope_data(records: &[ScopeRecord], index: usize, interner: &StringInterner) {
         let record = &records[index];
         let Some(ref scope_data) = record.scope_data else {
             return;
@@ -1194,17 +1212,16 @@ impl ScopeCollector {
         // ECMAScript hoisting keeps the LAST function declaration with a given name,
         // but we want to emit the resulting list in SOURCE order. Two forward passes:
         // record the last position for each name, then keep only the entries whose
-        // position matches. Keys are SharedUtf16String so each insert is a cheap
-        // Rc bump rather than a deep clone of the name.
+        // position matches.
         let mut functions_to_initialize: Vec<crate::ast::FunctionToInit> = Vec::new();
-        let mut last_position: HashMap<SharedUtf16String, usize> = HashMap::new();
+        let mut last_position: FxHashMap<InternedId, usize> = FxHashMap::default();
         {
             let sd = scope_data.borrow();
             for (i, child) in sd.children.iter().enumerate() {
                 if let crate::ast::StatementKind::FunctionDeclaration(ref fd) = child.inner
                     && let Some(ref name_ident) = fd.name
                 {
-                    last_position.insert(name_ident.name.clone(), i);
+                    last_position.insert(name_ident.name, i);
                 }
             }
             for (i, child) in sd.children.iter().enumerate() {
@@ -1225,7 +1242,9 @@ impl ScopeCollector {
             var_names.push(name.clone());
 
             let is_parameter = var.flags.intersects(VarFlags::FORBIDDEN_LEXICAL);
-            let is_function_name = last_position.contains_key(name.as_slice());
+            let is_function_name = interner
+                .find_id(name.as_slice())
+                .is_some_and(|id| last_position.contains_key(&id));
 
             let local_info = if let Some(ref ident) = var.var_identifier {
                 if ident.is_local() {
@@ -1258,7 +1277,10 @@ impl ScopeCollector {
         // vars_to_initialize and var_names follow source order via the
         // insertion order of `record.variables`, which is now an IndexMap.
 
-        if last_position.contains_key(utf16!("arguments") as &[u16]) {
+        if interner
+            .find_id(utf16!("arguments"))
+            .is_some_and(|id| last_position.contains_key(&id))
+        {
             has_function_named_arguments = true;
         }
 
@@ -1311,7 +1333,7 @@ impl ScopeCollector {
     /// The function propagates upward through block scopes until it reaches
     /// a function/program scope (top level) or is blocked by an existing
     /// lexical or function declaration with the same name.
-    fn hoist_functions(records: &mut [ScopeRecord], index: usize) {
+    fn hoist_functions(records: &mut [ScopeRecord], index: usize, interner: &StringInterner) {
         let functions = std::mem::take(&mut records[index].functions_to_hoist);
 
         for function in functions {
@@ -1346,7 +1368,10 @@ impl ScopeCollector {
                     let bs = block_scope.borrow();
                     for child in &bs.children {
                         if let crate::ast::StatementKind::FunctionDeclaration(ref fd) = child.inner
-                            && fd.name.as_ref().is_some_and(|n| n.name == function.name)
+                            && fd
+                                .name
+                                .as_ref()
+                                .is_some_and(|n| interner.lookup(n.name) == function.name.as_slice())
                         {
                             fd.is_hoisted.set(true);
                         }

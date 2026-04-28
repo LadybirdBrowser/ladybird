@@ -11,6 +11,7 @@ use std::rc::Rc;
 
 use crate::ast::*;
 use crate::parser::{Associativity, ForbiddenTokens, PRECEDENCE_COMMA, Parser, Position};
+use crate::string_interner::InternedId;
 use crate::token::TokenType;
 
 /// Used locally during for-statement parsing before converting to `ast::ForInit`.
@@ -464,7 +465,7 @@ impl Parser<'_> {
                     if init_starts_with_async_keyword
                         && let LocalForInit::Expression(ref expression) = init
                         && let ExpressionKind::Identifier(ref ident) = expression.inner
-                        && ident.name == utf16!("async")
+                        && self.resolve_name(ident.name) == utf16!("async")
                     {
                         self.syntax_error("for-of statement may not use 'async' as the left-hand side");
                     }
@@ -472,7 +473,7 @@ impl Parser<'_> {
                     if let LocalForInit::Expression(ref expression) = init
                         && let ExpressionKind::Member(ref data) = expression.inner
                         && let ExpressionKind::Identifier(ref ident) = data.object.inner
-                        && ident.name == utf16!("let")
+                        && self.resolve_name(ident.name) == utf16!("let")
                     {
                         self.syntax_error("For of statement may not start with let.");
                     }
@@ -714,24 +715,28 @@ impl Parser<'_> {
             let parameter = if self.match_token(TokenType::CurlyOpen) || self.match_token(TokenType::BracketOpen) {
                 self.pattern_bound_names.clear();
                 let pattern = self.parse_binding_pattern();
-                let names_to_check: Vec<SharedUtf16String> =
-                    self.pattern_bound_names.iter().map(|(n, _)| n.clone()).collect();
+                let names_to_check: Vec<InternedId> = self.pattern_bound_names.iter().map(|(n, _)| *n).collect();
                 // https://tc39.es/ecma262/#sec-try-statement-static-semantics-early-errors
                 // It is a Syntax Error if BoundNames of CatchParameter
                 // contains any duplicate elements.
                 {
-                    let mut seen: HashSet<&[u16]> = HashSet::new();
+                    let mut seen: HashSet<InternedId> = HashSet::new();
                     for name in &names_to_check {
-                        if !seen.insert(name.as_slice()) {
-                            let name_str = String::from_utf16_lossy(name);
+                        if !seen.insert(*name) {
+                            let name_str = String::from_utf16_lossy(self.resolve_name(*name));
                             self.syntax_error(&format!("Duplicate binding '{name_str}' in catch parameter"));
                         }
                     }
                 }
                 for name in &names_to_check {
-                    self.check_identifier_name_for_assignment_validity(name, false);
+                    self.check_identifier_name_for_assignment_validity(*name, false);
                 }
-                let bound_names: Vec<&[u16]> = self.pattern_bound_names.iter().map(|(n, _)| n.as_slice()).collect();
+                let interner = &self.interner;
+                let bound_names: Vec<&[u16]> = self
+                    .pattern_bound_names
+                    .iter()
+                    .map(|(n, _)| interner.lookup(*n))
+                    .collect();
                 self.scope_collector.add_catch_parameter_pattern(&bound_names);
                 // Register each binding pattern identifier for scope analysis
                 // so they get is_local() annotations (matching variable declarations).
@@ -743,11 +748,9 @@ impl Parser<'_> {
                 let parameter_start = self.position();
                 let token = self.consume();
                 let value = self.token_value(&token).to_vec();
-                self.check_identifier_name_for_assignment_validity(&value, false);
-                let id = Rc::new(Identifier::new(
-                    self.range_from(parameter_start),
-                    self.token_identifier_name(&token),
-                ));
+                let name_id = self.token_identifier_interned(&token);
+                self.check_identifier_name_for_assignment_validity(name_id, false);
+                let id = Rc::new(Identifier::new(self.range_from(parameter_start), name_id));
                 self.scope_collector.register_identifier(id.clone(), None);
                 self.scope_collector.add_catch_parameter_identifier(&value, id.clone());
                 Some(CatchBinding::Identifier(id))
@@ -762,9 +765,9 @@ impl Parser<'_> {
         };
 
         // Collect catch parameter names for post-body validation.
-        let catch_names: Vec<SharedUtf16String> = match &parameter {
-            Some(CatchBinding::Identifier(id)) => vec![id.name.clone()],
-            Some(CatchBinding::BindingPattern(_)) => self.pattern_bound_names.iter().map(|(n, _)| n.clone()).collect(),
+        let catch_names: Vec<InternedId> = match &parameter {
+            Some(CatchBinding::Identifier(id)) => vec![id.name],
+            Some(CatchBinding::BindingPattern(_)) => self.pattern_bound_names.iter().map(|(n, _)| *n).collect(),
             None => Vec::new(),
         };
 
@@ -782,8 +785,8 @@ impl Parser<'_> {
                         for decl in &vd.declarations {
                             if let VariableDeclaratorTarget::Identifier(ref id) = decl.target {
                                 for cn in &catch_names {
-                                    if cn.as_slice() == id.name.as_slice() {
-                                        let n = String::from_utf16_lossy(cn);
+                                    if *cn == id.name {
+                                        let n = String::from_utf16_lossy(self.resolve_name(*cn));
                                         self.syntax_error(&format!(
                                             "Identifier '{n}' already declared as catch parameter"
                                         ));
@@ -795,8 +798,8 @@ impl Parser<'_> {
                     StatementKind::FunctionDeclaration(fd) if fd.name.is_some() => {
                         let id = fd.name.as_ref().unwrap();
                         for cn in &catch_names {
-                            if cn.as_slice() == id.name.as_slice() {
-                                let n = String::from_utf16_lossy(cn);
+                            if *cn == id.name {
+                                let n = String::from_utf16_lossy(self.resolve_name(*cn));
                                 self.syntax_error(&format!("Identifier '{n}' already declared as catch parameter"));
                             }
                         }
@@ -804,8 +807,8 @@ impl Parser<'_> {
                     StatementKind::ClassDeclaration(data) => {
                         if let Some(ref id) = data.name {
                             for cn in &catch_names {
-                                if cn.as_slice() == id.name.as_slice() {
-                                    let n = String::from_utf16_lossy(cn);
+                                if *cn == id.name {
+                                    let n = String::from_utf16_lossy(self.resolve_name(*cn));
                                     self.syntax_error(&format!("Identifier '{n}' already declared as catch parameter"));
                                 }
                             }
@@ -987,7 +990,7 @@ impl Parser<'_> {
 
                     let bound_names: Vec<_> = self.pattern_bound_names.drain(..).collect();
                     for (name, id) in &bound_names {
-                        self.check_identifier_name_for_assignment_validity(name, false);
+                        self.check_identifier_name_for_assignment_validity(*name, false);
                         self.scope_collector.register_identifier(id.clone(), None);
                     }
                     ForInOfLhs::Pattern(pattern)

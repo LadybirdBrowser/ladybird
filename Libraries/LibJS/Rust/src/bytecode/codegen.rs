@@ -45,6 +45,7 @@ use num_traits::{One, Signed, ToPrimitive, Zero};
 
 use crate::ast::*;
 use crate::lexer::ch;
+use crate::string_interner::{InternedId, StringInterner};
 use crate::u32_from_usize;
 
 use super::ffi::{AbstractOperationKind, WellKnownSymbolKind};
@@ -328,7 +329,7 @@ fn generate_unary_expression(
             && !ident.is_local()
         {
             let dst = choose_dst(generator, preferred_dst);
-            let id = generator.intern_identifier(&ident.name);
+            let id = generator.intern_identifier_by_id(ident.name);
             generator.emit(Instruction::TypeofBinding {
                 dst: dst.operand(),
                 identifier: id,
@@ -448,7 +449,7 @@ fn generate_binary_expression(
     {
         let base = generate_expression(rhs, generator, None)?;
         let dst = choose_dst(generator, preferred_dst);
-        let id = generator.intern_identifier(&priv_ident.name);
+        let id = generator.intern_identifier_by_id(priv_ident.name);
         generator.emit(Instruction::HasPrivateId {
             dst: dst.operand(),
             base: base.operand(),
@@ -538,7 +539,8 @@ fn generate_function_expression(
         });
         generator.lexical_environment_register_stack.push(new_env);
 
-        let id = generator.intern_identifier(&data.name.as_ref().expect("function declaration must have a name").name);
+        let id =
+            generator.intern_identifier_by_id(data.name.as_ref().expect("function declaration must have a name").name);
         generator.emit(Instruction::CreateVariable {
             identifier: id,
             mode: EnvironmentMode::Lexical as u32,
@@ -711,7 +713,7 @@ fn generate_member_expression(
         if let Some(key) = computed_key {
             emit_get_by_value_with_this(generator, &dst, &super_base, &key, &this_value);
         } else if let ExpressionKind::Identifier(ident) = &property.inner {
-            emit_get_by_id_with_this(generator, &dst, &super_base, &ident.name, &this_value);
+            emit_get_by_id_with_this(generator, &dst, &super_base, ident.name, &this_value);
         }
         return Some(dst);
     }
@@ -727,9 +729,9 @@ fn generate_member_expression(
     // Non-computed: property must be an Identifier
     let dst = choose_dst(generator, preferred_dst);
     if let ExpressionKind::Identifier(ident) = &property.inner {
-        emit_get_by_id(generator, &dst, &obj, &ident.name, base_id);
+        emit_get_by_id(generator, &dst, &obj, ident.name, base_id);
     } else if let ExpressionKind::PrivateIdentifier(priv_ident) = &property.inner {
-        let id = generator.intern_identifier(&priv_ident.name);
+        let id = generator.intern_identifier_by_id(priv_ident.name);
         generator.emit(Instruction::GetPrivateById {
             dst: dst.operand(),
             base: obj.operand(),
@@ -887,7 +889,8 @@ pub fn generate_statement(
             // into the var-scoped binding on each case entry).
             let scope = data.scope.borrow();
             for name in &scope.annexb_function_names {
-                generator.annexb_function_names.insert(name.clone());
+                let id = generator.interner.intern(name);
+                generator.annexb_function_names.insert(id);
             }
             generate_scope_children(generator, &scope, preferred_dst)
         }
@@ -986,7 +989,7 @@ pub fn generate_statement(
                 // Annex B.3.3: Copy the function from the lexical (block) scope
                 // to the var scope.
                 if let Some(name_ident) = &fd.name {
-                    let id = generator.intern_identifier(&name_ident.name);
+                    let id = generator.intern_identifier_by_id(name_ident.name);
                     let value = generator.allocate_register();
                     generator.emit(Instruction::GetBinding {
                         dst: value.operand(),
@@ -1058,7 +1061,7 @@ pub fn generate_statement(
                         generator.resolve_local(name_ident.local_index.get(), name_ident.local_type.get().unwrap());
                     generator.emit_mov(&local, &value);
                 } else {
-                    let id = generator.intern_identifier(&name_ident.name);
+                    let id = generator.intern_identifier_by_id(name_ident.name);
                     generator.emit(Instruction::InitializeLexicalBinding {
                         identifier: id,
                         src: value.operand(),
@@ -1316,7 +1319,7 @@ fn generate_yield_from(
 
     // iv. Let done be ? IteratorComplete(innerResult).
     let done = generator.allocate_register();
-    emit_get_by_id(generator, &done, &inner_result, utf16!("done"), None);
+    emit_get_by_id_impl(generator, &done, &inner_result, utf16!("done"), None);
 
     // v. If done is true, then return ? IteratorValue(innerResult).
     let type_is_normal_done_block = generator.make_block();
@@ -1325,14 +1328,14 @@ fn generate_yield_from(
 
     generator.switch_to_basic_block(type_is_normal_done_block);
     let return_value = generator.allocate_register();
-    emit_get_by_id(generator, &return_value, &inner_result, utf16!("value"), None);
+    emit_get_by_id_impl(generator, &return_value, &inner_result, utf16!("value"), None);
     generator.emit(Instruction::Jump { target: loop_end_block });
 
     // vi/vii. Yield IteratorValue(innerResult), receive new completion.
     generator.switch_to_basic_block(type_is_normal_not_done_block);
     {
         let current_value = generator.allocate_register();
-        emit_get_by_id(generator, &current_value, &inner_result, utf16!("value"), None);
+        emit_get_by_id_impl(generator, &current_value, &inner_result, utf16!("value"), None);
 
         generate_yield(
             generator,
@@ -1410,7 +1413,7 @@ fn generate_yield_from(
     });
 
     // 5. Let done be ? IteratorComplete(innerResult).
-    emit_get_by_id(generator, &done, &inner_result, utf16!("done"), None);
+    emit_get_by_id_impl(generator, &done, &inner_result, utf16!("done"), None);
 
     // 6. If done is true, return ? IteratorValue(innerResult).
     let type_is_throw_done_block = generator.make_block();
@@ -1418,14 +1421,14 @@ fn generate_yield_from(
     generator.emit_jump_if(&done, type_is_throw_done_block, type_is_throw_not_done_block);
 
     generator.switch_to_basic_block(type_is_throw_done_block);
-    emit_get_by_id(generator, &return_value, &inner_result, utf16!("value"), None);
+    emit_get_by_id_impl(generator, &return_value, &inner_result, utf16!("value"), None);
     generator.emit(Instruction::Jump { target: loop_end_block });
 
     // 7/8. Yield IteratorValue(innerResult), receive new completion.
     generator.switch_to_basic_block(type_is_throw_not_done_block);
     {
         let yield_value = generator.allocate_register();
-        emit_get_by_id(generator, &yield_value, &inner_result, utf16!("value"), None);
+        emit_get_by_id_impl(generator, &yield_value, &inner_result, utf16!("value"), None);
         generate_yield(
             generator,
             continuation_block,
@@ -1572,7 +1575,7 @@ fn generate_yield_from(
     });
 
     // vii. Let done be ? IteratorComplete(innerReturnResult).
-    emit_get_by_id(generator, &done, &inner_return_result, utf16!("done"), None);
+    emit_get_by_id_impl(generator, &done, &inner_return_result, utf16!("done"), None);
 
     // viii. If done is true, return IteratorValue(innerReturnResult).
     let type_is_return_done_block = generator.make_block();
@@ -1581,7 +1584,7 @@ fn generate_yield_from(
 
     generator.switch_to_basic_block(type_is_return_done_block);
     let inner_return_result_value = generator.allocate_register();
-    emit_get_by_id(
+    emit_get_by_id_impl(
         generator,
         &inner_return_result_value,
         &inner_return_result,
@@ -1593,7 +1596,7 @@ fn generate_yield_from(
     // ix/x. Yield IteratorValue(innerReturnResult), receive new completion.
     generator.switch_to_basic_block(type_is_return_not_done_block);
     let received = generator.allocate_register();
-    emit_get_by_id(generator, &received, &inner_return_result, utf16!("value"), None);
+    emit_get_by_id_impl(generator, &received, &inner_return_result, utf16!("value"), None);
     generate_yield(
         generator,
         continuation_block,
@@ -1760,14 +1763,14 @@ fn generate_identifier(
 
     // OPTIMIZATION: Generate builtin constants (undefined, NaN, Infinity) directly.
     if ident.is_global.get()
-        && let Some(constant) = maybe_generate_builtin_constant(generator, &ident.name)
+        && let Some(constant) = maybe_generate_builtin_constant(generator, &generator.resolve_name(ident.name).to_vec())
     {
         return constant;
     }
 
     let dst = choose_dst(generator, preferred_dst);
     if ident.is_global.get() {
-        let id = generator.intern_identifier(&ident.name);
+        let id = generator.intern_identifier_by_id(ident.name);
         let cache = generator.next_global_variable_cache();
         generator.emit(Instruction::GetGlobal {
             dst: dst.operand(),
@@ -1775,14 +1778,14 @@ fn generate_identifier(
             cache: cache as u64,
         });
     } else if ident.declaration_kind.get() == Some(DeclarationKind::Var) {
-        let id = generator.intern_identifier(&ident.name);
+        let id = generator.intern_identifier_by_id(ident.name);
         generator.emit(Instruction::GetInitializedBinding {
             dst: dst.operand(),
             identifier: id,
             cache: EnvironmentCoordinate::empty(),
         });
     } else {
-        let id = generator.intern_identifier(&ident.name);
+        let id = generator.intern_identifier_by_id(ident.name);
         generator.emit(Instruction::GetBinding {
             dst: dst.operand(),
             identifier: id,
@@ -2328,7 +2331,7 @@ fn generate_for_statement(
     {
         let mut non_local_names: Vec<(Utf16String, bool)> = Vec::new();
         for declaration in &vd.declarations {
-            collect_target_names(&declaration.target, &mut non_local_names);
+            collect_target_names(&declaration.target, &mut non_local_names, &generator.interner);
         }
         if !non_local_names.is_empty() {
             has_lexical_environment = true;
@@ -2588,7 +2591,7 @@ fn emit_lexical_declarations_for_block<'a>(
                 let is_constant = vd.kind == DeclarationKind::Const;
                 for declaration in &vd.declarations {
                     let mut names = Vec::new();
-                    collect_target_names(&declaration.target, &mut names);
+                    collect_target_names(&declaration.target, &mut names, &generator.interner);
                     for (name, _) in &names {
                         let id = generator.intern_identifier(name);
                         if is_constant {
@@ -2610,7 +2613,7 @@ fn emit_lexical_declarations_for_block<'a>(
             StatementKind::UsingDeclaration(declarations) => {
                 for declaration in declarations.iter() {
                     let mut names = Vec::new();
-                    collect_target_names(&declaration.target, &mut names);
+                    collect_target_names(&declaration.target, &mut names, &generator.interner);
                     for (name, _) in &names {
                         let id = generator.intern_identifier(name);
                         generator.emit(Instruction::CreateImmutableBinding {
@@ -2625,7 +2628,7 @@ fn emit_lexical_declarations_for_block<'a>(
                 if let Some(ref name_ident) = class_data.name
                     && !name_ident.is_local()
                 {
-                    let id = generator.intern_identifier(&name_ident.name);
+                    let id = generator.intern_identifier_by_id(name_ident.name);
                     generator.emit(Instruction::CreateMutableBinding {
                         environment: environment.operand(),
                         identifier: id,
@@ -2637,7 +2640,7 @@ fn emit_lexical_declarations_for_block<'a>(
                 let name_ident = fd.name.as_ref().unwrap();
                 // a. Create binding.
                 if !name_ident.is_local() {
-                    let id = generator.intern_identifier(&name_ident.name);
+                    let id = generator.intern_identifier_by_id(name_ident.name);
                     generator.emit(Instruction::CreateMutableBinding {
                         environment: environment.operand(),
                         identifier: id,
@@ -2660,7 +2663,7 @@ fn emit_lexical_declarations_for_block<'a>(
                     generator.emit_mov(&local, &fo);
                     generator.mark_local_initialized(local_index);
                 } else {
-                    let id = generator.intern_identifier(&name_ident.name);
+                    let id = generator.intern_identifier_by_id(name_ident.name);
                     generator.emit(Instruction::InitializeLexicalBinding {
                         identifier: id,
                         src: fo.operand(),
@@ -2674,7 +2677,7 @@ fn emit_lexical_declarations_for_block<'a>(
 }
 
 fn emit_block_declaration_instantiation(generator: &mut Generator, scope: &ScopeData) -> bool {
-    if !needs_block_declaration_instantiation(scope) {
+    if !needs_block_declaration_instantiation(scope, &generator.interner) {
         return false;
     }
 
@@ -2716,7 +2719,7 @@ fn generate_variable_declaration(
 
         // Set pending LHS name for function name inference.
         if let VariableDeclaratorTarget::Identifier(ident) = &declaration.target {
-            generator.pending_lhs_name = Some(generator.intern_identifier(&ident.name));
+            generator.pending_lhs_name = Some(generator.intern_identifier_by_id(ident.name));
         }
         let init_value = declaration
             .init
@@ -2741,7 +2744,7 @@ fn generate_variable_declaration(
                     generator.emit_mov(&local, &value);
                     generator.mark_local_initialized(local_index);
                 } else {
-                    let id = generator.intern_identifier(&ident.name);
+                    let id = generator.intern_identifier_by_id(ident.name);
                     match kind {
                         DeclarationKind::Var => {
                             if ident.is_global.get() {
@@ -2794,13 +2797,15 @@ fn try_generate_builtin_abstract_operation(
     if !generator.builtin_abstract_operations_enabled {
         return None;
     }
-    let name = match &data.callee.inner {
-        ExpressionKind::Identifier(ident) => &ident.name,
+    let name_id = match &data.callee.inner {
+        ExpressionKind::Identifier(ident) => ident.name,
         _ => return None,
     };
     if data.arguments.iter().any(|a| a.is_spread) {
         return None;
     }
+
+    let name = generator.resolve_name(name_id).to_vec();
 
     let dst = choose_dst(generator, preferred_dst);
 
@@ -2921,8 +2926,8 @@ fn try_generate_builtin_abstract_operation(
             let val = generate_expression_or_undefined(&argument.value, generator, None);
             argument_holders.push(generator.copy_if_needed_to_preserve_evaluation_order(&val));
         }
-        let callee_name =
-            expression_string_approximation(&data.arguments[0].value).map(|s| generator.intern_string(&s));
+        let callee_name = expression_string_approximation(&data.arguments[0].value, &generator.interner)
+            .map(|s| generator.intern_string(&s));
         let arguments: Vec<Operand> = argument_holders.iter().map(|a| a.operand()).collect();
         generator.emit(Instruction::Call {
             dst: dst.operand(),
@@ -2947,10 +2952,10 @@ fn try_generate_builtin_abstract_operation(
         (utf16!("IteratorComplete"), AbstractOperationKind::IteratorComplete),
     ];
     for &(op_name, operation) in known_operations {
-        if *name == op_name {
+        if name == op_name {
             let callee = generator.add_constant_abstract_operation(operation);
             let undefined = generator.add_constant_undefined();
-            let expression_string = generator.intern_string(name);
+            let expression_string = generator.intern_string(&name);
             let mut argument_holders = Vec::with_capacity(data.arguments.len());
             for argument in &data.arguments {
                 let val = generate_expression_or_undefined(&argument.value, generator, None);
@@ -3020,14 +3025,18 @@ fn generate_call_expression(
 
     // Compute expression_string for error messages (e.g. "true is not a function (evaluated from 'a')").
     let expression_string: Option<StringTableIndex> =
-        expression_string_approximation(&data.callee).map(|s| generator.intern_string(&s));
+        expression_string_approximation(&data.callee, &generator.interner).map(|s| generator.intern_string(&s));
 
     // Detect direct eval calls: bare identifier "eval" as callee.
-    let is_direct_eval =
-        !is_new && matches!(&data.callee.inner, ExpressionKind::Identifier(ident) if ident.name == utf16!("eval"));
+    let is_direct_eval = !is_new
+        && matches!(&data.callee.inner, ExpressionKind::Identifier(ident) if generator.resolve_name(ident.name) == utf16!("eval"));
 
     // Detect known builtins for member expression callees (e.g. Math.abs).
-    let builtin: Option<u8> = if !is_new { get_builtin(&data.callee) } else { None };
+    let builtin: Option<u8> = if !is_new {
+        get_builtin(&data.callee, &generator.interner)
+    } else {
+        None
+    };
 
     // For method calls (obj.method()), we need to use the object as `this`.
     let (callee, this_value) = if !is_new {
@@ -3053,7 +3062,7 @@ fn generate_call_expression(
                 if let Some(key) = computed_key {
                     emit_get_by_value_with_this(generator, &method, &super_base, &key, &this_value);
                 } else if let ExpressionKind::Identifier(ident) = &data.property.inner {
-                    emit_get_by_id_with_this(generator, &method, &super_base, &ident.name, &this_value);
+                    emit_get_by_id_with_this(generator, &method, &super_base, ident.name, &this_value);
                 }
                 (method, Some(this_value))
             }
@@ -3065,9 +3074,9 @@ fn generate_call_expression(
                     let property = generate_expression_or_undefined(&data.property, generator, None);
                     emit_get_by_value(generator, &method, &obj, &property, None);
                 } else if let ExpressionKind::Identifier(ident) = &data.property.inner {
-                    emit_get_by_id(generator, &method, &obj, &ident.name, base_id);
+                    emit_get_by_id(generator, &method, &obj, ident.name, base_id);
                 } else if let ExpressionKind::PrivateIdentifier(priv_ident) = &data.property.inner {
-                    let id = generator.intern_identifier(&priv_ident.name);
+                    let id = generator.intern_identifier_by_id(priv_ident.name);
                     generator.emit(Instruction::GetPrivateById {
                         dst: method.operand(),
                         base: obj.operand(),
@@ -3096,7 +3105,7 @@ fn generate_call_expression(
                 // to properly handle with-statement bindings and eval.
                 let callee_reg = generator.allocate_register();
                 let this_reg = generator.allocate_register();
-                let id = generator.intern_identifier(&ident.name);
+                let id = generator.intern_identifier_by_id(ident.name);
                 generator.emit(Instruction::GetCalleeAndThisFromEnvironment {
                     callee: callee_reg.operand(),
                     this_value: this_reg.operand(),
@@ -3324,7 +3333,7 @@ fn generate_update_expression(
                 if let Some(ref key) = computed_key {
                     emit_get_by_value_with_this(generator, &value, &base, key, &this_value);
                 } else if let ExpressionKind::Identifier(ident) = &data.property.inner {
-                    emit_get_by_id_with_this(generator, &value, &base, &ident.name, &this_value);
+                    emit_get_by_id_with_this(generator, &value, &base, ident.name, &this_value);
                 }
                 let result = emit_update_op(generator, op, prefixed, &value);
                 emit_super_put(
@@ -3350,8 +3359,8 @@ fn generate_update_expression(
                     Some(result)
                 } else if let ExpressionKind::Identifier(property_ident) = &data.property.inner {
                     let value = generator.allocate_register();
-                    emit_get_by_id(generator, &value, &base, &property_ident.name, base_id);
-                    let key = generator.intern_property_key(&property_ident.name);
+                    emit_get_by_id(generator, &value, &base, property_ident.name, base_id);
+                    let key = generator.intern_property_key_by_id(property_ident.name);
                     let result = emit_update_op(generator, op, prefixed, &value);
                     let cache2 = generator.next_property_lookup_cache();
                     generator.emit(Instruction::PutById {
@@ -3364,7 +3373,7 @@ fn generate_update_expression(
                     });
                     Some(result)
                 } else if let ExpressionKind::PrivateIdentifier(priv_ident) = &data.property.inner {
-                    let id = generator.intern_identifier(&priv_ident.name);
+                    let id = generator.intern_identifier_by_id(priv_ident.name);
                     let value = generator.allocate_register();
                     generator.emit(Instruction::GetPrivateById {
                         dst: value.operand(),
@@ -3416,7 +3425,7 @@ fn generate_assignment_expression(
             // Simple assignment to identifier
             if let ExpressionKind::Identifier(ident) = &lhs_expression.inner {
                 if op == AssignmentOp::Assignment {
-                    generator.pending_lhs_name = Some(generator.intern_identifier(&ident.name));
+                    generator.pending_lhs_name = Some(generator.intern_identifier_by_id(ident.name));
                     let rhs_val = generate_expression(rhs, generator, None)?;
                     generator.pending_lhs_name = None;
                     if ident.is_local() {
@@ -3457,7 +3466,7 @@ fn generate_assignment_expression(
                     }
                     // RHS block: evaluate RHS, assign, jump to end.
                     generator.switch_to_basic_block(rhs_block);
-                    generator.pending_lhs_name = Some(generator.intern_identifier(&ident.name));
+                    generator.pending_lhs_name = Some(generator.intern_identifier_by_id(ident.name));
                     let rhs_val = generate_expression(rhs, generator, None)?;
                     generator.pending_lhs_name = None;
                     // Allocate dst after RHS evaluation.
@@ -3534,7 +3543,7 @@ fn generate_assignment_expression(
                     if let Some(ref key) = computed_key {
                         emit_get_by_value_with_this(generator, &old_val, &base, key, &super_this);
                     } else if let ExpressionKind::Identifier(ident) = &member_data.property.inner {
-                        emit_get_by_id_with_this(generator, &old_val, &base, &ident.name, &super_this);
+                        emit_get_by_id_with_this(generator, &old_val, &base, ident.name, &super_this);
                     }
                     let is_logical = matches!(
                         op,
@@ -3649,7 +3658,7 @@ fn generate_assignment_expression(
                     return Some(dst);
                 } else if let ExpressionKind::Identifier(ident) = &member_data.property.inner {
                     let old_val = generator.allocate_register();
-                    emit_get_by_id(generator, &old_val, &base, &ident.name, base_id);
+                    emit_get_by_id(generator, &old_val, &base, ident.name, base_id);
                     if is_logical {
                         let rhs_block = generator.make_block();
                         let lhs_block = generator.make_block();
@@ -3659,7 +3668,7 @@ fn generate_assignment_expression(
                         let rhs_val = generate_expression(rhs, generator, None)?;
                         let dst = choose_dst(generator, preferred_dst);
                         generator.emit_mov(&dst, &rhs_val);
-                        let key = generator.intern_property_key(&ident.name);
+                        let key = generator.intern_property_key_by_id(ident.name);
                         let cache2 = generator.next_property_lookup_cache();
                         generator.emit(Instruction::PutById {
                             base: base.operand(),
@@ -3679,7 +3688,7 @@ fn generate_assignment_expression(
                     let rhs_val = generate_expression(rhs, generator, None)?;
                     let dst = choose_dst(generator, preferred_dst);
                     emit_compound_assignment(generator, op, &dst, &old_val, &rhs_val);
-                    let key = generator.intern_property_key(&ident.name);
+                    let key = generator.intern_property_key_by_id(ident.name);
                     let cache2 = generator.next_property_lookup_cache();
                     generator.emit(Instruction::PutById {
                         base: base.operand(),
@@ -3692,7 +3701,7 @@ fn generate_assignment_expression(
                     return Some(dst);
                 } else if let ExpressionKind::PrivateIdentifier(priv_ident) = &member_data.property.inner {
                     let old_val = generator.allocate_register();
-                    let id = generator.intern_identifier(&priv_ident.name);
+                    let id = generator.intern_identifier_by_id(priv_ident.name);
                     generator.emit(Instruction::GetPrivateById {
                         dst: old_val.operand(),
                         base: base.operand(),
@@ -3708,7 +3717,7 @@ fn generate_assignment_expression(
                         // Allocate dst after RHS evaluation.
                         let dst = choose_dst(generator, preferred_dst);
                         generator.emit_mov(&dst, &rhs_val);
-                        let id2 = generator.intern_identifier(&priv_ident.name);
+                        let id2 = generator.intern_identifier_by_id(priv_ident.name);
                         generator.emit(Instruction::PutPrivateById {
                             base: base.operand(),
                             property: id2,
@@ -3724,7 +3733,7 @@ fn generate_assignment_expression(
                     let rhs_val = generate_expression(rhs, generator, None)?;
                     let dst = choose_dst(generator, preferred_dst);
                     emit_compound_assignment(generator, op, &dst, &old_val, &rhs_val);
-                    let id2 = generator.intern_identifier(&priv_ident.name);
+                    let id2 = generator.intern_identifier_by_id(priv_ident.name);
                     generator.emit(Instruction::PutPrivateById {
                         base: base.operand(),
                         property: id2,
@@ -3787,7 +3796,7 @@ fn emit_super_get(
         emit_get_by_value_with_this(generator, dst, base, &property, this_value);
         Some(property)
     } else if let ExpressionKind::Identifier(ident) = &property.inner {
-        emit_get_by_id_with_this(generator, dst, base, &ident.name, this_value);
+        emit_get_by_id_with_this(generator, dst, base, ident.name, this_value);
         None
     } else {
         None
@@ -3814,7 +3823,7 @@ fn emit_super_put(
         };
         emit_put_normal_by_value_with_this(generator, base, &property, this_value, value);
     } else if let ExpressionKind::Identifier(ident) = &property.inner {
-        let key = generator.intern_property_key(&ident.name);
+        let key = generator.intern_property_key_by_id(ident.name);
         let cache = generator.next_property_lookup_cache();
         generator.emit(Instruction::PutByIdWithThis {
             base: base.operand(),
@@ -3828,7 +3837,7 @@ fn emit_super_put(
 }
 
 /// Emit a property access by name, using GetLength for the "length" property.
-fn emit_get_by_id(
+fn emit_get_by_id_impl(
     generator: &mut Generator,
     dst: &ScopedOperand,
     base: &ScopedOperand,
@@ -3857,9 +3866,20 @@ fn emit_get_by_id(
     }
 }
 
+fn emit_get_by_id(
+    generator: &mut Generator,
+    dst: &ScopedOperand,
+    base: &ScopedOperand,
+    property_name: InternedId,
+    base_identifier: Option<IdentifierTableIndex>,
+) {
+    let name = generator.resolve_name(property_name).to_vec();
+    emit_get_by_id_impl(generator, dst, base, &name, base_identifier);
+}
+
 /// Emit a property access by name with a this value, using GetLengthWithThis
 /// for the "length" property.
-fn emit_get_by_id_with_this(
+fn emit_get_by_id_with_this_impl(
     generator: &mut Generator,
     dst: &ScopedOperand,
     base: &ScopedOperand,
@@ -3886,6 +3906,17 @@ fn emit_get_by_id_with_this(
             cache: cache as u64,
         });
     }
+}
+
+fn emit_get_by_id_with_this(
+    generator: &mut Generator,
+    dst: &ScopedOperand,
+    base: &ScopedOperand,
+    property_name: InternedId,
+    this_value: &ScopedOperand,
+) {
+    let name = generator.resolve_name(property_name).to_vec();
+    emit_get_by_id_with_this_impl(generator, dst, base, &name, this_value);
 }
 
 /// Emit a "Invalid left-hand side in assignment" ReferenceError followed by Throw.
@@ -4185,7 +4216,7 @@ fn emit_set_variable(generator: &mut Generator, ident: &Identifier, value: &Scop
             src: value.operand(),
         });
     } else if ident.is_global.get() {
-        let id = generator.intern_identifier(&ident.name);
+        let id = generator.intern_identifier_by_id(ident.name);
         let cache = generator.next_global_variable_cache();
         generator.emit(Instruction::SetGlobal {
             identifier: id,
@@ -4195,7 +4226,7 @@ fn emit_set_variable(generator: &mut Generator, ident: &Identifier, value: &Scop
     } else {
         // Non-local, non-global: use SetLexicalBinding which searches
         // the lexical environment chain (important for with-statement support).
-        let id = generator.intern_identifier(&ident.name);
+        let id = generator.intern_identifier_by_id(ident.name);
         generator.emit(Instruction::SetLexicalBinding {
             identifier: id,
             src: value.operand(),
@@ -4217,7 +4248,7 @@ fn emit_put_to_member(
         let property = generate_expression_or_undefined(property, generator, None);
         emit_put_normal_by_value(generator, base, &property, value, base_id);
     } else if let ExpressionKind::Identifier(ident) = &property.inner {
-        let key = generator.intern_property_key(&ident.name);
+        let key = generator.intern_property_key_by_id(ident.name);
         let cache = generator.next_property_lookup_cache();
         generator.emit(Instruction::PutById {
             base: base.operand(),
@@ -4228,7 +4259,7 @@ fn emit_put_to_member(
             kind: 0,
         });
     } else if let ExpressionKind::PrivateIdentifier(priv_ident) = &property.inner {
-        let id = generator.intern_identifier(&priv_ident.name);
+        let id = generator.intern_identifier_by_id(priv_ident.name);
         generator.emit(Instruction::PutPrivateById {
             base: base.operand(),
             property: id,
@@ -4245,7 +4276,7 @@ fn emit_delete_reference(generator: &mut Generator, operand: &Expression) -> Sco
                 return generator.add_constant_boolean(false);
             }
             let dst = generator.allocate_register();
-            let id = generator.intern_identifier(&ident.name);
+            let id = generator.intern_identifier_by_id(ident.name);
             generator.emit(Instruction::DeleteVariable {
                 dst: dst.operand(),
                 identifier: id,
@@ -4293,7 +4324,7 @@ fn emit_delete_reference(generator: &mut Generator, operand: &Expression) -> Sco
                     property: key.operand(),
                 });
             } else if let ExpressionKind::Identifier(property_ident) = &data.property.inner {
-                let key = generator.intern_property_key(&property_ident.name);
+                let key = generator.intern_property_key_by_id(property_ident.name);
                 generator.emit(Instruction::DeleteById {
                     dst: dst.operand(),
                     base: base.operand(),
@@ -4378,7 +4409,7 @@ fn emit_evaluate_member_reference(generator: &mut Generator, target: &Expression
                     }
                 }
             } else if let ExpressionKind::Identifier(ident) = &member_data.property.inner {
-                let key = generator.intern_property_key(&ident.name);
+                let key = generator.intern_property_key_by_id(ident.name);
                 let cache = generator.next_property_lookup_cache();
                 EvaluatedReference::SuperMemberId {
                     base,
@@ -4413,7 +4444,7 @@ fn emit_evaluate_member_reference(generator: &mut Generator, target: &Expression
                     }
                 }
             } else if let ExpressionKind::Identifier(ident) = &member_data.property.inner {
-                let key = generator.intern_property_key(&ident.name);
+                let key = generator.intern_property_key_by_id(ident.name);
                 let cache = generator.next_property_lookup_cache();
                 EvaluatedReference::MemberId {
                     base,
@@ -4422,7 +4453,7 @@ fn emit_evaluate_member_reference(generator: &mut Generator, target: &Expression
                     base_identifier: None,
                 }
             } else if let ExpressionKind::PrivateIdentifier(priv_ident) = &member_data.property.inner {
-                let id = generator.intern_identifier(&priv_ident.name);
+                let id = generator.intern_identifier_by_id(priv_ident.name);
                 EvaluatedReference::PrivateMember { base, property: id }
             } else {
                 unreachable!("non-computed member property must be an identifier or private identifier")
@@ -4721,7 +4752,7 @@ fn generate_tagged_template_literal(
             if let Some(key) = computed_key {
                 emit_get_by_value_with_this(generator, &method, &super_base, &key, &this_value);
             } else if let ExpressionKind::Identifier(ident) = &member_data.property.inner {
-                emit_get_by_id_with_this(generator, &method, &super_base, &ident.name, &this_value);
+                emit_get_by_id_with_this(generator, &method, &super_base, ident.name, &this_value);
             }
             (method, Some(this_value))
         }
@@ -4733,9 +4764,9 @@ fn generate_tagged_template_literal(
                 emit_get_by_value(generator, &method, &obj, &property, None);
             } else if let ExpressionKind::Identifier(ident) = &member_data.property.inner {
                 let base_id = intern_base_identifier(generator, &member_data.object);
-                emit_get_by_id(generator, &method, &obj, &ident.name, base_id);
+                emit_get_by_id(generator, &method, &obj, ident.name, base_id);
             } else if let ExpressionKind::PrivateIdentifier(priv_ident) = &member_data.property.inner {
-                let id = generator.intern_identifier(&priv_ident.name);
+                let id = generator.intern_identifier_by_id(priv_ident.name);
                 generator.emit(Instruction::GetPrivateById {
                     dst: method.operand(),
                     base: obj.operand(),
@@ -4753,7 +4784,7 @@ fn generate_tagged_template_literal(
             // to properly handle with-statement bindings.
             let callee_reg = generator.allocate_register();
             let this_reg = generator.allocate_register();
-            let id = generator.intern_identifier(&ident.name);
+            let id = generator.intern_identifier_by_id(ident.name);
             generator.emit(Instruction::GetCalleeAndThisFromEnvironment {
                 callee: callee_reg.operand(),
                 this_value: this_reg.operand(),
@@ -4916,9 +4947,9 @@ fn generate_switch_statement(
             if did_create_env
                 && let StatementKind::FunctionDeclaration(ref fd) = child.inner
                 && let Some(ref name_ident) = fd.name
-                && generator.annexb_function_names.contains(name_ident.name.as_slice())
+                && generator.annexb_function_names.contains(&name_ident.name)
             {
-                let id = generator.intern_identifier(&name_ident.name);
+                let id = generator.intern_identifier_by_id(name_ident.name);
                 let value = generator.allocate_register();
                 generator.emit(Instruction::GetBinding {
                     dst: value.operand(),
@@ -4987,7 +5018,7 @@ fn emit_switch_block_declaration_instantiation(generator: &mut Generator, data: 
         {
             vd.declarations.iter().any(|declaration| {
                 let mut names = Vec::new();
-                collect_target_names(&declaration.target, &mut names);
+                collect_target_names(&declaration.target, &mut names, &generator.interner);
                 !names.is_empty()
             })
         }
@@ -5094,7 +5125,7 @@ fn generate_object_expression(
         if !effectively_computed && property.property_type != ObjectPropertyType::ProtoSetter {
             let base_name: Option<Utf16String> = match &property.key.inner {
                 ExpressionKind::StringLiteral(s) => Some((**s).clone()),
-                ExpressionKind::Identifier(ident) => Some(ident.name.to_utf16_string()),
+                ExpressionKind::Identifier(ident) => Some(generator.resolve_name_owned(ident.name)),
                 _ => None,
             };
             if let Some(name) = base_name {
@@ -5156,7 +5187,7 @@ fn generate_object_expression(
                 } else {
                     // Non-simple object: use PutOwnById instead of InitObjectLiteralProperty
                     let property_key = match &property.key.inner {
-                        ExpressionKind::Identifier(ident) => generator.intern_property_key(&ident.name),
+                        ExpressionKind::Identifier(ident) => generator.intern_property_key_by_id(ident.name),
                         ExpressionKind::StringLiteral(s) => generator.intern_property_key(s),
                         _ => {
                             emit_object_property_set_by_key(
@@ -5244,7 +5275,7 @@ fn emit_object_property_set_by_key(
     }
     match &key.inner {
         ExpressionKind::Identifier(ident) => {
-            let property_key = generator.intern_property_key(&ident.name);
+            let property_key = generator.intern_property_key_by_id(ident.name);
             generator.emit(Instruction::InitObjectLiteralProperty {
                 object: object.operand(),
                 property: property_key,
@@ -5347,7 +5378,10 @@ fn emit_object_accessor_by_key(
     }
 
     match &key.inner {
-        ExpressionKind::Identifier(ident) => emit_by_id(generator, &ident.name),
+        ExpressionKind::Identifier(ident) => {
+            let name_slice = generator.resolve_name(ident.name).to_vec();
+            emit_by_id(generator, &name_slice);
+        }
         ExpressionKind::StringLiteral(s) => emit_by_id(generator, s),
         _ => emit_by_value(generator, key),
     }
@@ -5396,10 +5430,10 @@ fn generate_optional_chain_inner(
                 generator.emit_mov(current_base, &obj);
             } else if let ExpressionKind::Identifier(ident) = &member_data.property.inner {
                 let base_id = intern_base_identifier(generator, &member_data.object);
-                emit_get_by_id(generator, &val, &obj, &ident.name, base_id);
+                emit_get_by_id(generator, &val, &obj, ident.name, base_id);
                 generator.emit_mov(current_base, &obj);
             } else if let ExpressionKind::PrivateIdentifier(name) = &member_data.property.inner {
-                let id = generator.intern_identifier(&name.name);
+                let id = generator.intern_identifier_by_id(name.name);
                 generator.emit(Instruction::GetPrivateById {
                     dst: val.operand(),
                     base: obj.operand(),
@@ -5454,7 +5488,7 @@ fn generate_optional_chain_inner(
         match reference {
             OptionalChainReference::MemberReference { identifier, .. } => {
                 generator.emit_mov(current_base, current_value);
-                emit_get_by_id(generator, current_value, current_value, &identifier.name, None);
+                emit_get_by_id(generator, current_value, current_value, identifier.name, None);
             }
             OptionalChainReference::ComputedReference { expression, .. } => {
                 generator.emit_mov(current_base, current_value);
@@ -5475,7 +5509,7 @@ fn generate_optional_chain_inner(
             }
             OptionalChainReference::PrivateMemberReference { private_identifier, .. } => {
                 generator.emit_mov(current_base, current_value);
-                let id = generator.intern_identifier(&private_identifier.name);
+                let id = generator.intern_identifier_by_id(private_identifier.name);
                 generator.emit(Instruction::GetPrivateById {
                     dst: current_value.operand(),
                     base: current_value.operand(),
@@ -5579,7 +5613,7 @@ fn generate_class_expression(
     // (skip this for anonymous classes with lhs_name).
     if data.name.is_some() || lhs_name.is_none() {
         let name = if let Some(name_ident) = &data.name {
-            name_ident.name.to_utf16_string()
+            generator.resolve_name_owned(name_ident.name)
         } else {
             Utf16String::new()
         };
@@ -5618,7 +5652,7 @@ fn generate_class_expression(
                 generator.emit(Instruction::CreatePrivateEnvironment);
                 has_private_env = true;
             }
-            let name_id = generator.intern_identifier(&name);
+            let name_id = generator.intern_identifier_by_id(name);
             generator.emit(Instruction::AddPrivateName { name: name_id });
         }
     }
@@ -5761,9 +5795,9 @@ fn generate_class_expression(
                     if !is_literal {
                         // Determine field name for anonymous function naming.
                         let field_name = match &key.inner {
-                            ExpressionKind::Identifier(ident) => ident.name.to_utf16_string(),
+                            ExpressionKind::Identifier(ident) => generator.resolve_name_owned(ident.name),
                             ExpressionKind::StringLiteral(s) => (**s).clone(),
-                            ExpressionKind::PrivateIdentifier(p) => p.name.clone(),
+                            ExpressionKind::PrivateIdentifier(p) => generator.resolve_name_owned(p.name),
                             ExpressionKind::NumericLiteral(n) => super::ffi::js_number_to_utf16(*n),
                             ExpressionKind::BigIntLiteral(s) => {
                                 let digits = s.strip_suffix('n').unwrap_or(s.as_str());
@@ -5810,8 +5844,8 @@ fn generate_class_expression(
 
                         let key_is_private = is_private_key(key);
                         let key_name: Utf16String = match &key.inner {
-                            ExpressionKind::PrivateIdentifier(ident) => ident.name.clone(),
-                            ExpressionKind::Identifier(ident) => ident.name.to_utf16_string(),
+                            ExpressionKind::PrivateIdentifier(ident) => generator.resolve_name_owned(ident.name),
+                            ExpressionKind::Identifier(ident) => generator.resolve_name_owned(ident.name),
                             ExpressionKind::StringLiteral(s) => (**s).clone(),
                             ExpressionKind::NumericLiteral(n) => super::ffi::js_number_to_utf16(*n),
                             _ => Utf16String::new(),
@@ -5886,7 +5920,7 @@ fn generate_class_expression(
     let source_text_len = source_end - source_start;
 
     let blueprint_index = generator.register_class_blueprint(PendingClassBlueprint {
-        name: data.name.as_ref().map(|n| n.name.to_utf16_string()),
+        name: data.name.as_ref().map(|n| generator.resolve_name_owned(n.name)),
         source_text_offset: source_start,
         source_text_length: source_text_len,
         constructor_sfd_index,
@@ -5941,7 +5975,7 @@ fn emit_default_constructor(generator: &mut Generator, has_super: bool) -> u32 {
         parser.flags.allow_super_constructor_call = true;
     }
     let program = parser.parse_program(false);
-    parser.scope_collector.analyze(false);
+    parser.scope_collector.analyze(false, &parser.interner);
 
     assert!(!parser.has_errors(), "default constructor parse failed");
 
@@ -5983,11 +6017,10 @@ fn is_private_key(key: &Expression) -> bool {
     matches!(&key.inner, ExpressionKind::PrivateIdentifier(_))
 }
 
-/// Get a pointer directly into the AST's PrivateIdentifier name.
-/// The pointer remains valid as long as the AST is alive.
-fn get_private_identifier_name(key: &Expression) -> Option<Utf16String> {
+/// Get the InternedId of a PrivateIdentifier's name.
+fn get_private_identifier_name(key: &Expression) -> Option<InternedId> {
     if let ExpressionKind::PrivateIdentifier(ident) = &key.inner {
-        Some(ident.name.clone())
+        Some(ident.name)
     } else {
         None
     }
@@ -5995,14 +6028,14 @@ fn get_private_identifier_name(key: &Expression) -> Option<Utf16String> {
 
 /// Check if a for-in/for-of LHS is a `let`/`const` declaration with non-local identifiers,
 /// meaning we need a per-iteration lexical environment.
-fn for_in_of_needs_lexical_env(lhs: &ForInOfLhs) -> bool {
+fn for_in_of_needs_lexical_env(lhs: &ForInOfLhs, interner: &StringInterner) -> bool {
     if let ForInOfLhs::Declaration(statement) = lhs
         && let StatementKind::VariableDeclaration(vd) = &statement.inner
         && (vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const)
     {
         let mut names = Vec::new();
         for declaration in &vd.declarations {
-            collect_target_names(&declaration.target, &mut names);
+            collect_target_names(&declaration.target, &mut names, interner);
         }
         return !names.is_empty();
     }
@@ -6010,36 +6043,44 @@ fn for_in_of_needs_lexical_env(lhs: &ForInOfLhs) -> bool {
 }
 
 /// Collect all non-local binding names from a variable declarator target.
-fn collect_target_names(target: &VariableDeclaratorTarget, names: &mut Vec<(Utf16String, bool)>) {
+fn collect_target_names(
+    target: &VariableDeclaratorTarget,
+    names: &mut Vec<(Utf16String, bool)>,
+    interner: &StringInterner,
+) {
     match target {
         VariableDeclaratorTarget::Identifier(ident) => {
             if !ident.is_local() {
-                names.push((ident.name.to_utf16_string(), false));
+                names.push((Utf16String(interner.lookup(ident.name).to_vec()), false));
             }
         }
         VariableDeclaratorTarget::BindingPattern(pattern) => {
-            collect_pattern_binding_names(pattern, names);
+            collect_pattern_binding_names(pattern, names, interner);
         }
     }
 }
 
 /// Collect all non-local binding names from a binding pattern (recursive).
-fn collect_pattern_binding_names(pattern: &BindingPattern, names: &mut Vec<(Utf16String, bool)>) {
+fn collect_pattern_binding_names(
+    pattern: &BindingPattern,
+    names: &mut Vec<(Utf16String, bool)>,
+    interner: &StringInterner,
+) {
     for entry in &pattern.entries {
         match &entry.alias {
             Some(BindingEntryAlias::Identifier(ident)) => {
                 if !ident.is_local() {
-                    names.push((ident.name.to_utf16_string(), false));
+                    names.push((Utf16String(interner.lookup(ident.name).to_vec()), false));
                 }
             }
             Some(BindingEntryAlias::BindingPattern(sub)) => {
-                collect_pattern_binding_names(sub, names);
+                collect_pattern_binding_names(sub, names, interner);
             }
             None => {
                 if let Some(BindingEntryName::Identifier(ident)) = &entry.name
                     && !ident.is_local()
                 {
-                    names.push((ident.name.to_utf16_string(), false));
+                    names.push((Utf16String(interner.lookup(ident.name).to_vec()), false));
                 }
             }
             Some(BindingEntryAlias::MemberExpression(_)) => {}
@@ -6060,7 +6101,7 @@ fn create_for_in_of_lexical_env(generator: &mut Generator, lhs: &ForInOfLhs) -> 
     {
         is_constant = vd.kind == DeclarationKind::Const;
         for declaration in &vd.declarations {
-            collect_target_names(&declaration.target, &mut binding_names);
+            collect_target_names(&declaration.target, &mut binding_names, &generator.interner);
         }
     }
 
@@ -6094,7 +6135,7 @@ fn enter_for_in_of_head_tdz(generator: &mut Generator, lhs: &ForInOfLhs) -> bool
     {
         let mut names = Vec::new();
         for declaration in &vd.declarations {
-            collect_target_names(&declaration.target, &mut names);
+            collect_target_names(&declaration.target, &mut names, &generator.interner);
         }
         if !names.is_empty() {
             generator.push_new_lexical_environment(0);
@@ -6155,7 +6196,7 @@ fn generate_for_in_statement(
         && let Some(declaration) = vd.declarations.first()
         && let (VariableDeclaratorTarget::Identifier(ident), Some(init)) = (&declaration.target, &declaration.init)
     {
-        generator.pending_lhs_name = Some(generator.intern_identifier(&ident.name));
+        generator.pending_lhs_name = Some(generator.intern_identifier_by_id(ident.name));
         let value = generate_expression_or_undefined(init, generator, None);
         generator.pending_lhs_name = None;
         emit_set_variable(generator, ident, &value);
@@ -6165,7 +6206,7 @@ fn generate_for_in_statement(
     // continuation_block during head evaluation.
     let end_block = generator.make_block();
     let update_block = generator.make_block();
-    let needs_lexical_env = for_in_of_needs_lexical_env(lhs);
+    let needs_lexical_env = for_in_of_needs_lexical_env(lhs, &generator.interner);
 
     // B.3.5 Initializers in ForIn Statement Heads: evaluate initializer before RHS.
     // Create TDZ for lexical declarations before evaluating the RHS expression.
@@ -6343,7 +6384,7 @@ fn generate_for_of_statement_inner(
 
     // Create TDZ for lexical declarations before evaluating the RHS expression.
     let entered_tdz = enter_for_in_of_head_tdz(generator, lhs);
-    let needs_lexical_env = for_in_of_needs_lexical_env(lhs);
+    let needs_lexical_env = for_in_of_needs_lexical_env(lhs, &generator.interner);
     let old_handler = generator.current_unwind_handler;
 
     // Evaluate RHS into `object`, allocate iterator registers, and emit
@@ -6436,14 +6477,14 @@ fn generate_for_of_statement_inner(
             src: next_result.operand(),
         });
         // IteratorComplete — get .done property
-        emit_get_by_id(generator, &done, &next_result, utf16!("done"), None);
+        emit_get_by_id_impl(generator, &done, &next_result, utf16!("done"), None);
 
         let loop_continue_block = generator.make_block();
         generator.emit_jump_if(&done, end_block, loop_continue_block);
         generator.switch_to_basic_block(loop_continue_block);
 
         // IteratorValue — get .value property
-        emit_get_by_id(generator, &next_value, &next_result, utf16!("value"), None);
+        emit_get_by_id_impl(generator, &next_value, &next_result, utf16!("value"), None);
     } else {
         generator.emit(Instruction::IteratorNextUnpack {
             dst_value: next_value.operand(),
@@ -6823,7 +6864,7 @@ fn set_pending_lhs_name_for_entry(generator: &mut Generator, entry: &BindingEntr
         _ => None,
     };
     if let Some(name) = name {
-        generator.pending_lhs_name = Some(generator.intern_identifier(name));
+        generator.pending_lhs_name = Some(generator.intern_identifier_by_id(*name));
     }
 }
 
@@ -6853,7 +6894,7 @@ fn emit_set_variable_with_mode(
         let local = generator.resolve_local(ident.local_index.get(), ident.local_type.get().unwrap());
         generator.emit_mov(&local, value);
     } else {
-        let id = generator.intern_identifier(&ident.name);
+        let id = generator.intern_identifier_by_id(ident.name);
         match mode {
             BindingMode::InitializeLexical => {
                 generator.emit(Instruction::InitializeLexicalBinding {
@@ -7110,9 +7151,9 @@ fn generate_object_binding_pattern(
 
         match &entry.name {
             Some(BindingEntryName::Identifier(ident)) => {
-                emit_get_by_id(generator, &value, object, &ident.name, None);
+                emit_get_by_id(generator, &value, object, ident.name, None);
                 if has_rest {
-                    let name_val = generator.add_constant_string(ident.name.to_utf16_string());
+                    let name_val = generator.add_constant_string(generator.resolve_name_owned(ident.name));
                     excluded_names.push(name_val);
                 }
             }
@@ -7265,7 +7306,7 @@ fn generate_try_statement(
                         generator.start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
                         created_catch_scope = true;
 
-                        let id = generator.intern_identifier(&ident.name);
+                        let id = generator.intern_identifier_by_id(ident.name);
                         generator.emit(Instruction::CreateVariable {
                             identifier: id,
                             mode: EnvironmentMode::Lexical as u32,
@@ -7282,7 +7323,7 @@ fn generate_try_statement(
                 }
                 CatchBinding::BindingPattern(pattern) => {
                     let mut names: Vec<(Utf16String, bool)> = Vec::new();
-                    collect_pattern_binding_names(pattern, &mut names);
+                    collect_pattern_binding_names(pattern, &mut names, &generator.interner);
 
                     if !names.is_empty() {
                         generator.push_new_lexical_environment(0);
@@ -7620,7 +7661,7 @@ pub fn emit_function_declaration_instantiation(
     for parameter in &function_data.parameters {
         match &parameter.binding {
             FunctionParameterBinding::Identifier(ident) => {
-                let name = ident.name.to_utf16_string();
+                let name = generator.resolve_name_owned(ident.name);
                 let is_local = ident.is_local();
                 if !seen_names.insert(name.clone()) {
                     has_duplicates = true;
@@ -7629,7 +7670,13 @@ pub fn emit_function_declaration_instantiation(
                 }
             }
             FunctionParameterBinding::BindingPattern(pattern) => {
-                collect_binding_pattern_names(pattern, &mut parameter_names, &mut seen_names, &mut has_duplicates);
+                collect_binding_pattern_names(
+                    pattern,
+                    &mut parameter_names,
+                    &mut seen_names,
+                    &mut has_duplicates,
+                    &generator.interner,
+                );
             }
         }
     }
@@ -7779,7 +7826,7 @@ pub fn emit_function_declaration_instantiation(
                         None => {}
                     }
                 } else {
-                    let id = generator.intern_identifier(&ident.name);
+                    let id = generator.intern_identifier_by_id(ident.name);
                     if has_duplicates {
                         generator.emit(Instruction::SetLexicalBinding {
                             identifier: id,
@@ -7910,7 +7957,8 @@ pub fn emit_function_declaration_instantiation(
     if !strict {
         let var_names = function_scope_data.map(|fsd| &fsd.var_names);
         for name in &body_scope.annexb_function_names {
-            generator.annexb_function_names.insert(name.clone());
+            let name_id = generator.interner.intern(name);
+            generator.annexb_function_names.insert(name_id);
             // Skip creating a var binding if this name is already declared as a var.
             if var_names.is_some_and(|names| names.contains(name)) {
                 continue;
@@ -7935,7 +7983,7 @@ pub fn emit_function_declaration_instantiation(
     // --- Step 7: Lexical environment for non-local declarations ---
     // Note: this counts only let/const/class declarations (not function declarations,
     // which are var-hoisted in function bodies).
-    let lex_bindings_count = count_non_local_lexical_bindings(body_scope);
+    let lex_bindings_count = count_non_local_lexical_bindings(body_scope, &generator.interner);
 
     if !strict && lex_bindings_count > 0 {
         generator.push_new_lexical_environment(lex_bindings_count);
@@ -7951,7 +7999,7 @@ pub fn emit_function_declaration_instantiation(
                 let is_constant = vd.kind == DeclarationKind::Const;
                 for declaration in &vd.declarations {
                     let mut names = Vec::new();
-                    collect_target_names(&declaration.target, &mut names);
+                    collect_target_names(&declaration.target, &mut names, &generator.interner);
                     for (name, _) in names {
                         let id = generator.intern_identifier(&name);
                         generator.emit(Instruction::CreateVariable {
@@ -7969,7 +8017,7 @@ pub fn emit_function_declaration_instantiation(
                 if let Some(ref name_ident) = class_data.name
                     && !name_ident.is_local()
                 {
-                    let id = generator.intern_identifier(&name_ident.name);
+                    let id = generator.intern_identifier_by_id(name_ident.name);
                     generator.emit(Instruction::CreateVariable {
                         identifier: id,
                         mode: EnvironmentMode::Lexical as u32,
@@ -8012,7 +8060,7 @@ pub fn emit_function_declaration_instantiation(
                             home_object: None,
                             lhs_name: None,
                         });
-                        let id = generator.intern_identifier(&name_ident.name);
+                        let id = generator.intern_identifier_by_id(name_ident.name);
                         generator.emit(Instruction::SetVariableBinding {
                             identifier: id,
                             src: function_reg.operand(),
@@ -8032,7 +8080,7 @@ fn is_for_loop(statement: &Statement) -> bool {
 
 /// Check if a block needs block declaration instantiation.
 /// True when the block has function declarations or non-local let/const/class.
-fn needs_block_declaration_instantiation(scope: &ScopeData) -> bool {
+fn needs_block_declaration_instantiation(scope: &ScopeData, interner: &StringInterner) -> bool {
     for child in &scope.children {
         match &child.inner {
             StatementKind::FunctionDeclaration(_) => {
@@ -8043,7 +8091,7 @@ fn needs_block_declaration_instantiation(scope: &ScopeData) -> bool {
             {
                 for declaration in &vd.declarations {
                     let mut names = Vec::new();
-                    collect_target_names(&declaration.target, &mut names);
+                    collect_target_names(&declaration.target, &mut names, interner);
                     if !names.is_empty() {
                         return true;
                     }
@@ -8059,7 +8107,7 @@ fn needs_block_declaration_instantiation(scope: &ScopeData) -> bool {
             StatementKind::UsingDeclaration(declarations) => {
                 for declaration in declarations.iter() {
                     let mut names = Vec::new();
-                    collect_target_names(&declaration.target, &mut names);
+                    collect_target_names(&declaration.target, &mut names, interner);
                     if !names.is_empty() {
                         return true;
                     }
@@ -8072,7 +8120,7 @@ fn needs_block_declaration_instantiation(scope: &ScopeData) -> bool {
 }
 
 /// Count non-local lexical bindings in a function body scope.
-fn count_non_local_lexical_bindings(scope: &ScopeData) -> u32 {
+fn count_non_local_lexical_bindings(scope: &ScopeData, interner: &StringInterner) -> u32 {
     let mut count = 0u32;
     for child in &scope.children {
         match &child.inner {
@@ -8081,7 +8129,7 @@ fn count_non_local_lexical_bindings(scope: &ScopeData) -> u32 {
             {
                 for declaration in &vd.declarations {
                     let mut names = Vec::new();
-                    collect_target_names(&declaration.target, &mut names);
+                    collect_target_names(&declaration.target, &mut names, interner);
                     count += u32_from_usize(names.len());
                 }
             }
@@ -8105,12 +8153,13 @@ fn collect_binding_pattern_names(
     parameter_names: &mut Vec<FdiParameterName>,
     seen_names: &mut HashSet<Utf16String>,
     has_duplicates: &mut bool,
+    interner: &StringInterner,
 ) {
     for entry in &pattern.entries {
         // The bound name can be in the alias (for object patterns) or name (for array patterns).
         match &entry.alias {
             Some(BindingEntryAlias::Identifier(ident)) => {
-                let name = ident.name.to_utf16_string();
+                let name = Utf16String(interner.lookup(ident.name).to_vec());
                 let is_local = ident.is_local();
                 if !seen_names.insert(name.clone()) {
                     *has_duplicates = true;
@@ -8119,12 +8168,11 @@ fn collect_binding_pattern_names(
                 }
             }
             Some(BindingEntryAlias::BindingPattern(sub_pattern)) => {
-                collect_binding_pattern_names(sub_pattern, parameter_names, seen_names, has_duplicates);
+                collect_binding_pattern_names(sub_pattern, parameter_names, seen_names, has_duplicates, interner);
             }
             None => {
-                // No alias — the name itself is the binding.
                 if let Some(BindingEntryName::Identifier(ident)) = &entry.name {
-                    let name = ident.name.to_utf16_string();
+                    let name = Utf16String(interner.lookup(ident.name).to_vec());
                     let is_local = ident.is_local();
                     if !seen_names.insert(name.clone()) {
                         *has_duplicates = true;
@@ -8172,7 +8220,7 @@ const BUILTIN_STRING_PROTOTYPE_CHAR_AT: u8 = 23;
 
 /// Detect known builtin methods from a callee expression (e.g. Math.abs).
 /// Returns the Builtin enum value as u8, matching Builtins.h ordering.
-fn get_builtin(callee: &Expression) -> Option<u8> {
+fn get_builtin(callee: &Expression, interner: &StringInterner) -> Option<u8> {
     let ExpressionKind::Member(member_data) = &callee.inner else {
         return None;
     };
@@ -8182,10 +8230,11 @@ fn get_builtin(callee: &Expression) -> Option<u8> {
     let ExpressionKind::Identifier(property_ident) = &member_data.property.inner else {
         return None;
     };
-    if property_ident.name == utf16!("charAt") {
+    let property_name = interner.lookup(property_ident.name);
+    if property_name == utf16!("charAt") {
         return Some(BUILTIN_STRING_PROTOTYPE_CHAR_AT);
     }
-    if property_ident.name == utf16!("charCodeAt") {
+    if property_name == utf16!("charCodeAt") {
         return Some(BUILTIN_STRING_PROTOTYPE_CHAR_CODE_AT);
     }
     let ExpressionKind::Identifier(base_ident) = &member_data.object.inner else {
@@ -8244,8 +8293,9 @@ fn get_builtin(callee: &Expression) -> Option<u8> {
         ),
         (utf16!("String"), utf16!("fromCharCode"), BUILTIN_STRING_FROM_CHAR_CODE),
     ];
+    let base_name = interner.lookup(base_ident.name);
     for &(base, property, id) in BUILTINS {
-        if base_ident.name == base && property_ident.name == property {
+        if base_name == base && property_name == property {
             return Some(id);
         }
     }
@@ -9078,14 +9128,14 @@ fn nanboxed_empty() -> u64 {
 /// Intern the base expression as an identifier for error messages like
 /// "Cannot access property X on null object Y".
 fn intern_base_identifier(generator: &mut Generator, base: &Expression) -> Option<IdentifierTableIndex> {
-    expression_identifier(base).map(|s| generator.intern_identifier(&s))
+    expression_identifier(base, &generator.interner).map(|s| generator.intern_identifier(&s))
 }
 
 /// Try to produce a human-readable name for an expression (for error messages).
 /// Returns None for expressions that have no meaningful name.
-fn expression_identifier(expression: &Expression) -> Option<Utf16String> {
+fn expression_identifier(expression: &Expression, interner: &StringInterner) -> Option<Utf16String> {
     match &expression.inner {
-        ExpressionKind::Identifier(ident) => Some(ident.name.to_utf16_string()),
+        ExpressionKind::Identifier(ident) => Some(Utf16String(interner.lookup(ident.name).to_vec())),
         ExpressionKind::StringLiteral(s) => {
             let mut result = Utf16String(utf16!("'").to_vec());
             result.0.extend_from_slice(s);
@@ -9096,10 +9146,10 @@ fn expression_identifier(expression: &Expression) -> Option<Utf16String> {
         ExpressionKind::This => Some(Utf16String(utf16!("this").to_vec())),
         ExpressionKind::Member(data) => {
             let mut s = Utf16String::new();
-            if let Some(obj_id) = expression_identifier(&data.object) {
+            if let Some(obj_id) = expression_identifier(&data.object, interner) {
                 s.0.extend_from_slice(&obj_id);
             }
-            if let Some(property_id) = expression_identifier(&data.property) {
+            if let Some(property_id) = expression_identifier(&data.property, interner) {
                 if data.computed {
                     s.0.extend_from_slice(utf16!("["));
                     s.0.extend_from_slice(&property_id);
@@ -9118,20 +9168,20 @@ fn expression_identifier(expression: &Expression) -> Option<Utf16String> {
 /// Produce a human-readable string for call expression error messages.
 /// Unlike expression_identifier, this always produces output for known types
 /// (using "<object>" for unrecognized sub-expressions).
-fn expression_string_approximation(expression: &Expression) -> Option<Utf16String> {
+fn expression_string_approximation(expression: &Expression, interner: &StringInterner) -> Option<Utf16String> {
     match &expression.inner {
-        ExpressionKind::Identifier(ident) => Some(ident.name.to_utf16_string()),
-        ExpressionKind::Member(_) => Some(member_to_string_approximation(expression)),
+        ExpressionKind::Identifier(ident) => Some(Utf16String(interner.lookup(ident.name).to_vec())),
+        ExpressionKind::Member(_) => Some(member_to_string_approximation(expression, interner)),
         _ => None,
     }
 }
 
-fn member_to_string_approximation(expression: &Expression) -> Utf16String {
+fn member_to_string_approximation(expression: &Expression, interner: &StringInterner) -> Utf16String {
     match &expression.inner {
-        ExpressionKind::Identifier(ident) => ident.name.to_utf16_string(),
+        ExpressionKind::Identifier(ident) => Utf16String(interner.lookup(ident.name).to_vec()),
         ExpressionKind::Member(data) => {
-            let mut s = member_to_string_approximation(&data.object);
-            let property_str = member_to_string_approximation(&data.property);
+            let mut s = member_to_string_approximation(&data.object, interner);
+            let property_str = member_to_string_approximation(&data.property, interner);
             if data.computed {
                 s.0.extend_from_slice(utf16!("["));
                 s.0.extend_from_slice(&property_str);
@@ -9153,7 +9203,7 @@ fn member_to_string_approximation(expression: &Expression) -> Utf16String {
             s.encode_utf16().collect()
         }
         ExpressionKind::This => Utf16String(utf16!("this").to_vec()),
-        ExpressionKind::PrivateIdentifier(ident) => ident.name.clone(),
+        ExpressionKind::PrivateIdentifier(ident) => Utf16String(interner.lookup(ident.name).to_vec()),
         _ => Utf16String(utf16!("<object>").to_vec()),
     }
 }

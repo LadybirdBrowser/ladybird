@@ -32,7 +32,7 @@
 //! save and restore the full parser state including lexer position, current
 //! token, error list, and all boolean flags.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use std::rc::Rc;
 
@@ -42,6 +42,7 @@ use crate::ast::{
 };
 use crate::lexer::{Lexer, ch};
 use crate::scope_collector::{ScopeCollector, ScopeCollectorState};
+use crate::string_interner::InternedId;
 use crate::token::{Token, TokenType};
 
 mod declarations;
@@ -216,6 +217,7 @@ struct SavedState {
 /// `statements`, and `declarations` submodules (all `impl Parser`).
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
+    pub interner: crate::string_interner::StringInterner,
     /// `consume()` returns this and advances to the next token.
     current_token: Token,
     errors: Vec<ParseError>,
@@ -233,7 +235,7 @@ pub struct Parser<'a> {
 
     /// Labels currently in scope. Value is Some(line, col) if a `continue`
     /// statement referenced this label, None otherwise.
-    labels_in_scope: HashMap<Utf16String, Option<(u32, u32)>>,
+    labels_in_scope: fxhash::FxHashMap<Utf16String, Option<(u32, u32)>>,
 
     /// Set by try_parse_labelled_statement to propagate iteration-ness
     /// through nested labels (e.g., `a: b: for(...)`).
@@ -251,7 +253,7 @@ pub struct Parser<'a> {
     /// Caller drains this after calling parse_binding_pattern.
     /// Each entry is (name, identifier) — allows scope analysis to annotate
     /// binding pattern identifiers with local variable info.
-    pub(crate) pattern_bound_names: Vec<(SharedUtf16String, Rc<Identifier>)>,
+    pub(crate) pattern_bound_names: Vec<(InternedId, Rc<Identifier>)>,
 
     /// Set during synthesize_binding_pattern to allow MemberExpressions as binding targets.
     allow_member_expressions: bool,
@@ -312,6 +314,7 @@ impl<'a> Parser<'a> {
         let first_token = lexer.next();
         Self {
             lexer,
+            interner: crate::string_interner::StringInterner::new(),
             current_token: first_token,
             errors: Vec::new(),
             saved_states: Vec::new(),
@@ -320,7 +323,7 @@ impl<'a> Parser<'a> {
             flags: ParserFlags::default(),
             initiated_by_eval: false,
             in_eval_function_context: false,
-            labels_in_scope: HashMap::new(),
+            labels_in_scope: fxhash::FxHashMap::default(),
             last_inner_label_is_iteration: false,
             last_primary_was_parenthesized: false,
             last_function_name: Utf16String::default(),
@@ -382,18 +385,41 @@ impl<'a> Parser<'a> {
         function_id
     }
 
-    pub(crate) fn make_identifier(&self, start: Position, name: impl Into<SharedUtf16String>) -> Rc<Identifier> {
-        Rc::new(Identifier::new(self.range_from(start), name.into()))
+    pub(crate) fn make_identifier(&mut self, start: Position, token: &Token) -> Rc<Identifier> {
+        let name = self.token_identifier_interned(token);
+        Rc::new(Identifier::new(self.range_from(start), name))
     }
 
-    pub(crate) fn token_identifier_name(&self, token: &Token) -> SharedUtf16String {
-        if let Some(value) = &token.shared_identifier_value {
-            value.clone()
-        } else if let Some(value) = &token.identifier_value {
-            SharedUtf16String::from(value.clone())
+    pub(crate) fn make_identifier_from_id(&self, start: Position, name: InternedId) -> Rc<Identifier> {
+        Rc::new(Identifier::new(self.range_from(start), name))
+    }
+
+    /// Get the identifier string as a SharedUtf16String (for places that still need it).
+    pub(crate) fn token_identifier_name(&mut self, token: &Token) -> SharedUtf16String {
+        let id = self.token_identifier_interned(token);
+        self.interner.get_shared(id)
+    }
+
+    /// Intern the token's identifier value and return an InternedId.
+    pub(crate) fn token_identifier_interned(&mut self, token: &Token) -> InternedId {
+        if let Some(value) = &token.identifier_value {
+            self.interner.intern(value.as_slice())
         } else {
-            SharedUtf16String::from(self.token_value(token))
+            let start = token.value_start as usize;
+            let end = start + token.value_len as usize;
+            let slice = &self.source[start..end];
+            self.interner.intern(slice)
         }
+    }
+
+    /// Resolve an InternedId to a string slice.
+    pub(crate) fn resolve_name(&self, id: InternedId) -> &[u16] {
+        self.interner.lookup(id)
+    }
+
+    /// Intern a raw UTF-16 slice.
+    pub(crate) fn intern(&mut self, s: &[u16]) -> InternedId {
+        self.interner.intern(s)
     }
 
     pub(crate) fn register_function_parameters_with_scope(
@@ -417,7 +443,7 @@ impl<'a> Parser<'a> {
                         info_index += 1;
                         (pi.name.clone(), pi.is_rest, pi.is_from_pattern)
                     } else {
-                        (id.name.to_utf16_string(), parameter.is_rest, false)
+                        (Utf16String::from(self.resolve_name(id.name)), parameter.is_rest, false)
                     };
                     entries.push(ParameterEntry {
                         name,
@@ -456,7 +482,7 @@ impl<'a> Parser<'a> {
             }
         }
         self.scope_collector
-            .set_function_parameters(&entries, has_parameter_expressions);
+            .set_function_parameters(&entries, has_parameter_expressions, &self.interner);
     }
 
     // === Token access ===
@@ -665,9 +691,10 @@ impl<'a> Parser<'a> {
         }
         let token = self.consume();
         let value = self.token_value(&token).to_vec();
+        let name = self.intern(&value);
         PrivateIdentifier {
             range: self.range_from(range_start),
-            name: value.into(),
+            name,
         }
     }
 
@@ -825,12 +852,17 @@ impl<'a> Parser<'a> {
         value != utf16!("let") && value != utf16!("static")
     }
 
-    pub(crate) fn check_identifier_name_for_assignment_validity(&mut self, name: &[u16], force_strict: bool) {
+    pub(crate) fn check_identifier_name_for_assignment_validity(
+        &mut self,
+        name_id: crate::string_interner::InternedId,
+        force_strict: bool,
+    ) {
+        let name = self.resolve_name(name_id).to_vec();
         if self.flags.strict_mode || force_strict {
             if name == utf16!("arguments") || name == utf16!("eval") {
                 self.syntax_error("Binding pattern target may not be called 'arguments' or 'eval' in strict mode");
-            } else if is_strict_reserved_word(name) {
-                let name_str = String::from_utf16_lossy(name);
+            } else if is_strict_reserved_word(&name) {
+                let name_str = String::from_utf16_lossy(&name);
                 self.syntax_error(&format!(
                     "Identifier must not be a reserved word in strict mode ('{name_str}')"
                 ));
@@ -877,7 +909,8 @@ impl<'a> Parser<'a> {
             if name.is_empty() {
                 continue;
             }
-            self.check_identifier_name_for_assignment_validity(name, force_strict);
+            let name_id = self.intern(name);
+            self.check_identifier_name_for_assignment_validity(name_id, force_strict);
             if !seen_names.insert(&**name) {
                 let name_str = String::from_utf16_lossy(name);
                 self.syntax_error(&format!("Duplicate parameter '{name_str}' not allowed in strict mode"));
@@ -886,9 +919,6 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn token_value<'b>(&'b self, token: &'b Token) -> &'b [u16] {
-        if let Some(ref value) = token.shared_identifier_value {
-            return value.as_slice();
-        }
         if let Some(ref value) = token.identifier_value {
             return value;
         }
@@ -1097,7 +1127,7 @@ impl<'a> Parser<'a> {
         // Collect all declared names at module level.
         let mut declared_names: HashSet<Utf16String> = HashSet::new();
         for child in children {
-            collect_module_declared_names(child, &mut declared_names);
+            collect_module_declared_names(child, &mut declared_names, &self.interner);
         }
 
         // Check each export's local bindings.
@@ -1352,32 +1382,40 @@ fn is_use_strict(raw: &[u16]) -> bool {
 }
 
 /// Collect all binding names introduced by a variable declarator target.
-fn collect_binding_names(target: &crate::ast::VariableDeclaratorTarget, names: &mut HashSet<Utf16String>) {
+fn collect_binding_names(
+    target: &crate::ast::VariableDeclaratorTarget,
+    names: &mut HashSet<Utf16String>,
+    interner: &crate::string_interner::StringInterner,
+) {
     match target {
         crate::ast::VariableDeclaratorTarget::Identifier(identifier) => {
-            names.insert(identifier.name.to_utf16_string());
+            names.insert(Utf16String::from(interner.lookup(identifier.name)));
         }
         crate::ast::VariableDeclaratorTarget::BindingPattern(pattern) => {
-            collect_binding_pattern_names(pattern, names);
+            collect_binding_pattern_names(pattern, names, interner);
         }
     }
 }
 
 /// Collect all binding names from a binding pattern (object or array destructuring).
-fn collect_binding_pattern_names(pattern: &crate::ast::BindingPattern, names: &mut HashSet<Utf16String>) {
+fn collect_binding_pattern_names(
+    pattern: &crate::ast::BindingPattern,
+    names: &mut HashSet<Utf16String>,
+    interner: &crate::string_interner::StringInterner,
+) {
     for entry in &pattern.entries {
         if let Some(ref alias) = entry.alias {
             match alias {
                 crate::ast::BindingEntryAlias::Identifier(identifier) => {
-                    names.insert(identifier.name.to_utf16_string());
+                    names.insert(Utf16String::from(interner.lookup(identifier.name)));
                 }
                 crate::ast::BindingEntryAlias::BindingPattern(nested) => {
-                    collect_binding_pattern_names(nested, names);
+                    collect_binding_pattern_names(nested, names, interner);
                 }
                 crate::ast::BindingEntryAlias::MemberExpression(_) => {}
             }
         } else if let Some(crate::ast::BindingEntryName::Identifier(identifier)) = &entry.name {
-            names.insert(identifier.name.to_utf16_string());
+            names.insert(Utf16String::from(interner.lookup(identifier.name)));
         }
     }
 }
@@ -1386,23 +1424,27 @@ fn collect_binding_pattern_names(pattern: &crate::ast::BindingPattern, names: &m
 /// This includes lexical declarations (let/const), function/class declarations, imports,
 /// and also `var` declarations which hoist to module scope even when nested inside
 /// blocks, loops, if/else, etc.
-fn collect_module_declared_names(statement: &crate::ast::Statement, names: &mut HashSet<Utf16String>) {
+fn collect_module_declared_names(
+    statement: &crate::ast::Statement,
+    names: &mut HashSet<Utf16String>,
+    interner: &crate::string_interner::StringInterner,
+) {
     use crate::ast::*;
     match &statement.inner {
         StatementKind::VariableDeclaration(data) => {
             // All top-level declarations (var, let, const) are module-scoped.
             for decl in &data.declarations {
-                collect_binding_names(&decl.target, names);
+                collect_binding_names(&decl.target, names, interner);
             }
         }
         StatementKind::FunctionDeclaration(data) => {
             if let Some(ref name) = data.name {
-                names.insert(name.name.to_utf16_string());
+                names.insert(Utf16String::from(interner.lookup(name.name)));
             }
         }
         StatementKind::ClassDeclaration(data) => {
             if let Some(ref name) = data.name {
-                names.insert(name.name.to_utf16_string());
+                names.insert(Utf16String::from(interner.lookup(name.name)));
             }
         }
         StatementKind::Import(data) => {
@@ -1412,12 +1454,12 @@ fn collect_module_declared_names(statement: &crate::ast::Statement, names: &mut 
         }
         StatementKind::Export(data) => {
             if let Some(ref stmt) = data.statement {
-                collect_module_declared_names(stmt, names);
+                collect_module_declared_names(stmt, names, interner);
             }
         }
         // For any other statement, recurse to find hoisted var declarations.
         _ => {
-            collect_var_declared_names(statement, names);
+            collect_var_declared_names(statement, names, interner);
         }
     }
 }
@@ -1426,61 +1468,65 @@ fn collect_module_declared_names(statement: &crate::ast::Statement, names: &mut 
 /// `var` declarations are hoisted to the enclosing function/module scope,
 /// so we must walk into blocks, loops, if/else, switch, try/catch, etc.
 /// We do NOT walk into function bodies since `var` does not hoist out of functions.
-fn collect_var_declared_names(statement: &crate::ast::Statement, names: &mut HashSet<Utf16String>) {
+fn collect_var_declared_names(
+    statement: &crate::ast::Statement,
+    names: &mut HashSet<Utf16String>,
+    interner: &crate::string_interner::StringInterner,
+) {
     use crate::ast::*;
     match &statement.inner {
         StatementKind::VariableDeclaration(data) if matches!(data.kind, DeclarationKind::Var) => {
             for decl in &data.declarations {
-                collect_binding_names(&decl.target, names);
+                collect_binding_names(&decl.target, names, interner);
             }
         }
         StatementKind::Block(scope) => {
             for child in &scope.borrow().children {
-                collect_var_declared_names(child, names);
+                collect_var_declared_names(child, names, interner);
             }
         }
         StatementKind::If(data) => {
-            collect_var_declared_names(&data.consequent, names);
+            collect_var_declared_names(&data.consequent, names, interner);
             if let Some(ref alt) = data.alternate {
-                collect_var_declared_names(alt, names);
+                collect_var_declared_names(alt, names, interner);
             }
         }
         StatementKind::While(data) | StatementKind::DoWhile(data) => {
-            collect_var_declared_names(&data.body, names);
+            collect_var_declared_names(&data.body, names, interner);
         }
         StatementKind::With(data) => {
-            collect_var_declared_names(&data.body, names);
+            collect_var_declared_names(&data.body, names, interner);
         }
         StatementKind::For(data) => {
             if let Some(ForInit::Declaration(ref decl)) = data.init {
-                collect_var_declared_names(decl, names);
+                collect_var_declared_names(decl, names, interner);
             }
-            collect_var_declared_names(&data.body, names);
+            collect_var_declared_names(&data.body, names, interner);
         }
         StatementKind::ForInOf(data) => {
             if let ForInOfLhs::Declaration(ref decl) = data.lhs {
-                collect_var_declared_names(decl, names);
+                collect_var_declared_names(decl, names, interner);
             }
-            collect_var_declared_names(&data.body, names);
+            collect_var_declared_names(&data.body, names, interner);
         }
         StatementKind::Switch(data) => {
             for case in &data.cases {
                 for child in &case.scope.borrow().children {
-                    collect_var_declared_names(child, names);
+                    collect_var_declared_names(child, names, interner);
                 }
             }
         }
         StatementKind::Try(data) => {
-            collect_var_declared_names(&data.block, names);
+            collect_var_declared_names(&data.block, names, interner);
             if let Some(ref handler) = data.handler {
-                collect_var_declared_names(&handler.body, names);
+                collect_var_declared_names(&handler.body, names, interner);
             }
             if let Some(ref finalizer) = data.finalizer {
-                collect_var_declared_names(finalizer, names);
+                collect_var_declared_names(finalizer, names, interner);
             }
         }
         StatementKind::Labelled(data) => {
-            collect_var_declared_names(&data.item, names);
+            collect_var_declared_names(&data.item, names, interner);
         }
         // Don't recurse into functions (var doesn't hoist out of functions).
         // Don't recurse into let/const (they are block-scoped, not hoisted).
