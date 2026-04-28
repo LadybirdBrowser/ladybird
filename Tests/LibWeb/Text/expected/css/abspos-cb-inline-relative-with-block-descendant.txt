@@ -1,0 +1,15 @@
+text-abs: 0,0 800x600
+empty-abs: 0,0 800x600
+multi-abs: 0,0 800x600
+bp-abs: 0,0 800x600
+nested-abs: 0,0 800x600
+sized-abs: 10,20 100x40
+auto-abs: 110,1308 50x30
+fixed-abs: 0,0 200x30
+transform-abs: 100,1598 420x120
+contain-abs: 100,1818 420x120
+filter-abs: 0,0 800x600
+wc-pos-abs: 0,0 800x600
+wc-tx-abs: 100,2338 420x120
+contain-layout-abs: 100,2558 420x120
+bf-abs: 0,0 800x600

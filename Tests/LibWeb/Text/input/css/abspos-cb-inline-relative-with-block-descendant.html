@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .frame { margin: 100px; width: 400px; padding: 10px; }
+    .reset { margin: 0; padding: 0; border: 0; }
+    .abs { position: absolute; inset: 0; display: block; }
+</style>
+<body style="margin: 0;">
+    <!-- 1. Inline text plus a block descendant. The CB rect spans the inline boxes
+         plus the block child. -->
+    <div class="frame">
+        <span style="display: inline; position: relative;">inline-text<span
+            id="text-abs" class="abs">abs</span><div class="reset"
+            style="height: 50px;">block-sibling</div></span>
+    </div>
+
+    <!-- 2. Empty inline + block descendant: rect collapses to the block. -->
+    <div class="frame">
+        <span style="display: inline; position: relative;"><span
+            id="empty-abs" class="abs">abs</span><div class="reset"
+            style="height: 50px;">block-sibling</div></span>
+    </div>
+
+    <!-- 3. Multiple block descendants stack vertically; rect spans all of them. -->
+    <div class="frame">
+        <span style="display: inline; position: relative;"><span
+            id="multi-abs" class="abs">abs</span><div class="reset"
+            style="height: 30px;">first</div><div class="reset"
+            style="height: 40px;">second</div><div class="reset"
+            style="height: 50px;">third</div></span>
+    </div>
+
+    <!-- 4. Block descendant with border + padding contributes its border-box. -->
+    <div class="frame">
+        <span style="display: inline; position: relative;"><span
+            id="bp-abs" class="abs">abs</span><div class="reset"
+            style="height: 40px; padding: 5px; border: 5px solid;">bp</div></span>
+    </div>
+
+    <!-- 5. Nested inline-relatives: innermost is the abspos's CB. -->
+    <div class="frame">
+        <span style="display: inline; position: relative;"><span
+            style="display: inline; position: relative;"><span
+                id="nested-abs" class="abs">abs</span><div class="reset"
+                style="height: 40px;">inner block</div></span><div class="reset"
+            style="height: 80px;">outer block</div></span>
+    </div>
+
+    <!-- 6. Abspos with explicit width/height (smaller than CB), top/left only.
+         Rect.x = parent.x + left, width = explicit. -->
+    <div class="frame">
+        <span style="display: inline; position: relative;"><span
+            id="sized-abs" style="position: absolute; left: 10px; top: 20px; width: 100px; height: 40px; display: block;">sz</span><div
+            class="reset" style="height: 60px;">block-sibling</div></span>
+    </div>
+
+    <!-- 7. Abspos with all-auto insets falls back to its static position; should still
+         be sized inside the inline's CB rect (sanity: it doesn't blow up to the viewport). -->
+    <div class="frame">
+        <span style="display: inline; position: relative;"><span
+            id="auto-abs" style="position: absolute; width: 50px; height: 30px; display: block;">au</span><div
+            class="reset" style="height: 60px;">block-sibling</div></span>
+    </div>
+
+    <!-- 8. position: fixed inline parent: same shape, fixed becomes the CB.
+         The block descendant has an explicit width so the rect doesn't depend on
+         the parent inline's text metrics. -->
+    <div class="frame" style="margin: 50px;">
+        <span style="display: inline; position: fixed; top: 0; left: 0;"><span
+            id="fixed-abs" class="abs">abs</span><div class="reset"
+            style="width: 200px; height: 30px;">fx</div></span>
+    </div>
+
+    <!-- 9. transform on inline must NOT establish a CB for non-atomic inlines.
+         The abspos child falls through to the .cb wrapper. -->
+    <div class="frame" style="position: relative; height: 100px;">
+        <span style="display: inline; transform: scale(1);"><span
+            id="transform-abs" class="abs">abs</span><div class="reset"
+            style="height: 30px;">tx</div></span>
+    </div>
+
+    <!-- 10. contain: paint on inline must NOT establish a CB (non-atomic inline). -->
+    <div class="frame" style="position: relative; height: 100px;">
+        <span style="display: inline; contain: paint;"><span
+            id="contain-abs" class="abs">abs</span><div class="reset"
+            style="height: 30px;">ct</div></span>
+    </div>
+
+    <!-- 11. filter on inline DOES establish a CB on non-atomic inlines per the
+         Filter Effects spec. -->
+    <div class="frame">
+        <span style="display: inline; filter: blur(0);"><span
+            id="filter-abs" class="abs">abs</span><div class="reset"
+            style="height: 30px;">fl</div></span>
+    </div>
+
+    <!-- 12. will-change: position on inline (with static position) DOES establish a CB,
+         per CSS Will Change spec. -->
+    <div class="frame">
+        <span style="display: inline; will-change: position;"><span
+            id="wc-pos-abs" class="abs">abs</span><div class="reset"
+            style="height: 30px;">wc</div></span>
+    </div>
+
+    <!-- 13. will-change: transform on inline must NOT establish a CB. -->
+    <div class="frame" style="position: relative; height: 100px;">
+        <span style="display: inline; will-change: transform;"><span
+            id="wc-tx-abs" class="abs">abs</span><div class="reset"
+            style="height: 30px;">wctx</div></span>
+    </div>
+
+    <!-- 14. contain: layout on inline must NOT establish a CB. -->
+    <div class="frame" style="position: relative; height: 100px;">
+        <span style="display: inline; contain: layout;"><span
+            id="contain-layout-abs" class="abs">abs</span><div class="reset"
+            style="height: 30px;">cl</div></span>
+    </div>
+
+    <!-- 15. backdrop-filter on inline DOES establish a CB on non-atomic inlines. -->
+    <div class="frame">
+        <span style="display: inline; backdrop-filter: blur(0);"><span
+            id="bf-abs" class="abs">abs</span><div class="reset"
+            style="height: 30px;">bf</div></span>
+    </div>
+
+    <script>
+        test(() => {
+            const fmt = (id) => {
+                const el = document.getElementById(id);
+                const r = el.getBoundingClientRect();
+                return `${id}: ${r.x},${r.y} ${r.width}x${r.height}`;
+            };
+            for (const id of [
+                "text-abs", "empty-abs", "multi-abs", "bp-abs", "nested-abs",
+                "sized-abs", "auto-abs", "fixed-abs",
+                "transform-abs", "contain-abs", "filter-abs",
+                "wc-pos-abs", "wc-tx-abs",
+                "contain-layout-abs", "bf-abs",
+            ]) {
+                println(fmt(id));
+            }
+        });
+    </script>
+</body>
