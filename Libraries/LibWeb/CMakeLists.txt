@@ -371,6 +371,7 @@ set(SOURCES
     Editing/Internal/Algorithms.cpp
     Encoding/TextDecoder.cpp
     Encoding/TextDecoderCommon.cpp
+    Encoding/TextDecoderStream.cpp
     Encoding/TextEncoder.cpp
     Encoding/TextEncoderCommon.cpp
     Encoding/TextEncoderStream.cpp
