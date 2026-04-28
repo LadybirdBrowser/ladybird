@@ -259,9 +259,9 @@ void BrowserWindow::setup_keyboard_shortcuts()
     set_accels("win.find-close", { "Escape" });
     set_accels("win.go-back", { "<Alt>Left" });
     set_accels("win.go-forward", { "<Alt>Right" });
-    set_accels("win.zoom-in", { "<Ctrl>equal", "<Ctrl>plus" });
-    set_accels("win.zoom-out", { "<Ctrl>minus" });
-    set_accels("win.zoom-reset", { "<Ctrl>0" });
+    set_accels("win.zoom-in", { "<Ctrl>equal", "<Ctrl>plus", "<Ctrl>KP_Add" });
+    set_accels("win.zoom-out", { "<Ctrl>minus", "<Ctrl>KP_Subtract" });
+    set_accels("win.zoom-reset", { "<Ctrl>0", "<Ctrl>KP_0" });
     set_accels("win.fullscreen", { "F11" });
     set_accels("win.quit", { "<Ctrl>q" });
     set_accels("win.new-window", { "<Ctrl>n" });
