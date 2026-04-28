@@ -118,6 +118,8 @@ public:
     void clear_font_feature_values_cache(FlyString const& family_name);
     void did_load_font(FlyString const& family_name);
 
+    void set_on_font_loaded(GC::Ptr<GC::Function<void()>> callback) { m_on_font_loaded = callback; }
+
     void register_font_face(GC::Ref<FontFace>);
     void unregister_font_face(GC::Ref<FontFace>);
 
@@ -143,6 +145,8 @@ private:
 
     HashMap<FontFaceKey, Vector<GC::Ref<FontFace>>> m_font_faces;
     HashMap<String, GC::Ref<FontLoader>> m_loaders_by_url;
+
+    GC::Ptr<GC::Function<void()>> m_on_font_loaded;
 
     mutable HashMap<ComputedFontCacheKey, NonnullRefPtr<Gfx::FontCascadeList const>> m_computed_font_cache;
     mutable HashMap<FlyString, HashMap<FontFeatureValueKey, Vector<u32>>> m_font_feature_values_cache;

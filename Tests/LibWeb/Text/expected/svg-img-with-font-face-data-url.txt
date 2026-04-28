@@ -1,0 +1,5 @@
+font face found: true
+font face status: loaded
+img complete: true
+img naturalWidth: 200
+img naturalHeight: 100

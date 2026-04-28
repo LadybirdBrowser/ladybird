@@ -7,6 +7,7 @@
 #include <LibGfx/Bitmap.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -79,7 +80,17 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& rea
         dbgln("SVGDecodedImageData: Invalid SVG input (no SVGSVGElement found)");
         return Error::from_string_literal("SVGDecodedImageData: Invalid SVG input");
     }
-    return realm.create<SVGDecodedImageData>(page, page_client, document, *svg_root);
+    auto svg_decoded = realm.create<SVGDecodedImageData>(page, page_client, document, *svg_root);
+
+    // When fonts finish loading asynchronously (e.g. from inline data: URLs in @font-face rules),
+    // invalidate our cached rendered bitmaps so the next paint picks up the new fonts,
+    // and schedule a repaint on the host page.
+    document->font_computer().set_on_font_loaded(
+        GC::create_function(document->heap(), [svg_decoded = GC::Ref(*svg_decoded)] {
+            svg_decoded->invalidate_rendered_caches();
+        }));
+
+    return svg_decoded;
 }
 
 SVGDecodedImageData::SVGDecodedImageData(GC::Ref<Page> page, GC::Ref<SVGPageClient> page_client, GC::Ref<DOM::Document> document, GC::Ref<SVG::SVGSVGElement> root_element)
@@ -99,6 +110,17 @@ void SVGDecodedImageData::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_document);
     visitor.visit(m_page_client);
     visitor.visit(m_root_element);
+}
+
+void SVGDecodedImageData::invalidate_rendered_caches()
+{
+    m_cached_rendered_bitmaps.clear();
+    m_cached_rendered_surfaces.clear();
+
+    // Schedule a repaint on the host page so the <img> (or CSS background, etc.)
+    // re-renders with the updated SVG content.
+    if (m_page_client->m_host_page->top_level_traversable_is_initialized())
+        m_page_client->m_host_page->top_level_traversable()->set_needs_repaint();
 }
 
 RefPtr<Painting::DisplayList> SVGDecodedImageData::record_display_list(Gfx::IntSize size) const

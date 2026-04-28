@@ -300,6 +300,7 @@ void FontComputer::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_document);
+    visitor.visit(m_on_font_loaded);
     for (auto& [_, faces] : m_font_faces)
         visitor.visit(faces);
     for (auto& [_, loader] : m_loaders_by_url)
@@ -714,6 +715,9 @@ void FontComputer::clear_font_feature_values_cache(FlyString const& family_name)
 void FontComputer::did_load_font(FlyString const& family_name)
 {
     clear_computed_font_cache(family_name);
+
+    if (m_on_font_loaded)
+        m_on_font_loaded->function()();
 }
 
 void FontComputer::register_font_face(GC::Ref<FontFace> face)
