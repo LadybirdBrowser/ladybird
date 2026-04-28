@@ -56,6 +56,7 @@ public:
 
     JsonValue(String);
     JsonValue(StringView);
+    JsonValue(ByteString const&) = delete;
 
     template<typename T>
     requires(SameAs<RemoveCVReference<T>, bool>)
