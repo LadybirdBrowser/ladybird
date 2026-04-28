@@ -22,7 +22,6 @@
 namespace Web::CSS {
 
 struct MatchingRule {
-    GC::Ptr<DOM::ShadowRoot const> shadow_root;
     GC::Ptr<CSSRule const> rule; // Either CSSStyleRule or CSSNestedDeclarations
     GC::Ptr<CSSStyleSheet const> sheet;
     Optional<FlyString> default_namespace;

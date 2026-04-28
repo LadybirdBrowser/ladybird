@@ -241,7 +241,7 @@ Vector<HasInvalidationMetadata> const* StyleComputer::has_invalidation_metadata_
     return nullptr;
 }
 
-Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::AbstractElement abstract_element, CascadeOrigin cascade_origin, PseudoClassBitmap& attempted_pseudo_class_matches, Optional<FlyString const> qualified_layer_name) const
+Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules(DOM::AbstractElement abstract_element, CascadeOrigin cascade_origin, PseudoClassBitmap& attempted_pseudo_class_matches, Optional<FlyString const> qualified_layer_name) const
 {
     auto const& root_node = abstract_element.element().root();
     auto shadow_root = as_if<DOM::ShadowRoot>(root_node);
@@ -254,11 +254,10 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::AbstractE
     else if (shadow_root)
         shadow_host = shadow_root->host();
 
-    Vector<MatchingRule const&, 512> rules_to_run;
+    Vector<ScopedMatchingRule, 512> rules_to_run;
 
-    auto add_rule_to_run = [&](MatchingRule const& rule_to_run) {
+    auto add_rule_to_run = [&](MatchingRule const& rule_to_run, GC::Ptr<DOM::ShadowRoot const> rule_root) {
         // FIXME: This needs to be revised when adding support for the ::shadow selector, as it needs to cross shadow boundaries.
-        auto rule_root = rule_to_run.shadow_root;
         auto from_user_agent_or_user_stylesheet = rule_to_run.cascade_origin == CascadeOrigin::UserAgent || rule_to_run.cascade_origin == CascadeOrigin::User;
 
         // NOTE: Inside shadow trees, we only match rules that are defined in the shadow tree's style sheets.
@@ -283,42 +282,42 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::AbstractE
         if (selector.can_use_ancestor_filter() && should_reject_with_ancestor_filter(selector))
             return;
 
-        rules_to_run.unchecked_append(rule_to_run);
+        rules_to_run.unchecked_append({ &rule_to_run, rule_root });
     };
 
-    auto add_rules_to_run = [&](Vector<MatchingRule> const& rules) {
+    auto add_rules_to_run = [&](Vector<MatchingRule> const& rules, GC::Ptr<DOM::ShadowRoot const> rule_root) {
         rules_to_run.grow_capacity(rules_to_run.size() + rules.size());
         if (abstract_element.pseudo_element().has_value()) {
             for (auto const& rule : rules) {
                 if (rule.contains_pseudo_element && filter_namespace_rule(element_namespace_uri, rule))
-                    add_rule_to_run(rule);
+                    add_rule_to_run(rule, rule_root);
             }
         } else {
             for (auto const& rule : rules) {
                 if ((rule.slotted || rule.contains_part_pseudo_element || !rule.contains_pseudo_element) && filter_namespace_rule(element_namespace_uri, rule))
-                    add_rule_to_run(rule);
+                    add_rule_to_run(rule, rule_root);
             }
         }
     };
 
-    auto add_rules_from_cache = [&](RuleCache const& rule_cache) {
+    auto add_rules_from_cache = [&](RuleCache const& rule_cache, GC::Ptr<DOM::ShadowRoot const> rule_root) {
         rule_cache.for_each_matching_rules(abstract_element, [&](auto const& matching_rules) {
-            add_rules_to_run(matching_rules);
+            add_rules_to_run(matching_rules, rule_root);
             return IterationDecision::Continue;
         });
     };
 
     if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, nullptr))
-        add_rules_from_cache(*rule_cache);
+        add_rules_from_cache(*rule_cache, nullptr);
 
     if (shadow_root) {
         if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, shadow_root))
-            add_rules_from_cache(*rule_cache);
+            add_rules_from_cache(*rule_cache, shadow_root);
     }
 
     if (element_shadow_root) {
         if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, element_shadow_root))
-            add_rules_from_cache(*rule_cache);
+            add_rules_from_cache(*rule_cache, element_shadow_root);
     }
 
     // Walk up the slot chain for nested slots. An element can be assigned to a slot
@@ -328,7 +327,7 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::AbstractE
     for (GC::Ptr<HTML::HTMLSlotElement const> slot = abstract_element.element().assigned_slot_internal(); slot; slot = slot->assigned_slot_internal()) {
         if (auto const* slot_shadow_root = as_if<DOM::ShadowRoot>(slot->root())) {
             if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, slot_shadow_root)) {
-                add_rules_to_run(rule_cache->slotted_rules);
+                add_rules_to_run(rule_cache->slotted_rules, slot_shadow_root);
             }
         }
     }
@@ -338,22 +337,22 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::AbstractE
     // (for :host::part() within the shadow DOM's own stylesheet).
     if (shadow_root && (abstract_element.pseudo_element().has_value() || !abstract_element.element().part_names().is_empty())) {
         if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, shadow_root)) {
-            add_rules_to_run(rule_cache->part_rules);
+            add_rules_to_run(rule_cache->part_rules, shadow_root);
         }
         for (auto* part_shadow_root = abstract_element.element().first_flat_tree_ancestor_of_type<DOM::ShadowRoot>();
             part_shadow_root;
             part_shadow_root = part_shadow_root->first_flat_tree_ancestor_of_type<DOM::ShadowRoot>()) {
 
             if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, part_shadow_root)) {
-                add_rules_to_run(rule_cache->part_rules);
+                add_rules_to_run(rule_cache->part_rules, part_shadow_root);
             }
         }
         if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, nullptr)) {
-            add_rules_to_run(rule_cache->part_rules);
+            add_rules_to_run(rule_cache->part_rules, nullptr);
         }
     }
 
-    Vector<MatchingRule const*> matching_rules;
+    Vector<ScopedMatchingRule> matching_rules;
     matching_rules.ensure_capacity(rules_to_run.size());
 
     for (auto const& rule_to_run : rules_to_run) {
@@ -362,15 +361,16 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::AbstractE
         //       for traversal (which would confine traversal to the element itself).
         //       Instead, use the rule's shadow root's host, so that combinators can traverse
         //       up to the enclosing shadow host (e.g. for `:host(...) .descendant` selectors).
+        auto const& rule = *rule_to_run.rule;
         auto rule_root = rule_to_run.shadow_root;
         auto shadow_host_to_use = shadow_host;
         if (abstract_element.element().is_shadow_host() && rule_root != abstract_element.element().shadow_root())
             shadow_host_to_use = rule_root ? rule_root->host() : nullptr;
 
-        auto const& selector = rule_to_run.selector;
+        auto const& selector = rule.selector;
 
         SelectorEngine::MatchContext context {
-            .style_sheet_for_rule = *rule_to_run.sheet,
+            .style_sheet_for_rule = *rule.sheet,
             .subject = abstract_element.element(),
             .rule_shadow_root = rule_root,
             .collect_per_element_selector_involvement_metadata = true,
@@ -408,21 +408,23 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::AbstractE
                 continue;
         } else if (!SelectorEngine::matches(selector, abstract_element, shadow_host_to_use, context))
             continue;
-        matching_rules.append(&rule_to_run);
+        matching_rules.append(rule_to_run);
     }
 
     return matching_rules;
 }
 
-static void sort_matching_rules(Vector<MatchingRule const*>& matching_rules)
+static void sort_matching_rules(Vector<StyleComputer::ScopedMatchingRule>& matching_rules)
 {
-    quick_sort(matching_rules, [&](MatchingRule const* a, MatchingRule const* b) {
-        if (a->specificity == b->specificity) {
-            if (a->style_sheet_index == b->style_sheet_index)
-                return a->rule_index < b->rule_index;
-            return a->style_sheet_index < b->style_sheet_index;
+    quick_sort(matching_rules, [&](auto const& a, auto const& b) {
+        auto const* a_rule = a.rule;
+        auto const* b_rule = b.rule;
+        if (a_rule->specificity == b_rule->specificity) {
+            if (a_rule->style_sheet_index == b_rule->style_sheet_index)
+                return a_rule->rule_index < b_rule->rule_index;
+            return a_rule->style_sheet_index < b_rule->style_sheet_index;
         }
-        return a->specificity < b->specificity;
+        return a_rule->specificity < b_rule->specificity;
     });
 }
 
@@ -470,7 +472,7 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
 void StyleComputer::cascade_declarations(
     CascadedProperties& cascaded_properties,
     DOM::AbstractElement abstract_element,
-    Vector<MatchingRule const*> const& matching_rules,
+    Vector<ScopedMatchingRule> const& matching_rules,
     CascadeOrigin cascade_origin,
     Important important,
     Optional<FlyString> layer_name) const
@@ -540,7 +542,7 @@ void StyleComputer::cascade_declarations(
     };
 
     for (auto const& match : matching_rules) {
-        cascade_style_declaration(match->declaration(), match->shadow_root);
+        cascade_style_declaration(match.rule->declaration(), match.shadow_root);
     }
 
     if (cascade_origin == CascadeOrigin::Author && !abstract_element.pseudo_element().has_value()) {
@@ -550,11 +552,11 @@ void StyleComputer::cascade_declarations(
     }
 }
 
-static void cascade_custom_properties(DOM::AbstractElement abstract_element, Vector<MatchingRule const*> const& matching_rules, OrderedHashMap<FlyString, StyleProperty>& custom_properties)
+static void cascade_custom_properties(DOM::AbstractElement abstract_element, Vector<StyleComputer::ScopedMatchingRule> const& matching_rules, OrderedHashMap<FlyString, StyleProperty>& custom_properties)
 {
     size_t needed_capacity = 0;
     for (auto const& matching_rule : matching_rules)
-        needed_capacity += matching_rule->declaration().custom_properties().size();
+        needed_capacity += matching_rule.rule->declaration().custom_properties().size();
 
     if (!abstract_element.pseudo_element().has_value()) {
         if (auto const inline_style = abstract_element.element().inline_style())
@@ -565,7 +567,7 @@ static void cascade_custom_properties(DOM::AbstractElement abstract_element, Vec
 
     OrderedHashMap<FlyString, StyleProperty> important_custom_properties;
     for (auto const& matching_rule : matching_rules) {
-        for (auto const& it : matching_rule->declaration().custom_properties()) {
+        for (auto const& it : matching_rule.rule->declaration().custom_properties()) {
             auto style_value = it.value.value;
             if (style_value->is_revert_layer())
                 continue;

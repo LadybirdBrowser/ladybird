@@ -106,7 +106,12 @@ public:
     [[nodiscard]] GC::Ref<ComputedProperties> compute_style_with_seeded_ancestors(DOM::AbstractElement);
     [[nodiscard]] GC::Ptr<ComputedProperties> compute_pseudo_element_style_if_needed(DOM::AbstractElement, Optional<bool&> did_change_custom_properties) const;
 
-    [[nodiscard]] Vector<MatchingRule const*> collect_matching_rules(DOM::AbstractElement, CascadeOrigin, PseudoClassBitmap& attempted_pseudo_class_matches, Optional<FlyString const> qualified_layer_name = {}) const;
+    struct ScopedMatchingRule {
+        MatchingRule const* rule { nullptr };
+        GC::Ptr<DOM::ShadowRoot const> shadow_root;
+    };
+
+    [[nodiscard]] Vector<ScopedMatchingRule> collect_matching_rules(DOM::AbstractElement, CascadeOrigin, PseudoClassBitmap& attempted_pseudo_class_matches, Optional<FlyString const> qualified_layer_name = {}) const;
 
     NonnullRefPtr<InvalidationPlan> invalidation_plan_for_properties(Vector<InvalidationSet::Property> const&, StyleScope const&) const;
     Vector<HasInvalidationMetadata> const* has_invalidation_metadata_for_property(InvalidationSet::Property const&, StyleScope const&) const;
@@ -152,12 +157,12 @@ private:
 
     struct LayerMatchingRules {
         FlyString qualified_layer_name;
-        Vector<MatchingRule const*> rules;
+        Vector<ScopedMatchingRule> rules;
     };
 
     struct MatchingRuleSet {
-        Vector<MatchingRule const*> user_agent_rules;
-        Vector<MatchingRule const*> user_rules;
+        Vector<ScopedMatchingRule> user_agent_rules;
+        Vector<ScopedMatchingRule> user_rules;
         Vector<LayerMatchingRules> author_rules;
     };
 
@@ -177,7 +182,7 @@ private:
     void cascade_declarations(
         CascadedProperties&,
         DOM::AbstractElement,
-        Vector<MatchingRule const*> const&,
+        Vector<ScopedMatchingRule> const&,
         CascadeOrigin,
         Important,
         Optional<FlyString> layer_name) const;

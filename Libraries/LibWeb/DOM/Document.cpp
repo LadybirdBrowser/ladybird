@@ -2101,14 +2101,6 @@ void Document::invalidate_style_for_elements_affected_by_pseudo_class_change(CSS
 
     auto& style_computer = this->style_computer();
     auto does_rule_match_on_element = [&](Element const& element, CSS::MatchingRule const& rule) {
-        auto rule_root = rule.shadow_root;
-        auto from_user_agent_or_user_stylesheet = rule.cascade_origin == CSS::CascadeOrigin::UserAgent || rule.cascade_origin == CSS::CascadeOrigin::User;
-        bool rule_is_relevant_for_current_scope = rule_root == shadow_root
-            || (element.is_shadow_host() && rule_root == element.shadow_root())
-            || from_user_agent_or_user_stylesheet;
-        if (!rule_is_relevant_for_current_scope)
-            return false;
-
         auto const& selector = rule.selector;
         if (selector.can_use_ancestor_filter() && style_computer.should_reject_with_ancestor_filter(selector))
             return false;

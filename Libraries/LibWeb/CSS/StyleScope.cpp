@@ -52,7 +52,6 @@ void StyleScope::visit_edges(GC::Cell::Visitor& visitor)
 
 void MatchingRule::visit_edges(GC::Cell::Visitor& visitor)
 {
-    visitor.visit(shadow_root);
     visitor.visit(rule);
     visitor.visit(sheet);
 }
@@ -210,10 +209,6 @@ void StyleScope::for_each_stylesheet(CascadeOrigin cascade_origin, Function<void
 
 void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin, SelectorInsights& insights)
 {
-    GC::Ptr<DOM::ShadowRoot const> scope_shadow_root;
-    if (m_node->is_shadow_root())
-        scope_shadow_root = as<DOM::ShadowRoot>(*m_node);
-
     Vector<MatchingRule> matching_rules;
     size_t style_sheet_index = 0;
     for_each_stylesheet(cascade_origin, [&](auto& sheet) {
@@ -246,7 +241,6 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
 
             for (CSS::Selector const& selector : absolutized_selectors) {
                 MatchingRule matching_rule {
-                    .shadow_root = scope_shadow_root,
                     .rule = &rule,
                     .sheet = sheet,
                     .default_namespace = sheet.default_namespace(),
