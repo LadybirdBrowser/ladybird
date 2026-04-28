@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/MediaList.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleSheetInvalidation.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -51,9 +52,13 @@ String MediaList::media_text() const
 // https://www.w3.org/TR/cssom-1/#dom-medialist-mediatext
 void MediaList::set_media_text(StringView text)
 {
+    auto previous_sheet_effects = m_associated_style_sheet
+        ? Optional<ShadowRootStylesheetEffects> { determine_shadow_root_stylesheet_effects(as<CSS::CSSStyleSheet>(*m_associated_style_sheet)) }
+        : Optional<ShadowRootStylesheetEffects> {};
+
     ScopeGuard guard = [&] {
         if (m_associated_style_sheet)
-            as<CSS::CSSStyleSheet>(*m_associated_style_sheet).invalidate_owners(DOM::StyleInvalidationReason::MediaListSetMediaText);
+            as<CSS::CSSStyleSheet>(*m_associated_style_sheet).invalidate_owners(DOM::StyleInvalidationReason::MediaListSetMediaText, previous_sheet_effects.has_value() ? &previous_sheet_effects.value() : nullptr);
     };
 
     m_media.clear();
@@ -88,11 +93,15 @@ void MediaList::append_medium(StringView medium)
             return;
     }
 
+    auto previous_sheet_effects = m_associated_style_sheet
+        ? Optional<ShadowRootStylesheetEffects> { determine_shadow_root_stylesheet_effects(as<CSS::CSSStyleSheet>(*m_associated_style_sheet)) }
+        : Optional<ShadowRootStylesheetEffects> {};
+
     // 4. Append m to the collection of media queries.
     m_media.append(m.release_nonnull());
 
     if (m_associated_style_sheet)
-        as<CSS::CSSStyleSheet>(*m_associated_style_sheet).invalidate_owners(DOM::StyleInvalidationReason::MediaListAppendMedium);
+        as<CSS::CSSStyleSheet>(*m_associated_style_sheet).invalidate_owners(DOM::StyleInvalidationReason::MediaListAppendMedium, previous_sheet_effects.has_value() ? &previous_sheet_effects.value() : nullptr);
 }
 
 // https://www.w3.org/TR/cssom-1/#dom-medialist-deletemedium
@@ -105,6 +114,10 @@ WebIDL::ExceptionOr<void> MediaList::delete_medium(StringView medium)
     if (!m)
         return {};
 
+    auto previous_sheet_effects = m_associated_style_sheet
+        ? Optional<ShadowRootStylesheetEffects> { determine_shadow_root_stylesheet_effects(as<CSS::CSSStyleSheet>(*m_associated_style_sheet)) }
+        : Optional<ShadowRootStylesheetEffects> {};
+
     // 3. Remove any media query from the collection of media queries for which comparing the media query with m
     //    returns true. If nothing was removed, then throw a NotFoundError exception.
     bool was_removed = m_media.remove_all_matching([&](auto& existing) -> bool {
@@ -114,7 +127,7 @@ WebIDL::ExceptionOr<void> MediaList::delete_medium(StringView medium)
         return WebIDL::NotFoundError::create(realm(), "Media query not found in list"_utf16);
 
     if (m_associated_style_sheet)
-        as<CSS::CSSStyleSheet>(*m_associated_style_sheet).invalidate_owners(DOM::StyleInvalidationReason::MediaListDeleteMedium);
+        as<CSS::CSSStyleSheet>(*m_associated_style_sheet).invalidate_owners(DOM::StyleInvalidationReason::MediaListDeleteMedium, previous_sheet_effects.has_value() ? &previous_sheet_effects.value() : nullptr);
 
     return {};
 }

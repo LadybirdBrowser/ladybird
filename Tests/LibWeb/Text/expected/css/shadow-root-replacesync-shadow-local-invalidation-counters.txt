@@ -1,3 +1,3 @@
 PASS: shadow-local replaceSync ignores matching light-DOM bystanders (0 invalidations)
 PASS: shadow-local replaceSync stays bounded on subsequent updates (0 invalidations)
-PASS: shadow-local replaceSync clearing the sheet avoids extra full-document restyles (1 full invalidations)
+PASS: shadow-local replaceSync clearing the sheet avoids extra full-document restyles (0 full invalidations)

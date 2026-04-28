@@ -439,6 +439,13 @@ void CSSStyleSheet::invalidate_owners(DOM::StyleInvalidationReason reason, Shado
 {
     m_did_match = {};
     invalidate_shared_style_cache();
+
+    // The MediaList may have been mutated (e.g. via MediaList::set_media_text), and owner invalidation computes
+    // shadow-root effects from effective rules. Refresh the media state first so host-side shadow invalidation
+    // sees the updated definitions.
+    if (auto document = owning_document())
+        evaluate_media_queries(*document);
+
     invalidate_style_for_style_sheet_owners(*this, reason, ShouldInvalidateRuleCache::Yes, previous_sheet_effects);
 }
 
@@ -470,7 +477,11 @@ bool CSSStyleSheet::evaluate_media_queries(DOM::Document const& document)
     bool any_media_queries_changed_match_state = false;
 
     bool now_matches = m_media->evaluate(document);
-    if (!m_did_match.has_value() || m_did_match.value() != now_matches)
+    // The first evaluation establishes the baseline. The sheet's rules already entered the cascade through
+    // StyleSheetListAddSheet, AdoptedStyleSheetsList, or invalidate_owners (each of which performs its own
+    // invalidation), so we don't need to also report a match-state change just because no prior result was
+    // recorded.
+    if (m_did_match.has_value() && m_did_match.value() != now_matches)
         any_media_queries_changed_match_state = true;
     if (now_matches && m_rules->evaluate_media_queries(document))
         any_media_queries_changed_match_state = true;

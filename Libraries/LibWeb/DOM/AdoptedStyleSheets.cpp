@@ -32,6 +32,11 @@ GC::Ref<WebIDL::ObservableArray> create_adopted_style_sheets_list(Node& document
 
         style_sheet->load_pending_image_resources(document_or_shadow_root.document());
 
+        // Evaluate the sheet's media queries before the next style update so the cascade can see its rules.
+        // Otherwise the rule cache may be rebuilt (e.g. via a :has() invalidation pass) before
+        // Document::evaluate_media_rules has a chance to populate MediaList::m_matches.
+        style_sheet->evaluate_media_queries(document_or_shadow_root.document());
+
         auto& style_scope = document_or_shadow_root.is_shadow_root() ? as<DOM::ShadowRoot>(document_or_shadow_root).style_scope() : document_or_shadow_root.document().style_scope();
         style_scope.invalidate_rule_cache();
         document_or_shadow_root.invalidate_style(DOM::StyleInvalidationReason::AdoptedStyleSheetsList);
