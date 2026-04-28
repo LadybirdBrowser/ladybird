@@ -30,7 +30,13 @@ public:
 
     MediaList* media() const { return m_media; }
 
-    bool evaluate(DOM::Document const& document) { return m_media->evaluate(document); }
+    bool evaluate(DOM::Document const& document)
+    {
+        m_did_evaluate = true;
+        return m_media->evaluate(document);
+    }
+
+    bool did_evaluate() const { return m_did_evaluate; }
 
 private:
     CSSMediaRule(JS::Realm&, MediaList&, CSSRuleList&);
@@ -41,6 +47,7 @@ private:
     virtual void dump(StringBuilder&, int indent_levels) const override;
 
     GC::Ref<MediaList> m_media;
+    bool m_did_evaluate { false };
 };
 
 template<>
