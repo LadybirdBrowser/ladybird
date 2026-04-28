@@ -27,4 +27,7 @@ exclude = [
     "**/.*",
     "**/lit.cfg.py",
     "Tests/LibWeb/Text/input/wpt-import",
+    "Tests/LibWeb/AccessibilityBridge",
+    "Tests/LibWeb/AccessibilityBridgeMac",
+    "UI/Qt/OrcaScripts",
 ]

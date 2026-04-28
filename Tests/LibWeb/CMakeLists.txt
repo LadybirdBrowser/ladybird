@@ -98,3 +98,4 @@ add_subdirectory("test-web")
 target_link_libraries(TestInlineStyle PRIVATE LibCore LibGC LibGfx LibJS LibURL)
 
 add_subdirectory("AccessibilityBridge")
+add_subdirectory("AccessibilityBridgeMac")
