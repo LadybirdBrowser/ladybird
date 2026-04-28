@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        internals.setTestTimeout(5000);
+
+        const httpServer = httpTestServer();
+        const scriptURL = await httpServer.createEcho("GET", "/parser-streams-external-script.js", {
+            status: 200,
+            headers: {
+                "Content-Type": "text/javascript",
+            },
+            body: `document.getElementById("target").textContent = "script ran";`,
+        });
+        const delayedScriptURL = await httpServer.createEcho("GET", "/parser-streams-delayed-external-script.js", {
+            status: 200,
+            headers: {
+                "Content-Type": "text/javascript",
+            },
+            body: `document.getElementById("delayed-target").textContent = "delayed script ran";`,
+        });
+        const delayedScriptURLWithSlowResponse = `${delayedScriptURL}?chunks=1&chunk_delay_ms=300`;
+        const externalScriptStartTag = `<scr` + `ipt src="${scriptURL}">`;
+        const delayedExternalScriptStartTag = `<scr` + `ipt src="${delayedScriptURLWithSlowResponse}">`;
+        const scriptEndTag = `</scr` + `ipt>`;
+        const inlineScriptStartTag = `<scr` + `ipt>`;
+        const prefix = `<!DOCTYPE html><body>${" ".repeat(1500)}<div id="target">before</div>${externalScriptStartTag}${scriptEndTag}`;
+        const delayedPrefix = `${prefix}<div id="delayed-target">delayed before</div>${delayedExternalScriptStartTag}${scriptEndTag}<div id="same-chunk">same chunk</div>`;
+        const body = `${delayedPrefix}<div id="second-chunk">second chunk</div>${inlineScriptStartTag}window.onload = () => parent.postMessage(document.body.innerText.replace(/\\s+/g, " ").trim(), "*");${scriptEndTag}`;
+        const url = await httpServer.createEcho("GET", "/parser-streams-external-script", {
+            status: 200,
+            headers: {
+                "Content-Type": "text/html",
+            },
+            body,
+        });
+
+        const frame = document.createElement("iframe");
+        window.addEventListener("message", event => {
+            println(event.data);
+            done();
+        }, { once: true });
+
+        frame.src = `${url}?chunks=${delayedPrefix.length}&chunk_delay_ms=50`;
+        document.body.appendChild(frame);
+    });
+</script>

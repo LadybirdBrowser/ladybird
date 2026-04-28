@@ -1,0 +1,1 @@
+PASS: iframe body parsed before load

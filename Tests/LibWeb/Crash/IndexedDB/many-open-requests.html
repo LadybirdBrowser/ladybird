@@ -2,7 +2,7 @@
 <html class="test-wait">
 <body>
 <script>
-setTimeout(() => {
+window.addEventListener("load", () => setTimeout(() => {
     internals.spoofCurrentURL("https://example.com/indexeddb-open-spam.html");
 
     const dbName = "many-open-requests";
@@ -19,7 +19,7 @@ setTimeout(() => {
         };
         requests++;
     }
-}, 0);
+}, 0));
 </script>
 </body>
 </html>

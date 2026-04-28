@@ -92,6 +92,7 @@ public:
 
     bool aborted() const { return m_aborted; }
     bool stopped() const { return m_stop_parsing; }
+    bool is_paused() const { return m_parser_pause_flag; }
     bool is_script_created() const { return m_script_created; }
 
     size_t script_nesting_level() const { return m_script_nesting_level; }

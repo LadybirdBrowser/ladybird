@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        internals.setTestTimeout(5000);
+
+        const httpServer = httpTestServer();
+        const prefix = `<!DOCTYPE html><body>${" ".repeat(1500)}<span id="before">before</span><script>document.write("inserted");<\/script>`;
+        const body = `${prefix}<span id="after">after</span>`;
+        const url = await httpServer.createEcho("GET", "/parser-streams-with-document-write", {
+            status: 200,
+            headers: {
+                "Content-Type": "text/html",
+            },
+            body,
+        });
+
+        const frame = document.createElement("iframe");
+        frame.onload = () => {
+            const text = Array.from(frame.contentDocument.body.childNodes)
+                .filter(node => node.nodeName != "SCRIPT")
+                .map(node => node.textContent)
+                .join("")
+                .replace(/\s+/g, "");
+            println(text);
+            done();
+        };
+
+        frame.src = `${url}?chunks=${prefix.length}&chunk_delay_ms=100`;
+        document.body.appendChild(frame);
+    });
+</script>

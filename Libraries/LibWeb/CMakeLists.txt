@@ -624,6 +624,7 @@ set(SOURCES
     HTML/Parser/HTMLParser.cpp
     HTML/Parser/HTMLToken.cpp
     HTML/Parser/HTMLTokenizer.cpp
+    HTML/Parser/IncrementalDocumentParser.cpp
     HTML/Parser/ListOfActiveFormattingElements.cpp
     HTML/Parser/SpeculativeHTMLParser.cpp
     HTML/Parser/SpeculativeMockElement.cpp

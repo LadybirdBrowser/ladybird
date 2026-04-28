@@ -9,6 +9,7 @@ import socket
 import socketserver
 import sys
 import time
+import urllib.parse
 
 from typing import Dict
 from typing import Optional
@@ -175,7 +176,7 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             return
 
         # Return 409: Conflict if the method+path combination already exists
-        key = f"{echo.method} {echo.path}"
+        key = f"{echo.method} {urllib.parse.urlparse(echo.path).path}"
         if key in echo_store and echo_store[key] != echo:
             self.send_response(409)
             self.send_header("Content-Type", "text/plain")
@@ -220,9 +221,15 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def handle_echo(self):
         method = self.command.upper()
+        parsed_url = urllib.parse.urlparse(self.path)
+        query = urllib.parse.parse_qs(parsed_url.query)
         key = f"{method} {self.path}"
+        if key not in echo_store:
+            key = f"{method} {parsed_url.path}"
 
         recorded_request_headers[self.path] = {header: self.headers.get_all(header) for header in self.headers.keys()}
+        if parsed_url.path != self.path:
+            recorded_request_headers[parsed_url.path] = recorded_request_headers[self.path]
 
         is_revalidation_request = "If-Modified-Since" in self.headers
         send_not_modified = is_revalidation_request and "X-Ladybird-Respond-With-Not-Modified" in self.headers
@@ -304,9 +311,26 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 response_body = response_body[int(start) :]
 
         if echo.body_encoding == "base64":
-            self.wfile.write(base64.b64decode(response_body))
+            response_body_bytes = base64.b64decode(response_body)
         else:
-            self.wfile.write(response_body.encode("utf-8"))
+            response_body_bytes = response_body.encode("utf-8")
+
+        chunks = query.get("chunks", [])
+        chunk_delay_ms = int(query.get("chunk_delay_ms", [0])[0] or 0)
+        if chunks:
+            chunk_sizes = [int(chunk_size) for chunk_size in chunks[0].split(",") if chunk_size]
+            offset = 0
+            for chunk_size in chunk_sizes:
+                self.wfile.write(response_body_bytes[offset : offset + chunk_size])
+                self.wfile.flush()
+                offset += chunk_size
+                if chunk_delay_ms > 0:
+                    time.sleep(chunk_delay_ms / 1000)
+            if offset < len(response_body_bytes):
+                self.wfile.write(response_body_bytes[offset:])
+            return
+
+        self.wfile.write(response_body_bytes)
 
     def do_other(self):
         if self.path.startswith("/echo"):

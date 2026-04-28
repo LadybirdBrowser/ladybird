@@ -19,6 +19,7 @@
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/Parser/HTMLEncodingDetection.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/Parser/IncrementalDocumentParser.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/MimeSniff/Resource.h>
 #include <LibWeb/Namespace.h>
@@ -115,26 +116,9 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::Navi
     //    document's relevant global object to have the parser to process the implied EOF character, which eventually
     //    causes a load event to be fired.
     else {
-        // FIXME: Parse as we receive the document data, instead of waiting for the whole document to be fetched first.
-        auto process_body = GC::create_function(document->heap(), [document, url = navigation_params.response->url().value(), mime_type = Fetch::Infrastructure::extract_mime_type(navigation_params.response->header_list())](ByteBuffer data) mutable {
-            Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(document->heap(), [document = document, data = move(data), url = url, mime_type = move(mime_type)] {
-                auto parser = HTML::HTMLParser::create_with_uncertain_encoding(document, data, mime_type);
-                if (document->ready_to_run_scripts()) {
-                    parser->run(url);
-                } else {
-                    document->set_deferred_parser_start(GC::create_function(document->heap(), [parser, url] {
-                        parser->run(url);
-                    }));
-                }
-            }));
-        });
-
-        auto process_body_error = GC::create_function(document->heap(), [](JS::Value) {
-            dbgln("FIXME: Load html page with an error if read of body failed.");
-        });
-
-        auto& realm = document->realm();
-        navigation_params.response->body()->fully_read(realm, process_body, process_body_error, GC::Ref { realm.global_object() });
+        auto body = GC::Ref { *navigation_params.response->body() };
+        auto parser = HTML::IncrementalDocumentParser::create(document, body, navigation_params.response->url().value(), Fetch::Infrastructure::extract_mime_type(navigation_params.response->header_list()));
+        parser->start();
     }
 
     // 4. Return document.

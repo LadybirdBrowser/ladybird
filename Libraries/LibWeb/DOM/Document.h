@@ -633,6 +633,7 @@ public:
 
     void set_parser(Badge<HTML::HTMLParser>, HTML::HTMLParser&);
     void detach_parser();
+    GC::Ptr<HTML::HTMLParser> parser() const { return m_parser; }
 
     [[nodiscard]] bool is_temporary_document_for_fragment_parsing() const { return m_temporary_document_for_fragment_parsing == TemporaryDocumentForFragmentParsing::Yes; }
 

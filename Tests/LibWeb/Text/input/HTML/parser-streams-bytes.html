@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        internals.setTestTimeout(5000);
+
+        const httpServer = httpTestServer();
+        const body = `<!DOCTYPE html><body><div id="first">first</div>${" ".repeat(1700)}<div id="last">last</div>`;
+        const url = await httpServer.createEcho("GET", "/parser-streams-bytes", {
+            status: 200,
+            headers: {
+                "Content-Type": "text/html",
+            },
+            body,
+        });
+
+        const frame = document.createElement("iframe");
+        let loaded = false;
+        let sawBodyBeforeLoad = false;
+        const interval = setInterval(() => {
+            if (!loaded && frame.contentDocument && frame.contentDocument.body && frame.contentDocument.body.children.length > 0)
+                sawBodyBeforeLoad = true;
+        }, 10);
+
+        frame.onload = () => {
+            loaded = true;
+            clearInterval(interval);
+            println(sawBodyBeforeLoad ? "PASS: iframe body parsed before load" : "FAIL: iframe body was not parsed before load");
+            done();
+        };
+
+        frame.src = `${url}?chunks=1500&chunk_delay_ms=250`;
+        document.body.appendChild(frame);
+    });
+</script>

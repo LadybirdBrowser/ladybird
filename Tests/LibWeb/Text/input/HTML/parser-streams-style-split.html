@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        internals.setTestTimeout(5000);
+
+        const httpServer = httpTestServer();
+        const stylePrefix = `<!DOCTYPE html><head><style>${" ".repeat(1700)}`;
+        const body = `${stylePrefix}#target { color: rgb(1, 2, 3); }</style></head><body><div id="target">styled</div><script>window.onload = () => parent.postMessage({ color: getComputedStyle(document.getElementById("target")).color, text: document.getElementById("target").textContent }, "*");<\/script>`;
+        const url = await httpServer.createEcho("GET", "/parser-streams-style-split", {
+            status: 200,
+            headers: {
+                "Content-Type": "text/html",
+            },
+            body,
+        });
+
+        const frame = document.createElement("iframe");
+        window.addEventListener("message", event => {
+            println(event.data.color);
+            println(event.data.text);
+            done();
+        }, { once: true });
+
+        frame.src = `${url}?chunks=${stylePrefix.length}&chunk_delay_ms=100`;
+        document.body.appendChild(frame);
+    });
+</script>
