@@ -1,640 +1,700 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-    <meta charset="utf-8">
-    <title>Test Results</title>
-    <link rel="stylesheet" href="index.css">
-    <script src="results-manifest.js"></script>
-</head>
-<body class="results-index-page">
-    <div class="container">
-        <header>
-            <h1>
-                <span>Test Results</span>
-                <span class="title-timestamp" id="page-timestamp"></span>
-            </h1>
-            <button class="copy-btn copy-run-command-btn" id="copy-run-command-btn" data-label="Copy Run Cmd"></button>
-            <div class="search-box">
-                <span class="search-icon">&#128269;</span>
-                <input type="text" id="search" placeholder="Filter tests..." autocomplete="off">
-            </div>
-        </header>
-        <div id="content"><div class="loading">Loading results...</div></div>
-    </div>
-    <div class="keyboard-hint">
-        <span><kbd>&#8593;</kbd><kbd>&#8595;</kbd> Navigate</span>
-        <span><kbd>Enter</kbd> Expand</span>
-        <span><kbd>/</kbd> Search</span>
-    </div>
-    <script>
-        const copySvg = '<svg width="14" height="14" viewBox="-1 -1 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V3a1.5 1.5 0 0 0-1.5-1.5H3A1.5 1.5 0 0 0 1.5 3v6A1.5 1.5 0 0 0 3 10.5h2.5"/></svg>';
-        const checkSvg = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5 6.5-7"/></svg>';
-
-        let currentIndex = -1;
-        let testElements = [];
-        let testsByPid = new Map();
-        let argv = [];
-
-        function buildTestsByPid(records) {
-            const groupedTests = new Map();
-
-            for (const record of records) {
-                if (record.type !== 'test' || !Array.isArray(record.pids))
-                    continue;
-
-                for (const pid of record.pids) {
-                    if (!Number.isFinite(pid))
-                        continue;
-                    if (!groupedTests.has(pid))
-                        groupedTests.set(pid, []);
-                    groupedTests.get(pid).push(record);
-                }
-            }
-            return groupedTests;
-        }
-
-        function setCopyButtonContents(btn, icon) {
-            const label = btn.dataset.label;
-            if (!label)
-                return btn.innerHTML = icon;
-            btn.innerHTML = `<span class="stat-label">${label}</span><span class="copy-btn-icon">${icon}</span>`;
-        }
-
-        function formatCommand(argumentsList) {
-            return argumentsList.map(v => `'${String(v).replaceAll("'", `'"'"'`)}'`).join(' ');
-        }
-
-        function buildSequenceRunCommand(sequence) {
-            if (!argv.length || !sequence.length)
-                return '';
-
-            const argumentsList = [argv[0]];
-            for (const test of sequence) {
-                argumentsList.push('-f', test.relativePath ?? test.name);
-            }
-            return formatCommand(argumentsList);
-        }
-
-        function renderHeader(data) {
-            if (!data.generatedAt)
-                return;
-
-            const date = new Date(data.generatedAt * 1000);
-            const pad2 = (value) => String(value).padStart(2, '0');
-            document.getElementById('page-timestamp').textContent = `${date.getFullYear()}/${pad2(date.getMonth() + 1)}/${pad2(date.getDate())} at ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`;
-            const copyRunCommandButton = document.getElementById('copy-run-command-btn');
-            argv = Array.isArray(data.argv) ? data.argv : [];
-            const invocationCommand = formatCommand(argv);
-            setCopyButtonContents(copyRunCommandButton, copySvg);
-            copyRunCommandButton.title = invocationCommand;
-            copyRunCommandButton.onclick = e => copyText(e, copyRunCommandButton, invocationCommand);
-        }
-
-        function summarizeResults(tests, total) {
-            return tests.reduce((summary, test) => {
-                const key = test.result.toLowerCase();
-                if (key in summary)
-                    summary[key]++;
-                return summary;
-            }, { total, fail: 0, timeout: 0, crashed: 0, skipped: 0 });
-        }
-
-        function loadResults() {
-            const data = { total: 0, generatedAt: 0, argv: [], showSkipped: false, tests: [], hasHelperLogs: false };
-            const records = Array.isArray(window.RESULTS_MANIFEST) ? window.RESULTS_MANIFEST : [];
-            testsByPid = buildTestsByPid(records);
-            for (const record of records) {
-                if (record.type === 'run')
-                    Object.assign(data, { total: record.total ?? 0, generatedAt: record.generatedAt ?? 0, argv: Array.isArray(record.argv) ? record.argv : [], showSkipped: Boolean(record.showSkipped) });
-                else if (record.type === 'test') {
-                    if (record.result !== 'Pass')
-                        data.tests.push(record);
-                }
-                else if (record.type === 'helper-logs')
-                    data.hasHelperLogs = true;
-            }
-            renderHeader(data);
-            renderResults(data);
-            setupKeyboardNav();
-        }
-
-        function renderResults(data) {
-            const content = document.getElementById('content');
-            const summary = summarizeResults(data.tests, data.total);
-            const tests = data.showSkipped ? data.tests : data.tests.filter(test => test.result !== 'Skipped');
-
-            const items = data.hasHelperLogs
-                ? [{ type: 'helper-logs', name: 'test-dumps/results/helper-process-logs.html', mode: 'LOGS', inlineFileResult: 'helper-process-logs.html' }, ...tests]
-                : tests;
-
-            let html = `
-                <div class="summary">
-                    <div class="stat-card total">
-                        <div class="stat-value">${summary.total}</div>
-                        <div class="stat-label">Total</div>
-                    </div>
-                    <div class="stat-card fail">
-                        <div class="stat-value">${summary.fail}</div>
-                        <div class="stat-label">Failed</div>
-                    </div>
-                    <div class="stat-card timeout">
-                        <div class="stat-value">${summary.timeout}</div>
-                        <div class="stat-label">Timeout</div>
-                    </div>
-                    <div class="stat-card crashed">
-                        <div class="stat-value">${summary.crashed}</div>
-                        <div class="stat-label">Crashed</div>
-                    </div>
-                    <div class="stat-card skipped">
-                        <div class="stat-value">${summary.skipped}</div>
-                        <div class="stat-label">Skipped</div>
-                    </div>
+    <head>
+        <meta charset="utf-8" />
+        <title>Test Results</title>
+        <link rel="stylesheet" href="index.css" />
+        <script src="results-manifest.js"></script>
+    </head>
+    <body class="results-index-page">
+        <div class="container">
+            <header>
+                <h1>
+                    <span>Test Results</span>
+                    <span class="title-timestamp" id="page-timestamp"></span>
+                </h1>
+                <button
+                    class="copy-btn copy-run-command-btn"
+                    id="copy-run-command-btn"
+                    data-label="Copy Run Cmd"
+                ></button>
+                <div class="search-box">
+                    <span class="search-icon">&#128269;</span>
+                    <input type="text" id="search" placeholder="Filter tests..." autocomplete="off" />
                 </div>
-                <div class="test-list" id="testList">
-            `;
-            for (const test of items) {
-                html += renderResultItem(test);
-            }
-            html += '</div>';
-            if (!tests.length && !data.hasHelperLogs) {
-                html += '<div class="empty-state"><h2>All items Passed!</h2><p>No failing items to display.</p></div>';
-            }
-            content.innerHTML = html;
-            testElements = Array.from(document.querySelectorAll('.test-item'));
-        }
+            </header>
+            <div id="content"><div class="loading">Loading results...</div></div>
+        </div>
+        <div class="keyboard-hint">
+            <span><kbd>&#8593;</kbd><kbd>&#8595;</kbd> Navigate</span>
+            <span><kbd>Enter</kbd> Expand</span>
+            <span><kbd>/</kbd> Search</span>
+        </div>
+        <script>
+            const copySvg =
+                '<svg width="14" height="14" viewBox="-1 -1 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V3a1.5 1.5 0 0 0-1.5-1.5H3A1.5 1.5 0 0 0 1.5 3v6A1.5 1.5 0 0 0 3 10.5h2.5"/></svg>';
+            const checkSvg =
+                '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5 6.5-7"/></svg>';
 
-        function renderResultItem(item) {
-            const testId = item.name.replace(/[^a-zA-Z0-9]/g, '-');
-            const tabs = item.inlineFileResult ? null : buildTabs(item);
+            let currentIndex = -1;
+            let testElements = [];
+            let testsByPid = new Map();
+            let argv = [];
 
-            let html = `
-                <div class="test-item" data-type="${item.type}" data-name="${item.name.toLowerCase()}" id="test-${testId}">
-                    <div class="row-header" onclick="toggleTest('${testId}')">
-                        ${item.result ? `<span class="result-badge ${item.result}">${item.result}</span>` : ''}
-                        ${item.mode ? `<span class="mode-badge">${item.mode}</span>` : ''}
-                        <span class="test-name">${item.name}</span>
-                        ${item.result ? `<button class="copy-btn" onclick="copyText(event, this, '${item.name}')" title="Copy test path">${copySvg}</button>` : ''}
-                        <span class="expand-icon">&#9654;</span>
-                    </div>
-                    <div class="test-content">`;
-            if (tabs) {
-                html += `<div class="tab-bar">${tabs.bar}</div><div class="preview-container" id="preview-${testId}">
-                            <div class="loading">Select a tab to view content</div>
-                        </div>`;
-            } else if (item.inlineFileResult) {
-                html += `<iframe class="inline-file-frame" src="${item.inlineFileResult}"></iframe>`;
-            }
-            html += `</div></div>`;
-            return html;
-        }
+            function buildTestsByPid(records) {
+                const groupedTests = new Map();
 
-        function buildTabs(test) {
-            let tabs = [];
+                for (const record of records) {
+                    if (record.type !== "test" || !Array.isArray(record.pids)) continue;
 
-            if (test.mode === 'Layout' || test.mode === 'Text') {
-                tabs.push({ id: 'diff', label: 'Diff', file: `${test.name}.diff.html`, type: 'diff' });
-                tabs.push({ id: 'expected', label: 'Expected', file: `${test.name}.expected.txt`, type: 'text' });
-                tabs.push({ id: 'actual', label: 'Actual', file: `${test.name}.actual.txt`, type: 'text' });
-            } else if (test.mode === 'Ref' || test.mode === 'Screenshot') {
-                tabs.push({ id: 'compare', label: 'Compare', expected: `${test.name}.expected.png`, actual: `${test.name}.actual.png`, diff: `${test.name}.diff.png`, pixelErrors: test.pixelErrors, maxChannelDiff: test.maxChannelDiff, type: 'imageDiff' });
-            }
-
-            if (test.hasLogs) tabs.push({ id: 'std-logs', label: 'Logs', file: `${test.name}.logs.html`, type: 'text' });
-            if (Array.isArray(test.pids)) {
-                for (const pid of test.pids) {
-                    if ((testsByPid.get(pid)?.length ?? 0) === 0)
-                        continue;
-                    tabs.push({ id: `pid-${pid}`, label: 'Context', pid, currentTestName: test.name, type: 'process' });
+                    for (const pid of record.pids) {
+                        if (!Number.isFinite(pid)) continue;
+                        if (!groupedTests.has(pid)) groupedTests.set(pid, []);
+                        groupedTests.get(pid).push(record);
+                    }
                 }
+                return groupedTests;
             }
 
-            const bar = tabs.map((t, i) =>
-                `<button class="tab-btn${i === 0 ? ' active' : ''}" onclick="showTab('${test.name.replace(/[^a-zA-Z0-9]/g, '-')}', ${JSON.stringify(t).replace(/"/g, '&quot;')}, this)">${t.label}</button>`
-            ).join('');
-
-            return { bar, tabs };
-        }
-
-        function copyText(event, btn, text) {
-            event?.stopPropagation();
-            navigator.clipboard.writeText(text).then(function() {
-                setCopyButtonContents(btn, checkSvg);
-                btn.classList.add('copied');
-                setTimeout(function() {
-                    setCopyButtonContents(btn, copySvg);
-                    btn.classList.remove('copied');
-                }, 1500);
-            });
-        }
-
-        function toggleTest(testId) {
-            const item = document.getElementById(`test-${testId}`);
-            const wasExpanded = item.classList.contains('expanded');
-
-            // Collapse all
-            document.querySelectorAll('.test-item.expanded').forEach(el => el.classList.remove('expanded'));
-
-            if (!wasExpanded) {
-                item.classList.add('expanded');
-                // Auto-click first tab
-                const firstTab = item.querySelector('.tab-btn');
-                if (firstTab) firstTab.click();
-
-                // Update keyboard nav index
-                currentIndex = testElements.indexOf(item);
-            }
-        }
-
-        function showTab(testId, tab, btn) {
-            // Update active tab
-            btn.parentElement.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-
-            const container = document.getElementById(`preview-${testId}`);
-
-            if (tab.type === 'diff' || tab.type === 'text') {
-                container.innerHTML = `<iframe class="preview-frame" src="${tab.file}"></iframe>`;
-            } else if (tab.type === 'image') {
-                container.innerHTML = `<img class="preview-image" src="${tab.file}" alt="${tab.label}">`;
-            } else if (tab.type === 'imageDiff') {
-                initImageDiffViewer(container, tab.expected, tab.actual, tab.diff, tab.pixelErrors, tab.maxChannelDiff);
-            } else if (tab.type === 'process') {
-                renderProcessTab(container, tab.pid, tab.currentTestName);
-            }
-        }
-
-        function renderProcessTab(container, pid, currentTestName) {
-            const sequence = testsByPid.get(pid) ?? [];
-            const runCommand = buildSequenceRunCommand(sequence);
-
-            if (!sequence.length) {
-                container.innerHTML = '<div class="loading">No test sequence was recorded for this pid.</div>';
-                return;
+            function setCopyButtonContents(btn, icon) {
+                const label = btn.dataset.label;
+                if (!label) return (btn.innerHTML = icon);
+                btn.innerHTML = `<span class="stat-label">${label}</span><span class="copy-btn-icon">${icon}</span>`;
             }
 
-            const rows = sequence.map((test, index) => {
-                const isCurrentTest = test.name === currentTestName;
-                const testPath = test.relativePath ?? test.name;
-                return `
-                    <div class="process-row${isCurrentTest ? ' current' : ''}">
-                        <span class="mode-badge">${isCurrentTest ? 'Current' : index + 1}</span>
-                        <span class="result-badge ${test.result}">${test.result}</span>
-                        <div class="process-row-main">
-                            <span class="test-name">${escapeHtml(testPath)}</span>
-                            <button class="copy-btn" data-copy-text="${escapeHtml(testPath)}" title="Copy test path"></button>
-                        </div>
-                    </div>`;
-            }).join('');
-
-            container.innerHTML = `
-                <div class="process">
-                    <div class="process-header">
-                        <span class="process-meta">Pid ${pid}: ${sequence.length} tests</span>
-                        <button class="copy-btn copy-run-command-btn compact process-copy-btn" data-label="Copy Run Cmd"></button>
-                    </div>
-                    <div class="process-list">${rows}</div>
-                </div>`;
-
-            const copyButton = container.querySelector('.process-copy-btn');
-            if (copyButton) {
-                setCopyButtonContents(copyButton, copySvg);
-                copyButton.title = runCommand;
-                copyButton.onclick = event => copyText(event, copyButton, runCommand);
+            function formatCommand(argumentsList) {
+                return argumentsList.map(v => `'${String(v).replaceAll("'", `'"'"'`)}'`).join(" ");
             }
 
-            container.querySelectorAll('.process .copy-btn').forEach(button => {
-                if (button.classList.contains('process-copy-btn'))
-                    return;
-                setCopyButtonContents(button, copySvg);
-                button.onclick = event => copyText(event, button, button.dataset.copyText ?? '');
-            });
+            function buildSequenceRunCommand(sequence) {
+                if (!argv.length || !sequence.length) return "";
 
-            requestAnimationFrame(() => {
-                container.querySelector('.process-row.current')?.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'center',
-                    inline: 'nearest',
-                });
-            });
-        }
-
-        function initImageDiffViewer(container, expectedSrc, actualSrc, diffSrc, pixelErrors, maxChannelDiff) {
-            const viewerId = 'diff-' + Math.random().toString(36).substr(2, 9);
-
-            container.innerHTML = `
-                <div class="image-diff-viewer" id="${viewerId}">
-                    <div class="diff-mode-bar">
-                        <button class="diff-mode-btn active" data-mode="toggle">Toggle</button>
-                        <button class="diff-mode-btn" data-mode="slide">Slide</button>
-                        <button class="diff-mode-btn" data-mode="fade">Fade</button>
-                        <button class="diff-mode-btn" data-mode="difference">Difference</button>
-                        <div class="diff-slider-container" id="${viewerId}-slider-container">
-                            <label>Opacity: <span id="${viewerId}-slider-value">50</span>%</label>
-                            <input type="range" class="diff-slider" id="${viewerId}-slider" min="0" max="100" value="50">
-                        </div>
-                    </div>
-                    <div class="diff-stats" id="${viewerId}-stats" style="display: none;"></div>
-                    <div class="diff-image-wrapper">
-                        <div class="diff-image-container" id="${viewerId}-container">
-                            <div class="loading">Loading images...</div>
-                        </div>
-                        <div class="diff-toggle-label" id="${viewerId}-label" style="display: none;">Showing: Expected</div>
-                    </div>
-                </div>
-            `;
-
-            const viewer = document.getElementById(viewerId);
-            const imageContainer = document.getElementById(`${viewerId}-container`);
-            const sliderContainer = document.getElementById(`${viewerId}-slider-container`);
-            const slider = document.getElementById(`${viewerId}-slider`);
-            const sliderValue = document.getElementById(`${viewerId}-slider-value`);
-            const toggleLabel = document.getElementById(`${viewerId}-label`);
-            const statsEl = document.getElementById(`${viewerId}-stats`);
-
-            let expectedImg = new Image();
-            let actualImg = new Image();
-            let diffImg = new Image();
-            let currentMode = 'toggle';
-            let showingExpected = true;
-            let imagesLoaded = 0;
-            let width, height;
-
-            function onImageLoad() {
-                imagesLoaded++;
-                if (imagesLoaded === 2) {
-                    setupDiffViewer();
+                const argumentsList = [argv[0]];
+                for (const test of sequence) {
+                    argumentsList.push("-f", test.relativePath ?? test.name);
                 }
+                return formatCommand(argumentsList);
             }
 
-            expectedImg.onload = actualImg.onload = onImageLoad;
+            function renderHeader(data) {
+                if (!data.generatedAt) return;
 
-            expectedImg.onerror = actualImg.onerror = function() {
-                imageContainer.innerHTML = '<div class="loading">Failed to load image</div>';
-            };
-
-            expectedImg.src = expectedSrc;
-            actualImg.src = actualSrc;
-            if (diffSrc)
-                diffImg.src = diffSrc;
-
-            function setupDiffViewer() {
-                width = Math.max(expectedImg.naturalWidth, actualImg.naturalWidth);
-                height = Math.max(expectedImg.naturalHeight, actualImg.naturalHeight);
-
-                imageContainer.innerHTML = '';
-                imageContainer.style.width = width + 'px';
-                imageContainer.style.height = height + 'px';
-
-                if (pixelErrors !== undefined) {
-                    const totalPixels = width * height;
-                    const pct = (pixelErrors / totalPixels * 100).toFixed(2);
-                    statsEl.innerHTML = `Pixel errors: <strong>${pixelErrors}</strong> / ${totalPixels} (${pct}%) &middot; Max channel difference: <strong>${maxChannelDiff}</strong>`;
-                    statsEl.style.display = 'block';
-                }
-
-                renderToggleMode();
+                const date = new Date(data.generatedAt * 1000);
+                const pad2 = value => String(value).padStart(2, "0");
+                document.getElementById("page-timestamp").textContent =
+                    `${date.getFullYear()}/${pad2(date.getMonth() + 1)}/${pad2(date.getDate())} at ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`;
+                const copyRunCommandButton = document.getElementById("copy-run-command-btn");
+                argv = Array.isArray(data.argv) ? data.argv : [];
+                const invocationCommand = formatCommand(argv);
+                setCopyButtonContents(copyRunCommandButton, copySvg);
+                copyRunCommandButton.title = invocationCommand;
+                copyRunCommandButton.onclick = e => copyText(e, copyRunCommandButton, invocationCommand);
             }
 
-            function renderToggleMode() {
-                imageContainer.innerHTML = '';
-                const img = showingExpected ? expectedImg.cloneNode() : actualImg.cloneNode();
-                img.style.display = 'block';
-                imageContainer.appendChild(img);
+            function summarizeResults(tests, total) {
+                return tests.reduce(
+                    (summary, test) => {
+                        const key = test.result.toLowerCase();
+                        if (key in summary) summary[key]++;
+                        return summary;
+                    },
+                    { total, fail: 0, timeout: 0, crashed: 0, skipped: 0 }
+                );
+            }
 
-                toggleLabel.style.display = 'block';
-                toggleLabel.textContent = 'Showing: ' + (showingExpected ? 'Expected' : 'Actual') + ' (click image to toggle)';
-
-                imageContainer.style.cursor = 'pointer';
-                imageContainer.onclick = function() {
-                    showingExpected = !showingExpected;
-                    renderToggleMode();
+            function loadResults() {
+                const data = {
+                    total: 0,
+                    generatedAt: 0,
+                    argv: [],
+                    showSkipped: false,
+                    tests: [],
+                    hasHelperLogs: false,
                 };
+                const records = Array.isArray(window.RESULTS_MANIFEST) ? window.RESULTS_MANIFEST : [];
+                testsByPid = buildTestsByPid(records);
+                for (const record of records) {
+                    if (record.type === "run") {
+                        Object.assign(data, {
+                            total: record.total ?? 0,
+                            generatedAt: record.generatedAt ?? 0,
+                            argv: Array.isArray(record.argv) ? record.argv : [],
+                            showSkipped: Boolean(record.showSkipped),
+                        });
+                    } else if (record.type === "test") {
+                        if (record.result !== "Pass") data.tests.push(record);
+                    } else if (record.type === "helper-logs") {
+                      data.hasHelperLogs = true;
+                    }
+                }
+                renderHeader(data);
+                renderResults(data);
+                setupKeyboardNav();
             }
 
-            function renderSlideMode() {
-                imageContainer.innerHTML = '';
-                imageContainer.style.cursor = 'ew-resize';
+            function renderResults(data) {
+                const content = document.getElementById("content");
+                const summary = summarizeResults(data.tests, data.total);
+                const tests = data.showSkipped ? data.tests : data.tests.filter(test => test.result !== "Skipped");
 
-                // Base layer: actual image
-                const actualClone = actualImg.cloneNode();
-                actualClone.style.display = 'block';
-                imageContainer.appendChild(actualClone);
+                const items = data.hasHelperLogs
+                    ? [
+                          {
+                              type: "helper-logs",
+                              name: "test-dumps/results/helper-process-logs.html",
+                              mode: "LOGS",
+                              inlineFileResult: "helper-process-logs.html",
+                          },
+                          ...tests,
+                      ]
+                    : tests;
 
-                // Clip layer: expected image (clipped from left)
-                const clipDiv = document.createElement('div');
-                clipDiv.className = 'diff-slide-clip';
-                clipDiv.style.width = (width / 2) + 'px';
+                let html = `
+                    <div class="summary">
+                        <div class="stat-card total">
+                            <div class="stat-value">${summary.total}</div>
+                            <div class="stat-label">Total</div>
+                        </div>
+                        <div class="stat-card fail">
+                            <div class="stat-value">${summary.fail}</div>
+                            <div class="stat-label">Failed</div>
+                        </div>
+                        <div class="stat-card timeout">
+                            <div class="stat-value">${summary.timeout}</div>
+                            <div class="stat-label">Timeout</div>
+                        </div>
+                        <div class="stat-card crashed">
+                            <div class="stat-value">${summary.crashed}</div>
+                            <div class="stat-label">Crashed</div>
+                        </div>
+                        <div class="stat-card skipped">
+                            <div class="stat-value">${summary.skipped}</div>
+                            <div class="stat-label">Skipped</div>
+                        </div>
+                    </div>
+                    <div class="test-list" id="testList">
+                `;
+                for (const test of items) {
+                    html += renderResultItem(test);
+                }
+                html += "</div>";
+                if (!tests.length && !data.hasHelperLogs) {
+                    html +=
+                        '<div class="empty-state"><h2>All items Passed!</h2><p>No failing items to display.</p></div>';
+                }
+                content.innerHTML = html;
+                testElements = Array.from(document.querySelectorAll(".test-item"));
+            }
 
-                const expectedClone = expectedImg.cloneNode();
-                expectedClone.style.display = 'block';
-                expectedClone.style.width = width + 'px';
-                expectedClone.style.maxWidth = 'none';
-                clipDiv.appendChild(expectedClone);
-                imageContainer.appendChild(clipDiv);
+            function renderResultItem(item) {
+                const testId = item.name.replace(/[^a-zA-Z0-9]/g, "-");
+                const tabs = item.inlineFileResult ? null : buildTabs(item);
 
-                // Vertical line
-                const line = document.createElement('div');
-                line.className = 'diff-slide-line';
-                line.style.left = (width / 2) + 'px';
-                imageContainer.appendChild(line);
+                let html = `
+                    <div class="test-item" data-type="${item.type}" data-name="${item.name.toLowerCase()}" id="test-${testId}">
+                        <div class="row-header" onclick="toggleTest('${testId}')">
+                            ${item.result ? `<span class="result-badge ${item.result}">${item.result}</span>` : ""}
+                            ${item.mode ? `<span class="mode-badge">${item.mode}</span>` : ""}
+                            <span class="test-name">${item.name}</span>
+                            ${item.result ? `<button class="copy-btn" onclick="copyText(event, this, '${item.name}')" title="Copy test path">${copySvg}</button>` : ""}
+                            <span class="expand-icon">&#9654;</span>
+                        </div>
+                        <div class="test-content">
+                `;
+                if (tabs) {
+                    html += `<div class="tab-bar">${tabs.bar}</div>
+                            <div class="preview-container" id="preview-${testId}">
+                            <div class="loading">Select a tab to view content</div>
+                        </div>
+                    `;
+                } else if (item.inlineFileResult) {
+                    html += `<iframe class="inline-file-frame" src="${item.inlineFileResult}"></iframe>`;
+                }
+                html += `</div></div>`;
+                return html;
+            }
 
-                // Draggable handle on the line
-                const handle = document.createElement('div');
-                handle.className = 'diff-slide-handle';
-                handle.style.left = (width / 2) + 'px';
-                imageContainer.appendChild(handle);
+            function buildTabs(test) {
+                let tabs = [];
 
-                let dragging = false;
-
-                function updatePosition(clientX) {
-                    const rect = imageContainer.getBoundingClientRect();
-                    let x = clientX - rect.left;
-                    x = Math.max(0, Math.min(width, x));
-                    clipDiv.style.width = x + 'px';
-                    line.style.left = x + 'px';
-                    handle.style.left = x + 'px';
+                if (test.mode === "Layout" || test.mode === "Text") {
+                    tabs.push({ id: "diff", label: "Diff", file: `${test.name}.diff.html`, type: "diff" });
+                    tabs.push({ id: "expected", label: "Expected", file: `${test.name}.expected.txt`, type: "text" });
+                    tabs.push({ id: "actual", label: "Actual", file: `${test.name}.actual.txt`, type: "text" });
+                } else if (test.mode === "Ref" || test.mode === "Screenshot") {
+                    tabs.push({
+                        id: "compare",
+                        label: "Compare",
+                        expected: `${test.name}.expected.png`,
+                        actual: `${test.name}.actual.png`,
+                        diff: `${test.name}.diff.png`,
+                        pixelErrors: test.pixelErrors,
+                        maxChannelDiff: test.maxChannelDiff,
+                        type: "imageDiff",
+                    });
                 }
 
-                function onMouseDown(e) {
-                    dragging = true;
-                    e.preventDefault();
-                    updatePosition(e.clientX);
+                if (test.hasLogs)
+                    tabs.push({ id: "std-logs", label: "Logs", file: `${test.name}.logs.html`, type: "text" });
+                if (Array.isArray(test.pids)) {
+                    for (const pid of test.pids) {
+                        if ((testsByPid.get(pid)?.length ?? 0) === 0) continue;
+                        tabs.push({
+                            id: `pid-${pid}`,
+                            label: 'Context',
+                            pid,
+                            currentTestName: test.name,
+                            type: "process",
+                        });
+                    }
                 }
 
-                function onMouseMove(e) {
-                    if (dragging) {
+                const bar = tabs
+                    .map(
+                        (t, i) =>
+                            `<button class="tab-btn${i === 0 ? " active" : ""}" onclick="showTab('${test.name.replace(/[^a-zA-Z0-9]/g, "-")}', ${JSON.stringify(t).replace(/"/g, "&quot;")}, this)">${t.label}</button>`
+                    )
+                    .join("");
+
+                return { bar, tabs };
+            }
+
+            function copyText(event, btn, text) {
+                event?.stopPropagation();
+                navigator.clipboard.writeText(text).then(function () {
+                    setCopyButtonContents(btn, checkSvg);
+                    btn.classList.add("copied");
+                    setTimeout(function () {
+                        setCopyButtonContents(btn, copySvg);
+                        btn.classList.remove("copied");
+                    }, 1500);
+                });
+            }
+
+            function toggleTest(testId) {
+                const item = document.getElementById(`test-${testId}`);
+                const wasExpanded = item.classList.contains("expanded");
+
+                // Collapse all
+                document.querySelectorAll(".test-item.expanded").forEach(el => el.classList.remove("expanded"));
+
+                if (!wasExpanded) {
+                    item.classList.add("expanded");
+                    // Auto-click first tab
+                    const firstTab = item.querySelector(".tab-btn");
+                    if (firstTab) firstTab.click();
+
+                    // Update keyboard nav index
+                    currentIndex = testElements.indexOf(item);
+                }
+            }
+
+            function showTab(testId, tab, btn) {
+                // Update active tab
+                btn.parentElement.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+
+                const container = document.getElementById(`preview-${testId}`);
+
+                if (tab.type === "diff" || tab.type === "text") {
+                    container.innerHTML = `<iframe class="preview-frame" src="${tab.file}"></iframe>`;
+                } else if (tab.type === "image") {
+                    container.innerHTML = `<img class="preview-image" src="${tab.file}" alt="${tab.label}">`;
+                } else if (tab.type === "imageDiff") {
+                    initImageDiffViewer(
+                        container,
+                        tab.expected,
+                        tab.actual,
+                        tab.diff,
+                        tab.pixelErrors,
+                        tab.maxChannelDiff
+                    );
+                } else if (tab.type === "process") {
+                    renderProcessTab(container, tab.pid, tab.currentTestName);
+                }
+            }
+
+            function renderProcessTab(container, pid, currentTestName) {
+                const sequence = testsByPid.get(pid) ?? [];
+                const runCommand = buildSequenceRunCommand(sequence);
+
+                if (!sequence.length) {
+                    container.innerHTML = '<div class="loading">No test sequence was recorded for this pid.</div>';
+                    return;
+                }
+
+                const rows = sequence
+                    .map((test, index) => {
+                        const isCurrentTest = test.name === currentTestName;
+                        const testPath = test.relativePath ?? test.name;
+                        return `
+                            <div class="process-row${isCurrentTest ? " current" : ""}">
+                                <span class="mode-badge">${isCurrentTest ? "Current" : index + 1}</span>
+                                <span class="result-badge ${test.result}">${test.result}</span>
+                                <div class="process-row-main">
+                                    <span class="test-name">${escapeHtml(testPath)}</span>
+                                    <button class="copy-btn" data-copy-text="${escapeHtml(testPath)}" title="Copy test path"></button>
+                                </div>
+                            </div>`;
+                    })
+                    .join("");
+
+                container.innerHTML = `
+                    <div class="process">
+                        <div class="process-header">
+                            <span class="process-meta">Pid ${pid}: ${sequence.length} tests</span>
+                            <button class="copy-btn copy-run-command-btn compact process-copy-btn" data-label="Copy Run Cmd"></button>
+                        </div>
+                        <div class="process-list">${rows}</div>
+                    </div>`;
+
+                const copyButton = container.querySelector(".process-copy-btn");
+                if (copyButton) {
+                    setCopyButtonContents(copyButton, copySvg);
+                    copyButton.title = runCommand;
+                    copyButton.onclick = event => copyText(event, copyButton, runCommand);
+                }
+
+                container.querySelectorAll(".process .copy-btn").forEach(button => {
+                    if (button.classList.contains("process-copy-btn")) return;
+                    setCopyButtonContents(button, copySvg);
+                    button.onclick = event => copyText(event, button, button.dataset.copyText ?? "");
+                });
+
+                requestAnimationFrame(() => {
+                    container.querySelector(".process-row.current")?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "center",
+                        inline: "nearest",
+                    });
+                });
+            }
+
+            function initImageDiffViewer(container, expectedSrc, actualSrc, diffSrc, pixelErrors, maxChannelDiff) {
+                const viewerId = "diff-" + Math.random().toString(36).substr(2, 9);
+
+                container.innerHTML = `
+                    <div class="image-diff-viewer" id="${viewerId}">
+                        <div class="diff-mode-bar">
+                            <button class="diff-mode-btn active" data-mode="toggle">Toggle</button>
+                            <button class="diff-mode-btn" data-mode="slide">Slide</button>
+                            <button class="diff-mode-btn" data-mode="fade">Fade</button>
+                            <button class="diff-mode-btn" data-mode="difference">Difference</button>
+                            <div class="diff-slider-container" id="${viewerId}-slider-container">
+                                <label>Opacity: <span id="${viewerId}-slider-value">50</span>%</label>
+                                <input type="range" class="diff-slider" id="${viewerId}-slider" min="0" max="100" value="50">
+                            </div>
+                        </div>
+                        <div class="diff-stats" id="${viewerId}-stats" style="display: none;"></div>
+                        <div class="diff-image-wrapper">
+                            <div class="diff-image-container" id="${viewerId}-container">
+                                <div class="loading">Loading images...</div>
+                            </div>
+                            <div class="diff-toggle-label" id="${viewerId}-label" style="display: none;">Showing: Expected</div>
+                        </div>
+                    </div>
+                `;
+
+                const viewer = document.getElementById(viewerId);
+                const imageContainer = document.getElementById(`${viewerId}-container`);
+                const sliderContainer = document.getElementById(`${viewerId}-slider-container`);
+                const slider = document.getElementById(`${viewerId}-slider`);
+                const sliderValue = document.getElementById(`${viewerId}-slider-value`);
+                const toggleLabel = document.getElementById(`${viewerId}-label`);
+                const statsEl = document.getElementById(`${viewerId}-stats`);
+
+                let expectedImg = new Image();
+                let actualImg = new Image();
+                let diffImg = new Image();
+                let currentMode = "toggle";
+                let showingExpected = true;
+                let imagesLoaded = 0;
+                let width, height;
+
+                function onImageLoad() {
+                    imagesLoaded++;
+                    if (imagesLoaded === 2) {
+                        setupDiffViewer();
+                    }
+                }
+
+                expectedImg.onload = actualImg.onload = onImageLoad;
+
+                expectedImg.onerror = actualImg.onerror = function () {
+                    imageContainer.innerHTML = '<div class="loading">Failed to load image</div>';
+                };
+
+                expectedImg.src = expectedSrc;
+                actualImg.src = actualSrc;
+                if (diffSrc) diffImg.src = diffSrc;
+
+                function setupDiffViewer() {
+                    width = Math.max(expectedImg.naturalWidth, actualImg.naturalWidth);
+                    height = Math.max(expectedImg.naturalHeight, actualImg.naturalHeight);
+
+                    imageContainer.innerHTML = "";
+                    imageContainer.style.width = width + "px";
+                    imageContainer.style.height = height + "px";
+
+                    if (pixelErrors !== undefined) {
+                        const totalPixels = width * height;
+                        const pct = ((pixelErrors / totalPixels) * 100).toFixed(2);
+                        statsEl.innerHTML = `Pixel errors: <strong>${pixelErrors}</strong> / ${totalPixels} (${pct}%) &middot; Max channel difference: <strong>${maxChannelDiff}</strong>`;
+                        statsEl.style.display = "block";
+                    }
+
+                    renderToggleMode();
+                }
+
+                function renderToggleMode() {
+                    imageContainer.innerHTML = "";
+                    const img = showingExpected ? expectedImg.cloneNode() : actualImg.cloneNode();
+                    img.style.display = "block";
+                    imageContainer.appendChild(img);
+
+                    toggleLabel.style.display = "block";
+                    toggleLabel.textContent =
+                        "Showing: " + (showingExpected ? "Expected" : "Actual") + " (click image to toggle)";
+
+                    imageContainer.style.cursor = "pointer";
+                    imageContainer.onclick = function () {
+                        showingExpected = !showingExpected;
+                        renderToggleMode();
+                    };
+                }
+
+                function renderSlideMode() {
+                    imageContainer.innerHTML = "";
+                    imageContainer.style.cursor = "ew-resize";
+
+                    // Base layer: actual image
+                    const actualClone = actualImg.cloneNode();
+                    actualClone.style.display = "block";
+                    imageContainer.appendChild(actualClone);
+
+                    // Clip layer: expected image (clipped from left)
+                    const clipDiv = document.createElement("div");
+                    clipDiv.className = "diff-slide-clip";
+                    clipDiv.style.width = width / 2 + "px";
+
+                    const expectedClone = expectedImg.cloneNode();
+                    expectedClone.style.display = "block";
+                    expectedClone.style.width = width + "px";
+                    expectedClone.style.maxWidth = "none";
+                    clipDiv.appendChild(expectedClone);
+                    imageContainer.appendChild(clipDiv);
+
+                    // Vertical line
+                    const line = document.createElement("div");
+                    line.className = "diff-slide-line";
+                    line.style.left = width / 2 + "px";
+                    imageContainer.appendChild(line);
+
+                    // Draggable handle on the line
+                    const handle = document.createElement("div");
+                    handle.className = "diff-slide-handle";
+                    handle.style.left = width / 2 + "px";
+                    imageContainer.appendChild(handle);
+
+                    let dragging = false;
+
+                    function updatePosition(clientX) {
+                        const rect = imageContainer.getBoundingClientRect();
+                        let x = clientX - rect.left;
+                        x = Math.max(0, Math.min(width, x));
+                        clipDiv.style.width = x + "px";
+                        line.style.left = x + "px";
+                        handle.style.left = x + "px";
+                    }
+
+                    function onMouseDown(e) {
+                        dragging = true;
+                        e.preventDefault();
                         updatePosition(e.clientX);
                     }
+
+                    function onMouseMove(e) {
+                        if (dragging) {
+                            updatePosition(e.clientX);
+                        }
+                    }
+
+                    function onMouseUp() {
+                        dragging = false;
+                    }
+
+                    handle.addEventListener("mousedown", onMouseDown);
+                    imageContainer.addEventListener("mousedown", onMouseDown);
+                    document.addEventListener("mousemove", onMouseMove);
+                    document.addEventListener("mouseup", onMouseUp);
+
+                    // Store cleanup function
+                    imageContainer._cleanup = function () {
+                        document.removeEventListener("mousemove", onMouseMove);
+                        document.removeEventListener("mouseup", onMouseUp);
+                    };
                 }
 
-                function onMouseUp() {
-                    dragging = false;
+                function renderFadeMode() {
+                    const opacity = slider.value / 100;
+
+                    imageContainer.innerHTML = "";
+                    imageContainer.style.cursor = "default";
+                    imageContainer.onclick = null;
+
+                    const expectedClone = expectedImg.cloneNode();
+                    expectedClone.style.display = "block";
+                    expectedClone.style.position = "relative";
+                    imageContainer.appendChild(expectedClone);
+
+                    const actualClone = actualImg.cloneNode();
+                    actualClone.className = "diff-image-actual";
+                    actualClone.style.opacity = opacity;
+                    imageContainer.appendChild(actualClone);
                 }
 
-                handle.addEventListener('mousedown', onMouseDown);
-                imageContainer.addEventListener('mousedown', onMouseDown);
-                document.addEventListener('mousemove', onMouseMove);
-                document.addEventListener('mouseup', onMouseUp);
+                function renderDifferenceMode() {
+                    imageContainer.innerHTML = "";
+                    imageContainer.style.cursor = "default";
+                    imageContainer.onclick = null;
 
-                // Store cleanup function
-                imageContainer._cleanup = function() {
-                    document.removeEventListener('mousemove', onMouseMove);
-                    document.removeEventListener('mouseup', onMouseUp);
+                    if (diffImg.src) {
+                        const img = diffImg.cloneNode();
+                        img.style.display = "block";
+                        imageContainer.appendChild(img);
+                    } else {
+                        imageContainer.innerHTML = '<div class="loading">No diff image available</div>';
+                    }
+
+                    toggleLabel.style.display = "block";
+                    toggleLabel.textContent = "Difference mode: black = identical, red = different";
+                }
+
+                function cleanupCurrentMode() {
+                    if (imageContainer._cleanup) {
+                        imageContainer._cleanup();
+                        imageContainer._cleanup = null;
+                    }
+                    imageContainer.onclick = null;
+                    imageContainer.style.filter = "";
+                }
+
+                function setMode(mode) {
+                    cleanupCurrentMode();
+                    currentMode = mode;
+                    toggleLabel.style.display = "none";
+
+                    viewer.querySelectorAll(".diff-mode-btn").forEach(btn => {
+                        btn.classList.toggle("active", btn.dataset.mode === mode);
+                    });
+
+                    if (mode === "fade") {
+                        sliderContainer.classList.add("visible");
+                        slider.value = 50;
+                        sliderValue.textContent = "50";
+                    } else {
+                        sliderContainer.classList.remove("visible");
+                    }
+
+                    switch (mode) {
+                        case "toggle":
+                            renderToggleMode();
+                            break;
+                        case "slide":
+                            renderSlideMode();
+                            break;
+                        case "fade":
+                            renderFadeMode();
+                            break;
+                        case "difference":
+                            renderDifferenceMode();
+                            break;
+                    }
+                }
+
+                viewer.querySelectorAll(".diff-mode-btn").forEach(btn => {
+                    btn.onclick = function () {
+                        setMode(this.dataset.mode);
+                    };
+                });
+
+                slider.oninput = function () {
+                    sliderValue.textContent = Math.round(this.value);
+                    if (currentMode === "fade") {
+                        const opacity = this.value / 100;
+                        const actual = imageContainer.querySelector(".diff-image-actual");
+                        if (actual) actual.style.opacity = opacity;
+                    }
                 };
             }
 
-            function renderFadeMode() {
-                const opacity = slider.value / 100;
+            function setupKeyboardNav() {
+                const searchInput = document.getElementById("search");
 
-                imageContainer.innerHTML = '';
-                imageContainer.style.cursor = 'default';
-                imageContainer.onclick = null;
-
-                const expectedClone = expectedImg.cloneNode();
-                expectedClone.style.display = 'block';
-                expectedClone.style.position = 'relative';
-                imageContainer.appendChild(expectedClone);
-
-                const actualClone = actualImg.cloneNode();
-                actualClone.className = 'diff-image-actual';
-                actualClone.style.opacity = opacity;
-                imageContainer.appendChild(actualClone);
-            }
-
-            function renderDifferenceMode() {
-                imageContainer.innerHTML = '';
-                imageContainer.style.cursor = 'default';
-                imageContainer.onclick = null;
-
-                if (diffImg.src) {
-                    const img = diffImg.cloneNode();
-                    img.style.display = 'block';
-                    imageContainer.appendChild(img);
-                } else {
-                    imageContainer.innerHTML = '<div class="loading">No diff image available</div>';
-                }
-
-                toggleLabel.style.display = 'block';
-                toggleLabel.textContent = 'Difference mode: black = identical, red = different';
-            }
-
-            function cleanupCurrentMode() {
-                if (imageContainer._cleanup) {
-                    imageContainer._cleanup();
-                    imageContainer._cleanup = null;
-                }
-                imageContainer.onclick = null;
-                imageContainer.style.filter = '';
-            }
-
-            function setMode(mode) {
-                cleanupCurrentMode();
-                currentMode = mode;
-                toggleLabel.style.display = 'none';
-
-                viewer.querySelectorAll('.diff-mode-btn').forEach(btn => {
-                    btn.classList.toggle('active', btn.dataset.mode === mode);
+                searchInput.addEventListener("input", function () {
+                    const query = this.value.toLowerCase();
+                    testElements.forEach(el => {
+                        const name = el.dataset.name;
+                        el.classList.toggle("hidden", !name.includes(query));
+                    });
                 });
 
-                if (mode === 'fade') {
-                    sliderContainer.classList.add('visible');
-                    slider.value = 50;
-                    sliderValue.textContent = '50';
-                } else {
-                    sliderContainer.classList.remove('visible');
-                }
+                document.addEventListener("keydown", function (e) {
+                    if (e.key === "/" && document.activeElement !== searchInput) {
+                        e.preventDefault();
+                        searchInput.focus();
+                        return;
+                    }
 
-                switch (mode) {
-                    case 'toggle': renderToggleMode(); break;
-                    case 'slide': renderSlideMode(); break;
-                    case 'fade': renderFadeMode(); break;
-                    case 'difference': renderDifferenceMode(); break;
-                }
+                    if (document.activeElement === searchInput) {
+                        if (e.key === "Escape") {
+                            searchInput.blur();
+                        }
+                        return;
+                    }
+
+                    const visibleTests = testElements.filter(el => !el.classList.contains("hidden"));
+
+                    if (e.key === "ArrowDown" || e.key === "j") {
+                        e.preventDefault();
+                        if (currentIndex < visibleTests.length - 1) {
+                            currentIndex++;
+                            visibleTests[currentIndex].scrollIntoView({ behavior: "smooth", block: "nearest" });
+                            highlightTest(visibleTests[currentIndex]);
+                        }
+                    } else if (e.key === "ArrowUp" || e.key === "k") {
+                        e.preventDefault();
+                        if (currentIndex > 0) {
+                            currentIndex--;
+                            visibleTests[currentIndex].scrollIntoView({ behavior: "smooth", block: "nearest" });
+                            highlightTest(visibleTests[currentIndex]);
+                        }
+                    } else if (e.key === "Enter") {
+                        e.preventDefault();
+                        if (currentIndex >= 0 && visibleTests[currentIndex]) {
+                            const testId = visibleTests[currentIndex].id.replace("test-", "");
+                            toggleTest(testId);
+                        }
+                    }
+                });
             }
 
-            viewer.querySelectorAll('.diff-mode-btn').forEach(btn => {
-                btn.onclick = function() {
-                    setMode(this.dataset.mode);
-                };
-            });
+            function highlightTest(el) {
+                testElements.forEach(t => (t.style.outline = ""));
+                el.style.outline = "2px solid var(--accent-blue)";
+                el.style.outlineOffset = "-2px";
+            }
 
-            slider.oninput = function() {
-                sliderValue.textContent = Math.round(this.value);
-                if (currentMode === 'fade') {
-                    const opacity = this.value / 100;
-                    const actual = imageContainer.querySelector('.diff-image-actual');
-                    if (actual) actual.style.opacity = opacity;
-                }
-            };
-        }
+            function escapeHtml(value) {
+                return String(value)
+                    .replaceAll("&", "&amp;")
+                    .replaceAll("<", "&lt;")
+                    .replaceAll(">", "&gt;")
+                    .replaceAll('"', "&quot;")
+                    .replaceAll("'", "&#39;");
+            }
 
-        function setupKeyboardNav() {
-            const searchInput = document.getElementById('search');
-
-            searchInput.addEventListener('input', function() {
-                const query = this.value.toLowerCase();
-                testElements.forEach(el => {
-                    const name = el.dataset.name;
-                    el.classList.toggle('hidden', !name.includes(query));
-                });
-            });
-
-            document.addEventListener('keydown', function(e) {
-                if (e.key === '/' && document.activeElement !== searchInput) {
-                    e.preventDefault();
-                    searchInput.focus();
-                    return;
-                }
-
-                if (document.activeElement === searchInput) {
-                    if (e.key === 'Escape') {
-                        searchInput.blur();
-                    }
-                    return;
-                }
-
-                const visibleTests = testElements.filter(el => !el.classList.contains('hidden'));
-
-                if (e.key === 'ArrowDown' || e.key === 'j') {
-                    e.preventDefault();
-                    if (currentIndex < visibleTests.length - 1) {
-                        currentIndex++;
-                        visibleTests[currentIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                        highlightTest(visibleTests[currentIndex]);
-                    }
-                } else if (e.key === 'ArrowUp' || e.key === 'k') {
-                    e.preventDefault();
-                    if (currentIndex > 0) {
-                        currentIndex--;
-                        visibleTests[currentIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                        highlightTest(visibleTests[currentIndex]);
-                    }
-                } else if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (currentIndex >= 0 && visibleTests[currentIndex]) {
-                        const testId = visibleTests[currentIndex].id.replace('test-', '');
-                        toggleTest(testId);
-                    }
-                }
-            });
-        }
-
-        function highlightTest(el) {
-            testElements.forEach(t => t.style.outline = '');
-            el.style.outline = '2px solid var(--accent-blue)';
-            el.style.outlineOffset = '-2px';
-        }
-
-        function escapeHtml(value) {
-            return String(value)
-                .replaceAll('&', '&amp;')
-                .replaceAll('<', '&lt;')
-                .replaceAll('>', '&gt;')
-                .replaceAll('"', '&quot;')
-                .replaceAll("'", '&#39;');
-        }
-
-        loadResults();
-    </script>
-</body>
+            loadResults();
+        </script>
+    </body>
 </html>
