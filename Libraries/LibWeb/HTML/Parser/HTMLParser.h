@@ -52,6 +52,7 @@ public:
     ~HTMLParser();
 
     static GC::Ref<HTMLParser> create_for_scripting(DOM::Document&);
+    static GC::Ref<HTMLParser> create_with_open_input_stream(DOM::Document&);
     static GC::Ref<HTMLParser> create_with_uncertain_encoding(DOM::Document&, ByteBuffer const& input, Optional<MimeSniff::MimeType> maybe_mime_type = {});
     static GC::Ref<HTMLParser> create(DOM::Document&, StringView input, ParserScriptingMode, StringView encoding);
 
@@ -90,6 +91,7 @@ public:
 
     bool aborted() const { return m_aborted; }
     bool stopped() const { return m_stop_parsing; }
+    bool is_script_created() const { return m_script_created; }
 
     size_t script_nesting_level() const { return m_script_nesting_level; }
 
@@ -97,8 +99,13 @@ public:
     void set_post_parse_action(Function<void()> action) { m_post_parse_action = move(action); }
 
 private:
+    enum class ScriptCreatedParser {
+        No,
+        Yes,
+    };
+
     HTMLParser(DOM::Document&, ParserScriptingMode, StringView input, StringView encoding);
-    HTMLParser(DOM::Document&, ParserScriptingMode);
+    HTMLParser(DOM::Document&, ParserScriptingMode, ScriptCreatedParser);
 
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void initialize(JS::Realm&) override;
@@ -209,6 +216,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/parsing.html#scripting-mode
     ParserScriptingMode m_scripting_mode {};
+    bool m_script_created { false };
 
     bool m_invoked_via_document_write { false };
     bool m_aborted { false };

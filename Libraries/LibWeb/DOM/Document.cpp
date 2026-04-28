@@ -908,7 +908,7 @@ WebIDL::ExceptionOr<void> Document::close()
         return WebIDL::InvalidStateError::create(realm(), "throw-on-dynamic-markup-insertion-counter greater than zero."_utf16);
 
     // 3. If there is no script-created parser associated with the document, then return.
-    if (!m_parser)
+    if (!m_parser || !m_parser->is_script_created())
         return {};
 
     // 4. Insert an explicit "EOF" character at the end of the parser's input stream.

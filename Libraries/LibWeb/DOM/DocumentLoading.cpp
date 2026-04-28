@@ -270,7 +270,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_text_document(HTML::Navi
         dbgln_if(HTML_PARSER_DEBUG, "The encoding sniffing algorithm returned encoding '{}'", encoding);
 
         auto run_text_parser = [document, data = move(data), url, encoding = move(encoding)] {
-            auto parser = HTML::HTMLParser::create_for_scripting(document);
+            auto parser = HTML::HTMLParser::create_with_open_input_stream(document);
             parser->tokenizer().update_insertion_point();
 
             parser->tokenizer().insert_input_at_insertion_point("<pre>\n"sv);
