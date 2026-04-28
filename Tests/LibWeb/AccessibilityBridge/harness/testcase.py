@@ -9,10 +9,10 @@ from .ladybird import LadybirdContext
 
 
 class AccessibilityBridgeTestCase(unittest.TestCase):
-    """Subclass this and set `FIXTURE = "<name>.html"` (a file under input/).
+    """Subclass this and set FIXTURE = "<name>.html" (a file under input/).
 
     Ladybird is launched once per TestCase subclass (setUpClass) and reused across every test method in that class. Each
-    test method gets `self.app` (the Ladybird AT-SPI2 application) and `self.doc` (the document web accessible) already
+    test method gets self.app (the Ladybird AT-SPI2 application) and self.doc (the document web accessible) already
     populated."""
 
     FIXTURE: str = ""
@@ -46,3 +46,25 @@ class AccessibilityBridgeTestCase(unittest.TestCase):
     @property
     def doc(self):
         return self.ctx.document
+
+
+class LadybirdOrcaTestCase(AccessibilityBridgeTestCase):
+    """Layer-2 base class: on top of the Ladybird launch, opens an OrcaSession in setUp and closes it in a cleanup.
+
+    The OrcaSession is per-test-method (not per-class) — so captured speech doesn't leak between tests. If Orca isn't
+    installed, every test in the subclass is skipped automatically — with a clear message."""
+
+    def setUp(self):
+        super().setUp()
+        from .orca import OrcaNotInstalled
+        from .orca import OrcaSession
+
+        try:
+            self.orca = OrcaSession(self.app)
+            # A cleanup rather than tearDown, registered before start(): unittest skips tearDown when setUp raises, and
+            # a start() that fails partway has already made the harness script Orca's active one and patched its
+            # speech. stop() undoes whatever start() got to, and is safe to run on a session that never started.
+            self.addCleanup(self.orca.stop)
+            self.orca.start()
+        except OrcaNotInstalled as exc:
+            raise unittest.SkipTest(str(exc)) from exc
