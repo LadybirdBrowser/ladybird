@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+
+<!-- Base case: a single shadow root sees its own ::slotted() rules apply
+     to direct light-DOM children. -->
+<direct-host id="direct"><p id="direct-leaf">direct</p></direct-host>
+
+<!-- Re-slotted case: inner-host's ::slotted() must match the eventual
+     flattened slottable, not the intermediate <slot> in outer-host's shadow. -->
+<outer-host id="outer"><p id="outer-leaf">leaf</p></outer-host>
+
+<!-- Three levels: confirm each intermediate slot is skipped, only the leaf matches. -->
+<l1-host id="l1"><p id="l1-leaf">deep leaf</p></l1-host>
+
+<!-- Re-slotting via named slots, with attribute / class / tag selectors. -->
+<named-outer id="named"><span id="named-leaf" slot="content" class="x" data-y>x</span></named-outer>
+
+<!-- Slot hosts no slottables and has fallback content. The fallback is a child of
+     the slot in the shadow tree, not a flattened slottable, so ::slotted should
+     not apply to it. -->
+<fallback-host id="fb"></fallback-host>
+
+<!-- Multiple leaves, all flowing through the chain. -->
+<outer-host id="multi"><p class="m">a</p><p class="m">b</p><p class="m">c</p></outer-host>
+
+<script>
+    function defineHost(name, html) {
+        const tpl = html;
+        customElements.define(name, class extends HTMLElement {
+            constructor() {
+                super();
+                this.attachShadow({ mode: "open" }).innerHTML = tpl;
+            }
+        });
+    }
+
+    defineHost("direct-host", `
+        <style>::slotted(p) { color: rgb(0, 128, 0); }</style>
+        <slot></slot>`);
+
+    defineHost("inner-host", `
+        <style>::slotted(:not([slot])) { color: rgb(255, 0, 0); }</style>
+        <slot></slot>`);
+    defineHost("outer-host", `<inner-host><slot></slot></inner-host>`);
+
+    defineHost("l3-host", `
+        <style>
+            ::slotted(p) { color: rgb(0, 0, 255); }
+            ::slotted(slot) { color: rgb(255, 200, 0); }
+        </style>
+        <slot></slot>`);
+    defineHost("l2-host", `<l3-host><slot></slot></l3-host>`);
+    defineHost("l1-host", `<l2-host><slot></slot></l2-host>`);
+
+    defineHost("named-inner", `
+        <style>
+            ::slotted(span) { background: rgb(10, 10, 10); }
+            ::slotted(.x) { border-color: rgb(20, 20, 20); }
+            ::slotted([data-y]) { outline-color: rgb(30, 30, 30); }
+            /* The intermediate <slot slot="content"> matches both of these by
+               shape; the fix must keep them from applying to the slot. */
+            ::slotted(slot) { color: rgb(40, 40, 40); }
+            ::slotted([name]) { caret-color: rgb(50, 50, 50); }
+        </style>
+        <slot name="content"></slot>`);
+    defineHost("named-outer", `<named-inner><slot name="content" slot="content"></slot></named-inner>`);
+
+    defineHost("fb-inner", `
+        <style>::slotted(*) { color: rgb(255, 0, 0); }</style>
+        <slot><i id="fallback-i">fallback</i></slot>`);
+    defineHost("fallback-host", `<fb-inner><slot></slot></fb-inner>`);
+
+    test(() => {
+        const out = (label, value) => println(`${label}: ${value}`);
+
+        // Direct slot - its slottable picks up the rule (sanity check).
+        const directSlot = document.getElementById("direct").shadowRoot.querySelector("slot");
+        out("direct slot color", getComputedStyle(directSlot).color);
+        out("direct leaf color", getComputedStyle(document.getElementById("direct-leaf")).color);
+
+        // Two-level re-slotting: outer's <slot> must NOT pick up the inner ::slotted rule.
+        const outer = document.getElementById("outer");
+        const outerSlot = outer.shadowRoot.querySelector("slot");
+        out("outer slot color", getComputedStyle(outerSlot).color);
+        out("outer leaf color", getComputedStyle(document.getElementById("outer-leaf")).color);
+
+        // Three-level re-slotting: every intermediate slot stays untouched, even
+        // when the rule explicitly targets ::slotted(slot).
+        const l1 = document.getElementById("l1");
+        const l1Slot = l1.shadowRoot.querySelector("slot");
+        const l2Slot = l1.shadowRoot.querySelector("l2-host").shadowRoot.querySelector("slot");
+        out("l1 slot color", getComputedStyle(l1Slot).color);
+        out("l2 slot color", getComputedStyle(l2Slot).color);
+        out("l1 leaf color", getComputedStyle(document.getElementById("l1-leaf")).color);
+
+        // Named-slot re-slotting with attribute/class/tag selectors. The intermediate
+        // <slot slot="content"> must not pick up any of them.
+        const named = document.getElementById("named");
+        const namedSlot = named.shadowRoot.querySelector("slot");
+        const namedLeaf = document.getElementById("named-leaf");
+        out("named slot bg", getComputedStyle(namedSlot).backgroundColor);
+        out("named slot border", getComputedStyle(namedSlot).borderTopColor);
+        out("named slot outline", getComputedStyle(namedSlot).outlineColor);
+        out("named slot color", getComputedStyle(namedSlot).color);
+        out("named slot caret", getComputedStyle(namedSlot).caretColor);
+        out("named leaf bg", getComputedStyle(namedLeaf).backgroundColor);
+        out("named leaf border", getComputedStyle(namedLeaf).borderTopColor);
+        out("named leaf outline", getComputedStyle(namedLeaf).outlineColor);
+
+        // Fallback content is a shadow-tree child, not a flattened slottable: ::slotted skips it.
+        const fb = document.getElementById("fb");
+        const fbSlot = fb.shadowRoot.querySelector("fb-inner").shadowRoot.querySelector("slot");
+        const fallback = fb.shadowRoot.querySelector("fb-inner").shadowRoot.getElementById("fallback-i");
+        out("fb inner slot color", getComputedStyle(fbSlot).color);
+        out("fb fallback color", getComputedStyle(fallback).color);
+
+        // Multiple leaves should all match independently of the intermediate slot.
+        const multi = document.getElementById("multi");
+        const multiSlot = multi.shadowRoot.querySelector("slot");
+        out("multi slot color", getComputedStyle(multiSlot).color);
+        const leaves = multi.querySelectorAll(".m");
+        for (let i = 0; i < leaves.length; i++)
+            out(`multi leaf[${i}] color`, getComputedStyle(leaves[i]).color);
+    });
+</script>
