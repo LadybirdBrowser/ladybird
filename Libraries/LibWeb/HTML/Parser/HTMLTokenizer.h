@@ -135,6 +135,9 @@ public:
 
     String unparsed_input() const;
 
+    void append_to_input_stream(StringView input);
+    void close_input_stream();
+    bool is_input_stream_closed() const { return m_input_stream_closed; }
     void insert_input_at_insertion_point(StringView input);
     void insert_eof();
     bool is_eof_inserted();
@@ -216,6 +219,7 @@ private:
     Optional<FlyString> m_last_emitted_start_tag_name;
 
     bool m_explicit_eof_inserted { false };
+    bool m_input_stream_closed { false };
     bool m_has_emitted_eof { false };
 
     Queue<HTMLToken> m_queued_tokens;
