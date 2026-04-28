@@ -87,7 +87,7 @@ void AudioMixingSink::create_playback_stream()
         self->m_playback_stream = stream;
         self->set_volume(self->m_volume);
         if (self->m_temporary_time.has_value())
-            self->set_time(self->m_temporary_time.value());
+            self->set_time(self->m_temporary_time.release_value());
 
         Sync::MutexLocker locker { self->m_mutex };
         self->m_sample_specification = stream->sample_specification();
@@ -298,12 +298,6 @@ void AudioMixingSink::pause()
 
 void AudioMixingSink::set_time(AK::Duration time)
 {
-    if (!m_playback_stream) {
-        m_last_media_time = time;
-        m_last_stream_time = AK::Duration::zero();
-        return;
-    }
-
     // If we've already started setting the time, we only need to let the last callback complete
     // and set the media time to the temporary time. The callbacks run synchronously, so this will
     // never drop a set_time() call.
@@ -313,6 +307,9 @@ void AudioMixingSink::set_time(AK::Duration time)
     }
 
     m_temporary_time = time;
+
+    if (!m_playback_stream)
+        return;
 
     m_playback_stream->drain_buffer_and_suspend()
         ->when_resolved([weak_self = m_weak_self, &playback_stream = *m_playback_stream]() {
