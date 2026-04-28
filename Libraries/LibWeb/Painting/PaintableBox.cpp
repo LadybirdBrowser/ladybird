@@ -1039,22 +1039,36 @@ bool PaintableBox::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigne
 
 TraversalDecision PaintableBox::hit_test_chrome(CSSPixelPoint adjusted_position, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
+    // The vast majority of paintable boxes have no resizer and no scrollable axis. Reject those before constructing
+    // ChromeMetrics or allocating any Scrollbar.
+    auto has_resizer = this->has_resizer();
+    auto can_scroll_horizontally = could_be_scrolled_by_wheel_event(ScrollDirection::Horizontal);
+    auto can_scroll_vertically = could_be_scrolled_by_wheel_event(ScrollDirection::Vertical);
+    if (!has_resizer && !can_scroll_horizontally && !can_scroll_vertically)
+        return TraversalDecision::Continue;
+
     // FIXME: This const_cast is not great, but this method is invoked from overrides of virtual const methods.
     HitTestResult result { .paintable = const_cast<PaintableBox&>(*this) };
     ChromeMetrics metrics = document().page().chrome_metrics();
 
-    if (resizer_contains(adjusted_position, metrics)) {
+    if (has_resizer && resizer_contains(adjusted_position, metrics)) {
         result.chrome_widget = const_cast<PaintableBox&>(*this).ensure_resize_handle();
         return callback(result);
     }
 
-    for (auto direction : { ScrollDirection::Horizontal, ScrollDirection::Vertical }) {
+    auto check_scrollbar = [&](ScrollDirection direction) -> TraversalDecision {
         auto scrollbar = const_cast<PaintableBox&>(*this).ensure_scrollbar(direction);
         if (scrollbar->contains(adjusted_position, metrics)) {
             result.chrome_widget = scrollbar;
             return callback(result);
         }
-    }
+        return TraversalDecision::Continue;
+    };
+
+    if (can_scroll_horizontally && check_scrollbar(ScrollDirection::Horizontal) == TraversalDecision::Break)
+        return TraversalDecision::Break;
+    if (can_scroll_vertically && check_scrollbar(ScrollDirection::Vertical) == TraversalDecision::Break)
+        return TraversalDecision::Break;
 
     return TraversalDecision::Continue;
 }
