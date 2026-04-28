@@ -26,14 +26,14 @@ class ImageStyleValue final
 public:
     class Client {
     public:
-        Client(ImageStyleValue&);
+        Client(ImageStyleValue const&);
         virtual ~Client();
         virtual void image_style_value_did_update(ImageStyleValue&) = 0;
 
     protected:
         void image_style_value_finalize();
 
-        ImageStyleValue& m_image_style_value;
+        ImageStyleValue const& m_image_style_value;
     };
 
     static ValueComparingNonnullRefPtr<ImageStyleValue const> create(URL const&);
@@ -68,8 +68,8 @@ private:
 
     ImageStyleValue(URL const&);
 
-    void register_client(Client&);
-    void unregister_client(Client&);
+    void register_client(Client&) const;
+    void unregister_client(Client&) const;
 
     virtual void set_style_sheet(GC::Ptr<CSSStyleSheet>) override;
 
@@ -87,7 +87,7 @@ private:
     size_t m_loops_completed { 0 };
     GC::Ptr<Platform::Timer> m_timer;
 
-    HashTable<Client*> m_clients;
+    mutable HashTable<Client*> m_clients;
 };
 
 }

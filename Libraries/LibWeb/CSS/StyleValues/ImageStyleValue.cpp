@@ -229,19 +229,19 @@ ValueComparingNonnullRefPtr<StyleValue const> ImageStyleValue::absolutized(Compu
     return *this;
 }
 
-void ImageStyleValue::register_client(Client& client)
+void ImageStyleValue::register_client(Client& client) const
 {
     auto result = m_clients.set(&client);
     VERIFY(result == AK::HashSetResult::InsertedNewEntry);
 }
 
-void ImageStyleValue::unregister_client(Client& client)
+void ImageStyleValue::unregister_client(Client& client) const
 {
     auto did_remove = m_clients.remove(&client);
     VERIFY(did_remove);
 }
 
-ImageStyleValue::Client::Client(ImageStyleValue& image_style_value)
+ImageStyleValue::Client::Client(ImageStyleValue const& image_style_value)
     : m_image_style_value(image_style_value)
 {
     m_image_style_value.register_client(*this);
