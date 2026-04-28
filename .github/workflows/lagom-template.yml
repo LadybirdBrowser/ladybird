@@ -232,6 +232,18 @@ jobs:
         env:
           TESTS_ONLY: 1
 
+      # The AT-SPI2 tests need a Linux build that is neither Sanitizer nor All_Debug:
+      # - ASan-instrumented Qt-on-XCB hits a buffer overflow in libxkbcommon-x11.
+      # - All_Debug's ENABLE_ALL_THE_DEBUG_MACROS log volume starves the Qt event loop, so AT-SPI2 registration never
+      #   completes within any reasonable wait window.
+      # The Release runner has neither problem, so we run them there.
+      - name: Test - LibWeb AT-SPI2 bridge (Release)
+        if: ${{ inputs.os_name == 'Linux' && inputs.build_preset == 'Release' }}
+        working-directory: ${{ github.workspace }}
+        run: ctest --output-on-failure --test-dir Build -R LibWebAccessibilityBridge --timeout 1800
+        env:
+          TESTS_ONLY: 1
+
       - name: Upload LibWeb Test Artifacts
         if: ${{ always() && inputs.build_preset != 'Fuzzers' && inputs.build_preset != 'All_Debug' }}
         uses: actions/upload-artifact@v7

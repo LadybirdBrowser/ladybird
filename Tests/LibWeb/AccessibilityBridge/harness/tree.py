@@ -2,14 +2,35 @@
 
 from __future__ import annotations
 
+import time
+
 from typing import Callable
 from typing import List
 from typing import Optional
+from typing import Union
 
 import gi
 
 gi.require_version("Atspi", "2.0")
 from gi.repository import Atspi  # noqa: E402
+
+# Role queries can be passed either a:
+# - localized string (e.g., "heading", "link"), matched against Atspi.Accessible.get_role_name(); or
+# - Atspi.Role enum value (e.g., Atspi.Role.PUSH_BUTTON), matched against Atspi.Accessible.get_role()
+# Prefer the enum form for any role whose localized name has changed across libatspi releases. Atspi.Role.PUSH_BUTTON in
+# particular is rendered as "push button" by Ubuntu noble's libatspi (the apt package the CI runner has) but as "button"
+# by Fedora 43's newer libatspi (tested against locally). Comparing against the enum is version-stable; comparing
+# against the string isn't.
+RoleSpec = Union[str, Atspi.Role]
+
+
+def _matches_role(obj: Atspi.Accessible, spec: RoleSpec) -> bool:
+    try:
+        if isinstance(spec, Atspi.Role):
+            return obj.get_role() == spec
+        return obj.get_role_name() == spec
+    except Exception:
+        return False
 
 
 def walk(
@@ -38,21 +59,20 @@ def walk(
 
 def find_first_by_role(
     root: Atspi.Accessible,
-    role_name: str,
+    role: RoleSpec,
     *,
     pred: Optional[Callable[[Atspi.Accessible], bool]] = None,
 ) -> Optional[Atspi.Accessible]:
-    """Returns the first descendant (pre-order) whose role matches."""
+    """Returns the first descendant (pre-order) whose role matches.
+
+    "role" may be a localized role-name string or an Atspi.Role enum — see RoleSpec above."""
     found: List[Atspi.Accessible] = []
 
     def _visit(obj: Atspi.Accessible, _depth: int) -> None:
         if found:
             return
-        try:
-            if obj.get_role_name() == role_name and (pred is None or pred(obj)):
-                found.append(obj)
-        except Exception:
-            pass
+        if _matches_role(obj, role) and (pred is None or pred(obj)):
+            found.append(obj)
 
     walk(root, _visit)
     return found[0] if found else None
@@ -60,22 +80,71 @@ def find_first_by_role(
 
 def find_all_by_role(
     root: Atspi.Accessible,
-    role_name: str,
+    role: RoleSpec,
     *,
     pred: Optional[Callable[[Atspi.Accessible], bool]] = None,
 ) -> List[Atspi.Accessible]:
-    """Returns every descendant whose role matches, in pre-order."""
+    """Returns every descendant whose role matches, in pre-order.
+
+    "role" may be a localized role-name string or an Atspi.Role enum — see RoleSpec above."""
     result: List[Atspi.Accessible] = []
 
     def _visit(obj: Atspi.Accessible, _depth: int) -> None:
-        try:
-            if obj.get_role_name() == role_name and (pred is None or pred(obj)):
-                result.append(obj)
-        except Exception:
-            pass
+        if _matches_role(obj, role) and (pred is None or pred(obj)):
+            result.append(obj)
 
     walk(root, _visit)
     return result
+
+
+def wait_for_descendant_by_role(
+    root: Atspi.Accessible,
+    role: RoleSpec,
+    *,
+    name: Optional[str] = None,
+    pred: Optional[Callable[[Atspi.Accessible], bool]] = None,
+    timeout: float = 5.0,
+    interval: float = 0.1,
+) -> Optional[Atspi.Accessible]:
+    """Polling variant of find_first_by_role — handles AT-SPI2 trees that are still populating.
+
+    Right after Ladybird launches, the document-web accessible can be visible before all of its descendants are on the
+    bus. A plain find_first_by_role call walks the current state once, and misses nodes that arrive a moment later —
+    which manifests as flaky "expected foo in the tree" failures when test cases run back-to-back. So, this helper polls
+    find_first_by_role until either it returns a match, or else the timeout expires.
+
+    "name" and "pred" compose with the role match: if both are given, the node must match all three."""
+
+    def _matches(obj: Atspi.Accessible) -> bool:
+        if name is not None:
+            try:
+                if obj.get_name() != name:
+                    return False
+            except Exception:
+                return False
+        return pred is None if pred is None else pred(obj)
+
+    # Build the combined predicate only if caller supplied name or pred; otherwise, for clarity, use None.
+    combined = None
+    if name is not None or pred is not None:
+
+        def combined(obj: Atspi.Accessible) -> bool:
+            if name is not None:
+                try:
+                    if obj.get_name() != name:
+                        return False
+                except Exception:
+                    return False
+            return pred is None or pred(obj)
+
+    deadline = time.monotonic() + timeout
+    while True:
+        hit = find_first_by_role(root, role, pred=combined)
+        if hit is not None:
+            return hit
+        if time.monotonic() >= deadline:
+            return None
+        time.sleep(interval)
 
 
 def role_path(obj: Atspi.Accessible) -> str:

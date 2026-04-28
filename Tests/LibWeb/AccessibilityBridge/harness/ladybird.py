@@ -53,7 +53,12 @@ class LadybirdContext:
 
     def __init__(self, url: str, binary: Optional[pathlib.Path] = None):
         self._url = url
-        self._binary = pathlib.Path(binary) if binary else DEFAULT_BINARY
+        if binary is not None:
+            self._binary = pathlib.Path(binary)
+        elif os.environ.get("LADYBIRD_BINARY"):
+            self._binary = pathlib.Path(os.environ["LADYBIRD_BINARY"])
+        else:
+            self._binary = DEFAULT_BINARY
         self._process: Optional[subprocess.Popen] = None
         self._app: Optional[Atspi.Accessible] = None
         self._stderr_file: Optional[tempfile.NamedTemporaryFile] = None
@@ -108,12 +113,19 @@ class LadybirdContext:
             app = self._find_app_on_desktop()
             if app is None:
                 return False
-            # Wait for the document tree to arrive, not just the app object.
+            # Wait for the document tree to arrive, not just the app object. The document-web accessible can show up on
+            # the bus before Ladybird has populated it with children — and, when tests run back-to-back, that racy empty
+            # state can otherwise leak into tests as flaky "expected X in the tree" failures.
             try:
                 doc = self.find_document_web(app)
             except Exception:
                 return False
             if doc is None:
+                return False
+            try:
+                if doc.get_child_count() == 0:
+                    return False
+            except Exception:
                 return False
             self._app = app
             return True
@@ -193,6 +205,7 @@ class LadybirdContext:
         self._stderr_file = None
 
     def _find_app_on_desktop(self) -> Optional[Atspi.Accessible]:
+        expected_pid = self._process.pid if self._process is not None else None
         desktop = Atspi.get_desktop(0)
         for i in range(desktop.get_child_count()):
             child = desktop.get_child_at_index(i)
@@ -202,8 +215,17 @@ class LadybirdContext:
                 name = child.get_name() or ""
             except Exception:
                 continue
-            if "ladybird" in name.lower():
-                return child
+            if "ladybird" not in name.lower():
+                continue
+            # A previous test case's Ladybird can linger on the desktop while its accessible children are already gone.
+            # To deal with that, pin the match to our own subprocess PID — so we don't latch onto a dying predecessor.
+            if expected_pid is not None:
+                try:
+                    if child.get_process_id() != expected_pid:
+                        continue
+                except Exception:
+                    continue
+            return child
         return None
 
     # Accessors. All of these are best-effort and may return None for a still-loading page.

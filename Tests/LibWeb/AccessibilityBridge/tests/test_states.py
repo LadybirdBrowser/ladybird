@@ -18,6 +18,7 @@ from gi.repository import Atspi  # noqa: E402
 from harness import AccessibilityBridgeTestCase  # noqa: E402
 from harness import find_all_by_role  # noqa: E402
 from harness import find_first_by_role  # noqa: E402
+from harness import wait_for_descendant_by_role  # noqa: E402
 
 
 def _has_state(obj, state_type):
@@ -30,9 +31,8 @@ class FocusableStateTests(AccessibilityBridgeTestCase):
 
     def test_button_is_focusable(self):
         """Buttons are focusable."""
-        btns = find_all_by_role(self.doc, "button")
-        normal = next((b for b in btns if b.get_name() == "Normal button"), None)
-        self.assertIsNotNone(normal)
+        normal = wait_for_descendant_by_role(self.doc, Atspi.Role.PUSH_BUTTON, name="Normal button")
+        self.assertIsNotNone(normal, "expected 'Normal button' in the tree")
         self.assertTrue(_has_state(normal, Atspi.StateType.FOCUSABLE))
 
     def test_link_is_focusable(self):
@@ -120,9 +120,8 @@ class DisabledStateTests(AccessibilityBridgeTestCase):
 
     def test_disabled_button_has_not_sensitive_state(self):
         """<button disabled> reports the disabled state."""
-        btns = find_all_by_role(self.doc, "button")
-        disabled = next((b for b in btns if b.get_name() == "Disabled button"), None)
-        self.assertIsNotNone(disabled)
+        disabled = wait_for_descendant_by_role(self.doc, Atspi.Role.PUSH_BUTTON, name="Disabled button")
+        self.assertIsNotNone(disabled, "expected 'Disabled button' in the tree")
         # Atspi disabled elements are reported as *not* sensitive (no STATE_SENSITIVE/STATE_ENABLED).
         is_disabled = not _has_state(disabled, Atspi.StateType.SENSITIVE) or not _has_state(
             disabled, Atspi.StateType.ENABLED
