@@ -92,3 +92,4 @@ target_link_libraries(TestWindowProxyWorld PRIVATE LibGC LibJS LibWeb)
 
 add_subdirectory("test-web")
 add_subdirectory("AccessibilityBridge")
+add_subdirectory("AccessibilityBridgeMac")
