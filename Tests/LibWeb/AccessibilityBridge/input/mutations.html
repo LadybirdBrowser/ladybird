@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<body style="font: 16px sans-serif; margin: 40px;">
+<h1>Mutating page</h1>
+<p><a href="#target">A focusable link</a></p>
+<p id="status">Tick 0</p>
+<script>
+  let n = 0;
+  setInterval(() => {
+    document.getElementById("status").textContent = "Tick " + (++n);
+  }, 300);
+</script>
+</body>
+</html>
