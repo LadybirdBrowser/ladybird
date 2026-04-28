@@ -96,3 +96,5 @@ target_link_libraries(TestWindowProxyWorld PRIVATE LibGC LibJS LibWeb)
 add_subdirectory("test-web")
 
 target_link_libraries(TestInlineStyle PRIVATE LibCore LibGC LibGfx LibJS LibURL)
+
+add_subdirectory("AccessibilityBridge")
