@@ -318,8 +318,18 @@ void Node::recompute_containing_block(Badge<DOM::Document>)
                 if (!layout_node || !is<InlineNode>(*layout_node))
                     continue;
 
-                // Check if this inline establishes an absolute positioning containing block.
-                if (layout_node->computed_values_establish_absolute_positioning_containing_block()) {
+                // Restrict the per-property trigger set to those that actually apply to
+                // non-atomic inlines: `position` and filter/backdrop-filter. transform,
+                // contain, perspective and friends from
+                // computed_values_establish_absolute_positioning_containing_block()
+                // explicitly do not apply to non-atomic inlines per their respective specs.
+                auto const& computed_values = layout_node->computed_values();
+                auto const& will_change = computed_values.will_change();
+                bool const inline_establishes_cb = layout_node->is_positioned()
+                    || will_change.has_property(CSS::PropertyID::Position)
+                    || computed_values.filter().has_filters() || will_change.has_property(CSS::PropertyID::Filter)
+                    || computed_values.backdrop_filter().has_filters() || will_change.has_property(CSS::PropertyID::BackdropFilter);
+                if (inline_establishes_cb) {
                     m_inline_containing_block_if_applicable = const_cast<InlineNode*>(static_cast<InlineNode const*>(layout_node.ptr()));
                     break;
                 }

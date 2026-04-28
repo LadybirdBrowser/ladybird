@@ -1267,78 +1267,86 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
 //        the inline's fragment bounding box and use that for sizing and positioning, then adjust the final
 //        offset to be relative to the containing_block() Box that the rest of the system expects.
 
-// Computes the bounding box rectangle of an inline node's fragments.
-// The rectangle is in the coordinate space of the inline's nearest block container ancestor.
-// Returns the padding box rect (since containing blocks are formed by padding edges).
+// Computes the bounding box rectangle of an inline node's fragments, in the coordinate
+// space of the abspos containing block. Returns the padding-box rect because that's the
+// edge containing blocks are formed by.
+//
+// When an inline element has block-level descendants, the layout tree splits the inline
+// into "before"/"middle"/"after" anonymous wrappers; we walk all of them so the rect
+// covers the inline's full extent (matching getClientRects() for split inlines).
 static Optional<CSSPixelRect> compute_inline_containing_block_rect(InlineNode const& inline_node, Box const& abspos_containing_block, LayoutState const& state)
 {
-    // Find the block container that holds this inline's fragments.
-    Box const* block_container = nullptr;
-    for (auto const* ancestor = inline_node.parent(); ancestor; ancestor = ancestor->parent()) {
-        if (ancestor->is_block_container() || ancestor->display().is_flex_inside() || ancestor->display().is_grid_inside()) {
-            block_container = static_cast<Box const*>(ancestor);
-            break;
-        }
-    }
-
-    if (!block_container)
+    auto const* inline_dom_node = inline_node.dom_node();
+    if (!inline_dom_node)
         return {};
 
-    auto const* block_container_used_values = state.try_get(*block_container);
-    if (!block_container_used_values)
+    auto const* outer_block = inline_node.non_anonymous_containing_block();
+    if (!outer_block)
         return {};
 
-    // Iterate through all line boxes and their fragments to find those belonging to this inline.
-    // A fragment belongs to an inline if the inline is an ancestor of the fragment's layout node.
     Optional<CSSPixelRect> bounding_rect;
+    auto union_rect = [&](CSSPixelRect const& rect) {
+        bounding_rect = bounding_rect.has_value() ? bounding_rect->united(rect) : rect;
+    };
 
-    for (auto const& line_box : block_container_used_values->line_boxes) {
-        for (auto const& fragment : line_box.fragments()) {
-            auto const& fragment_node = fragment.layout_node();
-
-            // Check if this fragment belongs to the inline node (inline is ancestor of fragment's node).
-            bool belongs_to_inline = false;
-            for (auto const* node = &fragment_node; node && node != block_container; node = node->parent()) {
-                if (node == &inline_node) {
-                    belongs_to_inline = true;
-                    break;
+    // Walk outer_block's subtree in pre-order, threading the running offset from
+    // abspos_containing_block down so we don't have to re-walk to the root for every
+    // matching node. We prune subtrees rooted at non-anonymous boxes that don't belong
+    // to the inline (sibling content can't contribute to its rect), and skip out-of-flow
+    // descendants (they aren't part of the inline's fragments).
+    auto walk = [&](this auto& self, Node const& node, CSSPixelPoint offset) -> void {
+        auto const* used_values = state.try_get(node);
+        if (used_values && !used_values->line_boxes.is_empty()) {
+            for (auto const& line_box : used_values->line_boxes) {
+                for (auto const& fragment : line_box.fragments()) {
+                    if (auto const* dom = fragment.layout_node().dom_node(); dom && inline_dom_node->is_inclusive_ancestor_of(*dom))
+                        union_rect({ fragment.offset() + offset, fragment.size() });
                 }
             }
-
-            if (!belongs_to_inline)
-                continue;
-
-            CSSPixelRect fragment_rect { fragment.offset(), fragment.size() };
-            if (bounding_rect.has_value())
-                bounding_rect = bounding_rect->united(fragment_rect);
-            else
-                bounding_rect = fragment_rect;
         }
+
+        for (auto const* child = node.first_child(); child; child = child->next_sibling()) {
+            if (child->is_absolutely_positioned() || child->is_floating())
+                continue;
+            auto const* child_used_values = state.try_get(*child);
+            auto child_offset = child_used_values ? offset + child_used_values->offset : offset;
+            auto const* box_child = as_if<Box>(child);
+            if (box_child && !box_child->is_anonymous()) {
+                auto const* dom = box_child->dom_node();
+                if (!dom || !inline_dom_node->is_inclusive_ancestor_of(*dom))
+                    continue;
+                // child_offset addresses the box's content area; the border-box origin sits
+                // (border-left + padding-left, border-top + padding-top) before that.
+                if (child_used_values) {
+                    auto const border_box_origin = child_offset - CSSPixelPoint {
+                        child_used_values->border_left + child_used_values->padding_left,
+                        child_used_values->border_top + child_used_values->padding_top,
+                    };
+                    union_rect({ border_box_origin, { child_used_values->border_box_width(), child_used_values->border_box_height() } });
+                }
+            }
+            self(*child, child_offset);
+        }
+    };
+
+    CSSPixelPoint outer_offset;
+    for (Node const* ancestor = outer_block; ancestor && ancestor != &abspos_containing_block; ancestor = ancestor->parent()) {
+        if (auto const* used_values = state.try_get(*ancestor))
+            outer_offset.translate_by(used_values->offset);
     }
+    walk(*outer_block, outer_offset);
 
     if (!bounding_rect.has_value())
         return {};
 
     // Expand the bounding rect by the inline's padding to get the padding box.
-    // Per CSS, the containing block is formed by the padding edge.
-    auto const* inline_used_values = state.try_get(inline_node);
-    if (inline_used_values) {
-        bounding_rect->set_x(bounding_rect->x() - inline_used_values->padding_left);
-        bounding_rect->set_y(bounding_rect->y() - inline_used_values->padding_top);
-        bounding_rect->set_width(bounding_rect->width() + inline_used_values->padding_left + inline_used_values->padding_right);
-        bounding_rect->set_height(bounding_rect->height() + inline_used_values->padding_top + inline_used_values->padding_bottom);
+    if (auto const* inline_used_values = state.try_get(inline_node)) {
+        bounding_rect->inflate(
+            inline_used_values->padding_top,
+            inline_used_values->padding_right,
+            inline_used_values->padding_bottom,
+            inline_used_values->padding_left);
     }
-
-    // The fragment offsets are relative to block_container. We need to translate the rect
-    // to be in the coordinate system of the abspos element's containing_block.
-    // Walk from block_container up to abspos_containing_block, accumulating offsets.
-    CSSPixelPoint offset_to_containing_block;
-    for (Node const* ancestor = block_container; ancestor && ancestor != &abspos_containing_block; ancestor = ancestor->parent()) {
-        if (auto const* ancestor_used_values = state.try_get(*ancestor)) {
-            offset_to_containing_block.translate_by(ancestor_used_values->offset);
-        }
-    }
-    bounding_rect->translate_by(offset_to_containing_block);
 
     return bounding_rect;
 }
