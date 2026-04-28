@@ -156,16 +156,6 @@ GC::Ptr<HTML::SharedResourceRequest> fetch_an_external_image_for_a_stylesheet(St
     auto& realm = document.realm();
 
     auto shared_resource_request = HTML::SharedResourceRequest::get_or_create(realm, document.page(), request->url());
-    shared_resource_request->add_callbacks(
-        [&document, weak_document = GC::Weak { document }] {
-            if (!weak_document)
-                return;
-
-            if (auto navigable = document.navigable()) {
-                document.notify_css_background_image_loaded();
-            }
-        },
-        nullptr);
 
     if (shared_resource_request->needs_fetching())
         shared_resource_request->fetch_resource(realm, *request);

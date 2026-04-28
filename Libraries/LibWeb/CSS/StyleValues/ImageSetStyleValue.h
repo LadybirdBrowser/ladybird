@@ -44,6 +44,8 @@ public:
     virtual void paint(DisplayListRecordingContext&, DevicePixelRect const&, ImageRendering) const override;
     virtual Optional<Gfx::Color> color_if_single_pixel_bitmap() const override;
 
+    AbstractImageStyleValue const* selected_image() const { return m_selected_image; }
+
 private:
     explicit ImageSetStyleValue(Vector<Option>);
 

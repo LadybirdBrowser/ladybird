@@ -7,10 +7,13 @@
 
 #pragma once
 
+#include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Vector.h>
+#include <LibGC/Weak.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
@@ -265,6 +268,19 @@ class WEB_API NodeWithStyle : public Node {
 public:
     virtual ~NodeWithStyle() override = default;
 
+    class ImageObserver final : public CSS::ImageStyleValue::Client {
+    public:
+        ImageObserver(NodeWithStyle&, NonnullRefPtr<CSS::ImageStyleValue const> image);
+        virtual ~ImageObserver() override;
+
+        virtual void image_style_value_did_update(CSS::ImageStyleValue&) override;
+        void visit_edges(JS::Cell::Visitor&) const;
+
+    private:
+        GC::Weak<NodeWithStyle> m_owner;
+        NonnullRefPtr<CSS::ImageStyleValue const> m_image;
+    };
+
     CSS::ImmutableComputedValues const& computed_values() const { return static_cast<CSS::ImmutableComputedValues const&>(*m_computed_values); }
     CSS::MutableComputedValues& mutable_computed_values() { return static_cast<CSS::MutableComputedValues&>(*m_computed_values); }
 
@@ -300,8 +316,11 @@ private:
     void propagate_non_inherit_values(NodeWithStyle& target_node) const;
     void propagate_style_to_anonymous_wrappers();
 
+    void rebuild_image_observers();
+
     NonnullOwnPtr<CSS::ComputedValues> m_computed_values;
     RefPtr<CSS::AbstractImageStyleValue const> m_list_style_image;
+    Vector<NonnullOwnPtr<ImageObserver>> m_image_observers;
     u32 m_layout_index { 0 };
 };
 

@@ -11,6 +11,8 @@
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ImageSetStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
@@ -37,6 +39,7 @@
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/SVG/SVGFilterElement.h>
 #include <LibWeb/SVG/SVGForeignObjectElement.h>
 
@@ -580,6 +583,70 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, NonnullOw
     m_is_body = node && node == document.body();
 }
 
+NodeWithStyle::ImageObserver::ImageObserver(NodeWithStyle& owner, NonnullRefPtr<CSS::ImageStyleValue const> image)
+    : CSS::ImageStyleValue::Client(*image)
+    , m_owner(owner)
+    , m_image(move(image))
+{
+}
+
+NodeWithStyle::ImageObserver::~ImageObserver()
+{
+    image_style_value_finalize();
+}
+
+void NodeWithStyle::ImageObserver::image_style_value_did_update(CSS::ImageStyleValue&)
+{
+    VERIFY(m_owner);
+
+    for (auto& paintable : m_owner->paintables())
+        paintable.set_needs_repaint();
+
+    // The body's background propagates to the root element's paintable, which holds the cached draw commands.
+    if (m_owner->is_body()) {
+        auto* html_element = m_owner->document().html_element();
+        if (html_element) {
+            if (auto html_layout_node = html_element->unsafe_layout_node()) {
+                if (html_element->should_use_body_background_properties()) {
+                    for (auto& paintable : html_layout_node->paintables())
+                        paintable.set_needs_repaint();
+                }
+            }
+        }
+    }
+}
+
+void NodeWithStyle::ImageObserver::visit_edges(JS::Cell::Visitor& visitor) const
+{
+    m_image->visit_edges(visitor);
+}
+
+void NodeWithStyle::rebuild_image_observers()
+{
+    auto add_observer_for = [&](CSS::AbstractImageStyleValue const* abstract_image, Vector<NonnullOwnPtr<ImageObserver>>& observers) {
+        if (!abstract_image)
+            return;
+        CSS::ImageStyleValue const* image_to_observe = nullptr;
+        if (abstract_image->is_image()) {
+            image_to_observe = &abstract_image->as_image();
+        } else if (abstract_image->is_image_set()) {
+            if (auto const* selected = abstract_image->as_image_set().selected_image(); selected && selected->is_image())
+                image_to_observe = &selected->as_image();
+        }
+        if (!image_to_observe)
+            return;
+        observers.append(make<ImageObserver>(*this, *image_to_observe));
+    };
+
+    Vector<NonnullOwnPtr<ImageObserver>> new_observers;
+    for (auto const& layer : computed_values().background_layers())
+        add_observer_for(layer.background_image.ptr(), new_observers);
+    add_observer_for(m_list_style_image.ptr(), new_observers);
+    add_observer_for(computed_values().mask_image().ptr(), new_observers);
+
+    m_image_observers = move(new_observers);
+}
+
 void NodeWithStyle::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
@@ -590,6 +657,9 @@ void NodeWithStyle::visit_edges(Visitor& visitor)
         m_list_style_image->visit_edges(visitor);
 
     m_computed_values->visit_edges(visitor);
+
+    for (auto const& image_observer : m_image_observers)
+        image_observer->visit_edges(visitor);
 }
 
 void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
@@ -985,6 +1055,8 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
     if (auto* box_node = as_if<NodeWithStyleAndBoxModelMetrics>(*this))
         box_node->propagate_style_along_continuation(computed_style);
+
+    rebuild_image_observers();
 }
 
 CSS::StyleScope const& NodeWithStyle::style_scope() const

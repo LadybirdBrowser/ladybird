@@ -966,8 +966,6 @@ public:
         set_needs_repaint(should_invalidate_display_list);
     }
 
-    void notify_css_background_image_loaded();
-
     RefPtr<Painting::DisplayList> cached_display_list() const;
     RefPtr<Painting::DisplayList> record_display_list(HTML::PaintConfig);
 
