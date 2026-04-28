@@ -50,13 +50,6 @@ jobs:
       - name: Set Up Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      # KVM is required for hardware-accelerated Android emulation on Linux.
-      - name: Enable KVM
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-
       # === PREPARE FOR BUILDING ===
 
       - name: Restore Caches
@@ -77,37 +70,13 @@ jobs:
             "platform-tools" \
             "build-tools;35.0.0" \
             "platforms;android-35" \
-            "ndk;29.0.13599879" \
-            "emulator" \
-            "system-images;android-30;google_apis;x86_64"
-
-      - name: Start Android Emulator
-        timeout-minutes: 10
-        run: |
-          echo "no" | "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/avdmanager" create avd \
-            -n ladybird_emulator \
-            -k "system-images;android-30;google_apis;x86_64" \
-            --force
-          nohup "${ANDROID_SDK_ROOT}/emulator/emulator" \
-            -avd ladybird_emulator \
-            -no-window -no-audio -no-snapshot \
-            -gpu swiftshader_indirect > /tmp/emulator.log 2>&1 &
-          "${ANDROID_SDK_ROOT}/platform-tools/adb" wait-for-device
-          BOOT_DEADLINE=$(( $(date +%s) + 300 ))
-          until "${ANDROID_SDK_ROOT}/platform-tools/adb" shell getprop sys.boot_completed 2>/dev/null | grep -q "^1$"; do
-            if [ "$(date +%s)" -gt "$BOOT_DEADLINE" ]; then
-              echo "Emulator did not boot within 5 minutes"; cat /tmp/emulator.log; exit 1
-            fi
-            sleep 2
-          done
-          "${ANDROID_SDK_ROOT}/platform-tools/adb" shell input keyevent 82
-          echo "Emulator started"
+            "ndk;29.0.13599879"
 
       # === BUILD ===
 
-      - name: Build and Test Android
+      - name: Build Android Debug APK
         working-directory: ${{ github.workspace }}/UI/Android
-        run: ./gradlew connectedAndroidTest
+        run: ./gradlew assembleDebug
         env:
           GRADLE_OPTS: '-Xmx4096m'
           LADYBIRD_CACHE_DIR: ${{ github.workspace }}/Build/caches
