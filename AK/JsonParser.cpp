@@ -40,7 +40,7 @@ ErrorOr<JsonValue> JsonParser::parse(StringView input)
 //                             │                       │
 //                             ╰─── u[0-9A-Za-z]{4}  ──╯
 //
-ErrorOr<ByteString> JsonParser::consume_and_unescape_string()
+ErrorOr<String> JsonParser::consume_and_unescape_string()
 {
     if (!consume_specific('"'))
         return Error::from_string_literal("JsonParser: Expected '\"'");
@@ -135,7 +135,7 @@ ErrorOr<ByteString> JsonParser::consume_and_unescape_string()
         }
     }
 
-    return final_sb.to_byte_string();
+    return final_sb.to_string();
 }
 
 ErrorOr<JsonValue> JsonParser::parse_object()

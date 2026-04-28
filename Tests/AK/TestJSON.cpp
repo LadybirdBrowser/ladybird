@@ -665,3 +665,26 @@ TEST_CASE(json_object_move_from_value)
     EXPECT_EQ(array2->at(0).as_bool(), false);
     EXPECT_EQ(array2->at(1).as_string(), "string"sv);
 }
+
+TEST_CASE(invalid_utf8)
+{
+    // Incomplete 2-byte sequence
+    EXPECT(JsonValue::from_string("{\"key\": \"value\xcf\"}"sv).is_error());
+    EXPECT(JsonValue::from_string("{\"key\xcf\": \"value\"}"sv).is_error());
+
+    // Incomplete 3-byte sequence
+    EXPECT(JsonValue::from_string("{\"key\": \"value\xef\xbf\"}"sv).is_error());
+    EXPECT(JsonValue::from_string("{\"key\xef\xbf\": \"value\"}"sv).is_error());
+
+    // Invalid start byte
+    EXPECT(JsonValue::from_string("{\"key\": \"value\xf8\"}"sv).is_error());
+    EXPECT(JsonValue::from_string("{\"key\xf8\": \"value\"}"sv).is_error());
+
+    // Invalid continuation byte
+    EXPECT(JsonValue::from_string("{\"key\": \"value\xc3\x28\"}"sv).is_error());
+    EXPECT(JsonValue::from_string("{\"key\xc3\x28\": \"value\"}"sv).is_error());
+
+    // Multiple invalid bytes
+    EXPECT(JsonValue::from_string("{\"key\": \"value\xff\xff\"}"sv).is_error());
+    EXPECT(JsonValue::from_string("{\"key\xff\xff\": \"value\"}"sv).is_error());
+}
