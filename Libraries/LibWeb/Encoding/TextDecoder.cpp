@@ -35,7 +35,7 @@ WebIDL::ExceptionOr<GC::Ref<TextDecoder>> TextDecoder::construct_impl(JS::Realm&
     auto lowercase_encoding_name = encoding.value().to_ascii_lowercase_string();
 
     // 4. If options["fatal"] is true, then set this’s error mode to "fatal".
-    auto fatal = options.value_or({}).fatal;
+    auto error_mode = options.value_or({}).fatal ? ErrorMode::Fatal : ErrorMode::Replacement;
 
     // 5. Set this’s ignore BOM to options["ignoreBOM"].
     auto ignore_bom = options.value_or({}).ignore_bom;
@@ -44,16 +44,13 @@ WebIDL::ExceptionOr<GC::Ref<TextDecoder>> TextDecoder::construct_impl(JS::Realm&
     auto decoder = TextCodec::decoder_for_exact_name(encoding.value());
     VERIFY(decoder.has_value());
 
-    return realm.create<TextDecoder>(realm, *decoder, lowercase_encoding_name, fatal, ignore_bom);
+    return realm.create<TextDecoder>(realm, *decoder, lowercase_encoding_name, error_mode, ignore_bom);
 }
 
 // https://encoding.spec.whatwg.org/#dom-textdecoder
-TextDecoder::TextDecoder(JS::Realm& realm, TextCodec::Decoder& decoder, FlyString encoding, bool fatal, bool ignore_bom)
+TextDecoder::TextDecoder(JS::Realm& realm, TextCodec::Decoder& decoder, FlyString encoding, ErrorMode error_mode, bool ignore_bom)
     : PlatformObject(realm)
-    , m_decoder(decoder)
-    , m_encoding(move(encoding))
-    , m_fatal(fatal)
-    , m_ignore_bom(ignore_bom)
+    , TextDecoderCommonMixin(decoder, move(encoding), error_mode, ignore_bom)
 {
 }
 

@@ -11,6 +11,7 @@
 #include <LibJS/Forward.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Encoding/TextDecoderCommon.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -28,7 +29,9 @@ struct TextDecodeOptions {
 };
 
 // https://encoding.spec.whatwg.org/#textdecoder
-class TextDecoder : public Bindings::PlatformObject {
+class TextDecoder
+    : public Bindings::PlatformObject
+    , public TextDecoderCommonMixin {
     WEB_PLATFORM_OBJECT(TextDecoder, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(TextDecoder);
 
@@ -39,19 +42,10 @@ public:
 
     WebIDL::ExceptionOr<String> decode(Optional<GC::Root<WebIDL::BufferSource>> const&, Optional<TextDecodeOptions> const& options = {}) const;
 
-    FlyString const& encoding() const { return m_encoding; }
-    bool fatal() const { return m_fatal; }
-    bool ignore_bom() const { return m_ignore_bom; }
-
 private:
-    TextDecoder(JS::Realm&, TextCodec::Decoder&, FlyString encoding, bool fatal, bool ignore_bom);
+    TextDecoder(JS::Realm&, TextCodec::Decoder&, FlyString encoding, ErrorMode error_mode, bool ignore_bom);
 
     virtual void initialize(JS::Realm&) override;
-
-    TextCodec::Decoder& m_decoder;
-    FlyString m_encoding;
-    bool m_fatal { false };
-    bool m_ignore_bom { false };
 };
 
 }

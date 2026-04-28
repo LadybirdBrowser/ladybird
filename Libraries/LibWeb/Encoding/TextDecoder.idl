@@ -1,10 +1,3 @@
-// https://encoding.spec.whatwg.org/#textdecodercommon
-interface mixin TextDecoderCommon {
-    readonly attribute DOMString encoding;
-    readonly attribute boolean fatal;
-    readonly attribute boolean ignoreBOM;
-};
-
 // https://encoding.spec.whatwg.org/#textdecoderoptions
 dictionary TextDecoderOptions {
     boolean fatal = false;

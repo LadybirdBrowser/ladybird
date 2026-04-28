@@ -370,6 +370,7 @@ set(SOURCES
     Editing/ExecCommand.cpp
     Editing/Internal/Algorithms.cpp
     Encoding/TextDecoder.cpp
+    Encoding/TextDecoderCommon.cpp
     Encoding/TextEncoder.cpp
     Encoding/TextEncoderCommon.cpp
     Encoding/TextEncoderStream.cpp
