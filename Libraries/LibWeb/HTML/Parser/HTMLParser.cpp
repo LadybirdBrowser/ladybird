@@ -276,6 +276,11 @@ void HTMLParser::run(URL::URL const& url, HTMLTokenizer::StopAtInsertionPoint st
 {
     m_document->set_url(url);
     m_document->set_source(m_tokenizer.source());
+    run_until_completion(stop_at_insertion_point);
+}
+
+void HTMLParser::run_until_completion(HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point)
+{
     m_post_parse_action = [this] { the_end(*m_document, this); };
     run(stop_at_insertion_point);
     if (!m_parser_pause_flag)

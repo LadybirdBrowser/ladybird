@@ -58,6 +58,7 @@ public:
 
     void run(HTMLTokenizer::StopAtInsertionPoint = HTMLTokenizer::StopAtInsertionPoint::No);
     void run(URL::URL const&, HTMLTokenizer::StopAtInsertionPoint = HTMLTokenizer::StopAtInsertionPoint::No);
+    void run_until_completion(HTMLTokenizer::StopAtInsertionPoint = HTMLTokenizer::StopAtInsertionPoint::No);
 
     static void the_end(GC::Ref<DOM::Document>, GC::Ptr<HTMLParser> = nullptr);
 
