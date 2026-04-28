@@ -65,6 +65,13 @@ runs:
 
         if ${{ inputs.type == 'build' }} ; then
           pip3 install pyyaml requests six
+
+          if ${{ inputs.os == 'macOS' }} ; then
+            # PyObjC frameworks for Tests/LibWeb/AccessibilityBridgeMac/. Apple's /usr/bin/python3 ships with PyObjC —
+            # but the actions/setup-python interpreter we use here doesn't. And run_tests.sh prefers the active python3
+            # first — so install PyObjC where it'll find it.
+            pip3 install pyobjc-framework-ApplicationServices pyobjc-framework-Cocoa
+          fi
         else
           pip3 install pyright ruff
         fi

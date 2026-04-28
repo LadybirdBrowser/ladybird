@@ -13,7 +13,7 @@ jobs:
   # CI matrix - runs the job in lagom-template.yml with different configurations.
   Lagom:
     if: github.repository == 'LadybirdBrowser/ladybird'
-    name: ${{ matrix.os_name }}, ${{ matrix.arch }}, ${{ matrix.build_preset }}, ${{ matrix.toolchain }}
+    name: ${{ matrix.os_name }}, ${{ matrix.arch }}, ${{ matrix.build_preset }}, ${{ matrix.toolchain }}${{ matrix.name_suffix }}
 
     strategy:
       fail-fast: false
@@ -42,6 +42,15 @@ jobs:
             clang_plugins: false
             runner_labels: '["macos-26", "self-hosted"]'
             container: 'null'
+
+          - os_name: 'macOS'
+            arch: 'arm64'
+            build_preset: 'Sanitizer'
+            toolchain: 'Clang'
+            clang_plugins: false
+            runner_labels: '["macos-15"]'
+            container: 'null'
+            name_suffix: ' (GitHub-hosted)'
 
           - os_name: 'Linux'
             arch: 'arm64'

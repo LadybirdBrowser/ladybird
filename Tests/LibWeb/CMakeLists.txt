@@ -52,3 +52,4 @@ endif()
 
 add_subdirectory("test-web")
 add_subdirectory("AccessibilityBridge")
+add_subdirectory("AccessibilityBridgeMac")

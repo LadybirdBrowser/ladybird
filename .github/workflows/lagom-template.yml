@@ -88,8 +88,13 @@ jobs:
               echo "host_cxx=g++" >> "$GITHUB_OUTPUT"
             fi
           elif ${{ inputs.os_name == 'macOS' }} ; then
-            echo "host_cc=$(xcrun --find clang)" >> "$GITHUB_OUTPUT"
-            echo "host_cxx=$(xcrun --find clang++)" >> "$GITHUB_OUTPUT"
+            if ${{ contains(inputs.runner_labels, 'self-hosted') }} ; then
+              echo "host_cc=$(xcrun --find clang)" >> "$GITHUB_OUTPUT"
+              echo "host_cxx=$(xcrun --find clang++)" >> "$GITHUB_OUTPUT"
+            else
+              echo "host_cc=$(brew --prefix llvm@21)/bin/clang" >> "$GITHUB_OUTPUT"
+              echo "host_cxx=$(brew --prefix llvm@21)/bin/clang++" >> "$GITHUB_OUTPUT"
+            fi
           fi
 
           if ${{ inputs.os_name == 'Linux' && inputs.build_preset == 'Sanitizer' }} ; then
@@ -174,6 +179,67 @@ jobs:
         run: |
           cmake --build .
           cmake --install . --strip --prefix "${GITHUB_WORKSPACE}/Install"
+
+      - name: Check macOS SIP/TCC state
+        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer' }}
+        run: |
+          csrutil status || true
+          SYSTEM_TCC=/Library/Application\ Support/com.apple.TCC/TCC.db
+          if [ -f "$SYSTEM_TCC" ]; then
+            sudo ls -l "$SYSTEM_TCC" || true
+            echo "--- access table schema ---"
+            sudo sqlite3 "$SYSTEM_TCC" '.schema access' 2>&1 || echo "(could not read schema)"
+            echo "--- existing kTCCServiceAccessibility entries ---"
+            sudo sqlite3 "$SYSTEM_TCC" \
+              "SELECT service, client, client_type, auth_value FROM access WHERE service = 'kTCCServiceAccessibility';" \
+              2>&1 || echo "(could not query)"
+          else
+            echo "(system TCC.db doesn't exist)"
+          fi
+          for p in /usr/bin/python3 /Library/Developer/CommandLineTools/usr/bin/python3; do
+            if [ -e "$p" ]; then
+              echo "  $p exists; readlink=$(readlink "$p" || echo none); realpath=$(/usr/bin/python3 -c "import os,sys; print(os.path.realpath(sys.argv[1]))" "$p")"
+            fi
+          done
+
+      - name: Grant Accessibility to Python
+        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer' }}
+        run: |
+          if ! csrutil status | grep -qi "disabled"; then
+            echo "::warning::SIP is enabled on this runner. Can't write to TCC.db."
+            exit 0
+          fi
+          # We tried doing this TCC DB update with the tccutil convenience tool — but that tool turned out to be broken
+          # and just getting in the way, rather than helping. In contrast, direct SQL just works.
+          #
+          # Relevant macOS 15 schema:
+          #
+          #   service, client, client_type=1 (path), auth_value=2 (allowed), auth_reason=4 (user-authorized),
+          #   auth_version=1 — plus the auto-defaulted columns. INSERT OR REPLACE keeps it idempotent.
+          #
+          # We rely on the access table's NOT NULL DEFAULTs for the columns we don't supply
+          # (indirect_object_identifier='UNUSED', boot_uuid='UNUSED', last_modified=now, last_reminded=now).
+          SYSTEM_TCC=/Library/Application\ Support/com.apple.TCC/TCC.db
+          for client in /usr/bin/python3 /Library/Developer/CommandLineTools/usr/bin/python3; do
+            [ -e "$client" ] || continue
+            echo "=== Granting Accessibility to $client ==="
+            sudo sqlite3 "$SYSTEM_TCC" \
+              "INSERT OR REPLACE INTO access (service, client, client_type, auth_value, auth_reason, auth_version) VALUES ('kTCCServiceAccessibility', '$client', 1, 2, 4, 1);"
+          done
+          echo "=== Accessibility entries after grant ==="
+          sudo sqlite3 "$SYSTEM_TCC" \
+            "SELECT service, client, client_type, auth_value FROM access WHERE service = 'kTCCServiceAccessibility';"
+          sudo killall tccd 2>&1 || echo "(tccd was not running; will be relaunched on next access)"
+
+      # This (accessibility tests) step can't be run after the "Build with Qt" step — because we need to run the
+      # accessibility tests against the AppKit build, which the "Build with Qt" step overwrites with a Qt build.
+      - name: Test - macOS AppKit accessibility
+        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer' }}
+        working-directory: ${{ github.workspace }}
+        run: ctest --output-on-failure --test-dir Build -R AccessibilityBridgeMac --timeout 600
+        env:
+          ASAN_OPTIONS: 'log_path="${{ github.workspace }}/asan.log"'
+          UBSAN_OPTIONS: 'log_path="${{ github.workspace }}/ubsan.log"'
 
       - name: Build with Qt
         if: ${{ (inputs.os_name == 'macOS' || inputs.os_name == 'Linux') && inputs.build_preset == 'Sanitizer' }}
