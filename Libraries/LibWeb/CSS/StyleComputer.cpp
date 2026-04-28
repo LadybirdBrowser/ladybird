@@ -320,14 +320,22 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules(
             add_rules_from_cache(*rule_cache, element_shadow_root);
     }
 
+    // Per "find flattened slotables" (https://dom.spec.whatwg.org/#find-flattened-slotables),
+    // a <slot> element whose root is a shadow root recurses into its own slottables instead of
+    // being appended itself, so ::slotted() must never match such an intermediate re-slotted slot.
+    auto const* subject_as_slot = as_if<HTML::HTMLSlotElement>(abstract_element.element());
+    bool const subject_is_reslotted_slot = subject_as_slot && subject_as_slot->root().is_shadow_root();
+
     // Walk up the slot chain for nested slots. An element can be assigned to a slot
     // which is itself assigned to another slot in a parent shadow root. The ::slotted()
     // pseudo-element matches elements assigned "after flattening", so we must collect
     // slotted rules from every shadow root in the chain.
-    for (GC::Ptr<HTML::HTMLSlotElement const> slot = abstract_element.element().assigned_slot_internal(); slot; slot = slot->assigned_slot_internal()) {
-        if (auto const* slot_shadow_root = as_if<DOM::ShadowRoot>(slot->root())) {
-            if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, slot_shadow_root)) {
-                add_rules_to_run(rule_cache->slotted_rules, slot_shadow_root);
+    if (!subject_is_reslotted_slot) {
+        for (GC::Ptr<HTML::HTMLSlotElement const> slot = abstract_element.element().assigned_slot_internal(); slot; slot = slot->assigned_slot_internal()) {
+            if (auto const* slot_shadow_root = as_if<DOM::ShadowRoot>(slot->root())) {
+                if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, slot_shadow_root)) {
+                    add_rules_to_run(rule_cache->slotted_rules, slot_shadow_root);
+                }
             }
         }
     }
@@ -380,7 +388,7 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules(
             attempted_pseudo_class_matches |= context.attempted_pseudo_class_matches;
         };
         if (selector.is_slotted()) {
-            if (!abstract_element.element().assigned_slot_internal())
+            if (!abstract_element.element().assigned_slot_internal() || subject_is_reslotted_slot)
                 continue;
             // We're collecting rules for element, which is assigned to a slot.
             // For ::slotted() matching, slot should be used as a subject instead of element,
