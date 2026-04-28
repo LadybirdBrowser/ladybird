@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    // Inserting or removing a sibling can flip whether the previous/next sibling matches
+    // structural pseudo-classes (:nth-child, :first-child, ...) or sibling combinators
+    // (`+`, `~`). The affected sibling's root must be recomputed. Descendants only need
+    // a full style recompute when a selector observes the sibling's position from a
+    // descendant/non-subject position, but inherited changes must still reach descendants.
+
+    function setupFixture(siblingDescendants, siblingClass) {
+        const fixture = makeElement("section");
+        const sibling = makeElement("div", { className: siblingClass });
+        for (let i = 0; i < siblingDescendants; ++i)
+            sibling.appendChild(makeElement("span", { className: "leaf", text: `leaf ${i}` }));
+        fixture.appendChild(sibling);
+        document.body.appendChild(fixture);
+        return { fixture, sibling };
+    }
+
+    function setupShadowHostFixture(siblingClass = "watcher") {
+        const fixture = makeElement("section");
+        const host = makeElement("x-host", { className: siblingClass });
+        const lightLeaf = makeElement("span", { className: "light-leaf" });
+        host.appendChild(lightLeaf);
+
+        const lightChildHost = makeElement("x-light-child");
+        const lightChildRoot = lightChildHost.attachShadow({ mode: "open" });
+        const lightChildShadowLeaf = makeElement("span", { className: "light-child-shadow-leaf" });
+        lightChildRoot.appendChild(lightChildShadowLeaf);
+        host.appendChild(lightChildHost);
+
+        const nestedLightChildHost = makeElement("x-nested-light-child");
+        const nestedLightChildRoot = nestedLightChildHost.attachShadow({ mode: "open" });
+        const nestedLightChildShadowLeaf = makeElement("span", { className: "nested-light-child-shadow-leaf" });
+        nestedLightChildRoot.appendChild(nestedLightChildShadowLeaf);
+        lightChildHost.appendChild(nestedLightChildHost);
+
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        const shadowLeaf = makeElement("span", { className: "shadow-leaf" });
+        shadowRoot.appendChild(shadowLeaf);
+
+        const nestedHost = makeElement("x-nested");
+        const nestedRoot = nestedHost.attachShadow({ mode: "open" });
+        const nestedLeaf = makeElement("span", { className: "nested-shadow-leaf" });
+        nestedRoot.appendChild(nestedLeaf);
+        shadowRoot.appendChild(nestedHost);
+
+        fixture.appendChild(host);
+        document.body.appendChild(fixture);
+        return { fixture, host, lightLeaf, lightChildShadowLeaf, nestedLightChildShadowLeaf, shadowLeaf, nestedLeaf };
+    }
+
+    function settleAndReset() {
+        document.body.offsetWidth;
+        document.body.offsetWidth;
+        resetStyleCounters();
+    }
+
+    function assertColor(testName, element, expected) {
+        assertEqual(testName, getComputedStyle(element).color, expected);
+    }
+
+    function colorMatches(testName, element, expected) {
+        const actual = getComputedStyle(element).color;
+        if (actual === expected)
+            return true;
+        println(`FAIL: ${testName}: expected ${expected}, got ${actual}`);
+        return false;
+    }
+
+    function runShadowHostCase({ name, css, setup, mutate, expectedHostColor, expectedLightColor, expectedLightChildShadowColor = expectedLightColor, expectedNestedLightChildShadowColor = expectedLightColor, expectedShadowColor, expectedNestedColor }) {
+        const style = addStyle(document.head, css);
+        const fixtureParts = setupShadowHostFixture();
+        try {
+            setup?.(fixtureParts);
+            settleAndReset();
+
+            mutate(fixtureParts);
+
+            const passed = [
+                colorMatches(`${name}: host`, fixtureParts.host, expectedHostColor),
+                colorMatches(`${name}: light leaf`, fixtureParts.lightLeaf, expectedLightColor),
+                colorMatches(`${name}: light child shadow leaf`, fixtureParts.lightChildShadowLeaf, expectedLightChildShadowColor),
+                colorMatches(`${name}: nested light child shadow leaf`, fixtureParts.nestedLightChildShadowLeaf, expectedNestedLightChildShadowColor),
+                colorMatches(`${name}: shadow leaf`, fixtureParts.shadowLeaf, expectedShadowColor),
+                colorMatches(`${name}: nested shadow leaf`, fixtureParts.nestedLeaf, expectedNestedColor),
+            ].every(Boolean);
+            println(`${passed ? "PASS" : "FAIL"}: ${name} | ${styleCounterSummary()}`);
+        } finally {
+            style.remove();
+            fixtureParts.fixture.remove();
+        }
+    }
+
+    test(() => {
+        // Root-only structural invalidation cases: these should recompute the sibling
+        // itself, then use inherited-style propagation for light DOM descendants.
+        {
+            const style = addStyle(document.head, ".watcher:first-child { color: rgb(1, 2, 3); }");
+            const { fixture, sibling } = setupFixture(8, "watcher");
+            settleAndReset();
+
+            fixture.insertBefore(makeElement("div"), sibling);
+            assertColor(":first-child loses on prepend", sibling, "rgb(0, 0, 0)");
+            printPassWithCounters("prepend before :first-child sibling does not recompute its descendants");
+
+            style.remove();
+            fixture.remove();
+        }
+
+        {
+            const style = addStyle(document.head, ".watcher:first-child .leaf { color: rgb(1, 2, 3); }");
+            const { fixture, sibling } = setupFixture(8, "watcher");
+            settleAndReset();
+
+            fixture.insertBefore(makeElement("div"), sibling);
+            assertColor(":first-child .leaf loses on prepend", sibling.firstChild, "rgb(0, 0, 0)");
+            printPassWithCounters("prepend before :first-child sibling recomputes descendants when a descendant selector depends on it");
+
+            style.remove();
+            fixture.remove();
+        }
+
+        {
+            const style = addStyle(document.head, ".watcher:last-child { color: rgb(1, 2, 3); }");
+            const { fixture, sibling } = setupFixture(8, "watcher");
+            settleAndReset();
+
+            fixture.appendChild(makeElement("div"));
+            assertColor(":last-child loses on append", sibling, "rgb(0, 0, 0)");
+            printPassWithCounters("append after :last-child sibling does not recompute its descendants");
+
+            style.remove();
+            fixture.remove();
+        }
+
+        {
+            const style = addStyle(document.head, ".anchor + .watcher { color: rgb(1, 2, 3); }");
+            const fixture = makeElement("section");
+            const anchor = makeElement("div", { className: "anchor" });
+            const watcher = makeElement("div", { className: "watcher" });
+            for (let i = 0; i < 8; ++i)
+                watcher.appendChild(makeElement("span", { className: "leaf", text: `leaf ${i}` }));
+            fixture.append(anchor, watcher);
+            document.body.appendChild(fixture);
+            settleAndReset();
+
+            fixture.insertBefore(makeElement("div"), watcher);
+            assertColor(".anchor + .watcher loses on insert between", watcher, "rgb(0, 0, 0)");
+            printPassWithCounters("breaking adjacent sibling combinator does not recompute descendants");
+
+            style.remove();
+            fixture.remove();
+        }
+
+        {
+            const style = addStyle(document.head, ".watcher:nth-child(1) { color: rgb(1, 2, 3); }");
+            const { fixture, sibling } = setupFixture(8, "watcher");
+            settleAndReset();
+
+            fixture.insertBefore(makeElement("div"), sibling);
+            assertColor(":nth-child(1) loses on prepend", sibling, "rgb(0, 0, 0)");
+            printPassWithCounters("prepend before :nth-child(1) sibling does not recompute its descendants");
+
+            style.remove();
+            fixture.remove();
+        }
+
+        // Shadow-host variants: the host's structurally-dependent style changes, and
+        // inherited style must reach light DOM, shadow roots hosted by light-DOM
+        // descendants, direct shadow DOM, and nested shadow DOM.
+        const red = "rgb(1, 2, 3)";
+        const black = "rgb(0, 0, 0)";
+        const shadowCases = [
+            {
+                name: "shadow host loses :first-child inherited color after prepend",
+                css: ".watcher:first-child { color: rgb(1, 2, 3); }",
+                mutate: ({ fixture, host }) => fixture.insertBefore(makeElement("div"), host),
+                expectedHostColor: black,
+                expectedLightColor: black,
+                expectedShadowColor: black,
+                expectedNestedColor: black,
+            },
+            {
+                name: "shadow host gains :first-child inherited color after previous removal",
+                css: ".watcher:first-child { color: rgb(1, 2, 3); }",
+                setup: ({ fixture, host }) => fixture.insertBefore(makeElement("div"), host),
+                mutate: ({ host }) => host.previousSibling.remove(),
+                expectedHostColor: red,
+                expectedLightColor: red,
+                expectedShadowColor: red,
+                expectedNestedColor: red,
+            },
+            {
+                name: "shadow host loses :last-child inherited color after append",
+                css: ".watcher:last-child { color: rgb(1, 2, 3); }",
+                mutate: ({ fixture }) => fixture.appendChild(makeElement("div")),
+                expectedHostColor: black,
+                expectedLightColor: black,
+                expectedShadowColor: black,
+                expectedNestedColor: black,
+            },
+            {
+                name: "shadow host gains :last-child inherited color after next removal",
+                css: ".watcher:last-child { color: rgb(1, 2, 3); }",
+                setup: ({ fixture }) => fixture.appendChild(makeElement("div")),
+                mutate: ({ host }) => host.nextSibling.remove(),
+                expectedHostColor: red,
+                expectedLightColor: red,
+                expectedShadowColor: red,
+                expectedNestedColor: red,
+            },
+            {
+                name: "shadow host loses :only-child inherited color after append",
+                css: ".watcher:only-child { color: rgb(1, 2, 3); }",
+                mutate: ({ fixture }) => fixture.appendChild(makeElement("div")),
+                expectedHostColor: black,
+                expectedLightColor: black,
+                expectedShadowColor: black,
+                expectedNestedColor: black,
+            },
+            {
+                name: "shadow host gains :only-child inherited color after sibling removal",
+                css: ".watcher:only-child { color: rgb(1, 2, 3); }",
+                setup: ({ fixture }) => fixture.appendChild(makeElement("div")),
+                mutate: ({ host }) => host.nextSibling.remove(),
+                expectedHostColor: red,
+                expectedLightColor: red,
+                expectedShadowColor: red,
+                expectedNestedColor: red,
+            },
+            {
+                name: "shadow host loses :nth-child(1) inherited color after prepend",
+                css: ".watcher:nth-child(1) { color: rgb(1, 2, 3); }",
+                mutate: ({ fixture, host }) => fixture.insertBefore(makeElement("div"), host),
+                expectedHostColor: black,
+                expectedLightColor: black,
+                expectedShadowColor: black,
+                expectedNestedColor: black,
+            },
+            {
+                name: "shadow host gains :nth-child(2) inherited color after prepend",
+                css: ".watcher:nth-child(2) { color: rgb(1, 2, 3); }",
+                mutate: ({ fixture, host }) => fixture.insertBefore(makeElement("div"), host),
+                expectedHostColor: red,
+                expectedLightColor: red,
+                expectedShadowColor: red,
+                expectedNestedColor: red,
+            },
+            {
+                name: "shadow host loses :nth-child(odd) inherited color after prepend",
+                css: ".watcher:nth-child(odd) { color: rgb(1, 2, 3); }",
+                mutate: ({ fixture, host }) => fixture.insertBefore(makeElement("div"), host),
+                expectedHostColor: black,
+                expectedLightColor: black,
+                expectedShadowColor: black,
+                expectedNestedColor: black,
+            },
+            {
+                name: "shadow host gains :nth-child(even) inherited color after prepend",
+                css: ".watcher:nth-child(even) { color: rgb(1, 2, 3); }",
+                mutate: ({ fixture, host }) => fixture.insertBefore(makeElement("div"), host),
+                expectedHostColor: red,
+                expectedLightColor: red,
+                expectedShadowColor: red,
+                expectedNestedColor: red,
+            },
+            {
+                name: "shadow host gains :nth-last-child(2) inherited color after append",
+                css: ".watcher:nth-last-child(2) { color: rgb(1, 2, 3); }",
+                mutate: ({ fixture }) => fixture.appendChild(makeElement("div")),
+                expectedHostColor: red,
+                expectedLightColor: red,
+                expectedShadowColor: red,
+                expectedNestedColor: red,
+            },
+            {
+                name: "shadow host loses :nth-last-child(1) inherited color after append",
+                css: ".watcher:nth-last-child(1) { color: rgb(1, 2, 3); }",
+                mutate: ({ fixture }) => fixture.appendChild(makeElement("div")),
+                expectedHostColor: black,
+                expectedLightColor: black,
+                expectedShadowColor: black,
+                expectedNestedColor: black,
+            },
+            {
+                name: "shadow host loses :first-of-type inherited color after same type prepend",
+                css: "x-host:first-of-type { color: rgb(1, 2, 3); }",
+                mutate: ({ fixture, host }) => fixture.insertBefore(makeElement("x-host"), host),
+                expectedHostColor: black,
+                expectedLightColor: black,
+                expectedShadowColor: black,
+                expectedNestedColor: black,
+            },
+            {
+                name: "shadow host keeps :first-of-type inherited color after different type prepend",
+                css: "x-host:first-of-type { color: rgb(1, 2, 3); }",
+                mutate: ({ fixture, host }) => fixture.insertBefore(makeElement("div"), host),
+                expectedHostColor: red,
+                expectedLightColor: red,
+                expectedShadowColor: red,
+                expectedNestedColor: red,
+            },
+            {
+                name: "shadow host loses :last-of-type inherited color after same type append",
+                css: "x-host:last-of-type { color: rgb(1, 2, 3); }",
+                mutate: ({ fixture }) => fixture.appendChild(makeElement("x-host")),
+                expectedHostColor: black,
+                expectedLightColor: black,
+                expectedShadowColor: black,
+                expectedNestedColor: black,
+            },
+            {
+                name: "shadow host gains adjacent combinator inherited color after inserted anchor",
+                css: ".anchor + .watcher { color: rgb(1, 2, 3); }",
+                mutate: ({ fixture, host }) => fixture.insertBefore(makeElement("div", { className: "anchor" }), host),
+                expectedHostColor: red,
+                expectedLightColor: red,
+                expectedShadowColor: red,
+                expectedNestedColor: red,
+            },
+            {
+                name: "shadow host loses adjacent combinator inherited color after inserted separator",
+                css: ".anchor + .watcher { color: rgb(1, 2, 3); }",
+                setup: ({ fixture, host }) => fixture.insertBefore(makeElement("div", { className: "anchor" }), host),
+                mutate: ({ fixture, host }) => fixture.insertBefore(makeElement("div"), host),
+                expectedHostColor: black,
+                expectedLightColor: black,
+                expectedShadowColor: black,
+                expectedNestedColor: black,
+            },
+            {
+                name: "shadow host gains general sibling inherited color after inserted anchor",
+                css: ".anchor ~ .watcher { color: rgb(1, 2, 3); }",
+                setup: ({ fixture, host }) => fixture.insertBefore(makeElement("div"), host),
+                mutate: ({ fixture }) => fixture.insertBefore(makeElement("div", { className: "anchor" }), fixture.firstChild),
+                expectedHostColor: red,
+                expectedLightColor: red,
+                expectedShadowColor: red,
+                expectedNestedColor: red,
+            },
+            {
+                name: "shadow host loses general sibling inherited color after anchor removal",
+                css: ".anchor ~ .watcher { color: rgb(1, 2, 3); }",
+                setup: ({ fixture, host }) => fixture.insertBefore(makeElement("div", { className: "anchor" }), host),
+                mutate: ({ fixture }) => fixture.firstChild.remove(),
+                expectedHostColor: black,
+                expectedLightColor: black,
+                expectedShadowColor: black,
+                expectedNestedColor: black,
+            },
+            {
+                name: "shadow host loses :not(:first-child) inherited color after previous removal",
+                css: ".watcher:not(:first-child) { color: rgb(1, 2, 3); }",
+                setup: ({ fixture, host }) => fixture.insertBefore(makeElement("div"), host),
+                mutate: ({ host }) => host.previousSibling.remove(),
+                expectedHostColor: black,
+                expectedLightColor: black,
+                expectedShadowColor: black,
+                expectedNestedColor: black,
+            },
+            {
+                name: "shadow host gains :is(:first-child) inherited color after previous removal",
+                css: ".watcher:is(:first-child) { color: rgb(1, 2, 3); }",
+                setup: ({ fixture, host }) => fixture.insertBefore(makeElement("div"), host),
+                mutate: ({ host }) => host.previousSibling.remove(),
+                expectedHostColor: red,
+                expectedLightColor: red,
+                expectedShadowColor: red,
+                expectedNestedColor: red,
+            },
+            {
+                name: "shadow host gains :where(:last-child) inherited color after next removal",
+                css: ".watcher:where(:last-child) { color: rgb(1, 2, 3); }",
+                setup: ({ fixture }) => fixture.appendChild(makeElement("div")),
+                mutate: ({ host }) => host.nextSibling.remove(),
+                expectedHostColor: red,
+                expectedLightColor: red,
+                expectedShadowColor: red,
+                expectedNestedColor: red,
+            },
+            {
+                name: "shadow host loses [data-state]:first-child inherited color after prepend",
+                css: ".watcher[data-state='on']:first-child { color: rgb(1, 2, 3); }",
+                setup: ({ host }) => host.setAttribute("data-state", "on"),
+                mutate: ({ fixture, host }) => fixture.insertBefore(makeElement("div"), host),
+                expectedHostColor: black,
+                expectedLightColor: black,
+                expectedShadowColor: black,
+                expectedNestedColor: black,
+            },
+            {
+                name: "shadow host loses child selector inherited color after prepend",
+                css: "section > .watcher:first-child { color: rgb(1, 2, 3); }",
+                mutate: ({ fixture, host }) => fixture.insertBefore(makeElement("div"), host),
+                expectedHostColor: black,
+                expectedLightColor: black,
+                expectedShadowColor: black,
+                expectedNestedColor: black,
+            },
+            {
+                name: "shadow host gains adjacent combinator inherited custom property after inserted anchor",
+                css: ".anchor + .watcher { --host-color: rgb(1, 2, 3); color: var(--host-color); }",
+                mutate: ({ fixture, host }) => fixture.insertBefore(makeElement("div", { className: "anchor" }), host),
+                expectedHostColor: red,
+                expectedLightColor: red,
+                expectedShadowColor: red,
+                expectedNestedColor: red,
+            },
+        ];
+
+        for (const shadowCase of shadowCases)
+            runShadowHostCase(shadowCase);
+    });
+</script>
