@@ -123,6 +123,13 @@ if (ENABLE_FUZZERS)
     add_subdirectory(Meta/Fuzzers)
 endif()
 
+# Tests that exercise a GUI port select themselves on LADYBIRD_GUI_FRAMEWORK, so it has to be set before Tests is
+# parsed. UI/CMakeLists.txt is added further down, and it caches the variable. So, on a fresh build directory Tests
+# would otherwise see it unset — and silently register nothing.
+if (ENABLE_GUI_TARGETS)
+    include(UI/cmake/GUIFramework.cmake)
+endif()
+
 # No utilities or tests in these configs
 if (NOT (ENABLE_FUZZERS OR ENABLE_COMPILER_EXPLORER_BUILD OR ANDROID OR IOS))
     add_subdirectory(Utilities)
