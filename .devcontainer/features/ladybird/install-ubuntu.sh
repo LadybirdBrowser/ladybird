@@ -21,10 +21,19 @@ install_llvm_key() {
     apt update -y
 }
 
+install_cmake() {
+    wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
+    echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/kitware.list
+    apt update -y
+    apt install -y cmake
+}
+
 ### Install packages
 
 apt update -y
-apt install -y lsb-release git python3 autoconf autoconf-archive automake bison build-essential cmake libdrm-dev libgl1-mesa-dev libtool libxkbcommon-dev nasm ninja-build pkg-config qt6-base-dev qt6-tools-dev-tools qt6-wayland ccache fonts-liberation2 zip unzip curl tar
+apt install -y autoconf autoconf-archive automake bison build-essential ccache curl fonts-liberation2 git libdrm-dev libgl1-mesa-dev libtool libxkbcommon-dev lsb-release nasm ninja-build pkg-config python3 qt6-base-dev qt6-tools-dev-tools qt6-wayland shellcheck tar unzip zip
+
+install_cmake
 
 ### Ensure new enough host compiler is available
 
