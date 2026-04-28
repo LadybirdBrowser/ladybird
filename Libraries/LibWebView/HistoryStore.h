@@ -57,8 +57,11 @@ public:
 
     Optional<HistoryEntry> entry_for_url(URL::URL const&);
     Vector<HistoryEntry> autocomplete_entries(StringView query, size_t limit = 8);
+    Vector<HistoryEntry> list_entries(StringView query = {}, size_t offset = 0, size_t limit = 50);
 
     void clear();
+    void remove_entry_for_url(URL::URL const&);
+    void remove_entries_for_same_site(URL::URL const&);
     void remove_entries_accessed_since(UnixDateTime since);
 
 private:
@@ -68,8 +71,11 @@ private:
         Database::StatementID update_favicon { 0 };
         Database::StatementID get_entry { 0 };
         Database::StatementID search_entries { 0 };
+        Database::StatementID list_entries { 0 };
         Database::StatementID clear_entries { 0 };
+        Database::StatementID delete_entry { 0 };
         Database::StatementID delete_entries_accessed_since { 0 };
+        Database::StatementID all_urls { 0 };
     };
 
     class StorageImpl {
@@ -84,8 +90,11 @@ private:
 
         virtual Optional<HistoryEntry> entry_for_url(String const& url) = 0;
         virtual Vector<HistoryEntry> autocomplete_entries(StringView title_query, StringView url_query, size_t limit) = 0;
+        virtual Vector<HistoryEntry> list_entries(StringView title_query, StringView url_query, size_t offset, size_t limit) = 0;
 
         virtual void clear() = 0;
+        virtual void remove_entry_for_url(String const& url) = 0;
+        virtual void remove_entries_for_same_site(StringView site_key) = 0;
         virtual void remove_entries_accessed_since(UnixDateTime since) = 0;
     };
 
@@ -101,8 +110,11 @@ private:
 
         virtual Optional<HistoryEntry> entry_for_url(String const& url) override;
         virtual Vector<HistoryEntry> autocomplete_entries(StringView title_query, StringView url_query, size_t limit) override;
+        virtual Vector<HistoryEntry> list_entries(StringView title_query, StringView url_query, size_t offset, size_t limit) override;
 
         virtual void clear() override;
+        virtual void remove_entry_for_url(String const& url) override;
+        virtual void remove_entries_for_same_site(StringView site_key) override;
         virtual void remove_entries_accessed_since(UnixDateTime since) override;
 
     private:
@@ -122,8 +134,11 @@ private:
 
         virtual Optional<HistoryEntry> entry_for_url(String const& url) override;
         virtual Vector<HistoryEntry> autocomplete_entries(StringView title_query, StringView url_query, size_t limit) override;
+        virtual Vector<HistoryEntry> list_entries(StringView title_query, StringView url_query, size_t offset, size_t limit) override;
 
         virtual void clear() override;
+        virtual void remove_entry_for_url(String const& url) override;
+        virtual void remove_entries_for_same_site(StringView site_key) override;
         virtual void remove_entries_accessed_since(UnixDateTime since) override;
 
     private:
