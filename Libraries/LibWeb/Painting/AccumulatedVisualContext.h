@@ -96,7 +96,6 @@ public:
     Gfx::FloatRect transform_rect_to_viewport(VisualContextIndex, Gfx::FloatRect const&, ScrollStateSnapshot const&) const;
     void dump(VisualContextIndex, StringBuilder&) const;
 
-    bool is_effect(VisualContextIndex i) const { return m_nodes[i.value()].data.has<EffectsData>(); }
     bool has_empty_effective_clip(VisualContextIndex i) const { return m_nodes[i.value()].has_empty_effective_clip; }
 
 private:

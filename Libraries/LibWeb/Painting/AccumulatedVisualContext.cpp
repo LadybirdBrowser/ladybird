@@ -57,7 +57,7 @@ VisualContextIndex AccumulatedVisualContextTree::find_common_ancestor(VisualCont
         a_index = m_nodes[a_index].parent_index.value();
         b_index = m_nodes[b_index].parent_index.value();
     }
-    return VisualContextIndex(a_index);
+    return a_index;
 }
 
 Vector<size_t, 8> AccumulatedVisualContextTree::build_ancestor_chain(VisualContextIndex index) const

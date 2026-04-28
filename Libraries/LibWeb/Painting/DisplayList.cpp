@@ -69,11 +69,12 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
 
     VERIFY(m_surface);
 
-    auto for_each_node_from_common_ancestor_to_target = [&](this auto const& self, VisualContextIndex common_ancestor_index, VisualContextIndex target_index, auto&& callback) -> void {
+    auto for_each_node_from_common_ancestor_to_target = [&](this auto const& self, VisualContextIndex common_ancestor_index, VisualContextIndex target_index, auto&& callback) -> IterationDecision {
         if (!target_index.value() || target_index == common_ancestor_index)
-            return;
-        self(common_ancestor_index, visual_context_tree.node_at(target_index).parent_index, callback);
-        callback(visual_context_tree.node_at(target_index));
+            return IterationDecision::Continue;
+        if (self(common_ancestor_index, visual_context_tree.node_at(target_index).parent_index, callback) == IterationDecision::Break)
+            return IterationDecision::Break;
+        return callback(visual_context_tree.node_at(target_index));
     };
 
     auto apply_accumulated_visual_context = [&](AccumulatedVisualContextNode const& node) {
@@ -111,24 +112,41 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
     VisualContextIndex applied_context_index;
     size_t applied_depth = 0;
 
-    auto switch_to_context = [&](VisualContextIndex target_index) {
+    // OPTIMIZATION: When walking down to apply effects (opacity, filters, blend modes), check culling before applying
+    //               each effect. Effects don't affect clip state, so the culling check is valid before applying them.
+    //               This avoids expensive saveLayer/restore cycles for off-screen elements with effects like blur.
+    enum class SwitchResult : u8 {
+        Switched,
+        CulledByEffect,
+    };
+    auto switch_to_context = [&](VisualContextIndex target_index, Optional<Gfx::IntRect> bounding_rect = {}) -> SwitchResult {
         if (applied_context_index == target_index)
-            return;
+            return SwitchResult::Switched;
 
         auto common_ancestor_index = visual_context_tree.find_common_ancestor(applied_context_index, target_index);
-        size_t common_ancestor_depth = common_ancestor_index.value() ? visual_context_tree.node_at(common_ancestor_index).depth : 0;
+        size_t const common_ancestor_depth = common_ancestor_index.value() ? visual_context_tree.node_at(common_ancestor_index).depth : 0;
 
         while (applied_depth > common_ancestor_depth) {
             restore({});
             applied_depth--;
         }
 
+        auto result = SwitchResult::Switched;
         for_each_node_from_common_ancestor_to_target(common_ancestor_index, target_index, [&](AccumulatedVisualContextNode const& node) {
+            if (bounding_rect.has_value() && node.data.has<EffectsData>()) {
+                if (bounding_rect->is_empty() || would_be_fully_clipped_by_painter(*bounding_rect)) {
+                    result = SwitchResult::CulledByEffect;
+                    return IterationDecision::Break;
+                }
+            }
             apply_accumulated_visual_context(node);
             applied_depth++;
+            return IterationDecision::Continue;
         });
 
-        applied_context_index = target_index;
+        if (result == SwitchResult::Switched)
+            applied_context_index = target_index;
+        return result;
     };
 
     for (size_t command_index = 0; command_index < commands.size(); command_index++) {
@@ -136,20 +154,8 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
 
         auto bounding_rect = command_bounding_rectangle(command);
 
-        // OPTIMIZATION: If the leaf context is an effect and we're switching to a new context,
-        //               check culling before applying it. Effects (opacity, filters, blend modes) don't affect
-        //               clip state, so would_be_fully_clipped_by_painter() returns the same result before and after
-        //               applying effects.
-        //               This avoids expensive saveLayer/restore cycles for off-screen elements with effects like blur.
-        // NOTE: We must not do this for consecutive commands with the same context, as that would incorrectly restore
-        //       and re-apply the effect layer, breaking blend mode compositing.
-        if (context_index.value() && applied_context_index != context_index && visual_context_tree.is_effect(context_index) && bounding_rect.has_value()) {
-            switch_to_context(visual_context_tree.node_at(context_index).parent_index);
-            if (bounding_rect->is_empty() || would_be_fully_clipped_by_painter(*bounding_rect))
-                continue;
-        }
-
-        switch_to_context(context_index);
+        if (switch_to_context(context_index, bounding_rect) == SwitchResult::CulledByEffect)
+            continue;
 
         if (command.has<PaintScrollBar>()) {
             auto translated_command = command;
