@@ -5,6 +5,9 @@
     "features": {
         "ghcr.io/devcontainers/features/github-cli:1": {},
         "ghcr.io/devcontainers-extra/features/pre-commit:2": {},
+        "ghcr.io/devcontainers/features/rust:1": {
+            "profile": "default"
+        },
         "./features/ladybird": {
             "llvm_version": 20
         },
