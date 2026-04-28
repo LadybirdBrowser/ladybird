@@ -1,0 +1,8 @@
+Initial A target: rgb(0, 128, 0)
+Initial B target: rgb(0, 0, 255)
+Initial A slotted: rgb(255, 255, 0)
+Initial B slotted: rgb(255, 255, 0)
+After replace A target: rgb(128, 0, 128)
+After replace B target: rgb(255, 165, 0)
+After replace A slotted: rgb(0, 255, 255)
+After replace B slotted: rgb(0, 255, 255)

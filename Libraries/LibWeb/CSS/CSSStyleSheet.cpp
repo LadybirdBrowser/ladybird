@@ -17,6 +17,7 @@
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleSheetInvalidation.h>
 #include <LibWeb/CSS/StyleSheetList.h>
 #include <LibWeb/DOM/Document.h>
@@ -119,6 +120,8 @@ CSSStyleSheet::CSSStyleSheet(JS::Realm& realm, CSSRuleList& rules, MediaList& me
     };
 }
 
+CSSStyleSheet::~CSSStyleSheet() = default;
+
 void CSSStyleSheet::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSStyleSheet);
@@ -135,6 +138,8 @@ void CSSStyleSheet::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_namespace_rules);
     visitor.visit(m_import_rules);
     visitor.visit(m_owning_documents_or_shadow_roots);
+    if (m_shared_single_constructed_sheet_style_cache)
+        m_shared_single_constructed_sheet_style_cache->visit_edges(visitor);
     for (auto& subresource : m_critical_subresources)
         subresource.visit_edges(visitor);
 }
@@ -417,9 +422,23 @@ void CSSStyleSheet::for_each_owning_style_scope(Function<void(StyleScope&)> cons
     }
 }
 
+NonnullRefPtr<StyleCache> CSSStyleSheet::shared_single_constructed_sheet_style_cache(StyleScope& style_scope)
+{
+    VERIFY(constructed());
+    if (!m_shared_single_constructed_sheet_style_cache)
+        m_shared_single_constructed_sheet_style_cache = StyleCache::create_for_style_scope(style_scope);
+    return *m_shared_single_constructed_sheet_style_cache;
+}
+
+void CSSStyleSheet::invalidate_shared_style_cache()
+{
+    m_shared_single_constructed_sheet_style_cache = nullptr;
+}
+
 void CSSStyleSheet::invalidate_owners(DOM::StyleInvalidationReason reason, ShadowRootStylesheetEffects const* previous_sheet_effects)
 {
     m_did_match = {};
+    invalidate_shared_style_cache();
     invalidate_style_for_style_sheet_owners(*this, reason, ShouldInvalidateRuleCache::Yes, previous_sheet_effects);
 }
 
@@ -457,6 +476,8 @@ bool CSSStyleSheet::evaluate_media_queries(DOM::Document const& document)
         any_media_queries_changed_match_state = true;
 
     m_did_match = now_matches;
+    if (any_media_queries_changed_match_state)
+        invalidate_shared_style_cache();
 
     return any_media_queries_changed_match_state;
 }
@@ -490,6 +511,8 @@ Optional<FlyString> CSSStyleSheet::namespace_uri(StringView namespace_prefix) co
 
 void CSSStyleSheet::recalculate_rule_caches()
 {
+    invalidate_shared_style_cache();
+
     m_default_namespace_rule = nullptr;
     m_namespace_rules.clear();
     m_import_rules.clear();

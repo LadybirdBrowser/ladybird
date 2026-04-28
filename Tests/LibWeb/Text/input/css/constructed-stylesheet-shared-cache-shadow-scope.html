@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host-a" class="primary"><span id="slotted-a" class="slot-target">a</span></div>
+<div id="host-b" class="secondary"><span id="slotted-b" class="slot-target">b</span></div>
+<script>
+    test(() => {
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(`
+            :host(.primary) .target { color: rgb(0, 128, 0); }
+            :host(.secondary) .target { color: rgb(0, 0, 255); }
+            ::slotted(.slot-target) { background-color: rgb(255, 255, 0); }
+        `);
+
+        const hostA = document.getElementById("host-a");
+        const hostB = document.getElementById("host-b");
+        const slottedA = document.getElementById("slotted-a");
+        const slottedB = document.getElementById("slotted-b");
+
+        const shadowA = hostA.attachShadow({ mode: "open" });
+        const shadowB = hostB.attachShadow({ mode: "open" });
+        shadowA.innerHTML = "<span class='target'>a</span><slot></slot>";
+        shadowB.innerHTML = "<span class='target'>b</span><slot></slot>";
+        shadowA.adoptedStyleSheets = [sheet];
+        shadowB.adoptedStyleSheets = [sheet];
+
+        const targetA = shadowA.querySelector(".target");
+        const targetB = shadowB.querySelector(".target");
+
+        println(`Initial A target: ${getComputedStyle(targetA).color}`);
+        println(`Initial B target: ${getComputedStyle(targetB).color}`);
+        println(`Initial A slotted: ${getComputedStyle(slottedA).backgroundColor}`);
+        println(`Initial B slotted: ${getComputedStyle(slottedB).backgroundColor}`);
+
+        sheet.replaceSync(`
+            :host(.primary) .target { color: rgb(128, 0, 128); }
+            :host(.secondary) .target { color: rgb(255, 165, 0); }
+            ::slotted(.slot-target) { background-color: rgb(0, 255, 255); }
+        `);
+
+        println(`After replace A target: ${getComputedStyle(targetA).color}`);
+        println(`After replace B target: ${getComputedStyle(targetB).color}`);
+        println(`After replace A slotted: ${getComputedStyle(slottedA).backgroundColor}`);
+        println(`After replace B slotted: ${getComputedStyle(slottedB).backgroundColor}`);
+    });
+</script>

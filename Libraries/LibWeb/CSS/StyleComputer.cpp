@@ -172,11 +172,11 @@ RuleCache const* StyleComputer::rule_cache_for_cascade_origin(CascadeOrigin casc
     auto const* rule_caches_by_layer = [&]() -> RuleCaches const* {
         switch (cascade_origin) {
         case CascadeOrigin::Author:
-            return style_scope.m_author_rule_cache;
+            return &style_scope.m_rule_cache->author_rule_cache;
         case CascadeOrigin::User:
-            return style_scope.m_user_rule_cache;
+            return &style_scope.m_rule_cache->user_rule_cache;
         case CascadeOrigin::UserAgent:
-            return style_scope.m_user_agent_rule_cache;
+            return &style_scope.m_rule_cache->user_agent_rule_cache;
         default:
             VERIFY_NOT_REACHED();
         }
@@ -199,9 +199,9 @@ RuleCache const* StyleComputer::rule_cache_for_cascade_origin(CascadeOrigin casc
 NonnullRefPtr<InvalidationPlan> StyleComputer::invalidation_plan_for_properties(Vector<InvalidationSet::Property> const& properties, StyleScope const& style_scope) const
 {
     auto result = InvalidationPlan::create();
-    if (!style_scope.m_style_invalidation_data)
+    if (!style_scope.m_rule_cache)
         return result;
-    auto const& invalidation_plans = style_scope.m_style_invalidation_data->invalidation_plans;
+    auto const& invalidation_plans = style_scope.m_rule_cache->style_invalidation_data.invalidation_plans;
     for (auto const& property : properties) {
         if (auto it = invalidation_plans.find(property); it != invalidation_plans.end()) {
             result->include_all_from(*it->value);
@@ -214,7 +214,7 @@ NonnullRefPtr<InvalidationPlan> StyleComputer::invalidation_plan_for_properties(
 
 Vector<HasInvalidationMetadata> const* StyleComputer::has_invalidation_metadata_for_property(InvalidationSet::Property const& property, StyleScope const& style_scope) const
 {
-    if (!style_scope.m_style_invalidation_data)
+    if (!style_scope.m_rule_cache)
         return nullptr;
 
     auto return_bucket_if_present = [](auto const& map, auto const& key) -> Vector<HasInvalidationMetadata> const* {
@@ -226,15 +226,15 @@ Vector<HasInvalidationMetadata> const* StyleComputer::has_invalidation_metadata_
 
     switch (property.type) {
     case InvalidationSet::Property::Type::Id:
-        return return_bucket_if_present(style_scope.m_style_invalidation_data->ids_used_in_has_selectors, property.name());
+        return return_bucket_if_present(style_scope.m_rule_cache->style_invalidation_data.ids_used_in_has_selectors, property.name());
     case InvalidationSet::Property::Type::Class:
-        return return_bucket_if_present(style_scope.m_style_invalidation_data->class_names_used_in_has_selectors, property.name());
+        return return_bucket_if_present(style_scope.m_rule_cache->style_invalidation_data.class_names_used_in_has_selectors, property.name());
     case InvalidationSet::Property::Type::Attribute:
-        return return_bucket_if_present(style_scope.m_style_invalidation_data->attribute_names_used_in_has_selectors, property.name());
+        return return_bucket_if_present(style_scope.m_rule_cache->style_invalidation_data.attribute_names_used_in_has_selectors, property.name());
     case InvalidationSet::Property::Type::TagName:
-        return return_bucket_if_present(style_scope.m_style_invalidation_data->tag_names_used_in_has_selectors, property.name());
+        return return_bucket_if_present(style_scope.m_rule_cache->style_invalidation_data.tag_names_used_in_has_selectors, property.name());
     case InvalidationSet::Property::Type::PseudoClass:
-        return return_bucket_if_present(style_scope.m_style_invalidation_data->pseudo_classes_used_in_has_selectors, property.value.get<PseudoClass>());
+        return return_bucket_if_present(style_scope.m_rule_cache->style_invalidation_data.pseudo_classes_used_in_has_selectors, property.value.get<PseudoClass>());
     default:
         break;
     }
@@ -1259,7 +1259,7 @@ StyleComputer::MatchingRuleSet StyleComputer::build_matching_rule_set(DOM::Abstr
     sort_matching_rules(matching_rule_set.user_rules);
 
     // @layer-ed author rules
-    for (auto const& layer_name : style_scope.m_qualified_layer_names_in_order) {
+    for (auto const& layer_name : style_scope.m_rule_cache->qualified_layer_names_in_order) {
         auto layer_rules = collect_matching_rules(abstract_element, CascadeOrigin::Author, attempted_pseudo_class_matches, layer_name);
         sort_matching_rules(layer_rules);
         matching_rule_set.author_rules.append({ layer_name, layer_rules });

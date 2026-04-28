@@ -9,6 +9,8 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <AK/NonnullRefPtr.h>
+#include <AK/RefPtr.h>
 #include <LibWeb/CSS/CSSNamespaceRule.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
@@ -22,7 +24,9 @@
 namespace Web::CSS {
 
 class CSSImportRule;
+class StyleScope;
 struct ShadowRootStylesheetEffects;
+struct StyleCache;
 
 struct CSSStyleSheetInit {
     Optional<String> base_url {};
@@ -61,7 +65,7 @@ public:
     [[nodiscard]] static GC::Ref<CSSStyleSheet> create(JS::Realm&, CSSRuleList&, MediaList&, Optional<::URL::URL> location);
     static WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> construct_impl(JS::Realm&, Optional<CSSStyleSheetInit> const& options = {});
 
-    virtual ~CSSStyleSheet() override = default;
+    virtual ~CSSStyleSheet() override;
 
     GC::Ptr<CSSRule const> owner_rule() const { return m_owner_css_rule; }
     GC::Ptr<CSSRule> owner_rule() { return m_owner_css_rule; }
@@ -97,6 +101,7 @@ public:
     GC::Ptr<DOM::Document> owning_document() const;
     virtual void set_disabled(bool) override;
     void for_each_owning_style_scope(Function<void(StyleScope&)> const&) const;
+    NonnullRefPtr<StyleCache> shared_single_constructed_sheet_style_cache(StyleScope&);
 
     Optional<FlyString> default_namespace() const;
     GC::Ptr<CSSNamespaceRule> default_namespace_rule() const { return m_default_namespace_rule; }
@@ -134,6 +139,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     void recalculate_rule_caches();
+    void invalidate_shared_style_cache();
 
     void set_constructed(bool constructed) { m_constructed = constructed; }
     void set_disallow_modification(bool disallow_modification) { m_disallow_modification = disallow_modification; }
@@ -155,6 +161,7 @@ private:
     bool m_constructed { false };
     bool m_disallow_modification { false };
     Optional<bool> m_did_match;
+    RefPtr<StyleCache> m_shared_single_constructed_sheet_style_cache;
 
     Vector<Subresource&> m_critical_subresources;
 

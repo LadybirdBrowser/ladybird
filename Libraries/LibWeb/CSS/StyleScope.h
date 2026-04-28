@@ -8,7 +8,10 @@
 
 #include <AK/FlyString.h>
 #include <AK/HashMap.h>
+#include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
+#include <AK/RefCounted.h>
+#include <AK/RefPtr.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/WeakHashSet.h>
@@ -20,6 +23,8 @@
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
+
+class StyleScope;
 
 struct MatchingRule {
     GC::Ptr<CSSRule const> rule; // Either CSSStyleRule or CSSNestedDeclarations
@@ -74,6 +79,21 @@ struct SelectorInsights {
     bool has_has_selectors_with_relative_selector_that_has_sibling_combinator { false };
 };
 
+struct StyleCache : public RefCounted<StyleCache> {
+    static NonnullRefPtr<StyleCache> create();
+    static NonnullRefPtr<StyleCache> create_for_style_scope(StyleScope&);
+
+    Vector<FlyString> qualified_layer_names_in_order;
+    SelectorInsights selector_insights;
+    Array<OwnPtr<RuleCache>, to_underlying(PseudoClass::__Count)> pseudo_class_rule_cache;
+    StyleInvalidationData style_invalidation_data;
+    RuleCaches author_rule_cache;
+    RuleCaches user_rule_cache;
+    RuleCaches user_agent_rule_cache;
+
+    void visit_edges(GC::Cell::Visitor&);
+};
+
 class StyleScope {
 public:
     explicit StyleScope(GC::Ref<DOM::Node>);
@@ -81,11 +101,11 @@ public:
     DOM::Node& node() const { return m_node; }
     DOM::Document& document() const;
 
-    RuleCaches const& author_rule_cache() const { return *m_author_rule_cache; }
-    RuleCaches const& user_rule_cache() const { return *m_user_rule_cache; }
-    RuleCaches const& user_agent_rule_cache() const { return *m_user_agent_rule_cache; }
+    RuleCaches const& author_rule_cache() const { return m_rule_cache->author_rule_cache; }
+    RuleCaches const& user_rule_cache() const { return m_rule_cache->user_rule_cache; }
+    RuleCaches const& user_agent_rule_cache() const { return m_rule_cache->user_agent_rule_cache; }
 
-    [[nodiscard]] bool has_valid_rule_cache() const { return m_author_rule_cache; }
+    [[nodiscard]] bool has_valid_rule_cache() const { return m_rule_cache; }
     void invalidate_rule_cache();
 
     [[nodiscard]] RuleCache const& get_pseudo_class_rule_cache(PseudoClass) const;
@@ -93,14 +113,15 @@ public:
     void for_each_stylesheet(CascadeOrigin, Function<void(CSS::CSSStyleSheet&)> const&) const;
     void build_user_style_sheet_if_needed();
 
-    void make_rule_cache_for_cascade_origin(CascadeOrigin, SelectorInsights&);
+    void make_rule_cache_for_cascade_origin(CascadeOrigin, StyleCache&);
 
     void build_rule_cache();
     void build_rule_cache_if_needed() const;
+    void populate_rule_cache(StyleCache&);
 
     static void collect_selector_insights(Selector const&, SelectorInsights&);
 
-    void build_qualified_layer_names_cache();
+    void build_qualified_layer_names_cache(StyleCache&);
 
     [[nodiscard]] bool may_have_has_selectors() const;
     [[nodiscard]] bool have_has_selectors() const;
@@ -122,13 +143,7 @@ public:
 
     void visit_edges(GC::Cell::Visitor&);
 
-    Vector<FlyString> m_qualified_layer_names_in_order;
-    OwnPtr<SelectorInsights> m_selector_insights;
-    Array<OwnPtr<RuleCache>, to_underlying(PseudoClass::__Count)> m_pseudo_class_rule_cache;
-    OwnPtr<StyleInvalidationData> m_style_invalidation_data;
-    OwnPtr<RuleCaches> m_author_rule_cache;
-    OwnPtr<RuleCaches> m_user_rule_cache;
-    OwnPtr<RuleCaches> m_user_agent_rule_cache;
+    RefPtr<StyleCache> m_rule_cache;
 
     GC::Ptr<CSSStyleSheet> m_user_style_sheet;
 
