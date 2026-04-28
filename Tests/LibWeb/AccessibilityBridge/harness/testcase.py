@@ -9,10 +9,10 @@ from .ladybird import LadybirdContext
 
 
 class AccessibilityBridgeTestCase(unittest.TestCase):
-    """Subclass this and set `FIXTURE = "<name>.html"` (a file under input/).
+    """Subclass this and set FIXTURE = "<name>.html" (a file under input/).
 
     Ladybird is launched once per TestCase subclass (setUpClass) and reused across every test method in that class. Each
-    test method gets `self.app` (the Ladybird AT-SPI2 application) and `self.doc` (the document web accessible) already
+    test method gets self.app (the Ladybird AT-SPI2 application) and self.doc (the document web accessible) already
     populated."""
 
     FIXTURE: str = ""
@@ -46,3 +46,27 @@ class AccessibilityBridgeTestCase(unittest.TestCase):
     @property
     def doc(self):
         return self.ctx.document
+
+
+class LadybirdOrcaTestCase(AccessibilityBridgeTestCase):
+    """Layer-2 base class: on top of the Ladybird launch, opens an OrcaSession in setUp.
+
+    The OrcaSession is per-test-method (not per-class) — so captured speech doesn't leak between tests. If Orca isn't
+    installed, every test in the subclass is skipped automatically — with a clear message."""
+
+    def setUp(self):
+        super().setUp()
+        from .orca import OrcaNotInstalled
+        from .orca import OrcaSession
+
+        try:
+            self.orca = OrcaSession(self.app)
+            self.orca.start()
+        except OrcaNotInstalled as exc:
+            raise unittest.SkipTest(str(exc)) from exc
+
+    def tearDown(self):
+        orca = getattr(self, "orca", None)
+        if orca is not None:
+            orca.stop()
+        super().tearDown()
