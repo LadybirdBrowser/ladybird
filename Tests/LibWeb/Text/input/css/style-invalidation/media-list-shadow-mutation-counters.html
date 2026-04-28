@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    const ACTIVE_COLOR = "rgb(1, 2, 3)";
+    const ACTIVE_BACKGROUND = "rgb(4, 5, 6)";
+
+    function settleAndReset() {
+        document.body.offsetWidth;
+        document.body.offsetWidth;
+        resetStyleCounters();
+    }
+
+    function makeShadowFixture(options = {}) {
+        const fixture = makeElement("section", { className: options.fixtureClass || "" });
+        const wrapper = makeElement("div", { className: options.wrapperClass || "" });
+        const host = makeElement("x-media-host", {
+            className: options.hostClass || "",
+            attributes: options.hostAttributes || {},
+        });
+        const assigned = makeElement(options.assignedTag || "span", {
+            className: options.assignedClass || "assigned",
+            attributes: options.assignedAttributes || {},
+            text: "assigned",
+        });
+
+        if (options.slotName)
+            assigned.setAttribute("slot", options.slotName);
+
+        wrapper.appendChild(host);
+        fixture.appendChild(wrapper);
+        document.body.appendChild(fixture);
+
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        const shadowWrapper = makeElement("div", { className: options.shadowWrapperClass || "shadow-wrapper" });
+        const slot = document.createElement("slot");
+        if (options.slotName)
+            slot.name = options.slotName;
+        if (options.slotClass)
+            slot.className = options.slotClass;
+
+        const inner = makeElement("span", { className: "inner", text: "inner" });
+        shadowWrapper.appendChild(slot);
+        shadowWrapper.appendChild(inner);
+        shadowRoot.appendChild(shadowWrapper);
+        host.appendChild(assigned);
+
+        return { fixture, host, shadowRoot, assigned, inner, slot };
+    }
+
+    function readProperty(target, property) {
+        return getComputedStyle(target).getPropertyValue(property).trim();
+    }
+
+    function runMediaMutationCase(caseData) {
+        const fixture = makeShadowFixture(caseData);
+        const target = caseData.target(fixture);
+        const sheet = new CSSStyleSheet({ media: caseData.initialMedia || "print" });
+        sheet.replaceSync(caseData.cssText);
+        fixture.shadowRoot.adoptedStyleSheets = [sheet];
+
+        document.body.offsetWidth;
+        assertEqual(`${caseData.name} before`, readProperty(target, caseData.property), caseData.before);
+        settleAndReset();
+
+        if (caseData.mutate)
+            caseData.mutate(sheet);
+        else
+            sheet.media.mediaText = caseData.afterMedia || "screen";
+
+        document.body.offsetWidth;
+        assertEqual(`${caseData.name} after`, readProperty(target, caseData.property), caseData.after);
+        printPassWithCounters(caseData.name);
+
+        fixture.fixture.remove();
+    }
+
+    test(() => {
+        const cases = [
+            {
+                name: "shadow media mutation activates bare :host selector",
+                cssText: `:host { color: ${ACTIVE_COLOR}; }`,
+                target: fixture => fixture.host,
+                property: "color",
+                before: "rgb(0, 0, 0)",
+                after: ACTIVE_COLOR,
+            },
+            {
+                name: "shadow media mutation activates classed :host selector",
+                hostClass: "active",
+                cssText: `:host(.active) { color: ${ACTIVE_COLOR}; }`,
+                target: fixture => fixture.host,
+                property: "color",
+                before: "rgb(0, 0, 0)",
+                after: ACTIVE_COLOR,
+            },
+            {
+                name: "shadow media mutation activates attributed :host selector",
+                hostAttributes: { "data-state": "on" },
+                cssText: `:host([data-state="on"]) { color: ${ACTIVE_COLOR}; }`,
+                target: fixture => fixture.host,
+                property: "color",
+                before: "rgb(0, 0, 0)",
+                after: ACTIVE_COLOR,
+            },
+            {
+                name: "shadow media mutation activates negated :host selector",
+                cssText: `:host(:not(.disabled)) { color: ${ACTIVE_COLOR}; }`,
+                target: fixture => fixture.host,
+                property: "color",
+                before: "rgb(0, 0, 0)",
+                after: ACTIVE_COLOR,
+            },
+            {
+                name: "shadow media mutation activates :host :is selector",
+                hostClass: "active",
+                cssText: `:host(:is(.active, [data-state])) { color: ${ACTIVE_COLOR}; }`,
+                target: fixture => fixture.host,
+                property: "color",
+                before: "rgb(0, 0, 0)",
+                after: ACTIVE_COLOR,
+            },
+            {
+                name: "shadow media mutation activates :host :where selector",
+                hostAttributes: { "data-state": "on" },
+                cssText: `:host(:where(.active, [data-state])) { color: ${ACTIVE_COLOR}; }`,
+                target: fixture => fixture.host,
+                property: "color",
+                before: "rgb(0, 0, 0)",
+                after: ACTIVE_COLOR,
+            },
+            {
+                name: "shadow media mutation deactivates classed :host selector",
+                hostClass: "active",
+                initialMedia: "screen",
+                afterMedia: "print",
+                cssText: `:host(.active) { color: ${ACTIVE_COLOR}; }`,
+                target: fixture => fixture.host,
+                property: "color",
+                before: ACTIVE_COLOR,
+                after: "rgb(0, 0, 0)",
+            },
+            {
+                name: "shadow media appendMedium activates :host selector",
+                cssText: `:host { color: ${ACTIVE_COLOR}; }`,
+                mutate: sheet => sheet.media.appendMedium("screen"),
+                target: fixture => fixture.host,
+                property: "color",
+                before: "rgb(0, 0, 0)",
+                after: ACTIVE_COLOR,
+            },
+            {
+                name: "shadow media deleteMedium deactivates :host selector",
+                initialMedia: "screen, print",
+                cssText: `:host { color: ${ACTIVE_COLOR}; }`,
+                mutate: sheet => sheet.media.deleteMedium("screen"),
+                target: fixture => fixture.host,
+                property: "color",
+                before: ACTIVE_COLOR,
+                after: "rgb(0, 0, 0)",
+            },
+            {
+                name: "shadow media mutation activates internal rule guarded by :host",
+                hostClass: "active",
+                cssText: `:host(.active) .inner { color: ${ACTIVE_COLOR}; }`,
+                target: fixture => fixture.inner,
+                property: "color",
+                before: "rgb(0, 0, 0)",
+                after: ACTIVE_COLOR,
+            },
+            {
+                name: "shadow media mutation activates ::slotted class selector",
+                cssText: `::slotted(.assigned) { color: ${ACTIVE_COLOR}; }`,
+                target: fixture => fixture.assigned,
+                property: "color",
+                before: "rgb(0, 0, 0)",
+                after: ACTIVE_COLOR,
+            },
+            {
+                name: "shadow media mutation activates ::slotted type and class selector",
+                assignedTag: "span",
+                cssText: `::slotted(span.assigned) { color: ${ACTIVE_COLOR}; }`,
+                target: fixture => fixture.assigned,
+                property: "color",
+                before: "rgb(0, 0, 0)",
+                after: ACTIVE_COLOR,
+            },
+            {
+                name: "shadow media mutation activates ::slotted attribute selector",
+                assignedAttributes: { "data-kind": "primary" },
+                cssText: `::slotted([data-kind="primary"]) { color: ${ACTIVE_COLOR}; }`,
+                target: fixture => fixture.assigned,
+                property: "color",
+                before: "rgb(0, 0, 0)",
+                after: ACTIVE_COLOR,
+            },
+            {
+                name: "shadow media mutation activates ::slotted :is selector",
+                cssText: `::slotted(:is(.assigned, [data-kind])) { color: ${ACTIVE_COLOR}; }`,
+                target: fixture => fixture.assigned,
+                property: "color",
+                before: "rgb(0, 0, 0)",
+                after: ACTIVE_COLOR,
+            },
+            {
+                name: "shadow media mutation activates ::slotted :not selector",
+                cssText: `::slotted(:not(.missing)) { color: ${ACTIVE_COLOR}; }`,
+                target: fixture => fixture.assigned,
+                property: "color",
+                before: "rgb(0, 0, 0)",
+                after: ACTIVE_COLOR,
+            },
+            {
+                name: "shadow media mutation activates named-slot ::slotted selector",
+                slotName: "main",
+                cssText: `::slotted(.assigned) { color: ${ACTIVE_COLOR}; }`,
+                target: fixture => fixture.assigned,
+                property: "color",
+                before: "rgb(0, 0, 0)",
+                after: ACTIVE_COLOR,
+            },
+            {
+                name: "shadow media mutation activates slotted background style",
+                cssText: `::slotted(.assigned) { background-color: ${ACTIVE_BACKGROUND}; }`,
+                target: fixture => fixture.assigned,
+                property: "background-color",
+                before: "rgba(0, 0, 0, 0)",
+                after: ACTIVE_BACKGROUND,
+            },
+            {
+                name: "shadow media mutation activates bare slot inheritance",
+                cssText: `slot { color: ${ACTIVE_COLOR}; }`,
+                target: fixture => fixture.assigned,
+                property: "color",
+                before: "rgb(0, 0, 0)",
+                after: ACTIVE_COLOR,
+            },
+            {
+                name: "shadow media mutation activates named slot inheritance",
+                slotName: "main",
+                slotClass: "main-slot",
+                cssText: `slot.main-slot { color: ${ACTIVE_COLOR}; }`,
+                target: fixture => fixture.assigned,
+                property: "color",
+                before: "rgb(0, 0, 0)",
+                after: ACTIVE_COLOR,
+            },
+            {
+                name: "shadow media mutation activates descendant slot inheritance",
+                shadowWrapperClass: "shadow-wrapper themed",
+                cssText: `.themed slot { color: ${ACTIVE_COLOR}; }`,
+                target: fixture => fixture.assigned,
+                property: "color",
+                before: "rgb(0, 0, 0)",
+                after: ACTIVE_COLOR,
+            },
+            {
+                name: "shadow media mutation activates nested host structure",
+                wrapperClass: "outer-wrapper",
+                hostClass: "active",
+                cssText: `:host(.active) { color: ${ACTIVE_COLOR}; }`,
+                target: fixture => fixture.host,
+                property: "color",
+                before: "rgb(0, 0, 0)",
+                after: ACTIVE_COLOR,
+            },
+            {
+                name: "shadow media mutation activates paragraph assigned node",
+                assignedTag: "p",
+                cssText: `::slotted(p.assigned) { color: ${ACTIVE_COLOR}; }`,
+                target: fixture => fixture.assigned,
+                property: "color",
+                before: "rgb(0, 0, 0)",
+                after: ACTIVE_COLOR,
+            },
+            {
+                name: "shadow media mutation activates compound host and slotted selectors",
+                hostClass: "active",
+                cssText: `
+                    :host(.active) { color: ${ACTIVE_COLOR}; }
+                    ::slotted(.assigned) { background-color: ${ACTIVE_BACKGROUND}; }
+                `,
+                target: fixture => fixture.assigned,
+                property: "background-color",
+                before: "rgba(0, 0, 0, 0)",
+                after: ACTIVE_BACKGROUND,
+            },
+            {
+                name: "shadow media mutation activates inner and slotted selectors together",
+                cssText: `
+                    .inner { background-color: ${ACTIVE_BACKGROUND}; }
+                    ::slotted(.assigned) { color: ${ACTIVE_COLOR}; }
+                `,
+                target: fixture => fixture.assigned,
+                property: "color",
+                before: "rgb(0, 0, 0)",
+                after: ACTIVE_COLOR,
+            },
+        ];
+
+        for (const caseData of cases)
+            runMediaMutationCase(caseData);
+    });
+</script>

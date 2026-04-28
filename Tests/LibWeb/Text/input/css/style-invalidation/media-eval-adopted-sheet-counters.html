@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    // Adding a constructed CSSStyleSheet via document.adoptedStyleSheets currently
+    // triggers TWO full-document style invalidations:
+    //   1. AdoptedStyleSheetsList from the adopt operation itself.
+    //   2. MediaQueryChangedMatchState from the next update_style call, because
+    //      CSSStyleSheet::evaluate_media_queries treats "no recorded result" as a
+    //      flip even though no real change happened (the rules were already in the
+    //      cascade thanks to the AdoptedStyleSheetsList invalidation).
+    //
+    // Inner @media rules have the same first-eval issue: m_matches starts at false,
+    // so the very first evaluation that actually matches flips false -> true and is
+    // counted as a state change.
+    //
+    // These tests record the current (buggy) counters. The optimization commits will
+    // rebaseline them as fullStyleInvalidations and the recomputation counts drop.
+
+    function setupFixture() {
+        const fixture = makeElement("section");
+        fixture.appendChild(makeElement("div", { className: "subject" }));
+        fixture.appendChild(makeElement("div", { className: "bystander" }));
+        fixture.appendChild(makeElement("div", { className: "bystander" }));
+        document.body.appendChild(fixture);
+        return fixture;
+    }
+
+    function settleAndReset() {
+        document.body.offsetWidth;
+        document.body.offsetWidth;
+        resetStyleCounters();
+    }
+
+    function adoptOnce(name, options, cssText) {
+        const fixture = setupFixture();
+        settleAndReset();
+
+        const sheet = new CSSStyleSheet(options);
+        sheet.replaceSync(cssText);
+        document.adoptedStyleSheets = [sheet];
+        document.body.offsetWidth;
+
+        printPassWithCounters(name);
+
+        document.adoptedStyleSheets = [];
+        fixture.remove();
+    }
+
+    test(() => {
+        // Outer MediaList: empty (defaults to "all"), matches by default.
+        adoptOnce(
+            "adopt sheet with empty outer media",
+            {},
+            ".subject { color: rgb(1, 2, 3); }"
+        );
+
+        adoptOnce(
+            "adopt sheet with outer media=all",
+            { media: "all" },
+            ".subject { color: rgb(1, 2, 3); }"
+        );
+
+        adoptOnce(
+            "adopt sheet with outer media=screen (matches)",
+            { media: "screen" },
+            ".subject { color: rgb(1, 2, 3); }"
+        );
+
+        adoptOnce(
+            "adopt sheet with outer media=print (does not match)",
+            { media: "print" },
+            ".subject { color: rgb(1, 2, 3); }"
+        );
+
+        adoptOnce(
+            "adopt sheet with outer width media that matches",
+            { media: "(min-width: 1px)" },
+            ".subject { color: rgb(1, 2, 3); }"
+        );
+
+        adoptOnce(
+            "adopt sheet with outer width media that does not match",
+            { media: "(min-width: 100000px)" },
+            ".subject { color: rgb(1, 2, 3); }"
+        );
+
+        // Targeted invalidation: the rule selector matches no element in the document,
+        // so AdoptedStyleSheetsList by itself produces a small targeted walk. The
+        // residual recompute work is dominated by the first-eval MediaQueryChangedMatchState.
+        adoptOnce(
+            "adopt sheet with rule that matches no element",
+            {},
+            ".no-such-element { color: rgb(1, 2, 3); }"
+        );
+
+        // Inner @media rule: first eval flips m_matches false -> true.
+        adoptOnce(
+            "adopt sheet with inner @media that matches",
+            {},
+            "@media (min-width: 1px) { .subject { color: rgb(1, 2, 3); } }"
+        );
+
+        // Inner @media that does not match: m_matches starts at false and stays false
+        // on first eval, so no inner flip is recorded.
+        adoptOnce(
+            "adopt sheet with inner @media that does not match",
+            {},
+            "@media (min-width: 100000px) { .subject { color: rgb(1, 2, 3); } }"
+        );
+
+        // Inner @media that matches but is wrapped in a non-matching outer media.
+        adoptOnce(
+            "adopt sheet with non-matching outer media wrapping a matching inner @media",
+            { media: "print" },
+            "@media (min-width: 1px) { .subject { color: rgb(1, 2, 3); } }"
+        );
+
+        adoptOnce(
+            "adopt sheet with multiple inner @media rules, all matching",
+            {},
+            `
+                @media (min-width: 1px) { .subject { color: rgb(1, 2, 3); } }
+                @media all { .subject { background-color: rgb(4, 5, 6); } }
+            `
+        );
+
+        adoptOnce(
+            "adopt sheet with multiple inner @media rules, none matching",
+            {},
+            `
+                @media (min-width: 100000px) { .subject { color: rgb(1, 2, 3); } }
+                @media print { .subject { background-color: rgb(4, 5, 6); } }
+            `
+        );
+
+        adoptOnce(
+            "adopt sheet with mixed matching and non-matching inner @media rules",
+            {},
+            `
+                @media (min-width: 1px) { .subject { color: rgb(1, 2, 3); } }
+                @media print { .subject { background-color: rgb(4, 5, 6); } }
+            `
+        );
+
+        adoptOnce(
+            "adopt sheet with nested inner @media rules",
+            {},
+            `
+                @media (min-width: 1px) {
+                    @media all {
+                        .subject { color: rgb(1, 2, 3); }
+                    }
+                }
+            `
+        );
+
+        adoptOnce(
+            "adopt sheet with @supports wrapping an inner @media",
+            {},
+            `
+                @supports (color: red) {
+                    @media (min-width: 1px) {
+                        .subject { color: rgb(1, 2, 3); }
+                    }
+                }
+            `
+        );
+    });
+</script>

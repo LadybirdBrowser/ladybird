@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    // Adding a <style> or <link> sheet flows through StyleSheetList::add_sheet, which
+    // eagerly calls CSSStyleSheet::evaluate_media_queries before the next style update.
+    // That eager call absorbs the first-evaluation match-state change, so the next
+    // update_style does not double-invalidate even with the current code.
+    //
+    // These tests pin that behavior so the optimization commits don't regress it.
+
+    function setupFixture() {
+        const fixture = makeElement("section");
+        fixture.appendChild(makeElement("div", { className: "subject" }));
+        fixture.appendChild(makeElement("div", { className: "bystander" }));
+        fixture.appendChild(makeElement("div", { className: "bystander" }));
+        document.body.appendChild(fixture);
+        return fixture;
+    }
+
+    function settleAndReset() {
+        document.body.offsetWidth;
+        document.body.offsetWidth;
+        resetStyleCounters();
+    }
+
+    function addStyleOnce(name, attributes, cssText) {
+        const fixture = setupFixture();
+        settleAndReset();
+
+        const style = document.createElement("style");
+        for (const [key, value] of Object.entries(attributes))
+            style.setAttribute(key, value);
+        style.textContent = cssText;
+        document.head.appendChild(style);
+        document.body.offsetWidth;
+
+        printPassWithCounters(name);
+
+        style.remove();
+        fixture.remove();
+    }
+
+    test(() => {
+        addStyleOnce(
+            "<style> with empty outer media",
+            {},
+            ".subject { color: rgb(1, 2, 3); }"
+        );
+
+        addStyleOnce(
+            "<style> with outer media=all",
+            { media: "all" },
+            ".subject { color: rgb(1, 2, 3); }"
+        );
+
+        addStyleOnce(
+            "<style> with outer media=screen (matches)",
+            { media: "screen" },
+            ".subject { color: rgb(1, 2, 3); }"
+        );
+
+        addStyleOnce(
+            "<style> with outer media=print (does not match)",
+            { media: "print" },
+            ".subject { color: rgb(1, 2, 3); }"
+        );
+
+        addStyleOnce(
+            "<style> with outer width media that matches",
+            { media: "(min-width: 1px)" },
+            ".subject { color: rgb(1, 2, 3); }"
+        );
+
+        addStyleOnce(
+            "<style> with outer width media that does not match",
+            { media: "(min-width: 100000px)" },
+            ".subject { color: rgb(1, 2, 3); }"
+        );
+
+        addStyleOnce(
+            "<style> with rule that matches no element",
+            {},
+            ".no-such-element { color: rgb(1, 2, 3); }"
+        );
+
+        addStyleOnce(
+            "<style> with inner @media that matches",
+            {},
+            "@media (min-width: 1px) { .subject { color: rgb(1, 2, 3); } }"
+        );
+
+        addStyleOnce(
+            "<style> with inner @media that does not match",
+            {},
+            "@media (min-width: 100000px) { .subject { color: rgb(1, 2, 3); } }"
+        );
+
+        addStyleOnce(
+            "<style> with multiple inner @media rules, all matching",
+            {},
+            `
+                @media (min-width: 1px) { .subject { color: rgb(1, 2, 3); } }
+                @media all { .subject { background-color: rgb(4, 5, 6); } }
+            `
+        );
+
+        addStyleOnce(
+            "<style> with mixed matching and non-matching inner @media rules",
+            {},
+            `
+                @media (min-width: 1px) { .subject { color: rgb(1, 2, 3); } }
+                @media print { .subject { background-color: rgb(4, 5, 6); } }
+            `
+        );
+
+        addStyleOnce(
+            "<style> with nested inner @media rules",
+            {},
+            `
+                @media (min-width: 1px) {
+                    @media all {
+                        .subject { color: rgb(1, 2, 3); }
+                    }
+                }
+            `
+        );
+    });
+</script>
