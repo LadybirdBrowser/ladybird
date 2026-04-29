@@ -60,39 +60,39 @@ public:
 
         size_t nread = 0;
         while (nread < count) {
-            if (m_current_byte.has_value()) {
-                if constexpr (!IsSame<bool, T> && !IsSame<u8, T>) {
-                    // read as many bytes as possible directly
-                    if (((count - nread) >= 8) && is_aligned_to_byte_boundary()) {
-                        // shift existing data over
-                        result <<= 8;
-                        result |= m_current_byte.value();
-                        nread += 8;
-                        m_current_byte.clear();
-                    } else {
-                        auto const bit = (m_current_byte.value() >> (7 - m_bit_offset)) & 1;
-                        result <<= 1;
-                        result |= bit;
-                        ++nread;
-                        if (m_bit_offset++ == 7)
-                            m_current_byte.clear();
-                    }
+            if (!m_current_byte.has_value()) {
+                m_current_byte = TRY(m_stream->read_value<u8>());
+                m_bit_offset = 0;
+            }
+
+            if constexpr (IsOneOf<T, bool, u8>) {
+                // Always take this branch for booleans or u8: there's no purpose in reading more than a single bit.
+                auto const bit = (m_current_byte.value() >> (7 - m_bit_offset)) & 1;
+                if constexpr (IsSame<bool, T>) {
+                    result = bit;
                 } else {
-                    // Always take this branch for booleans or u8: there's no purpose in reading more than a single bit
+                    result <<= 1;
+                    result |= bit;
+                }
+                ++nread;
+                if (m_bit_offset++ == 7)
+                    m_current_byte.clear();
+            } else {
+                // Read as many bits as possible directly.
+                if ((count - nread >= 8) && is_aligned_to_byte_boundary()) {
+                    // shift existing data over
+                    result <<= 8;
+                    result |= m_current_byte.value();
+                    nread += 8;
+                    m_current_byte.clear();
+                } else {
                     auto const bit = (m_current_byte.value() >> (7 - m_bit_offset)) & 1;
-                    if constexpr (IsSame<bool, T>)
-                        result = bit;
-                    else {
-                        result <<= 1;
-                        result |= bit;
-                    }
+                    result <<= 1;
+                    result |= bit;
                     ++nread;
                     if (m_bit_offset++ == 7)
                         m_current_byte.clear();
                 }
-            } else {
-                m_current_byte = TRY(m_stream->read_value<u8>());
-                m_bit_offset = 0;
             }
         }
 
