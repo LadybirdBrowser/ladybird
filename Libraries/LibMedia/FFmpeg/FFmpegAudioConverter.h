@@ -30,13 +30,13 @@ private:
     ErrorOr<void> set_input_sample_specification(Audio::SampleSpecification);
     ErrorOr<void> set_sample_specifications(Audio::SampleSpecification input, Audio::SampleSpecification output);
     void free_output_buffer();
-    ErrorOr<int> get_maximum_output_samples(size_t input_size) const;
+    ErrorOr<int> get_maximum_output_frames(size_t input_size) const;
 
     Audio::SampleSpecification m_input_sample_specification;
     Audio::SampleSpecification m_output_sample_specification;
     SwrContext* m_context { nullptr };
     u8* m_output_buffer { nullptr };
-    int m_output_buffer_sample_count { 0 };
+    int m_output_buffer_frame_count { 0 };
 };
 
 }

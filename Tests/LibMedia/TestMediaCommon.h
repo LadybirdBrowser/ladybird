@@ -69,7 +69,7 @@ static inline void decode_video(StringView path, size_t expected_frame_count, T 
     VERIFY_NOT_REACHED();
 }
 
-static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_count, size_t expected_sample_count, Optional<Audio::ChannelMap> expected_channel_map = {})
+static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_count, size_t expected_frame_count, Optional<Audio::ChannelMap> expected_channel_map = {})
 {
     Core::EventLoop loop;
 
@@ -93,8 +93,8 @@ static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_cou
     auto time_limit = AK::Duration::from_seconds(1);
     auto start_time = MonotonicTime::now_coarse();
 
-    i64 last_sample = 0;
-    size_t sample_count = 0;
+    i64 last_frame = 0;
+    size_t frame_count = 0;
     auto reached_end = false;
 
     while (true) {
@@ -107,10 +107,10 @@ static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_cou
             if (expected_channel_map.has_value())
                 EXPECT_EQ(block.sample_specification().channel_map(), expected_channel_map.value());
 
-            VERIFY(sample_count == 0 || last_sample <= block.timestamp_in_samples());
-            last_sample = block.timestamp_in_samples() + static_cast<i64>(block.sample_count());
+            VERIFY(frame_count == 0 || last_frame <= block.timestamp_in_frames());
+            last_frame = block.timestamp_in_frames() + static_cast<i64>(block.frame_count());
 
-            sample_count += block.sample_count();
+            frame_count += block.frame_count();
         } else if (status == Media::PipelineStatus::EndOfStream) {
             reached_end = true;
             break;
@@ -125,5 +125,5 @@ static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_cou
     }
 
     VERIFY(reached_end);
-    EXPECT_EQ(sample_count, expected_sample_count);
+    EXPECT_EQ(frame_count, expected_frame_count);
 }

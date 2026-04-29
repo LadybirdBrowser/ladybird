@@ -45,7 +45,7 @@ public:
 private:
     struct InputMixingData {
         AudioBlock current_block;
-        i64 next_sample { 0 };
+        i64 next_frame { 0 };
         PipelineStatus last_status { PipelineStatus::Pending };
     };
 
@@ -57,7 +57,7 @@ private:
     mutable Sync::Mutex m_mutex;
     Audio::SampleSpecification m_sample_specification;
     HashMap<NonnullRefPtr<AudioProducer>, InputMixingData> m_inputs;
-    i64 m_next_sample_to_write { 0 };
+    i64 m_next_frame_to_write { 0 };
     bool m_started { false };
 
     PipelineStateChangeHandler m_state_changed_handler;

@@ -44,12 +44,12 @@ public:
     size_t m_block_head { 0 };
     size_t m_block_tail { 0 };
     size_t m_block_count { 0 };
-    i64 m_next_sample_to_play { 0 };
+    i64 m_next_frame_to_play { 0 };
 
     PipelineStateChangeHandler m_on_state_changed;
     PipelineStatus m_last_pull_status { PipelineStatus::Pending };
     PipelineStatus m_last_dispatched_status { PipelineStatus::Pending };
-    i64 m_last_real_data_end_in_samples { 0 };
+    i64 m_last_real_data_end_in_frames { 0 };
 
     Atomic<u32> m_seek_id { 0 };
     bool m_audio_processor_should_exit { false };
@@ -118,7 +118,7 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                         output_thread_data->m_waiting_for_upstream_data = false;
 
                         if (status == PipelineStatus::HaveData)
-                            output_thread_data->m_last_real_data_end_in_samples = output_block.end_timestamp_in_samples();
+                            output_thread_data->m_last_real_data_end_in_frames = output_block.end_timestamp_in_frames();
 
                         if (!can_carry_data(output_thread_data->m_last_dispatched_status))
                             output_thread_data->dispatch_state_if_changed(status, seek_id_at_pull);
@@ -255,36 +255,36 @@ ReadonlySpan<float> AudioPlaybackSink::OutputThreadData::move_output_to_playback
     while (samples_written < buffer.size() && m_block_count > 0) {
         auto const& head_block = m_blocks[m_block_head];
         auto channel_count = head_block.channel_count();
-        auto block_start_sample = head_block.timestamp_in_samples();
-        auto block_end_sample = block_start_sample + static_cast<i64>(head_block.sample_count());
+        auto block_start_frame = head_block.timestamp_in_frames();
+        auto block_end_frame = block_start_frame + static_cast<i64>(head_block.frame_count());
 
-        if (m_next_sample_to_play >= block_end_sample) {
+        if (m_next_frame_to_play >= block_end_frame) {
             m_block_head = (m_block_head + 1) % OUTPUT_BLOCK_QUEUE_CAPACITY;
             m_block_count--;
             continue;
         }
 
-        if (m_next_sample_to_play < block_start_sample) {
-            auto silence_samples = static_cast<size_t>(block_start_sample - m_next_sample_to_play) * channel_count;
+        if (m_next_frame_to_play < block_start_frame) {
+            auto silence_samples = static_cast<size_t>(block_start_frame - m_next_frame_to_play) * channel_count;
             auto samples_to_silence = min(silence_samples, buffer.size() - samples_written);
             for (size_t i = 0; i < samples_to_silence; i++)
                 buffer[samples_written + i] = 0.0f;
             samples_written += samples_to_silence;
-            m_next_sample_to_play += static_cast<i64>(samples_to_silence / channel_count);
+            m_next_frame_to_play += static_cast<i64>(samples_to_silence / channel_count);
             continue;
         }
 
-        auto offset_in_head_samples = static_cast<size_t>(m_next_sample_to_play - block_start_sample) * channel_count;
-        auto samples_remaining_in_head = head_block.data_count() - offset_in_head_samples;
+        auto offset_in_head_samples = static_cast<size_t>(m_next_frame_to_play - block_start_frame) * channel_count;
+        auto samples_remaining_in_head = head_block.sample_count() - offset_in_head_samples;
         auto samples_to_copy = min(samples_remaining_in_head, buffer.size() - samples_written);
 
         for (size_t i = 0; i < samples_to_copy; i++)
             buffer[samples_written + i] = head_block.data()[offset_in_head_samples + i];
 
         samples_written += samples_to_copy;
-        m_next_sample_to_play += static_cast<i64>(samples_to_copy / channel_count);
+        m_next_frame_to_play += static_cast<i64>(samples_to_copy / channel_count);
 
-        if (offset_in_head_samples + samples_to_copy == head_block.data_count()) {
+        if (offset_in_head_samples + samples_to_copy == head_block.sample_count()) {
             m_block_head = (m_block_head + 1) % OUTPUT_BLOCK_QUEUE_CAPACITY;
             m_block_count--;
         }
@@ -296,7 +296,7 @@ ReadonlySpan<float> AudioPlaybackSink::OutputThreadData::move_output_to_playback
             dispatch_state_if_changed(m_last_pull_status, m_seek_id);
     }
 
-    if (m_last_pull_status == PipelineStatus::EndOfStream && m_next_sample_to_play >= m_last_real_data_end_in_samples)
+    if (m_last_pull_status == PipelineStatus::EndOfStream && m_next_frame_to_play >= m_last_real_data_end_in_frames)
         dispatch_state_if_changed(PipelineStatus::EndOfStream, m_seek_id);
 
     m_output_condition.broadcast();
@@ -375,7 +375,7 @@ void AudioPlaybackSink::seek(AK::Duration time)
     if (!m_output_thread_data->m_playback_stream)
         return;
 
-    auto seek_target_in_samples = time.to_time_units(1, m_sample_specification.sample_rate());
+    auto seek_target_in_frames = time.to_time_units(1, m_sample_specification.sample_rate());
     {
         Sync::MutexLocker locker { m_output_thread_data->m_output_mutex };
         m_output_thread_data->m_seek_id++;
@@ -384,9 +384,9 @@ void AudioPlaybackSink::seek(AK::Duration time)
         m_output_thread_data->m_block_tail = 0;
         m_output_thread_data->m_block_count = 0;
 
-        m_output_thread_data->m_next_sample_to_play = seek_target_in_samples;
+        m_output_thread_data->m_next_frame_to_play = seek_target_in_frames;
 
-        m_output_thread_data->m_last_real_data_end_in_samples = seek_target_in_samples;
+        m_output_thread_data->m_last_real_data_end_in_frames = seek_target_in_frames;
 
         m_output_thread_data->m_last_pull_status = PipelineStatus::Pending;
         m_output_thread_data->m_last_dispatched_status = PipelineStatus::Pending;

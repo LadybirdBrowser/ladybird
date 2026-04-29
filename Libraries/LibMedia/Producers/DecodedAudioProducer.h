@@ -128,7 +128,7 @@ private:
         OwnPtr<AudioDecoder> m_decoder;
         bool m_decoder_needs_keyframe_next_seek { false };
         NonnullOwnPtr<Audio::AudioConverter> m_converter;
-        i64 m_last_sample { NumericLimits<i64>::min() };
+        i64 m_last_output_frame { NumericLimits<i64>::min() };
 
         size_t m_queue_max_size { 8 };
         AudioQueue m_queue;

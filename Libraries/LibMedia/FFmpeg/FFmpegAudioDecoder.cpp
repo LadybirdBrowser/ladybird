@@ -175,10 +175,10 @@ DecoderErrorOr<void> FFmpegAudioDecoder::write_next_block(AudioBlock& block)
             auto planar_format = av_get_planar_sample_fmt(format);
 
             VERIFY(m_frame->nb_samples >= 0);
-            auto sample_count = static_cast<size_t>(m_frame->nb_samples);
+            auto frame_count = static_cast<size_t>(m_frame->nb_samples);
             auto channel_count = static_cast<size_t>(m_frame->ch_layout.nb_channels);
-            auto count = sample_count * channel_count;
-            data.resize_and_keep_capacity(count);
+            auto sample_count = frame_count * channel_count;
+            data.resize_and_keep_capacity(sample_count);
 
             auto sample_size = [&] {
                 switch (planar_format) {
@@ -201,11 +201,11 @@ DecoderErrorOr<void> FFmpegAudioDecoder::write_next_block(AudioBlock& block)
 
             VERIFY(m_frame->linesize[0] > 0);
             if (is_planar)
-                VERIFY(static_cast<size_t>(m_frame->linesize[0]) >= sample_count * sample_size);
+                VERIFY(static_cast<size_t>(m_frame->linesize[0]) >= frame_count * sample_size);
             else
-                VERIFY(static_cast<size_t>(m_frame->linesize[0]) >= sample_count * channel_count * sample_size);
+                VERIFY(static_cast<size_t>(m_frame->linesize[0]) >= sample_count * sample_size);
 
-            for (size_t i = 0; i < count; i++) {
+            for (size_t i = 0; i < sample_count; i++) {
                 size_t plane = 0;
                 size_t index_in_plane = i;
                 if (is_planar) {

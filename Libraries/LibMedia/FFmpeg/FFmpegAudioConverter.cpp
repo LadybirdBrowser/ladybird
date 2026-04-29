@@ -79,15 +79,15 @@ ErrorOr<void> FFmpegAudioConverter::set_sample_specifications(Audio::SampleSpeci
 void FFmpegAudioConverter::free_output_buffer()
 {
     if (m_output_buffer == nullptr) {
-        VERIFY(m_output_buffer_sample_count == 0);
+        VERIFY(m_output_buffer_frame_count == 0);
         return;
     }
     av_freep(static_cast<void*>(&m_output_buffer));
     VERIFY(m_output_buffer == nullptr);
-    m_output_buffer_sample_count = 0;
+    m_output_buffer_frame_count = 0;
 }
 
-ErrorOr<int> FFmpegAudioConverter::get_maximum_output_samples(size_t input_size) const
+ErrorOr<int> FFmpegAudioConverter::get_maximum_output_frames(size_t input_size) const
 {
     Checked<size_t> result = input_size;
     result /= m_input_sample_specification.channel_count();
@@ -117,30 +117,30 @@ ErrorOr<void> FFmpegAudioConverter::convert(AudioBlock& input)
     auto input_data = input.data();
 
     auto output_channel_count = m_output_sample_specification.channel_count();
-    auto output_sample_count = TRY(get_maximum_output_samples(input_data.size()));
+    auto output_frame_count = TRY(get_maximum_output_frames(input_data.size()));
 
-    if (output_sample_count > m_output_buffer_sample_count) {
+    if (output_frame_count > m_output_buffer_frame_count) {
         free_output_buffer();
-        auto alloc_samples_result = av_samples_alloc(&m_output_buffer, nullptr, output_channel_count, output_sample_count, AVSampleFormat::AV_SAMPLE_FMT_FLT, 0);
+        auto alloc_samples_result = av_samples_alloc(&m_output_buffer, nullptr, output_channel_count, output_frame_count, AVSampleFormat::AV_SAMPLE_FMT_FLT, 0);
         if (alloc_samples_result < 0)
             return Error::from_string_view(av_error_code_to_string(alloc_samples_result));
         VERIFY(m_output_buffer != nullptr);
-        m_output_buffer_sample_count = output_sample_count;
+        m_output_buffer_frame_count = output_frame_count;
     }
 
     auto const* input_buffer = input_data.reinterpret<u8 const>().data();
     // The input buffer size should already be safe to cast to int here.
-    auto input_count = static_cast<int>(input_data.size() / m_input_sample_specification.channel_count());
-    VERIFY(input_count >= 0);
+    auto input_frame_count = static_cast<int>(input_data.size() / m_input_sample_specification.channel_count());
+    VERIFY(input_frame_count >= 0);
 
-    auto converted_samples_result = swr_convert(m_context, &m_output_buffer, m_output_buffer_sample_count, &input_buffer, input_count);
-    if (converted_samples_result < 0)
-        return Error::from_string_view(av_error_code_to_string(converted_samples_result));
-    VERIFY(converted_samples_result <= m_output_buffer_sample_count);
-    auto converted_samples = static_cast<size_t>(converted_samples_result);
+    auto converted_frames_result = swr_convert(m_context, &m_output_buffer, m_output_buffer_frame_count, &input_buffer, input_frame_count);
+    if (converted_frames_result < 0)
+        return Error::from_string_view(av_error_code_to_string(converted_frames_result));
+    VERIFY(converted_frames_result <= m_output_buffer_frame_count);
+    auto converted_frames = static_cast<size_t>(converted_frames_result);
 
     input.emplace(m_output_sample_specification, input.timestamp(), [&](AudioBlock::Data& data) {
-        data.resize_and_keep_capacity(converted_samples * output_channel_count);
+        data.resize_and_keep_capacity(converted_frames * output_channel_count);
         AK::TypedTransfer<float>::copy(data.data(), reinterpret_cast<float*>(m_output_buffer), data.size());
     });
     return {};

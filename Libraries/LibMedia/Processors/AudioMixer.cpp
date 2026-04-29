@@ -103,7 +103,7 @@ Audio::SampleSpecification AudioMixer::sample_specification() const
 
 AK::Duration AudioMixer::mix_head_timestamp() const
 {
-    return AK::Duration::from_time_units(m_next_sample_to_write, 1, m_sample_specification.sample_rate());
+    return AK::Duration::from_time_units(m_next_frame_to_write, 1, m_sample_specification.sample_rate());
 }
 
 void AudioMixer::seek(AK::Duration timestamp)
@@ -113,7 +113,7 @@ void AudioMixer::seek(AK::Duration timestamp)
         if (!m_sample_specification.is_valid())
             return;
 
-        m_next_sample_to_write = timestamp.to_time_units(1, m_sample_specification.sample_rate());
+        m_next_frame_to_write = timestamp.to_time_units(1, m_sample_specification.sample_rate());
 
         for (auto& [input, input_data] : m_inputs) {
             input_data.current_block.clear();
@@ -148,20 +148,20 @@ PipelineStatus AudioMixer::pull(AudioBlock& into)
     VERIFY(m_sample_specification.is_valid());
 
     auto channel_count = m_sample_specification.channel_count();
-    auto max_sample_count = MAX_SAMPLES_PER_OUTPUT_BLOCK / channel_count;
+    auto max_frame_count = MAX_SAMPLES_PER_OUTPUT_BLOCK / channel_count;
 
     Sync::MutexLocker locker { m_mutex };
-    auto buffer_start = m_next_sample_to_write;
-    auto samples_end_cap = buffer_start + static_cast<i64>(max_sample_count);
-    auto write_size = max_sample_count * channel_count;
+    auto buffer_start_frame = m_next_frame_to_write;
+    auto frames_end_cap = buffer_start_frame + static_cast<i64>(max_frame_count);
+    auto write_size = max_frame_count * channel_count;
 
     auto combined_status_after_mix = PipelineStatus::EndOfStream;
-    i64 latest_mixed_sample = samples_end_cap;
+    i64 latest_mixed_frame = frames_end_cap;
 
     for (auto& [input, input_data] : m_inputs)
-        input_data.next_sample = buffer_start;
+        input_data.next_frame = buffer_start_frame;
 
-    into.emplace(m_sample_specification, buffer_start, [&](AudioBlock::Data& data) {
+    into.emplace(m_sample_specification, buffer_start_frame, [&](AudioBlock::Data& data) {
         data.resize_and_keep_capacity(write_size);
         for (size_t i = 0; i < write_size; i++)
             data[i] = 0.0f;
@@ -174,9 +174,9 @@ PipelineStatus AudioMixer::pull(AudioBlock& into)
             auto mix_target = [&] {
                 Optional<MixTarget> result;
                 for (auto& [input, input_data] : m_inputs) {
-                    if (input_data.next_sample >= samples_end_cap)
+                    if (input_data.next_frame >= frames_end_cap)
                         continue;
-                    if (!result.has_value() || input_data.next_sample < result->input_data.next_sample)
+                    if (!result.has_value() || input_data.next_frame < result->input_data.next_frame)
                         result = { input, input_data };
                 }
                 return result;
@@ -191,7 +191,7 @@ PipelineStatus AudioMixer::pull(AudioBlock& into)
                     return false;
                 if (current_block.sample_specification() != m_sample_specification)
                     return false;
-                if (current_block.end_timestamp_in_samples() <= input_data.next_sample)
+                if (current_block.end_timestamp_in_frames() <= input_data.next_frame)
                     return false;
                 return true;
             }();
@@ -201,7 +201,7 @@ PipelineStatus AudioMixer::pull(AudioBlock& into)
                 AudioBlock new_block;
                 input_data.last_status = input.pull(new_block);
                 if (input_data.last_status == PipelineStatus::EndOfStream) {
-                    input_data.next_sample = samples_end_cap;
+                    input_data.next_frame = frames_end_cap;
                     continue;
                 }
                 if (input_data.last_status != PipelineStatus::HaveData)
@@ -211,24 +211,24 @@ PipelineStatus AudioMixer::pull(AudioBlock& into)
                 continue;
             }
 
-            auto first_sample_offset = current_block.timestamp_in_samples();
-            if (first_sample_offset >= samples_end_cap) {
-                input_data.next_sample = samples_end_cap;
+            auto first_frame_offset = current_block.timestamp_in_frames();
+            if (first_frame_offset >= frames_end_cap) {
+                input_data.next_frame = frames_end_cap;
                 continue;
             }
 
-            auto next_sample = max(input_data.next_sample, first_sample_offset);
+            auto next_frame = max(input_data.next_frame, first_frame_offset);
 
-            VERIFY(next_sample >= first_sample_offset);
-            auto index_in_block = static_cast<size_t>((next_sample - first_sample_offset) * channel_count);
-            VERIFY(index_in_block < current_block.data_count());
+            VERIFY(next_frame >= first_frame_offset);
+            auto index_in_block = static_cast<size_t>((next_frame - first_frame_offset) * channel_count);
+            VERIFY(index_in_block < current_block.sample_count());
 
-            VERIFY(next_sample >= buffer_start);
-            auto index_in_buffer = static_cast<size_t>((next_sample - buffer_start) * channel_count);
+            VERIFY(next_frame >= buffer_start_frame);
+            auto index_in_buffer = static_cast<size_t>((next_frame - buffer_start_frame) * channel_count);
             VERIFY(index_in_buffer < write_size);
 
-            VERIFY(current_block.data_count() >= index_in_block);
-            auto write_count = current_block.data_count() - index_in_block;
+            VERIFY(current_block.sample_count() >= index_in_block);
+            auto write_count = current_block.sample_count() - index_in_block;
             write_count = min(write_count, write_size - index_in_buffer);
             VERIFY(write_count > 0);
             VERIFY(index_in_buffer + write_count <= write_size);
@@ -237,32 +237,32 @@ PipelineStatus AudioMixer::pull(AudioBlock& into)
             for (size_t i = 0; i < write_count; i++)
                 data[index_in_buffer + i] += current_block.data()[index_in_block + i];
 
-            input_data.next_sample = next_sample + static_cast<i64>(write_count / channel_count);
+            input_data.next_frame = next_frame + static_cast<i64>(write_count / channel_count);
         }
 
         for (auto& [input, input_data] : m_inputs) {
-            latest_mixed_sample = min(latest_mixed_sample, input_data.next_sample);
+            latest_mixed_frame = min(latest_mixed_frame, input_data.next_frame);
             combined_status_after_mix = select_combined_pipeline_status(combined_status_after_mix, input_data.last_status);
         }
     });
 
-    VERIFY(latest_mixed_sample >= buffer_start);
-    auto sample_count = static_cast<size_t>(latest_mixed_sample - buffer_start);
+    VERIFY(latest_mixed_frame >= buffer_start_frame);
+    auto frame_count = static_cast<size_t>(latest_mixed_frame - buffer_start_frame);
 
     if (combined_status_after_mix == PipelineStatus::EndOfStream) {
-        m_next_sample_to_write = samples_end_cap;
+        m_next_frame_to_write = frames_end_cap;
         return PipelineStatus::EndOfStream;
     }
 
-    if (sample_count == 0) {
+    if (frame_count == 0) {
         into.clear();
         if (combined_status_after_mix == PipelineStatus::HaveData)
             return PipelineStatus::Pending;
         return combined_status_after_mix;
     }
 
-    into.trim(sample_count);
-    m_next_sample_to_write += static_cast<i64>(sample_count);
+    into.trim(frame_count);
+    m_next_frame_to_write += static_cast<i64>(frame_count);
     return PipelineStatus::HaveData;
 }
 

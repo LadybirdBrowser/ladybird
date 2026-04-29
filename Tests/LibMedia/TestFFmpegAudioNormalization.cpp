@@ -88,7 +88,7 @@ static void decode_and_expect()
 
     bool saw_negative_full_scale_sample = false;
     bool saw_positive_peak_sample = false;
-    size_t decoded_sample_count = 0;
+    size_t decoded_frame_count = 0;
     bool reached_end_of_stream = false;
 
     MonotonicTime deadline = MonotonicTime::now_coarse() + AK::Duration::from_seconds(1);
@@ -108,7 +108,7 @@ static void decode_and_expect()
                 if (sample > 0.0f)
                     saw_positive_peak_sample = true;
             }
-            decoded_sample_count += block.sample_count();
+            decoded_frame_count += block.frame_count();
         } else if (status == Media::PipelineStatus::EndOfStream) {
             reached_end_of_stream = true;
             break;
@@ -118,7 +118,7 @@ static void decode_and_expect()
     }
 
     EXPECT(reached_end_of_stream);
-    EXPECT_EQ(decoded_sample_count, sample_count);
+    EXPECT_EQ(decoded_frame_count, sample_count);
     EXPECT(saw_negative_full_scale_sample);
     EXPECT(saw_positive_peak_sample);
 }

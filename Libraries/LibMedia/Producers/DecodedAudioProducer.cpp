@@ -350,7 +350,7 @@ void DecodedAudioProducer::ThreadData::dispatch_error(DecoderError&& error)
 void DecodedAudioProducer::ThreadData::flush_decoder()
 {
     m_decoder->flush();
-    m_last_sample = NumericLimits<i64>::min();
+    m_last_output_frame = NumericLimits<i64>::min();
 }
 
 DecoderErrorOr<void> DecodedAudioProducer::ThreadData::retrieve_next_block(AudioBlock& block)
@@ -361,9 +361,9 @@ DecoderErrorOr<void> DecodedAudioProducer::ThreadData::retrieve_next_block(Audio
     if (convert_result.is_error())
         return DecoderError::format(DecoderErrorCategory::NotImplemented, "Sample specification conversion failed: {}", convert_result.error().string_literal());
 
-    if (block.timestamp_in_samples() < m_last_sample)
-        block.set_timestamp_in_samples(m_last_sample);
-    m_last_sample = block.timestamp_in_samples() + static_cast<i64>(block.sample_count());
+    if (block.timestamp_in_frames() < m_last_output_frame)
+        block.set_timestamp_in_frames(m_last_output_frame);
+    m_last_output_frame = block.end_timestamp_in_frames();
     return {};
 }
 
