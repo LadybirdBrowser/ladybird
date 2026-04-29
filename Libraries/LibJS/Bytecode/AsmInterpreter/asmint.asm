@@ -2099,6 +2099,7 @@ handler Call
 .arg_count_ready:
     load_pair32 regs_locals_count, total_slots, [exec_ptr, EXECUTABLE_REGISTERS_AND_LOCALS_COUNT], [exec_ptr, EXECUTABLE_REGISTERS_AND_LOCALS_AND_CONSTANTS_COUNT]
     assert_nonzero exec_ptr
+    assert_ge_unsigned total_slots, regs_locals_count
 
     # Inline InterpreterStack::allocate().
     add total_slots, formal_count
@@ -2197,6 +2198,7 @@ handler Call
 
 .copy_arguments:
     load32 arg_count, [pb, pc, m_argument_count]
+    assert_ge_unsigned formal_count, arg_count
     mov write_idx, regs_locals_count
     add write_idx, const_count
     lea scratch, [exec_ctx, SIZEOF_EXECUTION_CONTEXT]
@@ -2763,6 +2765,7 @@ handler ObjectPropertyIteratorNext
 .named:
     load64 named_index, [iterator, PROPERTY_NAME_ITERATOR_NEXT_PROPERTY]
     load64 named_size, [cache, OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_SIZE]
+    assert_ge_unsigned named_size, indexed_count
     sub named_size, indexed_count
     branch_ge_unsigned named_index, named_size, .done
     mov key_index, named_index
