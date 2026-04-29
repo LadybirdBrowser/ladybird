@@ -353,7 +353,7 @@ impl Tokenizer {
         }
     }
 
-    fn next_code_point(&mut self) -> u32 {
+    fn consume_code_point(&mut self) -> u32 {
         if self.index >= self.code_points.len() {
             return TOKENIZER_EOF;
         }
@@ -400,7 +400,7 @@ impl Tokenizer {
         // FIXME: Reconsuming just to read the current code point again is weird.
         self.reconsume_current_input_code_point();
         U32Twin {
-            first: self.next_code_point(),
+            first: self.consume_code_point(),
             second: self.peek_code_point(0),
         }
     }
@@ -408,7 +408,7 @@ impl Tokenizer {
     fn start_of_input_stream_triplet(&mut self) -> U32Triplet {
         // FIXME: Reconsuming just to read the current code point again is weird.
         self.reconsume_current_input_code_point();
-        let first = self.next_code_point();
+        let first = self.consume_code_point();
         let next_two = self.peek_twin();
         U32Triplet {
             first,
@@ -440,8 +440,8 @@ impl Tokenizer {
                 return;
             }
 
-            self.next_code_point();
-            self.next_code_point();
+            self.consume_code_point();
+            self.consume_code_point();
 
             loop {
                 let twin = self.peek_twin();
@@ -450,19 +450,19 @@ impl Tokenizer {
                 }
 
                 if is_asterisk(twin.first) && is_solidus(twin.second) {
-                    self.next_code_point();
-                    self.next_code_point();
+                    self.consume_code_point();
+                    self.consume_code_point();
                     break;
                 }
 
-                self.next_code_point();
+                self.consume_code_point();
             }
         }
     }
 
     fn consume_as_much_whitespace_as_possible(&mut self) {
         while is_whitespace(self.peek_code_point(0)) {
-            self.next_code_point();
+            self.consume_code_point();
         }
     }
 
@@ -474,7 +474,7 @@ impl Tokenizer {
         // It will return a code point.
 
         // Consume the next input code point.
-        let input = self.next_code_point();
+        let input = self.consume_code_point();
 
         // hex digit
         if is_hex_digit(input) {
@@ -486,12 +486,12 @@ impl Tokenizer {
             let mut counter = 0usize;
             while is_hex_digit(self.peek_code_point(0)) && counter < 5 {
                 counter += 1;
-                append_code_point(&mut repr, self.next_code_point());
+                append_code_point(&mut repr, self.consume_code_point());
             }
 
             // If the next input code point is whitespace, consume it as well.
             if is_whitespace(self.peek_code_point(0)) {
-                self.next_code_point();
+                self.consume_code_point();
             }
 
             // Interpret the hex digits as a hexadecimal number.
@@ -529,7 +529,7 @@ impl Tokenizer {
         // If string’s value is an ASCII case-insensitive match for "url", and the next input code
         // point is U+0028 LEFT PARENTHESIS ((), consume it.
         if string.eq_ignore_ascii_case("url") && is_left_paren(self.peek_code_point(0)) {
-            self.next_code_point();
+            self.consume_code_point();
 
             // While the next two input code points are whitespace, consume the next input code point.
             loop {
@@ -537,7 +537,7 @@ impl Tokenizer {
                 if !(is_whitespace(maybe_whitespace.first) && is_whitespace(maybe_whitespace.second)) {
                     break;
                 }
-                self.next_code_point();
+                self.consume_code_point();
             }
 
             // If the next one or two input code points are U+0022 QUOTATION MARK ("), U+0027 APOSTROPHE ('),
@@ -558,7 +558,7 @@ impl Tokenizer {
 
         // Otherwise, if the next input code point is U+0028 LEFT PARENTHESIS ((), consume it.
         if is_left_paren(self.peek_code_point(0)) {
-            self.next_code_point();
+            self.consume_code_point();
 
             // Create a <function-token> with its value set to string and return it.
             return Token::create_function(string, start_byte_offset, self.current_byte_offset());
@@ -589,12 +589,12 @@ impl Tokenizer {
         let next_input = self.peek_code_point(0);
         if is_plus_sign(next_input) || is_hyphen_minus(next_input) {
             has_explicit_sign = true;
-            append_code_point(&mut repr, self.next_code_point());
+            append_code_point(&mut repr, self.consume_code_point());
         }
 
         // 3. While the next input code point is a digit, consume it and append it to repr.
         while is_digit(self.peek_code_point(0)) {
-            append_code_point(&mut repr, self.next_code_point());
+            append_code_point(&mut repr, self.consume_code_point());
         }
 
         // 4. If the next 2 input code points are U+002E FULL STOP (.) followed by a digit, then:
@@ -602,15 +602,15 @@ impl Tokenizer {
         if is_full_stop(maybe_number.first) && is_digit(maybe_number.second) {
             // 1. Consume them.
             // 2. Append them to repr.
-            append_code_point(&mut repr, self.next_code_point());
-            append_code_point(&mut repr, self.next_code_point());
+            append_code_point(&mut repr, self.consume_code_point());
+            append_code_point(&mut repr, self.consume_code_point());
 
             // 3. Set type to "number".
             number_type = CssNumberType::Number;
 
             // 4. While the next input code point is a digit, consume it and append it to repr.
             while is_digit(self.peek_code_point(0)) {
-                append_code_point(&mut repr, self.next_code_point());
+                append_code_point(&mut repr, self.consume_code_point());
             }
         }
 
@@ -628,12 +628,12 @@ impl Tokenizer {
             if (is_plus_sign(maybe_exponent.second) || is_hyphen_minus(maybe_exponent.second))
                 && is_digit(maybe_exponent.third)
             {
-                append_code_point(&mut repr, self.next_code_point());
-                append_code_point(&mut repr, self.next_code_point());
-                append_code_point(&mut repr, self.next_code_point());
+                append_code_point(&mut repr, self.consume_code_point());
+                append_code_point(&mut repr, self.consume_code_point());
+                append_code_point(&mut repr, self.consume_code_point());
             } else if is_digit(maybe_exponent.second) {
-                append_code_point(&mut repr, self.next_code_point());
-                append_code_point(&mut repr, self.next_code_point());
+                append_code_point(&mut repr, self.consume_code_point());
+                append_code_point(&mut repr, self.consume_code_point());
             }
 
             // 3. Set type to "number".
@@ -641,7 +641,7 @@ impl Tokenizer {
 
             // 4. While the next input code point is a digit, consume it and append it to repr.
             while is_digit(self.peek_code_point(0)) {
-                append_code_point(&mut repr, self.next_code_point());
+                append_code_point(&mut repr, self.consume_code_point());
             }
         }
 
@@ -675,7 +675,7 @@ impl Tokenizer {
 
         // Repeatedly consume the next input code point from the stream:
         loop {
-            let input = self.next_code_point();
+            let input = self.consume_code_point();
 
             if is_eof(input) {
                 break;
@@ -723,7 +723,7 @@ impl Tokenizer {
 
         // 3. Repeatedly consume the next input code point from the stream:
         loop {
-            let input = self.next_code_point();
+            let input = self.consume_code_point();
 
             // U+0029 RIGHT PARENTHESIS ())
             if is_right_paren(input) {
@@ -746,12 +746,12 @@ impl Tokenizer {
                 // If the next input code point is U+0029 RIGHT PARENTHESIS ()) or EOF, consume it
                 // and return the <url-token> (if EOF was encountered, this is a parse error);
                 if is_right_paren(next_input) {
-                    self.next_code_point();
+                    self.consume_code_point();
                     return Token::create_url(value, start_byte_offset, self.current_byte_offset());
                 }
 
                 if is_eof(next_input) {
-                    self.next_code_point();
+                    self.consume_code_point();
                     return Token::create_url(value, start_byte_offset, self.current_byte_offset());
                 }
 
@@ -804,7 +804,7 @@ impl Tokenizer {
 
         // Repeatedly consume the next input code point from the stream:
         loop {
-            let input = self.next_code_point();
+            let input = self.consume_code_point();
 
             // U+0029 RIGHT PARENTHESIS ())
             // EOF
@@ -850,7 +850,7 @@ impl Tokenizer {
 
         // Otherwise, if the next input code point is U+0025 PERCENTAGE SIGN (%), consume it.
         if is_percent(self.peek_code_point(0)) {
-            self.next_code_point();
+            self.consume_code_point();
 
             // Create a <percentage-token> with the same value as number, and return it.
             return Token::create_percentage(number, start_byte_offset, self.current_byte_offset());
@@ -875,7 +875,7 @@ impl Tokenizer {
 
         // Repeatedly consume the next input code point from the stream:
         loop {
-            let input = self.next_code_point();
+            let input = self.consume_code_point();
 
             // ending code point
             if input == ending_code_point {
@@ -907,7 +907,7 @@ impl Tokenizer {
 
                 // Otherwise, if the next input code point is a newline, consume it.
                 if is_newline(next_input) {
-                    self.next_code_point();
+                    self.consume_code_point();
                     continue;
                 }
 
@@ -940,7 +940,7 @@ impl Tokenizer {
         }
 
         // Consume the next input code point.
-        let input = self.next_code_point();
+        let input = self.consume_code_point();
 
         // whitespace
         if is_whitespace(input) {
@@ -1033,8 +1033,8 @@ impl Tokenizer {
             // GREATER-THAN SIGN (->), consume them and return a <CDC-token>.
             let next_twin = self.peek_twin();
             if is_hyphen_minus(next_twin.first) && is_greater_than_sign(next_twin.second) {
-                self.next_code_point();
-                self.next_code_point();
+                self.consume_code_point();
+                self.consume_code_point();
                 return Token::create(CssTokenType::CDC, start_byte_offset, self.current_byte_offset());
             }
 
@@ -1083,9 +1083,9 @@ impl Tokenizer {
                 && is_hyphen_minus(maybe_cdo.second)
                 && is_hyphen_minus(maybe_cdo.third)
             {
-                self.next_code_point();
-                self.next_code_point();
-                self.next_code_point();
+                self.consume_code_point();
+                self.consume_code_point();
+                self.consume_code_point();
                 return Token::create(CssTokenType::CDO, start_byte_offset, self.current_byte_offset());
             }
 
