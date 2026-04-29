@@ -62,7 +62,7 @@
     },
     {
       "name": "harfbuzz",
-      "platform": "linux | bsd | windows",
+      "platform": "linux | bsd | windows | android",
       "features": [
         "freetype",
         "icu"
