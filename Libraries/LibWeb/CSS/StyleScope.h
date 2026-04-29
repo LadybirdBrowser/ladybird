@@ -139,8 +139,6 @@ public:
 
     void for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&)> const& callback) const;
 
-    void invalidate_style_of_elements_affected_by_has();
-
     void invalidate_counter_style_cache();
     void build_counter_style_cache();
     RefPtr<CSS::CounterStyle const> get_registered_counter_style(FlyString const& name) const;
