@@ -6,18 +6,18 @@
 
 #include <AK/ScopeGuard.h>
 #include <LibWeb/CSS/Invalidation/InvalidationSetMatcher.h>
+#include <LibWeb/CSS/Invalidation/StyleInvalidator.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/ShadowRoot.h>
-#include <LibWeb/DOM/StyleInvalidator.h>
 
-namespace Web::DOM {
+namespace Web::CSS::Invalidation {
 
 GC_DEFINE_ALLOCATOR(StyleInvalidator);
 
-static bool element_matches_invalidation_rule(Element const& element, CSS::InvalidationSet const& match_set, bool match_any)
+static bool element_matches_invalidation_rule(DOM::Element const& element, CSS::InvalidationSet const& match_set, bool match_any)
 {
-    return match_any || CSS::Invalidation::element_matches_any_invalidation_set_property(element, match_set);
+    return match_any || element_matches_any_invalidation_set_property(element, match_set);
 }
 
 void StyleInvalidator::visit_edges(Cell::Visitor& visitor)
@@ -27,13 +27,13 @@ void StyleInvalidator::visit_edges(Cell::Visitor& visitor)
         visitor.visit(it.key);
 }
 
-void StyleInvalidator::invalidate(Node& node)
+void StyleInvalidator::invalidate(DOM::Node& node)
 {
     perform_pending_style_invalidations(node, false);
     m_pending_invalidations.clear();
 }
 
-bool StyleInvalidator::enqueue_invalidation_plan(Node& node, StyleInvalidationReason reason, CSS::InvalidationPlan const& plan)
+bool StyleInvalidator::enqueue_invalidation_plan(DOM::Node& node, DOM::StyleInvalidationReason reason, CSS::InvalidationPlan const& plan)
 {
     if (plan.is_empty())
         return false;
@@ -48,7 +48,7 @@ bool StyleInvalidator::enqueue_invalidation_plan(Node& node, StyleInvalidationRe
 
     add_pending_invalidation(node, reason, plan);
 
-    if (auto* element = as_if<Element>(node)) {
+    if (auto* element = as_if<DOM::Element>(node)) {
         for (auto const& sibling_rule : plan.sibling_rules)
             apply_sibling_invalidation(*element, reason, sibling_rule);
     }
@@ -56,7 +56,7 @@ bool StyleInvalidator::enqueue_invalidation_plan(Node& node, StyleInvalidationRe
     return false;
 }
 
-void StyleInvalidator::add_pending_invalidation(GC::Ref<Node> node, StyleInvalidationReason reason, CSS::InvalidationPlan const& plan)
+void StyleInvalidator::add_pending_invalidation(GC::Ref<DOM::Node> node, DOM::StyleInvalidationReason reason, CSS::InvalidationPlan const& plan)
 {
     if (plan.descendant_rules.is_empty())
         return;
@@ -71,7 +71,7 @@ void StyleInvalidator::add_pending_invalidation(GC::Ref<Node> node, StyleInvalid
     }
 }
 
-void StyleInvalidator::apply_invalidation_plan(Element& element, StyleInvalidationReason reason, CSS::InvalidationPlan const& plan, bool& invalidate_entire_subtree)
+void StyleInvalidator::apply_invalidation_plan(DOM::Element& element, DOM::StyleInvalidationReason reason, CSS::InvalidationPlan const& plan, bool& invalidate_entire_subtree)
 {
     if (plan.is_empty())
         return;
@@ -98,9 +98,9 @@ void StyleInvalidator::apply_invalidation_plan(Element& element, StyleInvalidati
         apply_sibling_invalidation(element, reason, sibling_rule);
 }
 
-void StyleInvalidator::apply_sibling_invalidation(Element& element, StyleInvalidationReason reason, CSS::SiblingInvalidationRule const& sibling_rule)
+void StyleInvalidator::apply_sibling_invalidation(DOM::Element& element, DOM::StyleInvalidationReason reason, CSS::SiblingInvalidationRule const& sibling_rule)
 {
-    auto apply_if_matching = [&](Element* sibling) {
+    auto apply_if_matching = [&](DOM::Element* sibling) {
         if (!sibling)
             return;
         if (!element_matches_invalidation_rule(*sibling, sibling_rule.match_set, sibling_rule.match_any))
@@ -124,10 +124,10 @@ void StyleInvalidator::apply_sibling_invalidation(Element& element, StyleInvalid
 // This function makes a full pass over the entire DOM and:
 // - converts "entire subtree needs style update" into "needs style update" for each inclusive descendant where it's found.
 // - applies descendant invalidation rules to matching elements
-void StyleInvalidator::perform_pending_style_invalidations(Node& node, bool invalidate_entire_subtree)
+void StyleInvalidator::perform_pending_style_invalidations(DOM::Node& node, bool invalidate_entire_subtree)
 {
     invalidate_entire_subtree |= node.entire_subtree_needs_style_update();
-    auto* element = as_if<Element>(node);
+    auto* element = as_if<DOM::Element>(node);
 
     if (invalidate_entire_subtree) {
         node.set_needs_style_update_internal(true);
@@ -172,7 +172,7 @@ void StyleInvalidator::perform_pending_style_invalidations(Node& node, bool inva
         perform_pending_style_invalidations(*child, invalidate_entire_subtree);
 
     if (node.is_element()) {
-        auto& element = static_cast<Element&>(node);
+        auto& element = static_cast<DOM::Element&>(node);
         if (auto shadow_root = element.shadow_root()) {
             perform_pending_style_invalidations(*shadow_root, invalidate_entire_subtree);
             if (invalidate_entire_subtree || shadow_root->needs_style_update() || shadow_root->child_needs_style_update()) {

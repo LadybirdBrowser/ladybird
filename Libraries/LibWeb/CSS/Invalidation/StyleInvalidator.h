@@ -11,33 +11,33 @@
 #include <LibWeb/DOM/StyleInvalidationReason.h>
 #include <LibWeb/Forward.h>
 
-namespace Web::DOM {
+namespace Web::CSS::Invalidation {
 
 class StyleInvalidator : public GC::Cell {
     GC_CELL(StyleInvalidator, GC::Cell);
     GC_DECLARE_ALLOCATOR(StyleInvalidator);
 
 public:
-    void invalidate(Node& node);
-    bool enqueue_invalidation_plan(Node&, StyleInvalidationReason, CSS::InvalidationPlan const&);
+    void invalidate(DOM::Node& node);
+    bool enqueue_invalidation_plan(DOM::Node&, DOM::StyleInvalidationReason, CSS::InvalidationPlan const&);
     bool has_pending_invalidations() const { return !m_pending_invalidations.is_empty(); }
 
     virtual void visit_edges(Cell::Visitor& visitor) override;
 
 private:
     struct PendingDescendantInvalidation {
-        StyleInvalidationReason reason;
+        DOM::StyleInvalidationReason reason;
         CSS::DescendantInvalidationRule rule;
 
         bool operator==(PendingDescendantInvalidation const&) const = default;
     };
 
-    void add_pending_invalidation(GC::Ref<Node>, StyleInvalidationReason, CSS::InvalidationPlan const&);
-    void apply_invalidation_plan(Element&, StyleInvalidationReason, CSS::InvalidationPlan const&, bool& invalidate_entire_subtree);
-    void apply_sibling_invalidation(Element&, StyleInvalidationReason, CSS::SiblingInvalidationRule const&);
-    void perform_pending_style_invalidations(Node& node, bool invalidate_entire_subtree);
+    void add_pending_invalidation(GC::Ref<DOM::Node>, DOM::StyleInvalidationReason, CSS::InvalidationPlan const&);
+    void apply_invalidation_plan(DOM::Element&, DOM::StyleInvalidationReason, CSS::InvalidationPlan const&, bool& invalidate_entire_subtree);
+    void apply_sibling_invalidation(DOM::Element&, DOM::StyleInvalidationReason, CSS::SiblingInvalidationRule const&);
+    void perform_pending_style_invalidations(DOM::Node& node, bool invalidate_entire_subtree);
 
-    HashMap<GC::Ref<Node>, Vector<PendingDescendantInvalidation>> m_pending_invalidations;
+    HashMap<GC::Ref<DOM::Node>, Vector<PendingDescendantInvalidation>> m_pending_invalidations;
     Vector<PendingDescendantInvalidation> m_active_descendant_invalidations;
 };
 

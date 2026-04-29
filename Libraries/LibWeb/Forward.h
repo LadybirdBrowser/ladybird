@@ -497,6 +497,12 @@ using FilterValue = Variant<FilterOperation::Blur, FilterOperation::DropShadow, 
 
 }
 
+namespace Web::CSS::Invalidation {
+
+class StyleInvalidator;
+
+}
+
 namespace Web::CSS::Parser {
 
 class ComponentValue;
@@ -563,7 +569,6 @@ class ShadowRoot;
 class SlotRegistry;
 class StaticNodeList;
 class StaticRange;
-class StyleInvalidator;
 class Text;
 class TreeWalker;
 class XMLDocument;

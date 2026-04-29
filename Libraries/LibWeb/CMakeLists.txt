@@ -182,6 +182,7 @@ set(SOURCES
     CSS/Invalidation/HasMutationInvalidator.cpp
     CSS/Invalidation/InvalidationSetMatcher.cpp
     CSS/Invalidation/LinkInvalidator.cpp
+    CSS/Invalidation/StyleInvalidator.cpp
     CSS/Invalidation/StructuralMutationInvalidator.cpp
     CSS/Interpolation.cpp
     CSS/InvalidationSet.cpp
@@ -363,7 +364,6 @@ set(SOURCES
     DOM/StaticNodeList.cpp
     DOM/StaticRange.cpp
     DOM/StyleElementBase.cpp
-    DOM/StyleInvalidator.cpp
     DOM/Text.cpp
     DOM/TreeWalker.cpp
     DOM/Utils.cpp
