@@ -24,7 +24,7 @@ class Tokenizer:
         return cls(input).tokenize_impl()
 
     def tokenize_impl(self) -> list[Token]:
-        tokens = []
+        tokens: list[Token] = []
 
         while True:
             self.discard_whitespace()
@@ -62,7 +62,7 @@ class Tokenizer:
         if not self.lexer.consume_specific("!["):
             return []
 
-        blacklist = []
+        blacklist: list[str] = []
 
         while True:
             self.discard_whitespace()
