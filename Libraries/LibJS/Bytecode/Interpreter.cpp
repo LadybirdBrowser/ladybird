@@ -9,6 +9,7 @@
 #include <AK/HashTable.h>
 #include <AK/NumericLimits.h>
 #include <AK/TemporaryChange.h>
+#include <LibGC/ConservativeHashTable.h>
 #include <LibGC/RootHashMap.h>
 #include <LibGC/RootHashTable.h>
 #include <LibJS/Bytecode/AsmInterpreter/AsmInterpreter.h>
@@ -1632,15 +1633,15 @@ static ThrowCompletionOr<Optional<FastPropertyNameIteratorData>> try_get_fast_pr
 
     result.properties.ensure_capacity(estimated_properties_count);
 
-    HashTable<PropertyKey> seen_non_enumerable_properties;
-    Optional<HashTable<PropertyKey>> seen_properties;
+    GC::ConservativeHashTable<PropertyKey> seen_non_enumerable_properties;
+    Optional<GC::ConservativeHashTable<PropertyKey>> seen_properties;
     auto ensure_seen_properties = [&] {
         if (seen_properties.has_value())
             return;
         // Prototype shadowing ignores enumerability, so once we start looking
         // above the receiver we need an explicit visited set for names we have
         // already decided to expose from lower objects.
-        seen_properties = HashTable<PropertyKey> {};
+        seen_properties.emplace();
         seen_properties->ensure_capacity(result.properties.size());
         for (auto const& property : result.properties)
             seen_properties->set(property);
@@ -1746,15 +1747,15 @@ inline ThrowCompletionOr<GC::Ref<PropertyNameIterator>> get_object_property_iter
     }
     seen_objects.clear_with_capacity();
 
-    Vector<PropertyKey> properties;
+    GC::ConservativeVector<PropertyKey> properties;
     properties.ensure_capacity(estimated_properties_count);
 
-    HashTable<PropertyKey> seen_non_enumerable_properties;
-    Optional<HashTable<PropertyKey>> seen_properties;
+    GC::ConservativeHashTable<PropertyKey> seen_non_enumerable_properties;
+    Optional<GC::ConservativeHashTable<PropertyKey>> seen_properties;
     auto ensure_seen_properties = [&] {
         if (seen_properties.has_value())
             return;
-        seen_properties = HashTable<PropertyKey> {};
+        seen_properties.emplace();
         seen_properties->ensure_capacity(properties.size());
         for (auto const& property : properties)
             seen_properties->set(property);
@@ -2356,7 +2357,7 @@ ThrowCompletionOr<void> CopyObjectExcludingProperties::execute_impl(VM& vm) cons
 
     auto to_object = Object::create(realm, realm.intrinsics().object_prototype());
 
-    HashTable<PropertyKey> excluded_names;
+    GC::ConservativeHashTable<PropertyKey> excluded_names;
     for (size_t i = 0; i < m_excluded_names_count; ++i) {
         excluded_names.set(TRY(vm.get(m_excluded_names[i]).to_property_key(vm)));
     }

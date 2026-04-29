@@ -681,7 +681,7 @@ ThrowCompletionOr<GC::RootVector<Value>> ProxyObject::internal_own_property_keys
     auto trap_result_array = TRY(call(vm, *trap, m_handler, m_target));
 
     // 8. Let trapResult be ? CreateListFromArrayLike(trapResultArray, « String, Symbol »).
-    HashTable<PropertyKey> unique_keys;
+    GC::ConservativeHashTable<PropertyKey> unique_keys;
     auto trap_result = TRY(create_list_from_array_like(vm, trap_result_array, [&](auto value) -> ThrowCompletionOr<void> {
         if (!value.is_string() && !value.is_symbol())
             return vm.throw_completion<TypeError>(ErrorType::ProxyOwnPropertyKeysNotStringOrSymbol);
