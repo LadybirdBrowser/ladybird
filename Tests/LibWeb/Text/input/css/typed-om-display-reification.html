@@ -1,0 +1,28 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const element = document.createElement("div");
+        document.body.appendChild(element);
+
+        for (const value of [
+            "none",
+            "block",
+            "inline",
+            "inline-flex",
+            "table-row",
+            "table-cell",
+            "inline math",
+            "block flow",
+            "block flex",
+            "inline flow list-item",
+        ]) {
+            element.style.display = value;
+
+            const specified = element.attributeStyleMap.get("display");
+            println(`${value}: ${specified.constructor.name} ${specified}`);
+        }
+
+        element.remove();
+    });
+</script>

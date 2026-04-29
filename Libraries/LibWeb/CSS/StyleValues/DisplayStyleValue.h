@@ -22,6 +22,7 @@ public:
     Display display() const { return m_display; }
 
     bool properties_equal(DisplayStyleValue const& other) const { return m_display == other.m_display; }
+    virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, FlyString const& associated_property) const override;
 
     virtual bool is_computationally_independent() const override { return true; }
 

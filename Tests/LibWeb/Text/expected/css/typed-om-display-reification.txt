@@ -1,0 +1,10 @@
+none: CSSKeywordValue none
+block: CSSKeywordValue block
+inline: CSSKeywordValue inline
+inline-flex: CSSKeywordValue inline-flex
+table-row: CSSKeywordValue table-row
+table-cell: CSSKeywordValue table-cell
+inline math: CSSKeywordValue math
+block flow: CSSKeywordValue block
+block flex: CSSKeywordValue flex
+inline flow list-item: CSSStyleValue inline list-item

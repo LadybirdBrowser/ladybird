@@ -139,6 +139,7 @@ public:
     };
 
     static Display from_short(Short short_);
+    Optional<Keyword> to_keyword() const;
 
     Display(DisplayOutside outside, DisplayInside inside)
         : m_type(Type::OutsideAndInside)
