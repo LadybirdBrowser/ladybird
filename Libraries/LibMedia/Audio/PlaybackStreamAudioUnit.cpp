@@ -7,6 +7,7 @@
  */
 
 #include <AK/Atomic.h>
+#include <AK/Math.h>
 #include <AK/ScopeGuard.h>
 #include <AK/SourceLocation.h>
 #include <AK/Vector.h>
@@ -220,7 +221,7 @@ public:
 
     AK::Duration last_sample_time() const
     {
-        return AK::Duration::from_milliseconds(m_last_sample_time.load());
+        return AK::Duration::from_time_units(m_output_time, 1, m_sample_specification.sample_rate());
     }
 
 private:
@@ -251,11 +252,14 @@ private:
         auto& state = *static_cast<AudioState*>(user_data);
         VERIFY(state.m_sample_specification.is_valid());
 
-        VERIFY(time_stamp->mFlags & kAudioTimeStampSampleTimeValid);
-        auto sample_time_seconds = time_stamp->mSampleTime / state.m_sample_specification.sample_rate();
+        auto was_paused = state.m_paused;
 
-        auto last_sample_time = static_cast<i64>(sample_time_seconds * 1000.0);
-        state.m_last_sample_time.store(last_sample_time);
+        VERIFY(time_stamp->mFlags & kAudioTimeStampSampleTimeValid);
+        auto sample_time = AK::clamp_to<i64>(time_stamp->mSampleTime);
+        auto output_time = state.m_frames_written_at_resume + (sample_time - state.m_sample_time_at_resume);
+        output_time = min(output_time, state.m_frames_written);
+        auto output_timestamp = AK::Duration::from_time_units(output_time, 1, state.sample_specification().sample_rate());
+        state.m_output_time = output_time;
 
         if (auto task = state.dequeue_task(); task.has_value()) {
             OSStatus error = noErr;
@@ -281,7 +285,7 @@ private:
             }
 
             if (error == noErr)
-                task->resolve(AK::Duration::from_milliseconds(last_sample_time));
+                task->resolve(output_timestamp);
             else
                 task->reject(error);
         }
@@ -291,7 +295,13 @@ private:
         output_buffer = output_buffer.trim(static_cast<size_t>(frames_to_render) * state.m_sample_specification.channel_count());
 
         if (state.m_paused == Paused::No) {
+            if (was_paused == Paused::Yes) {
+                state.m_frames_written_at_resume = state.m_frames_written;
+                state.m_sample_time_at_resume = sample_time;
+            }
+
             auto written_buffer = state.m_data_request_callback(output_buffer);
+            state.m_frames_written += static_cast<i64>(written_buffer.size() / state.m_sample_specification.channel_count());
 
             if (written_buffer.is_empty())
                 state.m_paused = Paused::Yes;
@@ -310,14 +320,17 @@ private:
     Vector<AudioTask, 4> m_task_queue;
     Atomic<bool> m_task_queue_is_empty { true };
 
-    enum class Paused {
+    enum class Paused : u8 {
         Yes,
         No,
     };
     Paused m_paused { Paused::Yes };
 
     PlaybackStream::AudioDataRequestCallback m_data_request_callback;
-    Atomic<i64> m_last_sample_time { 0 };
+    i64 m_sample_time_at_resume { 0 };
+    i64 m_frames_written_at_resume { 0 };
+    i64 m_frames_written { 0 };
+    Atomic<i64> m_output_time { 0 };
 };
 
 NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStream::create(OutputState initial_output_state, u32 target_latency_ms, AudioDataRequestCallback&& data_request_callback)
