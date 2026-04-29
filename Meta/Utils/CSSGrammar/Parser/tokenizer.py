@@ -59,7 +59,7 @@ class Tokenizer:
 
         self.discard_whitespace()
 
-        if not self.lexer.consume_specific_string("!["):
+        if not self.lexer.consume_specific("!["):
             return []
 
         blacklist = []
@@ -74,10 +74,10 @@ class Tokenizer:
             blacklist.append(ident)
 
             self.discard_whitespace()
-            if self.lexer.consume_specific_char("]"):
+            if self.lexer.consume_specific("]"):
                 return blacklist
 
-            if not self.lexer.consume_specific_char(","):
+            if not self.lexer.consume_specific(","):
                 raise SyntaxError("Expected ',' in custom-ident blacklist")
 
     # https://drafts.csswg.org/css-values-4/#css-bracketed-range-notation
@@ -86,31 +86,31 @@ class Tokenizer:
 
         # If no range is indicated, either by using the bracketed range notation or in the property description, then
         # [-∞,∞] is assumed.
-        if not self.lexer.consume_specific_char("["):
+        if not self.lexer.consume_specific("["):
             return NumericTypeRangeRestriction(-inf, inf)
 
         self.discard_whitespace()
         minimum = self.consume_bracketed_range_bound(type_name)
 
         self.discard_whitespace()
-        if not self.lexer.consume_specific_char(","):
+        if not self.lexer.consume_specific(","):
             raise SyntaxError("Expected ',' in bracketed range notation")
 
         self.discard_whitespace()
         maximum = self.consume_bracketed_range_bound(type_name)
 
         self.discard_whitespace()
-        if not self.lexer.consume_specific_char("]"):
+        if not self.lexer.consume_specific("]"):
             raise SyntaxError("Expected ']' to close bracketed range notation")
 
         return NumericTypeRangeRestriction(minimum, maximum)
 
     def consume_bracketed_range_bound(self, type_name: str) -> float:
         # Values of -∞ or ∞ must be written without units, even if the value type uses units.
-        if self.lexer.consume_specific_string("-∞"):
+        if self.lexer.consume_specific("-∞"):
             return -inf
 
-        if self.lexer.consume_specific_string("∞"):
+        if self.lexer.consume_specific("∞"):
             return inf
 
         # FIXME: Do we need to allow non-integer values?
@@ -132,7 +132,7 @@ class Tokenizer:
 
     def consume_decimal_integer(self) -> int:
         sign = 1
-        if self.lexer.consume_specific_char("-"):
+        if self.lexer.consume_specific("-"):
             sign = -1
 
         digits = self.lexer.consume_while(lambda ch: ch.isdigit())
@@ -142,7 +142,7 @@ class Tokenizer:
         return sign * int(digits)
 
     def consume_a_non_terminal_token(self) -> Token:
-        assert self.lexer.consume_specific_char("<")
+        assert self.lexer.consume_specific("<")
 
         name = self.consume_an_identifier()
 
@@ -157,7 +157,7 @@ class Tokenizer:
         if is_numeric_type(name) or is_dimension_percentage_mix_type(name):
             numeric_type_accepted_range = self.consume_bracketed_range_notation(name)
 
-        if not self.lexer.consume_specific_char(">"):
+        if not self.lexer.consume_specific(">"):
             raise SyntaxError("CSSGrammar::Tokenizer: Expected '>'")
 
         return Token.create_component_value(Type(name, custom_ident_blacklist, numeric_type_accepted_range))
