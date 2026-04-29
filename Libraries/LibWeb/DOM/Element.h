@@ -350,6 +350,11 @@ public:
     [[nodiscard]] bool affected_by_pseudo_class(CSS::PseudoClass) const;
     bool includes_properties_from_invalidation_set(CSS::InvalidationSet const&) const;
     void clear_removed_attributes_for_style_invalidation() { m_removed_attributes_for_style_invalidation.clear(); }
+    void remember_removed_attribute_for_style_invalidation(FlyString const& attribute_name)
+    {
+        if (!m_removed_attributes_for_style_invalidation.contains_slow(attribute_name))
+            m_removed_attributes_for_style_invalidation.append(attribute_name);
+    }
 
     void set_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::PseudoElement, GC::Ptr<Layout::NodeWithStyle>);
     GC::Ptr<Layout::NodeWithStyle> get_pseudo_element_node(CSS::PseudoElement) const;
@@ -634,8 +639,6 @@ protected:
 
 private:
     FlyString make_html_uppercased_qualified_name() const;
-
-    void invalidate_style_after_attribute_change(FlyString const& attribute_name, Optional<String> const& old_value, Optional<String> const& new_value);
 
     void exit_fullscreen_on_element_removal();
 
