@@ -288,9 +288,19 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules(
     auto add_rules_to_run = [&](Vector<MatchingRule> const& rules, GC::Ptr<DOM::ShadowRoot const> rule_root) {
         rules_to_run.grow_capacity(rules_to_run.size() + rules.size());
         if (abstract_element.pseudo_element().has_value()) {
+            // Only consider rules whose target pseudo-element matches the one being queried. Rules with no target
+            // pseudo-element, or with a different target pseudo-element can never match the query and would otherwise
+            // waste work evaluating their compound selectors.
+            // FIXME: Once exportparts can forward pseudo-elements as parts, a bare ::part(name) rule may need to match
+            //        a query for a different pseudo-element type.
+            auto queried_pseudo_element = *abstract_element.pseudo_element();
             for (auto const& rule : rules) {
-                if (rule.contains_pseudo_element && filter_namespace_rule(element_namespace_uri, rule))
-                    add_rule_to_run(rule, rule_root);
+                auto const& target_pseudo_element = rule.selector.target_pseudo_element();
+                if (!target_pseudo_element.has_value() || target_pseudo_element->type() != queried_pseudo_element)
+                    continue;
+                if (!filter_namespace_rule(element_namespace_uri, rule))
+                    continue;
+                add_rule_to_run(rule, rule_root);
             }
         } else {
             for (auto const& rule : rules) {
