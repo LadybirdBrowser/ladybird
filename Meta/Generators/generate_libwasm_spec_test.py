@@ -61,20 +61,20 @@ WasmValue = Union[WasmPrimitiveValue, WasmVector, WasmGCValue, EitherOf]
 class ModuleCommand:
     line: int
     file_name: Path
-    name: str | None
+    name: Optional[str]
 
 
 @dataclass
 class Invoke:
     field: str
     args: list[WasmValue]
-    module: str | None
+    module: Optional[str]
 
 
 @dataclass
 class Get:
     field: str
-    module: str | None
+    module: Optional[str]
 
 
 Action = Union[Invoke, Get]
@@ -83,7 +83,7 @@ Action = Union[Invoke, Get]
 @dataclass
 class Register:
     line: int
-    name: str | None
+    name: Optional[str]
     as_: str
 
 
@@ -91,7 +91,7 @@ class Register:
 class AssertReturn:
     line: int
     action: Action
-    expected: WasmValue | None
+    expected: Optional[WasmValue]
 
 
 @dataclass
@@ -521,10 +521,10 @@ def gen_expectation(gen_result: GeneratedValue, module: str):
 def gen_invoke(
     line: int,
     invoke: Invoke,
-    result: WasmValue | None,
+    result: Optional[WasmValue],
     ctx: Context,
     *,
-    fail_msg: str | None = None,
+    fail_msg: Optional[str] = None,
 ):
     if not ctx.has_unclosed:
         print(f'describe("inline (line {line}))", () => {{\nlet _test = test;\n')
@@ -549,7 +549,7 @@ expect(_field).not.toBeUndefined();"""
         print("});")
 
 
-def gen_get(line: int, get: Get, result: WasmValue | None, ctx: Context):
+def gen_get(line: int, get: Get, result: Optional[WasmValue], ctx: Context):
     module = "module"
     if get.module is not None:
         module = f'namedModules["{get.module}"]'

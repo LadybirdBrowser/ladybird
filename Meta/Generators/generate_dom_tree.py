@@ -116,7 +116,7 @@ def bits_for_count(count: int) -> int:
 
 
 class DOMElement:
-    def __init__(self, var_name: str, tag: str, option: str | None):
+    def __init__(self, var_name: str, tag: str, option: Optional[str]):
         self.var_name = var_name
         self.tag = tag
         self.option = option

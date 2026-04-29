@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
+from typing import Optional
 from typing import Self
 
 from Utils.CSSGrammar.Parser.component_values import ComponentValue
@@ -14,7 +15,7 @@ class TokenType(Enum):
 @dataclass(frozen=True)
 class Token:
     token_type: TokenType
-    value: ComponentValue | None
+    value: Optional[ComponentValue]
 
     @classmethod
     def create(cls, token_type: TokenType) -> Self:
