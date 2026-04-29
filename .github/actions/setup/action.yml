@@ -54,13 +54,23 @@ runs:
           pip3 install ruff
         fi
 
+    - name: 'Cache apt packages'
+      if: ${{ inputs.os == 'Linux' && inputs.type == 'build' }}
+      uses: actions/cache@v4
+      with:
+        path: /var/cache/apt/archives
+        key: apt | ${{ inputs.arch }} | ${{ inputs.toolchain }} | ${{ inputs.llvm_version }} | ${{ inputs.gcc_version }} | ${{ hashFiles('.github/actions/setup/action.yml') }}
+        restore-keys: apt | ${{ inputs.arch }} | ${{ inputs.toolchain }} | ${{ inputs.llvm_version }} | ${{ inputs.gcc_version }}
+
     - name: Install apt repositories
       if: ${{ inputs.os == 'Linux' }}
       shell: bash
       run: |
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-
         UBUNTU_RELEASE=$(lsb_release -cs)
+
+        if ! find /etc/apt/sources.list.d/ -name 'ubuntu-toolchain-r*' | grep -q .; then
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+        fi
 
         LLVM_LIST="/etc/apt/sources.list.d/llvm.list"
         LLVM_TOOLCHAIN="llvm-toolchain-${UBUNTU_RELEASE}-${{ inputs.llvm_version }}"
@@ -68,9 +78,8 @@ runs:
         if [ ! -f "${LLVM_LIST}" ] || ! grep -q "${LLVM_TOOLCHAIN}" "${LLVM_LIST}" ; then
           curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm-snapshot.gpg
           echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg] http://apt.llvm.org/${UBUNTU_RELEASE}/ ${LLVM_TOOLCHAIN} main" | sudo tee "${LLVM_LIST}"
+          sudo apt-get update -y
         fi
-
-        sudo apt-get update -y
 
     - name: Install Dependencies
       if: ${{ inputs.os == 'Linux' && inputs.type == 'build' }}
