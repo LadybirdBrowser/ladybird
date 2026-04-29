@@ -63,10 +63,10 @@ RefPtr<AudioDataProvider> AudioMixingSink::provider(Track const& track) const
 
 void AudioMixingSink::create_playback_stream()
 {
-    if (m_playback_stream != nullptr || m_creating_playback_stream)
+    if (m_started_creating_playback_stream)
         return;
 
-    m_creating_playback_stream = true;
+    m_started_creating_playback_stream = true;
 
     auto data_callback = [weak_self = m_weak_self](Span<float> buffer) -> ReadonlySpan<float> {
         auto self = weak_self->take_strong();
@@ -83,7 +83,6 @@ void AudioMixingSink::create_playback_stream()
         if (!self)
             return;
 
-        self->m_creating_playback_stream = false;
         self->m_playback_stream = stream;
         self->set_volume(self->m_volume);
         if (self->m_temporary_time.has_value())
@@ -106,7 +105,6 @@ void AudioMixingSink::create_playback_stream()
         if (!self)
             return;
 
-        self->m_creating_playback_stream = false;
         if (self->on_audio_output_error)
             self->on_audio_output_error(move(error));
     });
@@ -264,11 +262,9 @@ void AudioMixingSink::resume()
     if (!m_playback_stream)
         return;
     m_playback_stream->resume()
-        ->when_resolved([weak_self = m_weak_self, &playback_stream = *m_playback_stream](auto new_stream_time) {
+        ->when_resolved([weak_self = m_weak_self](auto new_stream_time) {
             auto self = weak_self->take_strong();
             if (!self)
-                return;
-            if (self->m_playback_stream != &playback_stream)
                 return;
 
             self->m_main_thread_event_loop.deferred_invoke([self, new_stream_time]() {
@@ -312,11 +308,9 @@ void AudioMixingSink::set_time(AK::Duration time)
         return;
 
     m_playback_stream->drain_buffer_and_suspend()
-        ->when_resolved([weak_self = m_weak_self, &playback_stream = *m_playback_stream]() {
+        ->when_resolved([weak_self = m_weak_self]() {
             auto self = weak_self->take_strong();
             if (!self)
-                return;
-            if (self->m_playback_stream != &playback_stream)
                 return;
 
             auto new_stream_time = self->m_playback_stream->total_time_played();
