@@ -6,6 +6,7 @@
  */
 
 #include <LibURL/Parser.h>
+#include <LibWeb/CSS/Invalidation/LinkInvalidator.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/HTMLHyperlinkElementUtils.h>
@@ -29,16 +30,8 @@ void HTMLHyperlinkElementUtils::reinitialize_url() const
 void HTMLHyperlinkElementUtils::set_the_url()
 {
     ScopeGuard invalidate_style_if_needed = [old_url = m_url, this] {
-        if (m_url != old_url) {
-            hyperlink_element_utils_element().invalidate_style(
-                DOM::StyleInvalidationReason::HTMLHyperlinkElementHrefChange,
-                {
-                    { .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::AnyLink },
-                    { .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::Link },
-                    { .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::LocalLink },
-                },
-                {});
-        }
+        if (m_url != old_url)
+            CSS::Invalidation::invalidate_style_after_hyperlink_state_change(hyperlink_element_utils_element());
     };
 
     auto& element = hyperlink_element_utils_element();

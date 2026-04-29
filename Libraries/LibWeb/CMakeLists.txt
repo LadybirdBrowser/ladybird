@@ -178,6 +178,7 @@ set(SOURCES
     CSS/Invalidation/AttributeInvalidator.cpp
     CSS/Invalidation/HasMutationFeatureCollector.cpp
     CSS/Invalidation/HasMutationInvalidator.cpp
+    CSS/Invalidation/LinkInvalidator.cpp
     CSS/Invalidation/StructuralMutationInvalidator.cpp
     CSS/Interpolation.cpp
     CSS/InvalidationSet.cpp
