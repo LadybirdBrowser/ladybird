@@ -175,6 +175,7 @@ set(SOURCES
     CSS/Frequency.cpp
     CSS/GridTrackPlacement.cpp
     CSS/GridTrackSize.cpp
+    CSS/Invalidation/HasMutationFeatureCollector.cpp
     CSS/Interpolation.cpp
     CSS/InvalidationSet.cpp
     CSS/Length.cpp
