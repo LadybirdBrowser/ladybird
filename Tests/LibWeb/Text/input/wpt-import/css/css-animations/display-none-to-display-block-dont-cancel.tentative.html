@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<link rel="author" title="Tim Nguyen" href="https://github.com/nt1m">
+<link rel="help" href="https://drafts.csswg.org/css-display-4/#display-animation">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/6429">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/css-animations/support/testcommon.js"></script>
+
+<div id="target">hello</div>
+<style>
+@keyframes display-animation {
+  0% { display: none; }
+  100% { display: block; }
+}
+#target {
+  display: none;
+}
+#target.animate {
+  animation: display-animation 1s;
+  display: block;
+}
+</style>
+<script>
+promise_test(async (t) => {
+  t.add_cleanup(() => target.classList.remove('animate'));
+  let numAnimationstartFired = 0;
+  target.addEventListener('animationstart', () => numAnimationstartFired++);
+
+  assert_equals(getComputedStyle(target).display, 'none',
+  'The display should be none before the animation.');
+
+  await waitForAnimationFrames(1);
+  target.classList.add('animate');
+  await waitForAnimationFrames(2);
+
+  assert_equals(getComputedStyle(target).display, 'block',
+    'The display should be block during the animation.');
+  assert_equals(numAnimationstartFired, 1,
+    'Only one animation should start.');
+}, 'display:none animating to display:block should be block for the whole animation.');
+</script>

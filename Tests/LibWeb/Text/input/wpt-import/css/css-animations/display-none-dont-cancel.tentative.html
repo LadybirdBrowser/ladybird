@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://drafts.csswg.org/css-display-4/#display-animation">
+<link rel=help href="https://github.com/w3c/csswg-drafts/issues/6429">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/css-animations/support/testcommon.js"></script>
+
+<div id=target1>hello</div>
+<style>
+@keyframes display1 {
+  0% { display: none; }
+  100% { display: inline; }
+}
+.animate1 {
+  animation: display1 1s infinite;
+}
+</style>
+<script>
+promise_test(async (t) => {
+  t.add_cleanup(() => target1.classList.remove('animate1'));
+
+  let numAnimationstartFired = 0;
+  target1.addEventListener('animationstart', () => numAnimationstartFired++);
+
+  await waitForAnimationFrames(1);
+  target1.classList.add('animate1');
+  await waitForAnimationFrames(2);
+
+  assert_equals(getComputedStyle(target1).display, 'inline',
+    'The display should be inline during the animation.');
+  assert_equals(numAnimationstartFired, 1,
+    'Only one animation should start.');
+}, 'display:none animating to display:inline should be inline for the whole animation.');
+</script>
+
+<div id=target2>hello</div>
+<style>
+@keyframes display2 {
+  0% { display: var(--none-value); }
+  100% { display: inline; }
+}
+.animate2 {
+  animation: display2 1s infinite;
+}
+#target2 {
+  --none-value: none;
+}
+</style>
+<script>
+promise_test(async (t) => {
+  t.add_cleanup(() => target2.classList.remove('animate2'));
+
+  let numAnimationstartFired = 0;
+  target2.addEventListener('animationstart', () => numAnimationstartFired++);
+
+  await waitForAnimationFrames(1);
+  target2.classList.add('animate2');
+  await waitForAnimationFrames(2);
+
+  assert_equals(getComputedStyle(target2).display, 'inline',
+    'The display should be inline during the animation.');
+  assert_equals(numAnimationstartFired, 1,
+    'Only one animation should start.');
+}, 'A CSS variable of display:none animating to display:inline should be inline for the whole animation.');
+</script>
+
+<div id=target3>hello</div>
+<style>
+@keyframes display3 {
+  0% { display: none; }
+  100% { display: none; }
+}
+.animate3 {
+  animation: display3 1s infinite;
+}
+</style>
+<script>
+promise_test(async (t) => {
+  t.add_cleanup(() => target3.classList.remove('animate3'));
+
+  let numAnimationstartFired = 0;
+  target3.addEventListener('animationstart', () => numAnimationstartFired++);
+
+  await waitForAnimationFrames(1);
+  target3.classList.add('animate3');
+  await waitForAnimationFrames(2);
+
+  assert_equals(getComputedStyle(target3).display, 'none',
+    'The display should be none and the animation should keep running.');
+  assert_equals(numAnimationstartFired, 1,
+    'Only one animation should start.');
+}, 'Animating from display:none to display:none should not cancel the animation.');
+</script>
+
+<div id=target4>hello</div>
+<style>
+@keyframes display4 {
+  0% { display: var(--none-value); }
+  100% { display: var(--none-value); }
+}
+.animate4 {
+  animation: display4 1s infinite;
+}
+#target4 {
+  --none-value: none;
+}
+</style>
+<script>
+promise_test(async (t) => {
+  t.add_cleanup(() => target4.classList.remove('animate4'));
+
+  let numAnimationstartFired = 0;
+  target4.addEventListener('animationstart', () => numAnimationstartFired++);
+
+  await waitForAnimationFrames(1);
+  target4.classList.add('animate4');
+  await waitForAnimationFrames(2);
+
+  assert_equals(getComputedStyle(target4).display, 'none',
+    'The display should be none and the animation should keep running.');
+  assert_equals(numAnimationstartFired, 1,
+    'Only one animation should start.');
+}, 'Animating from display:none to display:none with an intermediate variable should not cancel the animation.');
+</script>
+
+<div id=target5>hello</div>
+<style>
+@keyframes display5 {
+  0% { --display: none; }
+  100% { --display: none; }
+}
+.animate5 {
+  animation: display5 1s infinite;
+}
+#target5 {
+  display: var(--display, block);
+}
+</style>
+<script>
+promise_test(async (t) => {
+  t.add_cleanup(() => target5.classList.remove('animate5'));
+
+  let numAnimationstartFired = 0;
+  target5.addEventListener('animationstart', () => numAnimationstartFired++);
+
+  await waitForAnimationFrames(1);
+  target5.classList.add('animate5');
+  await waitForAnimationFrames(2);
+
+  assert_equals(getComputedStyle(target5).display, 'none',
+    'The display should be none and the animation should keep running.');
+  assert_equals(numAnimationstartFired, 1,
+    'Only one animation should start.');
+}, 'Animating a variable of "none" which gets set to display elsewhere should not cancel the animation.');
+</script>
