@@ -86,6 +86,10 @@ if (BUILD_SHARED_LIBS AND NOT CMAKE_SKIP_INSTALL_RULES AND NOT "${VCPKG_INSTALLE
     )
 endif()
 
+if (ANDROID)
+    target_link_libraries(AK PRIVATE log)
+endif()
+
 if (WIN32)
     # FIXME: Windows on ARM
     target_link_libraries(AK PRIVATE clang_rt.builtins-x86_64.lib)
