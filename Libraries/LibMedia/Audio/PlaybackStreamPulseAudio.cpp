@@ -138,6 +138,12 @@ NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamPulseAudio::discard_buf
     return promise;
 }
 
+void PlaybackStreamPulseAudio::notify_data_available()
+{
+    if (m_state->stream() != nullptr)
+        m_state->stream()->notify_data_available();
+}
+
 AK::Duration PlaybackStreamPulseAudio::total_time_played() const
 {
     if (m_state->stream() != nullptr)

@@ -217,6 +217,11 @@ public:
         m_task_queue_is_empty = false;
     }
 
+    void notify_data_available()
+    {
+        m_data_notified = true;
+    }
+
     SampleSpecification const& sample_specification() const { return m_sample_specification; }
 
     AK::Duration last_sample_time() const
@@ -226,7 +231,7 @@ public:
 
 private:
     AudioState(PlaybackStream::AudioDataRequestCallback data_request_callback, OutputState initial_output_state)
-        : m_paused(initial_output_state == OutputState::Playing ? Paused::No : Paused::Yes)
+        : m_paused(initial_output_state == OutputState::Playing ? Paused::No : Paused::Explicit)
         , m_data_request_callback(move(data_request_callback))
     {
     }
@@ -254,6 +259,9 @@ private:
 
         auto was_paused = state.m_paused;
 
+        if (state.m_paused == Paused::Underrun && state.m_data_notified.exchange(false))
+            state.m_paused = Paused::No;
+
         VERIFY(time_stamp->mFlags & kAudioTimeStampSampleTimeValid);
         auto sample_time = AK::clamp_to<i64>(time_stamp->mSampleTime);
         auto output_time = state.m_frames_written_at_resume + (sample_time - state.m_sample_time_at_resume);
@@ -270,12 +278,12 @@ private:
                 break;
 
             case AudioTask::Type::Pause:
-                state.m_paused = Paused::Yes;
+                state.m_paused = Paused::Explicit;
                 break;
 
             case AudioTask::Type::PauseAndDiscard:
                 error = AudioUnitReset(state.m_audio_unit, kAudioUnitScope_Global, AUDIO_UNIT_OUTPUT_BUS);
-                state.m_paused = Paused::Yes;
+                state.m_paused = Paused::Explicit;
                 break;
 
             case AudioTask::Type::Volume:
@@ -295,7 +303,7 @@ private:
         output_buffer = output_buffer.trim(static_cast<size_t>(frames_to_render) * state.m_sample_specification.channel_count());
 
         if (state.m_paused == Paused::No) {
-            if (was_paused == Paused::Yes) {
+            if (was_paused != Paused::No) {
                 state.m_frames_written_at_resume = state.m_frames_written;
                 state.m_sample_time_at_resume = sample_time;
             }
@@ -304,10 +312,10 @@ private:
             state.m_frames_written += static_cast<i64>(written_buffer.size() / state.m_sample_specification.channel_count());
 
             if (written_buffer.is_empty())
-                state.m_paused = Paused::Yes;
+                state.m_paused = Paused::Underrun;
         }
 
-        if (state.m_paused == Paused::Yes)
+        if (state.m_paused != Paused::No)
             output_buffer.fill(0);
 
         return noErr;
@@ -321,12 +329,14 @@ private:
     Atomic<bool> m_task_queue_is_empty { true };
 
     enum class Paused : u8 {
-        Yes,
         No,
+        Explicit,
+        Underrun,
     };
-    Paused m_paused { Paused::Yes };
+    Paused m_paused { Paused::Explicit };
 
     PlaybackStream::AudioDataRequestCallback m_data_request_callback;
+    Atomic<bool> m_data_notified { false };
     i64 m_sample_time_at_resume { 0 };
     i64 m_frames_written_at_resume { 0 };
     i64 m_frames_written { 0 };
@@ -393,6 +403,11 @@ NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamAudioUnit::discard_buff
     m_state->queue_task({ AudioTask::Type::PauseAndDiscard, promise });
 
     return promise;
+}
+
+void PlaybackStreamAudioUnit::notify_data_available()
+{
+    m_state->notify_data_available();
 }
 
 AK::Duration PlaybackStreamAudioUnit::total_time_played() const
