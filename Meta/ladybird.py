@@ -142,7 +142,7 @@ def main():
     if "target" in args:
         if platform.host_system != HostSystem.Windows and args.target == "ladybird":
             args.target = "Ladybird"
-        if not args.target and args.command not in ("build", "rebuild"):
+        if not args.target and args.command not in ("build", "rebuild") and args.preset != "Host_Tools":
             args.target = "ladybird" if platform.host_system == HostSystem.Windows else "Ladybird"
 
     if args.command == "build":
