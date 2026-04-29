@@ -667,6 +667,7 @@ handler JumpIf
     branch_eq tag, INT32_TAG, .is_int32
     # Slow path: call helper to convert to boolean
     call_helper asm_helper_to_boolean, condition, truthy
+    assert_lt_unsigned truthy, 2
     branch_nonzero truthy, .take_true
     jmp .take_false
 .is_bool:
@@ -690,6 +691,7 @@ handler JumpTrue
     branch_eq tag, BOOLEAN_TAG, .is_bool
     branch_eq tag, INT32_TAG, .is_int32
     call_helper asm_helper_to_boolean, condition, truthy
+    assert_lt_unsigned truthy, 2
     branch_nonzero truthy, .take
     dispatch_next
 .is_bool:
@@ -710,6 +712,7 @@ handler JumpFalse
     branch_eq tag, BOOLEAN_TAG, .is_bool
     branch_eq tag, INT32_TAG, .is_int32
     call_helper asm_helper_to_boolean, condition, truthy
+    assert_lt_unsigned truthy, 2
     branch_zero truthy, .take
     dispatch_next
 .is_bool:
@@ -884,6 +887,7 @@ handler Not
     # Slow path for remaining types (object, string, etc)
     # NB: Objects go through slow path to handle [[IsHTMLDDA]]
     call_helper asm_helper_to_boolean, value, truthy
+    assert_lt_unsigned truthy, 2
     branch_zero truthy, .store_true
     jmp .store_false
 .is_bool:
