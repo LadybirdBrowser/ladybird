@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
-from typing import Self
 
 from Utils.CSSGrammar.Parser.component_values import ComponentValue
 
@@ -18,11 +17,11 @@ class Token:
     value: Optional[ComponentValue]
 
     @classmethod
-    def create(cls, token_type: TokenType) -> Self:
+    def create(cls, token_type: TokenType) -> "Token":
         return cls(token_type, None)
 
     @classmethod
-    def create_component_value(cls, component_value: ComponentValue) -> Self:
+    def create_component_value(cls, component_value: ComponentValue) -> "Token":
         return cls(TokenType.COMPONENT_VALUE, component_value)
 
     def is_token_type(self, token_type: TokenType) -> bool:
