@@ -149,8 +149,8 @@ extern IntermediateRunFileResult (*g_run_file)(ByteString const&, JS::Realm&, JS
 
 class TestRunner : public ::Test::TestRunner {
 public:
-    TestRunner(ByteString test_root, ByteString common_path, bool print_times, bool print_progress, bool print_json, bool detailed_json)
-        : ::Test::TestRunner(move(test_root), print_times, print_progress, print_json, detailed_json)
+    TestRunner(ByteString test_root, ByteString common_path, bool print_times, bool print_progress, bool print_json, bool detailed_json, bool print_each_test)
+        : ::Test::TestRunner(move(test_root), print_times, print_progress, print_json, detailed_json, print_each_test)
         , m_common_path(move(common_path))
     {
         g_test_root = m_test_root;

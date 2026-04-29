@@ -51,12 +51,13 @@ public:
         return s_the;
     }
 
-    TestRunner(ByteString test_root, bool print_times, bool print_progress, bool print_json, bool detailed_json = false)
+    TestRunner(ByteString test_root, bool print_times, bool print_progress, bool print_json, bool detailed_json = false, bool print_each_test = false)
         : m_test_root(move(test_root))
         , m_print_times(print_times)
         , m_print_progress(print_progress)
         , m_print_json(print_json)
         , m_detailed_json(detailed_json)
+        , m_print_each_test(print_each_test)
     {
         VERIFY(!s_the);
         s_the = this;
@@ -98,6 +99,7 @@ protected:
     bool m_print_progress;
     bool m_print_json;
     bool m_detailed_json;
+    bool m_print_each_test;
 
     double m_total_elapsed_time_in_ms { 0 };
     Test::Counts m_counts;
@@ -176,7 +178,7 @@ inline void TestRunner::run(ReadonlySpan<ByteString> test_globs)
             ++total_tests;
     }
 
-    bool live_display_enabled = !m_print_json && stdout_is_tty() && begin_live_display();
+    bool live_display_enabled = !m_print_json && !m_print_each_test && stdout_is_tty() && begin_live_display();
 
     if (live_display_enabled)
         render_live_display(0, total_tests);
@@ -191,6 +193,11 @@ inline void TestRunner::run(ReadonlySpan<ByteString> test_globs)
             auto label = LexicalPath::relative_path(path, m_test_root);
             m_current_test_label = label.has_value() ? label.release_value() : path;
             render_live_display(progress_counter - 1, total_tests);
+        }
+
+        if (m_print_each_test) {
+            auto label = LexicalPath::relative_path(path, m_test_root);
+            warnln("[{}/{}] {}", progress_counter, total_tests, label.has_value() ? label.release_value() : path);
         }
 
         do_run_single_test(path, progress_counter, total_tests);
