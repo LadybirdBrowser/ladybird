@@ -34,6 +34,18 @@ function printPassWithCounters(testName) {
     println(`PASS: ${testName} | ${styleCounterSummary()}`);
 }
 
+function hasWalkCounterDetailSummary() {
+    const counters = styleCounters();
+    return (
+        `hasAncestorWalkVisits=${counters.hasAncestorWalkVisits}, ` +
+        `hasAncestorSiblingElementChecks=${counters.hasAncestorSiblingElementChecks}`
+    );
+}
+
+function printPassWithHasWalkCounters(testName) {
+    println(`PASS: ${testName} | ${styleCounterSummary()}, ${hasWalkCounterDetailSummary()}`);
+}
+
 function makeElement(tagName, options = {}) {
     const element = document.createElement(tagName);
     if (options.id) element.id = options.id;
@@ -350,6 +362,42 @@ function runDuplicateSiblingInvalidationRuleCase(scope) {
     } finally {
         scoped.cleanup();
     }
+}
+
+function runBatchedHasMutationCase({
+    name,
+    selector,
+    setup,
+    unrelatedMutation,
+    relatedMutation,
+    extraRuleText = "",
+    expectedAfter = true,
+}) {
+    const style = addStyle(
+        document.head,
+        `
+        :root:has(.flag) .subgrid:has(${selector}) { ${MATCH_DECLARATION} }
+        ${extraRuleText}
+    `
+    );
+    const fixture = makeElement("section");
+    const flag = makeElement("div", { className: "flag" });
+    const subgrid = makeElement("div", { className: "subgrid" });
+    fixture.append(flag, subgrid);
+    document.body.appendChild(fixture);
+
+    const parts = { fixture, subgrid, ...setup(subgrid, fixture) };
+    assertEqual(`${name} initial`, readProbe(subgrid), BASE);
+    document.body.offsetWidth;
+
+    resetStyleCounters();
+    unrelatedMutation(parts);
+    relatedMutation(parts);
+    assertEqual(`${name} after batched mutations`, readProbe(subgrid), expectedAfter ? MATCH : BASE);
+    printPassWithCounters(`batched :has mutation invalidates after earlier unrelated mutation: ${name}`);
+
+    style.remove();
+    fixture.remove();
 }
 
 function appendHitDescendant(subject) {

@@ -36,5 +36,133 @@
         mutating.classList.add("other");
         assertEqual("other target after relevant mutation", readProbe(otherTarget), MATCH);
         printPassWithCounters("class mutation still invalidates matching :has() rule");
+
+        const style = addStyle(document.head, `.empty-dir-auto-scope .outer:has(.auto:empty) .target { ${MATCH_DECLARATION} }`);
+        const fixture = makeElement("section", { className: "empty-dir-auto-scope" });
+        const outer = makeElement("div", { className: "outer" });
+        const auto = makeElement("div", { className: "auto", attributes: { dir: "auto" } });
+        const text = document.createTextNode("");
+        const target = makeElement("span", { className: "target" });
+        auto.appendChild(text);
+        outer.append(auto, target);
+        fixture.appendChild(outer);
+        document.body.appendChild(fixture);
+
+        assertEqual("dir=auto empty text initial", readProbe(target), MATCH);
+        resetStyleCounters();
+        text.data = "text";
+        assertEqual("dir=auto empty text after mutation", readProbe(target), BASE);
+        printPassWithCounters("dir=auto text mutation invalidates :has(:empty)");
+
+        style.remove();
+        fixture.remove();
+
+        function runPseudoClassCase(name, selector, setup, mutate, expectedAfter) {
+            const scope = `pseudo-class-scope-${name.replaceAll(" ", "-")}`;
+            const style = addStyle(document.head, `.${scope} .anchor:has(${selector}) .target { ${MATCH_DECLARATION} }`);
+            const fixture = makeElement("section", { className: scope });
+            const anchor = makeElement("div", { className: "anchor" });
+            const subject = setup();
+            const target = makeElement("span", { className: "target" });
+            anchor.append(subject, target);
+            fixture.appendChild(anchor);
+            document.body.appendChild(fixture);
+
+            resetStyleCounters();
+            mutate(subject);
+            assertEqual(`${name} after mutation`, readProbe(target), expectedAfter ? MATCH : BASE);
+            printPassWithCounters(`${name} invalidates :has()`);
+
+            style.remove();
+            fixture.remove();
+        }
+
+        runPseudoClassCase(
+            "checked property mutation",
+            ":checked",
+            () => {
+                const input = makeElement("input");
+                input.type = "checkbox";
+                return input;
+            },
+            input => (input.checked = true),
+            true
+        );
+
+        runPseudoClassCase(
+            "disabled attribute mutation",
+            ":disabled",
+            () => makeElement("button"),
+            button => (button.disabled = true),
+            true
+        );
+
+        runPseudoClassCase(
+            "enabled attribute mutation",
+            ":enabled",
+            () => makeElement("button"),
+            button => (button.disabled = true),
+            false
+        );
+
+        runPseudoClassCase(
+            "required attribute mutation",
+            ":required",
+            () => makeElement("input"),
+            input => (input.required = true),
+            true
+        );
+
+        runPseudoClassCase(
+            "optional attribute mutation",
+            ":optional",
+            () => makeElement("input"),
+            input => (input.required = true),
+            false
+        );
+
+        runPseudoClassCase(
+            "placeholder shown value mutation",
+            ":placeholder-shown",
+            () => {
+                const input = makeElement("input");
+                input.placeholder = "placeholder";
+                return input;
+            },
+            input => (input.value = "value"),
+            false
+        );
+
+        runPseudoClassCase(
+            "lang attribute mutation",
+            ":lang(fr)",
+            () => makeElement("span"),
+            span => (span.lang = "fr"),
+            true
+        );
+
+        runPseudoClassCase(
+            "dir attribute mutation",
+            ":dir(rtl)",
+            () => makeElement("span"),
+            span => (span.dir = "rtl"),
+            true
+        );
+
+        runPseudoClassCase(
+            "link href mutation",
+            ":link",
+            () => makeElement("a"),
+            anchor => (anchor.href = "https://example.com/"),
+            true
+        );
+
+        runPseudoClassCase(
+            "any-link href mutation",
+            ":any-link",
+            () => makeElement("a"),
+            anchor => (anchor.href = "https://example.com/"),
+            true
+        );
     });
 </script>

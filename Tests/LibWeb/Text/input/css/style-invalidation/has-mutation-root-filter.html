@@ -76,5 +76,147 @@
                 subgrid.appendChild(wrapper);
             }
         );
+        runMutationRootCase(
+            "empty pseudo-class argument",
+            `:empty`,
+            ({ fixture }) => fixture.appendChild(makeElement("span")),
+            ({ subgrid }) => subgrid.appendChild(makeElement("span"))
+        );
+        runMutationRootCase(
+            "checked pseudo-class argument",
+            `:checked`,
+            ({ fixture }) => fixture.appendChild(makeElement("span")),
+            ({ subgrid }) => {
+                const input = makeElement("input");
+                input.type = "checkbox";
+                input.checked = true;
+                subgrid.appendChild(input);
+            }
+        );
+        runMutationRootCase(
+            "checked pseudo-class argument after unrelated disabled mutation",
+            `:checked`,
+            ({ subgrid }) => {
+                const button = makeElement("button");
+                subgrid.appendChild(button);
+                button.disabled = true;
+            },
+            ({ subgrid }) => {
+                const input = makeElement("input");
+                input.type = "checkbox";
+                input.checked = true;
+                subgrid.appendChild(input);
+            }
+        );
+
+        {
+            const style = addStyle(document.head, `:root:has(.flag) .subgrid:has(.left ~ .right) { ${MATCH_DECLARATION} }`);
+            const fixture = makeElement("section");
+            const flag = makeElement("div", { className: "flag" });
+            const subgrid = makeElement("div", { className: "subgrid" });
+            const left = makeElement("span", { className: "left" });
+            const unrelated = makeElement("span", { className: "unrelated" });
+            const right = makeElement("span", { className: "right" });
+            subgrid.append(left, unrelated, right);
+            fixture.append(flag, subgrid);
+            document.body.appendChild(fixture);
+
+            assertEqual("sibling combinator argument initial", readProbe(subgrid), MATCH);
+
+            resetStyleCounters();
+            unrelated.classList.add("show");
+            assertEqual("sibling combinator argument after unrelated class mutation", readProbe(subgrid), MATCH);
+            printPassWithCounters("actual mutation root skips unrelated sibling-combinator :has anchor");
+
+            resetStyleCounters();
+            right.remove();
+            assertEqual("sibling combinator argument after sibling relationship mutation", readProbe(subgrid), BASE);
+            printPassWithCounters("actual mutation root keeps sibling-combinator :has anchor for child removal");
+
+            style.remove();
+            fixture.remove();
+        }
+
+        function runSiblingRightHandMutationCase(name, selector) {
+            const style = addStyle(document.head, `:root:has(.flag) .subgrid:has(${selector}) { ${MATCH_DECLARATION} }`);
+            const fixture = makeElement("section");
+            const flag = makeElement("div", { className: "flag" });
+            const subgrid = makeElement("div", { className: "subgrid" });
+            const left = makeElement("span", { className: "left" });
+            const right = makeElement("span", { className: "pending" });
+            subgrid.append(left, right);
+            fixture.append(flag, subgrid);
+            document.body.appendChild(fixture);
+
+            assertEqual(`${name} initial`, readProbe(subgrid), BASE);
+
+            resetStyleCounters();
+            right.classList.add("unrelated");
+            assertEqual(`${name} after unrelated RHS class mutation`, readProbe(subgrid), BASE);
+            printPassWithCounters(`actual mutation root skips unrelated RHS sibling-combinator :has anchor: ${name}`);
+
+            resetStyleCounters();
+            right.classList.add("right");
+            assertEqual(`${name} after matching RHS class mutation`, readProbe(subgrid), MATCH);
+            printPassWithCounters(`actual mutation root keeps RHS sibling-combinator :has anchor: ${name}`);
+
+            style.remove();
+            fixture.remove();
+        }
+
+        runSiblingRightHandMutationCase("adjacent sibling argument", ".left + .right");
+        runSiblingRightHandMutationCase("subsequent sibling argument", ".left ~ .right");
+
+        function runBatchedSiblingRightHandMutationCase(name, selector) {
+            runBatchedHasMutationCase({
+                name,
+                selector,
+                extraRuleText: `.decoy:has(.unrelated) { color: rgb(1, 2, 3); }`,
+                setup: subgrid => {
+                    const left = makeElement("span", { className: "left" });
+                    const unrelated = makeElement("span", { className: "pending" });
+                    const right = makeElement("span", { className: "pending" });
+                    subgrid.append(left, right, unrelated);
+                    return { unrelated, right };
+                },
+                unrelatedMutation: ({ unrelated }) => unrelated.classList.add("unrelated"),
+                relatedMutation: ({ right }) => right.classList.add("right"),
+            });
+        }
+
+        runBatchedSiblingRightHandMutationCase("adjacent sibling argument", ".left + .right");
+        runBatchedSiblingRightHandMutationCase("subsequent sibling argument", ".left ~ .right");
+
+        function runUnrelatedMixedRuleSiblingScanCase(name, selector) {
+            const style = addStyle(
+                document.head,
+                `
+                :root:has(.flag) .subgrid:has(${selector}) .target { ${MATCH_DECLARATION} }
+                .decoy:has(.unrelated) { color: rgb(1, 2, 3); }
+            `
+            );
+            const fixture = makeElement("section");
+            const flag = makeElement("div", { className: "flag" });
+            const subgrid = makeElement("div", { className: "subgrid" });
+            const target = makeElement("span", { className: "target" });
+            const right = makeElement("div", { className: "right" });
+            subgrid.append(target);
+            fixture.append(flag, subgrid, right);
+            document.body.appendChild(fixture);
+
+            assertEqual(`${name} initial`, readProbe(target), MATCH);
+            document.body.offsetWidth;
+
+            resetStyleCounters();
+            subgrid.classList.add("unrelated");
+            assertEqual(`${name} after unrelated mixed-rule mutation`, readProbe(target), MATCH);
+            printPassWithHasWalkCounters(`mixed-rule sibling scan preserves feature-filter skip: ${name}`);
+
+            style.remove();
+            fixture.remove();
+        }
+
+        runUnrelatedMixedRuleSiblingScanCase("relative adjacent sibling argument", "+ .right");
+        runUnrelatedMixedRuleSiblingScanCase("relative subsequent sibling argument", "~ .right");
     });
 </script>

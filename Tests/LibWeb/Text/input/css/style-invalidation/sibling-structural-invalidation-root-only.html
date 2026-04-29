@@ -155,6 +155,32 @@
         }
 
         {
+            const style = addStyle(document.head, ".anchor + .watcher .leaf { color: rgb(1, 2, 3); }");
+            const { fixture, sibling } = setupFixture(1, "watcher");
+            settleAndReset();
+
+            fixture.insertBefore(makeElement("div", { className: "anchor" }), sibling);
+            assertColor("initially unmatched adjacent sibling descendant gains on prepend", sibling.firstChild, "rgb(1, 2, 3)");
+            printPassWithCounters("starting adjacent sibling descendant match recomputes descendants");
+
+            style.remove();
+            fixture.remove();
+        }
+
+        {
+            const style = addStyle(document.head, ".anchor ~ .watcher .leaf { color: rgb(1, 2, 3); }");
+            const { fixture, sibling } = setupFixture(1, "watcher");
+            settleAndReset();
+
+            fixture.insertBefore(makeElement("div", { className: "anchor" }), sibling);
+            assertColor("initially unmatched general sibling descendant gains on prepend", sibling.firstChild, "rgb(1, 2, 3)");
+            printPassWithCounters("starting general sibling descendant match recomputes descendants");
+
+            style.remove();
+            fixture.remove();
+        }
+
+        {
             const style = addStyle(document.head, ".watcher:nth-child(1) { color: rgb(1, 2, 3); }");
             const { fixture, sibling } = setupFixture(8, "watcher");
             settleAndReset();
