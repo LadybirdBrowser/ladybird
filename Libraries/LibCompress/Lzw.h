@@ -91,10 +91,9 @@ protected:
 template<InputBitStream InputStream>
 class LzwDecompressor : private Details::LzwState {
 public:
-    explicit LzwDecompressor(MaybeOwned<InputStream> lzw_stream, u8 min_code_size, i32 offset_for_size_change = 0)
+    LzwDecompressor(MaybeOwned<InputStream> lzw_stream, u8 min_code_size, i32 offset_for_size_change = 0)
         : LzwState(min_code_size, offset_for_size_change)
         , m_bit_stream(move(lzw_stream))
-
     {
     }
 
@@ -229,7 +228,7 @@ public:
     }
 
 private:
-    LzwCompressor(u8 initial_code_size)
+    explicit LzwCompressor(u8 initial_code_size)
         : Details::LzwState(initial_code_size, 1)
     {
     }
