@@ -182,6 +182,7 @@ set(SOURCES
     CSS/Invalidation/HasMutationInvalidator.cpp
     CSS/Invalidation/InvalidationSetMatcher.cpp
     CSS/Invalidation/LinkInvalidator.cpp
+    CSS/Invalidation/NodeInvalidator.cpp
     CSS/Invalidation/PseudoClassInvalidator.cpp
     CSS/Invalidation/StyleInvalidator.cpp
     CSS/Invalidation/StructuralMutationInvalidator.cpp

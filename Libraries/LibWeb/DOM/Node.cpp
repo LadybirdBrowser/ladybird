@@ -19,10 +19,8 @@
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/Node.h>
 #include <LibWeb/CSS/ComputedProperties.h>
-#include <LibWeb/CSS/Invalidation/HasMutationInvalidator.h>
+#include <LibWeb/CSS/Invalidation/NodeInvalidator.h>
 #include <LibWeb/CSS/Invalidation/StructuralMutationInvalidator.h>
-#include <LibWeb/CSS/Invalidation/StyleInvalidator.h>
-#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/AccessibilityTreeNode.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/CDATASection.h>
@@ -408,18 +406,6 @@ GC::Ptr<HTML::Navigable> Node::navigable() const
     return document().navigable();
 }
 
-[[maybe_unused]] static StringView to_string(StyleInvalidationReason reason)
-{
-#define __ENUMERATE_STYLE_INVALIDATION_REASON(reason) \
-    case StyleInvalidationReason::reason:             \
-        return #reason##sv;
-    switch (reason) {
-        ENUMERATE_STYLE_INVALIDATION_REASONS(__ENUMERATE_STYLE_INVALIDATION_REASON)
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
 CSS::StyleScope& Node::style_scope()
 {
     auto& root = this->root();
@@ -458,109 +444,12 @@ void Node::for_each_style_scope_which_may_observe_the_node(Function<void(CSS::St
 
 void Node::invalidate_style(StyleInvalidationReason reason)
 {
-    CSS::Invalidation::schedule_has_invalidation_for_node(*this, reason);
-
-    // Character data nodes have no style of their own, so once :has() ancestor invalidation has been scheduled there
-    // is nothing else to do.
-    if (is_character_data())
-        return;
-
-    if (!needs_style_update() && !document().needs_full_style_update()) {
-        dbgln_if(STYLE_INVALIDATION_DEBUG, "Invalidate style ({}): {}", to_string(reason), debug_description());
-    }
-
-    if (is_document()) {
-        auto& document = static_cast<DOM::Document&>(*this);
-        document.style_invalidation_counters().full_style_invalidations++;
-        document.set_needs_full_style_update(true);
-        return;
-    }
-
-    // If the document is already marked for a full style update, there's no need to do anything here.
-    if (document().needs_full_style_update()) {
-        return;
-    }
-
-    // If any ancestor is already marked for an entire subtree update, there's no need to do anything here.
-    for (auto* ancestor = this->parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
-        if (ancestor->entire_subtree_needs_style_update())
-            return;
-    }
-
-    // When invalidating style for a node, we actually invalidate:
-    // - the node itself
-    // - all of its descendants
-    // - preceding siblings that depend on following-sibling counts (only on DOM insert/remove)
-    // - subsequent siblings that depend on previous siblings or sibling combinators
-    // FIXME: This is a lot of invalidation and we should implement more sophisticated invalidation to do less work!
-
-    auto mark_entire_subtree_for_style_update = [](Node& node_to_mark) {
-        node_to_mark.set_entire_subtree_needs_style_update(true);
-    };
-
-    mark_entire_subtree_for_style_update(*this);
-
-    CSS::Invalidation::invalidate_structurally_affected_siblings(*this, reason);
-    CSS::Invalidation::mark_ancestors_as_having_child_needing_style_update(*this);
+    CSS::Invalidation::invalidate_node_style(*this, reason);
 }
 
 void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::InvalidationSet::Property> const& properties, StyleInvalidationOptions options)
 {
-    if (is_character_data())
-        return;
-
-    auto& style_scope = this->style_scope();
-
-    // Collect every shadow scope this mutation can flip, in addition to the root scope. This includes:
-    //   - The element's own shadow root (if it's a shadow host).
-    //   - Every enclosing shadow host's shadow root, for :host(...:has(...)) and ::slotted(...) rules in those scopes
-    //     that observe property changes on this element or its light-DOM children.
-    //   - The document scope and any outer shadow root scopes when this element lives inside a shadow tree, for
-    //     ::part(...:has(...)) rules in the outer document or containing shadow root.
-    Vector<GC::Ref<CSS::StyleScope>, 4> additional_scopes;
-    for_each_style_scope_which_may_observe_the_node([&](CSS::StyleScope& scope) {
-        if (&scope == &style_scope)
-            return;
-        additional_scopes.append(scope);
-    });
-
-    bool properties_used_in_has_selectors = false;
-    auto& counters = document().style_invalidation_counters();
-    for (auto const& property : properties) {
-        if (auto const* metadata = document().style_computer().has_invalidation_metadata_for_property(property, style_scope)) {
-            properties_used_in_has_selectors = true;
-            counters.has_invalidation_metadata_candidates += metadata->size();
-        }
-        for (auto& scope : additional_scopes) {
-            if (auto const* metadata = document().style_computer().has_invalidation_metadata_for_property(property, scope)) {
-                properties_used_in_has_selectors = true;
-                counters.has_invalidation_metadata_candidates += metadata->size();
-            }
-        }
-    }
-    if (properties_used_in_has_selectors) {
-        style_scope.record_pending_has_invalidation_mutation_features(*this, properties);
-        style_scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(*this);
-        for (auto& scope : additional_scopes) {
-            scope->record_pending_has_invalidation_mutation_features(*this, properties);
-            scope->schedule_ancestors_style_invalidation_due_to_presence_of_has(*this);
-        }
-    }
-
-    if (options.invalidate_self)
-        set_needs_style_update(true);
-
-    auto invalidate_for_style_scope = [this, reason, &properties](CSS::StyleScope& style_scope) {
-        auto plan = document().style_computer().invalidation_plan_for_properties(properties, style_scope);
-        return document().style_invalidator().enqueue_invalidation_plan(*this, reason, *plan);
-    };
-
-    if (invalidate_for_style_scope(style_scope))
-        return;
-    for (auto& scope : additional_scopes) {
-        if (invalidate_for_style_scope(scope))
-            return;
-    }
+    CSS::Invalidation::invalidate_node_style_for_properties(*this, reason, properties, options);
 }
 
 Utf16String Node::child_text_content() const
