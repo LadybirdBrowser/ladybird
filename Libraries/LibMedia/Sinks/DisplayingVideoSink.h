@@ -45,8 +45,6 @@ public:
     Function<void()> m_on_start_buffering;
 
 private:
-    static constexpr size_t DEFAULT_QUEUE_SIZE = 8;
-
     void verify_track(Track const&) const;
 
     NonnullRefPtr<MediaTimeProvider> m_time_provider;
