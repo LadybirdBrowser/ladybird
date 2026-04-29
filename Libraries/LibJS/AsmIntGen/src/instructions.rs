@@ -974,6 +974,24 @@ pub const INSTRUCTIONS: &[InstructionInfo] = &[
         ArchSpec::NONE,
         ArchSpec { clobbers_gpr: &["x9"], ..ArchSpec::NONE },
     ),
+    info(
+        "assert_tag",
+        &[GprIn, GprInOrImm],
+        None,
+        false,
+        false,
+        ArchSpec { clobbers_gpr: &["r11"], ..ArchSpec::NONE },
+        ArchSpec { clobbers_gpr: &["x9"], ..ArchSpec::NONE },
+    ),
+    info(
+        "assert_not_tag",
+        &[GprIn, GprInOrImm],
+        None,
+        false,
+        false,
+        ArchSpec { clobbers_gpr: &["r11"], ..ArchSpec::NONE },
+        ArchSpec { clobbers_gpr: &["x9"], ..ArchSpec::NONE },
+    ),
 ];
 
 /// Lazily-built mnemonic -> info index. Populated on first lookup.
@@ -1113,6 +1131,8 @@ mod tests {
         "assert_nonzero",
         "assert_bits_set",
         "assert_bits_clear",
+        "assert_tag",
+        "assert_not_tag",
     ];
 
     #[test]

@@ -1154,8 +1154,28 @@ fn emit_instruction(
             }
         }
 
+        "assert_tag" | "assert_not_tag" if program.enable_assertions => {
+            if insn.operands.len() == 2 {
+                let value = resolve_op(&insn.operands[0], handler, program);
+                let ok_label = format!(".Lasm_{}.assert_ok_{}", handler.name, state.unique_counter);
+                state.unique_counter += 1;
+                let cc = if m == "assert_tag" { "b.eq" } else { "b.ne" };
+                w!(out, "    lsr x9, {value}, #48");
+                if let Some(val) = get_immediate_value(&insn.operands[1], program) {
+                    emit_cmp_imm(out, "x9", val, pinned);
+                } else {
+                    let tag = resolve_op(&insn.operands[1], handler, program);
+                    w!(out, "    cmp x9, {tag}");
+                }
+                w!(out, "    {cc} {ok_label}");
+                w!(out, "    brk #0");
+                w!(out, "{ok_label}:");
+            }
+        }
+
         "assert_eq" | "assert_ne" | "assert_lt_unsigned" | "assert_ge_unsigned" | "assert_zero"
-        | "assert_nonzero" | "assert_bits_set" | "assert_bits_clear" => {}
+        | "assert_nonzero" | "assert_bits_set" | "assert_bits_clear" | "assert_tag"
+        | "assert_not_tag" => {}
 
         // dispatch_current: dispatch the instruction at current pc (without advancing).
         // Overrides the DSL macro to ensure x21 is set for the next handler.

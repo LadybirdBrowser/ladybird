@@ -76,6 +76,10 @@
 //!   `(a & mask) == 0`.
 //! - `assert_bits_clear a, mask` -- In assertion-enabled builds, trap if
 //!   `(a & mask) != 0`.
+//! - `assert_tag value, tag` -- In assertion-enabled builds, trap if
+//!   `value`'s upper 16-bit NaN-boxing tag is not `tag`.
+//! - `assert_not_tag value, tag` -- In assertion-enabled builds, trap if
+//!   `value`'s upper 16-bit NaN-boxing tag is `tag`.
 //!   Release/distribution builds pass assertions through the parser and
 //!   allocator, but emit no code for them.
 //!
