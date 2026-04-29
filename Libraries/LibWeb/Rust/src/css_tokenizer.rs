@@ -881,231 +881,232 @@ impl Tokenizer {
         // Consume the next input code point.
         let input = self.consume_code_point();
 
-        // whitespace
-        if is_whitespace(input) {
-            // Consume as much whitespace as possible. Return a <whitespace-token>.
-            self.consume_as_much_whitespace_as_possible();
-            return Token::create_whitespace(start_byte_offset, self.current_byte_offset());
-        }
+        match input {
+            // whitespace
+            c if is_whitespace(c) => {
+                // Consume as much whitespace as possible. Return a <whitespace-token>.
+                self.consume_as_much_whitespace_as_possible();
+                Token::create_whitespace(start_byte_offset, self.current_byte_offset())
+            }
 
-        // U+0022 QUOTATION MARK (")
-        if is_quotation_mark(input) {
-            // Consume a string token and return it.
-            return self.consume_string_token(input);
-        }
+            // U+0022 QUOTATION MARK (")
+            0x22 => {
+                // Consume a string token and return it.
+                self.consume_string_token(input)
+            }
 
-        // U+0023 NUMBER SIGN (#)
-        if is_number_sign(input) {
-            // If the next input code point is an ident code point or the next two input code points
-            // are a valid escape, then:
-            let next_input = self.peek_code_point(0);
-            let maybe_escape = self.peek_twin();
+            // U+0023 NUMBER SIGN (#)
+            0x23 => {
+                // If the next input code point is an ident code point or the next two input code points
+                // are a valid escape, then:
+                if is_ident_code_point(self.peek_code_point(0)) || is_valid_escape_sequence(self.peek_twin()) {
+                    // 1. Create a <hash-token>.
+                    // 2. If the next 3 input code points would start an ident sequence, set the <hash-token>’s
+                    //    type flag to "id".
+                    let hash_type = if would_start_an_ident_sequence(self.peek_triplet()) {
+                        CssHashType::Id
+                    } else {
+                        CssHashType::Unrestricted
+                    };
 
-            if is_ident_code_point(next_input) || is_valid_escape_sequence(maybe_escape) {
-                // 1. Create a <hash-token>.
-                let mut hash_type = CssHashType::Unrestricted;
+                    // 3. Consume an ident sequence, and set the <hash-token>’s value to the returned string.
+                    let value = self.consume_an_ident_sequence();
 
-                // 2. If the next 3 input code points would start an ident sequence, set the <hash-token>’s
-                //    type flag to "id".
-                if would_start_an_ident_sequence(self.peek_triplet()) {
-                    hash_type = CssHashType::Id;
+                    // 4. Return the <hash-token>.
+                    Token::create_hash(value, hash_type, start_byte_offset, self.current_byte_offset())
+                } else {
+                    // Otherwise, return a <delim-token> with its value set to the current input code point.
+                    Token::create_delim(input, start_byte_offset, self.current_byte_offset())
+                }
+            }
+
+            // U+0027 APOSTROPHE (')
+            0x27 => {
+                // Consume a string token and return it.
+                self.consume_string_token(input)
+            }
+
+            // U+0028 LEFT PARENTHESIS (()
+            0x28 => {
+                // Return a <(-token>.
+                Token::create(CssTokenType::OpenParen, start_byte_offset, self.current_byte_offset())
+            }
+
+            // U+0029 RIGHT PARENTHESIS ())
+            0x29 => {
+                // Return a <)-token>.
+                Token::create(CssTokenType::CloseParen, start_byte_offset, self.current_byte_offset())
+            }
+
+            // U+002B PLUS SIGN (+)
+            0x2B => {
+                // If the input stream starts with a number, reconsume the current input code point,
+                // consume a numeric token and return it.
+                if would_start_a_number(self.start_of_input_stream_triplet()) {
+                    self.reconsume_current_input_code_point();
+                    self.consume_a_numeric_token()
+                } else {
+                    // Otherwise, return a <delim-token> with its value set to the current input code point.
+                    Token::create_delim(input, start_byte_offset, self.current_byte_offset())
+                }
+            }
+
+            // U+002C COMMA (,)
+            0x2C => {
+                // Return a <comma-token>.
+                Token::create(CssTokenType::Comma, start_byte_offset, self.current_byte_offset())
+            }
+
+            // U+002D HYPHEN-MINUS (-)
+            0x2D => {
+                // If the input stream starts with a number, reconsume the current input code point,
+                // consume a numeric token, and return it.
+                if would_start_a_number(self.start_of_input_stream_triplet()) {
+                    self.reconsume_current_input_code_point();
+                    return self.consume_a_numeric_token();
                 }
 
-                // 3. Consume an ident sequence, and set the <hash-token>’s value to the returned string.
-                let value = self.consume_an_ident_sequence();
+                // Otherwise, if the next 2 input code points are U+002D HYPHEN-MINUS U+003E
+                // GREATER-THAN SIGN (->), consume them and return a <CDC-token>.
+                let (first, second) = self.peek_twin();
+                if is_hyphen_minus(first) && is_greater_than_sign(second) {
+                    self.consume_code_point();
+                    self.consume_code_point();
+                    return Token::create(CssTokenType::CDC, start_byte_offset, self.current_byte_offset());
+                }
 
-                // 4. Return the <hash-token>.
-                return Token::create_hash(value, hash_type, start_byte_offset, self.current_byte_offset());
+                // Otherwise, if the input stream starts with an identifier, reconsume the current
+                // input code point, consume an ident-like token, and return it.
+                if would_start_an_ident_sequence(self.start_of_input_stream_triplet()) {
+                    self.reconsume_current_input_code_point();
+                    return self.consume_an_ident_like_token();
+                }
+
+                // Otherwise, return a <delim-token> with its value set to the current input code point.
+                Token::create_delim(input, start_byte_offset, self.current_byte_offset())
             }
 
-            // Otherwise, return a <delim-token> with its value set to the current input code point.
-            return Token::create_delim(input, start_byte_offset, self.current_byte_offset());
-        }
+            // U+002E FULL STOP (.)
+            0x2E => {
+                // If the input stream starts with a number, reconsume the current input code point,
+                // consume a numeric token, and return it.
+                if would_start_a_number(self.start_of_input_stream_triplet()) {
+                    self.reconsume_current_input_code_point();
+                    self.consume_a_numeric_token()
+                } else {
+                    // Otherwise, return a <delim-token> with its value set to the current input code point.
+                    Token::create_delim(input, start_byte_offset, self.current_byte_offset())
+                }
+            }
 
-        // U+0027 APOSTROPHE (')
-        if is_apostrophe(input) {
-            // Consume a string token and return it.
-            return self.consume_string_token(input);
-        }
+            // U+003A COLON (:)
+            0x3A => {
+                // Return a <colon-token>.
+                Token::create(CssTokenType::Colon, start_byte_offset, self.current_byte_offset())
+            }
 
-        // U+0028 LEFT PARENTHESIS (()
-        if is_left_paren(input) {
-            // Return a <(-token>.
-            return Token::create(CssTokenType::OpenParen, start_byte_offset, self.current_byte_offset());
-        }
+            // U+003B SEMICOLON (;)
+            0x3B => {
+                // Return a <semicolon-token>.
+                Token::create(CssTokenType::Semicolon, start_byte_offset, self.current_byte_offset())
+            }
 
-        // U+0029 RIGHT PARENTHESIS ())
-        if is_right_paren(input) {
-            // Return a <)-token>.
-            return Token::create(CssTokenType::CloseParen, start_byte_offset, self.current_byte_offset());
-        }
+            // U+003C LESS-THAN SIGN (<)
+            0x3C => {
+                // If the next 3 input code points are U+0021 EXCLAMATION MARK U+002D HYPHEN-MINUS
+                // U+002D HYPHEN-MINUS (!--), consume them and return a <CDO-token>.
+                let (first, second, third) = self.peek_triplet();
+                if is_exclamation_mark(first) && is_hyphen_minus(second) && is_hyphen_minus(third) {
+                    self.consume_code_point();
+                    self.consume_code_point();
+                    self.consume_code_point();
+                    Token::create(CssTokenType::CDO, start_byte_offset, self.current_byte_offset())
+                } else {
+                    // Otherwise, return a <delim-token> with its value set to the current input code point.
+                    Token::create_delim(input, start_byte_offset, self.current_byte_offset())
+                }
+            }
 
-        // U+002B PLUS SIGN (+)
-        if is_plus_sign(input) {
-            // If the input stream starts with a number, reconsume the current input code point,
-            // consume a numeric token and return it.
-            if would_start_a_number(self.start_of_input_stream_triplet()) {
+            // U+0040 COMMERCIAL AT (@)
+            0x40 => {
+                // If the next 3 input code points would start an ident sequence, consume an ident sequence, create
+                // an <at-keyword-token> with its value set to the returned value, and return it.
+                if would_start_an_ident_sequence(self.peek_triplet()) {
+                    Token::create_at_keyword(
+                        self.consume_an_ident_sequence(),
+                        start_byte_offset,
+                        self.current_byte_offset(),
+                    )
+                } else {
+                    // Otherwise, return a <delim-token> with its value set to the current input code point.
+                    Token::create_delim(input, start_byte_offset, self.current_byte_offset())
+                }
+            }
+
+            // U+005B LEFT SQUARE BRACKET ([)
+            0x5B => {
+                // Return a <[-token>.
+                Token::create(CssTokenType::OpenSquare, start_byte_offset, self.current_byte_offset())
+            }
+
+            // U+005C REVERSE SOLIDUS (\)
+            0x5C => {
+                // If the input stream starts with a valid escape, reconsume the current input code point,
+                // consume an ident-like token, and return it.
+                if is_valid_escape_sequence(self.start_of_input_stream_twin()) {
+                    self.reconsume_current_input_code_point();
+                    self.consume_an_ident_like_token()
+                } else {
+                    // Otherwise, this is a parse error. Return a <delim-token> with its value set to the
+                    // current input code point.
+                    Token::create_delim(input, start_byte_offset, self.current_byte_offset())
+                }
+            }
+
+            // U+005D RIGHT SQUARE BRACKET (])
+            0x5D => {
+                // Return a <]-token>.
+                Token::create(CssTokenType::CloseSquare, start_byte_offset, self.current_byte_offset())
+            }
+
+            // U+007B LEFT CURLY BRACKET ({)
+            0x7B => {
+                // Return a <{-token>.
+                Token::create(CssTokenType::OpenCurly, start_byte_offset, self.current_byte_offset())
+            }
+
+            // U+007D RIGHT CURLY BRACKET (})
+            0x7D => {
+                // Return a <}-token>.
+                Token::create(CssTokenType::CloseCurly, start_byte_offset, self.current_byte_offset())
+            }
+
+            // digit
+            0x30..=0x39 => {
+                // Reconsume the current input code point, consume a numeric token, and return it.
                 self.reconsume_current_input_code_point();
-                return self.consume_a_numeric_token();
+                self.consume_a_numeric_token()
             }
 
-            // Otherwise, return a <delim-token> with its value set to the current input code point.
-            return Token::create_delim(input, start_byte_offset, self.current_byte_offset());
-        }
+            // EOF
+            TOKENIZER_EOF => {
+                // Return an <EOF-token>.
+                Token::create(CssTokenType::EndOfFile, start_byte_offset, self.current_byte_offset())
+            }
 
-        // U+002C COMMA (,)
-        if is_comma(input) {
-            // Return a <comma-token>.
-            return Token::create(CssTokenType::Comma, start_byte_offset, self.current_byte_offset());
-        }
-
-        // U+002D HYPHEN-MINUS (-)
-        if is_hyphen_minus(input) {
-            // If the input stream starts with a number, reconsume the current input code point,
-            // consume a numeric token, and return it.
-            if would_start_a_number(self.start_of_input_stream_triplet()) {
+            // name-start code point
+            c if is_ident_start_code_point(c) => {
+                // Reconsume the current input code point, consume an ident-like token, and return it.
                 self.reconsume_current_input_code_point();
-                return self.consume_a_numeric_token();
+                self.consume_an_ident_like_token()
             }
 
-            // Otherwise, if the next 2 input code points are U+002D HYPHEN-MINUS U+003E
-            // GREATER-THAN SIGN (->), consume them and return a <CDC-token>.
-            let (first, second) = self.peek_twin();
-            if is_hyphen_minus(first) && is_greater_than_sign(second) {
-                self.consume_code_point();
-                self.consume_code_point();
-                return Token::create(CssTokenType::CDC, start_byte_offset, self.current_byte_offset());
+            // anything else
+            _ => {
+                // Return a <delim-token> with its value set to the current input code point.
+                Token::create_delim(input, start_byte_offset, self.current_byte_offset())
             }
-
-            // Otherwise, if the input stream starts with an identifier, reconsume the current
-            // input code point, consume an ident-like token, and return it.
-            if would_start_an_ident_sequence(self.start_of_input_stream_triplet()) {
-                self.reconsume_current_input_code_point();
-                return self.consume_an_ident_like_token();
-            }
-
-            // Otherwise, return a <delim-token> with its value set to the current input code point.
-            return Token::create_delim(input, start_byte_offset, self.current_byte_offset());
         }
-
-        // U+002E FULL STOP (.)
-        if is_full_stop(input) {
-            // If the input stream starts with a number, reconsume the current input code point,
-            // consume a numeric token, and return it.
-            if would_start_a_number(self.start_of_input_stream_triplet()) {
-                self.reconsume_current_input_code_point();
-                return self.consume_a_numeric_token();
-            }
-
-            // Otherwise, return a <delim-token> with its value set to the current input code point.
-            return Token::create_delim(input, start_byte_offset, self.current_byte_offset());
-        }
-
-        // U+003A COLON (:)
-        if is_colon(input) {
-            // Return a <colon-token>.
-            return Token::create(CssTokenType::Colon, start_byte_offset, self.current_byte_offset());
-        }
-
-        // U+003B SEMICOLON (;)
-        if is_semicolon(input) {
-            // Return a <semicolon-token>.
-            return Token::create(CssTokenType::Semicolon, start_byte_offset, self.current_byte_offset());
-        }
-
-        // U+003C LESS-THAN SIGN (<)
-        if is_less_than_sign(input) {
-            // If the next 3 input code points are U+0021 EXCLAMATION MARK U+002D HYPHEN-MINUS
-            // U+002D HYPHEN-MINUS (!--), consume them and return a <CDO-token>.
-            let (first, second, third) = self.peek_triplet();
-            if is_exclamation_mark(first) && is_hyphen_minus(second) && is_hyphen_minus(third) {
-                self.consume_code_point();
-                self.consume_code_point();
-                self.consume_code_point();
-                return Token::create(CssTokenType::CDO, start_byte_offset, self.current_byte_offset());
-            }
-
-            // Otherwise, return a <delim-token> with its value set to the current input code point.
-            return Token::create_delim(input, start_byte_offset, self.current_byte_offset());
-        }
-
-        // U+0040 COMMERCIAL AT (@)
-        if is_at(input) {
-            // If the next 3 input code points would start an ident sequence, consume an ident sequence, create
-            // an <at-keyword-token> with its value set to the returned value, and return it.
-            if would_start_an_ident_sequence(self.peek_triplet()) {
-                return Token::create_at_keyword(
-                    self.consume_an_ident_sequence(),
-                    start_byte_offset,
-                    self.current_byte_offset(),
-                );
-            }
-
-            // Otherwise, return a <delim-token> with its value set to the current input code point.
-            return Token::create_delim(input, start_byte_offset, self.current_byte_offset());
-        }
-
-        // U+005B LEFT SQUARE BRACKET ([)
-        if is_open_square_bracket(input) {
-            // Return a <[-token>.
-            return Token::create(CssTokenType::OpenSquare, start_byte_offset, self.current_byte_offset());
-        }
-
-        // U+005C REVERSE SOLIDUS (\)
-        if is_reverse_solidus(input) {
-            // If the input stream starts with a valid escape, reconsume the current input code point,
-            // consume an ident-like token, and return it.
-            if is_valid_escape_sequence(self.start_of_input_stream_twin()) {
-                self.reconsume_current_input_code_point();
-                return self.consume_an_ident_like_token();
-            }
-
-            // Otherwise, this is a parse error. Return a <delim-token> with its value set to the
-            // current input code point.
-            return Token::create_delim(input, start_byte_offset, self.current_byte_offset());
-        }
-
-        // U+005D RIGHT SQUARE BRACKET (])
-        if is_closed_square_bracket(input) {
-            // Return a <]-token>.
-            return Token::create(CssTokenType::CloseSquare, start_byte_offset, self.current_byte_offset());
-        }
-
-        // U+007B LEFT CURLY BRACKET ({)
-        if is_open_curly_bracket(input) {
-            // Return a <{-token>.
-            return Token::create(CssTokenType::OpenCurly, start_byte_offset, self.current_byte_offset());
-        }
-
-        // U+007D RIGHT CURLY BRACKET (})
-        if is_closed_curly_bracket(input) {
-            // Return a <}-token>.
-            return Token::create(CssTokenType::CloseCurly, start_byte_offset, self.current_byte_offset());
-        }
-
-        // digit
-        if is_digit(input) {
-            // Reconsume the current input code point, consume a numeric token, and return it.
-            self.reconsume_current_input_code_point();
-            return self.consume_a_numeric_token();
-        }
-
-        // name-start code point
-        if is_ident_start_code_point(input) {
-            // Reconsume the current input code point, consume an ident-like token, and return it.
-            self.reconsume_current_input_code_point();
-            return self.consume_an_ident_like_token();
-        }
-
-        // EOF
-        if is_eof(input) {
-            // Return an <EOF-token>.
-            return Token::create(CssTokenType::EndOfFile, start_byte_offset, self.current_byte_offset());
-        }
-
-        // anything else
-        // Return a <delim-token> with its value set to the current input code point.
-        Token::create_delim(input, start_byte_offset, self.current_byte_offset())
     }
 }
 
@@ -1185,10 +1186,6 @@ fn is_hyphen_minus(code_point: u32) -> bool {
     code_point == 0x2D
 }
 
-fn is_number_sign(code_point: u32) -> bool {
-    code_point == 0x23
-}
-
 fn is_reverse_solidus(code_point: u32) -> bool {
     code_point == 0x5C
 }
@@ -1209,10 +1206,6 @@ fn is_plus_sign(code_point: u32) -> bool {
     code_point == 0x2B
 }
 
-fn is_comma(code_point: u32) -> bool {
-    code_point == 0x2C
-}
-
 fn is_full_stop(code_point: u32) -> bool {
     code_point == 0x2E
 }
@@ -1225,40 +1218,8 @@ fn is_solidus(code_point: u32) -> bool {
     code_point == 0x2F
 }
 
-fn is_colon(code_point: u32) -> bool {
-    code_point == 0x3A
-}
-
-fn is_semicolon(code_point: u32) -> bool {
-    code_point == 0x3B
-}
-
-fn is_less_than_sign(code_point: u32) -> bool {
-    code_point == 0x3C
-}
-
 fn is_greater_than_sign(code_point: u32) -> bool {
     code_point == 0x3E
-}
-
-fn is_at(code_point: u32) -> bool {
-    code_point == 0x40
-}
-
-fn is_open_square_bracket(code_point: u32) -> bool {
-    code_point == 0x5B
-}
-
-fn is_closed_square_bracket(code_point: u32) -> bool {
-    code_point == 0x5D
-}
-
-fn is_open_curly_bracket(code_point: u32) -> bool {
-    code_point == 0x7B
-}
-
-fn is_closed_curly_bracket(code_point: u32) -> bool {
-    code_point == 0x7D
 }
 
 fn is_percent(code_point: u32) -> bool {
