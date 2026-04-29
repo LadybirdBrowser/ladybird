@@ -90,140 +90,133 @@ struct NumericValue {
 }
 
 pub(crate) struct Token {
-    token_type: CssTokenType,
-    value: String,
-    number_value: f64,
-    number_type: CssNumberType,
-    hash_type: CssHashType,
-    delim: u32,
+    token_type: TokenType,
     original_source_range: Range<usize>,
     range: Range<Position>,
 }
 
+enum TokenType {
+    EndOfFile,
+    Ident { value: String },
+    Function { name: String },
+    AtKeyword { name: String },
+    Hash { hash_type: CssHashType, value: String },
+    String { value: String },
+    BadString,
+    Url { value: String },
+    BadUrl,
+    Delim { value: u32 },
+    Number { number: NumericValue },
+    Percentage { number: NumericValue },
+    Dimension { number: NumericValue, unit: String },
+    Whitespace,
+    Cdo,
+    Cdc,
+    Colon,
+    Semicolon,
+    Comma,
+    OpenSquare,
+    CloseSquare,
+    OpenParen,
+    CloseParen,
+    OpenCurly,
+    CloseCurly,
+}
+
 impl Token {
-    fn create(token_type: CssTokenType, original_source_range: Range<usize>) -> Self {
+    fn create(token_type: TokenType, original_source_range: Range<usize>) -> Self {
         Self {
             token_type,
-            value: String::new(),
-            number_value: 0.0,
-            number_type: CssNumberType::Number,
-            hash_type: CssHashType::Unrestricted,
-            delim: 0,
             original_source_range,
             range: Position::default()..Position::default(),
         }
     }
 
-    fn create_ident(value: String, original_source_range: Range<usize>) -> Self {
-        Self {
-            token_type: CssTokenType::Ident,
-            value,
-            ..Self::create(CssTokenType::Ident, original_source_range)
-        }
-    }
-
-    fn create_function(value: String, original_source_range: Range<usize>) -> Self {
-        Self {
-            token_type: CssTokenType::Function,
-            value,
-            ..Self::create(CssTokenType::Function, original_source_range)
-        }
-    }
-
-    fn create_at_keyword(value: String, original_source_range: Range<usize>) -> Self {
-        Self {
-            token_type: CssTokenType::AtKeyword,
-            value,
-            ..Self::create(CssTokenType::AtKeyword, original_source_range)
-        }
-    }
-
-    fn create_hash(value: String, hash_type: CssHashType, original_source_range: Range<usize>) -> Self {
-        Self {
-            token_type: CssTokenType::Hash,
-            value,
-            hash_type,
-            ..Self::create(CssTokenType::Hash, original_source_range)
-        }
-    }
-
-    fn create_string(value: String, original_source_range: Range<usize>) -> Self {
-        Self {
-            token_type: CssTokenType::String,
-            value,
-            ..Self::create(CssTokenType::String, original_source_range)
-        }
-    }
-
-    fn create_url(value: String, original_source_range: Range<usize>) -> Self {
-        Self {
-            token_type: CssTokenType::Url,
-            value,
-            ..Self::create(CssTokenType::Url, original_source_range)
-        }
-    }
-
-    fn create_delim(delim: u32, original_source_range: Range<usize>) -> Self {
-        Self {
-            token_type: CssTokenType::Delim,
-            delim,
-            ..Self::create(CssTokenType::Delim, original_source_range)
-        }
-    }
-
-    fn create_number(number: NumericValue, original_source_range: Range<usize>) -> Self {
-        Self {
-            token_type: CssTokenType::Number,
-            number_value: number.value,
-            number_type: number.number_type,
-            ..Self::create(CssTokenType::Number, original_source_range)
-        }
-    }
-
-    fn create_percentage(number: NumericValue, original_source_range: Range<usize>) -> Self {
-        Self {
-            token_type: CssTokenType::Percentage,
-            number_value: number.value,
-            number_type: number.number_type,
-            ..Self::create(CssTokenType::Percentage, original_source_range)
-        }
-    }
-
-    fn create_dimension(number: NumericValue, unit: String, original_source_range: Range<usize>) -> Self {
-        Self {
-            token_type: CssTokenType::Dimension,
-            value: unit,
-            number_value: number.value,
-            number_type: number.number_type,
-            ..Self::create(CssTokenType::Dimension, original_source_range)
-        }
-    }
-
-    fn create_whitespace(original_source_range: Range<usize>) -> Self {
-        Self::create(CssTokenType::Whitespace, original_source_range)
-    }
-
     pub(crate) fn as_ffi(&self, filtered_input: &str) -> CssToken {
-        let (value_ptr, value_len) = string_parts(&self.value);
         let original_source =
             &filtered_input.as_bytes()[self.original_source_range.start..self.original_source_range.end];
         let (original_source_ptr, original_source_len) = bytes_parts(original_source);
 
-        CssToken {
-            token_type: self.token_type,
-            hash_type: self.hash_type,
-            number_type: self.number_type,
-            number_value: self.number_value,
-            delim: self.delim,
-            value_ptr,
-            value_len,
+        let mut css_token = CssToken {
+            token_type: CssTokenType::Invalid,
+            hash_type: CssHashType::Id,
+            number_type: CssNumberType::Number,
+            number_value: 0.0,
+            delim: 0,
+            value_ptr: ptr::null(),
+            value_len: 0,
             original_source_ptr,
             original_source_len,
             start_line: self.range.start.line,
             start_column: self.range.start.column,
             end_line: self.range.end.line,
             end_column: self.range.end.column,
+        };
+
+        match &self.token_type {
+            TokenType::EndOfFile => css_token.token_type = CssTokenType::EndOfFile,
+            TokenType::Ident { value } => {
+                css_token.token_type = CssTokenType::Ident;
+                (css_token.value_ptr, css_token.value_len) = string_parts(value);
+            }
+            TokenType::Function { name } => {
+                css_token.token_type = CssTokenType::Function;
+                (css_token.value_ptr, css_token.value_len) = string_parts(name);
+            }
+            TokenType::AtKeyword { name } => {
+                css_token.token_type = CssTokenType::AtKeyword;
+                (css_token.value_ptr, css_token.value_len) = string_parts(name);
+            }
+            TokenType::Hash { hash_type, value } => {
+                css_token.token_type = CssTokenType::Hash;
+                css_token.hash_type = *hash_type;
+                (css_token.value_ptr, css_token.value_len) = string_parts(value);
+            }
+            TokenType::String { value } => {
+                css_token.token_type = CssTokenType::String;
+                (css_token.value_ptr, css_token.value_len) = string_parts(value);
+            }
+            TokenType::BadString => css_token.token_type = CssTokenType::BadString,
+            TokenType::Url { value } => {
+                css_token.token_type = CssTokenType::Url;
+                (css_token.value_ptr, css_token.value_len) = string_parts(value);
+            }
+            TokenType::BadUrl => css_token.token_type = CssTokenType::BadUrl,
+            TokenType::Delim { value } => {
+                css_token.token_type = CssTokenType::Delim;
+                css_token.delim = *value;
+            }
+            TokenType::Number { number } => {
+                css_token.token_type = CssTokenType::Number;
+                css_token.number_type = number.number_type;
+                css_token.number_value = number.value;
+            }
+            TokenType::Percentage { number } => {
+                css_token.token_type = CssTokenType::Percentage;
+                css_token.number_type = number.number_type;
+                css_token.number_value = number.value;
+            }
+            TokenType::Dimension { number, unit } => {
+                css_token.token_type = CssTokenType::Dimension;
+                css_token.number_type = number.number_type;
+                css_token.number_value = number.value;
+                (css_token.value_ptr, css_token.value_len) = string_parts(unit);
+            }
+            TokenType::Whitespace => css_token.token_type = CssTokenType::Whitespace,
+            TokenType::Cdo => css_token.token_type = CssTokenType::CDO,
+            TokenType::Cdc => css_token.token_type = CssTokenType::CDC,
+            TokenType::Colon => css_token.token_type = CssTokenType::Colon,
+            TokenType::Semicolon => css_token.token_type = CssTokenType::Semicolon,
+            TokenType::Comma => css_token.token_type = CssTokenType::Comma,
+            TokenType::OpenSquare => css_token.token_type = CssTokenType::OpenSquare,
+            TokenType::CloseSquare => css_token.token_type = CssTokenType::CloseSquare,
+            TokenType::OpenParen => css_token.token_type = CssTokenType::OpenParen,
+            TokenType::CloseParen => css_token.token_type = CssTokenType::CloseParen,
+            TokenType::OpenCurly => css_token.token_type = CssTokenType::OpenCurly,
+            TokenType::CloseCurly => css_token.token_type = CssTokenType::CloseCurly,
         }
+
+        css_token
     }
 }
 
@@ -272,7 +265,7 @@ impl Tokenizer {
             let token_start = self.position;
             let mut token = self.consume_a_token();
             token.range = token_start..self.position;
-            let is_eof = token.token_type == CssTokenType::EndOfFile;
+            let is_eof = matches!(token.token_type, TokenType::EndOfFile);
             tokens.push(token);
 
             if is_eof {
@@ -479,7 +472,10 @@ impl Tokenizer {
                 || is_apostrophe(first)
                 || (is_whitespace(first) && (is_quotation_mark(second) || is_apostrophe(second)))
             {
-                return Token::create_function(string, start_byte_offset..self.current_byte_offset());
+                return Token::create(
+                    TokenType::Function { name: string },
+                    start_byte_offset..self.current_byte_offset(),
+                );
             }
 
             // Otherwise, consume a url token, and return it.
@@ -491,11 +487,17 @@ impl Tokenizer {
             self.consume_code_point();
 
             // Create a <function-token> with its value set to string and return it.
-            return Token::create_function(string, start_byte_offset..self.current_byte_offset());
+            return Token::create(
+                TokenType::Function { name: string },
+                start_byte_offset..self.current_byte_offset(),
+            );
         }
 
         // Otherwise, create an <ident-token> with its value set to string and return it.
-        Token::create_ident(string, start_byte_offset..self.current_byte_offset())
+        Token::create(
+            TokenType::Ident { value: string },
+            start_byte_offset..self.current_byte_offset(),
+        )
     }
 
     // https://www.w3.org/TR/css-syntax-3/#consume-number
@@ -654,13 +656,13 @@ impl Tokenizer {
             // U+0029 RIGHT PARENTHESIS ())
             if is_right_paren(input) {
                 // Return the <url-token>.
-                return Token::create_url(value, start_byte_offset..self.current_byte_offset());
+                return Token::create(TokenType::Url { value }, start_byte_offset..self.current_byte_offset());
             }
 
             // EOF
             if is_eof(input) {
                 // This is a parse error. Return the <url-token>.
-                return Token::create_url(value, start_byte_offset..self.current_byte_offset());
+                return Token::create(TokenType::Url { value }, start_byte_offset..self.current_byte_offset());
             }
 
             // whitespace
@@ -673,17 +675,17 @@ impl Tokenizer {
                 // and return the <url-token> (if EOF was encountered, this is a parse error);
                 if is_right_paren(next_input) {
                     self.consume_code_point();
-                    return Token::create_url(value, start_byte_offset..self.current_byte_offset());
+                    return Token::create(TokenType::Url { value }, start_byte_offset..self.current_byte_offset());
                 }
 
                 if is_eof(next_input) {
                     self.consume_code_point();
-                    return Token::create_url(value, start_byte_offset..self.current_byte_offset());
+                    return Token::create(TokenType::Url { value }, start_byte_offset..self.current_byte_offset());
                 }
 
                 // otherwise, consume the remnants of a bad url, create a <bad-url-token>, and return it.
                 self.consume_the_remnants_of_a_bad_url();
-                return Token::create(CssTokenType::BadUrl, start_byte_offset..self.current_byte_offset());
+                return Token::create(TokenType::BadUrl, start_byte_offset..self.current_byte_offset());
             }
 
             // U+0022 QUOTATION MARK (")
@@ -697,7 +699,7 @@ impl Tokenizer {
             {
                 // This is a parse error. Consume the remnants of a bad url, create a <bad-url-token>, and return it.
                 self.consume_the_remnants_of_a_bad_url();
-                return Token::create(CssTokenType::BadUrl, start_byte_offset..self.current_byte_offset());
+                return Token::create(TokenType::BadUrl, start_byte_offset..self.current_byte_offset());
             }
 
             // U+005C REVERSE SOLIDUS (\)
@@ -712,7 +714,7 @@ impl Tokenizer {
                 // Otherwise, this is a parse error.
                 // Consume the remnants of a bad url, create a <bad-url-token>, and return it.
                 self.consume_the_remnants_of_a_bad_url();
-                return Token::create(CssTokenType::BadUrl, start_byte_offset..self.current_byte_offset());
+                return Token::create(TokenType::BadUrl, start_byte_offset..self.current_byte_offset());
             }
 
             // anything else
@@ -771,7 +773,10 @@ impl Tokenizer {
             let unit = self.consume_an_ident_sequence();
 
             // 3. Return the <dimension-token>.
-            return Token::create_dimension(number, unit, start_byte_offset..self.current_byte_offset());
+            return Token::create(
+                TokenType::Dimension { number, unit },
+                start_byte_offset..self.current_byte_offset(),
+            );
         }
 
         // Otherwise, if the next input code point is U+0025 PERCENTAGE SIGN (%), consume it.
@@ -779,11 +784,17 @@ impl Tokenizer {
             self.consume_code_point();
 
             // Create a <percentage-token> with the same value as number, and return it.
-            return Token::create_percentage(number, start_byte_offset..self.current_byte_offset());
+            return Token::create(
+                TokenType::Percentage { number },
+                start_byte_offset..self.current_byte_offset(),
+            );
         }
 
         // Otherwise, create a <number-token> with the same value and type flag as number, and return it.
-        Token::create_number(number, start_byte_offset..self.current_byte_offset())
+        Token::create(
+            TokenType::Number { number },
+            start_byte_offset..self.current_byte_offset(),
+        )
     }
 
     // https://www.w3.org/TR/css-syntax-3/#consume-string-token
@@ -806,13 +817,19 @@ impl Tokenizer {
             // ending code point
             if input == ending_code_point {
                 // Return the <string-token>.
-                return Token::create_string(value, start_byte_offset..self.current_byte_offset());
+                return Token::create(
+                    TokenType::String { value },
+                    start_byte_offset..self.current_byte_offset(),
+                );
             }
 
             // EOF
             if is_eof(input) {
                 // This is a parse error. Return the <string-token>.
-                return Token::create_string(value, start_byte_offset..self.current_byte_offset());
+                return Token::create(
+                    TokenType::String { value },
+                    start_byte_offset..self.current_byte_offset(),
+                );
             }
 
             // newline
@@ -820,7 +837,7 @@ impl Tokenizer {
                 // This is a parse error. Reconsume the current input code point, create a
                 // <bad-string-token>, and return it.
                 self.reconsume_current_input_code_point();
-                return Token::create(CssTokenType::BadString, start_byte_offset..self.current_byte_offset());
+                return Token::create(TokenType::BadString, start_byte_offset..self.current_byte_offset());
             }
 
             // U+005C REVERSE SOLIDUS (\)
@@ -862,7 +879,7 @@ impl Tokenizer {
         // AD-HOC: Preserve comments as whitespace tokens, for serializing custom properties.
         let after_comments_byte_offset = self.current_byte_offset();
         if after_comments_byte_offset != start_byte_offset {
-            return Token::create_whitespace(start_byte_offset..self.current_byte_offset());
+            return Token::create(TokenType::Whitespace, start_byte_offset..self.current_byte_offset());
         }
 
         // Consume the next input code point.
@@ -873,7 +890,7 @@ impl Tokenizer {
             c if is_whitespace(c) => {
                 // Consume as much whitespace as possible. Return a <whitespace-token>.
                 self.consume_as_much_whitespace_as_possible();
-                Token::create_whitespace(start_byte_offset..self.current_byte_offset())
+                Token::create(TokenType::Whitespace, start_byte_offset..self.current_byte_offset())
             }
 
             // U+0022 QUOTATION MARK (")
@@ -900,10 +917,16 @@ impl Tokenizer {
                     let value = self.consume_an_ident_sequence();
 
                     // 4. Return the <hash-token>.
-                    Token::create_hash(value, hash_type, start_byte_offset..self.current_byte_offset())
+                    Token::create(
+                        TokenType::Hash { hash_type, value },
+                        start_byte_offset..self.current_byte_offset(),
+                    )
                 } else {
                     // Otherwise, return a <delim-token> with its value set to the current input code point.
-                    Token::create_delim(input, start_byte_offset..self.current_byte_offset())
+                    Token::create(
+                        TokenType::Delim { value: input },
+                        start_byte_offset..self.current_byte_offset(),
+                    )
                 }
             }
 
@@ -916,13 +939,13 @@ impl Tokenizer {
             // U+0028 LEFT PARENTHESIS (()
             0x28 => {
                 // Return a <(-token>.
-                Token::create(CssTokenType::OpenParen, start_byte_offset..self.current_byte_offset())
+                Token::create(TokenType::OpenParen, start_byte_offset..self.current_byte_offset())
             }
 
             // U+0029 RIGHT PARENTHESIS ())
             0x29 => {
                 // Return a <)-token>.
-                Token::create(CssTokenType::CloseParen, start_byte_offset..self.current_byte_offset())
+                Token::create(TokenType::CloseParen, start_byte_offset..self.current_byte_offset())
             }
 
             // U+002B PLUS SIGN (+)
@@ -934,14 +957,17 @@ impl Tokenizer {
                     self.consume_a_numeric_token()
                 } else {
                     // Otherwise, return a <delim-token> with its value set to the current input code point.
-                    Token::create_delim(input, start_byte_offset..self.current_byte_offset())
+                    Token::create(
+                        TokenType::Delim { value: input },
+                        start_byte_offset..self.current_byte_offset(),
+                    )
                 }
             }
 
             // U+002C COMMA (,)
             0x2C => {
                 // Return a <comma-token>.
-                Token::create(CssTokenType::Comma, start_byte_offset..self.current_byte_offset())
+                Token::create(TokenType::Comma, start_byte_offset..self.current_byte_offset())
             }
 
             // U+002D HYPHEN-MINUS (-)
@@ -959,7 +985,7 @@ impl Tokenizer {
                 if is_hyphen_minus(first) && is_greater_than_sign(second) {
                     self.consume_code_point();
                     self.consume_code_point();
-                    return Token::create(CssTokenType::CDC, start_byte_offset..self.current_byte_offset());
+                    return Token::create(TokenType::Cdc, start_byte_offset..self.current_byte_offset());
                 }
 
                 // Otherwise, if the input stream starts with an identifier, reconsume the current
@@ -970,7 +996,10 @@ impl Tokenizer {
                 }
 
                 // Otherwise, return a <delim-token> with its value set to the current input code point.
-                Token::create_delim(input, start_byte_offset..self.current_byte_offset())
+                Token::create(
+                    TokenType::Delim { value: input },
+                    start_byte_offset..self.current_byte_offset(),
+                )
             }
 
             // U+002E FULL STOP (.)
@@ -982,20 +1011,23 @@ impl Tokenizer {
                     self.consume_a_numeric_token()
                 } else {
                     // Otherwise, return a <delim-token> with its value set to the current input code point.
-                    Token::create_delim(input, start_byte_offset..self.current_byte_offset())
+                    Token::create(
+                        TokenType::Delim { value: input },
+                        start_byte_offset..self.current_byte_offset(),
+                    )
                 }
             }
 
             // U+003A COLON (:)
             0x3A => {
                 // Return a <colon-token>.
-                Token::create(CssTokenType::Colon, start_byte_offset..self.current_byte_offset())
+                Token::create(TokenType::Colon, start_byte_offset..self.current_byte_offset())
             }
 
             // U+003B SEMICOLON (;)
             0x3B => {
                 // Return a <semicolon-token>.
-                Token::create(CssTokenType::Semicolon, start_byte_offset..self.current_byte_offset())
+                Token::create(TokenType::Semicolon, start_byte_offset..self.current_byte_offset())
             }
 
             // U+003C LESS-THAN SIGN (<)
@@ -1007,10 +1039,13 @@ impl Tokenizer {
                     self.consume_code_point();
                     self.consume_code_point();
                     self.consume_code_point();
-                    Token::create(CssTokenType::CDO, start_byte_offset..self.current_byte_offset())
+                    Token::create(TokenType::Cdo, start_byte_offset..self.current_byte_offset())
                 } else {
                     // Otherwise, return a <delim-token> with its value set to the current input code point.
-                    Token::create_delim(input, start_byte_offset..self.current_byte_offset())
+                    Token::create(
+                        TokenType::Delim { value: input },
+                        start_byte_offset..self.current_byte_offset(),
+                    )
                 }
             }
 
@@ -1019,20 +1054,24 @@ impl Tokenizer {
                 // If the next 3 input code points would start an ident sequence, consume an ident sequence, create
                 // an <at-keyword-token> with its value set to the returned value, and return it.
                 if would_start_an_ident_sequence(self.peek_triplet()) {
-                    Token::create_at_keyword(
-                        self.consume_an_ident_sequence(),
+                    let name = self.consume_an_ident_sequence();
+                    Token::create(
+                        TokenType::AtKeyword { name },
                         start_byte_offset..self.current_byte_offset(),
                     )
                 } else {
                     // Otherwise, return a <delim-token> with its value set to the current input code point.
-                    Token::create_delim(input, start_byte_offset..self.current_byte_offset())
+                    Token::create(
+                        TokenType::Delim { value: input },
+                        start_byte_offset..self.current_byte_offset(),
+                    )
                 }
             }
 
             // U+005B LEFT SQUARE BRACKET ([)
             0x5B => {
                 // Return a <[-token>.
-                Token::create(CssTokenType::OpenSquare, start_byte_offset..self.current_byte_offset())
+                Token::create(TokenType::OpenSquare, start_byte_offset..self.current_byte_offset())
             }
 
             // U+005C REVERSE SOLIDUS (\)
@@ -1045,26 +1084,29 @@ impl Tokenizer {
                 } else {
                     // Otherwise, this is a parse error. Return a <delim-token> with its value set to the
                     // current input code point.
-                    Token::create_delim(input, start_byte_offset..self.current_byte_offset())
+                    Token::create(
+                        TokenType::Delim { value: input },
+                        start_byte_offset..self.current_byte_offset(),
+                    )
                 }
             }
 
             // U+005D RIGHT SQUARE BRACKET (])
             0x5D => {
                 // Return a <]-token>.
-                Token::create(CssTokenType::CloseSquare, start_byte_offset..self.current_byte_offset())
+                Token::create(TokenType::CloseSquare, start_byte_offset..self.current_byte_offset())
             }
 
             // U+007B LEFT CURLY BRACKET ({)
             0x7B => {
                 // Return a <{-token>.
-                Token::create(CssTokenType::OpenCurly, start_byte_offset..self.current_byte_offset())
+                Token::create(TokenType::OpenCurly, start_byte_offset..self.current_byte_offset())
             }
 
             // U+007D RIGHT CURLY BRACKET (})
             0x7D => {
                 // Return a <}-token>.
-                Token::create(CssTokenType::CloseCurly, start_byte_offset..self.current_byte_offset())
+                Token::create(TokenType::CloseCurly, start_byte_offset..self.current_byte_offset())
             }
 
             // digit
@@ -1077,7 +1119,7 @@ impl Tokenizer {
             // EOF
             TOKENIZER_EOF => {
                 // Return an <EOF-token>.
-                Token::create(CssTokenType::EndOfFile, start_byte_offset..self.current_byte_offset())
+                Token::create(TokenType::EndOfFile, start_byte_offset..self.current_byte_offset())
             }
 
             // name-start code point
@@ -1090,7 +1132,10 @@ impl Tokenizer {
             // anything else
             _ => {
                 // Return a <delim-token> with its value set to the current input code point.
-                Token::create_delim(input, start_byte_offset..self.current_byte_offset())
+                Token::create(
+                    TokenType::Delim { value: input },
+                    start_byte_offset..self.current_byte_offset(),
+                )
             }
         }
     }
