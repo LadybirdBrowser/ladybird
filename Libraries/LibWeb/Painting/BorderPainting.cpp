@@ -261,6 +261,89 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
             painter.draw_line(p1.to_type<int>(), p2.to_type<int>(), color, border_data.width.value(), gfx_line_style);
             return;
         }
+
+        // FIXME: Border-radius is not yet handled here; falls through to solid path-based rendering below.
+        bool has_no_radius = radius.horizontal_radius == 0 && radius.vertical_radius == 0
+            && opposite_radius.horizontal_radius == 0 && opposite_radius.vertical_radius == 0;
+        if (has_no_radius) {
+            auto fill_corner_triangle = [&](DevicePixelPoint outer_corner, DevicePixelPoint outer_cut, DevicePixelPoint inner_cut) {
+                Gfx::Path corner_path;
+                corner_path.move_to(Gfx::FloatPoint(outer_corner.to_type<int>()));
+                corner_path.line_to(Gfx::FloatPoint(outer_cut.to_type<int>()));
+                corner_path.line_to(Gfx::FloatPoint(inner_cut.to_type<int>()));
+                corner_path.close();
+                painter.fill_path({ .path = corner_path, .paint_style_or_color = color, .winding_rule = Gfx::WindingRule::Nonzero });
+            };
+
+            DevicePixels half_width = border_data.width / 2;
+            switch (edge) {
+            case BorderEdge::Top: {
+                auto left_width = borders_data.left.width;
+                auto right_width = borders_data.right.width;
+                fill_corner_triangle(rect.top_left(),
+                    rect.top_left().translated(left_width, 0),
+                    rect.bottom_left().translated(left_width, 0));
+                fill_corner_triangle(rect.top_right(),
+                    rect.top_right().translated(-right_width, 0),
+                    rect.bottom_right().translated(-right_width, 0));
+                if (rect.width() > left_width + right_width) {
+                    DevicePixelPoint p1(rect.left() + left_width + half_width, rect.top() + half_width);
+                    DevicePixelPoint p2(rect.right() - 1 - right_width - half_width, rect.top() + half_width);
+                    painter.draw_line(p1.to_type<int>(), p2.to_type<int>(), color, border_data.width.value(), gfx_line_style);
+                }
+                break;
+            }
+            case BorderEdge::Right: {
+                auto top_width = borders_data.top.width;
+                auto bottom_width = borders_data.bottom.width;
+                fill_corner_triangle(rect.top_right(),
+                    rect.top_right().translated(0, top_width),
+                    rect.top_left().translated(0, top_width));
+                fill_corner_triangle(rect.bottom_right(),
+                    rect.bottom_right().translated(0, -bottom_width),
+                    rect.bottom_left().translated(0, -bottom_width));
+                if (rect.height() > top_width + bottom_width) {
+                    DevicePixelPoint p1(rect.right() - 1 - half_width, rect.top() + top_width + half_width);
+                    DevicePixelPoint p2(rect.right() - 1 - half_width, rect.bottom() - 1 - bottom_width - half_width);
+                    painter.draw_line(p1.to_type<int>(), p2.to_type<int>(), color, border_data.width.value(), gfx_line_style);
+                }
+                break;
+            }
+            case BorderEdge::Bottom: {
+                auto left_width = borders_data.left.width;
+                auto right_width = borders_data.right.width;
+                fill_corner_triangle(rect.bottom_left(),
+                    rect.bottom_left().translated(left_width, 0),
+                    rect.top_left().translated(left_width, 0));
+                fill_corner_triangle(rect.bottom_right(),
+                    rect.bottom_right().translated(-right_width, 0),
+                    rect.top_right().translated(-right_width, 0));
+                if (rect.width() > left_width + right_width) {
+                    DevicePixelPoint p1(rect.left() + left_width + half_width, rect.bottom() - 1 - half_width);
+                    DevicePixelPoint p2(rect.right() - 1 - right_width - half_width, rect.bottom() - 1 - half_width);
+                    painter.draw_line(p1.to_type<int>(), p2.to_type<int>(), color, border_data.width.value(), gfx_line_style);
+                }
+                break;
+            }
+            case BorderEdge::Left: {
+                auto top_width = borders_data.top.width;
+                auto bottom_width = borders_data.bottom.width;
+                fill_corner_triangle(rect.top_left(),
+                    rect.top_left().translated(0, top_width),
+                    rect.top_right().translated(0, top_width));
+                fill_corner_triangle(rect.bottom_left(),
+                    rect.bottom_left().translated(0, -bottom_width),
+                    rect.bottom_right().translated(0, -bottom_width));
+                if (rect.height() > top_width + bottom_width) {
+                    DevicePixelPoint p1(rect.left() + half_width, rect.top() + top_width + half_width);
+                    DevicePixelPoint p2(rect.left() + half_width, rect.bottom() - 1 - bottom_width - half_width);
+                    painter.draw_line(p1.to_type<int>(), p2.to_type<int>(), color, border_data.width.value(), gfx_line_style);
+                }
+                break;
+            }
+            }
+            return;
+        }
     }
 
     auto draw_border = [&](Vector<Gfx::FloatPoint> const& points, bool joined_corner_has_inner_corner, bool opposite_joined_corner_has_inner_corner, Gfx::FloatSize joined_inner_corner_offset, Gfx::FloatSize opposite_joined_inner_corner_offset, bool ready_to_draw) {
