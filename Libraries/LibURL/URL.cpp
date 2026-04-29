@@ -364,9 +364,13 @@ Origin URL::origin() const
         return Origin(scheme(), host().value(), port());
     }
 
+    // AD-HOC: resource:// URLs are internal browser resources; give them a shared tuple origin
+    // so that same-origin checks pass between any two resource:// documents or worker scripts.
+    if (scheme() == "resource"sv)
+        return Origin(scheme(), String {}, {});
+
     // -> "file"
-    // AD-HOC: Our resource:// is basically an alias to file://
-    if (scheme() == "file"sv || scheme() == "resource"sv) {
+    if (scheme() == "file"sv) {
         // Unfortunate as it is, this is left as an exercise to the reader. When in doubt, return a new opaque origin.
 
         // Our implementation-defined behavior is to return an opaque origin for file:// URLs,

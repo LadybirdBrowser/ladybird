@@ -786,6 +786,29 @@ TEST_CASE(same_origin_domain)
     EXPECT(!opaque1.is_same_origin_domain(a_relaxed));
 }
 
+// resource:// URLs are internal browser resources. They share a single tuple origin regardless
+// of host, so that same-origin checks pass between any resource:// documents or worker scripts.
+TEST_CASE(resource_url_origin)
+{
+    auto url_a = URL::Parser::basic_parse("resource://ladybird/pdfjs/web/viewer.html"sv).value();
+    auto url_b = URL::Parser::basic_parse("resource://ladybird/pdfjs/build/pdf.worker.mjs"sv).value();
+    auto url_c = URL::Parser::basic_parse("resource://icons/something.png"sv).value();
+
+    // resource:// origins must be tuple origins, not opaque.
+    EXPECT(!url_a.origin().is_opaque());
+
+    // All resource:// URLs share the same origin regardless of host or path.
+    EXPECT(url_a.origin().is_same_origin(url_b.origin()));
+    EXPECT(url_a.origin().is_same_origin(url_c.origin()));
+
+    // resource:// and https:// are never same-origin.
+    auto https_origin = URL::Parser::basic_parse("https://ladybird.org"sv).value().origin();
+    EXPECT(!url_a.origin().is_same_origin(https_origin));
+
+    // resource:// and an opaque origin are never same-origin.
+    EXPECT(!url_a.origin().is_same_origin(URL::Origin::create_opaque()));
+}
+
 TEST_CASE(authority_state_lots_of_at_symbols)
 {
     auto many_at_symbols = MUST(String::repeated('@', 500'000));
