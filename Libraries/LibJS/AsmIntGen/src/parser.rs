@@ -67,6 +67,8 @@ pub struct Program {
     pub object_format: ObjectFormat,
     /// Whether the target has ARMv8.3 FEAT_JSCVT (fjcvtzs instruction).
     pub has_jscvt: bool,
+    /// Whether DSL assertions should emit runtime checks.
+    pub enable_assertions: bool,
 }
 
 pub fn parse(input: &str) -> Program {
@@ -146,6 +148,7 @@ pub fn parse(input: &str) -> Program {
         opcode_list: Vec::new(),
         object_format: ObjectFormat::MachO,
         has_jscvt: false,
+        enable_assertions: false,
     }
 }
 

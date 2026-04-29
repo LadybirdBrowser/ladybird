@@ -386,6 +386,12 @@ if (DEFINED ASMINT_ARCH)
     endif()
 
     set(ASMINT_EXTRA_FLAGS "")
+    if (CMAKE_BUILD_TYPE STREQUAL "Debug"
+        OR ENABLE_ADDRESS_SANITIZER
+        OR ENABLE_MEMORY_SANITIZER
+        OR ENABLE_UNDEFINED_SANITIZER)
+        list(APPEND ASMINT_EXTRA_FLAGS "--enable-assertions")
+    endif()
     # All Apple Silicon chips are ARMv8.5+ which includes FEAT_JSCVT.
     if ("${ASMINT_ARCH}" STREQUAL "aarch64" AND APPLE)
         list(APPEND ASMINT_EXTRA_FLAGS "--has-jscvt")

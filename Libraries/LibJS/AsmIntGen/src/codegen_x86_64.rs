@@ -418,6 +418,48 @@ fn pair_dst_aliases_address(dst1: &str, mem1: &str, mem2: &str) -> bool {
     mention_in(mem1, dst1) || mention_in(mem2, dst1)
 }
 
+fn emit_assert_bits(
+    out: &mut String,
+    insn: &AsmInstruction,
+    handler: &Handler,
+    program: &Program,
+    state: &mut HandlerState,
+    want_set: bool,
+) {
+    if insn.operands.len() != 2 {
+        return;
+    }
+
+    let a = resolve_op(&insn.operands[0], handler, program);
+    let ok_label = format!(".Lasm_{}.assert_ok_{}", handler.name, state.unique_counter);
+    state.unique_counter += 1;
+    let pass_cc = if want_set { "jnz" } else { "jz" };
+    let pass_bit_cc = if want_set { "jc" } else { "jnc" };
+
+    if let Some(mask) = get_immediate_value(&insn.operands[1], program) {
+        let mask = mask as u64;
+        if mask >> 32 == 0 {
+            let a32 = to_32bit_reg(&a);
+            w!(out, "    test {a32}, {mask}");
+            w!(out, "    {pass_cc} {ok_label}");
+        } else if mask.is_power_of_two() {
+            w!(out, "    bt {a}, {}", mask.trailing_zeros());
+            w!(out, "    {pass_bit_cc} {ok_label}");
+        } else {
+            panic!(
+                "x86_64 assert_bits requires a low-32-bit mask or a single-bit 64-bit mask in handler '{}', got {mask:#x}",
+                handler.name
+            );
+        }
+    } else {
+        let mask = resolve_op(&insn.operands[1], handler, program);
+        w!(out, "    test {a}, {mask}");
+        w!(out, "    {pass_cc} {ok_label}");
+    }
+    w!(out, "    ud2");
+    w!(out, "{ok_label}:");
+}
+
 fn emit_instruction(
     out: &mut String,
     insn: &AsmInstruction,
@@ -445,6 +487,40 @@ fn emit_instruction(
         // by the time we get here they are pure annotations and emit
         // nothing.
         "temp" | "ftemp" => {}
+
+        "assert_eq" | "assert_ne" if program.enable_assertions => {
+            if insn.operands.len() == 2 {
+                let a = resolve_op(&insn.operands[0], handler, program);
+                let b = resolve_op(&insn.operands[1], handler, program);
+                let ok_label = format!(".Lasm_{}.assert_ok_{}", handler.name, state.unique_counter);
+                state.unique_counter += 1;
+                let cc = if m == "assert_eq" { "je" } else { "jne" };
+                w!(out, "    cmp {a}, {b}");
+                w!(out, "    {cc} {ok_label}");
+                w!(out, "    ud2");
+                w!(out, "{ok_label}:");
+            }
+        }
+
+        "assert_zero" | "assert_nonzero" if program.enable_assertions => {
+            if insn.operands.len() == 1 {
+                let a = resolve_op(&insn.operands[0], handler, program);
+                let ok_label = format!(".Lasm_{}.assert_ok_{}", handler.name, state.unique_counter);
+                state.unique_counter += 1;
+                let cc = if m == "assert_zero" { "jz" } else { "jnz" };
+                w!(out, "    test {a}, {a}");
+                w!(out, "    {cc} {ok_label}");
+                w!(out, "    ud2");
+                w!(out, "{ok_label}:");
+            }
+        }
+
+        "assert_bits_set" | "assert_bits_clear" if program.enable_assertions => {
+            emit_assert_bits(out, insn, handler, program, state, m == "assert_bits_set");
+        }
+
+        "assert_eq" | "assert_ne" | "assert_zero" | "assert_nonzero" | "assert_bits_set"
+        | "assert_bits_clear" => {}
 
         // Macro invocations
         _ if program.macros.contains_key(m) => {
@@ -1550,6 +1626,7 @@ mod tests {
             opcode_list: Vec::new(),
             object_format: ObjectFormat::MachO,
             has_jscvt: false,
+            enable_assertions: false,
         }
     }
 

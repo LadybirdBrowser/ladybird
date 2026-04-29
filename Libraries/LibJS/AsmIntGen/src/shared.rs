@@ -339,6 +339,7 @@ mod tests {
             opcode_list: Vec::new(),
             object_format: ObjectFormat::MachO,
             has_jscvt: false,
+            enable_assertions: false,
         }
     }
 

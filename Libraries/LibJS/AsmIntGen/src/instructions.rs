@@ -914,6 +914,48 @@ pub const INSTRUCTIONS: &[InstructionInfo] = &[
     plain("branch_fp_less_or_equal", &[FprIn, FprIn, Label]),
     plain("branch_fp_greater", &[FprIn, FprIn, Label]),
     plain("branch_fp_greater_or_equal", &[FprIn, FprIn, Label]),
+
+    // ------------------------------------------------------------------
+    // Assertions
+    // ------------------------------------------------------------------
+    info(
+        "assert_eq",
+        &[GprIn, GprInOrImm],
+        None,
+        false,
+        false,
+        ArchSpec::NONE,
+        ArchSpec { clobbers_gpr: &["x9"], ..ArchSpec::NONE },
+    ),
+    info(
+        "assert_ne",
+        &[GprIn, GprInOrImm],
+        None,
+        false,
+        false,
+        ArchSpec::NONE,
+        ArchSpec { clobbers_gpr: &["x9"], ..ArchSpec::NONE },
+    ),
+    plain("assert_zero", &[GprIn]),
+    plain("assert_nonzero", &[GprIn]),
+    info(
+        "assert_bits_set",
+        &[GprIn, GprInOrImm],
+        None,
+        false,
+        false,
+        ArchSpec::NONE,
+        ArchSpec { clobbers_gpr: &["x9"], ..ArchSpec::NONE },
+    ),
+    info(
+        "assert_bits_clear",
+        &[GprIn, GprInOrImm],
+        None,
+        false,
+        false,
+        ArchSpec::NONE,
+        ArchSpec { clobbers_gpr: &["x9"], ..ArchSpec::NONE },
+    ),
 ];
 
 /// Lazily-built mnemonic -> info index. Populated on first lookup.
@@ -1045,6 +1087,12 @@ mod tests {
         "branch_fp_less_or_equal",
         "branch_fp_greater",
         "branch_fp_greater_or_equal",
+        "assert_eq",
+        "assert_ne",
+        "assert_zero",
+        "assert_nonzero",
+        "assert_bits_set",
+        "assert_bits_clear",
     ];
 
     #[test]

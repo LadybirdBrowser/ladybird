@@ -64,6 +64,16 @@
 //!   to a bytecode address).
 //! - `jmp label` -- Unconditional branch to a local label within the handler.
 //! - `exit` -- Jump to the exit path, returning control to C++.
+//! - `assert_eq a, b` -- In assertion-enabled builds, trap if `a != b`.
+//! - `assert_ne a, b` -- In assertion-enabled builds, trap if `a == b`.
+//! - `assert_zero a` -- In assertion-enabled builds, trap if `a != 0`.
+//! - `assert_nonzero a` -- In assertion-enabled builds, trap if `a == 0`.
+//! - `assert_bits_set a, mask` -- In assertion-enabled builds, trap if
+//!   `(a & mask) == 0`.
+//! - `assert_bits_clear a, mask` -- In assertion-enabled builds, trap if
+//!   `(a & mask) != 0`.
+//!   Release/distribution builds pass assertions through the parser and
+//!   allocator, but emit no code for them.
 //!
 //! ### C++ interop
 //!
@@ -317,10 +327,12 @@ fn main() {
     let mut constants_path = None;
     let mut bytecode_def_path = None;
     let mut has_jscvt = false;
+    let mut enable_assertions = false;
 
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--has-jscvt" => has_jscvt = true,
+            "--enable-assertions" => enable_assertions = true,
             "--arch" => {
                 let val = args.next().expect("--arch requires a value");
                 arch = match val.as_str() {
@@ -393,6 +405,7 @@ fn main() {
 
     program.object_format = object_format;
     program.has_jscvt = has_jscvt;
+    program.enable_assertions = enable_assertions;
 
     let output = match arch {
         Arch::X86_64 => codegen_x86_64::generate(&program),
