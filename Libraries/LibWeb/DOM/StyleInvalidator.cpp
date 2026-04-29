@@ -5,6 +5,7 @@
  */
 
 #include <AK/ScopeGuard.h>
+#include <LibWeb/CSS/Invalidation/InvalidationSetMatcher.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -16,7 +17,7 @@ GC_DEFINE_ALLOCATOR(StyleInvalidator);
 
 static bool element_matches_invalidation_rule(Element const& element, CSS::InvalidationSet const& match_set, bool match_any)
 {
-    return match_any || element.includes_properties_from_invalidation_set(match_set);
+    return match_any || CSS::Invalidation::element_matches_any_invalidation_set_property(element, match_set);
 }
 
 void StyleInvalidator::visit_edges(Cell::Visitor& visitor)

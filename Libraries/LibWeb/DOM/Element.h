@@ -348,8 +348,11 @@ public:
     static GC::Ptr<Layout::NodeWithStyle> create_layout_node_for_display_type(DOM::Document&, CSS::Display const&, GC::Ref<CSS::ComputedProperties>, Element*);
 
     [[nodiscard]] bool affected_by_pseudo_class(CSS::PseudoClass) const;
-    bool includes_properties_from_invalidation_set(CSS::InvalidationSet const&) const;
     void clear_removed_attributes_for_style_invalidation() { m_removed_attributes_for_style_invalidation.clear(); }
+    bool has_removed_attribute_for_style_invalidation(FlyString const& attribute_name) const
+    {
+        return m_removed_attributes_for_style_invalidation.contains_slow(attribute_name);
+    }
     void remember_removed_attribute_for_style_invalidation(FlyString const& attribute_name)
     {
         if (!m_removed_attributes_for_style_invalidation.contains_slow(attribute_name))

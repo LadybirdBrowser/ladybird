@@ -180,6 +180,7 @@ set(SOURCES
     CSS/Invalidation/FormControlInvalidator.cpp
     CSS/Invalidation/HasMutationFeatureCollector.cpp
     CSS/Invalidation/HasMutationInvalidator.cpp
+    CSS/Invalidation/InvalidationSetMatcher.cpp
     CSS/Invalidation/LinkInvalidator.cpp
     CSS/Invalidation/StructuralMutationInvalidator.cpp
     CSS/Interpolation.cpp

@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/CSS/Invalidation/HasMutationFeatureCollector.h>
+#include <LibWeb/CSS/Invalidation/InvalidationSetMatcher.h>
 #include <LibWeb/CSS/InvalidationSet.h>
 #include <LibWeb/CSS/StyleInvalidationData.h>
 #include <LibWeb/CSS/StyleScope.h>
@@ -57,7 +58,7 @@ bool HasMutationFeatureCollector::element_has_feature_used_in_has_selector(DOM::
     for (auto const& pseudo_class_entry : m_data.pseudo_classes_used_in_has_selectors) {
         CSS::InvalidationSet pseudo_class_set;
         pseudo_class_set.set_needs_invalidate_pseudo_class(pseudo_class_entry.key);
-        if (element.includes_properties_from_invalidation_set(pseudo_class_set))
+        if (element_matches_any_invalidation_set_property(element, pseudo_class_set))
             return true;
     }
     return false;

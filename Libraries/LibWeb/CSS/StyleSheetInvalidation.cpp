@@ -8,6 +8,7 @@
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/Invalidation/InvalidationSetMatcher.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/SelectorEngine.h>
 #include <LibWeb/CSS/StyleScope.h>
@@ -183,7 +184,7 @@ static GC::Ptr<DOM::Element const> shadow_host_for_targeted_shadow_root_invalida
 template<typename Rule>
 static bool element_matches_anchor_rule(DOM::Element const& element, Rule const& rule, GC::Ptr<DOM::Element const> shadow_host, GC::Ptr<DOM::ShadowRoot const> rule_shadow_root)
 {
-    if (!element.includes_properties_from_invalidation_set(rule.anchor_set))
+    if (!Invalidation::element_matches_any_invalidation_set_property(element, rule.anchor_set))
         return false;
     if (rule.anchor_selector) {
         SelectorEngine::MatchContext context {
@@ -255,7 +256,7 @@ static void invalidate_elements_matching_invalidation_set_and_anchor_rules(
 
     root.for_each_in_inclusive_subtree_of_type<DOM::Element>([&](DOM::Element& element) {
         if (has_primary_set && !element.needs_style_update()
-            && element.includes_properties_from_invalidation_set(invalidation_set)) {
+            && Invalidation::element_matches_any_invalidation_set_property(element, invalidation_set)) {
             element.set_needs_style_update(true);
         }
 
@@ -351,7 +352,7 @@ void invalidate_root_for_style_sheet_change(DOM::Node& root, StyleSheetInvalidat
                 invalidate_elements_matching_invalidation_set_and_anchor_rules(host->root(), result, host, shadow_root);
             } else if (result.may_match_shadow_host) {
                 bool host_or_shadow_tree_needs_style_update = false;
-                if (host->includes_properties_from_invalidation_set(invalidation_set))
+                if (Invalidation::element_matches_any_invalidation_set_property(*host, invalidation_set))
                     host_or_shadow_tree_needs_style_update = true;
                 for (auto const& rule : result.pseudo_element_rules) {
                     if (element_matches_anchor_rule(*host, rule, host, shadow_root)) {
