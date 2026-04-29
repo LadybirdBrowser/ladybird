@@ -2129,6 +2129,7 @@ handler Call
     assert_nonzero frame_base
     assert_nonzero stack_limit
     add frame_bytes, frame_base
+    assert_ge_unsigned frame_bytes, frame_base
     branch_ge_unsigned stack_limit, frame_bytes, .stack_ok
     jmp .call_slow
 
@@ -2296,6 +2297,7 @@ handler Call
     assert_nonzero frame_base
     assert_nonzero stack_limit
     add native_total_bytes, frame_base
+    assert_ge_unsigned native_total_bytes, frame_base
     branch_ge_unsigned stack_limit, native_total_bytes, .native_interpreter_stack_ok
     jmp .call_slow
 
@@ -2337,6 +2339,8 @@ handler Call
     # of its own, so lexical/variable/private environments are copied
     # straight from the caller frame.
     load_pair64 lex_env, scratch, [exec_ctx, EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT], [exec_ctx, EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT]
+    assert_nonzero lex_env
+    assert_nonzero scratch
     store_pair64 [frame_base, EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT], [frame_base, EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT], lex_env, scratch
     load64 priv_env, [exec_ctx, EXECUTION_CONTEXT_PRIVATE_ENVIRONMENT]
     store64 [frame_base, EXECUTION_CONTEXT_PRIVATE_ENVIRONMENT], priv_env
@@ -2414,6 +2418,7 @@ handler Call
     assert_nonzero native_func
     call_raw_native native_func, native_return, variant
     and variant, 0xFF
+    assert_lt_unsigned variant, 2
     branch_nonzero variant, .call_raw_native_exception
 
     # Normal return path: tear the callee frame off the interpreter stack,
