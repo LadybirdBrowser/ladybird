@@ -21,6 +21,9 @@
 
 namespace Web::Fetch::Infrastructure {
 
+// https://mimesniff.spec.whatwg.org/#reading-the-resource-header
+static constexpr size_t MAX_SNIFF_BYTES = 1445;
+
 // https://fetch.spec.whatwg.org/#concept-body
 class WEB_API Body final : public JS::Cell {
     GC_CELL(Body, JS::Cell);

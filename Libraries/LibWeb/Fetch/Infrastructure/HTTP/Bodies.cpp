@@ -19,12 +19,6 @@ namespace Web::Fetch::Infrastructure {
 
 GC_DEFINE_ALLOCATOR(Body);
 
-// https://mimesniff.spec.whatwg.org/#reading-the-resource-header
-// To read the resource header, a user agent MUST read bytes of the resource until one of the following conditions is met:
-// - the end of the resource is reached
-// - 1445 or more bytes have been read
-static constexpr size_t MAX_SNIFF_BYTES = 1445;
-
 static Body::SourceTypeInternal to_source_type_internal(Body::SourceType&& source_type)
 {
     return source_type.visit(

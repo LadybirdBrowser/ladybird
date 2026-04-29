@@ -2149,16 +2149,13 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     auto fetched_data_receiver = realm.create<FetchedDataReceiver>(fetch_params, stream, move(http_cache));
 
     // 11. Let pullAlgorithm be the following steps:
-    auto pull_algorithm = GC::create_function(realm.heap(), [&realm, fetched_data_receiver]() {
+    auto pull_algorithm = GC::create_function(realm.heap(), [&realm]() {
         // 1. Let promise be a new promise.
-        auto promise = WebIDL::create_promise(realm);
-
         // 2. Run the following steps in parallel:
-        // NOTE: This is handled by FetchedDataReceiver.
-        fetched_data_receiver->set_pending_promise(promise);
+        // NOTE: This is handled by FetchedDataReceiver, which pushes bytes into the controller as they arrive.
 
         // 3. Return promise.
-        return promise;
+        return WebIDL::create_resolved_promise(realm, JS::js_undefined());
     });
 
     // 12. Let cancelAlgorithm be an algorithm that aborts fetchParams’s controller with reason, given reason.

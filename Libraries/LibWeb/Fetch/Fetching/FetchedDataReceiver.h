@@ -22,8 +22,6 @@ class FetchedDataReceiver final : public JS::Cell {
 public:
     virtual ~FetchedDataReceiver() override;
 
-    void set_pending_promise(GC::Ref<WebIDL::Promise>);
-
     void set_response(GC::Ref<Fetch::Infrastructure::Response const> response) { m_response = response; }
     void set_body(GC::Ref<Fetch::Infrastructure::Body> body);
 
@@ -39,32 +37,25 @@ private:
 
     virtual void visit_edges(Visitor& visitor) override;
 
-    void pull_bytes_into_stream();
+    void enqueue_into_stream(ReadonlyBytes);
     void close_stream();
-
-    bool buffer_is_eof() const { return m_pulled_bytes == m_buffer.size(); }
-    ByteBuffer copy_unpulled_bytes();
 
     GC::Ref<Infrastructure::FetchParams const> m_fetch_params;
     GC::Ptr<Fetch::Infrastructure::Response const> m_response;
     GC::Ptr<Fetch::Infrastructure::Body> m_body;
 
     GC::Ref<Streams::ReadableStream> m_stream;
-    GC::Ptr<WebIDL::Promise> m_pending_promise;
 
     RefPtr<HTTP::MemoryCache> m_http_cache;
 
-    ByteBuffer m_buffer;
-    size_t m_pulled_bytes { 0 };
+    // Bytes received before set_body() is called. Held only until the body is attached and these
+    // are flushed into the body's MIME-sniff buffer.
+    ByteBuffer m_pre_body_sniff_buffer;
 
-    enum class LifecycleState {
-        Receiving,
-        CompletePending,
-        ReadyToClose,
-        Closed,
-    };
-    LifecycleState m_lifecycle_state { LifecycleState::Receiving };
-    bool m_has_unfulfilled_promise { false };
+    // Whole-response buffer retained only when m_http_cache is non-null, for finalize_entry().
+    ByteBuffer m_cache_buffer;
+
+    bool m_network_complete { false };
 };
 
 }
