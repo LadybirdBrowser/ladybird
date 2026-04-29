@@ -25,7 +25,7 @@ def generate_css_parser_expression_for_type_component_value(out: TextIO, cpp_nam
     type_name = snake_casify(type.name)
 
     additional_arguments = ""
-    if type.custom_ident_blacklist is not None:
+    if type.custom_ident_blacklist:
         additional_arguments = ", ReadonlySpan<StringView> { "
 
         if len(type.custom_ident_blacklist) > 0:

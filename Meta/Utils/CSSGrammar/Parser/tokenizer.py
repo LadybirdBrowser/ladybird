@@ -149,7 +149,7 @@ class Tokenizer:
         if not name:
             raise SyntaxError("CSSGrammar::Tokenizer: Expected a type name")
 
-        custom_ident_blacklist = None
+        custom_ident_blacklist = []
         if name == "custom-ident":
             custom_ident_blacklist = self.consume_custom_ident_blacklist()
 

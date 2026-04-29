@@ -51,7 +51,7 @@ def is_numeric_type(type_name: str) -> bool:
 @dataclass(frozen=True)
 class Type:
     name: str
-    custom_ident_blacklist: list[str] | None
+    custom_ident_blacklist: list[str]
     numeric_type_accepted_range: NumericTypeRangeRestriction | None
 
     def dump(self, indent: int) -> str:
