@@ -176,6 +176,7 @@ set(SOURCES
     CSS/GridTrackPlacement.cpp
     CSS/GridTrackSize.cpp
     CSS/Invalidation/AttributeInvalidator.cpp
+    CSS/Invalidation/FormControlInvalidator.cpp
     CSS/Invalidation/HasMutationFeatureCollector.cpp
     CSS/Invalidation/HasMutationInvalidator.cpp
     CSS/Invalidation/LinkInvalidator.cpp

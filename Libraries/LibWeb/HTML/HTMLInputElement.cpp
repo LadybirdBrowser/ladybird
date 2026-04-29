@@ -23,6 +23,7 @@
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/Invalidation/FormControlInvalidator.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
@@ -206,13 +207,7 @@ void HTMLInputElement::set_checked(bool checked)
 
     m_checked = checked;
 
-    invalidate_style(
-        DOM::StyleInvalidationReason::HTMLInputElementSetChecked,
-        {
-            { .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::Checked },
-            { .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::Unchecked },
-        },
-        {});
+    CSS::Invalidation::invalidate_style_after_checked_state_change(*this, DOM::StyleInvalidationReason::HTMLInputElementSetChecked);
 
     set_needs_repaint();
 }
@@ -1596,13 +1591,7 @@ void HTMLInputElement::type_attribute_changed(TypeAttributeState old_state, Type
     auto old_value_attribute_mode = value_attribute_mode_for_type_state(old_state);
 
     if (checked_applies(old_state) != checked_applies(new_state)) {
-        invalidate_style(
-            DOM::StyleInvalidationReason::HTMLInputElementSetType,
-            {
-                { .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::Checked },
-                { .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::Unchecked },
-            },
-            {});
+        CSS::Invalidation::invalidate_style_after_checked_state_change(*this, DOM::StyleInvalidationReason::HTMLInputElementSetType);
     }
 
     // 1. If the previous state of the element's type attribute put the value IDL attribute in the value mode, and the element's
