@@ -30,6 +30,7 @@
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/Invalidation/AttributeInvalidator.h>
+#include <LibWeb/CSS/Invalidation/CustomElementInvalidator.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/SelectorEngine.h>
@@ -3423,9 +3424,7 @@ void Element::set_custom_element_state(CustomElementState state)
         return;
     m_custom_element_state = state;
 
-    Vector<CSS::InvalidationSet::Property, 1> changed_properties;
-    changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::Defined });
-    invalidate_style(StyleInvalidationReason::CustomElementStateChange, changed_properties, {});
+    CSS::Invalidation::invalidate_style_after_custom_element_state_change(*this);
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#html-element-constructors
