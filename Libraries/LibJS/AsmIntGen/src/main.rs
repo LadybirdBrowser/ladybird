@@ -66,6 +66,10 @@
 //! - `exit` -- Jump to the exit path, returning control to C++.
 //! - `assert_eq a, b` -- In assertion-enabled builds, trap if `a != b`.
 //! - `assert_ne a, b` -- In assertion-enabled builds, trap if `a == b`.
+//! - `assert_lt_unsigned a, b` -- In assertion-enabled builds, trap if
+//!   `a >= b`.
+//! - `assert_ge_unsigned a, b` -- In assertion-enabled builds, trap if
+//!   `a < b`.
 //! - `assert_zero a` -- In assertion-enabled builds, trap if `a != 0`.
 //! - `assert_nonzero a` -- In assertion-enabled builds, trap if `a == 0`.
 //! - `assert_bits_set a, mask` -- In assertion-enabled builds, trap if

@@ -502,6 +502,20 @@ fn emit_instruction(
             }
         }
 
+        "assert_lt_unsigned" | "assert_ge_unsigned" if program.enable_assertions => {
+            if insn.operands.len() == 2 {
+                let a = resolve_op(&insn.operands[0], handler, program);
+                let b = resolve_op(&insn.operands[1], handler, program);
+                let ok_label = format!(".Lasm_{}.assert_ok_{}", handler.name, state.unique_counter);
+                state.unique_counter += 1;
+                let cc = if m == "assert_lt_unsigned" { "jb" } else { "jae" };
+                w!(out, "    cmp {a}, {b}");
+                w!(out, "    {cc} {ok_label}");
+                w!(out, "    ud2");
+                w!(out, "{ok_label}:");
+            }
+        }
+
         "assert_zero" | "assert_nonzero" if program.enable_assertions => {
             if insn.operands.len() == 1 {
                 let a = resolve_op(&insn.operands[0], handler, program);
@@ -519,8 +533,8 @@ fn emit_instruction(
             emit_assert_bits(out, insn, handler, program, state, m == "assert_bits_set");
         }
 
-        "assert_eq" | "assert_ne" | "assert_zero" | "assert_nonzero" | "assert_bits_set"
-        | "assert_bits_clear" => {}
+        "assert_eq" | "assert_ne" | "assert_lt_unsigned" | "assert_ge_unsigned" | "assert_zero"
+        | "assert_nonzero" | "assert_bits_set" | "assert_bits_clear" => {}
 
         // Macro invocations
         _ if program.macros.contains_key(m) => {
