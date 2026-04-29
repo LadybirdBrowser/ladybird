@@ -7,6 +7,7 @@
 #include <LibWeb/CSS/Invalidation/HasMutationFeatureCollector.h>
 #include <LibWeb/CSS/Invalidation/HasMutationInvalidator.h>
 #include <LibWeb/CSS/StyleScope.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
 
@@ -44,6 +45,14 @@ void invalidate_element_if_affected_by_has(DOM::Element& element)
         element.set_needs_style_update(true);
     if (element.affected_by_has_pseudo_class_in_non_subject_position())
         element.invalidate_style(DOM::StyleInvalidationReason::Other, { { InvalidationSet::Property::Type::PseudoClass, PseudoClass::Has } }, {});
+}
+
+void invalidate_style_for_pending_has_mutations(DOM::Document& document)
+{
+    document.style_scope().invalidate_style_of_elements_affected_by_has();
+    document.for_each_shadow_root([&](auto& shadow_root) {
+        shadow_root.style_scope().invalidate_style_of_elements_affected_by_has();
+    });
 }
 
 static void schedule_has_invalidation_for_child_list_mutation(DOM::Node& parent, DOM::Node& mutation_root, StyleScope& scope)

@@ -49,6 +49,7 @@
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFaceSet.h>
+#include <LibWeb/CSS/Invalidation/HasMutationInvalidator.h>
 #include <LibWeb/CSS/Invalidation/MediaQueryInvalidator.h>
 #include <LibWeb/CSS/Invalidation/PseudoClassInvalidator.h>
 #include <LibWeb/CSS/Invalidation/SlotInvalidator.h>
@@ -1787,10 +1788,7 @@ void Document::update_style()
 
     if (m_needs_invalidation_of_elements_affected_by_has) {
         m_needs_invalidation_of_elements_affected_by_has = false;
-        style_scope().invalidate_style_of_elements_affected_by_has();
-        for_each_shadow_root([&](auto& shadow_root) {
-            shadow_root.style_scope().invalidate_style_of_elements_affected_by_has();
-        });
+        CSS::Invalidation::invalidate_style_for_pending_has_mutations(*this);
     }
 
     if (!m_style_invalidator->has_pending_invalidations() && !needs_full_style_update() && !needs_style_update() && !child_needs_style_update())
