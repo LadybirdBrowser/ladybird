@@ -31,6 +31,7 @@
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/Invalidation/AttributeInvalidator.h>
 #include <LibWeb/CSS/Invalidation/CustomElementInvalidator.h>
+#include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/SelectorEngine.h>
@@ -4336,21 +4337,10 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
             else
                 m_dir = {};
         }
-        // dir and lang both inherit, so all descendants' :dir() / :lang() matches and direction-dependent layout/text
-        // need to be recomputed.
-        for_each_shadow_including_inclusive_descendant([is_dir](auto& node) {
-            if (auto* element = as_if<Element>(node)) {
-                if (!is_dir)
-                    element->invalidate_lang_value();
-                element->set_needs_style_update(true);
-            }
-            return TraversalDecision::Continue;
-        });
-        // :has(:dir(...)) and :has(:lang(...)) on ancestors aren't keyed on any property the regular invalidation
-        // plan tracks, so explicitly schedule the :has() ancestor walk here.
-        for_each_style_scope_which_may_observe_the_node([this](CSS::StyleScope& scope) {
-            scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(*this);
-        });
+        if (is_dir)
+            CSS::Invalidation::invalidate_style_after_directionality_change(*this);
+        else
+            CSS::Invalidation::invalidate_style_after_language_change(*this);
     } else if (local_name == HTML::AttributeNames::part) {
         m_parts.clear();
         if (!value_or_empty.is_empty()) {
