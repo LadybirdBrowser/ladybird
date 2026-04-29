@@ -178,6 +178,7 @@ set(SOURCES
     CSS/Invalidation/AdoptedStyleSheetInvalidator.cpp
     CSS/Invalidation/AttributeInvalidator.cpp
     CSS/Invalidation/CustomElementInvalidator.cpp
+    CSS/Invalidation/ElementStateInvalidator.cpp
     CSS/Invalidation/FormControlInvalidator.cpp
     CSS/Invalidation/HasMutationFeatureCollector.cpp
     CSS/Invalidation/HasMutationInvalidator.cpp

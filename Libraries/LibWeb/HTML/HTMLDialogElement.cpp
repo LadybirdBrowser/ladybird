@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/HTMLDialogElement.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/IDLEventListener.h>
@@ -516,7 +517,7 @@ void HTMLDialogElement::set_is_modal(bool is_modal)
     if (m_is_modal == is_modal)
         return;
     m_is_modal = is_modal;
-    invalidate_style(DOM::StyleInvalidationReason::HTMLDialogElementSetIsModal);
+    CSS::Invalidation::invalidate_style_after_modal_state_change(*this);
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#the-dialog-element:is-valid-command-steps
@@ -675,9 +676,7 @@ void HTMLDialogElement::attribute_changed(FlyString const& local_name, Optional<
     if (local_name != "open"_fly_string)
         return;
 
-    // The :open pseudo-class can affect sibling selectors (e.g., dialog:open + sibling),
-    // so we need full subtree + sibling invalidation, not just targeted invalidation.
-    invalidate_style(DOM::StyleInvalidationReason::HTMLDetailsOrDialogOpenAttributeChange);
+    CSS::Invalidation::invalidate_style_after_open_state_change(*this);
 
     // 3. If value is null and oldValue is not null, then run the dialog cleanup steps given element.
     if (!value.has_value() && old_value.has_value())

@@ -9,6 +9,7 @@
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/Bindings/HTMLOptionElement.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentFragment.h>
 #include <LibWeb/DOM/Node.h>
@@ -92,7 +93,7 @@ void HTMLOptionElement::set_selected(bool selected)
 void HTMLOptionElement::set_selected_internal(bool selected)
 {
     if (m_selected != selected)
-        invalidate_style(DOM::StyleInvalidationReason::HTMLOptionElementSelectedChange);
+        CSS::Invalidation::invalidate_style_after_option_selected_state_change(*this);
 
     m_selected = selected;
     if (selected)

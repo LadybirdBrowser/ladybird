@@ -11,6 +11,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/DOM/Document.h>
@@ -521,7 +522,7 @@ void HTMLSelectElement::set_is_open(bool open)
         return;
 
     m_is_open = open;
-    invalidate_style(DOM::StyleInvalidationReason::HTMLSelectElementSetIsOpen);
+    CSS::Invalidation::invalidate_style_after_select_open_state_change(*this);
 }
 
 bool HTMLSelectElement::has_activation_behavior() const
