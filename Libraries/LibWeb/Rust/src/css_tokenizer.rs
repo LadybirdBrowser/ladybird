@@ -285,6 +285,10 @@ impl Tokenizer {
         }
     }
 
+    fn current_code_point(&self) -> u32 {
+        self.code_points[self.prev_index].1
+    }
+
     fn consume_code_point(&mut self) -> u32 {
         if self.index >= self.code_points.len() {
             return TOKENIZER_EOF;
@@ -326,16 +330,12 @@ impl Tokenizer {
     }
 
     fn start_of_input_stream_twin(&mut self) -> (u32, u32) {
-        // FIXME: Reconsuming just to read the current code point again is weird.
-        self.reconsume_current_input_code_point();
-        (self.consume_code_point(), self.peek_code_point(0))
+        (self.current_code_point(), self.peek_code_point(0))
     }
 
     fn start_of_input_stream_triplet(&mut self) -> (u32, u32, u32) {
-        // FIXME: Reconsuming just to read the current code point again is weird.
-        self.reconsume_current_input_code_point();
         (
-            self.consume_code_point(),
+            self.current_code_point(),
             self.peek_code_point(0),
             self.peek_code_point(1),
         )
