@@ -1433,7 +1433,7 @@ void Element::set_shadow_root(GC::Ptr<ShadowRoot> shadow_root)
         m_shadow_root->set_host(this);
         m_shadow_root->set_is_connected(is_connected());
     }
-    invalidate_style(StyleInvalidationReason::ElementSetShadowRoot);
+    CSS::Invalidation::invalidate_style_after_shadow_root_change(*this);
     set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::ElementSetShadowRoot);
 }
 

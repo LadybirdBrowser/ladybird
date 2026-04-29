@@ -42,4 +42,9 @@ void invalidate_style_after_select_open_state_change(DOM::Element& element)
     element.invalidate_style(DOM::StyleInvalidationReason::HTMLSelectElementSetIsOpen);
 }
 
+void invalidate_style_after_shadow_root_change(DOM::Element& element)
+{
+    element.invalidate_style(DOM::StyleInvalidationReason::ElementSetShadowRoot);
+}
+
 }
