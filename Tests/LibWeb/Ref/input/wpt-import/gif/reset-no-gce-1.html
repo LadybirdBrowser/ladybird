@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+  <head>
+    <title>gif no graphics control extension</title>
+    <link rel="help" href="https://www.w3.org/Graphics/GIF/spec-gif89a.txt">
+    <meta charset="utf-8"/>
+    <link rel="match" href="../../../expected/wpt-import/gif/reset-no-gce-ref.html"/>
+    <script src="../common/reftest-wait.js"></script>
+    <script>
+      function doTest()
+      {
+        takeScreenshotDelayed(1000);
+      }
+
+      document.documentElement.addEventListener("TestRendered",doTest);
+    </script>
+  </head>
+  <body>
+
+    <!--
+    reset-no-gce.gif is a non-looping 2x2 gif with 4 colors. It has 3 frames
+    and 200 ms for each frame. There is a global color table with 4 colors:
+    0=black, 1=red, 2=green, 3=blue. The first frame is all red, the gce says
+    the transparent index is 0 (black), so there is no transparency. The second
+    frame is all green, the gce says the transparent index is green (2), so the
+    whole frame is transparent. The third frame is all green, there is no gce
+    preceeding it, so there is no transparent index.
+    -->
+    <img src="reset-no-gce.gif" style="width: 400px; height: 400px; image-rendering: pixelated;">
+
+  </body>
+</html>

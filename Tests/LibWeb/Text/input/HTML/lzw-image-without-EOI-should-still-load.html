@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const sources = [
+            { format: "GIF",  src: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" },
+            { format: "TIFF", src: "data:image/tiff;base64,SUkqAAwAAACAACAgCQAAAQMAAQAAAAEAAAABAQMAAQAAAAEAAAACAQMAAQAAAAgAAAADAQMAAQAAAAUAAAAGAQMAAQAAAAEAAAARAQQAAQAAAAgAAAAWAQMAAQAAAAEAAAAXAQQAAQAAAAMAAAAcAQMAAQAAAAEAAAAAAAAA" },
+        ];
+        for (const { format, src } of sources) {
+            await new Promise(resolve => {
+                const image = document.createElement("img");
+                image.onload = () => {
+                    println(`${format}: loaded, width=${image.width}, height=${image.height}`);
+                    resolve();
+                };
+                image.onerror = () => {
+                    println(`${format}: error :^(`);
+                    resolve();
+                };
+                image.src = src;
+            });
+        }
+        done();
+    });
+</script>

@@ -109,7 +109,15 @@ public:
         u16 const end_of_data_code = lzw_decompressor.add_control_code();
 
         while (true) {
-            auto const code = TRY(lzw_decompressor.next_code());
+            // Some encoders omit the End-of-Information code or emit trailing padding that decodes as invalid LZW
+            // codes. Treat any LZW error as an implicit end of the compressed stream and use whatever was successfully
+            // decoded so far - this matches the behavior of Firefox, Chrome and Safari.
+            auto code_or_error = lzw_decompressor.next_code();
+            if (code_or_error.is_error()) {
+                dbgln_if(LZW_DEBUG, "LZW stream ended unexpectedly: {}", code_or_error.release_error());
+                break;
+            }
+            auto const code = code_or_error.release_value();
 
             if (code == clear_code) {
                 lzw_decompressor.reset();

@@ -1,0 +1,2 @@
+GIF: loaded, width=1, height=1
+TIFF: loaded, width=1, height=1
