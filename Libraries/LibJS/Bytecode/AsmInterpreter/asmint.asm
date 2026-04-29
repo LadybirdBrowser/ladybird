@@ -1554,6 +1554,7 @@ handler PutByValue
     # nullptr means uncached -> C++ helper will resolve the access.
     load64 elements, [obj, TYPED_ARRAY_CACHED_DATA_PTR]
     branch_zero elements, .try_typed_array_slow
+    assert_nonzero elements
     # Cached pointers only exist for fixed-length typed arrays, so array_length
     # is known to hold a concrete u32 value here.
     load32 capacity, [obj, TYPED_ARRAY_ARRAY_LENGTH_VALUE]
@@ -1769,6 +1770,7 @@ handler GetByValue
 .try_typed_array:
     load64 elements, [obj, TYPED_ARRAY_CACHED_DATA_PTR]
     branch_zero elements, .try_typed_array_slow
+    assert_nonzero elements
     # Cached pointers only exist for fixed-length typed arrays, so array_length
     # is known to hold a concrete u32 value here.
     load32 capacity, [obj, TYPED_ARRAY_ARRAY_LENGTH_VALUE]
@@ -2736,6 +2738,8 @@ handler ObjectPropertyIteratorNext
     # enumeration.
     load_pair64 cache, cached_shape, [iterator, PROPERTY_NAME_ITERATOR_PROPERTY_CACHE], [iterator, PROPERTY_NAME_ITERATOR_SHAPE]
     load64 receiver, [iterator, PROPERTY_NAME_ITERATOR_OBJECT]
+    assert_nonzero cache
+    assert_nonzero receiver
     load64 current_shape, [receiver, OBJECT_SHAPE]
     branch_ne current_shape, cached_shape, .slow
 
@@ -2767,6 +2771,7 @@ handler ObjectPropertyIteratorNext
     load_pair32 indexed_count, next_indexed, [iterator, PROPERTY_NAME_ITERATOR_INDEXED_PROPERTY_COUNT], [iterator, PROPERTY_NAME_ITERATOR_NEXT_INDEXED_PROPERTY]
     branch_ge_unsigned next_indexed, indexed_count, .named
     load64 key, [cache, OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_DATA]
+    assert_nonzero key
     load64 key, [key, next_indexed, 8]
     add next_indexed, 1
     store32 [iterator, PROPERTY_NAME_ITERATOR_NEXT_INDEXED_PROPERTY], next_indexed
@@ -2784,6 +2789,7 @@ handler ObjectPropertyIteratorNext
     mov key_index, named_index
     add key_index, indexed_count
     load64 named_data, [cache, OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_DATA]
+    assert_nonzero named_data
     load64 key, [named_data, key_index, 8]
     add named_index, 1
     store64 [iterator, PROPERTY_NAME_ITERATOR_NEXT_PROPERTY], named_index
