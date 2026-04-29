@@ -146,7 +146,7 @@ ThrowCompletionOr<Value> Console::log()
 }
 
 // To [create table row] given tabularDataItem, rowIndex, list finalColumns, and optional list properties, perform the following steps:
-static ThrowCompletionOr<GC::Ref<Object>> create_table_row(Realm& realm, Value row_index, Value tabular_data_item, GC::RootVector<Value>& final_columns, HashMap<PropertyKey, bool>& visited_columns, HashMap<PropertyKey, bool>& properties)
+static ThrowCompletionOr<GC::Ref<Object>> create_table_row(Realm& realm, Value row_index, Value tabular_data_item, GC::RootVector<Value>& final_columns, GC::ConservativeHashTable<PropertyKey>& visited_columns, GC::ConservativeHashTable<PropertyKey>& properties)
 {
     auto& vm = realm.vm();
 
@@ -156,7 +156,7 @@ static ThrowCompletionOr<GC::Ref<Object>> create_table_row(Realm& realm, Value r
         // if a column is already visited without needing to loop through the whole
         // array.
         if (!visited_columns.contains(column_name)) {
-            visited_columns.set(column_name, true);
+            visited_columns.set(column_name);
 
             if (column_name.is_string()) {
                 final_columns.append(PrimitiveString::create(vm, column_name.as_string()));
@@ -253,7 +253,7 @@ ThrowCompletionOr<Value> Console::table()
         auto tabular_data = vm.argument(0);
         auto properties_arg = vm.argument(1);
 
-        HashMap<PropertyKey, bool> properties;
+        GC::ConservativeHashTable<PropertyKey> properties;
 
         if (TRY(properties_arg.is_array(vm))) {
             auto& properties_arr = properties_arg.as_object();
@@ -261,7 +261,7 @@ ThrowCompletionOr<Value> Console::table()
             for (size_t index = 0; index < properties_length; ++index) {
                 auto value = TRY(properties_arr.get(index));
                 if (!value.is_undefined())
-                    properties.set(TRY(PropertyKey::from_value(vm, value)), true);
+                    properties.set(TRY(PropertyKey::from_value(vm, value)));
             }
         }
 
@@ -271,7 +271,7 @@ ThrowCompletionOr<Value> Console::table()
         // 2. Let `finalColumns` be the new list, initially empty
         GC::RootVector<Value> final_columns;
 
-        HashMap<PropertyKey, bool> visited_columns;
+        GC::ConservativeHashTable<PropertyKey> visited_columns;
 
         // 3. If `tabularData` is a list, then:
         if (TRY(tabular_data.is_array(vm))) {
