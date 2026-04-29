@@ -193,7 +193,7 @@ h1::before {
 }
 
 .test-header:hover,
-.row-header:hover {
+.row-header:hover:not(:has(a:hover)) {
     background: var(--bg-hover);
 }
 
@@ -248,11 +248,18 @@ h1::before {
     border: 1px solid var(--border-primary);
 }
 
+.link,
 .test-name {
     font-family: var(--font-mono);
     font-size: 13px;
     color: var(--text-primary);
     word-break: break-all;
+    text-decoration: none;
+}
+
+.link:hover {
+    color: var(--accent-blue);
+    text-decoration: underline;
 }
 
 .copy-btn {

@@ -195,7 +195,9 @@
                         <div class="row-header" onclick="toggleTest('${testId}')">
                             ${item.result ? `<span class="result-badge ${item.result}">${item.result}</span>` : ""}
                             ${item.mode ? `<span class="mode-badge">${item.mode}</span>` : ""}
-                            <span class="test-name">${item.name}</span>
+                            ${item.inlineFileResult 
+                                ? `<a href="${item.inlineFileResult}" class="link" target="_blank">${item.name}</a>`
+                                : `<a href="../../Tests/LibWeb/${item.name}" class="link" target="_blank">${item.name}</a>`}
                             ${item.result ? `<button class="copy-btn" onclick="copyText(event, this, '${item.name}')" title="Copy test path">${copySvg}</button>` : ""}
                             <span class="expand-icon">&#9654;</span>
                         </div>
