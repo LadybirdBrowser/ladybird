@@ -56,15 +56,12 @@ def generate_css_parser_expression_for_keyword_component_value(out: TextIO, cpp_
 def generate_css_parser_expression_for_component_value_grammar_node(
     out: TextIO, cpp_name: str, grammar_node: ComponentValueGrammarNode
 ) -> None:
-    match grammar_node.component_value:
-        case Type() as type_component_value:
-            generate_css_parser_expression_for_type_component_value(out, cpp_name, type_component_value)
-            return
-        case Keyword() as keyword:
-            generate_css_parser_expression_for_keyword_component_value(out, cpp_name, keyword)
-            return
-
-    raise TypeError(f"Unhandled component value type: {type(grammar_node.component_value).__name__}")
+    component_value = grammar_node.component_value
+    if isinstance(component_value, Type):
+        generate_css_parser_expression_for_type_component_value(out, cpp_name, component_value)
+        return
+    assert isinstance(component_value, Keyword)
+    generate_css_parser_expression_for_keyword_component_value(out, cpp_name, component_value)
 
 
 def generate_css_parser_expression_for_alternatives(
@@ -90,22 +87,20 @@ auto {cpp_name} = parse_{cpp_name}_alternatives();
 def generate_css_parser_expression_for_combinator_grammar_node(
     out: TextIO, cpp_name: str, grammar_node: CombinatorGrammarNode
 ) -> None:
-    match grammar_node.combinator_type:
-        case CombinatorType.ALTERNATIVES:
-            generate_css_parser_expression_for_alternatives(out, cpp_name, grammar_node.children)
-            return
+    if grammar_node.combinator_type == CombinatorType.ALTERNATIVES:
+        generate_css_parser_expression_for_alternatives(out, cpp_name, grammar_node.children)
+        return
 
     raise TypeError(f"Unhandled combinator type: {grammar_node.combinator_type}")
 
 
 def generate_css_parser_expression_for_grammar_node(out: TextIO, cpp_name: str, grammar_node: GrammarNode) -> None:
-    match grammar_node:
-        case ComponentValueGrammarNode():
-            generate_css_parser_expression_for_component_value_grammar_node(out, cpp_name, grammar_node)
-            return
-        case CombinatorGrammarNode():
-            generate_css_parser_expression_for_combinator_grammar_node(out, cpp_name, grammar_node)
-            return
+    if isinstance(grammar_node, ComponentValueGrammarNode):
+        generate_css_parser_expression_for_component_value_grammar_node(out, cpp_name, grammar_node)
+        return
+    if isinstance(grammar_node, CombinatorGrammarNode):
+        generate_css_parser_expression_for_combinator_grammar_node(out, cpp_name, grammar_node)
+        return
 
     raise TypeError(f"Unhandled grammar node type: {type(grammar_node).__name__}")
 

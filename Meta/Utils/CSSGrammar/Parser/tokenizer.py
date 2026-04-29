@@ -41,14 +41,14 @@ class Tokenizer:
         return self.lexer.consume_while(is_identifier_character)
 
     def consume_a_token(self) -> Token:
-        match self.lexer.peek():
-            case "|":
-                self.lexer.consume()
-                return Token.create(TokenType.SINGLE_BAR)
-            case "<":
-                return self.consume_a_non_terminal_token()
+        peeked = self.lexer.peek()
+        if peeked == "|":
+            self.lexer.consume()
+            return Token.create(TokenType.SINGLE_BAR)
+        if peeked == "<":
+            return self.consume_a_non_terminal_token()
 
-        if is_identifier_character(self.lexer.peek()):
+        if is_identifier_character(peeked):
             return self.consume_a_keyword_token()
 
         raise SyntaxError("CSSGrammar::Tokenizer: Unexpected character")
