@@ -6,6 +6,7 @@
 
 #include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
 #include <LibWeb/CSS/StyleScope.h>
+#include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/TraversalDecision.h>
@@ -40,6 +41,18 @@ void invalidate_style_after_language_change(DOM::Element& element)
 void invalidate_style_after_directionality_change(DOM::Element& element)
 {
     invalidate_descendants_affected_by_language_or_directionality(element, true);
+}
+
+void invalidate_style_after_text_directionality_change(DOM::CharacterData& character_data)
+{
+    // dir=auto resolves an element's effective directionality from its text content, so any ancestor with dir=auto
+    // can flip its :dir() match when this text changes. Recompute style on each such ancestor's subtree and propagate
+    // :has(:dir(...)) invalidation up its ancestor chain.
+    for (auto ancestor = character_data.parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+        if (ancestor->dir() != DOM::Element::Dir::Auto)
+            continue;
+        invalidate_descendants_affected_by_language_or_directionality(*ancestor, true);
+    }
 }
 
 }

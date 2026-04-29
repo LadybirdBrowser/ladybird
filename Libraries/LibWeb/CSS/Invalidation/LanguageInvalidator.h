@@ -8,6 +8,7 @@
 
 namespace Web::DOM {
 
+class CharacterData;
 class Element;
 
 }
@@ -16,5 +17,6 @@ namespace Web::CSS::Invalidation {
 
 void invalidate_style_after_language_change(DOM::Element&);
 void invalidate_style_after_directionality_change(DOM::Element&);
+void invalidate_style_after_text_directionality_change(DOM::CharacterData&);
 
 }

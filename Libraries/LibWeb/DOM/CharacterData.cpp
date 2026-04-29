@@ -7,6 +7,7 @@
 
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/Bindings/CharacterData.h>
+#include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
 #include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/MutationType.h>
@@ -150,23 +151,7 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     if (m_word_segmenter)
         m_word_segmenter->set_segmented_text(m_data);
 
-    // dir=auto resolves an element's effective directionality from its text content, so any ancestor with dir=auto
-    // can flip its :dir() match when this text changes. Recompute style on each such ancestor's subtree and propagate
-    // :has(:dir(...)) invalidation up its ancestor chain.
-    for (auto ancestor = parent_element(); ancestor; ancestor = ancestor->parent_element()) {
-        if (ancestor->dir() != Element::Dir::Auto)
-            continue;
-        ancestor->for_each_shadow_including_inclusive_descendant([](auto& node) {
-            if (auto* element = as_if<Element>(node))
-                element->set_needs_style_update(true);
-            return TraversalDecision::Continue;
-        });
-        // Walk every reachable scope and schedule the :has() ancestors walk, so :has(:dir(...)) on outer subjects can
-        // re-evaluate.
-        ancestor->for_each_style_scope_which_may_observe_the_node([ancestor](CSS::StyleScope& scope) {
-            scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(*ancestor);
-        });
-    }
+    CSS::Invalidation::invalidate_style_after_text_directionality_change(*this);
 
     return {};
 }
