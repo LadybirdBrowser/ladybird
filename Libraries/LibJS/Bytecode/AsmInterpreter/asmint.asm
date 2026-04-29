@@ -2047,6 +2047,7 @@ handler Call
     branch_bits_clear flags, OBJECT_FLAG_IS_ECMASCRIPT_FUNCTION_OBJECT, .call_try_native
 
     load64 shared_data, [callee, ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA]
+    assert_nonzero shared_data
     load_pair64 exec_ptr, meta, [shared_data, SHARED_FUNCTION_INSTANCE_DATA_EXECUTABLE], [shared_data, SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA]
     branch_bits_clear meta, SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_CAN_INLINE_CALL, .call_slow
     # NewFunctionEnvironment() allocation and lexical-this resolution both use
@@ -2075,8 +2076,11 @@ handler Call
 
 .sloppy_global_this:
     load64 scratch, [callee, OBJECT_SHAPE]
+    assert_nonzero scratch
     load64 scratch, [scratch, SHAPE_REALM]
+    assert_nonzero scratch
     load64 scratch, [scratch, REALM_GLOBAL_ENVIRONMENT]
+    assert_nonzero scratch
     load64 scratch, [scratch, GLOBAL_ENVIRONMENT_GLOBAL_THIS_VALUE]
     # Match Value(Object*): keep only the low 48 pointer bits before boxing.
     shl scratch, 16
@@ -2094,6 +2098,7 @@ handler Call
     mov formal_count, passed_count
 .arg_count_ready:
     load_pair32 regs_locals_count, total_slots, [exec_ptr, EXECUTABLE_REGISTERS_AND_LOCALS_COUNT], [exec_ptr, EXECUTABLE_REGISTERS_AND_LOCALS_AND_CONSTANTS_COUNT]
+    assert_nonzero exec_ptr
 
     # Inline InterpreterStack::allocate().
     add total_slots, formal_count
@@ -2104,6 +2109,8 @@ handler Call
     load_vm vm_ptr
     lea vm_ptr, [vm_ptr, VM_INTERPRETER_STACK]
     load_pair64 frame_base, stack_limit, [vm_ptr, INTERPRETER_STACK_TOP], [vm_ptr, INTERPRETER_STACK_LIMIT]
+    assert_nonzero frame_base
+    assert_nonzero stack_limit
     add frame_bytes, frame_base
     branch_ge_unsigned stack_limit, frame_bytes, .stack_ok
     jmp .call_slow
@@ -2121,9 +2128,11 @@ handler Call
 
     load64 realm, [callee, OBJECT_SHAPE]
     load64 realm, [realm, SHAPE_REALM]
+    assert_nonzero realm
     store_pair64 [frame_base, EXECUTION_CONTEXT_FUNCTION], [frame_base, EXECUTION_CONTEXT_REALM], callee, realm
 
     load_pair64 lex_env, priv_env, [callee, ECMASCRIPT_FUNCTION_OBJECT_ENVIRONMENT], [callee, ECMASCRIPT_FUNCTION_OBJECT_PRIVATE_ENVIRONMENT]
+    assert_nonzero lex_env
     store_pair64 [frame_base, EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT], [frame_base, EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT], lex_env, lex_env
     store64 [frame_base, EXECUTION_CONTEXT_PRIVATE_ENVIRONMENT], priv_env
     store_pair64 [frame_base, EXECUTION_CONTEXT_THIS_VALUE], [frame_base, EXECUTION_CONTEXT_EXECUTABLE], this_value, exec_ptr
@@ -2179,6 +2188,7 @@ handler Call
     xor const_idx, const_idx
 .copy_constants_loop:
     branch_ge_unsigned const_idx, const_count, .copy_arguments
+    assert_nonzero const_data
     load64 const_value, [const_data, const_idx, 8]
     store64 [value_tail, write_idx, 8], const_value
     add const_idx, 1
@@ -2218,6 +2228,7 @@ handler Call
 .enter_callee:
     load64 pb, [frame_base, EXECUTION_CONTEXT_EXECUTABLE]
     load64 pb, [pb, EXECUTABLE_BYTECODE_DATA]
+    assert_nonzero pb
     load_vm vm_ptr
     store64 [vm_ptr, VM_RUNNING_EXECUTION_CONTEXT], frame_base
     mov exec_ctx, frame_base
@@ -2233,9 +2244,12 @@ handler Call
     branch_nonzero result, .call_slow
     load_vm vm_ptr
     load64 exec_ctx, [vm_ptr, VM_RUNNING_EXECUTION_CONTEXT]
+    assert_nonzero exec_ctx
     lea values, [exec_ctx, SIZEOF_EXECUTION_CONTEXT]
     load64 scratch, [exec_ctx, EXECUTION_CONTEXT_EXECUTABLE]
+    assert_nonzero scratch
     load64 pb, [scratch, EXECUTABLE_BYTECODE_DATA]
+    assert_nonzero pb
     xor pc, pc
     goto_handler pc
 .call_try_native:
@@ -2260,6 +2274,8 @@ handler Call
     load_vm vm_ptr
     lea vm_ptr, [vm_ptr, VM_INTERPRETER_STACK]
     load_pair64 frame_base, stack_limit, [vm_ptr, INTERPRETER_STACK_TOP], [vm_ptr, INTERPRETER_STACK_LIMIT]
+    assert_nonzero frame_base
+    assert_nonzero stack_limit
     add native_total_bytes, frame_base
     branch_ge_unsigned stack_limit, native_total_bytes, .native_interpreter_stack_ok
     jmp .call_slow
@@ -2294,6 +2310,7 @@ handler Call
     # Shape stores a Realm pointer; use it as the callee EC realm.
     load64 realm, [callee, OBJECT_SHAPE]
     load64 realm, [realm, SHAPE_REALM]
+    assert_nonzero realm
     store_pair64 [frame_base, EXECUTION_CONTEXT_FUNCTION], [frame_base, EXECUTION_CONTEXT_REALM], callee, realm
 
     # Mirror NativeFunction::internal_call: a raw native has no environment
@@ -2374,6 +2391,7 @@ handler Call
     # is 0 for a Value, 1 for an ErrorValue; anything else means the native
     # threw and payload is the thrown Value, not a return value.
     load64 native_func, [callee, RAW_NATIVE_FUNCTION_NATIVE_FUNCTION]
+    assert_nonzero native_func
     call_raw_native native_func, native_return, variant
     and variant, 0xFF
     branch_nonzero variant, .call_raw_native_exception
@@ -2382,6 +2400,7 @@ handler Call
     # restore the caller as the running ExecutionContext, write the return
     # value into the caller's m_dst operand, and dispatch the next insn.
     load64 frame_base, [exec_ctx, EXECUTION_CONTEXT_CALLER_FRAME]
+    assert_nonzero frame_base
     load_vm vm_ptr
     store64 [vm_ptr, VM_RUNNING_EXECUTION_CONTEXT], frame_base
     store64 [vm_ptr, VM_INTERPRETER_STACK_TOP], exec_ctx
@@ -2411,9 +2430,12 @@ handler Call
     # helper already updated to the handler entry).
     load_vm vm_ptr
     load64 exec_ctx, [vm_ptr, VM_RUNNING_EXECUTION_CONTEXT]
+    assert_nonzero exec_ctx
     lea values, [exec_ctx, SIZEOF_EXECUTION_CONTEXT]
     load64 scratch, [exec_ctx, EXECUTION_CONTEXT_EXECUTABLE]
+    assert_nonzero scratch
     load64 pb, [scratch, EXECUTABLE_BYTECODE_DATA]
+    assert_nonzero pb
     load32 native_pc, [exec_ctx, EXECUTION_CONTEXT_PROGRAM_COUNTER]
     mov pc, native_pc
     goto_handler pc
