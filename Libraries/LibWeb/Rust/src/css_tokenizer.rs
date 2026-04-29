@@ -83,54 +83,6 @@ struct Position {
 }
 
 #[derive(Clone, Copy)]
-struct U32Twin {
-    first: u32,
-    second: u32,
-}
-
-impl Default for U32Twin {
-    fn default() -> Self {
-        Self {
-            first: TOKENIZER_EOF,
-            second: TOKENIZER_EOF,
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-struct U32Triplet {
-    first: u32,
-    second: u32,
-    third: u32,
-}
-
-impl Default for U32Triplet {
-    fn default() -> Self {
-        Self {
-            first: TOKENIZER_EOF,
-            second: TOKENIZER_EOF,
-            third: TOKENIZER_EOF,
-        }
-    }
-}
-
-impl U32Triplet {
-    fn to_twin_12(self) -> U32Twin {
-        U32Twin {
-            first: self.first,
-            second: self.second,
-        }
-    }
-
-    fn to_twin_23(self) -> U32Twin {
-        U32Twin {
-            first: self.second,
-            second: self.third,
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
 struct NumericValue {
     number_type: CssNumberType,
     value: f64,
@@ -381,40 +333,32 @@ impl Tokenizer {
             .unwrap_or(TOKENIZER_EOF)
     }
 
-    fn peek_twin(&self) -> U32Twin {
-        U32Twin {
-            first: self.peek_code_point(0),
-            second: self.peek_code_point(1),
-        }
+    fn peek_twin(&self) -> (u32, u32) {
+        (self.peek_code_point(0), self.peek_code_point(1))
     }
 
-    fn peek_triplet(&self) -> U32Triplet {
-        U32Triplet {
-            first: self.peek_code_point(0),
-            second: self.peek_code_point(1),
-            third: self.peek_code_point(2),
-        }
+    fn peek_triplet(&self) -> (u32, u32, u32) {
+        (
+            self.peek_code_point(0),
+            self.peek_code_point(1),
+            self.peek_code_point(2),
+        )
     }
 
-    fn start_of_input_stream_twin(&mut self) -> U32Twin {
+    fn start_of_input_stream_twin(&mut self) -> (u32, u32) {
         // FIXME: Reconsuming just to read the current code point again is weird.
         self.reconsume_current_input_code_point();
-        U32Twin {
-            first: self.consume_code_point(),
-            second: self.peek_code_point(0),
-        }
+        (self.consume_code_point(), self.peek_code_point(0))
     }
 
-    fn start_of_input_stream_triplet(&mut self) -> U32Triplet {
+    fn start_of_input_stream_triplet(&mut self) -> (u32, u32, u32) {
         // FIXME: Reconsuming just to read the current code point again is weird.
         self.reconsume_current_input_code_point();
-        let first = self.consume_code_point();
-        let next_two = self.peek_twin();
-        U32Triplet {
-            first,
-            second: next_two.first,
-            third: next_two.second,
-        }
+        (
+            self.consume_code_point(),
+            self.peek_code_point(0),
+            self.peek_code_point(1),
+        )
     }
 
     fn reconsume_current_input_code_point(&mut self) {
@@ -435,8 +379,8 @@ impl Tokenizer {
             // If the preceding paragraph ended by consuming an EOF code point, this is a parse error.
             //
             // Return nothing.
-            let twin = self.peek_twin();
-            if !(is_solidus(twin.first) && is_asterisk(twin.second)) {
+            let (first, second) = self.peek_twin();
+            if !(is_solidus(first) && is_asterisk(second)) {
                 return;
             }
 
@@ -444,12 +388,12 @@ impl Tokenizer {
             self.consume_code_point();
 
             loop {
-                let twin = self.peek_twin();
-                if is_eof(twin.first) || is_eof(twin.second) {
+                let (first, second) = self.peek_twin();
+                if is_eof(first) || is_eof(second) {
                     return;
                 }
 
-                if is_asterisk(twin.first) && is_solidus(twin.second) {
+                if is_asterisk(first) && is_solidus(second) {
                     self.consume_code_point();
                     self.consume_code_point();
                     break;
@@ -533,8 +477,8 @@ impl Tokenizer {
 
             // While the next two input code points are whitespace, consume the next input code point.
             loop {
-                let maybe_whitespace = self.peek_twin();
-                if !(is_whitespace(maybe_whitespace.first) && is_whitespace(maybe_whitespace.second)) {
+                let (first, second) = self.peek_twin();
+                if !(is_whitespace(first) && is_whitespace(second)) {
                     break;
                 }
                 self.consume_code_point();
@@ -543,11 +487,10 @@ impl Tokenizer {
             // If the next one or two input code points are U+0022 QUOTATION MARK ("), U+0027 APOSTROPHE ('),
             // or whitespace followed by U+0022 QUOTATION MARK (") or U+0027 APOSTROPHE ('), then create a
             // <function-token> with its value set to string and return it.
-            let next_two = self.peek_twin();
-            if is_quotation_mark(next_two.first)
-                || is_apostrophe(next_two.first)
-                || (is_whitespace(next_two.first)
-                    && (is_quotation_mark(next_two.second) || is_apostrophe(next_two.second)))
+            let (first, second) = self.peek_twin();
+            if is_quotation_mark(first)
+                || is_apostrophe(first)
+                || (is_whitespace(first) && (is_quotation_mark(second) || is_apostrophe(second)))
             {
                 return Token::create_function(string, start_byte_offset, self.current_byte_offset());
             }
@@ -598,8 +541,8 @@ impl Tokenizer {
         }
 
         // 4. If the next 2 input code points are U+002E FULL STOP (.) followed by a digit, then:
-        let maybe_number = self.peek_twin();
-        if is_full_stop(maybe_number.first) && is_digit(maybe_number.second) {
+        let (first, second) = self.peek_twin();
+        if is_full_stop(first) && is_digit(second) {
             // 1. Consume them.
             // 2. Append them to repr.
             append_code_point(&mut repr, self.consume_code_point());
@@ -617,21 +560,17 @@ impl Tokenizer {
         // 5. If the next 2 or 3 input code points are U+0045 LATIN CAPITAL LETTER E (E) or
         // U+0065 LATIN SMALL LETTER E (e), optionally followed by U+002D HYPHEN-MINUS (-)
         // or U+002B PLUS SIGN (+), followed by a digit, then:
-        let maybe_exponent = self.peek_triplet();
-        if (is_e(maybe_exponent.first) || is_uppercase_e(maybe_exponent.first))
-            && (((is_plus_sign(maybe_exponent.second) || is_hyphen_minus(maybe_exponent.second))
-                && is_digit(maybe_exponent.third))
-                || is_digit(maybe_exponent.second))
+        let (first, second, third) = self.peek_triplet();
+        if (is_e(first) || is_uppercase_e(first))
+            && (((is_plus_sign(second) || is_hyphen_minus(second)) && is_digit(third)) || is_digit(second))
         {
             // 1. Consume them.
             // 2. Append them to repr.
-            if (is_plus_sign(maybe_exponent.second) || is_hyphen_minus(maybe_exponent.second))
-                && is_digit(maybe_exponent.third)
-            {
+            if (is_plus_sign(second) || is_hyphen_minus(second)) && is_digit(third) {
                 append_code_point(&mut repr, self.consume_code_point());
                 append_code_point(&mut repr, self.consume_code_point());
                 append_code_point(&mut repr, self.consume_code_point());
-            } else if is_digit(maybe_exponent.second) {
+            } else if is_digit(second) {
                 append_code_point(&mut repr, self.consume_code_point());
                 append_code_point(&mut repr, self.consume_code_point());
             }
@@ -1031,8 +970,8 @@ impl Tokenizer {
 
             // Otherwise, if the next 2 input code points are U+002D HYPHEN-MINUS U+003E
             // GREATER-THAN SIGN (->), consume them and return a <CDC-token>.
-            let next_twin = self.peek_twin();
-            if is_hyphen_minus(next_twin.first) && is_greater_than_sign(next_twin.second) {
+            let (first, second) = self.peek_twin();
+            if is_hyphen_minus(first) && is_greater_than_sign(second) {
                 self.consume_code_point();
                 self.consume_code_point();
                 return Token::create(CssTokenType::CDC, start_byte_offset, self.current_byte_offset());
@@ -1078,11 +1017,8 @@ impl Tokenizer {
         if is_less_than_sign(input) {
             // If the next 3 input code points are U+0021 EXCLAMATION MARK U+002D HYPHEN-MINUS
             // U+002D HYPHEN-MINUS (!--), consume them and return a <CDO-token>.
-            let maybe_cdo = self.peek_triplet();
-            if is_exclamation_mark(maybe_cdo.first)
-                && is_hyphen_minus(maybe_cdo.second)
-                && is_hyphen_minus(maybe_cdo.third)
-            {
+            let (first, second, third) = self.peek_triplet();
+            if is_exclamation_mark(first) && is_hyphen_minus(second) && is_hyphen_minus(third) {
                 self.consume_code_point();
                 self.consume_code_point();
                 self.consume_code_point();
@@ -1342,7 +1278,7 @@ fn is_uppercase_e(code_point: u32) -> bool {
 }
 
 // https://www.w3.org/TR/css-syntax-3/#starts-with-a-valid-escape
-fn is_valid_escape_sequence(values: U32Twin) -> bool {
+fn is_valid_escape_sequence((first, second): (u32, u32)) -> bool {
     // This section describes how to check if two code points are a valid escape.
     // The algorithm described here can be called explicitly with two code points,
     // or can be called with the input stream itself. In the latter case, the two
@@ -1352,12 +1288,12 @@ fn is_valid_escape_sequence(values: U32Twin) -> bool {
     // Note: This algorithm will not consume any additional code point.
 
     // If the first code point is not U+005C REVERSE SOLIDUS (\), return false.
-    if !is_reverse_solidus(values.first) {
+    if !is_reverse_solidus(first) {
         return false;
     }
 
     // Otherwise, if the second code point is a newline, return false.
-    if is_newline(values.second) {
+    if is_newline(second) {
         return false;
     }
 
@@ -1366,7 +1302,7 @@ fn is_valid_escape_sequence(values: U32Twin) -> bool {
 }
 
 // https://www.w3.org/TR/css-syntax-3/#would-start-an-identifier
-fn would_start_an_ident_sequence(values: U32Triplet) -> bool {
+fn would_start_an_ident_sequence((first, second, third): (u32, u32, u32)) -> bool {
     // This section describes how to check if three code points would start an ident sequence.
     // The algorithm described here can be called explicitly with three code points, or
     // can be called with the input stream itself. In the latter case, the three code
@@ -1378,13 +1314,10 @@ fn would_start_an_ident_sequence(values: U32Triplet) -> bool {
     // Look at the first code point:
 
     // U+002D HYPHEN-MINUS
-    if is_hyphen_minus(values.first) {
+    if is_hyphen_minus(first) {
         // If the second code point is a name-start code point or a U+002D HYPHEN-MINUS,
         // or the second and third code points are a valid escape, return true.
-        if is_ident_start_code_point(values.second)
-            || is_hyphen_minus(values.second)
-            || is_valid_escape_sequence(values.to_twin_23())
-        {
+        if is_ident_start_code_point(second) || is_hyphen_minus(second) || is_valid_escape_sequence((second, third)) {
             return true;
         }
         // Otherwise, return false.
@@ -1392,15 +1325,15 @@ fn would_start_an_ident_sequence(values: U32Triplet) -> bool {
     }
 
     // name-start code point
-    if is_ident_start_code_point(values.first) {
+    if is_ident_start_code_point(first) {
         // Return true.
         return true;
     }
 
     // U+005C REVERSE SOLIDUS (\)
-    if is_reverse_solidus(values.first) {
+    if is_reverse_solidus(first) {
         // If the first and second code points are a valid escape, return true.
-        if is_valid_escape_sequence(values.to_twin_12()) {
+        if is_valid_escape_sequence((first, second)) {
             return true;
         }
         // Otherwise, return false.
@@ -1413,7 +1346,7 @@ fn would_start_an_ident_sequence(values: U32Triplet) -> bool {
 }
 
 // https://www.w3.org/TR/css-syntax-3/#starts-with-a-number
-fn would_start_a_number(values: U32Triplet) -> bool {
+fn would_start_a_number((first, second, third): (u32, u32, u32)) -> bool {
     // This section describes how to check if three code points would start a number.
     // The algorithm described here can be called explicitly with three code points,
     // or can be called with the input stream itself. In the latter case, the three
@@ -1426,15 +1359,15 @@ fn would_start_a_number(values: U32Triplet) -> bool {
 
     // U+002B PLUS SIGN (+)
     // U+002D HYPHEN-MINUS (-)
-    if is_plus_sign(values.first) || is_hyphen_minus(values.first) {
+    if is_plus_sign(first) || is_hyphen_minus(first) {
         // If the second code point is a digit, return true.
-        if is_digit(values.second) {
+        if is_digit(second) {
             return true;
         }
 
         // Otherwise, if the second code point is a U+002E FULL STOP (.) and the third
         // code point is a digit, return true.
-        if is_full_stop(values.second) && is_digit(values.third) {
+        if is_full_stop(second) && is_digit(third) {
             return true;
         }
 
@@ -1443,13 +1376,13 @@ fn would_start_a_number(values: U32Triplet) -> bool {
     }
 
     // U+002E FULL STOP (.)
-    if is_full_stop(values.first) {
+    if is_full_stop(first) {
         // If the second code point is a digit, return true. Otherwise, return false.
-        return is_digit(values.second);
+        return is_digit(second);
     }
 
     // digit
-    if is_digit(values.first) {
+    if is_digit(first) {
         // Return true.
         return true;
     }
