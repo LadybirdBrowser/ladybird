@@ -198,9 +198,9 @@ endfunction()
 function (generate_html_implementation)
     set(LIBWEB_INPUT_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}")
 
-    invoke_cpp_generator(
+    invoke_py_generator(
         "NamedCharacterReferences.cpp"
-        Lagom::GenerateNamedCharacterReferences
+        "generate_libweb_html_named_character_references.py"
         "${LIBWEB_INPUT_FOLDER}/HTML/Parser/Entities.json"
         "HTML/Parser/NamedCharacterReferences.h"
         "HTML/Parser/NamedCharacterReferences.cpp"
