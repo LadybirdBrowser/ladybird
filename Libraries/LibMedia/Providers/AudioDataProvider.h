@@ -27,7 +27,7 @@
 namespace Media {
 
 // Retrieves coded data from a demuxer and decodes it asynchronously into audio samples to push to an AudioSink.
-class MEDIA_API AudioDataProvider : public AtomicRefCounted<AudioDataProvider> {
+class MEDIA_API AudioDataProvider final : public AtomicRefCounted<AudioDataProvider> {
     class ThreadData;
 
 public:
