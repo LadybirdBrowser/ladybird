@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/PreloadEntry.h>
@@ -97,6 +98,35 @@ bool consume_a_preloaded_resource(
 
     // 11. Return true.
     return true;
+}
+
+// Implements steps 1, 2, and 5 of the processResponseConsumeBody callback in the preload algorithm:
+// https://html.spec.whatwg.org/multipage/links.html#preload (step 11).
+GC::Ref<Fetch::Infrastructure::Response> deliver_preload_response(
+    JS::Realm& realm,
+    PreloadEntry& entry,
+    GC::Ref<Fetch::Infrastructure::Response> response,
+    ByteBuffer const* body_bytes)
+{
+    // FIXME: If the response is CORS cross-origin, we must use its internal response to query any of its data. See:
+    //        https://github.com/whatwg/html/issues/9355
+    response = response->unsafe_response();
+
+    // 1. If bodyBytes is a byte sequence, then set response's body to bodyBytes as a body.
+    if (body_bytes)
+        response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, *body_bytes));
+    // 2. Otherwise, set response to a network error.
+    else
+        response = Fetch::Infrastructure::Response::network_error(realm.vm(), "Expected preload response to contain a body"_string);
+
+    // 5. If entry's on response available is null, then set entry's response to response; otherwise call entry's
+    //    on response available given response.
+    if (!entry.on_response_available)
+        entry.response = response;
+    else
+        entry.on_response_available->function()(response);
+
+    return response;
 }
 
 }

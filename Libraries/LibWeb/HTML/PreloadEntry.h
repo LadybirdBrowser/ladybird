@@ -76,6 +76,15 @@ bool consume_a_preloaded_resource(
     String const& integrity_metadata,
     GC::Ref<GC::Function<void(GC::Ref<Fetch::Infrastructure::Response>)>> on_response_available);
 
+// Implements steps 1, 2, and 5 of the processResponseConsumeBody callback in the preload algorithm:
+// https://html.spec.whatwg.org/multipage/links.html#preload (step 11)
+// Returns the (possibly replaced) response so callers can pass it to a processResponse callback (step 6).
+GC::Ref<Fetch::Infrastructure::Response> deliver_preload_response(
+    JS::Realm&,
+    PreloadEntry&,
+    GC::Ref<Fetch::Infrastructure::Response> response,
+    ByteBuffer const* body_bytes);
+
 }
 
 namespace AK {

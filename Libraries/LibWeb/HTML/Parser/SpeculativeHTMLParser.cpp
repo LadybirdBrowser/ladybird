@@ -84,18 +84,45 @@ Vector<HTMLToken::Attribute> attributes_from_token(HTMLToken const& token)
     return attributes;
 }
 
+// https://html.spec.whatwg.org/multipage/parsing.html#speculative-fetch
+// Step 4 says "fetch url as if the element was processed normally". For the regular parser to
+// dedup against the in-flight speculative fetch, we follow the preload algorithm's shape: create
+// a preload entry, register it under create_a_preload_key(request), and supply a
+// processResponseConsumeBody callback that populates the entry. Then when the regular parser later
+// processes the element, fetch()'s consume_a_preloaded_resource() check joins the entry rather than
+// issuing a duplicate request.
 void issue_speculative_fetch(JS::Realm& realm, DOM::Document& document, URL::URL url, Optional<Fetch::Infrastructure::Request::Destination> destination, CORSSettingAttribute cors_setting)
 {
     auto& vm = realm.vm();
     auto request = create_potential_CORS_request(vm, url, destination, cors_setting);
     request->set_client(&document.relevant_settings_object());
 
+    // Mirrors the preload algorithm step 6 ("Let entry be a new preload entry...") and step 7
+    // ("Let key be the result of creating a preload key given request"):
+    // https://html.spec.whatwg.org/multipage/links.html#preload
+    auto entry = realm.create<PreloadEntry>();
+    auto key = create_a_preload_key(*request);
+
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
+    fetch_algorithms_input.process_response_consume_body = [&realm, entry](GC::Ref<Fetch::Infrastructure::Response> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
+        // 1. If bodyBytes is a byte sequence, then set response's body to bodyBytes as a body.
+        // 2. Otherwise, set response to a network error.
+        // 5. If entry's on response available is null, then set entry's response to response;
+        //    otherwise call entry's on response available given response.
+        // (No processResponse, no reportTiming — those steps only apply to <link rel=preload>.)
+        (void)deliver_preload_response(realm, *entry, response, body_bytes.get_pointer<ByteBuffer>());
+    };
     auto algorithms = Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input));
 
     // The fetch stays alive via ResourceLoader's GC::Root callbacks for the duration of the
     // network request, so we don't need to retain the FetchController.
     (void)Fetch::Fetching::fetch(realm, request, algorithms);
+
+    // Mirrors the preload algorithm step 12.2 ("Set document's map of preloaded resources[key] to
+    // entry"). Note: the insert happens *after* fetch() starts because fetch() runs
+    // consume_a_preloaded_resource() synchronously — registering the entry beforehand would let
+    // the speculative fetch short-circuit itself.
+    document.map_of_preloaded_resources().set(key, entry);
 }
 
 bool rel_contains_keyword(StringView rel, StringView keyword)

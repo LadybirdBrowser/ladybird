@@ -708,16 +708,11 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, GC::Ptr<GC::Functi
     //     given a response response and null, failure, or a byte sequence bodyBytes:
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
     fetch_algorithms_input.process_response_consume_body = [&realm, options = GC::Ref { options }, process_response, entry, report_timing](GC::Ref<Fetch::Infrastructure::Response> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
-        // FIXME: If the response is CORS cross-origin, we must use its internal response to query any of its data. See:
-        //        https://github.com/whatwg/html/issues/9355
-        response = response->unsafe_response();
-
         // 1. If bodyBytes is a byte sequence, then set response's body to bodyBytes as a body.
-        if (auto* byte_sequence = body_bytes.get_pointer<ByteBuffer>())
-            response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, *byte_sequence));
         // 2. Otherwise, set response to a network error.
-        else
-            response = Fetch::Infrastructure::Response::network_error(realm.vm(), "Expected preload response to contain a body"_string);
+        // 5. If entry's on response available is null, then set entry's response to response; otherwise call entry's
+        //    on response available given response.
+        auto final_response = deliver_preload_response(realm, *entry, response, body_bytes.get_pointer<ByteBuffer>());
 
         // FIXME: 3. Set unsafeEndTime to the unsafe shared current time.
 
@@ -725,16 +720,9 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, GC::Ptr<GC::Functi
         if (options->document)
             report_timing->function()(*options->document);
 
-        // 5. If entry's on response available is null, then set entry's response to response; otherwise call entry's
-        //    on response available given response.
-        if (!entry->on_response_available)
-            entry->response = response;
-        else
-            entry->on_response_available->function()(response);
-
         // 6. If processResponse is given, then call processResponse with response.
         if (process_response)
-            process_response->function()(response);
+            process_response->function()(final_response);
     };
 
     m_fetch_controller = Fetch::Fetching::fetch(realm, *request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
