@@ -1188,9 +1188,9 @@ set(SOURCES
 compile_ipc(Worker/WebWorkerClient.ipc Worker/WebWorkerClientEndpoint.h)
 compile_ipc(Worker/WebWorkerServer.ipc Worker/WebWorkerServerEndpoint.h)
 
-invoke_cpp_generator(
+invoke_py_generator(
     "AriaRoles.cpp"
-    Lagom::GenerateAriaRoles
+    generate_libweb_aria_roles.py
     "${CMAKE_CURRENT_SOURCE_DIR}/ARIA/AriaRoles.json"
     "ARIA/AriaRoles.h"
     "ARIA/AriaRoles.cpp"
