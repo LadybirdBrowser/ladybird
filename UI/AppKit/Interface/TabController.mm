@@ -290,6 +290,26 @@ static NSImage* location_field_globe_icon()
     }
 }
 
+// AppKit does not send Ctrl+Return through the field editor, so intercept it here and forward as a regular newline.
+// The delegate then checks the current event to handle Ctrl (append TLD).
+- (BOOL)performKeyEquivalent:(NSEvent*)event
+{
+    if ([self.window firstResponder] == [self currentEditor]
+        && ([event modifierFlags] & NSEventModifierFlagControl) != 0) {
+        NSString* chars = [event charactersIgnoringModifiers];
+        if ([chars isEqualToString:@"\r"] || [chars isEqualToString:@"\n"]) {
+            id delegate = [self delegate];
+            if ([delegate respondsToSelector:@selector(control:textView:doCommandBySelector:)]) {
+                [delegate control:self
+                               textView:(NSTextView*)[self currentEditor]
+                    doCommandBySelector:@selector(insertNewline:)];
+                return YES;
+            }
+        }
+    }
+    return [super performKeyEquivalent:event];
+}
+
 // NSSearchField does not provide an intrinsic width, which causes an ambiguous layout warning when the toolbar auto-
 // measures this view. This provides an initial fallback, which is overridden with an explicit width in windowDidResize.
 - (NSSize)intrinsicContentSize
@@ -783,11 +803,11 @@ static NSImage* location_field_globe_icon()
     m_is_applying_inline_autocomplete = false;
 }
 
-- (BOOL)navigateToLocation:(String)location
+- (BOOL)navigateToLocation:(String)location appendTLD:(WebView::AppendTLD)append_tld
 {
     m_autocomplete->cancel_pending_query();
 
-    if (auto url = WebView::sanitize_url(location, WebView::Application::settings().search_engine()); url.has_value()) {
+    if (auto url = WebView::sanitize_url(location, WebView::Application::settings().search_engine(), append_tld); url.has_value()) {
         [self loadURL:*url];
     } else {
         [[[self tab] web_view] view].load_navigation_error_page(location);
@@ -1194,15 +1214,24 @@ static NSImage* location_field_globe_icon()
             return YES;
     }
 
-    if (selector != @selector(insertNewline:)) {
+    if (selector != @selector(insertNewline:))
         return NO;
+
+    auto append_tld = WebView::AppendTLD::No;
+    auto* event = [[self tab] currentEvent];
+    if (event && event.type == NSEventTypeKeyDown
+        && (event.modifierFlags & NSEventModifierFlagControl) != 0) {
+        append_tld = WebView::AppendTLD::Yes;
     }
 
-    auto location = [self.autocomplete selectedSuggestion].value_or_lazy_evaluated([&]() {
-        return Ladybird::ns_string_to_string([[text_view textStorage] string]);
-    });
+    // Ctrl+Return uses the raw location field query instead of the selected autocomplete suggestion.
+    auto location = (append_tld == WebView::AppendTLD::Yes)
+        ? Ladybird::ns_string_to_string([self currentLocationFieldQuery])
+        : [self.autocomplete selectedSuggestion].value_or_lazy_evaluated([&]() {
+              return Ladybird::ns_string_to_string([[text_view textStorage] string]);
+          });
 
-    [self navigateToLocation:move(location)];
+    [self navigateToLocation:move(location) appendTLD:append_tld];
     return YES;
 }
 
@@ -1268,7 +1297,7 @@ static NSImage* location_field_globe_icon()
 
 - (void)onSelectedSuggestion:(String)suggestion
 {
-    [self navigateToLocation:move(suggestion)];
+    [self navigateToLocation:move(suggestion) appendTLD:WebView::AppendTLD::No];
 }
 
 @end
