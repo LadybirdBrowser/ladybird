@@ -1,0 +1,42 @@
+--- a/web/viewer.html
++++ b/web/viewer.html
+@@ -22,18 +22,19 @@
+ -->
+ <html dir="ltr" mozdisallowselectionprint>
+   <head>
++    <base href="resource://ladybird/pdfjs/web/">
+     <meta charset="utf-8" />
+     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+     <meta name="google" content="notranslate" />
+     <title>PDF.js viewer</title>
+ 
+ <!-- This snippet is used in production (included from viewer.html) -->
+-<link rel="resource" type="application/l10n" href="locale/locale.json" />
+ <script src="../build/pdf.mjs" type="module"></script>
+ 
+     <link rel="stylesheet" href="viewer.css" />
+ 
+   <script src="viewer.mjs" type="module"></script>
++  <script src="pdfjs-ladybird-transport.mjs" type="module"></script>
+   </head>
+ 
+   <body tabindex="0">
+--- a/web/viewer.mjs
++++ b/web/viewer.mjs
+@@ -18255,7 +18255,7 @@
+     let file;
+     const queryString = document.location.search.substring(1);
+     const params = parseQueryString(queryString);
+-    file = params.get("file") ?? AppOptions.get("defaultUrl");
++    file = params.get("file") ?? "";
+     try {
+       file = new URL(file).href;
+     } catch {
+@@ -18886,7 +18886,6 @@
+     this.metadata = metadata;
+     this._contentDispositionFilename ??= contentDispositionFilename;
+     this._contentLength ??= contentLength;
+-    console.log(`PDF ${pdfDocument.fingerprints[0]} [${info.PDFFormatVersion} ` + `${(metadata?.get("pdf:producer") || info.Producer || "-").trim()} / ` + `${(metadata?.get("xmp:creatortool") || info.Creator || "-").trim()}` + `] (PDF.js: ${version || "?"} [${build || "?"}])`);
+     const pdfTitle = this._docTitle;
+     if (pdfTitle) {
+       this.setTitle(`${pdfTitle} - ${this._contentDispositionFilename || this._title}`);

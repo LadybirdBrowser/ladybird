@@ -677,6 +677,38 @@
       ]
     },
     {
+      "name": "pdfjs",
+      "buildsystem": "simple",
+      "build-commands": [
+        "patch -p1 -i 0001-ladybird-embed.patch",
+        "install -d /app/share/pdfjs/build /app/share/pdfjs/web/images /app/share/pdfjs/web/locale/en-US",
+        "install -m644 build/*.mjs /app/share/pdfjs/build/",
+        "install -m644 web/viewer.html web/viewer.mjs web/viewer.css /app/share/pdfjs/web/",
+        "cp -r web/images/. /app/share/pdfjs/web/images/",
+        "install -m644 web/locale/locale.json /app/share/pdfjs/web/locale/",
+        "install -m644 web/locale/en-US/viewer.ftl /app/share/pdfjs/web/locale/en-US/"
+      ],
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/mozilla/pdf.js.git",
+          "tag": "v5.6.205",
+          "dest": "pdfjs-src"
+        },
+        {
+          "type": "archive",
+          "url": "https://github.com/mozilla/pdf.js/releases/download/v5.6.205/pdfjs-5.6.205-dist.zip",
+          "sha256": "0555ef47464e456125dcd0b9742cfa2aaed6d282e804e4dd1f1b99316b46ac00",
+          "dest": ".",
+          "strip-components": 0
+        },
+        {
+          "type": "file",
+          "path": "../vcpkg/overlay-ports/pdfjs/0001-ladybird-embed.patch"
+        }
+      ]
+    },
+    {
       "name": "Ladybird",
       "buildsystem": "cmake-ninja",
       "sources": [

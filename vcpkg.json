@@ -115,6 +115,7 @@
     },
     "mimalloc",
     "openssl",
+    "pdfjs",
     {
       "name": "pthread",
       "platform": "windows"
@@ -367,6 +368,10 @@
     {
       "name": "openssl",
       "version": "3.5.3#0"
+    },
+    {
+      "name": "pdfjs",
+      "version": "5.6.205"
     },
     {
       "name": "pthread",
