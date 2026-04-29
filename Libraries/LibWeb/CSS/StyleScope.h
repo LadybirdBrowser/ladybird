@@ -103,13 +103,6 @@ struct PendingHasInvalidationMutationFeatures {
     HashTable<FlyString> attribute_names;
 };
 
-struct PendingHasInvalidation {
-    GC::Ptr<DOM::Node> node;
-    PendingHasInvalidationMutationFeatures mutation_features;
-
-    void visit_edges(GC::Cell::Visitor&);
-};
-
 class StyleScope {
 public:
     explicit StyleScope(GC::Ref<DOM::Node>);
@@ -165,7 +158,7 @@ public:
 
     GC::Ptr<CSSStyleSheet> m_user_style_sheet;
 
-    Vector<PendingHasInvalidation> m_pending_has_invalidations;
+    OrderedHashMap<GC::Ref<DOM::Node>, PendingHasInvalidationMutationFeatures> m_pending_has_invalidations;
 
     bool m_needs_counter_style_cache_update : 1 { true };
     bool m_is_doing_counter_style_cache_update : 1 { false };

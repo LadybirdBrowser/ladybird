@@ -60,19 +60,13 @@ void StyleCache::visit_edges(GC::Cell::Visitor& visitor)
     user_agent_rule_cache.visit_edges(visitor);
 }
 
-void PendingHasInvalidation::visit_edges(GC::Cell::Visitor& visitor)
-{
-    visitor.visit(node);
-}
-
 void StyleScope::visit_edges(GC::Cell::Visitor& visitor)
 {
     visitor.visit(m_node);
     visitor.visit(m_user_style_sheet);
     if (m_rule_cache)
         m_rule_cache->visit_edges(visitor);
-    for (auto& pending_has_invalidation : m_pending_has_invalidations)
-        pending_has_invalidation.visit_edges(visitor);
+    visitor.visit(m_pending_has_invalidations);
 }
 
 void MatchingRule::visit_edges(GC::Cell::Visitor& visitor)
@@ -852,13 +846,11 @@ void StyleScope::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleShee
 
 void StyleScope::schedule_ancestors_style_invalidation_due_to_presence_of_has(GC::Ref<DOM::Node> node)
 {
-    for (auto& pending_has_invalidation : m_pending_has_invalidations) {
-        if (pending_has_invalidation.node == node)
-            return;
-    }
-    PendingHasInvalidationMutationFeatures mutation_features;
+    auto previous_size = m_pending_has_invalidations.size();
+    auto& mutation_features = m_pending_has_invalidations.ensure(node);
+    if (m_pending_has_invalidations.size() == previous_size)
+        return;
     mutation_features.is_conservative = true;
-    m_pending_has_invalidations.append({ node, move(mutation_features) });
     document().set_needs_invalidation_of_elements_affected_by_has();
 }
 
@@ -946,26 +938,26 @@ static PendingHasInvalidationMutationFeatures collect_pending_has_invalidation_m
 void StyleScope::record_pending_has_invalidation_mutation_features(GC::Ref<DOM::Node> scheduled_node, GC::Ref<DOM::Node> mutation_root, bool includes_descendants)
 {
     auto features = collect_pending_has_invalidation_mutation_features(*mutation_root, includes_descendants);
-    for (auto& pending_has_invalidation : m_pending_has_invalidations) {
-        if (pending_has_invalidation.node == scheduled_node) {
-            merge_pending_has_invalidation_mutation_features(pending_has_invalidation.mutation_features, features);
-            return;
-        }
+    auto previous_size = m_pending_has_invalidations.size();
+    auto& existing_features = m_pending_has_invalidations.ensure(scheduled_node);
+    if (m_pending_has_invalidations.size() == previous_size) {
+        merge_pending_has_invalidation_mutation_features(existing_features, features);
+        return;
     }
-    m_pending_has_invalidations.append({ scheduled_node, move(features) });
+    existing_features = move(features);
     document().set_needs_invalidation_of_elements_affected_by_has();
 }
 
 void StyleScope::record_pending_has_invalidation_mutation_features(GC::Ref<DOM::Node> scheduled_node, Vector<CSS::InvalidationSet::Property> const& properties)
 {
     auto features = collect_pending_has_invalidation_mutation_features(properties);
-    for (auto& pending_has_invalidation : m_pending_has_invalidations) {
-        if (pending_has_invalidation.node == scheduled_node) {
-            merge_pending_has_invalidation_mutation_features(pending_has_invalidation.mutation_features, features);
-            return;
-        }
+    auto previous_size = m_pending_has_invalidations.size();
+    auto& existing_features = m_pending_has_invalidations.ensure(scheduled_node);
+    if (m_pending_has_invalidations.size() == previous_size) {
+        merge_pending_has_invalidation_mutation_features(existing_features, features);
+        return;
     }
-    m_pending_has_invalidations.append({ scheduled_node, move(features) });
+    existing_features = move(features);
     document().set_needs_invalidation_of_elements_affected_by_has();
 }
 
@@ -1195,11 +1187,7 @@ void StyleScope::invalidate_style_of_elements_affected_by_has()
     HashTable<GC::Ref<DOM::Element>> elements_already_invalidated_for_has;
     auto pending_has_invalidations = m_pending_has_invalidations;
     bool should_scan_ancestor_siblings = have_has_selectors_with_relative_selector_that_has_sibling_combinator();
-    for (auto& pending_has_invalidation : pending_has_invalidations) {
-        GC::Ptr<DOM::Node> node = pending_has_invalidation.node;
-        if (!node)
-            continue;
-
+    for (auto& [node, mutation_features] : pending_has_invalidations) {
         Vector<GC::Ref<DOM::Element>, 16> has_scope_ancestors;
         bool should_delay_ancestor_sibling_scans = false;
         for (GC::Ptr<DOM::Node> ancestor = node; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
@@ -1223,7 +1211,7 @@ void StyleScope::invalidate_style_of_elements_affected_by_has()
 
             ++counters.has_ancestor_walk_visits;
             bool can_skip_unchanged_has_fanout = !element->root().is_shadow_root() && !element->assigned_slot_internal() && !element->is_shadow_host();
-            if (!element->affected_by_has_pseudo_class_in_non_subject_position() || !can_skip_unchanged_has_fanout || has_rule_that_may_be_affected_by_mutation(element, pending_has_invalidation.mutation_features))
+            if (!element->affected_by_has_pseudo_class_in_non_subject_position() || !can_skip_unchanged_has_fanout || has_rule_that_may_be_affected_by_mutation(element, mutation_features))
                 element->invalidate_style_if_affected_by_has();
 
             GC::Ptr<DOM::Node> parent = element->parent_or_shadow_host();
