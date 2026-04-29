@@ -19,7 +19,7 @@
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/Node.h>
 #include <LibWeb/CSS/ComputedProperties.h>
-#include <LibWeb/CSS/Invalidation/HasMutationFeatureCollector.h>
+#include <LibWeb/CSS/Invalidation/HasMutationInvalidator.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/AccessibilityTreeNode.h>
 #include <LibWeb/DOM/Attr.h>
@@ -419,19 +419,6 @@ GC::Ptr<HTML::Navigable> Node::navigable() const
     }
 }
 
-static bool reason_may_affect_has_selectors(StyleInvalidationReason reason)
-{
-    // :has() selectors match based on DOM state only (structure, attributes, pseudo-classes). Reasons that don't change
-    // any DOM state can't affect :has() matching, so we can skip scheduling :has() ancestor invalidation.
-    return !first_is_one_of(reason,
-        StyleInvalidationReason::BaseURLChanged,
-        StyleInvalidationReason::CSSFontLoaded,
-        StyleInvalidationReason::HTMLIFrameElementGeometryChange,
-        StyleInvalidationReason::HTMLObjectElementUpdateLayoutAndChildObjects,
-        StyleInvalidationReason::NavigableSetViewportSize,
-        StyleInvalidationReason::SettingsChange);
-}
-
 CSS::StyleScope& Node::style_scope()
 {
     auto& root = this->root();
@@ -559,24 +546,7 @@ static void invalidate_style_after_same_parent_move(Node& node, StyleInvalidatio
     if (node.document().needs_full_style_update())
         return;
 
-    if (auto* parent = node.parent_or_shadow_host(); parent) {
-        parent->for_each_style_scope_which_may_observe_the_node([&](CSS::StyleScope& scope) {
-            if (!scope.may_have_has_selectors())
-                return;
-            bool has_sibling_combinator_has_selectors = scope.may_have_has_selectors_with_relative_selector_that_has_sibling_combinator();
-            if (!node.is_character_data() && !CSS::Invalidation::subtree_has_feature_used_in_has_selector(node, scope) && !has_sibling_combinator_has_selectors)
-                return;
-            scope.record_pending_has_invalidation_mutation_features(*parent, node, true);
-            scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(*parent);
-            if (!has_sibling_combinator_has_selectors)
-                return;
-            parent->for_each_child_of_type<Element>([&](auto& element) {
-                if (element.affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator())
-                    element.invalidate_style_if_affected_by_has();
-                return IterationDecision::Continue;
-            });
-        });
-    }
+    CSS::Invalidation::schedule_has_invalidation_for_same_parent_move(node);
 
     for (auto* ancestor = node.parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
         if (ancestor->entire_subtree_needs_style_update())
@@ -598,47 +568,7 @@ static void invalidate_style_after_same_parent_move(Node& node, StyleInvalidatio
 
 void Node::invalidate_style(StyleInvalidationReason reason)
 {
-    auto& style_scope = this->style_scope();
-
-    auto schedule_has_walk_for_parent = [this, reason](CSS::StyleScope& scope, Node& parent) {
-        if (!scope.may_have_has_selectors())
-            return;
-        bool is_child_list_mutation = reason == StyleInvalidationReason::NodeRemove || reason == StyleInvalidationReason::NodeInsertBefore;
-        bool has_sibling_combinator_has_selectors = is_child_list_mutation && scope.may_have_has_selectors_with_relative_selector_that_has_sibling_combinator();
-
-        // Sibling-combinator :has() selectors are sensitive to featureless insertions/removals because a plain node can
-        // still change adjacency and following-sibling relationships.
-        bool may_affect_has_match = is_character_data() || CSS::Invalidation::subtree_has_feature_used_in_has_selector(*this, scope) || has_sibling_combinator_has_selectors;
-        if (!may_affect_has_match)
-            return;
-        scope.record_pending_has_invalidation_mutation_features(parent, *this, true);
-        scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(parent);
-
-        if (!has_sibling_combinator_has_selectors)
-            return;
-        parent.for_each_child_of_type<Element>([&](auto& element) {
-            if (element.affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator())
-                element.invalidate_style_if_affected_by_has();
-            return IterationDecision::Continue;
-        });
-    };
-
-    // On insertion and removal the mutated node itself is uninteresting to the
-    // :has() walker (a freshly inserted node has no :has() scope flags yet, and
-    // a removed node is about to leave the tree). Start the walk at the parent,
-    // which was in scope before and reliably carries the correct flags.
-    if (reason == StyleInvalidationReason::NodeRemove || reason == StyleInvalidationReason::NodeInsertBefore) {
-        if (auto* parent = parent_or_shadow_host(); parent) {
-            // Walk every scope that can observe the parent, including enclosing and hosted shadow roots, so :has() in
-            // :host(), ::slotted(), and ::part() selectors can react to the mutation.
-            parent->for_each_style_scope_which_may_observe_the_node([&](CSS::StyleScope& scope) {
-                schedule_has_walk_for_parent(scope, *parent);
-            });
-        }
-    } else if (style_scope.may_have_has_selectors() && reason_may_affect_has_selectors(reason)) {
-        style_scope.record_pending_has_invalidation_mutation_features(*this, *this, false);
-        style_scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(*this);
-    }
+    CSS::Invalidation::schedule_has_invalidation_for_node(*this, reason);
 
     // Character data nodes have no style of their own, so once :has() ancestor invalidation has been scheduled there
     // is nothing else to do.
