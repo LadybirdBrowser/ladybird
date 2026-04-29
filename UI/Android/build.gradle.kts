@@ -36,7 +36,7 @@ android {
             cmake {
                 cppFlags += "-std=c++23"
                 arguments += listOf(
-                    "-DLagomTools_DIR=$buildDir/host-tools/share/LagomTools",
+                    "-DLagomTools_DIR=$sourceDir/Build/host-tools/share/LagomTools",
                     "-DANDROID_STL=c++_shared",
                     "-DLADYBIRD_CACHE_DIR=$cacheDir",
                     "-DVCPKG_ROOT=$sourceDir/Build/vcpkg",
