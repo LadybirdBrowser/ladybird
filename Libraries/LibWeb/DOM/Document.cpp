@@ -49,6 +49,7 @@
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFaceSet.h>
+#include <LibWeb/CSS/Invalidation/MediaQueryInvalidator.h>
 #include <LibWeb/CSS/Invalidation/PseudoClassInvalidator.h>
 #include <LibWeb/CSS/Invalidation/SlotInvalidator.h>
 #include <LibWeb/CSS/Invalidation/StyleInvalidator.h>
@@ -59,7 +60,6 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
-#include <LibWeb/CSS/StyleSheetInvalidation.h>
 #include <LibWeb/CSS/StyleSheetList.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
@@ -3927,34 +3927,7 @@ void Document::evaluate_media_queries_and_report_changes()
 
 void Document::evaluate_media_rules()
 {
-    bool document_media_queries_changed_match_state = false;
-    style_scope().for_each_active_css_style_sheet([&](CSS::CSSStyleSheet& style_sheet) {
-        if (style_sheet.evaluate_media_queries(*this))
-            document_media_queries_changed_match_state = true;
-    });
-
-    for_each_shadow_root([&](auto& shadow_root) {
-        bool shadow_root_media_queries_changed_match_state = false;
-        shadow_root.style_scope().for_each_active_css_style_sheet([&](CSS::CSSStyleSheet& style_sheet) {
-            if (style_sheet.evaluate_media_queries(*this))
-                shadow_root_media_queries_changed_match_state = true;
-        });
-
-        if (!shadow_root_media_queries_changed_match_state)
-            return;
-
-        shadow_root.style_scope().invalidate_rule_cache();
-        shadow_root.invalidate_style(StyleInvalidationReason::MediaQueryChangedMatchState);
-        CSS::invalidate_assigned_elements_for_dirty_slots(shadow_root);
-
-        if (auto* host = shadow_root.host())
-            host->root().invalidate_style(StyleInvalidationReason::MediaQueryChangedMatchState);
-    });
-
-    if (document_media_queries_changed_match_state) {
-        style_scope().invalidate_rule_cache();
-        invalidate_style(StyleInvalidationReason::MediaQueryChangedMatchState);
-    }
+    CSS::Invalidation::evaluate_media_rules_and_invalidate_style(*this);
 }
 
 DOMImplementation* Document::implementation()
