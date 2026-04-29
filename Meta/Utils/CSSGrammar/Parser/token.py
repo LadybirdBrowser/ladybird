@@ -28,6 +28,6 @@ class Token:
         return self.token_type == token_type
 
     def component_value(self) -> ComponentValue:
-        assert self.token_type == TokenType.COMPONENT_VALUE and isinstance(self.value, ComponentValue)
+        assert self.token_type == TokenType.COMPONENT_VALUE and self.value is not None
 
         return self.value
