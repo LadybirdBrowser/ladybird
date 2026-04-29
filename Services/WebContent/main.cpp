@@ -21,6 +21,7 @@
 #include <LibRequests/RequestClient.h>
 #include <LibUnicode/TimeZone.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/HTML/UniversalGlobalScope.h>
 #include <LibWeb/HTML/Window.h>
@@ -149,6 +150,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool disable_scrollbar_painting = false;
     StringView echo_server_port_string_view {};
     StringView default_time_zone {};
+    StringView style_invalidation_counter_dump_interval {};
     bool file_origins_are_tuple_origins = false;
 
     Core::ArgsParser args_parser;
@@ -170,6 +172,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(echo_server_port_string_view, "Echo server port used in test internals", "echo-server-port", 0, "echo_server_port");
     args_parser.add_option(is_headless, "Report that the browser is running in headless mode", "headless");
     args_parser.add_option(default_time_zone, "Default time zone", "default-time-zone", 0, "time-zone-id");
+    args_parser.add_option(style_invalidation_counter_dump_interval, "Dump style invalidation counters after every N style invalidations", "dump-style-invalidation-counters", 0, "N");
     args_parser.add_option(file_origins_are_tuple_origins, "Treat file:// URLs as having tuple origins", "tuple-file-origins");
 
     args_parser.parse(arguments);
@@ -181,6 +184,13 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     if (!default_time_zone.is_empty()) {
         if (auto result = Unicode::set_current_time_zone(default_time_zone); result.is_error())
             dbgln("Failed to set default time zone: {}", result.error());
+    }
+
+    if (!style_invalidation_counter_dump_interval.is_empty()) {
+        auto interval = style_invalidation_counter_dump_interval.to_number<u64>();
+        if (!interval.has_value() || *interval == 0)
+            VERIFY_NOT_REACHED();
+        Web::DOM::Document::set_style_invalidation_counter_dump_interval(*interval);
     }
 
     if (file_origins_are_tuple_origins)

@@ -130,6 +130,10 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
         arguments.append("--default-time-zone");
         arguments.append(web_content_options.default_time_zone.value());
     }
+    if (web_content_options.style_invalidation_counter_dump_interval.has_value()) {
+        arguments.append("--dump-style-invalidation-counters"sv);
+        arguments.append(ByteString::number(*web_content_options.style_invalidation_counter_dump_interval));
+    }
 
     if (auto server = mach_server_name(); server.has_value()) {
         arguments.append("--mach-server-name"sv);

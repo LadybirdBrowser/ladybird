@@ -13,6 +13,7 @@
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
+#include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
@@ -879,7 +880,10 @@ public:
         u64 previous_sibling_invalidation_walk_visits { 0 };
     };
     StyleInvalidationCounters& style_invalidation_counters() const { return m_style_invalidation_counters; }
-    void reset_style_invalidation_counters() const { m_style_invalidation_counters = {}; }
+    void reset_style_invalidation_counters() const;
+    void record_style_invalidation() const;
+    void record_full_style_invalidation() const;
+    static void set_style_invalidation_counter_dump_interval(Optional<u64>);
 
     void set_needs_accumulated_visual_contexts_update(bool value) { m_needs_accumulated_visual_contexts_update = value; }
     bool needs_accumulated_visual_contexts_update() const { return m_needs_accumulated_visual_contexts_update; }
@@ -1448,6 +1452,7 @@ private:
     bool m_needs_invalidation_of_elements_affected_by_has { false };
 
     mutable StyleInvalidationCounters m_style_invalidation_counters;
+    mutable u64 m_style_invalidations_since_last_counter_dump { 0 };
 
     mutable GC::Ptr<WebIDL::ObservableArray> m_adopted_style_sheets;
 

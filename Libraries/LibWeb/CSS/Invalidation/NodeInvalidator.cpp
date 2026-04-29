@@ -44,7 +44,7 @@ void invalidate_node_style(DOM::Node& node, DOM::StyleInvalidationReason reason)
 
     if (node.is_document()) {
         auto& document = static_cast<DOM::Document&>(node);
-        document.style_invalidation_counters().full_style_invalidations++;
+        document.record_full_style_invalidation();
         document.set_needs_full_style_update(true);
         return;
     }

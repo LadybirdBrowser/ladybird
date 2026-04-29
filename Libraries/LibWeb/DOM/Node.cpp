@@ -1755,7 +1755,7 @@ void Node::set_needs_style_update(bool value)
     if (m_needs_style_update) {
         document().set_needs_repaint(Badge<Node> {}, InvalidateDisplayList::No);
 
-        ++document().style_invalidation_counters().style_invalidations;
+        document().record_style_invalidation();
         for (auto* ancestor = parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
             if (ancestor->m_child_needs_style_update)
                 break;

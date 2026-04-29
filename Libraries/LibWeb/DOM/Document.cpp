@@ -217,6 +217,29 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(Document);
 
+static Optional<u64> s_style_invalidation_counter_dump_interval;
+
+static void dump_style_invalidation_counters(Document const& document)
+{
+    auto const& counters = document.style_invalidation_counters();
+    dbgln("Style invalidation counters for {}: styleInvalidations={}, fullStyleInvalidations={}, elementStyleRecomputations={}, elementStyleNoopRecomputations={}, elementInheritedStyleRecomputations={}, elementInheritedStyleNoopRecomputations={}, previousSiblingInvalidationWalkVisits={}, hasAncestorWalkInvocations={}, hasAncestorWalkVisits={}, hasAncestorSiblingElementChecks={}, hasInvalidationMetadataCandidates={}, hasMatchInvocations={}, hasResultCacheHits={}, hasResultCacheMisses={}",
+        document.url_string(),
+        counters.style_invalidations,
+        counters.full_style_invalidations,
+        counters.element_style_recomputations,
+        counters.element_style_noop_recomputations,
+        counters.element_inherited_style_recomputations,
+        counters.element_inherited_style_noop_recomputations,
+        counters.previous_sibling_invalidation_walk_visits,
+        counters.has_ancestor_walk_invocations,
+        counters.has_ancestor_walk_visits,
+        counters.has_ancestor_sibling_element_checks,
+        counters.has_invalidation_metadata_candidates,
+        counters.has_match_invocations,
+        counters.has_result_cache_hits,
+        counters.has_result_cache_misses);
+}
+
 // https://html.spec.whatwg.org/multipage/origin.html#obtain-browsing-context-navigation
 static GC::Ref<HTML::BrowsingContext> obtain_a_browsing_context_to_use_for_a_navigation_response(HTML::NavigationParams const& navigation_params)
 {
@@ -539,6 +562,45 @@ Document::Document(JS::Realm& realm, URL::URL const& url, TemporaryDocumentForFr
 }
 
 Document::~Document() = default;
+
+void Document::set_style_invalidation_counter_dump_interval(Optional<u64> interval)
+{
+    s_style_invalidation_counter_dump_interval = interval;
+}
+
+void Document::reset_style_invalidation_counters() const
+{
+    m_style_invalidation_counters = {};
+    m_style_invalidations_since_last_counter_dump = 0;
+}
+
+void Document::record_style_invalidation() const
+{
+    ++m_style_invalidation_counters.style_invalidations;
+
+    if (!s_style_invalidation_counter_dump_interval.has_value())
+        return;
+
+    if (++m_style_invalidations_since_last_counter_dump < *s_style_invalidation_counter_dump_interval)
+        return;
+
+    m_style_invalidations_since_last_counter_dump = 0;
+    dump_style_invalidation_counters(*this);
+}
+
+void Document::record_full_style_invalidation() const
+{
+    ++m_style_invalidation_counters.full_style_invalidations;
+
+    if (!s_style_invalidation_counter_dump_interval.has_value())
+        return;
+
+    if (++m_style_invalidations_since_last_counter_dump < *s_style_invalidation_counter_dump_interval)
+        return;
+
+    m_style_invalidations_since_last_counter_dump = 0;
+    dump_style_invalidation_counters(*this);
+}
 
 void Document::finalize()
 {

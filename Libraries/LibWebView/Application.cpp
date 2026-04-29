@@ -166,6 +166,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     bool collect_garbage_on_every_allocation = false;
     bool disable_scrollbar_painting = false;
     bool file_scheme_urls_have_tuple_origins = false;
+    Optional<u64> style_invalidation_counter_dump_interval;
 
     Core::ArgsParser args_parser;
     args_parser.set_general_help("The Ladybird web browser :^)");
@@ -241,6 +242,19 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(validate_dnssec_locally, "Validate DNSSEC locally", "dnssec");
     args_parser.add_option(default_time_zone, "Default time zone", "default-time-zone", 0, "time-zone-id");
     args_parser.add_option(resource_substitution_map_path, "Path to JSON file mapping URLs to local files", "resource-map", 0, "path");
+    args_parser.add_option(Core::ArgsParser::Option {
+        .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
+        .help_string = "Dump style invalidation counters from WebContent after every N style invalidations",
+        .long_name = "dump-style-invalidation-counters",
+        .value_name = "N",
+        .accept_value = [&](StringView value) {
+            auto parsed_value = value.to_number<u64>();
+            if (!parsed_value.has_value() || parsed_value.value() == 0)
+                return false;
+            style_invalidation_counter_dump_interval = parsed_value.value();
+            return true;
+        },
+    });
 
     args_parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Optional,
@@ -351,6 +365,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .paint_viewport_scrollbars = disable_scrollbar_painting ? PaintViewportScrollbars::No : PaintViewportScrollbars::Yes,
         .file_scheme_urls_have_tuple_origins = file_scheme_urls_have_tuple_origins ? FileSchemeUrlsHaveTupleOrigins::Yes : FileSchemeUrlsHaveTupleOrigins::No,
         .default_time_zone = default_time_zone,
+        .style_invalidation_counter_dump_interval = style_invalidation_counter_dump_interval,
     };
 
     create_platform_options(m_browser_options, m_request_server_options, m_web_content_options);
