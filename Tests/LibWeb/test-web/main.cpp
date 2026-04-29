@@ -79,7 +79,7 @@ static ErrorOr<ByteString> prepare_output_path(Test const& test)
 
 static bool is_valid_test_name(StringView test_name)
 {
-    auto valid_test_file_suffixes = { ".htm"sv, ".html"sv, ".svg"sv, ".xhtml"sv, ".xht"sv };
+    auto valid_test_file_suffixes = { ".htm"sv, ".html"sv, ".svg"sv, ".xhtml"sv, ".xht"sv, ".pdf"sv };
     return AK::any_of(valid_test_file_suffixes, [&](auto suffix) { return test_name.ends_with(suffix); });
 }
 
@@ -273,6 +273,17 @@ static auto wait_for_test_completion = generate_wait_for_test_string("test-wait"
 static auto wait_for_reftest_completion = generate_wait_for_test_string("reftest-wait"sv, R"(
     afterFontsAndPaint(() => document.documentElement.dispatchEvent(new Event("TestRendered", { bubbles: true })));
 )"sv);
+
+// For PDF tests: by the time this runs (after on_load_finish), ladybirdpdf has already fired
+// and openPdf() is in progress; initializedPromise lets us hook in at the right moment.
+// Text mode uses the page count; Layout mode ignores the signalTestIsDone argument.
+static auto const wait_for_pdf_done = R"(
+window.PDFViewerApplication.initializedPromise.then(() => {
+    window.PDFViewerApplication.eventBus.on('pagesloaded', () => {
+        internals.signalTestIsDone(`Pages: ${window.PDFViewerApplication.pagesCount}`);
+    });
+});
+)"_string;
 
 static ErrorOr<void> generate_result_files(ReadonlySpan<Test> tests, ReadonlySpan<TestCompletion> non_passing_tests)
 {
@@ -504,12 +515,16 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
     };
 
     if (test.mode == TestMode::Layout) {
-        view.on_load_finish = [&view, url](auto const& loaded_url) {
+        view.on_load_finish = [&view, &context, test_index, url](auto const& loaded_url) {
             // We don't want subframe loads to trigger the test finish.
             if (!url.equals(loaded_url, URL::ExcludeFragment::Yes))
                 return;
 
-            view.run_javascript(wait_for_test_completion);
+            auto const& test = context.tests[test_index];
+            auto const& script = LexicalPath(test.input_path).extension() == "pdf"sv
+                ? wait_for_pdf_done
+                : wait_for_test_completion;
+            view.run_javascript(script);
         };
 
         view.on_test_finish = [&view, &context, test_index, on_test_complete = move(on_test_complete)](auto const&) {
