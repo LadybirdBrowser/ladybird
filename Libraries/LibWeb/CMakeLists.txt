@@ -184,6 +184,7 @@ set(SOURCES
     CSS/Invalidation/LanguageInvalidator.cpp
     CSS/Invalidation/LinkInvalidator.cpp
     CSS/Invalidation/NodeInvalidator.cpp
+    CSS/Invalidation/PartInvalidator.cpp
     CSS/Invalidation/PseudoClassInvalidator.cpp
     CSS/Invalidation/StyleInvalidator.cpp
     CSS/Invalidation/StructuralMutationInvalidator.cpp
