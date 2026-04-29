@@ -178,6 +178,7 @@ ByteString ByteString::repeated(StringView string, size_t count)
 {
     if (!count || string.is_empty())
         return empty();
+    VERIFY(!Checked<size_t>::multiplication_would_overflow(count, string.length()));
     char* buffer;
     auto impl = ByteStringImpl::create_uninitialized(count * string.length(), buffer);
     for (size_t i = 0; i < count; i++)
