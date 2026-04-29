@@ -20,6 +20,7 @@
 #include <LibWeb/Bindings/Node.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Invalidation/HasMutationInvalidator.h>
+#include <LibWeb/CSS/Invalidation/StructuralMutationInvalidator.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/AccessibilityTreeNode.h>
 #include <LibWeb/DOM/Attr.h>
@@ -455,117 +456,6 @@ void Node::for_each_style_scope_which_may_observe_the_node(Function<void(CSS::St
     }
 }
 
-static void invalidate_structurally_affected_siblings(Node& node, StyleInvalidationReason reason)
-{
-    auto previous_sibling_needs_structural_invalidation = [](Element const& element) {
-        return element.affected_by_backward_structural_changes();
-    };
-
-    auto next_sibling_needs_structural_invalidation = [](Element const& element, size_t current_sibling_distance) {
-        if (element.affected_by_indirect_sibling_combinator() || element.affected_by_first_child_pseudo_class() || element.affected_by_forward_positional_pseudo_class())
-            return true;
-        return element.affected_by_direct_sibling_combinator() && current_sibling_distance <= element.sibling_invalidation_distance();
-    };
-
-    // The structural change might flip whether `element` matches selectors like :nth-child or `~`/`+`, but those
-    // pseudo-classes and combinators only affect `element` itself unless some descendant selector also depends on
-    // `element`'s position. Mark just `element` when descendants don't observe its position; mark the entire
-    // subtree only when they do.
-    auto mark_sibling_for_style_update = [](Element& element) {
-        auto mark_descendant_shadow_roots_for_style_update = [](Element& element) {
-            element.for_each_shadow_including_inclusive_descendant([](Node& inclusive_descendant) {
-                auto* descendant_element = as_if<Element>(inclusive_descendant);
-                if (!descendant_element)
-                    return TraversalDecision::Continue;
-                auto shadow_root = descendant_element->shadow_root();
-                if (!shadow_root)
-                    return TraversalDecision::Continue;
-                shadow_root->set_entire_subtree_needs_style_update(true);
-                shadow_root->set_needs_style_update(true);
-                return TraversalDecision::Continue;
-            });
-        };
-
-        if (element.affected_by_structural_pseudo_class_in_non_subject_position() || element.affected_by_sibling_combinator_in_non_subject_position()) {
-            element.set_entire_subtree_needs_style_update(true);
-        } else {
-            element.set_needs_style_update(true);
-            mark_descendant_shadow_roots_for_style_update(element);
-        }
-    };
-
-    if (reason == StyleInvalidationReason::NodeInsertBefore || reason == StyleInvalidationReason::NodeRemove) {
-        // OPTIMIZATION: Only walk previous siblings if the parent has been observed to contain a child that matches a
-        //               pseudo-class whose match result can depend on siblings after that element. Otherwise, no
-        //               previous sibling can possibly need invalidation due to this insertion or removal.
-        if (auto* parent_node = as_if<ParentNode>(node.parent()); parent_node && parent_node->has_child_affected_by_backward_structural_changes()) {
-            auto& counters = node.document().style_invalidation_counters();
-            for (auto* sibling = node.previous_sibling(); sibling; sibling = sibling->previous_sibling()) {
-                ++counters.previous_sibling_invalidation_walk_visits;
-                if (auto* element = as_if<Element>(sibling); element && previous_sibling_needs_structural_invalidation(*element))
-                    mark_sibling_for_style_update(*element);
-            }
-        }
-    }
-
-    size_t current_sibling_distance = 1;
-    for (auto* sibling = node.next_sibling(); sibling; sibling = sibling->next_sibling()) {
-        if (auto* element = as_if<Element>(sibling)) {
-            bool needs_to_invalidate = false;
-            if (reason == StyleInvalidationReason::NodeInsertBefore || reason == StyleInvalidationReason::NodeRemove) {
-                needs_to_invalidate = next_sibling_needs_structural_invalidation(*element, current_sibling_distance);
-            } else if (element->affected_by_indirect_sibling_combinator() || element->affected_by_forward_positional_pseudo_class()) {
-                needs_to_invalidate = true;
-            } else if (element->affected_by_direct_sibling_combinator() && current_sibling_distance <= element->sibling_invalidation_distance()) {
-                needs_to_invalidate = true;
-            }
-            if (needs_to_invalidate)
-                mark_sibling_for_style_update(*element);
-            current_sibling_distance++;
-        }
-    }
-}
-
-static void mark_ancestors_as_having_child_needing_style_update(Node& node)
-{
-    for (auto* ancestor = node.parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host())
-        ancestor->set_child_needs_style_update(true);
-}
-
-static bool element_is_affected_by_same_parent_move(Element const& element)
-{
-    return element.affected_by_forward_structural_changes()
-        || element.affected_by_backward_structural_changes()
-        || element.affected_by_has_pseudo_class_in_subject_position()
-        || element.affected_by_has_pseudo_class_in_non_subject_position()
-        || element.affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator();
-}
-
-static void invalidate_style_after_same_parent_move(Node& node, StyleInvalidationReason reason)
-{
-    if (node.document().needs_full_style_update())
-        return;
-
-    CSS::Invalidation::schedule_has_invalidation_for_same_parent_move(node);
-
-    for (auto* ancestor = node.parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
-        if (ancestor->entire_subtree_needs_style_update())
-            return;
-    }
-
-    if (auto* element = as_if<Element>(node)) {
-        if (element->affected_by_structural_pseudo_class_in_non_subject_position() || element->affected_by_sibling_combinator_in_non_subject_position()) {
-            node.set_entire_subtree_needs_style_update(true);
-        } else if (element_is_affected_by_same_parent_move(*element)) {
-            node.set_needs_style_update(true);
-        }
-    } else if (!node.is_character_data()) {
-        node.set_needs_style_update(true);
-    }
-    invalidate_structurally_affected_siblings(node, reason);
-    mark_ancestors_as_having_child_needing_style_update(node);
-}
-
 void Node::invalidate_style(StyleInvalidationReason reason)
 {
     CSS::Invalidation::schedule_has_invalidation_for_node(*this, reason);
@@ -610,8 +500,8 @@ void Node::invalidate_style(StyleInvalidationReason reason)
 
     mark_entire_subtree_for_style_update(*this);
 
-    invalidate_structurally_affected_siblings(*this, reason);
-    mark_ancestors_as_having_child_needing_style_update(*this);
+    CSS::Invalidation::invalidate_structurally_affected_siblings(*this, reason);
+    CSS::Invalidation::mark_ancestors_as_having_child_needing_style_update(*this);
 }
 
 void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::InvalidationSet::Property> const& properties, StyleInvalidationOptions options)
@@ -1427,7 +1317,7 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
         // Since the tree structure is about to change, we need to invalidate both style and layout.
         // In the future, we should find a way to only invalidate the parts that actually need it.
         if (is_same_parent_move)
-            invalidate_style_after_same_parent_move(*this, StyleInvalidationReason::NodeRemove);
+            CSS::Invalidation::invalidate_style_after_same_parent_move(*this, StyleInvalidationReason::NodeRemove);
         else
             invalidate_style(StyleInvalidationReason::NodeRemove);
 
@@ -1503,7 +1393,7 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
     }
 
     if (is_same_parent_move)
-        invalidate_style_after_same_parent_move(*this, StyleInvalidationReason::NodeInsertBefore);
+        CSS::Invalidation::invalidate_style_after_same_parent_move(*this, StyleInvalidationReason::NodeInsertBefore);
     else
         invalidate_style(StyleInvalidationReason::NodeInsertBefore);
     if (is_connected()) {
