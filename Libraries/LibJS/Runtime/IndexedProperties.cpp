@@ -74,7 +74,7 @@ bool GenericIndexedPropertyStorage::set_array_like_size(size_t new_size)
     bool any_failed = false;
     size_t highest_index = 0;
 
-    HashMap<u32, ValueAndAttributes> new_sparse_elements;
+    GC::ConservativeHashMap<u32, ValueAndAttributes> new_sparse_elements;
     for (auto& entry : m_sparse_elements) {
         if (entry.key >= new_size) {
             if (entry.value.attributes.is_configurable())
