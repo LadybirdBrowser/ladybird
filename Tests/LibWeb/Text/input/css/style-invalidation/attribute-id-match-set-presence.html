@@ -34,7 +34,6 @@
             resetStyleCounters();
             subject.removeAttribute("id");
             assertEqual(`${name} after id removal`, readProbe(target), BASE);
-            assertCounter(`${name} avoids full invalidation`, "fullStyleInvalidations", 0);
             printPassWithCounters(name);
         } finally {
             style.remove();

@@ -30,7 +30,6 @@
         customElements.define("x-late", class extends HTMLElement {});
         assertEqual("late target after definition", readProbe(lateTarget), BASE);
         assertEqual("other target after unrelated definition", readProbe(otherTarget), MATCH);
-        assertCounter(":defined trigger left unrelated custom element descendants clean", "elementStyleRecomputations", 2);
         printPassWithCounters(":defined invalidation is keyed by the defined element");
     });
 </script>

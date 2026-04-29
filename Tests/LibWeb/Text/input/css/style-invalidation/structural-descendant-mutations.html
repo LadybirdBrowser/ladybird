@@ -132,5 +132,10 @@
                 });
             }
         }
+
+        for (const scope of ["document", "shadow-internal"]) {
+            runDuplicateDescendantInvalidationRuleCase(scope);
+            runDuplicateSiblingInvalidationRuleCase(scope);
+        }
     });
 </script>

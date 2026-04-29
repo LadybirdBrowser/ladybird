@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    function withFixture(testName, cssText, build, mutate, verify) {
+        const fixture = makeElement("section");
+        document.body.appendChild(fixture);
+        const style = addStyle(document.head, cssText);
+
+        try {
+            const state = build(fixture);
+            document.body.offsetWidth;
+
+            resetStyleCounters();
+            mutate(state);
+            verify(state);
+            printPassWithCounters(testName);
+        } finally {
+            style.remove();
+            fixture.remove();
+        }
+    }
+
+    function withSlottedFixture(testName, cssText, build, mutate, verify) {
+        const fixture = makeElement("section");
+        document.body.appendChild(fixture);
+        const host = makeElement("div");
+        fixture.appendChild(host);
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.appendChild(document.createElement("slot"));
+        addStyle(shadowRoot, cssText);
+
+        try {
+            const state = build(fixture, host, shadowRoot);
+            document.body.offsetWidth;
+
+            resetStyleCounters();
+            mutate(state);
+            verify(state);
+            printPassWithCounters(testName);
+        } finally {
+            fixture.remove();
+        }
+    }
+
+    function appendCheckbox(parent, options = {}) {
+        const input = makeElement("input", {
+            className: options.className,
+            attributes: {
+                type: "checkbox",
+                ...(options.attributes || {}),
+            },
+        });
+        input.checked = !!options.checked;
+        parent.appendChild(input);
+        return input;
+    }
+
+    function appendTextInput(parent, options = {}) {
+        const input = makeElement("input", {
+            className: options.className,
+            attributes: options.attributes,
+        });
+        parent.appendChild(input);
+        return input;
+    }
+
+    function appendTextarea(parent, options = {}) {
+        const textarea = makeElement("textarea", {
+            className: options.className,
+            attributes: options.attributes,
+        });
+        if (options.text !== undefined)
+            textarea.appendChild(document.createTextNode(options.text));
+        parent.appendChild(textarea);
+        return textarea;
+    }
+
+    test(() => {
+        withFixture(
+            "rightmost :checked self selector with missing attribute does not change style",
+            "input[switch]:checked { --style-invalidation-probe: match; }",
+            fixture => {
+                const input = appendCheckbox(fixture, { className: "toggle" });
+                assertEqual("missing attribute initial", readProbe(input), BASE);
+                return { input };
+            },
+            ({ input }) => input.checked = true,
+            ({ input }) => assertEqual("missing attribute after checked", readProbe(input), BASE)
+        );
+
+        withFixture(
+            "rightmost :checked self selector with matching class changes style",
+            "input.toggle:checked { --style-invalidation-probe: match; }",
+            fixture => {
+                const input = appendCheckbox(fixture, { className: "toggle" });
+                assertEqual("matching class initial", readProbe(input), BASE);
+                return { input };
+            },
+            ({ input }) => input.checked = true,
+            ({ input }) => assertEqual("matching class after checked", readProbe(input), MATCH)
+        );
+
+        withFixture(
+            "rightmost :checked self selector with :is() first class alternative changes style",
+            "input:is(.foo, .bar):checked { --style-invalidation-probe: match; }",
+            fixture => {
+                const input = appendCheckbox(fixture, { className: "foo" });
+                assertEqual("is first class alternative initial", readProbe(input), BASE);
+                return { input };
+            },
+            ({ input }) => input.checked = true,
+            ({ input }) => assertEqual("is first class alternative after checked", readProbe(input), MATCH)
+        );
+
+        withFixture(
+            "rightmost :checked self selector with :is() second class alternative changes style",
+            "input:is(.foo, .bar):checked { --style-invalidation-probe: match; }",
+            fixture => {
+                const input = appendCheckbox(fixture, { className: "bar" });
+                assertEqual("is second class alternative initial", readProbe(input), BASE);
+                return { input };
+            },
+            ({ input }) => input.checked = true,
+            ({ input }) => assertEqual("is second class alternative after checked", readProbe(input), MATCH)
+        );
+
+        withFixture(
+            "rightmost :checked self selector with :where() second class alternative changes style",
+            "input:where(.foo, .bar):checked { --style-invalidation-probe: match; }",
+            fixture => {
+                const input = appendCheckbox(fixture, { className: "bar" });
+                assertEqual("where second class alternative initial", readProbe(input), BASE);
+                return { input };
+            },
+            ({ input }) => input.checked = true,
+            ({ input }) => assertEqual("where second class alternative after checked", readProbe(input), MATCH)
+        );
+
+        withFixture(
+            "rightmost :checked self selector with :is() attribute alternative changes style",
+            "input:is(.foo, [data-role=toggle]):checked { --style-invalidation-probe: match; }",
+            fixture => {
+                const input = appendCheckbox(fixture, { attributes: { "data-role": "toggle" } });
+                assertEqual("is attribute alternative initial", readProbe(input), BASE);
+                return { input };
+            },
+            ({ input }) => input.checked = true,
+            ({ input }) => assertEqual("is attribute alternative after checked", readProbe(input), MATCH)
+        );
+
+        withFixture(
+            "rightmost :checked self selector with :where() id alternative changes style",
+            "input:where(.foo, #toggle-target):checked { --style-invalidation-probe: match; }",
+            fixture => {
+                const input = appendCheckbox(fixture);
+                input.id = "toggle-target";
+                assertEqual("where id alternative initial", readProbe(input), BASE);
+                return { input };
+            },
+            ({ input }) => input.checked = true,
+            ({ input }) => assertEqual("where id alternative after checked", readProbe(input), MATCH)
+        );
+
+        withFixture(
+            "rightmost :checked self selector with compound :is() alternative changes style",
+            "input:is(.foo.bar, .baz):checked { --style-invalidation-probe: match; }",
+            fixture => {
+                const input = appendCheckbox(fixture, { className: "foo bar" });
+                assertEqual("is compound alternative initial", readProbe(input), BASE);
+                return { input };
+            },
+            ({ input }) => input.checked = true,
+            ({ input }) => assertEqual("is compound alternative after checked", readProbe(input), MATCH)
+        );
+
+        withFixture(
+            "rightmost :checked self selector with nested :where() alternative changes style",
+            "input:is(:where(.foo, .bar), .baz):checked { --style-invalidation-probe: match; }",
+            fixture => {
+                const input = appendCheckbox(fixture, { className: "bar" });
+                assertEqual("nested where alternative initial", readProbe(input), BASE);
+                return { input };
+            },
+            ({ input }) => input.checked = true,
+            ({ input }) => assertEqual("nested where alternative after checked", readProbe(input), MATCH)
+        );
+
+        withFixture(
+            "rightmost :checked self selector with unmatched :is() alternatives does not change style",
+            "input:is(.foo, .bar):checked { --style-invalidation-probe: match; }",
+            fixture => {
+                const input = appendCheckbox(fixture, { className: "baz" });
+                assertEqual("is unmatched alternatives initial", readProbe(input), BASE);
+                return { input };
+            },
+            ({ input }) => input.checked = true,
+            ({ input }) => assertEqual("is unmatched alternatives after checked", readProbe(input), BASE)
+        );
+
+        withFixture(
+            "rightmost :not(:checked) self selector with :is() alternative loses style",
+            "input:is(.foo, .bar):not(:checked) { --style-invalidation-probe: match; }",
+            fixture => {
+                const input = appendCheckbox(fixture, { className: "foo" });
+                assertEqual("is not checked alternative initial", readProbe(input), MATCH);
+                return { input };
+            },
+            ({ input }) => input.checked = true,
+            ({ input }) => assertEqual("is not checked alternative after checked", readProbe(input), BASE)
+        );
+
+        withFixture(
+            "rightmost :enabled self selector with :where() alternative loses style",
+            "input:where(.foo, .bar):enabled { --style-invalidation-probe: match; }",
+            fixture => {
+                const input = appendTextInput(fixture, { className: "foo" });
+                assertEqual("where enabled alternative initial", readProbe(input), MATCH);
+                return { input };
+            },
+            ({ input }) => input.disabled = true,
+            ({ input }) => assertEqual("where enabled alternative after disabled", readProbe(input), BASE)
+        );
+
+        withFixture(
+            "rightmost :disabled self selector with :is() alternative changes style",
+            "input:is(.foo, .bar):disabled { --style-invalidation-probe: match; }",
+            fixture => {
+                const input = appendTextInput(fixture, { className: "foo" });
+                assertEqual("is disabled alternative initial", readProbe(input), BASE);
+                return { input };
+            },
+            ({ input }) => input.disabled = true,
+            ({ input }) => assertEqual("is disabled alternative after disabled", readProbe(input), MATCH)
+        );
+
+        withFixture(
+            "rightmost :required self selector with :where() alternative changes style",
+            "input:where(.foo, .bar):required { --style-invalidation-probe: match; }",
+            fixture => {
+                const input = appendTextInput(fixture, { className: "bar" });
+                assertEqual("where required alternative initial", readProbe(input), BASE);
+                return { input };
+            },
+            ({ input }) => input.required = true,
+            ({ input }) => assertEqual("where required alternative after required", readProbe(input), MATCH)
+        );
+
+        withFixture(
+            "rightmost :not(:checked) self selector with missing attribute does not change style",
+            "input[switch]:not(:checked) { --style-invalidation-probe: match; }",
+            fixture => {
+                const input = appendCheckbox(fixture, { className: "toggle" });
+                assertEqual("not checked missing attribute initial", readProbe(input), BASE);
+                return { input };
+            },
+            ({ input }) => input.checked = true,
+            ({ input }) => assertEqual("not checked missing attribute after checked", readProbe(input), BASE)
+        );
+
+        withFixture(
+            "rightmost :is(:checked) self selector with missing attribute does not change style",
+            "input[switch]:is(:checked) { --style-invalidation-probe: match; }",
+            fixture => {
+                const input = appendCheckbox(fixture, { className: "toggle" });
+                assertEqual("is checked missing attribute initial", readProbe(input), BASE);
+                return { input };
+            },
+            ({ input }) => input.checked = true,
+            ({ input }) => assertEqual("is checked missing attribute after checked", readProbe(input), BASE)
+        );
+
+        withFixture(
+            "rightmost :where(:checked) self selector with missing attribute does not change style",
+            "input[switch]:where(:checked) { --style-invalidation-probe: match; }",
+            fixture => {
+                const input = appendCheckbox(fixture, { className: "toggle" });
+                assertEqual("where checked missing attribute initial", readProbe(input), BASE);
+                return { input };
+            },
+            ({ input }) => input.checked = true,
+            ({ input }) => assertEqual("where checked missing attribute after checked", readProbe(input), BASE)
+        );
+
+        withFixture(
+            "rightmost :disabled self selector with missing attribute does not change style",
+            "input[data-role=control]:disabled { --style-invalidation-probe: match; }",
+            fixture => {
+                const input = appendTextInput(fixture);
+                assertEqual("disabled missing attribute initial", readProbe(input), BASE);
+                return { input };
+            },
+            ({ input }) => input.disabled = true,
+            ({ input }) => assertEqual("disabled missing attribute after disabled", readProbe(input), BASE)
+        );
+
+        withFixture(
+            "rightmost :required self selector with missing class does not change style",
+            "input.required-target:required { --style-invalidation-probe: match; }",
+            fixture => {
+                const input = appendTextInput(fixture);
+                assertEqual("required missing class initial", readProbe(input), BASE);
+                return { input };
+            },
+            ({ input }) => input.required = true,
+            ({ input }) => assertEqual("required missing class after required", readProbe(input), BASE)
+        );
+
+        withFixture(
+            "rightmost :placeholder-shown self selector with missing attribute does not change style",
+            "textarea[data-note]:placeholder-shown { --style-invalidation-probe: match; }",
+            fixture => {
+                const textarea = appendTextarea(fixture);
+                assertEqual("placeholder missing attribute initial", readProbe(textarea), BASE);
+                return { textarea };
+            },
+            ({ textarea }) => textarea.placeholder = "placeholder",
+            ({ textarea }) => assertEqual("placeholder missing attribute after placeholder", readProbe(textarea), BASE)
+        );
+
+        withFixture(
+            "rightmost :placeholder-shown self selector with matching class changes style",
+            "textarea.note:placeholder-shown { --style-invalidation-probe: match; }",
+            fixture => {
+                const textarea = appendTextarea(fixture, { className: "note" });
+                assertEqual("placeholder matching class initial", readProbe(textarea), BASE);
+                return { textarea };
+            },
+            ({ textarea }) => textarea.placeholder = "placeholder",
+            ({ textarea }) => assertEqual("placeholder matching class after placeholder", readProbe(textarea), MATCH)
+        );
+
+        withFixture(
+            "rightmost :placeholder-shown self selector with :is() attribute alternative changes style",
+            "textarea:is(.note, [data-note]):placeholder-shown { --style-invalidation-probe: match; }",
+            fixture => {
+                const textarea = appendTextarea(fixture, { attributes: { "data-note": "" } });
+                assertEqual("placeholder is attribute alternative initial", readProbe(textarea), BASE);
+                return { textarea };
+            },
+            ({ textarea }) => textarea.placeholder = "placeholder",
+            ({ textarea }) => assertEqual("placeholder is attribute alternative after placeholder", readProbe(textarea), MATCH)
+        );
+
+        withFixture(
+            "rightmost :placeholder-shown self selector with unmatched :where() alternatives does not change style",
+            "textarea:where(.note, [data-note]):placeholder-shown { --style-invalidation-probe: match; }",
+            fixture => {
+                const textarea = appendTextarea(fixture, { className: "other" });
+                assertEqual("placeholder where unmatched alternatives initial", readProbe(textarea), BASE);
+                return { textarea };
+            },
+            ({ textarea }) => textarea.placeholder = "placeholder",
+            ({ textarea }) => assertEqual("placeholder where unmatched alternatives after placeholder", readProbe(textarea), BASE)
+        );
+
+        const multiPseudoLinkCases = [
+            {
+                name: "rightmost :link:any-link self selector loses style after href remove",
+                selector: "a:link:any-link",
+                setup: anchor => anchor.href = location.href,
+                mutate: anchor => anchor.removeAttribute("href"),
+                expectedInitial: MATCH,
+                expectedAfter: BASE,
+            },
+            {
+                name: "rightmost :link:any-link self selector changes style after href add",
+                selector: "a:link:any-link",
+                setup: () => {},
+                mutate: anchor => anchor.href = location.href,
+                expectedInitial: BASE,
+                expectedAfter: MATCH,
+            },
+            {
+                name: "rightmost :any-link:local-link self selector loses style after href remove",
+                selector: "a:any-link:local-link",
+                setup: anchor => anchor.href = location.href,
+                mutate: anchor => anchor.removeAttribute("href"),
+                expectedInitial: MATCH,
+                expectedAfter: BASE,
+            },
+            {
+                name: "rightmost :link:not(:local-link) self selector loses style after href remove",
+                selector: "a:link:not(:local-link)",
+                setup: anchor => anchor.href = "https://example.com/not-local",
+                mutate: anchor => anchor.removeAttribute("href"),
+                expectedInitial: MATCH,
+                expectedAfter: BASE,
+            },
+            {
+                name: "rightmost :any-link:not(:link) self selector stays base after href remove",
+                selector: "a:any-link:not(:link)",
+                setup: anchor => anchor.href = location.href,
+                mutate: anchor => anchor.removeAttribute("href"),
+                expectedInitial: BASE,
+                expectedAfter: BASE,
+            },
+        ];
+        for (const linkCase of multiPseudoLinkCases) {
+            withFixture(
+                linkCase.name,
+                `${linkCase.selector} { --style-invalidation-probe: match; }`,
+                fixture => {
+                    const anchor = makeElement("a");
+                    fixture.appendChild(anchor);
+                    linkCase.setup(anchor);
+                    assertEqual(`${linkCase.name} selector match initial`, anchor.matches(linkCase.selector), linkCase.expectedInitial === MATCH);
+                    assertEqual(`${linkCase.name} initial`, readProbe(anchor), linkCase.expectedInitial);
+                    return { anchor, linkCase };
+                },
+                ({ anchor, linkCase }) => linkCase.mutate(anchor),
+                ({ anchor, linkCase }) => {
+                    assertEqual(`${linkCase.name} selector match after mutation`, anchor.matches(linkCase.selector), linkCase.expectedAfter === MATCH);
+                    assertEqual(`${linkCase.name} after mutation`, readProbe(anchor), linkCase.expectedAfter);
+                }
+            );
+        }
+
+        withFixture(
+            "rightmost :link:any-link self selector loses style while descendant selector also updates",
+            `
+                a:link:any-link { --style-invalidation-probe: self-match; }
+                a:link:any-link .target { --style-invalidation-probe: match; }
+            `,
+            fixture => {
+                const anchor = makeElement("a");
+                anchor.href = location.href;
+                const target = makeElement("span", { className: "target" });
+                anchor.appendChild(target);
+                fixture.appendChild(anchor);
+                assertEqual("link descendant anchor initial", readProbe(anchor), "self-match");
+                assertEqual("link descendant target initial", readProbe(target), MATCH);
+                return { anchor, target };
+            },
+            ({ anchor }) => anchor.removeAttribute("href"),
+            ({ anchor, target }) => {
+                assertEqual("link descendant anchor after href remove", readProbe(anchor), BASE);
+                assertEqual("link descendant target after href remove", readProbe(target), BASE);
+            }
+        );
+
+        const checkedNthChildCases = [
+            {
+                name: "rightmost :checked:nth-child() of selector-list first class alternative changes style",
+                selector: "input:checked:nth-child(odd of .foo, .bar)",
+                options: { className: "foo" },
+                expected: MATCH,
+            },
+            {
+                name: "rightmost :checked:nth-child() of selector-list second class alternative changes style",
+                selector: "input:checked:nth-child(odd of .foo, .bar)",
+                options: { className: "bar" },
+                expected: MATCH,
+            },
+            {
+                name: "rightmost :checked:nth-child() of selector-list attribute alternative changes style",
+                selector: "input:checked:nth-child(odd of .foo, [data-role=toggle])",
+                options: { attributes: { "data-role": "toggle" } },
+                expected: MATCH,
+            },
+            {
+                name: "rightmost :checked:nth-child() of selector-list unmatched alternative does not change style",
+                selector: "input:checked:nth-child(odd of .foo, .bar)",
+                options: { className: "baz" },
+                expected: BASE,
+            },
+            {
+                name: "rightmost :checked:nth-child() of nested :is() selector-list alternative changes style",
+                selector: "input:checked:nth-child(odd of :is(.foo, .bar), .baz)",
+                options: { className: "bar" },
+                expected: MATCH,
+            },
+            {
+                name: "rightmost :checked:nth-child() of nested :where() selector-list alternative changes style",
+                selector: "input:checked:nth-child(odd of :where(.foo, .bar), [data-role=toggle])",
+                options: { className: "foo" },
+                expected: MATCH,
+            },
+            {
+                name: "rightmost :checked:nth-last-child() of selector-list alternative changes style",
+                selector: "input:checked:nth-last-child(odd of .foo, .bar)",
+                options: { className: "bar" },
+                expected: MATCH,
+            },
+            {
+                name: "rightmost :checked:nth-last-child() of selector-list unmatched alternative does not change style",
+                selector: "input:checked:nth-last-child(odd of .foo, .bar)",
+                options: { className: "baz" },
+                expected: BASE,
+            },
+        ];
+        for (const nthCase of checkedNthChildCases) {
+            withFixture(
+                nthCase.name,
+                `${nthCase.selector} { --style-invalidation-probe: match; }`,
+                fixture => {
+                    const input = appendCheckbox(fixture, nthCase.options);
+                    assertEqual(`${nthCase.name} initial`, readProbe(input), BASE);
+                    return { input, expected: nthCase.expected };
+                },
+                ({ input }) => input.checked = true,
+                ({ input, expected }) => assertEqual(`${nthCase.name} after checked`, readProbe(input), expected)
+            );
+        }
+
+        const nonCheckedNthChildCases = [
+            {
+                name: "rightmost :not(:checked):nth-child() of selector-list alternative loses style",
+                selector: "input:not(:checked):nth-child(odd of .foo, .bar)",
+                options: { className: "foo" },
+                useCheckbox: true,
+                mutate: input => input.checked = true,
+                expectedInitial: MATCH,
+                expectedAfter: BASE,
+            },
+            {
+                name: "rightmost :disabled:nth-child() of selector-list alternative changes style",
+                selector: "input:disabled:nth-child(odd of .foo, .bar)",
+                options: { className: "bar" },
+                mutate: input => input.disabled = true,
+                expectedInitial: BASE,
+                expectedAfter: MATCH,
+            },
+            {
+                name: "rightmost :required:nth-child() of selector-list alternative changes style",
+                selector: "input:required:nth-child(odd of .foo, .bar)",
+                options: { className: "foo" },
+                mutate: input => input.required = true,
+                expectedInitial: BASE,
+                expectedAfter: MATCH,
+            },
+        ];
+        for (const nthCase of nonCheckedNthChildCases) {
+            withFixture(
+                nthCase.name,
+                `${nthCase.selector} { --style-invalidation-probe: match; }`,
+                fixture => {
+                    const input = nthCase.useCheckbox ? appendCheckbox(fixture, nthCase.options) : appendTextInput(fixture, nthCase.options);
+                    assertEqual(`${nthCase.name} initial`, readProbe(input), nthCase.expectedInitial);
+                    return { input, nthCase };
+                },
+                ({ input, nthCase }) => nthCase.mutate(input),
+                ({ input, nthCase }) => assertEqual(`${nthCase.name} after mutation`, readProbe(input), nthCase.expectedAfter)
+            );
+        }
+
+        withFixture(
+            "rightmost :placeholder-shown:nth-child() of selector-list attribute alternative changes style",
+            "textarea:placeholder-shown:nth-child(odd of .note, [data-note]) { --style-invalidation-probe: match; }",
+            fixture => {
+                const textarea = appendTextarea(fixture, { attributes: { "data-note": "" } });
+                assertEqual("placeholder nth child attribute alternative initial", readProbe(textarea), BASE);
+                return { textarea };
+            },
+            ({ textarea }) => textarea.placeholder = "placeholder",
+            ({ textarea }) => assertEqual("placeholder nth child attribute alternative after placeholder", readProbe(textarea), MATCH)
+        );
+
+        const svgEmptyCases = [
+            {
+                name: "rightmost mixed-case SVG type selector with :empty loses style after child append",
+                selector: "linearGradient:empty",
+                tagName: "linearGradient",
+                expectedInitial: MATCH,
+                expectedAfter: BASE,
+            },
+            {
+                name: "rightmost mixed-case SVG type selector with class and :empty loses style after child append",
+                selector: "linearGradient.marker:empty",
+                tagName: "linearGradient",
+                className: "marker",
+                expectedInitial: MATCH,
+                expectedAfter: BASE,
+            },
+            {
+                name: "rightmost mixed-case SVG type selector with missing class stays base after child append",
+                selector: "linearGradient.marker:empty",
+                tagName: "linearGradient",
+                className: "other",
+                expectedInitial: BASE,
+                expectedAfter: BASE,
+            },
+            {
+                name: "rightmost mixed-case SVG type selector with :not(:empty) changes style after child append",
+                selector: "linearGradient:not(:empty)",
+                tagName: "linearGradient",
+                expectedInitial: BASE,
+                expectedAfter: MATCH,
+            },
+            {
+                name: "rightmost mixed-case SVG foreignObject selector with :empty loses style after child append",
+                selector: "foreignObject:empty",
+                tagName: "foreignObject",
+                expectedInitial: MATCH,
+                expectedAfter: BASE,
+            },
+        ];
+        for (const svgCase of svgEmptyCases) {
+            withFixture(
+                svgCase.name,
+                `${svgCase.selector} { --style-invalidation-probe: match; }`,
+                fixture => {
+                    const svg = makeSvgElement("svg");
+                    const element = makeSvgElement(svgCase.tagName, { className: svgCase.className });
+                    svg.appendChild(element);
+                    fixture.appendChild(svg);
+                    assertEqual(`${svgCase.name} selector match initial`, element.matches(svgCase.selector), svgCase.expectedInitial === MATCH);
+                    assertEqual(`${svgCase.name} initial`, readProbe(element), svgCase.expectedInitial);
+                    return { element, svgCase };
+                },
+                ({ element }) => element.appendChild(makeSvgElement("stop")),
+                ({ element, svgCase }) => {
+                    assertEqual(`${svgCase.name} selector match after child append`, element.matches(svgCase.selector), svgCase.expectedAfter === MATCH);
+                    assertEqual(`${svgCase.name} after child append`, readProbe(element), svgCase.expectedAfter);
+                }
+            );
+        }
+
+        const notSelectorListCases = [
+            {
+                name: "rightmost :checked:not() selector-list non-matching alternatives changes style",
+                selector: "input:checked:not(.foo, .bar)",
+                options: { className: "baz" },
+                expected: MATCH,
+            },
+            {
+                name: "rightmost :checked:not() selector-list first alternative blocks style",
+                selector: "input:checked:not(.foo, .bar)",
+                options: { className: "foo" },
+                expected: BASE,
+            },
+            {
+                name: "rightmost :checked:not() selector-list attribute alternative blocks style",
+                selector: "input:checked:not(.foo, [data-blocked])",
+                options: { attributes: { "data-blocked": "" } },
+                expected: BASE,
+            },
+            {
+                name: "rightmost :checked:not() selector-list nested :is() alternative blocks style",
+                selector: "input:checked:not(:is(.foo, .bar), [data-blocked])",
+                options: { className: "bar" },
+                expected: BASE,
+            },
+        ];
+        for (const notCase of notSelectorListCases) {
+            withFixture(
+                notCase.name,
+                `${notCase.selector} { --style-invalidation-probe: match; }`,
+                fixture => {
+                    const input = appendCheckbox(fixture, notCase.options);
+                    assertEqual(`${notCase.name} initial`, readProbe(input), BASE);
+                    return { input, expected: notCase.expected };
+                },
+                ({ input }) => input.checked = true,
+                ({ input, expected }) => assertEqual(`${notCase.name} after checked`, readProbe(input), expected)
+            );
+        }
+
+        withFixture(
+            "rightmost :has() selector-list alternative and :not(:empty) changes style after child append",
+            "label:has(input.foo, input.bar):not(:empty) { --style-invalidation-probe: match; }",
+            fixture => {
+                const label = makeElement("label");
+                fixture.appendChild(label);
+                assertEqual("has selector-list empty label initial", readProbe(label), BASE);
+                return { label };
+            },
+            ({ label }) => appendCheckbox(label, { className: "foo" }),
+            ({ label }) => assertEqual("has selector-list label after child append", readProbe(label), MATCH)
+        );
+
+        withFixture(
+            "rightmost :not(:has()) selector-list alternative loses style after child append",
+            "label:not(:has(input.foo), :has(input.bar)):not(:empty) { --style-invalidation-probe: match; }",
+            fixture => {
+                const label = makeElement("label");
+                const input = appendCheckbox(label, { className: "baz" });
+                fixture.appendChild(label);
+                assertEqual("not has selector-list label initial", readProbe(label), MATCH);
+                return { input, label };
+            },
+            ({ input }) => input.className = "foo",
+            ({ label }) => assertEqual("not has selector-list label after child class change", readProbe(label), BASE)
+        );
+
+        const stateWithHasCases = [
+            {
+                name: "rightmost :checked:has() selector-list first relative alternative changes style",
+                selector: "input:checked:has(+ label.foo, + label.bar)",
+                labelClassName: "foo",
+                mutate: input => input.checked = true,
+                appendCheckbox: true,
+                expectedInitial: BASE,
+                expectedAfter: MATCH,
+            },
+            {
+                name: "rightmost :checked:has() selector-list second relative alternative changes style",
+                selector: "input:checked:has(+ label.foo, + label.bar)",
+                labelClassName: "bar",
+                mutate: input => input.checked = true,
+                appendCheckbox: true,
+                expectedInitial: BASE,
+                expectedAfter: MATCH,
+            },
+            {
+                name: "rightmost :checked:has() nested selector-list alternative changes style",
+                selector: "input:checked:has(+ label:is(.foo, .bar), + label[data-target])",
+                labelClassName: "bar",
+                mutate: input => input.checked = true,
+                appendCheckbox: true,
+                expectedInitial: BASE,
+                expectedAfter: MATCH,
+            },
+            {
+                name: "rightmost :checked:has() unmatched selector-list alternatives does not change style",
+                selector: "input:checked:has(+ label.foo, + label.bar)",
+                labelClassName: "baz",
+                mutate: input => input.checked = true,
+                appendCheckbox: true,
+                expectedInitial: BASE,
+                expectedAfter: BASE,
+            },
+            {
+                name: "rightmost :not(:checked):has() selector-list alternative loses style",
+                selector: "input:not(:checked):has(+ label.foo, + label.bar)",
+                labelClassName: "foo",
+                mutate: input => input.checked = true,
+                appendCheckbox: true,
+                expectedInitial: MATCH,
+                expectedAfter: BASE,
+            },
+            {
+                name: "rightmost :disabled:has() selector-list alternative changes style",
+                selector: "input:disabled:has(+ label.foo, + label.bar)",
+                labelClassName: "bar",
+                mutate: input => input.disabled = true,
+                expectedInitial: BASE,
+                expectedAfter: MATCH,
+            },
+        ];
+        for (const hasCase of stateWithHasCases) {
+            withFixture(
+                hasCase.name,
+                `${hasCase.selector} { --style-invalidation-probe: match; }`,
+                fixture => {
+                    const input = hasCase.appendCheckbox ? appendCheckbox(fixture) : appendTextInput(fixture);
+                    const label = makeElement("label", { className: hasCase.labelClassName });
+                    fixture.appendChild(label);
+                    assertEqual(`${hasCase.name} initial`, readProbe(input), hasCase.expectedInitial);
+                    return { input, hasCase };
+                },
+                ({ input, hasCase }) => hasCase.mutate(input),
+                ({ input, hasCase }) => assertEqual(`${hasCase.name} after mutation`, readProbe(input), hasCase.expectedAfter)
+            );
+        }
+
+        withSlottedFixture(
+            "rightmost ::slotted() :checked selector with :is() first class alternative changes style",
+            "::slotted(:is(.foo, .bar):checked) { --style-invalidation-probe: match; }",
+            (fixture, host) => {
+                const input = appendCheckbox(host, { className: "foo" });
+                assertEqual("slotted is first class alternative initial", readProbe(input), BASE);
+                return { input };
+            },
+            ({ input }) => input.checked = true,
+            ({ input }) => assertEqual("slotted is first class alternative after checked", readProbe(input), MATCH)
+        );
+
+        withSlottedFixture(
+            "rightmost ::slotted() :checked selector with :is() second class alternative changes style",
+            "::slotted(:is(.foo, .bar):checked) { --style-invalidation-probe: match; }",
+            (fixture, host) => {
+                const input = appendCheckbox(host, { className: "bar" });
+                assertEqual("slotted is second class alternative initial", readProbe(input), BASE);
+                return { input };
+            },
+            ({ input }) => input.checked = true,
+            ({ input }) => assertEqual("slotted is second class alternative after checked", readProbe(input), MATCH)
+        );
+
+        withSlottedFixture(
+            "rightmost ::slotted() :checked selector with :where() attribute alternative changes style",
+            "::slotted(:where(.foo, [data-role=toggle]):checked) { --style-invalidation-probe: match; }",
+            (fixture, host) => {
+                const input = appendCheckbox(host, { attributes: { "data-role": "toggle" } });
+                assertEqual("slotted where attribute alternative initial", readProbe(input), BASE);
+                return { input };
+            },
+            ({ input }) => input.checked = true,
+            ({ input }) => assertEqual("slotted where attribute alternative after checked", readProbe(input), MATCH)
+        );
+
+        withSlottedFixture(
+            "rightmost ::slotted() :checked selector with nested :where() alternative changes style",
+            "::slotted(:is(:where(.foo, .bar), .baz):checked) { --style-invalidation-probe: match; }",
+            (fixture, host) => {
+                const input = appendCheckbox(host, { className: "bar" });
+                assertEqual("slotted nested where alternative initial", readProbe(input), BASE);
+                return { input };
+            },
+            ({ input }) => input.checked = true,
+            ({ input }) => assertEqual("slotted nested where alternative after checked", readProbe(input), MATCH)
+        );
+
+        withSlottedFixture(
+            "rightmost ::slotted() :checked selector with unmatched :is() alternatives does not change style",
+            "::slotted(:is(.foo, .bar):checked) { --style-invalidation-probe: match; }",
+            (fixture, host) => {
+                const input = appendCheckbox(host, { className: "baz" });
+                assertEqual("slotted unmatched alternatives initial", readProbe(input), BASE);
+                return { input };
+            },
+            ({ input }) => input.checked = true,
+            ({ input }) => assertEqual("slotted unmatched alternatives after checked", readProbe(input), BASE)
+        );
+
+        withSlottedFixture(
+            "rightmost ::slotted() :not(:checked) selector with :is() alternative loses style",
+            "::slotted(:is(.foo, .bar):not(:checked)) { --style-invalidation-probe: match; }",
+            (fixture, host) => {
+                const input = appendCheckbox(host, { className: "foo" });
+                assertEqual("slotted is not checked alternative initial", readProbe(input), MATCH);
+                return { input };
+            },
+            ({ input }) => input.checked = true,
+            ({ input }) => assertEqual("slotted is not checked alternative after checked", readProbe(input), BASE)
+        );
+
+        withSlottedFixture(
+            "rightmost ::slotted() :disabled selector with :is() alternative changes style",
+            "::slotted(input:is(.foo, .bar):disabled) { --style-invalidation-probe: match; }",
+            (fixture, host) => {
+                const input = appendTextInput(host, { className: "foo" });
+                assertEqual("slotted disabled is alternative initial", readProbe(input), BASE);
+                return { input };
+            },
+            ({ input }) => input.disabled = true,
+            ({ input }) => assertEqual("slotted disabled is alternative after disabled", readProbe(input), MATCH)
+        );
+
+        withSlottedFixture(
+            "rightmost ::slotted() :placeholder-shown selector with :is() attribute alternative changes style",
+            "::slotted(textarea:is(.note, [data-note]):placeholder-shown) { --style-invalidation-probe: match; }",
+            (fixture, host) => {
+                const textarea = appendTextarea(host, { attributes: { "data-note": "" } });
+                assertEqual("slotted placeholder is attribute alternative initial", readProbe(textarea), BASE);
+                return { textarea };
+            },
+            ({ textarea }) => textarea.placeholder = "placeholder",
+            ({ textarea }) => assertEqual("slotted placeholder is attribute alternative after placeholder", readProbe(textarea), MATCH)
+        );
+
+        const slottedNthChildCases = [
+            {
+                name: "rightmost ::slotted() :checked:nth-child() of selector-list first class alternative changes style",
+                selector: "::slotted(input:checked:nth-child(odd of .foo, .bar))",
+                options: { className: "foo" },
+                expected: MATCH,
+            },
+            {
+                name: "rightmost ::slotted() :checked:nth-child() of selector-list second class alternative changes style",
+                selector: "::slotted(input:checked:nth-child(odd of .foo, .bar))",
+                options: { className: "bar" },
+                expected: MATCH,
+            },
+            {
+                name: "rightmost ::slotted() :checked:nth-child() of selector-list unmatched alternative does not change style",
+                selector: "::slotted(input:checked:nth-child(odd of .foo, .bar))",
+                options: { className: "baz" },
+                expected: BASE,
+            },
+            {
+                name: "rightmost ::slotted() :checked:nth-child() of nested selector-list alternative changes style",
+                selector: "::slotted(input:checked:nth-child(odd of :is(.foo, .bar), [data-role=toggle]))",
+                options: { className: "bar" },
+                expected: MATCH,
+            },
+            {
+                name: "rightmost ::slotted() :checked:nth-last-child() of selector-list alternative changes style",
+                selector: "::slotted(input:checked:nth-last-child(odd of .foo, .bar))",
+                options: { className: "foo" },
+                expected: MATCH,
+            },
+        ];
+        for (const slottedNthCase of slottedNthChildCases) {
+            withSlottedFixture(
+                slottedNthCase.name,
+                `${slottedNthCase.selector} { --style-invalidation-probe: match; }`,
+                (fixture, host) => {
+                    const input = appendCheckbox(host, slottedNthCase.options);
+                    assertEqual(`${slottedNthCase.name} initial`, readProbe(input), BASE);
+                    return { input, expected: slottedNthCase.expected };
+                },
+                ({ input }) => input.checked = true,
+                ({ input, expected }) => assertEqual(`${slottedNthCase.name} after checked`, readProbe(input), expected)
+            );
+        }
+
+        withSlottedFixture(
+            "rightmost ::slotted() :checked:not() selector-list non-matching alternatives changes style",
+            "::slotted(input:checked:not(.foo, .bar)) { --style-invalidation-probe: match; }",
+            (fixture, host) => {
+                const input = appendCheckbox(host, { className: "baz" });
+                assertEqual("slotted not selector-list initial", readProbe(input), BASE);
+                return { input };
+            },
+            ({ input }) => input.checked = true,
+            ({ input }) => assertEqual("slotted not selector-list after checked", readProbe(input), MATCH)
+        );
+
+        withSlottedFixture(
+            "rightmost ::slotted() :checked:not() selector-list matching alternative blocks style",
+            "::slotted(input:checked:not(.foo, .bar)) { --style-invalidation-probe: match; }",
+            (fixture, host) => {
+                const input = appendCheckbox(host, { className: "foo" });
+                assertEqual("slotted not matching alternative initial", readProbe(input), BASE);
+                return { input };
+            },
+            ({ input }) => input.checked = true,
+            ({ input }) => assertEqual("slotted not matching alternative after checked", readProbe(input), BASE)
+        );
+
+        withSlottedFixture(
+            "rightmost ::slotted() :checked:has() selector-list relative alternative changes style",
+            "::slotted(input:checked:has(+ label.foo, + label.bar)) { --style-invalidation-probe: match; }",
+            (fixture, host) => {
+                const input = appendCheckbox(host);
+                const label = makeElement("label", { className: "bar" });
+                host.appendChild(label);
+                assertEqual("slotted has selector-list relative alternative initial", readProbe(input), BASE);
+                return { input };
+            },
+            ({ input }) => input.checked = true,
+            ({ input }) => assertEqual("slotted has selector-list relative alternative after checked", readProbe(input), MATCH)
+        );
+
+        withSlottedFixture(
+            "rightmost ::slotted() mixed-case SVG type selector with :empty loses style after child append",
+            "::slotted(linearGradient:empty) { --style-invalidation-probe: match; }",
+            (fixture, host) => {
+                const gradient = makeSvgElement("linearGradient");
+                host.appendChild(gradient);
+                assertEqual("slotted SVG empty selector match initial", gradient.matches("linearGradient:empty"), true);
+                assertEqual("slotted SVG empty initial", readProbe(gradient), MATCH);
+                return { gradient };
+            },
+            ({ gradient }) => gradient.appendChild(makeSvgElement("stop")),
+            ({ gradient }) => {
+                assertEqual("slotted SVG empty selector match after child append", gradient.matches("linearGradient:empty"), false);
+                assertEqual("slotted SVG empty after child append", readProbe(gradient), BASE);
+            }
+        );
+
+        withFixture(
+            "rightmost self selector can be skipped while adjacent sibling selector still updates",
+            `
+                input[switch]:checked { --style-invalidation-probe: self-match; }
+                input.toggle:checked + label.target { --style-invalidation-probe: match; }
+            `,
+            fixture => {
+                const input = appendCheckbox(fixture, { className: "toggle" });
+                const label = makeElement("label", { className: "target" });
+                fixture.appendChild(label);
+                assertEqual("sibling label initial", readProbe(label), BASE);
+                assertEqual("sibling input initial", readProbe(input), BASE);
+                return { input, label };
+            },
+            ({ input }) => input.checked = true,
+            ({ input, label }) => {
+                assertEqual("sibling label after checked", readProbe(label), MATCH);
+                assertEqual("sibling input after checked", readProbe(input), BASE);
+            }
+        );
+
+        withFixture(
+            "rightmost :is() self selector updates while adjacent sibling selector also updates",
+            `
+                input:is(.foo, .bar):checked { --style-invalidation-probe: match; }
+                input:is(.foo, .bar):checked + label.target { --style-invalidation-probe: match; }
+            `,
+            fixture => {
+                const input = appendCheckbox(fixture, { className: "foo" });
+                const label = makeElement("label", { className: "target" });
+                fixture.appendChild(label);
+                assertEqual("is sibling label initial", readProbe(label), BASE);
+                assertEqual("is sibling input initial", readProbe(input), BASE);
+                return { input, label };
+            },
+            ({ input }) => input.checked = true,
+            ({ input, label }) => {
+                assertEqual("is sibling label after checked", readProbe(label), MATCH);
+                assertEqual("is sibling input after checked", readProbe(input), MATCH);
+            }
+        );
+
+        withFixture(
+            "mixed-case ancestor id selector updates descendant after class mutation",
+            "#Foo .target { --style-invalidation-probe: match; }",
+            fixture => {
+                const ancestor = makeElement("div", { id: "Foo" });
+                const target = makeElement("span");
+                ancestor.appendChild(target);
+                fixture.appendChild(ancestor);
+                assertEqual("mixed-case ancestor id descendant initial", readProbe(target), BASE);
+                return { target };
+            },
+            ({ target }) => target.classList.add("target"),
+            ({ target }) => {
+                assertEqual("mixed-case ancestor id selector match after mutation", target.matches("#Foo .target"), true);
+                assertEqual("mixed-case ancestor id descendant after mutation", readProbe(target), MATCH);
+            }
+        );
+
+        withFixture(
+            "mixed-case ancestor id selector does not match lowercase id after class mutation",
+            "#Foo .target { --style-invalidation-probe: match; }",
+            fixture => {
+                const ancestor = makeElement("div", { id: "foo" });
+                const target = makeElement("span");
+                ancestor.appendChild(target);
+                fixture.appendChild(ancestor);
+                assertEqual("lowercase ancestor id descendant initial", readProbe(target), BASE);
+                return { target };
+            },
+            ({ target }) => target.classList.add("target"),
+            ({ target }) => {
+                assertEqual("lowercase ancestor id selector match after mutation", target.matches("#Foo .target"), false);
+                assertEqual("lowercase ancestor id descendant after mutation", readProbe(target), BASE);
+            }
+        );
+
+        withFixture(
+            "rightmost self selector can be skipped while :has selector still updates ancestor",
+            `
+                input { --style-invalidation-probe: base; }
+                input[switch]:checked { --style-invalidation-probe: self-match; }
+                section:has(> input.toggle:checked) { --style-invalidation-probe: match; }
+            `,
+            fixture => {
+                const input = appendCheckbox(fixture, { className: "toggle" });
+                assertEqual("has fixture initial", readProbe(fixture), BASE);
+                assertEqual("has input initial", readProbe(input), BASE);
+                return { fixture, input };
+            },
+            ({ input }) => input.checked = true,
+            ({ fixture, input }) => {
+                assertEqual("has fixture after checked", readProbe(fixture), MATCH);
+                assertEqual("has input after checked", readProbe(input), BASE);
+            }
+        );
+
+        withFixture(
+            "rightmost :where() self selector updates while :has selector also updates ancestor",
+            `
+                input { --style-invalidation-probe: base; }
+                input:where(.foo, .bar):checked { --style-invalidation-probe: match; }
+                section:has(> input:where(.foo, .bar):checked) { --style-invalidation-probe: match; }
+            `,
+            fixture => {
+                const input = appendCheckbox(fixture, { className: "bar" });
+                assertEqual("where has fixture initial", readProbe(fixture), BASE);
+                assertEqual("where has input initial", readProbe(input), BASE);
+                return { fixture, input };
+            },
+            ({ input }) => input.checked = true,
+            ({ fixture, input }) => {
+                assertEqual("where has fixture after checked", readProbe(fixture), MATCH);
+                assertEqual("where has input after checked", readProbe(input), MATCH);
+            }
+        );
+    });
+</script>

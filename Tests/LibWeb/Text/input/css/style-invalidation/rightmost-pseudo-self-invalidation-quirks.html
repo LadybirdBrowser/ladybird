@@ -1,0 +1,915 @@
+<!DOCTYPE quirks>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    function withFixture(testName, cssText, build, mutate, verify) {
+        const fixture = makeElement("section");
+        document.body.appendChild(fixture);
+        const style = addStyle(document.head, cssText);
+
+        try {
+            assertEqual(`${testName} document mode`, document.compatMode, "BackCompat");
+            const state = build(fixture);
+            document.body.offsetWidth;
+
+            resetStyleCounters();
+            mutate(state);
+            verify(state);
+            printPassWithCounters(testName);
+        } finally {
+            style.remove();
+            fixture.remove();
+        }
+    }
+
+    function withSlottedFixture(testName, cssText, build, mutate, verify) {
+        const fixture = makeElement("section");
+        document.body.appendChild(fixture);
+        const host = makeElement("div");
+        fixture.appendChild(host);
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.appendChild(document.createElement("slot"));
+        addStyle(shadowRoot, cssText);
+
+        try {
+            assertEqual(`${testName} document mode`, document.compatMode, "BackCompat");
+            const state = build(fixture, host, shadowRoot);
+            document.body.offsetWidth;
+
+            resetStyleCounters();
+            mutate(state);
+            verify(state);
+            printPassWithCounters(testName);
+        } finally {
+            fixture.remove();
+        }
+    }
+
+    function printObservedResult(testName, target, selector, pseudoElement = "") {
+        println(`${testName}: selectorMatches=${target.matches(selector)}, probe=${readProbe(target, pseudoElement)}`);
+    }
+
+    function appendCheckbox(parent, options = {}) {
+        const input = makeElement("input", {
+            className: options.className,
+            attributes: {
+                type: "checkbox",
+                ...(options.attributes || {}),
+            },
+        });
+        input.checked = !!options.checked;
+        parent.appendChild(input);
+        return input;
+    }
+
+    function appendTextInput(parent, options = {}) {
+        const input = makeElement("input", {
+            className: options.className,
+            attributes: options.attributes,
+        });
+        parent.appendChild(input);
+        return input;
+    }
+
+    test(() => {
+        const classCaseCases = [
+            {
+                name: "rightmost :checked self selector matches uppercase class in quirks mode",
+                selector: "input.foo:checked",
+                className: "FOO",
+                appendCheckbox: true,
+                mutate: input => input.checked = true,
+                expectedInitial: BASE,
+                expectedAfter: MATCH,
+            },
+            {
+                name: "rightmost :checked self selector matches mixed-case compound classes in quirks mode",
+                selector: "input.foo.bar:checked",
+                className: "FOO bAr",
+                appendCheckbox: true,
+                mutate: input => input.checked = true,
+                expectedInitial: BASE,
+                expectedAfter: MATCH,
+            },
+            {
+                name: "rightmost :not(:checked) self selector matches uppercase class in quirks mode",
+                selector: "input.foo:not(:checked)",
+                className: "FOO",
+                appendCheckbox: true,
+                mutate: input => input.checked = true,
+                expectedInitial: MATCH,
+                expectedAfter: BASE,
+            },
+            {
+                name: "rightmost :disabled self selector matches uppercase class in quirks mode",
+                selector: "input.foo:disabled",
+                className: "FOO",
+                mutate: input => input.disabled = true,
+                expectedInitial: BASE,
+                expectedAfter: MATCH,
+            },
+            {
+                name: "rightmost :required self selector matches uppercase class in quirks mode",
+                selector: "input.foo:required",
+                className: "FOO",
+                mutate: input => input.required = true,
+                expectedInitial: BASE,
+                expectedAfter: MATCH,
+            },
+            {
+                name: "rightmost :checked self selector still rejects unrelated class in quirks mode",
+                selector: "input.foo:checked",
+                className: "BAR",
+                appendCheckbox: true,
+                mutate: input => input.checked = true,
+                expectedInitial: BASE,
+                expectedAfter: BASE,
+            },
+        ];
+        for (const classCase of classCaseCases) {
+            withFixture(
+                classCase.name,
+                `${classCase.selector} { --style-invalidation-probe: match; }`,
+                fixture => {
+                    const input = classCase.appendCheckbox ? appendCheckbox(fixture, { className: classCase.className }) : appendTextInput(fixture, { className: classCase.className });
+                    printObservedResult(`${classCase.name} initial`, input, classCase.selector);
+                    return { input, classCase };
+                },
+                ({ input, classCase }) => classCase.mutate(input),
+                ({ input, classCase }) => {
+                    printObservedResult(`${classCase.name} after mutation`, input, classCase.selector);
+                }
+            );
+        }
+
+        withFixture(
+            "quirks uppercase class selector matches after lowercase className assignment",
+            ".FOO { --style-invalidation-probe: match; }",
+            fixture => {
+                const target = makeElement("div");
+                fixture.appendChild(target);
+                printObservedResult("quirks className assignment initial", target, ".FOO");
+                return { target };
+            },
+            ({ target }) => target.className = "foo",
+            ({ target }) => {
+                printObservedResult("quirks className assignment after mutation", target, ".FOO");
+            }
+        );
+
+        withFixture(
+            "quirks lowercase class selector matches after uppercase className assignment",
+            ".foo { --style-invalidation-probe: match; }",
+            fixture => {
+                const target = makeElement("div");
+                fixture.appendChild(target);
+                printObservedResult("quirks inverse className assignment initial", target, ".foo");
+                return { target };
+            },
+            ({ target }) => target.className = "Foo",
+            ({ target }) => {
+                printObservedResult("quirks inverse className assignment after mutation", target, ".foo");
+            }
+        );
+
+        withFixture(
+            "quirks lowercase class selector loses style after uppercase className clear",
+            ".foo { --style-invalidation-probe: match; }",
+            fixture => {
+                const target = makeElement("div", { className: "Foo" });
+                fixture.appendChild(target);
+                printObservedResult("quirks inverse className clear initial", target, ".foo");
+                return { target };
+            },
+            ({ target }) => target.className = "",
+            ({ target }) => {
+                printObservedResult("quirks inverse className clear after mutation", target, ".foo");
+            }
+        );
+
+        withFixture(
+            "quirks uppercase class selector loses style after lowercase className clear",
+            ".FOO { --style-invalidation-probe: match; }",
+            fixture => {
+                const target = makeElement("div", { className: "foo" });
+                fixture.appendChild(target);
+                printObservedResult("quirks className clear initial", target, ".FOO");
+                return { target };
+            },
+            ({ target }) => target.className = "",
+            ({ target }) => {
+                printObservedResult("quirks className clear after mutation", target, ".FOO");
+            }
+        );
+
+        withFixture(
+            "quirks uppercase class descendant selector matches after lowercase ancestor class add",
+            ".FOO .target { --style-invalidation-probe: match; }",
+            fixture => {
+                const ancestor = makeElement("div");
+                const target = makeElement("span", { className: "target" });
+                ancestor.appendChild(target);
+                fixture.appendChild(ancestor);
+                printObservedResult("quirks descendant class add initial", target, ".FOO .target");
+                return { ancestor, target };
+            },
+            ({ ancestor }) => ancestor.classList.add("foo"),
+            ({ ancestor, target }) => {
+                printObservedResult("quirks descendant class add target after mutation", target, ".FOO .target");
+                printObservedResult("quirks descendant class add ancestor after mutation", ancestor, ".FOO");
+            }
+        );
+
+        withFixture(
+            "quirks lowercase class descendant selector matches after uppercase ancestor class add",
+            ".foo .target { --style-invalidation-probe: match; }",
+            fixture => {
+                const ancestor = makeElement("div");
+                const target = makeElement("span", { className: "target" });
+                ancestor.appendChild(target);
+                fixture.appendChild(ancestor);
+                printObservedResult("quirks inverse descendant class add initial", target, ".foo .target");
+                return { ancestor, target };
+            },
+            ({ ancestor }) => ancestor.classList.add("Foo"),
+            ({ ancestor, target }) => {
+                printObservedResult("quirks inverse descendant class add target after mutation", target, ".foo .target");
+                printObservedResult("quirks inverse descendant class add ancestor after mutation", ancestor, ".foo");
+            }
+        );
+
+        withFixture(
+            "quirks uppercase class descendant selector loses style after lowercase ancestor class remove",
+            ".FOO .target { --style-invalidation-probe: match; }",
+            fixture => {
+                const ancestor = makeElement("div", { className: "foo" });
+                const target = makeElement("span", { className: "target" });
+                ancestor.appendChild(target);
+                fixture.appendChild(ancestor);
+                printObservedResult("quirks descendant class remove initial", target, ".FOO .target");
+                return { ancestor, target };
+            },
+            ({ ancestor }) => ancestor.classList.remove("foo"),
+            ({ target }) => {
+                printObservedResult("quirks descendant class remove after mutation", target, ".FOO .target");
+            }
+        );
+
+        withFixture(
+            "quirks uppercase class adjacent sibling selector matches after lowercase previous sibling class add",
+            ".FOO + .target { --style-invalidation-probe: match; }",
+            fixture => {
+                const previous = makeElement("div");
+                const target = makeElement("span", { className: "target" });
+                fixture.appendChild(previous);
+                fixture.appendChild(target);
+                printObservedResult("quirks adjacent class add initial", target, ".FOO + .target");
+                return { previous, target };
+            },
+            ({ previous }) => previous.classList.add("foo"),
+            ({ target }) => {
+                printObservedResult("quirks adjacent class add after mutation", target, ".FOO + .target");
+            }
+        );
+
+        withFixture(
+            "quirks lowercase class adjacent sibling selector matches after uppercase previous sibling class add",
+            ".foo + .target { --style-invalidation-probe: match; }",
+            fixture => {
+                const previous = makeElement("div");
+                const target = makeElement("span", { className: "target" });
+                fixture.appendChild(previous);
+                fixture.appendChild(target);
+                printObservedResult("quirks inverse adjacent class add initial", target, ".foo + .target");
+                return { previous, target };
+            },
+            ({ previous }) => previous.classList.add("Foo"),
+            ({ target }) => {
+                printObservedResult("quirks inverse adjacent class add after mutation", target, ".foo + .target");
+            }
+        );
+
+        withFixture(
+            "quirks uppercase class general sibling selector matches after lowercase previous sibling class add",
+            ".FOO ~ .target { --style-invalidation-probe: match; }",
+            fixture => {
+                const previous = makeElement("div");
+                const middle = makeElement("span");
+                const target = makeElement("span", { className: "target" });
+                fixture.appendChild(previous);
+                fixture.appendChild(middle);
+                fixture.appendChild(target);
+                printObservedResult("quirks general sibling class add initial", target, ".FOO ~ .target");
+                return { previous, target };
+            },
+            ({ previous }) => previous.classList.add("foo"),
+            ({ target }) => {
+                printObservedResult("quirks general sibling class add after mutation", target, ".FOO ~ .target");
+            }
+        );
+
+        withFixture(
+            "quirks lowercase class general sibling selector matches after uppercase previous sibling class add",
+            ".foo ~ .target { --style-invalidation-probe: match; }",
+            fixture => {
+                const previous = makeElement("div");
+                const middle = makeElement("span");
+                const target = makeElement("span", { className: "target" });
+                fixture.appendChild(previous);
+                fixture.appendChild(middle);
+                fixture.appendChild(target);
+                printObservedResult("quirks inverse general sibling class add initial", target, ".foo ~ .target");
+                return { previous, target };
+            },
+            ({ previous }) => previous.classList.add("Foo"),
+            ({ target }) => {
+                printObservedResult("quirks inverse general sibling class add after mutation", target, ".foo ~ .target");
+            }
+        );
+
+        withFixture(
+            "quirks uppercase class selector list alternative matches after lowercase class add",
+            ":is(.FOO, .bar) { --style-invalidation-probe: match; }",
+            fixture => {
+                const target = makeElement("div");
+                fixture.appendChild(target);
+                printObservedResult("quirks selector list class add initial", target, ":is(.FOO, .bar)");
+                return { target };
+            },
+            ({ target }) => target.classList.add("foo"),
+            ({ target }) => {
+                printObservedResult("quirks selector list class add after mutation", target, ":is(.FOO, .bar)");
+            }
+        );
+
+        withFixture(
+            "quirks lowercase class selector list alternative matches after uppercase class add",
+            ":is(.foo, .bar) { --style-invalidation-probe: match; }",
+            fixture => {
+                const target = makeElement("div");
+                fixture.appendChild(target);
+                printObservedResult("quirks inverse selector list class add initial", target, ":is(.foo, .bar)");
+                return { target };
+            },
+            ({ target }) => target.classList.add("Foo"),
+            ({ target }) => {
+                printObservedResult("quirks inverse selector list class add after mutation", target, ":is(.foo, .bar)");
+            }
+        );
+
+        withFixture(
+            "quirks uppercase class inside :has() matches after lowercase descendant class add",
+            ".subject:has(.FOO) { --style-invalidation-probe: match; }",
+            fixture => {
+                const subject = makeElement("div", { className: "subject" });
+                const child = makeElement("span");
+                subject.appendChild(child);
+                fixture.appendChild(subject);
+                printObservedResult("quirks has descendant class add initial", subject, ".subject:has(.FOO)");
+                return { subject, child };
+            },
+            ({ child }) => child.classList.add("foo"),
+            ({ subject }) => {
+                printObservedResult("quirks has descendant class add after mutation", subject, ".subject:has(.FOO)");
+            }
+        );
+
+        withFixture(
+            "quirks lowercase class inside :has() matches after uppercase descendant class add",
+            ".subject:has(.foo) { --style-invalidation-probe: match; }",
+            fixture => {
+                const subject = makeElement("div", { className: "subject" });
+                const child = makeElement("span");
+                subject.appendChild(child);
+                fixture.appendChild(subject);
+                printObservedResult("quirks inverse has descendant class add initial", subject, ".subject:has(.foo)");
+                return { subject, child };
+            },
+            ({ child }) => child.classList.add("Foo"),
+            ({ subject }) => {
+                printObservedResult("quirks inverse has descendant class add after mutation", subject, ".subject:has(.foo)");
+            }
+        );
+
+        const quirksStructuralHasCases = [
+            {
+                name: "lowercase class after uppercase descendant append",
+                selector: ".subject:has(.foo)",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.appendChild(makeElement("span", { className: "Foo" })),
+            },
+            {
+                name: "lowercase class after uppercase nested descendant append",
+                selector: ".subject:has(.wrapper .foo)",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => {
+                    const wrapper = makeElement("div", { className: "wrapper" });
+                    wrapper.appendChild(makeElement("span", { className: "Foo" }));
+                    subject.appendChild(wrapper);
+                },
+            },
+            {
+                name: "lowercase class after uppercase direct child append",
+                selector: ".subject:has(> .foo)",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.appendChild(makeElement("span", { className: "Foo" })),
+            },
+            {
+                name: "lowercase class inside :is() after uppercase descendant append",
+                selector: ".subject:has(:is(.foo, .miss))",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.appendChild(makeElement("span", { className: "Foo" })),
+            },
+            {
+                name: "lowercase class inside :where() after uppercase descendant append",
+                selector: ".subject:has(:where(.miss, .foo))",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.appendChild(makeElement("span", { className: "Foo" })),
+            },
+            {
+                name: "lowercase class selector-list branch after uppercase descendant append",
+                selector: ".subject:has(.miss, .foo)",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.appendChild(makeElement("span", { className: "Foo" })),
+            },
+            {
+                name: "lowercase compound class after uppercase descendant append",
+                selector: ".subject:has(span.foo[data-hit])",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.appendChild(makeElement("span", { className: "Foo", attributes: { "data-hit": "" } })),
+            },
+            {
+                name: "lowercase class inside :not() after uppercase descendant append",
+                selector: ".subject:has(.foo:not(.miss))",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.appendChild(makeElement("span", { className: "Foo" })),
+            },
+            {
+                name: "lowercase class inside nested :not(:is()) after uppercase descendant append",
+                selector: ".subject:has(.foo:not(:is(.miss, [data-miss])))",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.appendChild(makeElement("span", { className: "Foo" })),
+            },
+            {
+                name: "lowercase class plus id after uppercase descendant append",
+                selector: ".subject:has(.foo#hit-id)",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.appendChild(makeElement("span", { id: "hit-id", className: "Foo" })),
+            },
+            {
+                name: "lowercase class plus second class after mixed-case descendant append",
+                selector: ".subject:has(.foo.extra)",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.appendChild(makeElement("span", { className: "Foo eXtRa" })),
+            },
+            {
+                name: "lowercase class plus attribute value after uppercase descendant append",
+                selector: ".subject:has(.foo[data-hit='yes'])",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.appendChild(makeElement("span", { className: "Foo", attributes: { "data-hit": "yes" } })),
+            },
+            {
+                name: "lowercase class plus case-insensitive attribute after uppercase descendant append",
+                selector: ".subject:has(.foo[data-hit='yes' i])",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.appendChild(makeElement("span", { className: "Foo", attributes: { "data-hit": "YES" } })),
+            },
+            {
+                name: "lowercase class under universal :where() after uppercase descendant append",
+                selector: ".subject:has(*:where(.foo))",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.appendChild(makeElement("span", { className: "Foo" })),
+            },
+            {
+                name: "lowercase class in :is() sibling branch after uppercase pair append",
+                selector: ".subject:has(:is(.miss, .foo) + .after)",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => {
+                    subject.append(makeElement("span", { className: "Foo" }), makeElement("span", { className: "after" }));
+                },
+            },
+            {
+                name: "lowercase class in :where() sibling branch after uppercase pair append",
+                selector: ".subject:has(.before + :where(.miss, .foo))",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => {
+                    subject.append(makeElement("span", { className: "before" }), makeElement("span", { className: "Foo" }));
+                },
+            },
+            {
+                name: "lowercase class in indirect sibling branch after uppercase chain append",
+                selector: ".subject:has(.before ~ .foo)",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => {
+                    subject.append(makeElement("span", { className: "before" }), makeElement("span"), makeElement("span", { className: "Foo" }));
+                },
+            },
+            {
+                name: "lowercase class in nth-child of-list after uppercase descendant append",
+                selector: ".subject:has(:nth-child(odd of .foo, .miss))",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.appendChild(makeElement("span", { className: "Foo" })),
+            },
+            {
+                name: "lowercase class in nth-last-child of-list after uppercase descendant append",
+                selector: ".subject:has(:nth-last-child(1 of .miss, .foo))",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.append(makeElement("span"), makeElement("span", { className: "Foo" })),
+            },
+            {
+                name: "lowercase class in first-of-type after uppercase descendant append",
+                selector: ".subject:has(.foo:first-of-type)",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.appendChild(makeElement("span", { className: "Foo" })),
+            },
+            {
+                name: "lowercase class in only-of-type after uppercase descendant append",
+                selector: ".subject:has(.foo:only-of-type)",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.appendChild(makeElement("span", { className: "Foo" })),
+            },
+            {
+                name: "lowercase class in only-of-type becomes false after plain sibling append",
+                selector: ".subject:has(.foo:only-of-type)",
+                initial: "match",
+                after: "base",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    subject.appendChild(makeElement("span", { className: "Foo" }));
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.appendChild(makeElement("span")),
+            },
+            {
+                name: "lowercase class in last-child becomes false after plain trailing sibling append",
+                selector: ".subject:has(.foo:last-child)",
+                initial: "match",
+                after: "base",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    subject.appendChild(makeElement("span", { className: "Foo" }));
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.appendChild(makeElement("span")),
+            },
+            {
+                name: "lowercase class in second child after prepending before uppercase child",
+                selector: ".subject:has(.foo:nth-child(2))",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    subject.appendChild(makeElement("span", { className: "Foo" }));
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.prepend(makeElement("span")),
+            },
+            {
+                name: "lowercase class in selector-list first branch after uppercase descendant append",
+                selector: ".subject:has(.foo, #never)",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.appendChild(makeElement("span", { className: "Foo" })),
+            },
+            {
+                name: "lowercase class in selector-list later branch after uppercase descendant append",
+                selector: ".subject:has(#never, .miss, .foo)",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.appendChild(makeElement("span", { className: "Foo" })),
+            },
+            {
+                name: "lowercase class with missing required id stays false after uppercase descendant append",
+                selector: ".subject:has(.foo#required-id)",
+                after: "base",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.appendChild(makeElement("span", { className: "Foo" })),
+            },
+            {
+                name: "lowercase class with missing required attribute stays false after uppercase descendant append",
+                selector: ".subject:has(.foo[data-required])",
+                after: "base",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.appendChild(makeElement("span", { className: "Foo" })),
+            },
+            {
+                name: "lowercase class loses style after uppercase descendant removal",
+                selector: ".subject:has(.foo)",
+                initial: "match",
+                after: "base",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    subject.appendChild(makeElement("span", { className: "Foo" }));
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.firstChild.remove(),
+            },
+            {
+                name: "lowercase class after uppercase replacement subtree",
+                selector: ".subject:has(.wrapper .foo)",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    subject.appendChild(makeElement("span"));
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => {
+                    const wrapper = makeElement("div", { className: "wrapper" });
+                    wrapper.appendChild(makeElement("span", { className: "Foo" }));
+                    subject.firstChild.replaceWith(wrapper);
+                },
+            },
+            {
+                name: "lowercase class loses style after uppercase replacement with plain child",
+                selector: ".subject:has(.foo)",
+                initial: "match",
+                after: "base",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    subject.appendChild(makeElement("span", { className: "Foo" }));
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.firstChild.replaceWith(makeElement("span")),
+            },
+            {
+                name: "lowercase class after uppercase fragment append",
+                selector: ".subject:has(.foo)",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => {
+                    const fragment = document.createDocumentFragment();
+                    fragment.append(makeElement("span"), makeElement("span", { className: "Foo" }));
+                    subject.appendChild(fragment);
+                },
+            },
+            {
+                name: "lowercase class after uppercase child moved into subject",
+                selector: ".subject:has(.foo)",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    const outside = makeElement("span", { className: "Foo" });
+                    fixture.append(subject, outside);
+                    return { subject, outside };
+                },
+                mutate: ({ subject, outside }) => subject.appendChild(outside),
+            },
+            {
+                name: "lowercase class loses style after uppercase child moved out of subject",
+                selector: ".subject:has(.foo)",
+                initial: "match",
+                after: "base",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    const child = makeElement("span", { className: "Foo" });
+                    subject.appendChild(child);
+                    fixture.appendChild(subject);
+                    return { fixture, subject, child };
+                },
+                mutate: ({ fixture, child }) => fixture.appendChild(child),
+            },
+            {
+                name: "uppercase class selector after lowercase descendant append",
+                selector: ".subject:has(.FOO)",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.appendChild(makeElement("span", { className: "foo" })),
+            },
+            {
+                name: "lowercase class unaffected by unrelated uppercase structural append",
+                selector: ".subject:has(.foo)",
+                after: "base",
+                build: fixture => {
+                    const subject = makeElement("div", { className: "subject" });
+                    fixture.appendChild(subject);
+                    return { subject };
+                },
+                mutate: ({ subject }) => subject.appendChild(makeElement("span", { className: "Bar" })),
+            },
+        ];
+        for (const hasCase of quirksStructuralHasCases) {
+            const initial = hasCase.initial ?? BASE;
+            const after = hasCase.after ?? MATCH;
+            withFixture(
+                `quirks structural :has() ${hasCase.name}`,
+                `${hasCase.selector} { --style-invalidation-probe: match; }`,
+                fixture => {
+                    const state = hasCase.build(fixture);
+                    printObservedResult(`quirks structural :has() ${hasCase.name} initial`, state.subject, hasCase.selector);
+                    return { ...state, hasCase, initial, after };
+                },
+                state => state.hasCase.mutate(state),
+                state => {
+                    printObservedResult(`quirks structural :has() ${state.hasCase.name} after mutation`, state.subject, state.hasCase.selector);
+                }
+            );
+        }
+
+        withFixture(
+            "quirks uppercase class with rightmost state selector matches after lowercase class add then state change",
+            ".FOO:checked { --style-invalidation-probe: match; }",
+            fixture => {
+                const input = appendCheckbox(fixture);
+                printObservedResult("quirks class add then state initial", input, ".FOO:checked");
+                return { input };
+            },
+            ({ input }) => {
+                input.classList.add("foo");
+                document.body.offsetWidth;
+                resetStyleCounters();
+                input.checked = true;
+            },
+            ({ input }) => {
+                printObservedResult("quirks class add then state after mutation", input, ".FOO:checked");
+            }
+        );
+
+        withFixture(
+            "quirks lowercase class with rightmost state selector matches after uppercase class add then state change",
+            ".foo:checked { --style-invalidation-probe: match; }",
+            fixture => {
+                const input = appendCheckbox(fixture);
+                printObservedResult("quirks inverse class add then state initial", input, ".foo:checked");
+                return { input };
+            },
+            ({ input }) => {
+                input.classList.add("Foo");
+                document.body.offsetWidth;
+                resetStyleCounters();
+                input.checked = true;
+            },
+            ({ input }) => {
+                printObservedResult("quirks inverse class add then state after mutation", input, ".foo:checked");
+            }
+        );
+
+        withFixture(
+            "rightmost self selector can be skipped for missing uppercase class in quirks mode while sibling updates",
+            `
+                input.foo:checked { --style-invalidation-probe: self-match; }
+                input.bar:checked + label.target { --style-invalidation-probe: match; }
+            `,
+            fixture => {
+                const input = appendCheckbox(fixture, { className: "BAR" });
+                const label = makeElement("label", { className: "target" });
+                fixture.appendChild(label);
+                printObservedResult("quirks sibling input initial", input, "input.foo:checked");
+                printObservedResult("quirks sibling label initial", label, "input.bar:checked + label.target");
+                return { input, label };
+            },
+            ({ input }) => input.checked = true,
+            ({ input, label }) => {
+                printObservedResult("quirks sibling input after checked", input, "input.foo:checked");
+                printObservedResult("quirks sibling label after checked", label, "input.bar:checked + label.target");
+            }
+        );
+
+        withSlottedFixture(
+            "quirks uppercase slotted class selector matches after lowercase className assignment",
+            "::slotted(.FOO) { --style-invalidation-probe: match; }",
+            (fixture, host) => {
+                const target = makeElement("span");
+                host.appendChild(target);
+                printObservedResult("quirks slotted className assignment initial", target, ".FOO");
+                return { target };
+            },
+            ({ target }) => target.className = "foo",
+            ({ target }) => {
+                printObservedResult("quirks slotted className assignment after mutation", target, ".FOO");
+            }
+        );
+
+        withSlottedFixture(
+            "quirks lowercase slotted class selector matches after uppercase className assignment",
+            "::slotted(.foo) { --style-invalidation-probe: match; }",
+            (fixture, host) => {
+                const target = makeElement("span");
+                host.appendChild(target);
+                printObservedResult("quirks inverse slotted className assignment initial", target, ".foo");
+                return { target };
+            },
+            ({ target }) => target.className = "Foo",
+            ({ target }) => {
+                printObservedResult("quirks inverse slotted className assignment after mutation", target, ".foo");
+            }
+        );
+
+        withSlottedFixture(
+            "rightmost ::slotted() :checked selector matches uppercase class in quirks mode",
+            "::slotted(input.foo:checked) { --style-invalidation-probe: match; }",
+            (fixture, host) => {
+                const input = appendCheckbox(host, { className: "FOO" });
+                printObservedResult("quirks slotted uppercase class initial", input, "input.foo:checked");
+                return { input };
+            },
+            ({ input }) => input.checked = true,
+            ({ input }) => printObservedResult("quirks slotted uppercase class after checked", input, "input.foo:checked")
+        );
+    });
+</script>

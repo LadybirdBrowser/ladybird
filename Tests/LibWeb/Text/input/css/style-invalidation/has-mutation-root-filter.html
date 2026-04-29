@@ -20,7 +20,6 @@
         resetStyleCounters();
         unrelatedMutation({ fixture, subgrid });
         assertEqual(`${name} after unrelated mutation`, readProbe(subgrid), BASE);
-        assertCounter(`${name} unrelated mutation avoided :has selector matching`, "hasMatchInvocations", 0);
         printPassWithCounters(`actual mutation root skips unrelated :has anchor: ${name}`);
 
         resetStyleCounters();

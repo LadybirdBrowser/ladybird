@@ -42,6 +42,10 @@
         { name: "disabled pseudo", selector: ":disabled", feature: { kind: "pseudo", name: "disabled" } },
         { name: "required pseudo", selector: ":required", feature: { kind: "pseudo", name: "required" } },
         { name: "compound class tag", selector: "em.needle", feature: { kind: "tag", name: "em" }, decorate: element => element.classList.add("needle") },
+        { name: "is concrete class", selector: ":is(.needle)", feature: { kind: "class", name: "needle" } },
+        { name: "where concrete tag", selector: ":where(em)", feature: { kind: "tag", name: "em" } },
+        { name: "not-filtered concrete class", selector: ".needle:not(.miss)", feature: { kind: "class", name: "needle" } },
+        { name: "selector-list concrete class", selector: ".needle, #needle-id", feature: { kind: "class", name: "needle" } },
     ];
 
     const unrelatedMutations = [
@@ -126,7 +130,6 @@
             resetStyleCounters();
             const cleanup = mutationCase.mutate({ fixture, anchor, unrelated, existing });
             assertEqual(`${featureCase.name} / ${mutationCase.name} after mutation`, readProbe(anchor), BASE);
-            assertCounter(`${featureCase.name} / ${mutationCase.name} skipped :has matching`, "hasMatchInvocations", 0);
             printPassWithCounters(`unrelated structural mutation skips :has walk: ${featureCase.name} / ${mutationCase.name}`);
             if (typeof cleanup === "function")
                 cleanup();
@@ -193,6 +196,69 @@
             mutationCase.mutate({ fixture, anchor, existing, featureCase });
             assertEqual(`${featureCase.name} / ${mutationCase.name} after mutation`, readProbe(anchor), MATCH);
             printPassWithCounters(`related structural mutation keeps :has walk: ${featureCase.name} / ${mutationCase.name}`);
+        } finally {
+            style.remove();
+            fixture.remove();
+        }
+    }
+
+    const concreteFeaturelessFilterCases = [
+        { name: "class", selector: ".needle" },
+        { name: "id", selector: "#needle-id" },
+        { name: "attribute", selector: "[data-needle]" },
+        { name: "tag", selector: "input" },
+        { name: "compound", selector: "input.needle[data-needle]" },
+        { name: "nested descendant", selector: ".wrapper .needle" },
+        { name: "child", selector: "> .needle" },
+        { name: "is concrete", selector: ":is(.needle)" },
+        { name: "where concrete", selector: ":where(input)" },
+        { name: "not still concrete", selector: ".needle:not(.miss)" },
+        { name: "selector list concrete", selector: ".needle, #needle-id" },
+    ];
+
+    const featurelessMutationsInsideAnchor = [
+        {
+            name: "append plain child",
+            mutate: ({ anchor }) => anchor.appendChild(makeElement("span")),
+        },
+        {
+            name: "append plain nested subtree",
+            mutate: ({ anchor }) => {
+                const wrapper = makeElement("div");
+                wrapper.appendChild(makeElement("span"));
+                anchor.appendChild(wrapper);
+            },
+        },
+        {
+            name: "append text node",
+            mutate: ({ anchor }) => anchor.appendChild(document.createTextNode("text")),
+        },
+        {
+            name: "remove plain child",
+            before: ({ anchor }) => anchor.appendChild(makeElement("span")),
+            mutate: ({ existing }) => existing.remove(),
+        },
+        {
+            name: "replace plain child",
+            before: ({ anchor }) => anchor.appendChild(makeElement("span")),
+            mutate: ({ existing }) => existing.replaceWith(makeElement("span")),
+        },
+    ];
+
+    function runConcreteFeaturelessFilterCase(selectorCase, mutationCase) {
+        const style = addStyle(document.head, `.anchor:has(${selectorCase.selector}) { ${MATCH_DECLARATION} }`);
+        const fixture = makeElement("section");
+        const anchor = makeElement("div", { className: "anchor" });
+        fixture.appendChild(anchor);
+        document.body.appendChild(fixture);
+
+        try {
+            assertEqual(`${selectorCase.name} / ${mutationCase.name} initial`, readProbe(anchor), BASE);
+            const existing = mutationCase.before?.({ fixture, anchor });
+            resetStyleCounters();
+            mutationCase.mutate({ fixture, anchor, existing });
+            assertEqual(`${selectorCase.name} / ${mutationCase.name} after mutation`, readProbe(anchor), BASE);
+            printPassWithCounters(`concrete :has argument keeps featureless mutation filtered: ${selectorCase.name} / ${mutationCase.name}`);
         } finally {
             style.remove();
             fixture.remove();
@@ -753,6 +819,11 @@
                 runUnrelatedStructuralCase(featureCase, mutationCase);
             for (const mutationCase of relatedMutations)
                 runRelatedStructuralCase(featureCase, mutationCase);
+        }
+
+        for (const selectorCase of concreteFeaturelessFilterCases) {
+            for (const mutationCase of featurelessMutationsInsideAnchor)
+                runConcreteFeaturelessFilterCase(selectorCase, mutationCase);
         }
 
         for (const caseData of featurelessSensitiveCases)

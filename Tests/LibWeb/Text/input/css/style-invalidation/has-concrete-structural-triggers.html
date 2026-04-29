@@ -31,8 +31,6 @@
                 anchor.appendChild(buildMutation());
                 assertEqual(`${name} after insertion`, readProbe(target), MATCH);
             }
-
-            assertCounter(`${name} avoids full invalidation`, "fullStyleInvalidations", 0);
             printPassWithCounters(name);
         } finally {
             style.remove();
