@@ -9,6 +9,7 @@
 #include <AK/QuickSort.h>
 #include <AK/TypeCasts.h>
 #include <AK/kmalloc.h>
+#include <LibGC/WeakHashMap.h>
 #include <LibJS/Bytecode/PropertyAccess.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Accessor.h>
@@ -33,7 +34,7 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(Object);
 
-static HashMap<GC::Ptr<Object const>, HashMap<Utf16FlyString, Object::IntrinsicAccessor>> s_intrinsics;
+static GC::WeakHashMap<GC::Ptr<Object const>, HashMap<Utf16FlyString, Object::IntrinsicAccessor>> s_intrinsics;
 
 // Heap-allocated named property storage layout:
 //   [u32 capacity] [u32 padding] [Value 0] [Value 1] ...
@@ -1280,16 +1281,16 @@ static Optional<Object::IntrinsicAccessor> find_intrinsic_accessor(Object const*
     if (!property_key.is_string())
         return {};
 
-    auto intrinsics = s_intrinsics.find(object);
-    if (intrinsics == s_intrinsics.end())
+    auto intrinsics = s_intrinsics.get(object);
+    if (!intrinsics.has_value())
         return {};
 
-    auto accessor_iterator = intrinsics->value.find(property_key.as_string());
-    if (accessor_iterator == intrinsics->value.end())
+    auto accessor_iterator = intrinsics->find(property_key.as_string());
+    if (accessor_iterator == intrinsics->end())
         return {};
 
     auto accessor = accessor_iterator->value;
-    intrinsics->value.remove(accessor_iterator);
+    intrinsics->remove(accessor_iterator);
     return accessor;
 }
 
@@ -1346,8 +1347,8 @@ Optional<u32> Object::storage_set(PropertyKey const& property_key, ValueAndAttri
     }
 
     if (has_intrinsic_accessors() && property_key.is_string()) {
-        if (auto intrinsics = s_intrinsics.find(this); intrinsics != s_intrinsics.end())
-            intrinsics->value.remove(property_key.as_string());
+        if (auto intrinsics = s_intrinsics.get(this); intrinsics.has_value())
+            intrinsics->remove(property_key.as_string());
     }
 
     auto metadata = shape().lookup(property_key);
@@ -1386,8 +1387,8 @@ void Object::storage_delete(PropertyKey const& property_key)
         return indexed_delete(property_key.as_number());
 
     if (has_intrinsic_accessors() && property_key.is_string()) {
-        if (auto intrinsics = s_intrinsics.find(this); intrinsics != s_intrinsics.end())
-            intrinsics->value.remove(property_key.as_string());
+        if (auto intrinsics = s_intrinsics.get(this); intrinsics.has_value())
+            intrinsics->remove(property_key.as_string());
     }
 
     auto metadata = shape().lookup(property_key);
