@@ -450,14 +450,17 @@ macro walk_env_chain(m_cache_field, target_env, bind_index, fail_label)
     mov sentinel, ENVIRONMENT_COORDINATE_INVALID
     branch_eq hops, sentinel, fail_label
     load64 target_env, [exec_ctx, EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT]
+    assert_nonzero target_env
     branch_zero hops, .walk_done
 .walk_loop:
     load8 screw, [target_env, ENVIRONMENT_SCREWED_BY_EVAL]
     branch_nonzero screw, fail_label
     load64 target_env, [target_env, ENVIRONMENT_OUTER]
+    assert_nonzero target_env
     sub hops, 1
     branch_nonzero hops, .walk_loop
 .walk_done:
+    assert_nonzero target_env
     load8 screw, [target_env, ENVIRONMENT_SCREWED_BY_EVAL]
     branch_nonzero screw, fail_label
 end
@@ -969,6 +972,7 @@ handler GetBinding
     temp env, idx, binding, init, value
     walk_env_chain m_cache, env, idx, .slow
     load64 binding, [env, BINDINGS_DATA_PTR]
+    assert_nonzero binding
     mul idx, idx, SIZEOF_BINDING
     add binding, idx
     # Check binding is initialized (TDZ)
@@ -986,6 +990,7 @@ handler GetInitializedBinding
     temp env, idx, binding, value
     walk_env_chain m_cache, env, idx, .slow
     load64 binding, [env, BINDINGS_DATA_PTR]
+    assert_nonzero binding
     mul idx, idx, SIZEOF_BINDING
     add binding, idx
     load64 value, [binding, BINDING_VALUE]
@@ -1000,6 +1005,7 @@ handler InitializeLexicalBinding
     temp env, idx, binding, value, one
     walk_env_chain m_cache, env, idx, .slow
     load64 binding, [env, BINDINGS_DATA_PTR]
+    assert_nonzero binding
     mul idx, idx, SIZEOF_BINDING
     add binding, idx
     load_operand value, m_src
@@ -1017,6 +1023,7 @@ handler SetLexicalBinding
     temp env, idx, binding, flag, value
     walk_env_chain m_cache, env, idx, .slow
     load64 binding, [env, BINDINGS_DATA_PTR]
+    assert_nonzero binding
     mul idx, idx, SIZEOF_BINDING
     add binding, idx
     # Check initialized (TDZ)
@@ -1514,6 +1521,7 @@ handler PutByValue
     load32 size, [obj, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
     branch_ge_unsigned index, size, .slow
     load64 elements, [obj, OBJECT_INDEXED_ELEMENTS]
+    assert_nonzero elements
     load_operand src, m_src
     store64 [elements, index, 8], src
     dispatch_next
@@ -1630,6 +1638,7 @@ handler GetById
     load64 shape, [obj, OBJECT_SHAPE]
     # Get PropertyLookupCache* (direct pointer from instruction stream)
     load64 plc, [pb, pc, m_cache]
+    assert_nonzero plc
     load_pair64 cache_shape, cache_proto, [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE], [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE]
     branch_ne cache_shape, shape, .try_cache
     branch_nonzero cache_proto, .proto
@@ -1639,6 +1648,7 @@ handler GetById
     branch_ne dict_gen, cur_dict_gen, .try_cache
     # IC hit! Load property value via get_direct (own property)
     load64 props, [obj, OBJECT_NAMED_PROPERTIES]
+    assert_nonzero props
     load64 value, [props, prop_offset, 8]
     # Check value is not an accessor
     extract_tag tag, value
@@ -1655,6 +1665,7 @@ handler GetById
     load32 cur_dict_gen, [shape, SHAPE_DICTIONARY_GENERATION]
     branch_ne dict_gen, cur_dict_gen, .try_cache
     load64 props, [cache_proto, OBJECT_NAMED_PROPERTIES]
+    assert_nonzero props
     load64 value, [props, prop_offset, 8]
     extract_tag tag, value
     branch_eq tag, ACCESSOR_TAG, .try_cache
@@ -1679,6 +1690,7 @@ handler PutById
     unbox_object obj, base
     load64 shape, [obj, OBJECT_SHAPE]
     load64 plc, [pb, pc, m_cache]
+    assert_nonzero plc
     load_pair64 cache_shape, cache_proto, [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE], [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE]
     branch_ne cache_shape, shape, .try_cache
     branch_nonzero cache_proto, .try_cache
@@ -1687,6 +1699,7 @@ handler PutById
     branch_ne dict_gen, cur_dict_gen, .try_cache
     # Check current value at prop_offset is not an accessor
     load64 props, [obj, OBJECT_NAMED_PROPERTIES]
+    assert_nonzero props
     load64 value, [props, prop_offset, 8]
     extract_tag tag, value
     branch_eq tag, ACCESSOR_TAG, .try_cache
@@ -1727,6 +1740,7 @@ handler GetByValue
     load32 size, [obj, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
     branch_ge_unsigned index, size, .slow
     load64 elements, [obj, OBJECT_INDEXED_ELEMENTS]
+    assert_nonzero elements
     load64 dst, [elements, index, 8]
     # NB: No accessor check needed -- Packed/Holey storage
     #     can only hold default-attributed data properties.
@@ -1739,6 +1753,7 @@ handler GetByValue
     branch_ge_unsigned index, size, .slow
     load64 elements, [obj, OBJECT_INDEXED_ELEMENTS]
     branch_zero elements, .slow
+    assert_nonzero elements
     mov capacity_addr, elements
     sub capacity_addr, 8
     load32 capacity, [capacity_addr, 0]
@@ -1851,6 +1866,7 @@ handler GetLength
     # Non-magical length: IC fast path (same as GetById)
     load64 shape, [obj, OBJECT_SHAPE]
     load64 plc, [pb, pc, m_cache]
+    assert_nonzero plc
     load_pair64 cache_shape, cache_proto, [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE], [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE]
     branch_ne cache_shape, shape, .slow
     branch_nonzero cache_proto, .slow
@@ -1858,6 +1874,7 @@ handler GetLength
     load32 cur_dict_gen, [shape, SHAPE_DICTIONARY_GENERATION]
     branch_ne dict_gen, cur_dict_gen, .slow
     load64 props, [obj, OBJECT_NAMED_PROPERTIES]
+    assert_nonzero props
     load64 value, [props, prop_offset, 8]
     extract_tag tag, value
     branch_eq tag, ACCESSOR_TAG, .slow
@@ -1888,7 +1905,10 @@ handler GetGlobal
     temp realm, global_object, env, gvc, cache_serial, env_serial, shape, cache_shape, cur_dict_gen, prop_offset, dict_gen, props, value, tag, has_env, in_module, idx, binding, init, result
     load64 realm, [exec_ctx, EXECUTION_CONTEXT_REALM]
     load_pair64 global_object, env, [realm, REALM_GLOBAL_OBJECT], [realm, REALM_GLOBAL_DECLARATIVE_ENVIRONMENT]
+    assert_nonzero global_object
+    assert_nonzero env
     load64 gvc, [pb, pc, m_cache]
+    assert_nonzero gvc
     load64 cache_serial, [gvc, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_SERIAL]
     load64 env_serial, [env, DECLARATIVE_ENVIRONMENT_SERIAL]
     branch_ne cache_serial, env_serial, .slow
@@ -1902,6 +1922,7 @@ handler GetGlobal
     branch_ne dict_gen, cur_dict_gen, .try_env_binding
     # IC hit! Load property value via get_direct
     load64 props, [global_object, OBJECT_NAMED_PROPERTIES]
+    assert_nonzero props
     load64 value, [props, prop_offset, 8]
     extract_tag tag, value
     branch_eq tag, ACCESSOR_TAG, .slow
@@ -1916,6 +1937,7 @@ handler GetGlobal
     # Inline env binding: index into global_declarative_environment bindings.
     load32 idx, [gvc, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_BINDING_INDEX]
     load64 binding, [env, BINDINGS_DATA_PTR]
+    assert_nonzero binding
     mul idx, idx, SIZEOF_BINDING
     add binding, idx
     load8 init, [binding, BINDING_INITIALIZED]
@@ -1936,7 +1958,10 @@ handler SetGlobal
     temp realm, global_object, env, gvc, cache_serial, env_serial, shape, cache_shape, cur_dict_gen, prop_offset, dict_gen, props, value, tag, has_env, in_module, idx, binding, flag, src, result
     load64 realm, [exec_ctx, EXECUTION_CONTEXT_REALM]
     load_pair64 global_object, env, [realm, REALM_GLOBAL_OBJECT], [realm, REALM_GLOBAL_DECLARATIVE_ENVIRONMENT]
+    assert_nonzero global_object
+    assert_nonzero env
     load64 gvc, [pb, pc, m_cache]
+    assert_nonzero gvc
     load64 cache_serial, [gvc, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_SERIAL]
     load64 env_serial, [env, DECLARATIVE_ENVIRONMENT_SERIAL]
     branch_ne cache_serial, env_serial, .slow
@@ -1948,6 +1973,7 @@ handler SetGlobal
     branch_ne dict_gen, cur_dict_gen, .try_env_binding
     # IC hit! Load current value to check it's not an accessor.
     load64 props, [global_object, OBJECT_NAMED_PROPERTIES]
+    assert_nonzero props
     load64 value, [props, prop_offset, 8]
     extract_tag tag, value
     branch_eq tag, ACCESSOR_TAG, .slow
@@ -1961,6 +1987,7 @@ handler SetGlobal
     branch_nonzero in_module, .slow_env
     load32 idx, [gvc, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_BINDING_INDEX]
     load64 binding, [env, BINDINGS_DATA_PTR]
+    assert_nonzero binding
     mul idx, idx, SIZEOF_BINDING
     add binding, idx
     load8 flag, [binding, BINDING_INITIALIZED]
