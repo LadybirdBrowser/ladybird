@@ -2625,16 +2625,14 @@ handler CallBuiltinStringFromCharCode
     branch_ge_unsigned code_unit, 0x80, .single_code_unit
 
     call_helper asm_helper_single_ascii_character_string, code_unit, result
-    extract_tag tag, result
-    assert_eq tag, STRING_TAG
+    assert_tag result, STRING_TAG
     store_operand m_dst, result
     dispatch_next
 
 .single_code_unit:
     assert_lt_unsigned code_unit, 0x10000
     call_helper asm_helper_single_utf16_code_unit_string, code_unit, result
-    extract_tag tag, result
-    assert_eq tag, STRING_TAG
+    assert_tag result, STRING_TAG
     store_operand m_dst, result
     dispatch_next
 
@@ -2691,16 +2689,14 @@ handler CallBuiltinStringPrototypeCharAt
     assert_lt_unsigned code_unit, 0x80
 
     call_helper asm_helper_single_ascii_character_string, code_unit, result
-    extract_tag tag, result
-    assert_eq tag, STRING_TAG
+    assert_tag result, STRING_TAG
     store_operand m_dst, result
     dispatch_next
 
 .empty:
     mov zero, 0
     call_helper asm_helper_empty_string, zero, result
-    extract_tag tag, result
-    assert_eq tag, STRING_TAG
+    assert_tag result, STRING_TAG
     store_operand m_dst, result
     dispatch_next
 
