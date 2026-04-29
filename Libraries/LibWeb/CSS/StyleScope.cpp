@@ -857,6 +857,8 @@ void StyleScope::schedule_ancestors_style_invalidation_due_to_presence_of_has(GC
 static void merge_pending_has_invalidation_mutation_features(PendingHasInvalidationMutationFeatures& target, PendingHasInvalidationMutationFeatures const& source)
 {
     target.is_conservative |= source.is_conservative;
+    target.may_affect_sibling_relationships |= source.may_affect_sibling_relationships;
+    target.may_affect_pseudo_classes |= source.may_affect_pseudo_classes;
     for (auto const& tag_name : source.tag_names)
         target.tag_names.set(tag_name);
     for (auto const& id : source.ids)
@@ -865,6 +867,8 @@ static void merge_pending_has_invalidation_mutation_features(PendingHasInvalidat
         target.class_names.set(class_name);
     for (auto const& attribute_name : source.attribute_names)
         target.attribute_names.set(attribute_name);
+    for (auto const& pseudo_class : source.pseudo_classes)
+        target.pseudo_classes.set(pseudo_class);
 }
 
 static void collect_pending_has_invalidation_features_from_element(PendingHasInvalidationMutationFeatures& features, DOM::Element const& element)
@@ -889,6 +893,8 @@ static void collect_pending_has_invalidation_features_from_element(PendingHasInv
 static PendingHasInvalidationMutationFeatures collect_pending_has_invalidation_mutation_features(DOM::Node& mutation_root, bool includes_descendants)
 {
     PendingHasInvalidationMutationFeatures features;
+    features.may_affect_sibling_relationships = includes_descendants;
+    features.may_affect_pseudo_classes = true;
     auto collect_node = [&](DOM::Node& node) {
         if (node.is_character_data())
             return;
@@ -927,8 +933,10 @@ static PendingHasInvalidationMutationFeatures collect_pending_has_invalidation_m
             break;
         case InvalidationSet::Property::Type::InvalidateSelf:
         case InvalidationSet::Property::Type::InvalidateWholeSubtree:
-        case InvalidationSet::Property::Type::PseudoClass:
             features.is_conservative = true;
+            break;
+        case InvalidationSet::Property::Type::PseudoClass:
+            features.pseudo_classes.set(property.value.get<PseudoClass>());
             break;
         }
     }

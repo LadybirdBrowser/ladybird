@@ -97,10 +97,13 @@ struct StyleCache : public RefCounted<StyleCache> {
 
 struct PendingHasInvalidationMutationFeatures {
     bool is_conservative { false };
+    bool may_affect_sibling_relationships { false };
+    bool may_affect_pseudo_classes { false };
     HashTable<FlyString> tag_names;
     HashTable<FlyString> ids;
     HashTable<FlyString> class_names;
     HashTable<FlyString> attribute_names;
+    HashTable<PseudoClass> pseudo_classes;
 };
 
 class StyleScope {

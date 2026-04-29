@@ -78,11 +78,10 @@ static bool selector_may_match_mutation_features(Selector const& selector, Pendi
         };
 
         for (auto const& compound_selector : selector.compound_selectors()) {
-            if (compound_selector.combinator == Selector::Combinator::NextSibling
-                || compound_selector.combinator == Selector::Combinator::SubsequentSibling) {
+            if ((compound_selector.combinator == Selector::Combinator::NextSibling
+                    || compound_selector.combinator == Selector::Combinator::SubsequentSibling)
+                && mutation_features.may_affect_sibling_relationships)
                 must_be_conservative = true;
-                continue;
-            }
             if (compound_selector.simple_selectors.is_empty()) {
                 must_be_conservative = true;
                 continue;
@@ -119,12 +118,28 @@ static bool selector_may_match_mutation_features(Selector const& selector, Pendi
                         saw_concrete_feature = true;
                         concrete_feature_found_in_mutation_subtree |= visit_selector_list(pseudo_class.argument_selector_list);
                         break;
+                    case PseudoClass::Enabled:
+                    case PseudoClass::Defined:
+                    case PseudoClass::Disabled:
+                    case PseudoClass::Empty:
+                    case PseudoClass::PlaceholderShown:
+                    case PseudoClass::Checked:
+                    case PseudoClass::Dir:
+                    case PseudoClass::Lang:
+                    case PseudoClass::Link:
+                    case PseudoClass::AnyLink:
+                    case PseudoClass::LocalLink:
+                    case PseudoClass::Required:
+                    case PseudoClass::Optional:
+                        saw_concrete_feature = true;
+                        concrete_feature_found_in_mutation_subtree |= mutation_features.may_affect_pseudo_classes
+                            || mutation_features.pseudo_classes.contains(pseudo_class.type);
+                        break;
                     case PseudoClass::Hover:
                     case PseudoClass::Focus:
                     case PseudoClass::FocusVisible:
                     case PseudoClass::FocusWithin:
                     case PseudoClass::Active:
-                    case PseudoClass::Empty:
                     case PseudoClass::Not:
                     case PseudoClass::Has:
                     default:
@@ -278,6 +293,7 @@ static void invalidate_style_of_elements_affected_by_pending_has_mutations(Style
     auto pending_has_invalidations = style_scope.m_pending_has_invalidations;
     bool should_scan_ancestor_siblings = style_scope.have_has_selectors_with_relative_selector_that_has_sibling_combinator();
     for (auto& [node, mutation_features] : pending_has_invalidations) {
+        HashTable<GC::Ref<DOM::Element>> elements_skipped_by_has_feature_filter;
         Vector<GC::Ref<DOM::Element>, 16> has_scope_ancestors;
         bool should_delay_ancestor_sibling_scans = false;
         for (GC::Ptr<DOM::Node> ancestor = node; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
@@ -296,13 +312,20 @@ static void invalidate_style_of_elements_affected_by_pending_has_mutations(Style
         }
 
         for (auto element : has_scope_ancestors) {
-            if (elements_already_invalidated_for_has.set(element) != AK::HashSetResult::InsertedNewEntry)
+            if (elements_already_invalidated_for_has.contains(element))
                 continue;
 
             ++counters.has_ancestor_walk_visits;
             bool can_skip_unchanged_has_fanout = !element->root().is_shadow_root() && !element->assigned_slot_internal() && !element->is_shadow_host();
-            if (!element->affected_by_has_pseudo_class_in_non_subject_position() || !can_skip_unchanged_has_fanout || has_rule_that_may_be_affected_by_mutation(style_scope, element, mutation_features))
+            bool should_invalidate_element = true;
+            if (element->affected_by_has_pseudo_class_in_non_subject_position() && can_skip_unchanged_has_fanout)
+                should_invalidate_element = has_rule_that_may_be_affected_by_mutation(style_scope, element, mutation_features);
+            if (should_invalidate_element) {
+                elements_already_invalidated_for_has.set(element);
                 invalidate_element_if_affected_by_has(*element);
+            } else {
+                elements_skipped_by_has_feature_filter.set(element);
+            }
 
             GC::Ptr<DOM::Node> parent = element->parent_or_shadow_host();
             if (!parent)
@@ -318,6 +341,8 @@ static void invalidate_style_of_elements_affected_by_pending_has_mutations(Style
                 ++counters.has_ancestor_sibling_element_checks;
                 if (ancestor_sibling_element.affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator()) {
                     GC::Ref<DOM::Element> ancestor_sibling = ancestor_sibling_element;
+                    if (elements_skipped_by_has_feature_filter.contains(ancestor_sibling))
+                        return IterationDecision::Continue;
                     if (elements_already_invalidated_for_has.set(ancestor_sibling) != AK::HashSetResult::InsertedNewEntry)
                         return IterationDecision::Continue;
 

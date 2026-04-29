@@ -29,6 +29,11 @@ static void invalidate_descendants_affected_by_language_or_directionality(DOM::E
     // :has(:dir(...)) and :has(:lang(...)) on ancestors aren't keyed on any property the regular invalidation
     // plan tracks, so explicitly schedule the :has() ancestor walk here.
     element.for_each_style_scope_which_may_observe_the_node([&](CSS::StyleScope& scope) {
+        auto pseudo_class = is_directionality_change ? CSS::PseudoClass::Dir : CSS::PseudoClass::Lang;
+        Vector<CSS::InvalidationSet::Property> properties {
+            { CSS::InvalidationSet::Property::Type::PseudoClass, pseudo_class },
+        };
+        scope.record_pending_has_invalidation_mutation_features(element, properties);
         scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(element);
     });
 }
@@ -51,6 +56,13 @@ void invalidate_style_after_text_directionality_change(DOM::CharacterData& chara
     for (auto ancestor = character_data.parent_element(); ancestor; ancestor = ancestor->parent_element()) {
         if (ancestor->dir() != DOM::Element::Dir::Auto)
             continue;
+        Vector<CSS::InvalidationSet::Property> properties {
+            { CSS::InvalidationSet::Property::Type::PseudoClass, CSS::PseudoClass::Dir },
+            { CSS::InvalidationSet::Property::Type::PseudoClass, CSS::PseudoClass::Empty },
+        };
+        ancestor->for_each_style_scope_which_may_observe_the_node([&](CSS::StyleScope& scope) {
+            scope.record_pending_has_invalidation_mutation_features(*ancestor, properties);
+        });
         invalidate_descendants_affected_by_language_or_directionality(*ancestor, true);
     }
 }
