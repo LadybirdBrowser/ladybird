@@ -6,6 +6,7 @@
  */
 
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/CSS/Invalidation/SlotInvalidator.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -202,14 +203,6 @@ void assign_slottables(GC::Ref<HTML::HTMLSlotElement> slot)
     if (slottables != slot->assigned_nodes_internal())
         signal_a_slot_change(slot);
 
-    auto invalidate_for_slottable_change = [](Slottable const& slottable) {
-        slottable.visit(
-            [](GC::Ref<Element> const& element) {
-                element->set_needs_style_update(true);
-            },
-            [](GC::Ref<Text> const&) {});
-    };
-
     // AD-HOC: Clear the assigned slot for slottables that are no longer assigned to this slot.
     //         This must happen before setting the new assigned slots to avoid stale references
     //         during style computation.
@@ -219,7 +212,7 @@ void assign_slottables(GC::Ref<HTML::HTMLSlotElement> slot)
         });
         // ::slotted(...) rules in the slot's shadow scope no longer apply to a slottable that just lost its
         // assignment, so its style must be recomputed.
-        invalidate_for_slottable_change(old_slottable);
+        CSS::Invalidation::invalidate_style_after_slottable_assignment_change(old_slottable);
     }
 
     // 4. For each slottable in slottables, set slottable’s assigned slot to slot.
@@ -229,7 +222,7 @@ void assign_slottables(GC::Ref<HTML::HTMLSlotElement> slot)
         });
         // Newly-assigned slottables become subject to ::slotted(...) rules in the slot's shadow scope, so their style
         // needs to be recomputed.
-        invalidate_for_slottable_change(slottable);
+        CSS::Invalidation::invalidate_style_after_slottable_assignment_change(slottable);
     }
 
     // 3. Set slot’s assigned nodes to slottables.
