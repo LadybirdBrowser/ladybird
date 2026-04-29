@@ -556,9 +556,14 @@ void Page::for_each_media_element(Callback&& callback)
 
 void Page::update_all_media_element_video_sinks()
 {
-    for_each_media_element([](auto& media_element) {
+    bool should_request_another_frame = false;
+    for_each_media_element([&](auto& media_element) {
         media_element.update_video_frame_and_timeline();
+        should_request_another_frame = true;
     });
+
+    if (should_request_another_frame)
+        client().request_frame();
 }
 
 void Page::register_canvas_element(Badge<HTML::HTMLCanvasElement>, UniqueNodeID canvas_id)

@@ -9,6 +9,7 @@
 
 #include <AK/JsonObjectSerializer.h>
 #include <AK/JsonValue.h>
+#include <AK/Math.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ShareableBitmap.h>
@@ -28,6 +29,7 @@
 #include <LibWeb/HTML/HTMLLinkElement.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/PaintableBox.h>
@@ -75,16 +77,10 @@ PageClient::PageClient(PageHost& owner, u64 id)
 {
     setup_palette();
 
-    // FIXME: This removes the decimal part, so the refresh interval will actually be higher than the maximum FPS.
-    //        For example, 60 FPS = 1000ms / 60 = 16.6666...ms, but it will become 16ms, making the interval equivalent
-    //        to 62.5 FPS.
-    int refresh_interval = static_cast<int>(1000.0 / m_maximum_frames_per_second);
-
-    m_paint_refresh_timer = Core::Timer::create_repeating(refresh_interval, [] {
+    m_frame_timer = Core::Timer::create_single_shot(0, [this] {
+        m_last_frame_dispatch_time = Web::HighResolutionTime::unsafe_shared_current_time();
         Web::HTML::main_thread_event_loop().queue_task_to_update_the_rendering();
     });
-
-    m_paint_refresh_timer->start();
 }
 
 PageClient::~PageClient() = default;
@@ -225,17 +221,24 @@ void PageClient::set_zoom_level(double zoom_level)
     page().top_level_traversable()->set_viewport_size(page().device_to_css_size(m_viewport_size), Web::InvalidateDisplayList::Yes);
 }
 
-void PageClient::set_maximum_frames_per_second(u64 maximum_frames_per_second)
+void PageClient::request_frame()
+{
+    if (m_frame_timer->is_active())
+        return;
+
+    auto delay = 0.0;
+    if (m_last_frame_dispatch_time.has_value()) {
+        auto now = Web::HighResolutionTime::unsafe_shared_current_time();
+        auto minimum_frame_interval = 1000.0 / m_maximum_frames_per_second;
+        delay = max(0.0, *m_last_frame_dispatch_time + minimum_frame_interval - now);
+    }
+
+    m_frame_timer->restart(static_cast<int>(AK::ceil(delay)));
+}
+
+void PageClient::set_maximum_frames_per_second(double maximum_frames_per_second)
 {
     m_maximum_frames_per_second = maximum_frames_per_second;
-
-    // FIXME: This removes the decimal part, so the refresh interval will actually be higher than the maximum FPS.
-    //        For example, 60 FPS = 1000ms / 60 = 16.6666...ms, but it will become 16ms, making the interval equivalent
-    //        to 62.5 FPS.
-    int refresh_interval = static_cast<int>(1000.0 / m_maximum_frames_per_second);
-
-    VERIFY(m_paint_refresh_timer);
-    m_paint_refresh_timer->set_interval(refresh_interval);
 }
 
 void PageClient::page_did_request_cursor_change(Gfx::Cursor const& cursor)

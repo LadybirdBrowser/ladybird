@@ -60,7 +60,7 @@ public:
         m_main_screen_index = main_screen_index;
     }
     void set_zoom_level(double zoom_level);
-    void set_maximum_frames_per_second(u64 maximum_frames_per_second);
+    void set_maximum_frames_per_second(double maximum_frames_per_second);
     void set_preferred_color_scheme(Web::CSS::PreferredColorScheme);
     void set_preferred_contrast(Web::CSS::PreferredContrast);
     void set_preferred_motion(Web::CSS::PreferredMotion);
@@ -119,6 +119,7 @@ private:
     virtual Web::CSS::PreferredColorScheme preferred_color_scheme() const override { return m_preferred_color_scheme; }
     virtual Web::CSS::PreferredContrast preferred_contrast() const override { return m_preferred_contrast; }
     virtual Web::CSS::PreferredMotion preferred_motion() const override { return m_preferred_motion; }
+    virtual void request_frame() override;
     virtual void page_did_request_cursor_change(Gfx::Cursor const&) override;
     virtual void page_did_change_title(Utf16String const&) override;
     virtual void page_did_change_url(URL::URL const&) override;
@@ -226,7 +227,8 @@ private:
 
     GC::Ptr<WebContentConsoleClient> m_top_level_document_console_client;
 
-    RefPtr<Core::Timer> m_paint_refresh_timer;
+    RefPtr<Core::Timer> m_frame_timer;
+    Optional<double> m_last_frame_dispatch_time;
 
     u64 m_devtools_client_count { 0 };
 };

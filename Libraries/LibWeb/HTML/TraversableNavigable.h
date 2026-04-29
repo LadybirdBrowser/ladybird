@@ -115,6 +115,7 @@ public:
     {
         m_screenshot_tasks.enqueue({ node_id });
         set_needs_repaint();
+        page().client().request_frame();
     }
 
 private:

@@ -1889,6 +1889,15 @@ void Document::update_animated_style_if_needed()
     m_needs_animated_style_update = false;
 }
 
+void Document::set_needs_animated_style_update()
+{
+    if (m_needs_animated_style_update)
+        return;
+
+    m_needs_animated_style_update = true;
+    set_needs_repaint(InvalidateDisplayList::No);
+}
+
 void Document::update_paint_and_hit_testing_properties_if_needed()
 {
     // NB: Called during paint property resolution.
@@ -3384,6 +3393,9 @@ void Document::update_readiness(HTML::DocumentReadyState readiness_value)
 
     // 2. Set document's current document readiness to readinessValue.
     m_readiness = readiness_value;
+
+    if (readiness_value != HTML::DocumentReadyState::Loading)
+        page().client().request_frame();
 
     // 3. If document is associated with an HTML parser, then:
     if (m_parser) {
@@ -7002,6 +7014,8 @@ void Document::add_render_blocking_element(GC::Ref<Element> element)
 void Document::remove_render_blocking_element(GC::Ref<Element> element)
 {
     m_render_blocking_elements.remove(element);
+    if (m_render_blocking_elements.is_empty())
+        page().client().request_frame();
 }
 
 // https://fullscreen.spec.whatwg.org/#run-the-fullscreen-steps
@@ -7036,6 +7050,7 @@ void Document::run_fullscreen_steps()
 void Document::append_pending_fullscreen_change(PendingFullscreenEvent::Type type, GC::Ref<Element> element)
 {
     m_pending_fullscreen_events.append(PendingFullscreenEvent { type, element });
+    page().client().request_frame();
 }
 
 // https://fullscreen.spec.whatwg.org/#fullscreen-an-element
@@ -7424,7 +7439,7 @@ void Document::set_needs_repaint(InvalidateDisplayList should_invalidate_display
     navigable->set_needs_repaint();
 
     if (navigable->is_traversable()) {
-        Web::HTML::main_thread_event_loop().schedule();
+        page().client().request_frame();
         return;
     }
 
@@ -7732,6 +7747,17 @@ void Document::flush_the_update_callback_queue()
 
     // 2. Set document’s update callback queue to an empty list.
     m_update_callback_queue.clear();
+}
+
+void Document::set_rendering_suppression_for_view_transitions(bool value)
+{
+    if (m_rendering_suppression_for_view_transitions == value)
+        return;
+
+    m_rendering_suppression_for_view_transitions = value;
+
+    if (!value)
+        page().client().request_frame();
 }
 
 // https://drafts.csswg.org/css-view-transitions-1/#view-transition-page-visibility-change-steps
@@ -8126,6 +8152,8 @@ void Document::add_pending_css_import_rule(Badge<CSS::CSSImportRule>, GC::Ref<CS
 void Document::remove_pending_css_import_rule(Badge<CSS::CSSImportRule>, GC::Ref<CSS::CSSImportRule> rule)
 {
     m_pending_css_import_rules.remove(rule);
+    if (m_pending_css_import_rules.is_empty())
+        page().client().request_frame();
 }
 
 void Document::exit_pointer_lock()

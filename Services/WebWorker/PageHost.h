@@ -45,6 +45,7 @@ public:
     virtual bool is_headless() const override { VERIFY_NOT_REACHED(); }
     virtual Queue<Web::QueuedInputEvent>& input_event_queue() override { VERIFY_NOT_REACHED(); }
     virtual void report_finished_handling_input_event([[maybe_unused]] u64 page_id, [[maybe_unused]] Web::EventResult event_was_handled) override { VERIFY_NOT_REACHED(); }
+    virtual void request_frame() override { VERIFY_NOT_REACHED(); }
     void did_finish_loading_worker_script();
     void did_fail_loading_worker_script();
 

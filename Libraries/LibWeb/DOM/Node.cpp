@@ -63,6 +63,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/XMLSerializer.h>
 #include <LibWeb/Infra/CharacterTypes.h>
+#include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/MathML/MathMLElement.h>
@@ -1711,6 +1712,8 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
     }
 
     if (m_needs_layout_tree_update) {
+        document().set_needs_repaint(Badge<Node> {}, InvalidateDisplayList::No);
+
         for (auto* ancestor = flat_tree_parent(); ancestor; ancestor = ancestor->flat_tree_parent()) {
             if (ancestor->m_child_needs_layout_tree_update)
                 break;
@@ -1750,6 +1753,8 @@ void Node::set_needs_style_update(bool value)
     m_needs_style_update = value;
 
     if (m_needs_style_update) {
+        document().set_needs_repaint(Badge<Node> {}, InvalidateDisplayList::No);
+
         ++document().style_invalidation_counters().style_invalidations;
         for (auto* ancestor = parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
             if (ancestor->m_child_needs_style_update)
@@ -2661,8 +2666,10 @@ void Node::set_needs_repaint(InvalidateDisplayList should_invalidate_display_lis
 
 void Node::set_needs_layout_update(SetNeedsLayoutReason reason)
 {
-    if (auto* node = unsafe_layout_node())
+    if (auto* node = unsafe_layout_node()) {
         node->set_needs_layout_update(reason);
+        document().set_needs_repaint(Badge<Node> {}, InvalidateDisplayList::No);
+    }
 }
 
 Painting::Paintable const* Node::paintable() const

@@ -244,6 +244,8 @@ void ConnectionFromClient::mouse_event(u64 page_id, Web::MouseEvent event)
         m_input_event_queue.tail().event = move(event);
         ++m_input_event_queue.tail().coalesced_event_count;
 
+        if (auto page = this->page(page_id); page.has_value())
+            page->page().client().request_frame();
         return;
     }
 
@@ -262,7 +264,11 @@ void ConnectionFromClient::pinch_event(u64 page_id, Web::PinchEvent event)
 
 void ConnectionFromClient::enqueue_input_event(Web::QueuedInputEvent event)
 {
+    auto page_id = event.page_id;
     m_input_event_queue.enqueue(move(event));
+
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().client().request_frame();
 }
 
 void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteString argument)
