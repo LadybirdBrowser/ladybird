@@ -21,6 +21,7 @@
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
+#include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
@@ -725,6 +726,33 @@ ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element& elemen
                     return to;
                 return non_hidden_value;
             }
+            return interpolate_discrete(from, to, delta, allow_discrete);
+        }
+
+        // https://drafts.csswg.org/css-display-4/#display-animation
+        if (property_id == PropertyID::Display) {
+            // In general, the display property’s animation type is discrete. However, similar to interpolation of
+            // visibility (see Web Animations §  Animation of visibility), during interpolation between none and any
+            // other display value, p values between 0 and 1 map to the non-none value. Additionally, the element is
+            // inert as long as its display value would compute to none when ignoring the Transitions and Animations
+            // cascade origins.
+            // FIXME: Implement the inertness portion of this.
+
+            if (from->equals(to))
+                return from;
+
+            auto from_is_none = from->as_display().display().is_none();
+            auto to_is_none = to->as_display().display().is_none();
+
+            if (from_is_none || to_is_none) {
+                auto non_none_value = from_is_none ? to : from;
+                if (delta <= 0)
+                    return from;
+                if (delta >= 1)
+                    return to;
+                return non_none_value;
+            }
+
             return interpolate_discrete(from, to, delta, allow_discrete);
         }
 

@@ -2,8 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-5 Fail
-Fail	display:none animating to display:inline should be inline for the whole animation.
+1 Pass
+4 Fail
+Pass	display:none animating to display:inline should be inline for the whole animation.
 Fail	A CSS variable of display:none animating to display:inline should be inline for the whole animation.
 Fail	Animating from display:none to display:none should not cancel the animation.
 Fail	Animating from display:none to display:none with an intermediate variable should not cancel the animation.
