@@ -336,18 +336,16 @@ void AudioMixingSink::set_time(AK::Duration time)
             auto new_stream_time = self->m_playback_stream->total_time_played();
 
             self->m_main_thread_event_loop.deferred_invoke([self, new_stream_time]() {
+                self->m_last_stream_time = new_stream_time;
+                self->m_last_media_time = self->m_temporary_time.release_value();
+
                 {
-                    self->m_last_stream_time = new_stream_time;
-                    self->m_last_media_time = self->m_temporary_time.release_value();
-
-                    {
-                        Sync::MutexLocker mixing_locker { self->m_mutex };
-                        self->m_next_sample_to_write = self->m_last_media_time.to_time_units(1, self->m_sample_specification.sample_rate());
-                    }
-
-                    for (auto& [track, track_data] : self->m_track_mixing_datas)
-                        track_data.current_block.clear();
+                    Sync::MutexLocker mixing_locker { self->m_mutex };
+                    self->m_next_sample_to_write = self->m_last_media_time.to_time_units(1, self->m_sample_specification.sample_rate());
                 }
+
+                for (auto& [track, track_data] : self->m_track_mixing_datas)
+                    track_data.current_block.clear();
 
                 if (self->m_playing)
                     self->resume();
