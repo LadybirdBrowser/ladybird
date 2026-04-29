@@ -22,16 +22,11 @@ pkg_check_modules(WOFF2 REQUIRED IMPORTED_TARGET libwoff2dec)
 
 # TODO: Figure out if we can do this the same way on all platforms
 if (NOT ANDROID)
-    pkg_check_modules(Jxl REQUIRED IMPORTED_TARGET libjxl)
-
     pkg_check_modules(AVCODEC REQUIRED IMPORTED_TARGET libavcodec)
     pkg_check_modules(AVFORMAT REQUIRED IMPORTED_TARGET libavformat)
     pkg_check_modules(AVUTIL REQUIRED IMPORTED_TARGET libavutil)
     pkg_check_modules(LIBSWRESAMPLE REQUIRED IMPORTED_TARGET libswresample)
 else()
-    find_package(libjxl REQUIRED)
-    find_package(hwy REQUIRED)
-
     find_package(FFMPEG REQUIRED)
 endif()
 

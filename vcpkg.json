@@ -88,7 +88,6 @@
       "platform": "linux | windows | osx"
     },
     "libjpeg-turbo",
-    "libjxl",
     {
       "name": "libpng",
       "features": [
@@ -306,10 +305,6 @@
       "version": "10.2.0#0"
     },
     {
-      "name": "highway",
-      "version": "1.4.0#0"
-    },
-    {
       "name": "icu",
       "version": "78.2#0"
     },
@@ -328,10 +323,6 @@
     {
       "name": "libjpeg-turbo",
       "version": "3.1.1#0"
-    },
-    {
-      "name": "libjxl",
-      "version": "0.11.1#3"
     },
     {
       "name": "libpng",

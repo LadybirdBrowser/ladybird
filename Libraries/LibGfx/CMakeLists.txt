@@ -124,17 +124,12 @@ if (NOT LIBPNG_HAS_APNG)
     message(FATAL_ERROR "libpng does not support APNG, which is required by LibGfx.")
 endif()
 
-if (NOT ANDROID)
-    # FIXME: Build vcpkg libraries with clang-cl so they can also build in sanitize.
-    # https://github.com/LadybirdBrowser/ladybird/issues/5224
-    if (WIN32 AND ENABLE_ADDRESS_SANITIZER)
-        # We have to disable ASAN for the full target as fixing the issue in the initial SkiaBackendContext.cpp TU
-        #  alone causes transitive issues in other TUs that depend on it
-        target_compile_options(LibGfx PRIVATE -fno-sanitize=address)
-    endif()
-    target_link_libraries(LibGfx PRIVATE PkgConfig::Jxl)
-else()
-    target_link_libraries(LibGfx PRIVATE libjxl::libjxl hwy::hwy)
+# FIXME: Build vcpkg libraries with clang-cl so they can also build in sanitize.
+# https://github.com/LadybirdBrowser/ladybird/issues/5224
+if (WIN32 AND ENABLE_ADDRESS_SANITIZER)
+    # We have to disable ASAN for the full target as fixing the issue in the initial SkiaBackendContext.cpp TU
+    #  alone causes transitive issues in other TUs that depend on it
+    target_compile_options(LibGfx PRIVATE -fno-sanitize=address)
 endif()
 
 if (APPLE)

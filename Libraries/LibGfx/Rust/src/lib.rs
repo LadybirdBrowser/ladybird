@@ -7,4 +7,5 @@
 #[path = "../../../RustAllocator.rs"]
 mod rust_allocator;
 
+pub mod jxl;
 pub mod yuv;

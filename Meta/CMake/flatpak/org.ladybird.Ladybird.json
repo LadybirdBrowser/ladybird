@@ -429,64 +429,6 @@
       ]
     },
     {
-      "name": "highway",
-        "buildsystem": "cmake-ninja",
-        "sources": [
-          {
-            "type": "git",
-            "url": "https://github.com/google/highway.git",
-            "tag": "1.4.0",
-            "disable-submodules": true
-          }
-        ],
-        "config-opts": [
-          "-DCMAKE_BUILD_TYPE=Release",
-          "-DCMAKE_PREFIX_PATH=/app",
-          "-DCMAKE_INSTALL_LIBDIR=lib",
-          "-DHWY_ENABLE_INSTALL=ON",
-          "-DHWY_ENABLE_EXAMPLES=OFF",
-          "-DHWY_ENABLE_TESTS=OFF",
-          "-DHWY_ENABLE_CONTRIB=OFF"
-        ]
-    },
-    {
-      "name": "libjxl",
-        "buildsystem": "cmake-ninja",
-        "sources": [
-          {
-            "type": "git",
-            "url": "https://github.com/libjxl/libjxl.git",
-            "tag": "v0.11.1",
-            "disable-submodules": true
-          }
-        ],
-        "config-opts": [
-          "-DCMAKE_BUILD_TYPE=Release",
-          "-DCMAKE_PREFIX_PATH=/app",
-          "-DCMAKE_INSTALL_LIBDIR=lib",
-          "-DJPEGXL_VERSION=0.11.1",
-          "-DJPEGXL_FORCE_SYSTEM_HWY=ON",
-          "-DJPEGXL_FORCE_SYSTEM_BROTLI=ON",
-          "-DJPEGXL_FORCE_SYSTEM_HWY=ON",
-          "-DJPEGXL_FORCE_SYSTEM_LCMS2=ON",
-          "-DJPEGXL_ENABLE_TOOLS=OFF",
-          "-DJPEGXL_ENABLE_BENCHMARK=OFF",
-          "-DJPEGXL_ENABLE_DOXYGEN=OFF",
-          "-DJPEGXL_ENABLE_EXAMPLES=OFF",
-          "-DJPEGXL_ENABLE_FUZZERS=OFF",
-          "-DJPEGXL_ENABLE_JNI=OFF",
-          "-DJPEGXL_ENABLE_MANPAGES=OFF",
-          "-DJPEGXL_ENABLE_OPENEXR=OFF",
-          "-DJPEGXL_ENABLE_PLUGINS=OFF",
-          "-DJPEGXL_ENABLE_SJPEG=OFF",
-          "-DJPEGXL_ENABLE_SKCMS=OFF",
-          "-DJPEGXL_ENABLE_TCMALLOC=OFF",
-          "-DBUILD_TESTING=OFF",
-          "-DCMAKE_FIND_PACKAGE_TARGETS_GLOBAL=ON",
-          "-DJPEGXL_BUNDLE_LIBPNG=OFF"
-        ]
-    },
-    {
       "name": "skia",
       "buildsystem": "simple",
       "sources": [

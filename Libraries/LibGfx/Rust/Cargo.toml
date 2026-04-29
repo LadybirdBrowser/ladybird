@@ -8,6 +8,7 @@ crate-type = ["staticlib"]
 
 [dependencies]
 yuv = "0.8"
+jxl = "0.4"
 
 [build-dependencies]
 cbindgen = "0.29"
