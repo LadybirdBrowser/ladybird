@@ -397,6 +397,7 @@ macro load_primitive_string_utf16_code_unit(string, index, code_unit, out_of_bou
 
     load64 utf16_data, [string, PRIMITIVE_STRING_UTF16_STRING]
     branch_zero utf16_data, fail
+    assert_nonzero utf16_data
 
     load8 scratch, [string, PRIMITIVE_STRING_UTF16_SHORT_STRING_BYTE_COUNT_AND_FLAG]
     and scratch, UTF16_SHORT_STRING_FLAG
@@ -1361,6 +1362,7 @@ handler GetCalleeAndThisFromEnvironment
     temp env, idx, binding, init, value
     walk_env_chain m_cache, env, idx, .slow
     load64 binding, [env, BINDINGS_DATA_PTR]
+    assert_nonzero binding
     mul idx, idx, SIZEOF_BINDING
     add binding, idx
     # TDZ state lives in Binding.initialized; the value slot itself starts as
@@ -1640,6 +1642,7 @@ handler GetById
     branch_ne tag, OBJECT_TAG, .try_cache
     unbox_object obj, base
     load64 shape, [obj, OBJECT_SHAPE]
+    assert_nonzero shape
     # Get PropertyLookupCache* (direct pointer from instruction stream)
     load64 plc, [pb, pc, m_cache]
     assert_nonzero plc
@@ -1693,6 +1696,7 @@ handler PutById
     branch_ne tag, OBJECT_TAG, .try_cache
     unbox_object obj, base
     load64 shape, [obj, OBJECT_SHAPE]
+    assert_nonzero shape
     load64 plc, [pb, pc, m_cache]
     assert_nonzero plc
     load_pair64 cache_shape, cache_proto, [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE], [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE]
@@ -1870,6 +1874,7 @@ handler GetLength
     branch_bits_set flags, OBJECT_FLAG_HAS_MAGICAL_LENGTH, .magical_length
     # Non-magical length: IC fast path (same as GetById)
     load64 shape, [obj, OBJECT_SHAPE]
+    assert_nonzero shape
     load64 plc, [pb, pc, m_cache]
     assert_nonzero plc
     load_pair64 cache_shape, cache_proto, [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE], [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE]
@@ -1920,6 +1925,7 @@ handler GetGlobal
     # Shape-based fast path: check entries[0].shape matches global_object.shape
     # (falls through to env binding path on shape mismatch)
     load64 shape, [global_object, OBJECT_SHAPE]
+    assert_nonzero shape
     load64 cache_shape, [gvc, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE]
     branch_ne cache_shape, shape, .try_env_binding
     load32 cur_dict_gen, [shape, SHAPE_DICTIONARY_GENERATION]
@@ -1971,6 +1977,7 @@ handler SetGlobal
     load64 env_serial, [env, DECLARATIVE_ENVIRONMENT_SERIAL]
     branch_ne cache_serial, env_serial, .slow
     load64 shape, [global_object, OBJECT_SHAPE]
+    assert_nonzero shape
     load64 cache_shape, [gvc, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE]
     branch_ne cache_shape, shape, .try_env_binding
     load32 cur_dict_gen, [shape, SHAPE_DICTIONARY_GENERATION]
@@ -2133,6 +2140,7 @@ handler Call
     store32 [frame_base, EXECUTION_CONTEXT_PASSED_ARGUMENT_COUNT], scratch
 
     load64 realm, [callee, OBJECT_SHAPE]
+    assert_nonzero realm
     load64 realm, [realm, SHAPE_REALM]
     assert_nonzero realm
     store_pair64 [frame_base, EXECUTION_CONTEXT_FUNCTION], [frame_base, EXECUTION_CONTEXT_REALM], callee, realm
@@ -2316,6 +2324,7 @@ handler Call
 
     # Shape stores a Realm pointer; use it as the callee EC realm.
     load64 realm, [callee, OBJECT_SHAPE]
+    assert_nonzero realm
     load64 realm, [realm, SHAPE_REALM]
     assert_nonzero realm
     store_pair64 [frame_base, EXECUTION_CONTEXT_FUNCTION], [frame_base, EXECUTION_CONTEXT_REALM], callee, realm
@@ -2737,6 +2746,7 @@ handler ObjectPropertyIteratorNext
     assert_nonzero cache
     assert_nonzero receiver
     load64 current_shape, [receiver, OBJECT_SHAPE]
+    assert_nonzero current_shape
     branch_ne current_shape, cached_shape, .slow
 
     load8 is_dict, [iterator, PROPERTY_NAME_ITERATOR_SHAPE_IS_DICTIONARY]
