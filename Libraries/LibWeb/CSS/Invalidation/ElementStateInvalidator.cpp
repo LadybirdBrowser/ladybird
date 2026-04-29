@@ -10,6 +10,11 @@
 
 namespace Web::CSS::Invalidation {
 
+void invalidate_style_after_active_state_change(DOM::Element& element)
+{
+    element.invalidate_style(DOM::StyleInvalidationReason::ElementSetActive);
+}
+
 void invalidate_style_after_modal_state_change(DOM::Element& element)
 {
     element.invalidate_style(DOM::StyleInvalidationReason::HTMLDialogElementSetIsModal);

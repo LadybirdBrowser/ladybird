@@ -14,6 +14,7 @@ class Element;
 
 namespace Web::CSS::Invalidation {
 
+void invalidate_style_after_active_state_change(DOM::Element&);
 void invalidate_style_after_modal_state_change(DOM::Element&);
 void invalidate_style_after_open_state_change(DOM::Element&);
 void invalidate_style_after_option_selected_state_change(DOM::Element&);

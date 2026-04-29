@@ -31,6 +31,7 @@
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/Invalidation/AttributeInvalidator.h>
 #include <LibWeb/CSS/Invalidation/CustomElementInvalidator.h>
+#include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
 #include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
 #include <LibWeb/CSS/Invalidation/PartInvalidator.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -1397,7 +1398,7 @@ void Element::set_being_activated(bool active)
     if (m_is_being_activated == active)
         return;
     m_is_being_activated = active;
-    invalidate_style(StyleInvalidationReason::ElementSetActive);
+    CSS::Invalidation::invalidate_style_after_active_state_change(*this);
 }
 
 bool Element::is_target() const
