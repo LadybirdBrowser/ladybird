@@ -236,21 +236,19 @@ static ErrorOr<void> collect_crash_tests(Application const& app, Vector<Test>& t
     return {};
 }
 
-static String generate_wait_for_test_string(StringView wait_class)
+static String generate_wait_for_test_string(StringView wait_class, StringView on_finish_script = ""sv)
 {
     return MUST(String::formatted(R"(
 function hasTestWaitClass() {{
     return document.documentElement.classList.contains('{}');
 }}
 
+function afterFontsAndPaint(callback) {{
+    document.fonts.ready.then(() => requestAnimationFrame(() => requestAnimationFrame(callback)));
+}}
+
 if (!hasTestWaitClass()) {{
-    document.fonts.ready.then(() => {{
-        requestAnimationFrame(function() {{
-            requestAnimationFrame(function() {{
-                internals.signalTestIsDone("PASS");
-            }});
-        }});
-    }});
+    afterFontsAndPaint(() => internals.signalTestIsDone("PASS"));
 }} else {{
     const observer = new MutationObserver(() => {{
         if (!hasTestWaitClass()) {{
@@ -263,13 +261,18 @@ if (!hasTestWaitClass()) {{
         attributes: true,
         attributeFilter: ['class'],
     }});
+    {}
 }}
 )"sv,
-        wait_class));
+        wait_class, on_finish_script));
 }
 
 static auto wait_for_test_completion = generate_wait_for_test_string("test-wait"sv);
-static auto wait_for_reftest_completion = generate_wait_for_test_string("reftest-wait"sv);
+
+// https://web-platform-tests.org/writing-tests/reftests.html#waiting-for-content-to-render
+static auto wait_for_reftest_completion = generate_wait_for_test_string("reftest-wait"sv, R"(
+    afterFontsAndPaint(() => document.documentElement.dispatchEvent(new Event("TestRendered", { bubbles: true })));
+)"sv);
 
 static ErrorOr<void> generate_result_files(ReadonlySpan<Test> tests, ReadonlySpan<TestCompletion> non_passing_tests)
 {
