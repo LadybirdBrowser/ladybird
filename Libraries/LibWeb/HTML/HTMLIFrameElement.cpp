@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/HTMLIFrameElement.h>
 #include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/Invalidation/EmbeddedContentInvalidator.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/DOMTokenList.h>
@@ -87,10 +88,8 @@ void HTMLIFrameElement::attribute_changed(FlyString const& name, Optional<String
         }
     }
 
-    if (name == HTML::AttributeNames::width || name == HTML::AttributeNames::height) {
-        // FIXME: This should only invalidate the layout, not the style.
-        invalidate_style(DOM::StyleInvalidationReason::HTMLIFrameElementGeometryChange);
-    }
+    if (name == HTML::AttributeNames::width || name == HTML::AttributeNames::height)
+        CSS::Invalidation::invalidate_style_after_embedded_content_geometry_change(*this);
 
     if (name == HTML::AttributeNames::marginwidth || name == HTML::AttributeNames::marginheight) {
         if (auto* document = this->content_document_without_origin_check()) {
