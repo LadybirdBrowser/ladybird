@@ -23,6 +23,7 @@
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
 #include <LibWeb/CSS/Invalidation/FormControlInvalidator.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
@@ -3848,7 +3849,7 @@ void HTMLInputElement::set_is_open(bool is_open)
         return;
 
     m_is_open = is_open;
-    invalidate_style(DOM::StyleInvalidationReason::HTMLInputElementSetIsOpen);
+    CSS::Invalidation::invalidate_style_after_input_open_state_change(*this);
 }
 
 bool HTMLInputElement::is_mutable() const

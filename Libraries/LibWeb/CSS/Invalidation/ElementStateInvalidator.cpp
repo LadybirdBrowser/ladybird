@@ -27,6 +27,11 @@ void invalidate_style_after_option_selected_state_change(DOM::Element& element)
     element.invalidate_style(DOM::StyleInvalidationReason::HTMLOptionElementSelectedChange);
 }
 
+void invalidate_style_after_input_open_state_change(DOM::Element& element)
+{
+    element.invalidate_style(DOM::StyleInvalidationReason::HTMLInputElementSetIsOpen);
+}
+
 void invalidate_style_after_select_open_state_change(DOM::Element& element)
 {
     element.invalidate_style(DOM::StyleInvalidationReason::HTMLSelectElementSetIsOpen);
