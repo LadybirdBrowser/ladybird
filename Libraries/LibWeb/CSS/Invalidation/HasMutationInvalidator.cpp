@@ -33,9 +33,17 @@ static void invalidate_children_affected_by_has_sibling_combinators(DOM::Node& p
 {
     parent.for_each_child_of_type<DOM::Element>([&](auto& element) {
         if (element.affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator())
-            element.invalidate_style_if_affected_by_has();
+            invalidate_element_if_affected_by_has(element);
         return IterationDecision::Continue;
     });
+}
+
+void invalidate_element_if_affected_by_has(DOM::Element& element)
+{
+    if (element.affected_by_has_pseudo_class_in_subject_position())
+        element.set_needs_style_update(true);
+    if (element.affected_by_has_pseudo_class_in_non_subject_position())
+        element.invalidate_style(DOM::StyleInvalidationReason::Other, { { InvalidationSet::Property::Type::PseudoClass, PseudoClass::Has } }, {});
 }
 
 static void schedule_has_invalidation_for_child_list_mutation(DOM::Node& parent, DOM::Node& mutation_root, StyleScope& scope)

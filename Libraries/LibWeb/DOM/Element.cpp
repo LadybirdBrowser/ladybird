@@ -1963,16 +1963,6 @@ bool Element::includes_properties_from_invalidation_set(CSS::InvalidationSet con
     return includes_any;
 }
 
-void Element::invalidate_style_if_affected_by_has()
-{
-    if (affected_by_has_pseudo_class_in_subject_position()) {
-        set_needs_style_update(true);
-    }
-    if (affected_by_has_pseudo_class_in_non_subject_position()) {
-        invalidate_style(StyleInvalidationReason::Other, { { CSS::InvalidationSet::Property::Type::PseudoClass, CSS::PseudoClass::Has } }, {});
-    }
-}
-
 bool Element::has_pseudo_elements() const
 {
     if (m_pseudo_element_data) {

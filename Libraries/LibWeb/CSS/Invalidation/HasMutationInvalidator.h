@@ -10,12 +10,14 @@
 
 namespace Web::DOM {
 
+class Element;
 class Node;
 
 }
 
 namespace Web::CSS::Invalidation {
 
+void invalidate_element_if_affected_by_has(DOM::Element&);
 void schedule_has_invalidation_for_node(DOM::Node&, DOM::StyleInvalidationReason);
 void schedule_has_invalidation_for_same_parent_move(DOM::Node&);
 

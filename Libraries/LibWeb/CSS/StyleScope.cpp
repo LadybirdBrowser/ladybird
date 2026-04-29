@@ -16,6 +16,7 @@
 #include <LibWeb/CSS/CounterStyle.h>
 #include <LibWeb/CSS/CounterStyleDefinition.h>
 #include <LibWeb/CSS/Enums.h>
+#include <LibWeb/CSS/Invalidation/HasMutationInvalidator.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -1212,7 +1213,7 @@ void StyleScope::invalidate_style_of_elements_affected_by_has()
             ++counters.has_ancestor_walk_visits;
             bool can_skip_unchanged_has_fanout = !element->root().is_shadow_root() && !element->assigned_slot_internal() && !element->is_shadow_host();
             if (!element->affected_by_has_pseudo_class_in_non_subject_position() || !can_skip_unchanged_has_fanout || has_rule_that_may_be_affected_by_mutation(element, mutation_features))
-                element->invalidate_style_if_affected_by_has();
+                Invalidation::invalidate_element_if_affected_by_has(*element);
 
             GC::Ptr<DOM::Node> parent = element->parent_or_shadow_host();
             if (!parent)
@@ -1232,7 +1233,7 @@ void StyleScope::invalidate_style_of_elements_affected_by_has()
                         return IterationDecision::Continue;
 
                     ++counters.has_ancestor_walk_visits;
-                    ancestor_sibling->invalidate_style_if_affected_by_has();
+                    Invalidation::invalidate_element_if_affected_by_has(*ancestor_sibling);
                 }
                 return IterationDecision::Continue;
             });
