@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/BitStream.h>
+#include <AK/ByteBuffer.h>
 #include <AK/Concepts.h>
 #include <AK/Debug.h>
 #include <AK/Format.h>
