@@ -1,0 +1,12 @@
+<!doctype html>
+<style>
+    #foo {
+        display: math;
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(document.styleSheets[0].cssRules[0].style.display);
+    });
+</script>

@@ -42,6 +42,8 @@ String Display::to_string() const
             return "table"_string;
         if (*this == Display::from_short(Display::Short::InlineTable))
             return "inline-table"_string;
+        if (*this == Display::from_short(Display::Short::Math))
+            return "math"_string;
 
         {
             Vector<StringView, 3> parts;
@@ -103,9 +105,9 @@ Display Display::from_short(Short short_)
         return Display { DisplayOutside::Inline, DisplayInside::Table };
     case Short::Math:
         // NOTE: The spec ( https://w3c.github.io/mathml-core/#new-display-math-value ) does not
-        //       mention what the outside value for `display: math` should be.
-        //       The UA stylesheet does `* { display: block math; }` so let's go with that.
-        return Display { DisplayOutside::Block, DisplayInside::Math };
+        //       mention what the outside value for `display: math` should be but other browsers
+        //       use `inline` so let's go with that.
+        return Display { DisplayOutside::Inline, DisplayInside::Math };
     }
     VERIFY_NOT_REACHED();
 }
