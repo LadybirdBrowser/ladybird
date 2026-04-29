@@ -496,7 +496,9 @@ macro pop_inline_frame_and_resume(caller_frame, value_reg)
 
     mov exec_ctx, caller_frame
     load64 exe, [exec_ctx, EXECUTION_CONTEXT_EXECUTABLE]
+    assert_nonzero exe
     load64 pb, [exe, EXECUTABLE_BYTECODE_DATA]
+    assert_nonzero pb
     lea values, [exec_ctx, SIZEOF_EXECUTION_CONTEXT]
     mov pc, ret_pc
     dispatch_current
@@ -953,6 +955,7 @@ end
 handler GetLexicalEnvironment
     temp env, tag
     load64 env, [exec_ctx, EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT]
+    assert_nonzero env
     mov tag, CELL_TAG_SHIFTED
     or env, tag
     store_operand m_dst, env
@@ -2620,11 +2623,16 @@ handler CallBuiltinStringFromCharCode
     branch_ge_unsigned code_unit, 0x80, .single_code_unit
 
     call_helper asm_helper_single_ascii_character_string, code_unit, result
+    extract_tag tag, result
+    assert_eq tag, STRING_TAG
     store_operand m_dst, result
     dispatch_next
 
 .single_code_unit:
+    assert_lt_unsigned code_unit, 0x10000
     call_helper asm_helper_single_utf16_code_unit_string, code_unit, result
+    extract_tag tag, result
+    assert_eq tag, STRING_TAG
     store_operand m_dst, result
     dispatch_next
 
@@ -2678,14 +2686,19 @@ handler CallBuiltinStringPrototypeCharAt
 
     load_primitive_string_utf16_code_unit string, index, code_unit, .empty, .slow
     branch_ge_unsigned code_unit, 0x80, .slow
+    assert_lt_unsigned code_unit, 0x80
 
     call_helper asm_helper_single_ascii_character_string, code_unit, result
+    extract_tag tag, result
+    assert_eq tag, STRING_TAG
     store_operand m_dst, result
     dispatch_next
 
 .empty:
     mov zero, 0
     call_helper asm_helper_empty_string, zero, result
+    extract_tag tag, result
+    assert_eq tag, STRING_TAG
     store_operand m_dst, result
     dispatch_next
 
