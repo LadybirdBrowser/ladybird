@@ -8,6 +8,7 @@
 #include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/Invalidation/CustomElementInvalidator.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/CustomElements/CustomStateSet.h>
 
@@ -47,7 +48,7 @@ bool CustomStateSet::has_state(FlyString const& state) const
 
 void CustomStateSet::on_set_modified_from_js(Badge<Bindings::CustomStateSetPrototype>)
 {
-    m_element->invalidate_style(DOM::StyleInvalidationReason::CustomStateSetChange);
+    CSS::Invalidation::invalidate_style_after_custom_state_set_change(*m_element);
 }
 
 }
