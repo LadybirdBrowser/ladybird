@@ -1,0 +1,174 @@
+<!doctype html>
+<script src="include.js"></script>
+<script>
+    const PAGE_SIZE = 65536;
+
+    function hex(value) {
+        return value === undefined ? "undefined" : `0x${value.toString(16)}`;
+    }
+
+    function touch(view, index, value) {
+        for (let i = 0; i < 16; ++i) view[index] = value;
+        return view[index];
+    }
+
+    test(() => {
+        println("non-shared fixed memory grow detaches old views");
+        {
+            const memory = new WebAssembly.Memory({ initial: 1, maximum: 3 });
+            const oldBuffer = memory.buffer;
+            const oldView = new Uint8Array(oldBuffer);
+
+            touch(oldView, 0, 0x11);
+            touch(oldView, PAGE_SIZE - 1, 0x22);
+            memory.grow(1);
+
+            const newView = new Uint8Array(memory.buffer);
+            oldView[0] = 0x33;
+
+            println(`oldBuffer.detached: ${oldBuffer.detached}`);
+            println(`oldView.length: ${oldView.length}`);
+            println(`oldView[0]: ${hex(oldView[0])}`);
+            println(`newView[0]: ${hex(newView[0])}`);
+            println(`newView[PAGE_SIZE - 1]: ${hex(newView[PAGE_SIZE - 1])}`);
+            println(`newView[PAGE_SIZE]: ${hex(newView[PAGE_SIZE])}`);
+        }
+
+        println("non-shared resizable memory grow keeps views coherent");
+        {
+            const memory = new WebAssembly.Memory({ initial: 1, maximum: 3 });
+            const buffer = memory.toResizableBuffer();
+            const trackingView = new Uint8Array(buffer);
+            const fixedEndView = new Uint8Array(buffer, PAGE_SIZE - 4, 4);
+
+            touch(trackingView, 0, 0x51);
+            touch(fixedEndView, 3, 0x52);
+            memory.grow(1);
+            touch(trackingView, PAGE_SIZE, 0x53);
+
+            const freshView = new Uint8Array(memory.buffer);
+            println(`buffer.detached: ${buffer.detached}`);
+            println(`buffer.byteLength: ${buffer.byteLength}`);
+            println(`trackingView.length: ${trackingView.length}`);
+            println(`fixedEndView.length: ${fixedEndView.length}`);
+            println(`trackingView[0]: ${hex(trackingView[0])}`);
+            println(`trackingView[PAGE_SIZE - 1]: ${hex(trackingView[PAGE_SIZE - 1])}`);
+            println(`trackingView[PAGE_SIZE]: ${hex(trackingView[PAGE_SIZE])}`);
+            println(`freshView[PAGE_SIZE]: ${hex(freshView[PAGE_SIZE])}`);
+        }
+
+        println("non-shared resizable buffer.resize keeps views coherent");
+        {
+            const memory = new WebAssembly.Memory({ initial: 1, maximum: 3 });
+            const buffer = memory.toResizableBuffer();
+            const trackingView = new Uint8Array(buffer);
+            const fixedEndView = new Uint8Array(buffer, PAGE_SIZE - 2, 2);
+
+            touch(trackingView, 1, 0x54);
+            touch(fixedEndView, 1, 0x55);
+            buffer.resize(2 * PAGE_SIZE);
+            touch(trackingView, PAGE_SIZE + 1, 0x56);
+
+            const freshView = new Uint8Array(memory.buffer);
+            println(`buffer.detached: ${buffer.detached}`);
+            println(`buffer.byteLength: ${buffer.byteLength}`);
+            println(`trackingView.length: ${trackingView.length}`);
+            println(`fixedEndView.length: ${fixedEndView.length}`);
+            println(`trackingView[1]: ${hex(trackingView[1])}`);
+            println(`trackingView[PAGE_SIZE - 1]: ${hex(trackingView[PAGE_SIZE - 1])}`);
+            println(`trackingView[PAGE_SIZE + 1]: ${hex(trackingView[PAGE_SIZE + 1])}`);
+            println(`freshView[PAGE_SIZE + 1]: ${hex(freshView[PAGE_SIZE + 1])}`);
+        }
+
+        println("non-shared resizable to fixed conversion detaches old resizable views");
+        {
+            const memory = new WebAssembly.Memory({ initial: 1, maximum: 3 });
+            const resizableBuffer = memory.toResizableBuffer();
+            const trackingView = new Uint8Array(resizableBuffer);
+
+            touch(trackingView, 0, 0x61);
+            const fixedBuffer = memory.toFixedLengthBuffer();
+            const fixedView = new Uint8Array(fixedBuffer);
+            memory.grow(1);
+
+            const newView = new Uint8Array(memory.buffer);
+            println(`resizableBuffer.detached: ${resizableBuffer.detached}`);
+            println(`trackingView.length: ${trackingView.length}`);
+            println(`fixedBuffer.detached: ${fixedBuffer.detached}`);
+            println(`fixedView.length: ${fixedView.length}`);
+            println(`newView[0]: ${hex(newView[0])}`);
+        }
+
+        println("shared fixed memory grow keeps old in-bounds views coherent");
+        {
+            const memory = new WebAssembly.Memory({ initial: 1, maximum: 3, shared: true });
+            const firstBuffer = memory.buffer;
+            const firstView = new Uint8Array(firstBuffer);
+
+            touch(firstView, 0, 0x71);
+            touch(firstView, PAGE_SIZE - 1, 0x72);
+            memory.grow(1);
+
+            const secondBuffer = memory.buffer;
+            const secondView = new Uint8Array(secondBuffer);
+            touch(secondView, 0, 0x73);
+            touch(secondView, PAGE_SIZE, 0x74);
+
+            println(`firstBuffer.detached: ${firstBuffer.detached}`);
+            println(`firstBuffer.byteLength: ${firstBuffer.byteLength}`);
+            println(`secondBuffer.byteLength: ${secondBuffer.byteLength}`);
+            println(`firstView.length: ${firstView.length}`);
+            println(`firstView[0]: ${hex(firstView[0])}`);
+            println(`firstView[PAGE_SIZE - 1]: ${hex(firstView[PAGE_SIZE - 1])}`);
+            println(`firstView[PAGE_SIZE]: ${hex(firstView[PAGE_SIZE])}`);
+            println(`secondView[0]: ${hex(secondView[0])}`);
+            println(`secondView[PAGE_SIZE]: ${hex(secondView[PAGE_SIZE])}`);
+        }
+
+        println("shared resizable memory grow keeps tracking views coherent");
+        {
+            const memory = new WebAssembly.Memory({ initial: 1, maximum: 3, shared: true });
+            const buffer = memory.toResizableBuffer();
+            const trackingView = new Uint8Array(buffer);
+            const fixedEndView = new Uint8Array(buffer, PAGE_SIZE - 4, 4);
+
+            touch(trackingView, 0, 0x81);
+            touch(fixedEndView, 3, 0x82);
+            memory.grow(1);
+            touch(trackingView, PAGE_SIZE, 0x83);
+
+            const freshView = new Uint8Array(memory.buffer);
+            println(`buffer.detached: ${buffer.detached}`);
+            println(`buffer.byteLength: ${buffer.byteLength}`);
+            println(`trackingView.length: ${trackingView.length}`);
+            println(`fixedEndView.length: ${fixedEndView.length}`);
+            println(`trackingView[0]: ${hex(trackingView[0])}`);
+            println(`trackingView[PAGE_SIZE - 1]: ${hex(trackingView[PAGE_SIZE - 1])}`);
+            println(`trackingView[PAGE_SIZE]: ${hex(trackingView[PAGE_SIZE])}`);
+            println(`freshView[PAGE_SIZE]: ${hex(freshView[PAGE_SIZE])}`);
+        }
+
+        println("shared resizable buffer.grow keeps views coherent");
+        {
+            const memory = new WebAssembly.Memory({ initial: 1, maximum: 3, shared: true });
+            const buffer = memory.toResizableBuffer();
+            const trackingView = new Uint8Array(buffer);
+            const fixedEndView = new Uint8Array(buffer, PAGE_SIZE - 2, 2);
+
+            touch(trackingView, 2, 0x84);
+            touch(fixedEndView, 1, 0x85);
+            buffer.grow(2 * PAGE_SIZE);
+            touch(trackingView, PAGE_SIZE + 2, 0x86);
+
+            const freshView = new Uint8Array(memory.buffer);
+            println(`buffer.detached: ${buffer.detached}`);
+            println(`buffer.byteLength: ${buffer.byteLength}`);
+            println(`trackingView.length: ${trackingView.length}`);
+            println(`fixedEndView.length: ${fixedEndView.length}`);
+            println(`trackingView[2]: ${hex(trackingView[2])}`);
+            println(`trackingView[PAGE_SIZE - 1]: ${hex(trackingView[PAGE_SIZE - 1])}`);
+            println(`trackingView[PAGE_SIZE + 2]: ${hex(trackingView[PAGE_SIZE + 2])}`);
+            println(`freshView[PAGE_SIZE + 2]: ${hex(freshView[PAGE_SIZE + 2])}`);
+        }
+    });
+</script>

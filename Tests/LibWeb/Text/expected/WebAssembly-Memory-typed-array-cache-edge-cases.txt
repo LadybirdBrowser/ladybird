@@ -1,0 +1,59 @@
+non-shared fixed memory grow detaches old views
+oldBuffer.detached: true
+oldView.length: 0
+oldView[0]: undefined
+newView[0]: 0x11
+newView[PAGE_SIZE - 1]: 0x22
+newView[PAGE_SIZE]: 0x0
+non-shared resizable memory grow keeps views coherent
+buffer.detached: false
+buffer.byteLength: 131072
+trackingView.length: 131072
+fixedEndView.length: 4
+trackingView[0]: 0x51
+trackingView[PAGE_SIZE - 1]: 0x52
+trackingView[PAGE_SIZE]: 0x53
+freshView[PAGE_SIZE]: 0x53
+non-shared resizable buffer.resize keeps views coherent
+buffer.detached: false
+buffer.byteLength: 131072
+trackingView.length: 131072
+fixedEndView.length: 2
+trackingView[1]: 0x54
+trackingView[PAGE_SIZE - 1]: 0x55
+trackingView[PAGE_SIZE + 1]: 0x56
+freshView[PAGE_SIZE + 1]: 0x56
+non-shared resizable to fixed conversion detaches old resizable views
+resizableBuffer.detached: true
+trackingView.length: 0
+fixedBuffer.detached: true
+fixedView.length: 0
+newView[0]: 0x61
+shared fixed memory grow keeps old in-bounds views coherent
+firstBuffer.detached: undefined
+firstBuffer.byteLength: 65536
+secondBuffer.byteLength: 131072
+firstView.length: 65536
+firstView[0]: 0x73
+firstView[PAGE_SIZE - 1]: 0x72
+firstView[PAGE_SIZE]: undefined
+secondView[0]: 0x73
+secondView[PAGE_SIZE]: 0x74
+shared resizable memory grow keeps tracking views coherent
+buffer.detached: undefined
+buffer.byteLength: 131072
+trackingView.length: 131072
+fixedEndView.length: 4
+trackingView[0]: 0x81
+trackingView[PAGE_SIZE - 1]: 0x82
+trackingView[PAGE_SIZE]: 0x83
+freshView[PAGE_SIZE]: 0x83
+shared resizable buffer.grow keeps views coherent
+buffer.detached: undefined
+buffer.byteLength: 131072
+trackingView.length: 131072
+fixedEndView.length: 2
+trackingView[2]: 0x84
+trackingView[PAGE_SIZE - 1]: 0x85
+trackingView[PAGE_SIZE + 2]: 0x86
+freshView[PAGE_SIZE + 2]: 0x86
