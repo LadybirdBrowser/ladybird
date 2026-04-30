@@ -178,7 +178,7 @@ DecoderErrorOr<void> FFmpegAudioDecoder::write_next_block(AudioBlock& block)
             auto sample_count = static_cast<size_t>(m_frame->nb_samples);
             auto channel_count = static_cast<size_t>(m_frame->ch_layout.nb_channels);
             auto count = sample_count * channel_count;
-            data = MUST(AudioBlock::Data::create(count));
+            data.resize_and_keep_capacity(count);
 
             auto sample_size = [&] {
                 switch (planar_format) {

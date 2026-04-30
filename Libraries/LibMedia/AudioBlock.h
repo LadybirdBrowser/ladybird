@@ -16,15 +16,15 @@ namespace Media {
 
 class AudioBlock {
 public:
-    using Data = FixedArray<float>;
+    using Data = Vector<float>;
 
     Audio::SampleSpecification const& sample_specification() const { return m_sample_specification; }
     AK::Duration timestamp() const { return m_timestamp; }
     i64 timestamp_in_samples() const { return m_timestamp_in_samples; }
     i64 end_timestamp_in_samples() const { return saturating_add(m_timestamp_in_samples, AK::clamp_to<i64>(sample_count())); }
     AK::Duration end_timestamp() const { return AK::Duration::from_time_units(end_timestamp_in_samples(), 1, sample_rate()); }
-    Data& data() { return m_data; }
-    Data const& data() const { return m_data; }
+    Span<float> data() { return m_data; }
+    ReadonlySpan<float> data() const { return m_data; }
 
     void clear()
     {
@@ -49,6 +49,10 @@ public:
         m_timestamp_in_samples = timestamp_in_samples;
         m_timestamp = AK::Duration::from_time_units(timestamp_in_samples, 1, sample_rate());
         data_callback(m_data);
+    }
+    void trim(size_t frame_count)
+    {
+        m_data.resize_and_keep_capacity(frame_count * channel_count());
     }
     u32 sample_rate() const
     {

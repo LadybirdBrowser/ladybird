@@ -137,8 +137,7 @@ bool AudioMixer::mix_one_block_into(AudioBlock& out_block)
         return false;
 
     out_block.emplace(m_sample_specification, buffer_start, [&](AudioBlock::Data& data) {
-        if (data.size() != write_size)
-            data = MUST(AudioBlock::Data::create(write_size));
+        data.resize_and_keep_capacity(write_size);
         for (size_t i = 0; i < write_size; i++)
             data[i] = 0.0f;
 

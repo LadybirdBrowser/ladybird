@@ -114,7 +114,7 @@ ErrorOr<void> FFmpegAudioConverter::convert(AudioBlock& input)
     VERIFY(m_input_sample_specification.is_valid());
     VERIFY(m_output_sample_specification.is_valid());
 
-    auto input_data = input.data().span();
+    auto input_data = input.data();
 
     auto output_channel_count = m_output_sample_specification.channel_count();
     auto output_sample_count = TRY(get_maximum_output_samples(input_data.size()));
@@ -139,8 +139,8 @@ ErrorOr<void> FFmpegAudioConverter::convert(AudioBlock& input)
     VERIFY(converted_samples_result <= m_output_buffer_sample_count);
     auto converted_samples = static_cast<size_t>(converted_samples_result);
 
-    input.emplace(m_output_sample_specification, input.timestamp(), [&](FixedArray<float>& data) {
-        data = MUST(AudioBlock::Data::create(converted_samples * output_channel_count));
+    input.emplace(m_output_sample_specification, input.timestamp(), [&](AudioBlock::Data& data) {
+        data.resize_and_keep_capacity(converted_samples * output_channel_count);
         AK::TypedTransfer<float>::copy(data.data(), reinterpret_cast<float*>(m_output_buffer), data.size());
     });
     return {};
