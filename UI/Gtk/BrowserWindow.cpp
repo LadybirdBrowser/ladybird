@@ -13,6 +13,7 @@
 #include <UI/Gtk/BrowserWindow.h>
 #include <UI/Gtk/GLibPtr.h>
 #include <UI/Gtk/Menu.h>
+#include <UI/Gtk/Settings.h>
 #include <UI/Gtk/Tab.h>
 #include <UI/Gtk/WebContentView.h>
 
@@ -237,6 +238,24 @@ void BrowserWindow::setup_ui(AdwApplication* app)
 
     if (WebView::Application::browser_options().devtools_port.has_value())
         on_devtools_enabled();
+
+    if (auto geometry = Settings::the().last_window_geometry(); geometry.has_value()) {
+        gtk_window_set_default_size(GTK_WINDOW(m_window), geometry->width, geometry->height);
+        if (geometry->maximized)
+            gtk_window_maximize(GTK_WINDOW(m_window));
+    }
+
+    g_signal_connect_swapped(m_window, "close-request", G_CALLBACK(+[](BrowserWindow* self, GtkWindow*) -> gboolean {
+        bool maximized = gtk_window_is_maximized(GTK_WINDOW(self->m_window));
+        int width = 0, height = 0;
+        gtk_window_get_default_size(GTK_WINDOW(self->m_window), &width, &height);
+        if (!maximized && width > 0 && height > 0)
+            Settings::the().set_window_geometry({ .width = width, .height = height, .maximized = false });
+        else if (maximized)
+            Settings::the().set_window_geometry({ .maximized = true });
+        return GDK_EVENT_PROPAGATE;
+    }),
+        this);
 }
 
 void BrowserWindow::setup_keyboard_shortcuts()

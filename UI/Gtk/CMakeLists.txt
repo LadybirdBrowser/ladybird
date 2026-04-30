@@ -34,6 +34,7 @@ target_sources(ladybird PRIVATE
     Events.cpp
     EventLoopImplementationGtk.cpp
     Menu.cpp
+    Settings.cpp
     Tab.cpp
     WebContentView.cpp
     Widgets/LadybirdBrowserWindow.cpp
