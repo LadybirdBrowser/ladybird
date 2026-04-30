@@ -155,6 +155,8 @@ void IntersectionObserver::observe(DOM::Element& target)
         .previous_threshold_index = OptionalNone {},
         .previous_is_intersecting = false,
     });
+
+    m_document->page().client().request_frame();
 }
 
 // https://w3c.github.io/IntersectionObserver/#dom-intersectionobserver-unobserve

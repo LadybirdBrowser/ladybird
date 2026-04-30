@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<style>
+#target {
+    width: 100px;
+    height: 100px;
+    background: red;
+}
+</style>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    asyncTest(done => {
+        // Calling observe() after the page has fully loaded should still trigger
+        // an initial intersection callback on the next rendering opportunity.
+        window.addEventListener("load", () => {
+            // Defer past the load event so any frame requested by the loading
+            // pipeline has already been dispatched.
+            setTimeout(() => {
+                let observer = new IntersectionObserver(entries => {
+                    println(`isIntersecting=${entries[0].isIntersecting}`);
+                    done();
+                });
+                observer.observe(document.getElementById("target"));
+            }, 100);
+        });
+    });
+</script>
