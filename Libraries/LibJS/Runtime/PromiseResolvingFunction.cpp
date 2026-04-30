@@ -14,16 +14,16 @@ namespace JS {
 GC_DEFINE_ALLOCATOR(AlreadyResolved);
 GC_DEFINE_ALLOCATOR(PromiseResolvingFunction);
 
-GC::Ref<PromiseResolvingFunction> PromiseResolvingFunction::create(Realm& realm, Promise& promise, AlreadyResolved& already_resolved, FunctionType function)
+GC::Ref<PromiseResolvingFunction> PromiseResolvingFunction::create(Realm& realm, Promise& promise, AlreadyResolved& already_resolved, Kind kind)
 {
-    return realm.create<PromiseResolvingFunction>(promise, already_resolved, move(function), realm.intrinsics().function_prototype());
+    return realm.create<PromiseResolvingFunction>(promise, already_resolved, kind, realm.intrinsics().function_prototype());
 }
 
-PromiseResolvingFunction::PromiseResolvingFunction(Promise& promise, AlreadyResolved& already_resolved, FunctionType native_function, Object& prototype)
+PromiseResolvingFunction::PromiseResolvingFunction(Promise& promise, AlreadyResolved& already_resolved, Kind kind, Object& prototype)
     : NativeFunction(prototype)
     , m_promise(promise)
     , m_already_resolved(already_resolved)
-    , m_native_function(move(native_function))
+    , m_kind(kind)
 {
 }
 
@@ -35,7 +35,13 @@ void PromiseResolvingFunction::initialize(Realm& realm)
 
 ThrowCompletionOr<Value> PromiseResolvingFunction::call()
 {
-    return m_native_function(vm(), m_promise, m_already_resolved);
+    switch (m_kind) {
+    case Kind::Resolve:
+        return Promise::resolve_function_steps(vm(), m_promise, m_already_resolved);
+    case Kind::Reject:
+        return Promise::reject_function_steps(vm(), m_promise, m_already_resolved);
+    }
+    VERIFY_NOT_REACHED();
 }
 
 void PromiseResolvingFunction::visit_edges(Cell::Visitor& visitor)

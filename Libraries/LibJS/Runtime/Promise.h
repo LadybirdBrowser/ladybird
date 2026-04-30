@@ -42,6 +42,9 @@ public:
     };
     ResolvingFunctions create_resolving_functions();
 
+    static Value resolve_function_steps(VM&, Promise&, AlreadyResolved&);
+    static Value reject_function_steps(VM&, Promise&, AlreadyResolved&);
+
     void fulfill(Value value);
     void reject(Value reason);
     Value perform_then(Value on_fulfilled, Value on_rejected, GC::Ptr<PromiseCapability> result_capability);

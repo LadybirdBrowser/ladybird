@@ -28,9 +28,12 @@ class PromiseResolvingFunction final : public NativeFunction {
     GC_DECLARE_ALLOCATOR(PromiseResolvingFunction);
 
 public:
-    using FunctionType = Function<Value(VM&, Promise&, AlreadyResolved&)>;
+    enum class Kind : u8 {
+        Resolve,
+        Reject,
+    };
 
-    static GC::Ref<PromiseResolvingFunction> create(Realm&, Promise&, AlreadyResolved&, FunctionType);
+    static GC::Ref<PromiseResolvingFunction> create(Realm&, Promise&, AlreadyResolved&, Kind);
 
     virtual void initialize(Realm&) override;
     virtual ~PromiseResolvingFunction() override = default;
@@ -38,13 +41,13 @@ public:
     virtual ThrowCompletionOr<Value> call() override;
 
 private:
-    explicit PromiseResolvingFunction(Promise&, AlreadyResolved&, FunctionType, Object& prototype);
+    explicit PromiseResolvingFunction(Promise&, AlreadyResolved&, Kind, Object& prototype);
 
     virtual void visit_edges(Visitor&) override;
 
     GC::Ref<Promise> m_promise;
     GC::Ref<AlreadyResolved> m_already_resolved;
-    FunctionType m_native_function;
+    Kind m_kind;
 };
 
 }

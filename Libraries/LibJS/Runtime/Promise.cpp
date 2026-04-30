@@ -73,92 +73,7 @@ Promise::ResolvingFunctions Promise::create_resolving_functions()
     // 6. Set resolve.[[AlreadyResolved]] to alreadyResolved.
 
     // 27.2.1.3.2 Promise Resolve Functions, https://tc39.es/ecma262/#sec-promise-resolve-functions
-    auto resolve_function = PromiseResolvingFunction::create(realm, *this, *already_resolved, [](auto& vm, auto& promise, auto& already_resolved) {
-        dbgln_if(PROMISE_DEBUG, "[Promise @ {} / PromiseResolvingFunction]: Resolve function was called", &promise);
-
-        auto& realm = *vm.current_realm();
-
-        auto resolution = vm.argument(0);
-
-        // 1. Let F be the active function object.
-        // 2. Assert: F has a [[Promise]] internal slot whose value is an Object.
-        // 3. Let promise be F.[[Promise]].
-
-        // 4. Let alreadyResolved be F.[[AlreadyResolved]].
-        // 5. If alreadyResolved.[[Value]] is true, return undefined.
-        if (already_resolved.value) {
-            dbgln_if(PROMISE_DEBUG, "[Promise @ {} / PromiseResolvingFunction]: Promise is already resolved, returning undefined", &promise);
-            return js_undefined();
-        }
-
-        // 6. Set alreadyResolved.[[Value]] to true.
-        already_resolved.value = true;
-
-        // 7. If SameValue(resolution, promise) is true, then
-        if (resolution.is_object() && &resolution.as_object() == &promise) {
-            dbgln_if(PROMISE_DEBUG, "[Promise @ {} / PromiseResolvingFunction]: Promise can't be resolved with itself, rejecting with error", &promise);
-
-            // a. Let selfResolutionError be a newly created TypeError object.
-            auto self_resolution_error = TypeError::create(realm, "Cannot resolve promise with itself"sv);
-
-            // b. Perform RejectPromise(promise, selfResolutionError).
-            promise.reject(self_resolution_error);
-
-            // c. Return undefined.
-            return js_undefined();
-        }
-
-        // 8. If Type(resolution) is not Object, then
-        if (!resolution.is_object()) {
-            // a. Perform FulfillPromise(promise, resolution).
-            dbgln_if(PROMISE_DEBUG, "[Promise @ {} / PromiseResolvingFunction]: Resolution is not an object, fulfilling with {}", &promise, resolution);
-            promise.fulfill(resolution);
-
-            // b. Return undefined.
-            return js_undefined();
-        }
-
-        // 9. Let then be Completion(Get(resolution, "then")).
-        auto then = resolution.as_object().get(vm.names.then);
-
-        // 10. If then is an abrupt completion, then
-        if (then.is_throw_completion()) {
-            // a. Perform RejectPromise(promise, then.[[Value]]).
-            dbgln_if(PROMISE_DEBUG, "[Promise @ {} / PromiseResolvingFunction]: Exception while getting 'then' property, rejecting with error", &promise);
-            promise.reject(then.throw_completion().value());
-
-            // b. Return undefined.
-            return js_undefined();
-        }
-
-        // 11. Let thenAction be then.[[Value]].
-        auto then_action = then.release_value();
-
-        // 12. If IsCallable(thenAction) is false, then
-        if (!then_action.is_function()) {
-            // a. Perform FulfillPromise(promise, resolution).
-            dbgln_if(PROMISE_DEBUG, "[Promise @ {} / PromiseResolvingFunction]: Then action is not a function, fulfilling with {}", &promise, resolution);
-            promise.fulfill(resolution);
-
-            // b. Return undefined.
-            return js_undefined();
-        }
-
-        // 13. Let thenJobCallback be HostMakeJobCallback(thenAction).
-        dbgln_if(PROMISE_DEBUG, "[Promise @ {} / PromiseResolvingFunction]: Creating JobCallback for then action @ {}", &promise, &then_action.as_function());
-        auto then_job_callback = vm.host_make_job_callback(then_action.as_function());
-
-        // 14. Let job be NewPromiseResolveThenableJob(promise, resolution, thenJobCallback).
-        dbgln_if(PROMISE_DEBUG, "[Promise @ {} / PromiseResolvingFunction]: Creating PromiseJob for thenable {}", &promise, resolution);
-        auto job = create_promise_resolve_thenable_job(vm, promise, resolution, move(then_job_callback));
-
-        // 15. Perform HostEnqueuePromiseJob(job.[[Job]], job.[[Realm]]).
-        dbgln_if(PROMISE_DEBUG, "[Promise @ {} / PromiseResolvingFunction]: Enqueuing job @ {} in realm {}", &promise, &job.job, job.realm.ptr());
-        vm.host_enqueue_promise_job(move(job.job), job.realm);
-
-        // 16. Return undefined.
-        return js_undefined();
-    });
+    auto resolve_function = PromiseResolvingFunction::create(realm, *this, *already_resolved, PromiseResolvingFunction::Kind::Resolve);
     resolve_function->define_direct_property(vm.names.name, PrimitiveString::create(vm, String {}), Attribute::Configurable);
 
     // 7. Let stepsReject be the algorithm steps defined in Promise Reject Functions.
@@ -168,33 +83,126 @@ Promise::ResolvingFunctions Promise::create_resolving_functions()
     // 11. Set reject.[[AlreadyResolved]] to alreadyResolved.
 
     // 27.2.1.3.1 Promise Reject Functions, https://tc39.es/ecma262/#sec-promise-reject-functions
-    auto reject_function = PromiseResolvingFunction::create(realm, *this, *already_resolved, [](auto& vm, auto& promise, auto& already_resolved) {
-        dbgln_if(PROMISE_DEBUG, "[Promise @ {} / PromiseResolvingFunction]: Reject function was called", &promise);
-
-        auto reason = vm.argument(0);
-
-        // 1. Let F be the active function object.
-        // 2. Assert: F has a [[Promise]] internal slot whose value is an Object.
-        // 3. Let promise be F.[[Promise]].
-
-        // 4. Let alreadyResolved be F.[[AlreadyResolved]].
-        // 5. If alreadyResolved.[[Value]] is true, return undefined.
-        if (already_resolved.value)
-            return js_undefined();
-
-        // 6. Set alreadyResolved.[[Value]] to true.
-        already_resolved.value = true;
-
-        // 7. Perform RejectPromise(promise, reason).
-        promise.reject(reason);
-
-        // 8. Return undefined.
-        return js_undefined();
-    });
+    auto reject_function = PromiseResolvingFunction::create(realm, *this, *already_resolved, PromiseResolvingFunction::Kind::Reject);
     reject_function->define_direct_property(vm.names.name, PrimitiveString::create(vm, String {}), Attribute::Configurable);
 
     // 12. Return the Record { [[Resolve]]: resolve, [[Reject]]: reject }.
     return { *resolve_function, *reject_function };
+}
+
+// 27.2.1.3.2 Promise Resolve Functions, https://tc39.es/ecma262/#sec-promise-resolve-functions
+Value Promise::resolve_function_steps(VM& vm, Promise& promise, AlreadyResolved& already_resolved)
+{
+    dbgln_if(PROMISE_DEBUG, "[Promise @ {} / PromiseResolvingFunction]: Resolve function was called", &promise);
+
+    auto& realm = *vm.current_realm();
+
+    auto resolution = vm.argument(0);
+
+    // 1. Let F be the active function object.
+    // 2. Assert: F has a [[Promise]] internal slot whose value is an Object.
+    // 3. Let promise be F.[[Promise]].
+
+    // 4. Let alreadyResolved be F.[[AlreadyResolved]].
+    // 5. If alreadyResolved.[[Value]] is true, return undefined.
+    if (already_resolved.value) {
+        dbgln_if(PROMISE_DEBUG, "[Promise @ {} / PromiseResolvingFunction]: Promise is already resolved, returning undefined", &promise);
+        return js_undefined();
+    }
+
+    // 6. Set alreadyResolved.[[Value]] to true.
+    already_resolved.value = true;
+
+    // 7. If SameValue(resolution, promise) is true, then
+    if (resolution.is_object() && &resolution.as_object() == &promise) {
+        dbgln_if(PROMISE_DEBUG, "[Promise @ {} / PromiseResolvingFunction]: Promise can't be resolved with itself, rejecting with error", &promise);
+
+        // a. Let selfResolutionError be a newly created TypeError object.
+        auto self_resolution_error = TypeError::create(realm, "Cannot resolve promise with itself"sv);
+
+        // b. Perform RejectPromise(promise, selfResolutionError).
+        promise.reject(self_resolution_error);
+
+        // c. Return undefined.
+        return js_undefined();
+    }
+
+    // 8. If Type(resolution) is not Object, then
+    if (!resolution.is_object()) {
+        // a. Perform FulfillPromise(promise, resolution).
+        dbgln_if(PROMISE_DEBUG, "[Promise @ {} / PromiseResolvingFunction]: Resolution is not an object, fulfilling with {}", &promise, resolution);
+        promise.fulfill(resolution);
+
+        // b. Return undefined.
+        return js_undefined();
+    }
+
+    // 9. Let then be Completion(Get(resolution, "then")).
+    auto then = resolution.as_object().get(vm.names.then);
+
+    // 10. If then is an abrupt completion, then
+    if (then.is_throw_completion()) {
+        // a. Perform RejectPromise(promise, then.[[Value]]).
+        dbgln_if(PROMISE_DEBUG, "[Promise @ {} / PromiseResolvingFunction]: Exception while getting 'then' property, rejecting with error", &promise);
+        promise.reject(then.throw_completion().value());
+
+        // b. Return undefined.
+        return js_undefined();
+    }
+
+    // 11. Let thenAction be then.[[Value]].
+    auto then_action = then.release_value();
+
+    // 12. If IsCallable(thenAction) is false, then
+    if (!then_action.is_function()) {
+        // a. Perform FulfillPromise(promise, resolution).
+        dbgln_if(PROMISE_DEBUG, "[Promise @ {} / PromiseResolvingFunction]: Then action is not a function, fulfilling with {}", &promise, resolution);
+        promise.fulfill(resolution);
+
+        // b. Return undefined.
+        return js_undefined();
+    }
+
+    // 13. Let thenJobCallback be HostMakeJobCallback(thenAction).
+    dbgln_if(PROMISE_DEBUG, "[Promise @ {} / PromiseResolvingFunction]: Creating JobCallback for then action @ {}", &promise, &then_action.as_function());
+    auto then_job_callback = vm.host_make_job_callback(then_action.as_function());
+
+    // 14. Let job be NewPromiseResolveThenableJob(promise, resolution, thenJobCallback).
+    dbgln_if(PROMISE_DEBUG, "[Promise @ {} / PromiseResolvingFunction]: Creating PromiseJob for thenable {}", &promise, resolution);
+    auto job = create_promise_resolve_thenable_job(vm, promise, resolution, move(then_job_callback));
+
+    // 15. Perform HostEnqueuePromiseJob(job.[[Job]], job.[[Realm]]).
+    dbgln_if(PROMISE_DEBUG, "[Promise @ {} / PromiseResolvingFunction]: Enqueuing job @ {} in realm {}", &promise, &job.job, job.realm.ptr());
+    vm.host_enqueue_promise_job(move(job.job), job.realm);
+
+    // 16. Return undefined.
+    return js_undefined();
+}
+
+// 27.2.1.3.1 Promise Reject Functions, https://tc39.es/ecma262/#sec-promise-reject-functions
+Value Promise::reject_function_steps(VM& vm, Promise& promise, AlreadyResolved& already_resolved)
+{
+    dbgln_if(PROMISE_DEBUG, "[Promise @ {} / PromiseResolvingFunction]: Reject function was called", &promise);
+
+    auto reason = vm.argument(0);
+
+    // 1. Let F be the active function object.
+    // 2. Assert: F has a [[Promise]] internal slot whose value is an Object.
+    // 3. Let promise be F.[[Promise]].
+
+    // 4. Let alreadyResolved be F.[[AlreadyResolved]].
+    // 5. If alreadyResolved.[[Value]] is true, return undefined.
+    if (already_resolved.value)
+        return js_undefined();
+
+    // 6. Set alreadyResolved.[[Value]] to true.
+    already_resolved.value = true;
+
+    // 7. Perform RejectPromise(promise, reason).
+    promise.reject(reason);
+
+    // 8. Return undefined.
+    return js_undefined();
 }
 
 // 27.2.1.4 FulfillPromise ( promise, value ), https://tc39.es/ecma262/#sec-fulfillpromise
