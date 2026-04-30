@@ -14,7 +14,7 @@
       "environment": {
         "LADYBIRD_SOURCE_DIR": "${fileDir}/../../..",
         "VCPKG_ROOT": "$env{LADYBIRD_SOURCE_DIR}/Build/vcpkg",
-        "VCPKG_BINARY_SOURCES": "clear;files,$env{LADYBIRD_SOURCE_DIR}/Build/caches/vcpkg-binary-cache,readwrite;$penv{VCPKG_BINARY_SOURCES}",
+        "VCPKG_BINARY_SOURCES": "clear;$penv{VCPKG_BINARY_SOURCES};files,$env{LADYBIRD_SOURCE_DIR}/Build/caches/vcpkg-binary-cache,readwrite",
         "X_VCPKG_ASSET_SOURCES": "clear;x-azurl,https://vcpkg-cache.app.ladybird.org/ladybird/source-assets/,$penv{VCPKG_CACHE_SAS},read$penv{VCPKG_CACHE_MODE}"
       },
       "vendor": {

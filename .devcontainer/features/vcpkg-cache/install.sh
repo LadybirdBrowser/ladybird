@@ -37,15 +37,15 @@ export X_VCPKG_ASSET_SOURCES="clear;x-azurl,https://vcpkg-cache.app.ladybird.org
 
 # Check options to see which versions we should build
 if [ "${RELEASE_TRIPLET}" = "true" ]; then
-    "${VCPKG_ROOT}/vcpkg" install --overlay-triplets="${PWD}/Meta/CMake/vcpkg/release-triplets"
+    ./Meta/ladybird.py configure --preset Release
 fi
 
 if [ "${DEBUG_TRIPLET}" = "true" ]; then
-    "${VCPKG_ROOT}/vcpkg" install --overlay-triplets="${PWD}/Meta/CMake/vcpkg/debug-triplets"
+    ./Meta/ladybird.py configure --preset Debug
 fi
 
 if [ "${SANITIZER_TRIPLET}" = "true" ]; then
-    "${VCPKG_ROOT}/vcpkg" install --overlay-triplets="${PWD}/Meta/CMake/vcpkg/sanitizer-triplets"
+    ./Meta/ladybird.py configure --preset Sanitizer
 fi
 
 # Clean up to reduce layer size

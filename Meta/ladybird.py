@@ -126,13 +126,21 @@ def main():
     addr2line_parser.add_argument("--program", required=False, default=platform.default_symbolizer())
     addr2line_parser.add_argument("addresses", nargs=argparse.REMAINDER)
 
+    configure_parser = subparsers.add_parser(
+        "configure", help="Configures the build environment", parents=[preset_parser, compiler_parser]
+    )
+    configure_parser.add_argument(
+        "args", nargs=argparse.REMAINDER, help="Additional arguments passed through to the build system"
+    )
+
     args = parser.parse_args()
 
     if not args.command:
         parser.print_help()
         sys.exit(1)
 
-    if platform.host_system != HostSystem.Windows and os.geteuid() == 0:
+    in_devcontainer_build = "_CONTAINER_USER" in os.environ
+    if platform.host_system != HostSystem.Windows and os.geteuid() == 0 and not in_devcontainer_build:
         print("Do not run ladybird.py as root, your Build directory will become root-owned", file=sys.stderr)
         sys.exit(1)
     elif platform.host_system == HostSystem.Windows and "VCINSTALLDIR" not in os.environ:
@@ -150,6 +158,8 @@ def main():
     if args.command == "build":
         build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.jobs, args.gui)
         build_main(build_dir, args.jobs, args.target, args.args)
+    elif args.command == "configure":
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.jobs, args.gui)
     elif args.command == "test":
         build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.jobs, args.gui)
         build_main(build_dir, args.jobs)
