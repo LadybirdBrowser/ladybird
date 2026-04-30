@@ -253,7 +253,8 @@ ThrowCompletionOr<ArrayBuffer*> array_buffer_copy_and_detach(VM& vm, ArrayBuffer
 
 void ArrayBuffer::detach_buffer()
 {
-    for (auto& view : m_cached_views) {
+    for (auto& cached_view : m_cached_views) {
+        auto& view = static_cast<TypedArrayBase&>(cached_view);
         if (view.viewed_array_buffer() == this)
             view.set_cached_data_ptr(nullptr);
     }
@@ -278,7 +279,7 @@ ThrowCompletionOr<ByteBuffer> ArrayBuffer::detach_and_take_bytes(VM& vm)
 
 void ArrayBuffer::register_cached_typed_array_view(TypedArrayBase& view)
 {
-    m_cached_views.set(view);
+    m_cached_views.append(view);
 }
 
 // 25.1.3.5 DetachArrayBuffer ( arrayBuffer [ , key ] ), https://tc39.es/ecma262/#sec-detacharraybuffer

@@ -445,6 +445,12 @@ void TypedArrayBase::visit_edges(Visitor& visitor)
     visitor.visit(m_viewed_array_buffer);
 }
 
+void TypedArrayBase::finalize()
+{
+    Base::finalize();
+    remove_from_cached_view_list();
+}
+
 #define JS_DEFINE_TYPED_ARRAY(ClassName, snake_name, PrototypeName, ConstructorName, Type)                                  \
     GC_DEFINE_ALLOCATOR(ClassName);                                                                                         \
     GC_DEFINE_ALLOCATOR(PrototypeName);                                                                                     \

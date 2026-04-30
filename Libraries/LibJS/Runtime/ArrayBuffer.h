@@ -8,8 +8,8 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/Function.h>
+#include <AK/IntrusiveList.h>
 #include <AK/Variant.h>
-#include <LibGC/WeakHashSet.h>
 #include <LibJS/Export.h>
 #include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/Completion.h>
@@ -19,6 +19,20 @@
 namespace JS {
 
 class TypedArrayBase;
+
+class CachedTypedArrayView {
+protected:
+    void remove_from_cached_view_list()
+    {
+        if (m_cached_view_list_node.is_in_list())
+            m_cached_view_list_node.remove();
+    }
+
+private:
+    friend class ArrayBuffer;
+
+    IntrusiveListNode<CachedTypedArrayView> m_cached_view_list_node;
+};
 
 struct ClampedU8 {
 };
@@ -168,7 +182,7 @@ private:
 
     DataBlock m_data_block;
     Optional<size_t> m_max_byte_length;
-    GC::WeakHashSet<TypedArrayBase> m_cached_views;
+    IntrusiveList<&CachedTypedArrayView::m_cached_view_list_node> m_cached_views;
 
     // The various detach related members of ArrayBuffer are not used by any ECMA262 functionality,
     // but are required to be available for the use of various harnesses like the Test262 test runner.

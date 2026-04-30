@@ -20,10 +20,13 @@
 
 namespace JS {
 
-class JS_API TypedArrayBase : public Object {
+class JS_API TypedArrayBase : public Object
+    , public CachedTypedArrayView {
     JS_OBJECT(TypedArrayBase, Object);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     enum class ContentType {
         BigInt,
         Number,
@@ -92,6 +95,7 @@ protected:
     void update_cached_data_ptr()
     {
         if (!m_viewed_array_buffer || !m_viewed_array_buffer->can_cache_typed_array_view_data_pointer()) {
+            remove_from_cached_view_list();
             m_data = nullptr;
             return;
         }
@@ -111,6 +115,7 @@ protected:
 
 private:
     virtual bool is_typed_array_base() const final { return true; }
+    virtual void finalize() override;
     virtual void visit_edges(Visitor&) override;
     virtual bool eligible_for_own_property_enumeration_fast_path() const final override { return false; }
 };
