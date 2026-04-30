@@ -42,7 +42,7 @@ class TestType(Enum):
         obj._value_ = args[0]
         return obj
 
-    def __init__(self, _: str, input_path: str, expected_path: str):
+    def __init__(self, _: int, input_path: str, expected_path: str):
         self.input_path = input_path
         self.expected_path = expected_path
 
@@ -176,6 +176,7 @@ def map_to_path(
         if source.resource.startswith("/") or not is_resource:
             file_path = Path(base_directory, source.resource.lstrip("/"))
         else:
+            assert resource_path is not None
             parsed_url = urlparse(source.resource)
             if parsed_url.scheme != "":
                 print(f"Skipping '{source.resource}'. Downloading external resources is not supported.")
@@ -232,6 +233,7 @@ def modify_sources(files, resources: list[ResourceAndType]) -> None:
 
         # Look for mentions of the reference page, and update their href
         if raw_reference_path is not None:
+            assert reference_path is not None
             new_reference_path = parent_folder_path + "../../expected/wpt-import/" + reference_path[::]
             page_source = page_source.replace(raw_reference_path, new_reference_path)
 
