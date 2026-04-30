@@ -38,6 +38,83 @@ bool selector_may_match_light_dom_under_shadow_host(Selector const& selector)
     return selector.compound_selectors().size() > 1;
 }
 
+static bool selector_may_match_shadow_host(Selector const&);
+static bool selector_may_match_light_dom_outside_shadow_host_via_positive_selector_list(Selector const&);
+
+static bool pseudo_class_has_positive_selector_list_arguments(PseudoClass pseudo_class)
+{
+    return first_is_one_of(pseudo_class, PseudoClass::Is, PseudoClass::Where);
+}
+
+static bool simple_selector_may_match_shadow_host(Selector::SimpleSelector const& simple_selector)
+{
+    if (simple_selector.type != Selector::SimpleSelector::Type::PseudoClass)
+        return false;
+
+    auto const& pseudo_class = simple_selector.pseudo_class();
+    if (pseudo_class.type == PseudoClass::Host)
+        return true;
+
+    if (!pseudo_class_has_positive_selector_list_arguments(pseudo_class.type))
+        return false;
+
+    return any_of(pseudo_class.argument_selector_list, selector_may_match_shadow_host);
+}
+
+static bool selector_may_match_shadow_host(Selector const& selector)
+{
+    return any_of(selector.compound_selectors(), [](auto const& compound_selector) {
+        return any_of(compound_selector.simple_selectors, [](auto const& simple_selector) {
+            return simple_selector_may_match_shadow_host(simple_selector);
+        });
+    });
+}
+
+static bool compound_selector_may_match_shadow_host(Selector::CompoundSelector const& compound_selector)
+{
+    return any_of(compound_selector.simple_selectors, simple_selector_may_match_shadow_host);
+}
+
+static bool simple_selector_may_match_light_dom_outside_shadow_host(Selector::SimpleSelector const& simple_selector)
+{
+    if (simple_selector.type != Selector::SimpleSelector::Type::PseudoClass)
+        return false;
+
+    auto const& pseudo_class = simple_selector.pseudo_class();
+    if (!pseudo_class_has_positive_selector_list_arguments(pseudo_class.type))
+        return false;
+
+    return any_of(pseudo_class.argument_selector_list, selector_may_match_light_dom_outside_shadow_host_via_positive_selector_list);
+}
+
+static bool compound_selector_may_match_light_dom_outside_shadow_host(Selector::CompoundSelector const& compound_selector)
+{
+    return any_of(compound_selector.simple_selectors, simple_selector_may_match_light_dom_outside_shadow_host);
+}
+
+static bool selector_may_match_light_dom_outside_shadow_host_via_positive_selector_list(Selector const& selector)
+{
+    auto const& compound_selectors = selector.compound_selectors();
+    for (size_t i = 0; i < compound_selectors.size(); ++i) {
+        if (compound_selector_may_match_light_dom_outside_shadow_host(compound_selectors[i]))
+            return true;
+
+        if (!compound_selector_may_match_shadow_host(compound_selectors[i]))
+            continue;
+
+        for (size_t j = i + 1; j < compound_selectors.size(); ++j) {
+            if (first_is_one_of(compound_selectors[j].combinator, Selector::Combinator::NextSibling, Selector::Combinator::SubsequentSibling))
+                return true;
+        }
+    }
+    return false;
+}
+
+bool selector_may_match_light_dom_outside_shadow_host(Selector const& selector)
+{
+    return selector_may_match_light_dom_outside_shadow_host_via_positive_selector_list(selector);
+}
+
 bool selector_may_match_light_dom_under_shadow_host(StringView selector_text)
 {
     CSS::Parser::ParsingParams parsing_params;
@@ -45,6 +122,15 @@ bool selector_may_match_light_dom_under_shadow_host(StringView selector_text)
     if (!selectors.has_value() || selectors->size() != 1)
         return false;
     return selector_may_match_light_dom_under_shadow_host(selectors->first());
+}
+
+bool selector_may_match_light_dom_outside_shadow_host(StringView selector_text)
+{
+    CSS::Parser::ParsingParams parsing_params;
+    auto selectors = parse_selector(parsing_params, selector_text);
+    if (!selectors.has_value() || selectors->size() != 1)
+        return false;
+    return selector_may_match_light_dom_outside_shadow_host(selectors->first());
 }
 
 static bool is_universal_only_compound(Selector::CompoundSelector const& compound_selector)
@@ -127,6 +213,7 @@ void extend_style_sheet_invalidation_set_with_style_rule(StyleSheetInvalidationS
 
     for (auto const& selector : style_rule.absolutized_selectors()) {
         result.may_match_light_dom_under_shadow_host |= selector_may_match_light_dom_under_shadow_host(*selector);
+        result.may_match_light_dom_outside_shadow_host |= selector_may_match_light_dom_outside_shadow_host(*selector);
         result.may_match_shadow_host |= selector->contains_pseudo_class(PseudoClass::Host);
 
         auto const& compound_selectors = selector->compound_selectors();
@@ -316,13 +403,14 @@ void invalidate_root_for_style_sheet_change(DOM::Node& root, StyleSheetInvalidat
 
             if (auto* host = shadow_root->host()) {
                 // Broad shadow-root mutations are only allowed to escape the shadow tree when the stylesheet can
-                // actually reach host-side nodes. A layer-order-only change, for example, still needs a full restyle
-                // inside the shadow tree, but it should not turn into a document-wide invalidation for unrelated
-                // light-DOM.
-                if (result.may_match_light_dom_under_shadow_host && !result.may_match_shadow_host) {
-                    host->invalidate_style(reason);
-                } else if (result.may_match_light_dom_under_shadow_host) {
+                // actually reach host-side nodes. Keep host-contained escapes bounded to the host subtree; a
+                // layer-order-only change, for example, still needs a full restyle inside the shadow tree, but it
+                // should not turn into a document-wide invalidation for unrelated light-DOM. Selectors with
+                // host-side sibling reach still need a root-side invalidation.
+                if (result.may_match_light_dom_outside_shadow_host) {
                     host->root().invalidate_style(reason);
+                } else if (result.may_match_light_dom_under_shadow_host) {
+                    host->invalidate_style(reason);
                 } else if (result.may_match_shadow_host) {
                     host->invalidate_style(reason);
                     shadow_root->set_needs_style_update(true);
@@ -340,16 +428,13 @@ void invalidate_root_for_style_sheet_change(DOM::Node& root, StyleSheetInvalidat
         invalidate_assigned_elements_for_dirty_slots(*shadow_root);
 
         if (auto* host = shadow_root->host()) {
-            // Slotted selectors never match the host itself, so a targeted ::slotted(...) invalidation only needs to
-            // walk the current host's light-DOM subtree. We can identify that case because it reaches host-side nodes
-            // without ever setting may_match_shadow_host.
-            //
-            // :host combinators are different: they can escape to siblings or other nodes rooted alongside the host,
+            // Slotted and host-contained :host selectors only need to walk the current host's light-DOM subtree.
+            // :host selectors with sibling combinators can escape to siblings or other nodes rooted alongside the host,
             // so they still need the broader host-root walk below.
-            if (result.may_match_light_dom_under_shadow_host && !result.may_match_shadow_host) {
-                invalidate_elements_matching_invalidation_set_and_anchor_rules(*host, result, host, shadow_root);
-            } else if (result.may_match_light_dom_under_shadow_host) {
+            if (result.may_match_light_dom_outside_shadow_host) {
                 invalidate_elements_matching_invalidation_set_and_anchor_rules(host->root(), result, host, shadow_root);
+            } else if (result.may_match_light_dom_under_shadow_host) {
+                invalidate_elements_matching_invalidation_set_and_anchor_rules(*host, result, host, shadow_root);
             } else if (result.may_match_shadow_host) {
                 bool host_or_shadow_tree_needs_style_update = false;
                 if (Invalidation::element_matches_any_invalidation_set_property(*host, invalidation_set))
@@ -510,7 +595,7 @@ static ShadowRootStylesheetEffects determine_shadow_root_stylesheet_effects_for_
     };
 
     style_sheet.for_each_effective_style_producing_rule([&](CSSRule const& rule) {
-        if (effects.may_match_shadow_host && effects.may_match_light_dom_under_shadow_host && effects.may_affect_assigned_nodes_via_slots)
+        if (effects.all_set())
             return;
 
         if (!is<CSSStyleRule>(rule))
@@ -520,11 +605,12 @@ static ShadowRootStylesheetEffects determine_shadow_root_stylesheet_effects_for_
         for (auto const& selector : style_rule.absolutized_selectors()) {
             effects.may_match_shadow_host |= selector->contains_pseudo_class(PseudoClass::Host);
             effects.may_match_light_dom_under_shadow_host |= selector_may_match_light_dom_under_shadow_host(*selector);
+            effects.may_match_light_dom_outside_shadow_host |= selector_may_match_light_dom_outside_shadow_host(*selector);
 
             if (!effects.may_affect_assigned_nodes_via_slots && !slots.is_empty())
                 effects.may_affect_assigned_nodes_via_slots = selector_may_affect_assigned_nodes_via_slot_inheritance(*selector);
 
-            if (effects.may_match_shadow_host && effects.may_match_light_dom_under_shadow_host && effects.may_affect_assigned_nodes_via_slots)
+            if (effects.all_set())
                 return;
         }
     });
@@ -540,6 +626,7 @@ ShadowRootStylesheetEffects determine_shadow_root_stylesheet_effects(DOM::Shadow
         auto sheet_effects = determine_shadow_root_stylesheet_effects_for_sheet(style_sheet, shadow_root);
         effects.may_match_shadow_host |= sheet_effects.may_match_shadow_host;
         effects.may_match_light_dom_under_shadow_host |= sheet_effects.may_match_light_dom_under_shadow_host;
+        effects.may_match_light_dom_outside_shadow_host |= sheet_effects.may_match_light_dom_outside_shadow_host;
         effects.may_affect_assigned_nodes_via_slots |= sheet_effects.may_affect_assigned_nodes_via_slots;
     });
 
@@ -558,9 +645,10 @@ ShadowRootStylesheetEffects determine_shadow_root_stylesheet_effects(CSSStyleShe
         auto sheet_effects = determine_shadow_root_stylesheet_effects_for_sheet(style_sheet, *shadow_root);
         effects.may_match_shadow_host |= sheet_effects.may_match_shadow_host;
         effects.may_match_light_dom_under_shadow_host |= sheet_effects.may_match_light_dom_under_shadow_host;
+        effects.may_match_light_dom_outside_shadow_host |= sheet_effects.may_match_light_dom_outside_shadow_host;
         effects.may_affect_assigned_nodes_via_slots |= sheet_effects.may_affect_assigned_nodes_via_slots;
 
-        if (effects.may_match_shadow_host && effects.may_match_light_dom_under_shadow_host && effects.may_affect_assigned_nodes_via_slots)
+        if (effects.all_set())
             break;
     }
 
@@ -573,10 +661,10 @@ static bool invalidate_shadow_host_side_for_style_sheet_change(DOM::ShadowRoot& 
     if (!host)
         return false;
 
-    if (effects.may_match_light_dom_under_shadow_host && !effects.may_match_shadow_host) {
-        host->invalidate_style(reason);
-    } else if (effects.may_match_light_dom_under_shadow_host) {
+    if (effects.may_match_light_dom_outside_shadow_host) {
         host->root().invalidate_style(reason);
+    } else if (effects.may_match_light_dom_under_shadow_host) {
+        host->invalidate_style(reason);
     } else if (effects.may_affect_assigned_nodes_via_slots) {
         host->invalidate_style(reason);
     } else if (effects.may_match_shadow_host) {

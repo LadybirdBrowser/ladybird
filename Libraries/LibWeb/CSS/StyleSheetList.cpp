@@ -189,6 +189,7 @@ void StyleSheetList::add_sheet(CSSStyleSheet& sheet)
             auto effects = determine_shadow_root_stylesheet_effects(*shadow_root);
             invalidation_set_result.may_match_shadow_host |= effects.may_match_shadow_host;
             invalidation_set_result.may_match_light_dom_under_shadow_host |= effects.may_match_light_dom_under_shadow_host;
+            invalidation_set_result.may_match_light_dom_outside_shadow_host |= effects.may_match_light_dom_outside_shadow_host;
         }
     }
 
@@ -224,6 +225,7 @@ void StyleSheetList::remove_sheet(CSSStyleSheet& sheet)
             auto effects = determine_shadow_root_stylesheet_effects(*shadow_root);
             invalidation_set_result.may_match_shadow_host |= effects.may_match_shadow_host;
             invalidation_set_result.may_match_light_dom_under_shadow_host |= effects.may_match_light_dom_under_shadow_host;
+            invalidation_set_result.may_match_light_dom_outside_shadow_host |= effects.may_match_light_dom_outside_shadow_host;
         }
     }
 

@@ -23,6 +23,7 @@ struct StyleSheetInvalidationSet {
     InvalidationSet invalidation_set;
     bool may_match_shadow_host { false };
     bool may_match_light_dom_under_shadow_host { false };
+    bool may_match_light_dom_outside_shadow_host { false };
 
     struct PseudoElementInvalidationRule {
         InvalidationSet anchor_set;
@@ -42,7 +43,16 @@ struct StyleSheetInvalidationSet {
 struct ShadowRootStylesheetEffects {
     bool may_match_shadow_host { false };
     bool may_match_light_dom_under_shadow_host { false };
+    bool may_match_light_dom_outside_shadow_host { false };
     bool may_affect_assigned_nodes_via_slots { false };
+
+    bool all_set() const
+    {
+        return may_match_shadow_host
+            && may_match_light_dom_under_shadow_host
+            && may_match_light_dom_outside_shadow_host
+            && may_affect_assigned_nodes_via_slots;
+    }
 };
 
 enum class ShouldInvalidateRuleCache {
@@ -59,6 +69,11 @@ void extend_style_sheet_invalidation_set_with_style_rule(StyleSheetInvalidationS
 // instead of treating the change as shadow-local.
 bool selector_may_match_light_dom_under_shadow_host(Selector const&);
 WEB_API bool selector_may_match_light_dom_under_shadow_host(StringView selector_text);
+
+// Shadow-root :host rules with sibling combinators can target host siblings or other nodes outside the host subtree.
+// These need broader host-root invalidation than host-subtree selectors like :host > * or :host *.
+bool selector_may_match_light_dom_outside_shadow_host(Selector const&);
+WEB_API bool selector_may_match_light_dom_outside_shadow_host(StringView selector_text);
 
 // Apply a built invalidation set to `root` (a Document or a ShadowRoot). When `force_broad_invalidation` is true,
 // schedule a tree-wide restyle regardless of the targeted set; this is used when the sheet contains rule kinds (such

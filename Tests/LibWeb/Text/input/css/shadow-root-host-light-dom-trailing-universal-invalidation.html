@@ -10,11 +10,19 @@
     }
 
     function verifyInvalidationsStayHostSide(label, maxInvalidations) {
-        const invalidations = internals.getStyleInvalidationCounters().styleInvalidations;
-        if (invalidations > 0 && invalidations <= maxInvalidations)
-            println(`PASS: ${label} (${invalidations} invalidations)`);
+        const counters = internals.getStyleInvalidationCounters();
+        if (counters.fullStyleInvalidations == 0 && counters.styleInvalidations > 0 && counters.styleInvalidations <= maxInvalidations)
+            println(`PASS: ${label} (${counters.styleInvalidations} invalidations)`);
         else
-            println(`FAIL: ${label} (${invalidations} invalidations)`);
+            println(`FAIL: ${label} (${counters.styleInvalidations} invalidations, ${counters.fullStyleInvalidations} full invalidations)`);
+    }
+
+    function verifyInvalidationsReachRootSide(label) {
+        const counters = internals.getStyleInvalidationCounters();
+        if (counters.fullStyleInvalidations > 0)
+            println(`PASS: ${label} (${counters.fullStyleInvalidations} full invalidations)`);
+        else
+            println(`FAIL: ${label} (${counters.styleInvalidations} invalidations, ${counters.fullStyleInvalidations} full invalidations)`);
     }
 
     function populateShadowBystanders(shadowRoot, prefix) {
@@ -52,5 +60,85 @@
         descendantShadowRoot.appendChild(descendantStyle);
         getComputedStyle(nestedDescendant).color;
         verifyInvalidationsStayHostSide("host descendant combinator add stays on the host-side tree", 4);
+
+        const broadHost = document.createElement("div");
+        broadHost.innerHTML = "<span id='broad-target'>broad target</span>";
+        document.body.appendChild(broadHost);
+        for (let i = 0; i < 25; ++i) {
+            const bystander = document.createElement("span");
+            bystander.textContent = `document bystander ${i}`;
+            document.body.appendChild(bystander);
+        }
+
+        const broadTarget = document.getElementById("broad-target");
+        const broadShadowRoot = broadHost.attachShadow({ mode: "open" });
+        settleAndReset(broadTarget);
+        const broadStyle = document.createElement("style");
+        broadStyle.textContent = `
+            @keyframes shadow-root-host-side-broad-invalidation {
+                from { opacity: 1; }
+                to { opacity: 1; }
+            }
+            :host * { color: rgb(0, 0, 255); }
+        `;
+        broadShadowRoot.appendChild(broadStyle);
+        getComputedStyle(broadTarget).color;
+        verifyInvalidationsStayHostSide("broad host-side stylesheet add avoids document-wide invalidation", 4);
+
+        const siblingEscapeHost = document.createElement("div");
+        document.body.appendChild(siblingEscapeHost);
+        const siblingEscapeTarget = document.createElement("div");
+        siblingEscapeTarget.innerHTML = "<span>sibling escape target</span>";
+        document.body.appendChild(siblingEscapeTarget);
+        const siblingEscapeShadowRoot = siblingEscapeHost.attachShadow({ mode: "open" });
+        settleAndReset(siblingEscapeTarget);
+        const siblingEscapeStyle = document.createElement("style");
+        siblingEscapeStyle.textContent = `
+            @keyframes shadow-root-host-side-sibling-escape-invalidation {
+                from { opacity: 1; }
+                to { opacity: 1; }
+            }
+            :host + :has(*) { color: rgb(255, 0, 0); }
+        `;
+        siblingEscapeShadowRoot.appendChild(siblingEscapeStyle);
+        getComputedStyle(siblingEscapeTarget).color;
+        verifyInvalidationsReachRootSide("broad host-side sibling escape reaches root-side invalidation");
+
+        const functionalHost = document.createElement("div");
+        functionalHost.innerHTML = "<span id='functional-host-target'>functional host target</span>";
+        document.body.appendChild(functionalHost);
+        const functionalHostTarget = document.getElementById("functional-host-target");
+        const functionalHostShadowRoot = functionalHost.attachShadow({ mode: "open" });
+        settleAndReset(functionalHostTarget);
+        const functionalHostStyle = document.createElement("style");
+        functionalHostStyle.textContent = `
+            @keyframes shadow-root-functional-host-side-invalidation {
+                from { opacity: 1; }
+                to { opacity: 1; }
+            }
+            :is(:host) * { color: rgb(0, 0, 255); }
+        `;
+        functionalHostShadowRoot.appendChild(functionalHostStyle);
+        getComputedStyle(functionalHostTarget).color;
+        verifyInvalidationsStayHostSide("broad functional host-side selector avoids document-wide invalidation", 4);
+
+        const functionalSiblingEscapeHost = document.createElement("div");
+        document.body.appendChild(functionalSiblingEscapeHost);
+        const functionalSiblingEscapeTarget = document.createElement("div");
+        functionalSiblingEscapeTarget.innerHTML = "<span>functional sibling escape target</span>";
+        document.body.appendChild(functionalSiblingEscapeTarget);
+        const functionalSiblingEscapeShadowRoot = functionalSiblingEscapeHost.attachShadow({ mode: "open" });
+        settleAndReset(functionalSiblingEscapeTarget);
+        const functionalSiblingEscapeStyle = document.createElement("style");
+        functionalSiblingEscapeStyle.textContent = `
+            @keyframes shadow-root-functional-sibling-escape-invalidation {
+                from { opacity: 1; }
+                to { opacity: 1; }
+            }
+            :is(:host) + :has(*) { color: rgb(255, 0, 0); }
+        `;
+        functionalSiblingEscapeShadowRoot.appendChild(functionalSiblingEscapeStyle);
+        getComputedStyle(functionalSiblingEscapeTarget).color;
+        verifyInvalidationsReachRootSide("broad functional host-side sibling escape reaches root-side invalidation");
     });
 </script>
