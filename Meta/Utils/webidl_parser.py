@@ -7,6 +7,7 @@ from dataclasses import field
 from pathlib import Path
 from typing import Dict
 from typing import List
+from typing import NoReturn
 from typing import Optional
 
 from Utils.lexer import Lexer
@@ -412,7 +413,7 @@ class Parser:
         if not self.lexer.consume_specific(expected_character):
             self.raise_parse_error(f"expected '{expected_character}'")
 
-    def raise_parse_error(self, message: str) -> None:
+    def raise_parse_error(self, message: str) -> NoReturn:
         line_number = 1
         column_number = 1
 
