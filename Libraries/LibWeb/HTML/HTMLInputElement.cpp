@@ -21,7 +21,6 @@
 #include <LibWeb/Bindings/HTMLInputElement.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
-#include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
 #include <LibWeb/CSS/Invalidation/FormControlInvalidator.h>
@@ -2073,9 +2072,9 @@ bool HTMLInputElement::is_presentational_hint(FlyString const& name) const
         HTML::AttributeNames::width);
 }
 
-void HTMLInputElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
+void HTMLInputElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
 {
-    Base::apply_presentational_hints(cascaded_properties);
+    Base::apply_presentational_hints(properties);
 
     if (type_state() != TypeAttributeState::ImageButton)
         return;
@@ -2083,42 +2082,42 @@ void HTMLInputElement::apply_presentational_hints(GC::Ref<CSS::CascadedPropertie
     for_each_attribute([&](auto& name, auto& value) {
         if (name == HTML::AttributeNames::align) {
             if (value.equals_ignoring_ascii_case("center"sv))
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::KeywordStyleValue::create(CSS::Keyword::Center));
+                properties.append({ .property_id = CSS::PropertyID::TextAlign, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Center) });
             else if (value.equals_ignoring_ascii_case("middle"sv))
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::KeywordStyleValue::create(CSS::Keyword::Middle));
+                properties.append({ .property_id = CSS::PropertyID::TextAlign, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Middle) });
         } else if (name == HTML::AttributeNames::border) {
             if (auto parsed_value = parse_non_negative_integer(value); parsed_value.has_value()) {
                 auto width_style_value = CSS::LengthStyleValue::create(CSS::Length::make_px(*parsed_value));
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderTopWidth, width_style_value);
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderRightWidth, width_style_value);
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderBottomWidth, width_style_value);
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderLeftWidth, width_style_value);
+                properties.append({ .property_id = CSS::PropertyID::BorderTopWidth, .value = width_style_value });
+                properties.append({ .property_id = CSS::PropertyID::BorderRightWidth, .value = width_style_value });
+                properties.append({ .property_id = CSS::PropertyID::BorderBottomWidth, .value = width_style_value });
+                properties.append({ .property_id = CSS::PropertyID::BorderLeftWidth, .value = width_style_value });
 
                 auto border_style_value = CSS::KeywordStyleValue::create(CSS::Keyword::Solid);
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderTopStyle, border_style_value);
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderRightStyle, border_style_value);
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderBottomStyle, border_style_value);
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderLeftStyle, border_style_value);
+                properties.append({ .property_id = CSS::PropertyID::BorderTopStyle, .value = border_style_value });
+                properties.append({ .property_id = CSS::PropertyID::BorderRightStyle, .value = border_style_value });
+                properties.append({ .property_id = CSS::PropertyID::BorderBottomStyle, .value = border_style_value });
+                properties.append({ .property_id = CSS::PropertyID::BorderLeftStyle, .value = border_style_value });
             }
         } else if (name == HTML::AttributeNames::height) {
             if (auto parsed_value = parse_dimension_value(value)) {
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Height, *parsed_value);
+                properties.append({ .property_id = CSS::PropertyID::Height, .value = *parsed_value });
             }
         }
         // https://html.spec.whatwg.org/multipage/rendering.html#attributes-for-embedded-content-and-images:maps-to-the-dimension-property
         else if (name == HTML::AttributeNames::hspace) {
             if (auto parsed_value = parse_dimension_value(value)) {
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginLeft, *parsed_value);
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginRight, *parsed_value);
+                properties.append({ .property_id = CSS::PropertyID::MarginLeft, .value = *parsed_value });
+                properties.append({ .property_id = CSS::PropertyID::MarginRight, .value = *parsed_value });
             }
         } else if (name == HTML::AttributeNames::vspace) {
             if (auto parsed_value = parse_dimension_value(value)) {
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginTop, *parsed_value);
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginBottom, *parsed_value);
+                properties.append({ .property_id = CSS::PropertyID::MarginTop, .value = *parsed_value });
+                properties.append({ .property_id = CSS::PropertyID::MarginBottom, .value = *parsed_value });
             }
         } else if (name == HTML::AttributeNames::width) {
             if (auto parsed_value = parse_dimension_value(value)) {
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Width, *parsed_value);
+                properties.append({ .property_id = CSS::PropertyID::Width, .value = *parsed_value });
             }
         }
     });

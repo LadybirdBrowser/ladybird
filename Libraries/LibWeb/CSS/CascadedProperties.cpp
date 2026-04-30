@@ -6,10 +6,7 @@
 
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CascadedProperties.h>
-#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
-#include <LibWeb/CSS/PropertyNameAndID.h>
-#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 
@@ -39,9 +36,14 @@ void CascadedProperties::revert_property(PropertyID property_id, Important impor
         return;
     auto& entries = it->value;
     entries.remove_all_matching([&](auto& entry) {
+        // https://drafts.csswg.org/css-cascade-5/#author-presentational-hint-origin
+        // For the purpose of cascading this author presentational hint origin is treated as an independent origin, but
+        // for the purpose of the revert keyword it is considered part of the author origin.
+        auto origin_matches = entry.origin == cascade_origin
+            || (cascade_origin == CascadeOrigin::Author && entry.origin == CascadeOrigin::AuthorPresentationalHint);
         return entry.property.property_id == property_id
             && entry.property.important == important
-            && cascade_origin == entry.origin;
+            && origin_matches;
     });
     if (entries.is_empty()) {
         m_contained_properties_cache.set(to_underlying(property_id), false);
@@ -63,17 +65,6 @@ void CascadedProperties::revert_layer_property(PropertyID property_id, Important
     if (entries.is_empty()) {
         m_contained_properties_cache.set(to_underlying(property_id), false);
         m_properties.remove(it);
-    }
-}
-
-void CascadedProperties::resolve_unresolved_properties(DOM::AbstractElement abstract_element)
-{
-    for (auto& [property_id, entries] : m_properties) {
-        for (auto& entry : entries) {
-            if (!entry.property.value->is_unresolved())
-                continue;
-            entry.property.value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, PropertyNameAndID::from_id(property_id), entry.property.value->as_unresolved());
-        }
     }
 }
 
@@ -110,28 +101,6 @@ void CascadedProperties::set_property(PropertyID property_id, NonnullRefPtr<Styl
         .layer_name = move(layer_name),
         .source = source,
         .source_shadow_root = source_shadow_root,
-    });
-}
-
-void CascadedProperties::set_property_from_presentational_hint(PropertyID property_id, NonnullRefPtr<StyleValue const> value)
-{
-    StyleComputer::for_each_property_expanding_shorthands(property_id, value, [this](PropertyID longhand_property_id, StyleValue const& longhand_value) {
-        m_contained_properties_cache.set(to_underlying(longhand_property_id), true);
-
-        auto& entries = m_properties.ensure(longhand_property_id);
-
-        entries.append(Entry {
-            .property = StyleProperty {
-                .important = Important::No,
-                .property_id = longhand_property_id,
-                .value = longhand_value,
-            },
-            .cascade_index = m_next_cascade_index++,
-            .origin = CascadeOrigin::Author,
-            .layer_name = {},
-            .source = nullptr,
-            .source_shadow_root = nullptr,
-        });
     });
 }
 

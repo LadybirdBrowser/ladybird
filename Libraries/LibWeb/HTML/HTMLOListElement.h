@@ -37,7 +37,7 @@ private:
     virtual void attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
     virtual bool is_presentational_hint(FlyString const&) const override;
-    virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
+    virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 };
 
 }

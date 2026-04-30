@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
@@ -28,15 +27,15 @@ bool MathMLMiElement::is_presentational_hint(FlyString const& name) const
     return first_is_one_of(name, AttributeNames::mathvariant);
 }
 
-void MathMLMiElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
+void MathMLMiElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
 {
-    Base::apply_presentational_hints(cascaded_properties);
+    Base::apply_presentational_hints(properties);
     // https://w3c.github.io/mathml-core/#dfn-mathvariant
     // The mathvariant attribute, if present, must be an ASCII case-insensitive match of normal. In that case, the user
     // agent is expected to treat the attribute as a presentational hint setting the element's text-transform property
     // to none. Otherwise it has no effects.
     if (auto mathvariant = attribute(AttributeNames::mathvariant); mathvariant.has_value() && mathvariant.value().equals_ignoring_ascii_case("normal"sv)) {
-        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextTransform, CSS::KeywordStyleValue::create(CSS::Keyword::None));
+        properties.append({ .property_id = CSS::PropertyID::TextTransform, .value = CSS::KeywordStyleValue::create(CSS::Keyword::None) });
     }
 }
 

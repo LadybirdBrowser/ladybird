@@ -132,7 +132,7 @@ private:
     virtual void adopted_from(DOM::Document&) override;
 
     virtual bool is_presentational_hint(FlyString const&) const override;
-    virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
+    virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 
     // https://html.spec.whatwg.org/multipage/embedded-content.html#the-img-element:dimension-attributes
     virtual bool supports_dimension_attributes() const override { return true; }

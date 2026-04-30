@@ -994,7 +994,7 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
     }
 }
 
-static void apply_dimension_attribute(CascadedProperties& cascaded_properties, DOM::Element const& element, FlyString const& attribute_name, CSS::PropertyID property_id)
+static void collect_dimension_attribute(Vector<StyleProperty>& properties, DOM::Element const& element, FlyString const& attribute_name, CSS::PropertyID property_id)
 {
     auto attribute = element.attribute(attribute_name);
     if (!attribute.has_value())
@@ -1004,7 +1004,7 @@ static void apply_dimension_attribute(CascadedProperties& cascaded_properties, D
     if (!parsed_value)
         return;
 
-    cascaded_properties.set_property_from_presentational_hint(property_id, parsed_value.release_nonnull());
+    properties.append({ .property_id = property_id, .value = parsed_value.release_nonnull() });
 }
 
 static void compute_transitioned_properties(ComputedProperties const& style, DOM::AbstractElement abstract_element)
@@ -1321,18 +1321,19 @@ GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Abstract
     // https://drafts.csswg.org/css-cascade-5/#author-presentational-hint-origin
     if (!abstract_element.pseudo_element().has_value()) {
         auto& element = abstract_element.element();
-        element.apply_presentational_hints(cascaded_properties);
+        Vector<StyleProperty> presentational_hint_properties;
+        element.apply_presentational_hints(presentational_hint_properties);
         if (element.supports_dimension_attributes()) {
             auto const& dimension_source = is<HTML::HTMLImageElement>(element)
                 ? static_cast<HTML::HTMLImageElement const&>(element).dimension_attribute_source()
                 : element;
-            apply_dimension_attribute(cascaded_properties, dimension_source, HTML::AttributeNames::width, CSS::PropertyID::Width);
-            apply_dimension_attribute(cascaded_properties, dimension_source, HTML::AttributeNames::height, CSS::PropertyID::Height);
+            collect_dimension_attribute(presentational_hint_properties, dimension_source, HTML::AttributeNames::width, CSS::PropertyID::Width);
+            collect_dimension_attribute(presentational_hint_properties, dimension_source, HTML::AttributeNames::height, CSS::PropertyID::Height);
         }
-
-        // SVG presentation attributes are parsed as CSS values, so we need to handle potential custom properties here.
-        if (element.is_svg_element())
-            cascaded_properties->resolve_unresolved_properties(abstract_element);
+        if (!presentational_hint_properties.is_empty()) {
+            apply_property_list_to_cascade(*cascaded_properties, abstract_element, presentational_hint_properties,
+                CascadeOrigin::AuthorPresentationalHint, Important::No, {}, nullptr, nullptr);
+        }
     }
 
     // Normal author declarations, ordered by @layer, with un-@layer-ed rules last

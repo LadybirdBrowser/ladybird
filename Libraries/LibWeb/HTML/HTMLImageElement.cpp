@@ -11,7 +11,6 @@
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/Bindings/HTMLImageElement.h>
-#include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -176,33 +175,33 @@ bool HTMLImageElement::is_presentational_hint(FlyString const& name) const
         HTML::AttributeNames::border);
 }
 
-void HTMLImageElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
+void HTMLImageElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
 {
-    Base::apply_presentational_hints(cascaded_properties);
+    Base::apply_presentational_hints(properties);
     for_each_attribute([&](auto& name, auto& value) {
         if (name == HTML::AttributeNames::hspace) {
             if (auto parsed_value = parse_dimension_value(value)) {
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginLeft, *parsed_value);
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginRight, *parsed_value);
+                properties.append({ .property_id = CSS::PropertyID::MarginLeft, .value = *parsed_value });
+                properties.append({ .property_id = CSS::PropertyID::MarginRight, .value = *parsed_value });
             }
         } else if (name == HTML::AttributeNames::vspace) {
             if (auto parsed_value = parse_dimension_value(value)) {
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginTop, *parsed_value);
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginBottom, *parsed_value);
+                properties.append({ .property_id = CSS::PropertyID::MarginTop, .value = *parsed_value });
+                properties.append({ .property_id = CSS::PropertyID::MarginBottom, .value = *parsed_value });
             }
         } else if (name == HTML::AttributeNames::border) {
             if (auto parsed_value = parse_non_negative_integer(value); parsed_value.has_value()) {
                 auto width_value = CSS::LengthStyleValue::create(CSS::Length::make_px(*parsed_value));
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderTopWidth, width_value);
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderRightWidth, width_value);
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderBottomWidth, width_value);
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderLeftWidth, width_value);
+                properties.append({ .property_id = CSS::PropertyID::BorderTopWidth, .value = width_value });
+                properties.append({ .property_id = CSS::PropertyID::BorderRightWidth, .value = width_value });
+                properties.append({ .property_id = CSS::PropertyID::BorderBottomWidth, .value = width_value });
+                properties.append({ .property_id = CSS::PropertyID::BorderLeftWidth, .value = width_value });
 
                 auto solid_value = CSS::KeywordStyleValue::create(CSS::Keyword::Solid);
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderTopStyle, solid_value);
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderRightStyle, solid_value);
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderBottomStyle, solid_value);
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderLeftStyle, solid_value);
+                properties.append({ .property_id = CSS::PropertyID::BorderTopStyle, .value = solid_value });
+                properties.append({ .property_id = CSS::PropertyID::BorderRightStyle, .value = solid_value });
+                properties.append({ .property_id = CSS::PropertyID::BorderBottomStyle, .value = solid_value });
+                properties.append({ .property_id = CSS::PropertyID::BorderLeftStyle, .value = solid_value });
             }
         }
     });

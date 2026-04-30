@@ -23,7 +23,7 @@ public:
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
     virtual bool is_presentational_hint(FlyString const&) const override;
-    virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
+    virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 
     // https://www.w3.org/TR/html-aria/#el-body
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::generic; }

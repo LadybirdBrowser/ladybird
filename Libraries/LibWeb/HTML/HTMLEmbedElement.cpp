@@ -6,7 +6,6 @@
 
 #include <LibWeb/Bindings/HTMLEmbedElement.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
@@ -43,33 +42,33 @@ bool HTMLEmbedElement::is_presentational_hint(FlyString const& name) const
         HTML::AttributeNames::width);
 }
 
-void HTMLEmbedElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
+void HTMLEmbedElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
 {
-    Base::apply_presentational_hints(cascaded_properties);
+    Base::apply_presentational_hints(properties);
     for_each_attribute([&](auto& name, auto& value) {
         if (name == HTML::AttributeNames::align) {
             if (value.equals_ignoring_ascii_case("center"sv))
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::KeywordStyleValue::create(CSS::Keyword::Center));
+                properties.append({ .property_id = CSS::PropertyID::TextAlign, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Center) });
             else if (value.equals_ignoring_ascii_case("middle"sv))
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::KeywordStyleValue::create(CSS::Keyword::Middle));
+                properties.append({ .property_id = CSS::PropertyID::TextAlign, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Middle) });
         } else if (name == HTML::AttributeNames::height) {
             if (auto parsed_value = parse_dimension_value(value))
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Height, *parsed_value);
+                properties.append({ .property_id = CSS::PropertyID::Height, .value = *parsed_value });
         }
         // https://html.spec.whatwg.org/multipage/rendering.html#attributes-for-embedded-content-and-images:maps-to-the-dimension-property
         else if (name == HTML::AttributeNames::hspace) {
             if (auto parsed_value = parse_dimension_value(value)) {
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginLeft, *parsed_value);
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginRight, *parsed_value);
+                properties.append({ .property_id = CSS::PropertyID::MarginLeft, .value = *parsed_value });
+                properties.append({ .property_id = CSS::PropertyID::MarginRight, .value = *parsed_value });
             }
         } else if (name == HTML::AttributeNames::vspace) {
             if (auto parsed_value = parse_dimension_value(value)) {
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginTop, *parsed_value);
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginBottom, *parsed_value);
+                properties.append({ .property_id = CSS::PropertyID::MarginTop, .value = *parsed_value });
+                properties.append({ .property_id = CSS::PropertyID::MarginBottom, .value = *parsed_value });
             }
         } else if (name == HTML::AttributeNames::width) {
             if (auto parsed_value = parse_dimension_value(value)) {
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Width, *parsed_value);
+                properties.append({ .property_id = CSS::PropertyID::Width, .value = *parsed_value });
             }
         }
     });

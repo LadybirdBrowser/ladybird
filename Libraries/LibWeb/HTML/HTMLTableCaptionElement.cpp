@@ -6,7 +6,6 @@
 
 #include <LibWeb/Bindings/HTMLTableCaptionElement.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/HTML/HTMLTableCaptionElement.h>
@@ -37,13 +36,13 @@ bool HTMLTableCaptionElement::is_presentational_hint(FlyString const& name) cons
 }
 
 // https://html.spec.whatwg.org/multipage/rendering.html#tables-2
-void HTMLTableCaptionElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
+void HTMLTableCaptionElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
 {
-    HTMLElement::apply_presentational_hints(cascaded_properties);
+    HTMLElement::apply_presentational_hints(properties);
     for_each_attribute([&](auto& name, auto& value) {
         if (name == HTML::AttributeNames::align) {
             if (value == "bottom"sv)
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::CaptionSide, CSS::KeywordStyleValue::create(CSS::Keyword::Bottom));
+                properties.append({ .property_id = CSS::PropertyID::CaptionSide, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Bottom) });
         }
     });
 }

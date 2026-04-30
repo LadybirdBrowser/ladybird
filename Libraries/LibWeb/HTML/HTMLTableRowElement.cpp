@@ -6,7 +6,6 @@
 
 #include <LibWeb/Bindings/HTMLTableRowElement.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
@@ -53,28 +52,28 @@ bool HTMLTableRowElement::is_presentational_hint(FlyString const& name) const
         HTML::AttributeNames::valign);
 }
 
-void HTMLTableRowElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
+void HTMLTableRowElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
 {
-    Base::apply_presentational_hints(cascaded_properties);
+    Base::apply_presentational_hints(properties);
     for_each_attribute([&](auto& name, auto& value) {
         if (name == HTML::AttributeNames::align) {
             if (auto parsed_value = parse_table_child_element_align_value(value))
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, parsed_value.release_nonnull());
+                properties.append({ .property_id = CSS::PropertyID::TextAlign, .value = parsed_value.release_nonnull() });
         } else if (name == HTML::AttributeNames::bgcolor) {
             // https://html.spec.whatwg.org/multipage/rendering.html#tables-2:rules-for-parsing-a-legacy-colour-value
             auto color = parse_legacy_color_value(value);
             if (color.has_value())
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundColor, CSS::ColorStyleValue::create_from_color(color.value(), CSS::ColorSyntax::Legacy));
+                properties.append({ .property_id = CSS::PropertyID::BackgroundColor, .value = CSS::ColorStyleValue::create_from_color(color.value(), CSS::ColorSyntax::Legacy) });
         } else if (name == HTML::AttributeNames::background) {
             // https://html.spec.whatwg.org/multipage/rendering.html#tables-2:encoding-parsing-and-serializing-a-url
             if (auto parsed_value = document().encoding_parse_url(value); parsed_value.has_value())
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundImage, CSS::StyleValueList::create({ CSS::ImageStyleValue::create(*parsed_value) }, CSS::StyleValueList::Separator::Comma));
+                properties.append({ .property_id = CSS::PropertyID::BackgroundImage, .value = CSS::StyleValueList::create({ CSS::ImageStyleValue::create(*parsed_value) }, CSS::StyleValueList::Separator::Comma) });
         } else if (name == HTML::AttributeNames::height) {
             if (auto parsed_value = parse_dimension_value(value))
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Height, *parsed_value);
+                properties.append({ .property_id = CSS::PropertyID::Height, .value = *parsed_value });
         } else if (name == HTML::AttributeNames::valign) {
             if (auto parsed_value = parse_css_value(CSS::Parser::ParsingParams { document() }, value, CSS::PropertyID::VerticalAlign))
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::VerticalAlign, parsed_value.release_nonnull());
+                properties.append({ .property_id = CSS::PropertyID::VerticalAlign, .value = parsed_value.release_nonnull() });
         }
     });
 }

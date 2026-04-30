@@ -10,7 +10,6 @@
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/HTMLCanvasElement.h>
-#include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
@@ -86,9 +85,9 @@ bool HTMLCanvasElement::is_presentational_hint(FlyString const& name) const
         HTML::AttributeNames::height);
 }
 
-void HTMLCanvasElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
+void HTMLCanvasElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
 {
-    Base::apply_presentational_hints(cascaded_properties);
+    Base::apply_presentational_hints(properties);
     // https://html.spec.whatwg.org/multipage/rendering.html#attributes-for-embedded-content-and-images
     // The width and height attributes map to the aspect-ratio property on canvas elements.
 
@@ -99,14 +98,16 @@ void HTMLCanvasElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperti
     auto w = parse_non_negative_integer(get_attribute_value(HTML::AttributeNames::width));
     auto h = parse_non_negative_integer(get_attribute_value(HTML::AttributeNames::height));
 
-    if (w.has_value() && h.has_value())
-        // then the user agent is expected to use the parsed integers as a presentational hint for the 'aspect-ratio' property of the form auto w / h.
-        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::AspectRatio,
-            CSS::StyleValueList::create(CSS::StyleValueVector {
-                                            CSS::KeywordStyleValue::create(CSS::Keyword::Auto),
-                                            CSS::RatioStyleValue::create(CSS::NumberStyleValue::create(w.value()), CSS::NumberStyleValue::create(h.value())) },
-
-                CSS::StyleValueList::Separator::Space));
+    // then the user agent is expected to use the parsed integers as a presentational hint for the 'aspect-ratio' property of the form auto w / h.
+    if (w.has_value() && h.has_value()) {
+        auto aspect_ratio = CSS::StyleValueList::create(
+            CSS::StyleValueVector {
+                CSS::KeywordStyleValue::create(CSS::Keyword::Auto),
+                CSS::RatioStyleValue::create(CSS::NumberStyleValue::create(w.value()), CSS::NumberStyleValue::create(h.value())),
+            },
+            CSS::StyleValueList::Separator::Space);
+        properties.append({ .property_id = CSS::PropertyID::AspectRatio, .value = aspect_ratio });
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-width

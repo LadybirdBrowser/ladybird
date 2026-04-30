@@ -3899,11 +3899,10 @@ Optional<Utf16String> specified_command_value(GC::Ref<DOM::Element> element, Fly
     //     "xxx-large".)
     if (is<HTML::HTMLFontElement>(*element)) {
         auto const& font_element = static_cast<HTML::HTMLFontElement&>(*element);
-        auto cascaded_properties = font_element.document().heap().allocate<CSS::CascadedProperties>();
-        font_element.apply_presentational_hints(cascaded_properties);
-        auto property_value = cascaded_properties->property(property.value());
-        if (property_value)
-            return Utf16String::from_utf8_without_validation(property_value->to_string(CSS::SerializationMode::Normal));
+        Vector<CSS::StyleProperty> presentational_hint_properties;
+        font_element.apply_presentational_hints(presentational_hint_properties);
+        if (auto hint = presentational_hint_properties.first_matching([&](auto& it) { return it.property_id == property.value(); }); hint.has_value())
+            return Utf16String::from_utf8_without_validation(hint->value->to_string(CSS::SerializationMode::Normal));
     }
 
     // 12. If element is in the following list, and property is equal to the CSS property name listed for it, return the

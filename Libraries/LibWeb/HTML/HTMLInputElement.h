@@ -267,7 +267,7 @@ private:
     virtual void computed_properties_changed() override;
 
     virtual bool is_presentational_hint(FlyString const&) const override;
-    virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
+    virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
     virtual EventResult handle_return_key(FlyString const& ui_input_type) override;
 
     // ^DOM::Node

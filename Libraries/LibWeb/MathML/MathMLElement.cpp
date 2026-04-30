@@ -6,7 +6,6 @@
 
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/MathMLElement.h>
-#include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
@@ -74,9 +73,9 @@ bool MathMLElement::is_presentational_hint(FlyString const& name) const
         AttributeNames::mathsize, AttributeNames::displaystyle, AttributeNames::scriptlevel);
 }
 
-void MathMLElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
+void MathMLElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
 {
-    Base::apply_presentational_hints(cascaded_properties);
+    Base::apply_presentational_hints(properties);
     for_each_attribute([&](auto& name, auto& value) {
         if (name == AttributeNames::dir) {
             // https://w3c.github.io/mathml-core/#attributes-common-to-html-and-mathml-elements
@@ -85,19 +84,19 @@ void MathMLElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> 
             // property to the corresponding value. More precisely, an ASCII case-insensitive match to rtl is mapped to
             // rtl while an ASCII case-insensitive match to ltr is mapped to ltr.
             if (value.equals_ignoring_ascii_case("ltr"sv))
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Direction, CSS::KeywordStyleValue::create(CSS::Keyword::Ltr));
+                properties.append({ .property_id = CSS::PropertyID::Direction, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Ltr) });
             else if (value.equals_ignoring_ascii_case("rtl"sv))
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Direction, CSS::KeywordStyleValue::create(CSS::Keyword::Rtl));
+                properties.append({ .property_id = CSS::PropertyID::Direction, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Rtl) });
         } else if (name == AttributeNames::mathcolor) {
             // https://w3c.github.io/mathml-core/#legacy-mathml-style-attributes
             // The mathcolor and mathbackground attributes, if present, must have a value that is a <color>. In that case,
             // the user agent is expected to treat these attributes as a presentational hint setting the element's color
             // and background-color properties to the corresponding values.
             if (auto parsed_value = parse_css_type(CSS::Parser::ParsingParams { document() }, value, CSS::ValueType::Color))
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Color, parsed_value.release_nonnull());
+                properties.append({ .property_id = CSS::PropertyID::Color, .value = parsed_value.release_nonnull() });
         } else if (name == AttributeNames::mathbackground) {
             if (auto parsed_value = parse_css_type(CSS::Parser::ParsingParams { document() }, value, CSS::ValueType::Color))
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundColor, parsed_value.release_nonnull());
+                properties.append({ .property_id = CSS::PropertyID::BackgroundColor, .value = parsed_value.release_nonnull() });
         } else if (name == AttributeNames::mathsize) {
             // https://w3c.github.io/mathml-core/#dfn-mathsize
             // The mathsize attribute, if present, must have a value that is a valid <length-percentage>.
@@ -107,7 +106,7 @@ void MathMLElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> 
             //     LengthPercentage values are rejected.
             if (auto parsed_value = parse_css_value(CSS::Parser::ParsingParams { document() }, value, CSS::PropertyID::FontSize);
                 parsed_value && (parsed_value->is_length() || parsed_value->is_percentage() || parsed_value->is_calculated()))
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::FontSize, parsed_value.release_nonnull());
+                properties.append({ .property_id = CSS::PropertyID::FontSize, .value = parsed_value.release_nonnull() });
         } else if (name == AttributeNames::displaystyle) {
             // https://w3c.github.io/mathml-core/#dfn-displaystyle
             // The displaystyle attribute, if present, must have a value that is a boolean. In that case, the user agent
@@ -115,9 +114,9 @@ void MathMLElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> 
             // the corresponding value. More precisely, an ASCII case-insensitive match to true is mapped to normal while
             // an ASCII case-insensitive match to false is mapped to compact.
             if (value.equals_ignoring_ascii_case("true"sv))
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MathStyle, CSS::KeywordStyleValue::create(CSS::Keyword::Normal));
+                properties.append({ .property_id = CSS::PropertyID::MathStyle, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Normal) });
             else if (value.equals_ignoring_ascii_case("false"sv))
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MathStyle, CSS::KeywordStyleValue::create(CSS::Keyword::Compact));
+                properties.append({ .property_id = CSS::PropertyID::MathStyle, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Compact) });
         } else if (name == AttributeNames::scriptlevel) {
             // https://w3c.github.io/mathml-core/#dfn-scriptlevel
             // The scriptlevel attribute, if present, must have value +<U>, -<U> or <U> where <U> is an unsigned-integer.
@@ -133,7 +132,7 @@ void MathMLElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> 
 
                         return CSS::IntegerStyleValue::create(integer_value.release_value());
                     }();
-                    cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MathDepth, style_value);
+                    properties.append({ .property_id = CSS::PropertyID::MathDepth, .value = style_value });
                 }
             }
         }

@@ -60,7 +60,7 @@ private:
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
     virtual i32 default_tab_index_value() const override;
     virtual bool is_presentational_hint(FlyString const&) const override;
-    virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
+    virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 
     // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-iframe-element:dimension-attributes
     virtual bool supports_dimension_attributes() const override { return true; }

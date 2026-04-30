@@ -35,7 +35,7 @@ public:
     GC::Ref<SVGAnimatedLength> svg_animated_length_for_property(CSS::PropertyID) const;
 
     virtual bool is_presentational_hint(FlyString const&) const override;
-    virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
+    virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 
 protected:
     SVGElement(DOM::Document&, DOM::QualifiedName);

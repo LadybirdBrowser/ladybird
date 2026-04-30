@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Bindings/HTMLBRElement.h>
-#include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
@@ -43,18 +42,18 @@ bool HTMLBRElement::is_presentational_hint(FlyString const& name) const
     return name == HTML::AttributeNames::clear;
 }
 
-void HTMLBRElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
+void HTMLBRElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
 {
-    Base::apply_presentational_hints(cascaded_properties);
+    Base::apply_presentational_hints(properties);
     for_each_attribute([&](auto& name, auto& value) {
         // https://html.spec.whatwg.org/multipage/rendering.html#phrasing-content-3
         if (name == HTML::AttributeNames::clear) {
             if (value.equals_ignoring_ascii_case("left"sv))
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Clear, CSS::KeywordStyleValue::create(CSS::Keyword::Left));
+                properties.append({ .property_id = CSS::PropertyID::Clear, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Left) });
             else if (value.equals_ignoring_ascii_case("right"sv))
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Clear, CSS::KeywordStyleValue::create(CSS::Keyword::Right));
+                properties.append({ .property_id = CSS::PropertyID::Clear, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Right) });
             else if (value.equals_ignoring_ascii_case("all"sv) || value.equals_ignoring_ascii_case("both"sv))
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Clear, CSS::KeywordStyleValue::create(CSS::Keyword::Both));
+                properties.append({ .property_id = CSS::PropertyID::Clear, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Both) });
         }
     });
 }

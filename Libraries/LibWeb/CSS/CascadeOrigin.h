@@ -8,9 +8,11 @@
 
 namespace Web::CSS {
 
-// https://www.w3.org/TR/css-cascade/#origin
+// https://drafts.csswg.org/css-cascade/#origin
 enum class CascadeOrigin : u8 {
     Author,
+    // https://drafts.csswg.org/css-cascade/#author-presentational-hint-origin
+    AuthorPresentationalHint,
     User,
     UserAgent,
     Animation,

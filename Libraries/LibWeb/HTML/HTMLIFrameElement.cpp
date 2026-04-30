@@ -6,7 +6,6 @@
  */
 
 #include <LibWeb/Bindings/HTMLIFrameElement.h>
-#include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Invalidation/EmbeddedContentInvalidator.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
@@ -251,9 +250,9 @@ bool HTMLIFrameElement::is_presentational_hint(FlyString const& name) const
     return name == HTML::AttributeNames::frameborder;
 }
 
-void HTMLIFrameElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
+void HTMLIFrameElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
 {
-    Base::apply_presentational_hints(cascaded_properties);
+    Base::apply_presentational_hints(properties);
 
     // https://html.spec.whatwg.org/multipage/rendering.html#attributes-for-embedded-content-and-images:attr-iframe-frameborder
     // When an iframe element has a frameborder attribute whose value, when parsed using the rules for parsing integers,
@@ -263,10 +262,10 @@ void HTMLIFrameElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperti
         auto frameborder = parse_integer(*frameborder_attribute);
         if (!frameborder.has_value() || frameborder == 0) {
             auto zero = CSS::LengthStyleValue::create(CSS::Length::make_px(0));
-            cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderTopWidth, zero);
-            cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderRightWidth, zero);
-            cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderBottomWidth, zero);
-            cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderLeftWidth, zero);
+            properties.append({ .property_id = CSS::PropertyID::BorderTopWidth, .value = zero });
+            properties.append({ .property_id = CSS::PropertyID::BorderRightWidth, .value = zero });
+            properties.append({ .property_id = CSS::PropertyID::BorderBottomWidth, .value = zero });
+            properties.append({ .property_id = CSS::PropertyID::BorderLeftWidth, .value = zero });
         }
     }
 }

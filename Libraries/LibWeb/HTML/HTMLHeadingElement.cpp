@@ -7,7 +7,6 @@
 
 #include <LibWeb/Bindings/HTMLHeadingElement.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/DOM/Document.h>
@@ -39,19 +38,19 @@ bool HTMLHeadingElement::is_presentational_hint(FlyString const& name) const
 }
 
 // https://html.spec.whatwg.org/multipage/rendering.html#tables-2
-void HTMLHeadingElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
+void HTMLHeadingElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
 {
-    HTMLElement::apply_presentational_hints(cascaded_properties);
+    HTMLElement::apply_presentational_hints(properties);
     for_each_attribute([&](auto& name, auto& value) {
         if (name == HTML::AttributeNames::align) {
             if (value == "left"sv)
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::KeywordStyleValue::create(CSS::Keyword::Left));
+                properties.append({ .property_id = CSS::PropertyID::TextAlign, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Left) });
             else if (value == "right"sv)
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::KeywordStyleValue::create(CSS::Keyword::Right));
+                properties.append({ .property_id = CSS::PropertyID::TextAlign, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Right) });
             else if (value == "center"sv)
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::KeywordStyleValue::create(CSS::Keyword::Center));
+                properties.append({ .property_id = CSS::PropertyID::TextAlign, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Center) });
             else if (value == "justify"sv)
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::KeywordStyleValue::create(CSS::Keyword::Justify));
+                properties.append({ .property_id = CSS::PropertyID::TextAlign, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Justify) });
         }
     });
 }
