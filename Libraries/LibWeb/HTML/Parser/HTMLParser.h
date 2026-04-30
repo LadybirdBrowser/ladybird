@@ -281,5 +281,6 @@ private:
 RefPtr<CSS::StyleValue const> parse_dimension_value(StringView);
 RefPtr<CSS::StyleValue const> parse_nonzero_dimension_value(StringView);
 Optional<Color> parse_legacy_color_value(StringView);
+RefPtr<CSS::StyleValue const> parse_table_child_element_align_value(StringView);
 
 }

@@ -108,6 +108,7 @@ bool HTMLTableSectionElement::is_presentational_hint(FlyString const& name) cons
         return true;
 
     return first_is_one_of(name,
+        HTML::AttributeNames::align,
         HTML::AttributeNames::background,
         HTML::AttributeNames::bgcolor,
         HTML::AttributeNames::height);
@@ -117,8 +118,12 @@ void HTMLTableSectionElement::apply_presentational_hints(GC::Ref<CSS::CascadedPr
 {
     Base::apply_presentational_hints(cascaded_properties);
     for_each_attribute([&](auto& name, auto& value) {
+        if (name == HTML::AttributeNames::align) {
+            if (auto parsed_value = parse_table_child_element_align_value(value))
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, parsed_value.release_nonnull());
+        }
         // https://html.spec.whatwg.org/multipage/rendering.html#tables-2:encoding-parsing-and-serializing-a-url
-        if (name == HTML::AttributeNames::background) {
+        else if (name == HTML::AttributeNames::background) {
             if (auto parsed_value = document().encoding_parse_url(value); parsed_value.has_value())
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundImage, CSS::StyleValueList::create({ CSS::ImageStyleValue::create(*parsed_value) }, CSS::StyleValueList::Separator::Comma));
         }

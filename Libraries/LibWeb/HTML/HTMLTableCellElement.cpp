@@ -71,16 +71,8 @@ void HTMLTableCellElement::apply_presentational_hints(GC::Ref<CSS::CascadedPrope
             return;
         }
         if (name == HTML::AttributeNames::align) {
-            if (value.equals_ignoring_ascii_case("center"sv) || value.equals_ignoring_ascii_case("middle"sv)) {
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::KeywordStyleValue::create(CSS::Keyword::LibwebCenter));
-            } else if (value.equals_ignoring_ascii_case("left"sv)) {
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::KeywordStyleValue::create(CSS::Keyword::LibwebLeft));
-            } else if (value.equals_ignoring_ascii_case("right"sv)) {
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::KeywordStyleValue::create(CSS::Keyword::LibwebRight));
-            } else {
-                if (auto parsed_value = parse_css_value(CSS::Parser::ParsingParams { document() }, value, CSS::PropertyID::TextAlign))
-                    cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, parsed_value.release_nonnull());
-            }
+            if (auto parsed_value = parse_table_child_element_align_value(value))
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, parsed_value.release_nonnull());
             return;
         }
         if (name == HTML::AttributeNames::width) {

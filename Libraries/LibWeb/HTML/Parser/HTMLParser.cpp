@@ -13,6 +13,7 @@
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/DOM/Attr.h>
@@ -5760,6 +5761,37 @@ Optional<Color> parse_legacy_color_value(StringView string_view)
 
     // 19. Return result.
     return result;
+}
+
+// https://html.spec.whatwg.org/multipage/rendering.html#tables-2
+RefPtr<CSS::StyleValue const> parse_table_child_element_align_value(StringView string_view)
+{
+    // The thead, tbody, tfoot, tr, td, and th elements, when they have an align attribute whose value is an ASCII
+    // case-insensitive match for either the string "center" or the string "middle", are expected to center text within
+    // themselves, as if they had their 'text-align' property set to 'center' in a presentational hint, and to align
+    // descendants to the center.
+    if (string_view.equals_ignoring_ascii_case("center"sv) || string_view.equals_ignoring_ascii_case("middle"sv))
+        return CSS::KeywordStyleValue::create(CSS::Keyword::LibwebCenter);
+
+    // The thead, tbody, tfoot, tr, td, and th elements, when they have an align attribute whose value is an ASCII
+    // case-insensitive match for the string "left", are expected to left-align text within themselves, as if they had
+    // their 'text-align' property set to 'left' in a presentational hint, and to align descendants to the left.
+    if (string_view.equals_ignoring_ascii_case("left"sv))
+        return CSS::KeywordStyleValue::create(CSS::Keyword::LibwebLeft);
+
+    // The thead, tbody, tfoot, tr, td, and th elements, when they have an align attribute whose value is an ASCII
+    // case-insensitive match for the string "right", are expected to right-align text within themselves, as if they
+    // had their 'text-align' property set to 'right' in a presentational hint, and to align descendants to the right.
+    if (string_view.equals_ignoring_ascii_case("right"sv))
+        return CSS::KeywordStyleValue::create(CSS::Keyword::LibwebRight);
+
+    // The thead, tbody, tfoot, tr, td, and th elements, when they have an align attribute whose value is an ASCII
+    // case-insensitive match for the string "justify", are expected to full-justify text within themselves, as if they
+    // had their 'text-align' property set to 'justify' in a presentational hint, and to align descendants to the left.
+    if (string_view.equals_ignoring_ascii_case("justify"sv))
+        return CSS::KeywordStyleValue::create(CSS::Keyword::Justify);
+
+    return nullptr;
 }
 
 JS::Realm& HTMLParser::realm()

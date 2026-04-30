@@ -46,6 +46,7 @@ bool HTMLTableRowElement::is_presentational_hint(FlyString const& name) const
         return true;
 
     return first_is_one_of(name,
+        HTML::AttributeNames::align,
         HTML::AttributeNames::bgcolor,
         HTML::AttributeNames::background,
         HTML::AttributeNames::height,
@@ -56,7 +57,10 @@ void HTMLTableRowElement::apply_presentational_hints(GC::Ref<CSS::CascadedProper
 {
     Base::apply_presentational_hints(cascaded_properties);
     for_each_attribute([&](auto& name, auto& value) {
-        if (name == HTML::AttributeNames::bgcolor) {
+        if (name == HTML::AttributeNames::align) {
+            if (auto parsed_value = parse_table_child_element_align_value(value))
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, parsed_value.release_nonnull());
+        } else if (name == HTML::AttributeNames::bgcolor) {
             // https://html.spec.whatwg.org/multipage/rendering.html#tables-2:rules-for-parsing-a-legacy-colour-value
             auto color = parse_legacy_color_value(value);
             if (color.has_value())
