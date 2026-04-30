@@ -1493,12 +1493,8 @@ GC::Ref<Geometry::DOMRect> Element::get_bounding_client_rect_for_bindings() cons
     return MUST(Geometry::DOMRect::construct_impl(realm(), static_cast<double>(rect.x()), static_cast<double>(rect.y()), static_cast<double>(rect.width()), static_cast<double>(rect.height())));
 }
 
-// https://drafts.csswg.org/cssom-view/#dom-element-getboundingclientrect
-CSSPixelRect Element::get_bounding_client_rect() const
+static CSSPixelRect bounding_rect_from_client_rects(Vector<CSSPixelRect> const& list)
 {
-    // 1. Let list be the result of invoking getClientRects() on element.
-    auto list = get_client_rects();
-
     // 2. If the list is empty return a DOMRect object whose x, y, width and height members are zero.
     if (list.size() == 0)
         return { 0, 0, 0, 0 };
@@ -1527,6 +1523,13 @@ CSSPixelRect Element::get_bounding_client_rect() const
     return bounding_rect;
 }
 
+// https://drafts.csswg.org/cssom-view/#dom-element-getboundingclientrect
+CSSPixelRect Element::get_bounding_client_rect() const
+{
+    // 1. Let list be the result of invoking getClientRects() on element.
+    return bounding_rect_from_client_rects(get_client_rects());
+}
+
 // https://drafts.csswg.org/cssom-view/#dom-element-getclientrects
 GC::Ref<Geometry::DOMRectList> Element::get_client_rects_for_bindings() const
 {
@@ -1537,19 +1540,11 @@ GC::Ref<Geometry::DOMRectList> Element::get_client_rects_for_bindings() const
     return Geometry::DOMRectList::create(realm(), move(rects));
 }
 
-// https://drafts.csswg.org/cssom-view/#dom-element-getclientrects
-Vector<CSSPixelRect> Element::get_client_rects() const
+static Vector<CSSPixelRect> compute_client_rects_assuming_layout_clean(Element const& element)
 {
-    auto navigable = document().navigable();
-    if (!navigable)
-        return {};
-
-    // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    const_cast<Document&>(document()).update_layout_if_needed_for_node(*this, UpdateLayoutReason::ElementGetClientRects);
-
     // 1. If the element on which it was invoked does not have an associated layout box return an empty DOMRectList
     //    object and stop this algorithm.
-    if (!layout_node())
+    if (!element.layout_node())
         return {};
 
     // FIXME: 2. If the element has an associated SVG layout box return a DOMRectList object containing a single
@@ -1564,18 +1559,43 @@ Vector<CSSPixelRect> Element::get_client_rects() const
     // FIXME: - Replace each anonymous block box with its child box(es) and repeat this until no anonymous block boxes
     //          are left in the final list.
 
-    // NOTE: Make sure CSS transforms are resolved before it is used to calculate the rect position.
-    const_cast<Document&>(document()).update_paint_and_hit_testing_properties_if_needed();
-
     Vector<CSSPixelRect> rects;
-    if (auto const* paintable_box = this->paintable_box()) {
+    if (auto const* paintable_box = element.paintable_box()) {
         auto absolute_rect = paintable_box->absolute_border_box_rect();
         rects.append(paintable_box->transform_rect_to_viewport(absolute_rect));
-    } else if (paintable()) {
-        dbgln("FIXME: Failed to get client rects for element ({})", debug_description());
+    } else if (element.paintable()) {
+        dbgln("FIXME: Failed to get client rects for element ({})", element.debug_description());
     }
 
     return rects;
+}
+
+// https://drafts.csswg.org/cssom-view/#dom-element-getclientrects
+Vector<CSSPixelRect> Element::get_client_rects() const
+{
+    auto navigable = document().navigable();
+    if (!navigable)
+        return {};
+
+    // NOTE: Ensure that layout is up-to-date before looking at metrics.
+    const_cast<Document&>(document()).update_layout_if_needed_for_node(*this, UpdateLayoutReason::ElementGetClientRects);
+
+    // NOTE: Make sure CSS transforms are resolved before they are used to calculate the rect position.
+    const_cast<Document&>(document()).update_paint_and_hit_testing_properties_if_needed();
+
+    return compute_client_rects_assuming_layout_clean(*this);
+}
+
+Vector<CSSPixelRect> Element::client_rects_assuming_layout_clean() const
+{
+    if (!document().navigable())
+        return {};
+    return compute_client_rects_assuming_layout_clean(*this);
+}
+
+CSSPixelRect Element::bounding_client_rect_assuming_layout_clean() const
+{
+    return bounding_rect_from_client_rects(client_rects_assuming_layout_clean());
 }
 
 int Element::client_top() const

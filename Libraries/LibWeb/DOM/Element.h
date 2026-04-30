@@ -337,6 +337,9 @@ public:
     [[nodiscard]] Vector<CSSPixelRect> get_client_rects() const;
     [[nodiscard]] GC::Ref<Geometry::DOMRectList> get_client_rects_for_bindings() const;
 
+    [[nodiscard]] Vector<CSSPixelRect> client_rects_assuming_layout_clean() const;
+    [[nodiscard]] CSSPixelRect bounding_client_rect_assuming_layout_clean() const;
+
     virtual GC::Ptr<Layout::Node> create_layout_node(GC::Ref<CSS::ComputedProperties>);
     virtual void adjust_computed_style(CSS::ComputedProperties&) { }
 

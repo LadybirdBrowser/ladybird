@@ -5380,10 +5380,10 @@ void Document::queue_an_intersection_observer_entry(IntersectionObserver::Inters
 }
 
 // https://www.w3.org/TR/intersection-observer/#compute-the-intersection
-static CSSPixelRect compute_intersection(GC::Ref<Element> target, IntersectionObserver::IntersectionObserver const& observer, Painting::PaintableBox const* root_paintable, CSSPixelRect const& root_bounds)
+static CSSPixelRect compute_intersection(GC::Ref<Element> target, CSSPixelRect target_rect, IntersectionObserver::IntersectionObserver const& observer, Painting::PaintableBox const* root_paintable, CSSPixelRect const& root_bounds)
 {
     // 1. Let intersectionRect be the result of getting the bounding box for target.
-    auto intersection_rect = target->get_bounding_client_rect();
+    auto intersection_rect = target_rect;
 
     // 2. Let container be the containing block of target.
     // 3. While container is not root:
@@ -5451,6 +5451,8 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
     // NOTE: We make a copy of the intersection observers list to avoid modifying it while iterating.
     auto intersection_observers = GC::RootVector { heap(), m_intersection_observers.values() };
 
+    update_paint_and_hit_testing_properties_if_needed();
+
     for (auto& observer : intersection_observers) {
         // 1. Let rootBounds be observer’s root intersection rectangle.
         auto root_bounds = observer->root_intersection_rectangle();
@@ -5488,11 +5490,11 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
             // NOTE: Check if target has a layout node is not in the spec but required to match other browsers.
             if (target->layout_node() && (is_implicit_root || &target->document() == &intersection_root_node->document()) && !(root_is_element && !target->is_descendant_of(*intersection_root_node))) {
                 // 4. Set targetRect to the DOMRectReadOnly obtained by getting the bounding box for target.
-                target_rect = target->get_bounding_client_rect();
+                target_rect = target->bounding_client_rect_assuming_layout_clean();
 
                 // 5. Let intersectionRect be the result of running the compute the intersection algorithm on target and
                 //    observer’s intersection root.
-                intersection_rect = compute_intersection(target, *observer, root_paintable, root_bounds);
+                intersection_rect = compute_intersection(target, target_rect, *observer, root_paintable, root_bounds);
 
                 // 6. Let targetArea be targetRect’s area.
                 auto target_area = target_rect.width() * target_rect.height();
