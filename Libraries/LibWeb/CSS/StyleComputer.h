@@ -187,6 +187,16 @@ private:
         Important,
         Optional<FlyString> layer_name) const;
 
+    void apply_property_list_to_cascade(
+        CascadedProperties&,
+        DOM::AbstractElement,
+        ReadonlySpan<StyleProperty>,
+        CascadeOrigin,
+        Important,
+        Optional<FlyString> layer_name,
+        GC::Ptr<CSSStyleDeclaration const> source,
+        GC::Ptr<DOM::ShadowRoot const> source_shadow_root) const;
+
     GC::Ref<DOM::Document> m_document;
 
     [[nodiscard]] RuleCache const* rule_cache_for_cascade_origin(CascadeOrigin, Optional<FlyString const> qualified_layer_name, GC::Ptr<DOM::ShadowRoot const>) const;

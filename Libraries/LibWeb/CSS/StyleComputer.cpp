@@ -477,6 +477,78 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     set_longhand_property(property_id, value);
 }
 
+void StyleComputer::apply_property_list_to_cascade(
+    CascadedProperties& cascaded_properties,
+    DOM::AbstractElement abstract_element,
+    ReadonlySpan<StyleProperty> properties,
+    CascadeOrigin cascade_origin,
+    Important important,
+    Optional<FlyString> layer_name,
+    GC::Ptr<CSSStyleDeclaration const> source,
+    GC::Ptr<DOM::ShadowRoot const> source_shadow_root) const
+{
+    AK::FixedBitmap<to_underlying(last_property_id) + 1> seen_properties(false);
+    for (auto const& property : properties) {
+        if (important != property.important)
+            continue;
+
+        if (abstract_element.pseudo_element().has_value()
+            && !pseudo_element_supports_property(*abstract_element.pseudo_element(), property.property_id)
+            && !property.value->is_unresolved())
+            continue;
+
+        auto property_value = property.value;
+
+        if (property_value->is_pending_substitution())
+            continue;
+
+        if (property_value->is_unresolved())
+            property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, PropertyNameAndID::from_id(property.property_id), property_value->as_unresolved());
+
+        if (property_value->is_guaranteed_invalid()) {
+            // https://drafts.csswg.org/css-values-5/#invalid-at-computed-value-time
+            // When substitution results in a property’s value containing the guaranteed-invalid value, this makes the
+            // declaration invalid at computed-value time. When this happens, the computed value is one of the
+            // following depending on the property’s type:
+
+            // -> The property is a non-registered custom property
+            // -> The property is a registered custom property with universal syntax
+            // FIXME: Process custom properties here?
+            if (false) {
+                // The computed value is the guaranteed-invalid value.
+            }
+            // -> Otherwise
+            else {
+                // Either the property’s inherited value or its initial value depending on whether the property is
+                // inherited or not, respectively, as if the property’s value had been specified as the unset keyword.
+                property_value = KeywordStyleValue::create(Keyword::Unset);
+            }
+        }
+
+        for_each_property_expanding_shorthands(property.property_id, property_value, [&](PropertyID longhand_id, StyleValue const& longhand_value) {
+            if (abstract_element.pseudo_element().has_value() && !pseudo_element_supports_property(*abstract_element.pseudo_element(), longhand_id))
+                return;
+
+            // If we're a PSV that's already been seen, that should mean that our shorthand already got
+            // resolved and gave us a value, so we don't want to overwrite it with a PSV.
+            if (seen_properties.get(to_underlying(longhand_id)) && property_value->is_pending_substitution())
+                return;
+            seen_properties.set(to_underlying(longhand_id), true);
+
+            if (longhand_value.is_revert()) {
+                cascaded_properties.revert_property(longhand_id, important, cascade_origin);
+            } else if (longhand_value.is_revert_layer()) {
+                cascaded_properties.revert_layer_property(longhand_id, important, layer_name);
+            } else {
+                // Track the exact shadow-root scope that supplied this winning declaration. A constructable
+                // stylesheet can be adopted into multiple scopes at once, so the declaration object alone is
+                // not specific enough.
+                cascaded_properties.set_property(longhand_id, longhand_value, important, cascade_origin, layer_name, source, source_shadow_root);
+            }
+        });
+    }
+}
+
 void StyleComputer::cascade_declarations(
     CascadedProperties& cascaded_properties,
     DOM::AbstractElement abstract_element,
@@ -485,78 +557,14 @@ void StyleComputer::cascade_declarations(
     Important important,
     Optional<FlyString> layer_name) const
 {
-    AK::FixedBitmap<to_underlying(last_property_id) + 1> seen_properties(false);
-    auto cascade_style_declaration = [&](CSSStyleProperties const& declaration, GC::Ptr<DOM::ShadowRoot const> source_shadow_root) {
-        seen_properties.fill(false);
-        for (auto const& property : declaration.properties()) {
-            if (important != property.important)
-                continue;
-
-            if (abstract_element.pseudo_element().has_value()
-                && !pseudo_element_supports_property(*abstract_element.pseudo_element(), property.property_id)
-                && !property.value->is_unresolved())
-                continue;
-
-            auto property_value = property.value;
-
-            if (property_value->is_pending_substitution())
-                continue;
-
-            if (property_value->is_unresolved())
-                property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, PropertyNameAndID::from_id(property.property_id), property_value->as_unresolved());
-
-            if (property_value->is_guaranteed_invalid()) {
-                // https://drafts.csswg.org/css-values-5/#invalid-at-computed-value-time
-                // When substitution results in a property’s value containing the guaranteed-invalid value, this makes the
-                // declaration invalid at computed-value time. When this happens, the computed value is one of the
-                // following depending on the property’s type:
-
-                // -> The property is a non-registered custom property
-                // -> The property is a registered custom property with universal syntax
-                // FIXME: Process custom properties here?
-                if (false) {
-                    // The computed value is the guaranteed-invalid value.
-                }
-                // -> Otherwise
-                else {
-                    // Either the property’s inherited value or its initial value depending on whether the property is
-                    // inherited or not, respectively, as if the property’s value had been specified as the unset keyword.
-                    property_value = KeywordStyleValue::create(Keyword::Unset);
-                }
-            }
-
-            for_each_property_expanding_shorthands(property.property_id, property_value, [&](PropertyID longhand_id, StyleValue const& longhand_value) {
-                if (abstract_element.pseudo_element().has_value() && !pseudo_element_supports_property(*abstract_element.pseudo_element(), longhand_id))
-                    return;
-
-                // If we're a PSV that's already been seen, that should mean that our shorthand already got
-                // resolved and gave us a value, so we don't want to overwrite it with a PSV.
-                if (seen_properties.get(to_underlying(longhand_id)) && property_value->is_pending_substitution())
-                    return;
-                seen_properties.set(to_underlying(longhand_id), true);
-
-                if (longhand_value.is_revert()) {
-                    cascaded_properties.revert_property(longhand_id, important, cascade_origin);
-                } else if (longhand_value.is_revert_layer()) {
-                    cascaded_properties.revert_layer_property(longhand_id, important, layer_name);
-                } else {
-                    // Track the exact shadow-root scope that supplied this winning declaration. A constructable
-                    // stylesheet can be adopted into multiple scopes at once, so the declaration object alone is
-                    // not specific enough.
-                    cascaded_properties.set_property(longhand_id, longhand_value, important, cascade_origin, layer_name, declaration, source_shadow_root);
-                }
-            });
-        }
-    };
-
     for (auto const& match : matching_rules) {
-        cascade_style_declaration(match.rule->declaration(), match.shadow_root);
+        auto const& declaration = match.rule->declaration();
+        apply_property_list_to_cascade(cascaded_properties, abstract_element, declaration.properties(), cascade_origin, important, layer_name, &declaration, match.shadow_root);
     }
 
     if (cascade_origin == CascadeOrigin::Author && !abstract_element.pseudo_element().has_value()) {
-        if (auto const inline_style = abstract_element.element().inline_style()) {
-            cascade_style_declaration(*inline_style, nullptr);
-        }
+        if (auto const inline_style = abstract_element.element().inline_style())
+            apply_property_list_to_cascade(cascaded_properties, abstract_element, inline_style->properties(), cascade_origin, important, layer_name, inline_style, nullptr);
     }
 }
 
