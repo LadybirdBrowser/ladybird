@@ -50,7 +50,8 @@ static SkFontMgr& font_manager()
         }
 #endif
 #if defined(AK_OS_ANDROID)
-        s_font_manager = SkFontMgr_New_Android(nullptr);
+        // Use default Android system fonts and default scanner.
+        s_font_manager = SkFontMgr_New_Android(nullptr, nullptr);
 #elif defined(AK_OS_WINDOWS)
         s_font_manager = SkFontMgr_New_DirectWrite();
 #else
