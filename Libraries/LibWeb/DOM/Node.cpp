@@ -3367,12 +3367,12 @@ void Node::add_registered_observer(RegisteredObserver& registered_observer)
     m_registered_observer_list->append(registered_observer);
 }
 
-bool Node::has_inclusive_ancestor_with_display_none()
+bool Node::has_inclusive_ancestor_with_display_none() const
 {
-    for (auto* ancestor = this; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
+    for (auto const* ancestor = this; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
         if (!ancestor->is_element())
             continue;
-        auto const& ancestor_element = static_cast<Element&>(*ancestor);
+        auto const& ancestor_element = static_cast<Element const&>(*ancestor);
         if (ancestor_element.computed_properties() && ancestor_element.computed_properties()->display().is_none()) {
             return true;
         }
