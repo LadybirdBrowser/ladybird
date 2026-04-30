@@ -72,6 +72,7 @@ private:
     GtkRevealer* m_find_bar_revealer { nullptr };
     GtkSearchEntry* m_find_entry { nullptr };
     GtkLabel* m_find_result_label { nullptr };
+    GtkCheckButton* m_find_match_case { nullptr };
     AdwToastOverlay* m_toast_overlay { nullptr };
 
     struct ActionBinding {

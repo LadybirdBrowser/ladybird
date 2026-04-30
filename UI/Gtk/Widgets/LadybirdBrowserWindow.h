@@ -22,6 +22,7 @@ AdwBanner* browser_window_devtools_banner(LadybirdBrowserWindow*);
 GtkRevealer* browser_window_find_bar_revealer(LadybirdBrowserWindow*);
 GtkSearchEntry* browser_window_find_entry(LadybirdBrowserWindow*);
 GtkLabel* browser_window_find_result_label(LadybirdBrowserWindow*);
+GtkCheckButton* browser_window_find_match_case(LadybirdBrowserWindow*);
 GMenu* browser_window_hamburger_menu(LadybirdBrowserWindow*);
 AdwToastOverlay* browser_window_toast_overlay(LadybirdBrowserWindow*);
 GtkMenuButton* browser_window_menu_button(LadybirdBrowserWindow*);

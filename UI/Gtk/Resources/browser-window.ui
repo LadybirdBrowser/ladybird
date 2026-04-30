@@ -92,6 +92,12 @@
                   </object>
                 </child>
                 <child>
+                  <object class="GtkCheckButton" id="find_match_case">
+                    <property name="label">Match _Case</property>
+                    <property name="use-underline">true</property>
+                  </object>
+                </child>
+                <child>
                   <object class="GtkButton" id="find_prev_button">
                     <property name="action-name">win.find-previous</property>
                     <property name="icon-name">go-up-symbolic</property>

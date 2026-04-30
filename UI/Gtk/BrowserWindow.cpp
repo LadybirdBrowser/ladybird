@@ -144,14 +144,31 @@ void BrowserWindow::setup_ui(AdwApplication* app)
     m_find_bar_revealer = LadybirdWidgets::browser_window_find_bar_revealer(browser_window_widget);
     m_find_entry = LadybirdWidgets::browser_window_find_entry(browser_window_widget);
     m_find_result_label = LadybirdWidgets::browser_window_find_result_label(browser_window_widget);
+    m_find_match_case = LadybirdWidgets::browser_window_find_match_case(browser_window_widget);
     m_toast_overlay = LadybirdWidgets::browser_window_toast_overlay(browser_window_widget);
 
     // Connect find entry signals
     g_signal_connect_swapped(m_find_entry, "search-changed", G_CALLBACK(+[](BrowserWindow* self, GtkSearchEntry* entry) {
         auto* text = gtk_editable_get_text(GTK_EDITABLE(entry));
         if (auto* tab = self->current_tab()) {
-            if (text && text[0] != '\0')
-                tab->view().find_in_page(MUST(String::from_utf8(StringView(text, strlen(text)))));
+            if (text && text[0] != '\0') {
+                auto case_sensitive = gtk_check_button_get_active(self->m_find_match_case)
+                    ? CaseSensitivity::CaseSensitive
+                    : CaseSensitivity::CaseInsensitive;
+                tab->view().find_in_page(MUST(String::from_utf8(StringView(text, strlen(text)))), case_sensitive);
+            }
+        }
+    }),
+        this);
+    g_signal_connect_swapped(m_find_match_case, "toggled", G_CALLBACK(+[](BrowserWindow* self, GtkCheckButton*) {
+        auto* text = gtk_editable_get_text(GTK_EDITABLE(self->m_find_entry));
+        if (auto* tab = self->current_tab()) {
+            if (text && text[0] != '\0') {
+                auto case_sensitive = gtk_check_button_get_active(self->m_find_match_case)
+                    ? CaseSensitivity::CaseSensitive
+                    : CaseSensitivity::CaseInsensitive;
+                tab->view().find_in_page(MUST(String::from_utf8(StringView(text, strlen(text)))), case_sensitive);
+            }
         }
     }),
         this);

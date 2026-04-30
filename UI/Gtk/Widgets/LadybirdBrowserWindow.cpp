@@ -22,6 +22,7 @@ struct LadybirdBrowserWindow {
     GtkRevealer* find_bar_revealer { nullptr };
     GtkSearchEntry* find_entry { nullptr };
     GtkLabel* find_result_label { nullptr };
+    GtkCheckButton* find_match_case { nullptr };
     GtkButton* zoom_reset_button { nullptr };
     GtkLabel* zoom_label { nullptr };
     AdwBanner* devtools_banner { nullptr };
@@ -53,6 +54,7 @@ static void ladybird_browser_window_class_init(LadybirdBrowserWindowClass* klass
     gtk_widget_class_bind_template_child(widget_class, LadybirdBrowserWindow, find_bar_revealer);
     gtk_widget_class_bind_template_child(widget_class, LadybirdBrowserWindow, find_entry);
     gtk_widget_class_bind_template_child(widget_class, LadybirdBrowserWindow, find_result_label);
+    gtk_widget_class_bind_template_child(widget_class, LadybirdBrowserWindow, find_match_case);
     gtk_widget_class_bind_template_child(widget_class, LadybirdBrowserWindow, zoom_reset_button);
     gtk_widget_class_bind_template_child(widget_class, LadybirdBrowserWindow, zoom_label);
     gtk_widget_class_bind_template_child(widget_class, LadybirdBrowserWindow, devtools_banner);
@@ -81,6 +83,7 @@ AdwBanner* browser_window_devtools_banner(LadybirdBrowserWindow* window) { retur
 GtkRevealer* browser_window_find_bar_revealer(LadybirdBrowserWindow* window) { return window->find_bar_revealer; }
 GtkSearchEntry* browser_window_find_entry(LadybirdBrowserWindow* window) { return window->find_entry; }
 GtkLabel* browser_window_find_result_label(LadybirdBrowserWindow* window) { return window->find_result_label; }
+GtkCheckButton* browser_window_find_match_case(LadybirdBrowserWindow* window) { return window->find_match_case; }
 GMenu* browser_window_hamburger_menu(LadybirdBrowserWindow* window) { return window->hamburger_menu; }
 AdwToastOverlay* browser_window_toast_overlay(LadybirdBrowserWindow* window) { return window->toast_overlay; }
 GtkMenuButton* browser_window_menu_button(LadybirdBrowserWindow* window) { return window->menu_button; }
