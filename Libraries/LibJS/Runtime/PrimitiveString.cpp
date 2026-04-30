@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
 #include <AK/CharacterTypes.h>
 #include <AK/FlyString.h>
 #include <AK/StringBuilder.h>
@@ -28,6 +29,61 @@ static constexpr size_t MAX_LENGTH_FOR_STRING_CACHE = 256;
 GC_DEFINE_ALLOCATOR(PrimitiveString);
 GC_DEFINE_ALLOCATOR(RopeString);
 GC_DEFINE_ALLOCATOR(Substring);
+
+Optional<StringView> PrimitiveString::short_flat_string_storage_view() const
+{
+    if (m_deferred_kind != DeferredKind::None)
+        return {};
+
+    if (m_utf8_string.has_value() && m_utf8_string->is_short_string())
+        return m_utf8_string->bytes_as_string_view();
+
+    if (m_utf16_string.has_value() && m_utf16_string->has_short_ascii_storage())
+        return m_utf16_string->ascii_view();
+
+    return {};
+}
+
+static bool utf8_views_form_surrogate_pair_across_boundary(StringView lhs, StringView rhs)
+{
+    if (lhs.length() < 3 || rhs.length() < 3)
+        return false;
+
+    // Surrogates encoded as UTF-8 are 3 bytes.
+    if ((static_cast<u8>(lhs[lhs.length() - 3]) & 0xf0) != 0xe0)
+        return false;
+    if ((static_cast<u8>(rhs[0]) & 0xf0) != 0xe0)
+        return false;
+
+    auto high_surrogate = *Utf8View(lhs.substring_view(lhs.length() - 3)).begin();
+    auto low_surrogate = *Utf8View(rhs).begin();
+    return AK::UnicodeUtils::is_utf16_high_surrogate(high_surrogate)
+        && AK::UnicodeUtils::is_utf16_low_surrogate(low_surrogate);
+}
+
+GC::Ptr<PrimitiveString> PrimitiveString::try_create_short_flat_concatenated_string(VM& vm, PrimitiveString const& lhs, PrimitiveString const& rhs)
+{
+    auto lhs_view = lhs.short_flat_string_storage_view();
+    if (!lhs_view.has_value())
+        return nullptr;
+
+    auto rhs_view = rhs.short_flat_string_storage_view();
+    if (!rhs_view.has_value())
+        return nullptr;
+
+    auto const byte_count = lhs_view->length() + rhs_view->length();
+    if (byte_count > String::MAX_SHORT_STRING_BYTE_COUNT)
+        return nullptr;
+
+    if (utf8_views_form_surrogate_pair_across_boundary(*lhs_view, *rhs_view))
+        return nullptr;
+
+    AK::Array<u8, String::MAX_SHORT_STRING_BYTE_COUNT> buffer;
+    lhs_view->bytes().copy_to({ buffer.data(), lhs_view->length() });
+    rhs_view->bytes().copy_to({ buffer.data() + lhs_view->length(), rhs_view->length() });
+
+    return PrimitiveString::create(vm, String::from_utf8_without_validation({ buffer.data(), byte_count }));
+}
 
 GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, Utf16String const& string)
 {
@@ -129,6 +185,9 @@ GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, PrimitiveString& lhs, P
 
     if (rhs_empty)
         return lhs;
+
+    if (auto short_flat_string = try_create_short_flat_concatenated_string(vm, lhs, rhs))
+        return *short_flat_string;
 
     return vm.heap().allocate<RopeString>(lhs, rhs);
 }

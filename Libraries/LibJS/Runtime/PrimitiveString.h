@@ -96,6 +96,8 @@ private:
     explicit PrimitiveString(String);
 
     void resolve_if_needed(EncodingPreference) const;
+    Optional<StringView> short_flat_string_storage_view() const;
+    static GC::Ptr<PrimitiveString> try_create_short_flat_concatenated_string(VM&, PrimitiveString const& lhs, PrimitiveString const& rhs);
 };
 
 class RopeString final : public PrimitiveString {
