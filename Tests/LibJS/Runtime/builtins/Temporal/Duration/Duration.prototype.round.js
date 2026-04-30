@@ -208,4 +208,20 @@ describe("errors", () => {
             duration.round({ largestUnit: "year" });
         }).toThrowWithMessage(RangeError, "Largest unit must not be year");
     });
+
+    test("out of range component", () => {
+        const minDuration = new Temporal.Duration(0, 0, 0, 0, 0, 0, Number.MIN_SAFE_INTEGER);
+        const maxDuration = new Temporal.Duration(0, 0, 0, 0, 0, 0, Number.MAX_SAFE_INTEGER);
+        const relativeTo = new Temporal.PlainDate(2020, 1, 1);
+
+        ["year", "month", "week"].forEach(smallestUnit => {
+            expect(() => {
+                minDuration.round({ smallestUnit, relativeTo });
+            }).toThrowWithMessage(RangeError, "Invalid duration");
+
+            expect(() => {
+                maxDuration.round({ smallestUnit, relativeTo });
+            }).toThrowWithMessage(RangeError, "Invalid ISO date");
+        });
+    });
 });

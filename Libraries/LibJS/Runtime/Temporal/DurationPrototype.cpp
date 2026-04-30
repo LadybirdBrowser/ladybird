@@ -384,8 +384,8 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::round)
         // c. Let calendar be plainRelativeTo.[[Calendar]].
         auto const& calendar = plain_relative_to->calendar();
 
-        // d. Let dateDuration be ! AdjustDateDurationRecord(internalDuration.[[Date]], targetTime.[[Days]]).
-        auto date_duration = MUST(adjust_date_duration_record(vm, internal_duration.date, target_time.days));
+        // d. Let dateDuration be ? AdjustDateDurationRecord(internalDuration.[[Date]], targetTime.[[Days]]).
+        auto date_duration = TRY(adjust_date_duration_record(vm, internal_duration.date, target_time.days));
 
         // e. Let targetDate be ? CalendarDateAdd(calendar, plainRelativeTo.[[ISODate]], dateDuration, CONSTRAIN).
         auto target_date = TRY(calendar_date_add(vm, calendar, plain_relative_to->iso_date(), date_duration, Overflow::Constrain));
@@ -524,8 +524,8 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::total)
         // c. Let calendar be plainRelativeTo.[[Calendar]].
         auto const& calendar = plain_relative_to->calendar();
 
-        // d. Let dateDuration be ! AdjustDateDurationRecord(internalDuration.[[Date]], targetTime.[[Days]]).
-        auto date_duration = MUST(adjust_date_duration_record(vm, internal_duration.date, target_time.days));
+        // d. Let dateDuration be ? AdjustDateDurationRecord(internalDuration.[[Date]], targetTime.[[Days]]).
+        auto date_duration = TRY(adjust_date_duration_record(vm, internal_duration.date, target_time.days));
 
         // e. Let targetDate be ? CalendarDateAdd(calendar, plainRelativeTo.[[ISODate]], dateDuration, CONSTRAIN).
         auto target_date = TRY(calendar_date_add(vm, calendar, plain_relative_to->iso_date(), date_duration, Overflow::Constrain));
