@@ -1,0 +1,4 @@
+[mixed featureless and class feature insertions] rgb(255, 0, 0)
+[mixed featureless and id feature insertions] rgb(255, 0, 0)
+[mixed featureless and attribute feature insertions] rgb(255, 0, 0)
+[mixed featureless and tag feature insertions] rgb(255, 0, 0)

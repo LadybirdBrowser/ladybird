@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="_helpers.js"></script>
+<style>
+    .other:has(*) .watched { color: green; }
+    .class-case:has(.target-class) .watched { color: red; }
+    .id-case:has(#target-id) .watched { color: red; }
+    .attribute-case:has([data-target]) .watched { color: red; }
+    .tag-case:has(target-tag) .watched { color: red; }
+</style>
+<div class="class-case" id="class-case"><span class="watched" id="class-watched">class</span></div>
+<div class="id-case" id="id-case"><span class="watched" id="id-watched">id</span></div>
+<div class="attribute-case" id="attribute-case"><span class="watched" id="attribute-watched">attribute</span></div>
+<div class="tag-case" id="tag-case"><span class="watched" id="tag-watched">tag</span></div>
+<div class="other" id="other"><span class="watched">other</span></div>
+<script>
+    test(() => {
+        let cases = [
+            {
+                id: "class-case",
+                watchedID: "class-watched",
+                label: "class feature",
+                makeTarget() {
+                    let target = document.createElement("span");
+                    target.className = "target-class";
+                    return target;
+                },
+            },
+            {
+                id: "id-case",
+                watchedID: "id-watched",
+                label: "id feature",
+                makeTarget() {
+                    let target = document.createElement("span");
+                    target.id = "target-id";
+                    return target;
+                },
+            },
+            {
+                id: "attribute-case",
+                watchedID: "attribute-watched",
+                label: "attribute feature",
+                makeTarget() {
+                    let target = document.createElement("span");
+                    target.setAttribute("data-target", "");
+                    return target;
+                },
+            },
+            {
+                id: "tag-case",
+                watchedID: "tag-watched",
+                label: "tag feature",
+                makeTarget() {
+                    return document.createElement("target-tag");
+                },
+            },
+        ];
+
+        settleAndReset(document.getElementById("class-case"));
+
+        for (let testCase of cases) {
+            let container = document.getElementById(testCase.id);
+            container.appendChild(document.createElement("span"));
+            container.appendChild(testCase.makeTarget());
+        }
+
+        for (let testCase of cases) {
+            let watched = document.getElementById(testCase.watchedID);
+            println(`[mixed featureless and ${testCase.label} insertions] ${getComputedStyle(watched).color}`);
+        }
+    });
+</script>

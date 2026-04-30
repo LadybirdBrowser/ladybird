@@ -39,6 +39,51 @@ static void invalidate_children_affected_by_has_sibling_combinators(DOM::Node& p
     });
 }
 
+static bool pending_has_invalidation_covers_all_child_list_mutation_features(StyleScope& scope, DOM::Node& parent)
+{
+    auto pending_invalidation = scope.m_pending_has_invalidations.find(parent);
+    if (pending_invalidation == scope.m_pending_has_invalidations.end())
+        return false;
+
+    auto const& mutation_features = pending_invalidation->value;
+    if (mutation_features.is_conservative)
+        return true;
+
+    auto const* data = scope.m_rule_cache ? &scope.m_rule_cache->style_invalidation_data : nullptr;
+    if (!data)
+        return false;
+
+    if (!mutation_features.may_affect_sibling_relationships)
+        return false;
+
+    auto contains_all_keys = [](auto const& existing_features, auto const& used_features) {
+        for (auto const& entry : used_features) {
+            if (!existing_features.contains(entry.key))
+                return false;
+        }
+        return true;
+    };
+
+    if (!contains_all_keys(mutation_features.tag_names, data->tag_names_used_in_has_selectors))
+        return false;
+    if (!contains_all_keys(mutation_features.ids, data->ids_used_in_has_selectors))
+        return false;
+    if (!contains_all_keys(mutation_features.class_names, data->class_names_used_in_has_selectors))
+        return false;
+    if (!contains_all_keys(mutation_features.attribute_names, data->attribute_names_used_in_has_selectors))
+        return false;
+    if (!data->pseudo_classes_used_in_has_selectors.is_empty() && !mutation_features.may_affect_pseudo_classes)
+        return false;
+
+    return true;
+}
+
+static bool scope_has_featureless_sensitive_has_selectors(StyleScope const& scope)
+{
+    auto const* data = scope.m_rule_cache ? &scope.m_rule_cache->style_invalidation_data : nullptr;
+    return data && data->has_selectors_sensitive_to_featureless_subtree_changes;
+}
+
 void invalidate_element_if_affected_by_has(DOM::Element& element)
 {
     if (element.affected_by_has_pseudo_class_in_subject_position())
@@ -369,6 +414,16 @@ static void schedule_has_invalidation_for_child_list_mutation(DOM::Node& parent,
         return;
 
     auto has_sibling_combinator_has_selectors = scope.may_have_has_selectors_with_relative_selector_that_has_sibling_combinator();
+
+    if (pending_has_invalidation_covers_all_child_list_mutation_features(scope, parent))
+        return;
+
+    if (scope_has_featureless_sensitive_has_selectors(scope)) {
+        scope.record_conservative_pending_has_invalidation(parent, true);
+        if (has_sibling_combinator_has_selectors)
+            invalidate_children_affected_by_has_sibling_combinators(parent);
+        return;
+    }
 
     // Sibling-combinator :has() selectors are sensitive to featureless insertions/removals because a plain node can
     // still change adjacency and following-sibling relationships.

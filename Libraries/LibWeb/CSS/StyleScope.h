@@ -147,6 +147,7 @@ public:
     RefPtr<CSS::CounterStyle const> get_registered_counter_style(FlyString const& name) const;
 
     void schedule_ancestors_style_invalidation_due_to_presence_of_has(GC::Ref<DOM::Node>);
+    void record_conservative_pending_has_invalidation(GC::Ref<DOM::Node>, bool may_affect_sibling_relationships);
     void record_pending_has_invalidation_mutation_features(GC::Ref<DOM::Node>, GC::Ref<DOM::Node>, bool includes_descendants);
     void record_pending_has_invalidation_mutation_features(GC::Ref<DOM::Node>, Vector<CSS::InvalidationSet::Property> const&);
 

@@ -890,6 +890,18 @@ static void collect_pending_has_invalidation_features_from_element(PendingHasInv
     });
 }
 
+void StyleScope::record_conservative_pending_has_invalidation(GC::Ref<DOM::Node> scheduled_node, bool may_affect_sibling_relationships)
+{
+    auto previous_size = m_pending_has_invalidations.size();
+    auto& mutation_features = m_pending_has_invalidations.ensure(scheduled_node);
+    mutation_features.is_conservative = true;
+    mutation_features.may_affect_sibling_relationships |= may_affect_sibling_relationships;
+    mutation_features.may_affect_pseudo_classes = true;
+
+    if (m_pending_has_invalidations.size() != previous_size)
+        document().set_needs_invalidation_of_elements_affected_by_has();
+}
+
 static PendingHasInvalidationMutationFeatures collect_pending_has_invalidation_mutation_features(DOM::Node& mutation_root, bool includes_descendants)
 {
     PendingHasInvalidationMutationFeatures features;
