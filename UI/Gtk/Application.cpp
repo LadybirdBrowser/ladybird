@@ -5,6 +5,8 @@
  */
 
 #include <LibURL/Parser.h>
+#include <LibWeb/HTML/WebViewHints.h>
+#include <LibWebView/BookmarkStore.h>
 #include <LibWebView/URL.h>
 #include <UI/Gtk/Application.h>
 #include <UI/Gtk/BrowserWindow.h>
@@ -108,13 +110,8 @@ void Application::on_activate()
         new_window({});
 }
 
-BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls)
+static void track_browser_window(BrowserWindow& window_ref)
 {
-    auto window = make<BrowserWindow>(m_adw_application, initial_urls);
-    auto& window_ref = *window;
-    m_active_window = &window_ref;
-
-    // Track active window via focus
     g_signal_connect(window_ref.gtk_window(), "notify::is-active", G_CALLBACK(+[](GObject* gtk_window, GParamSpec*, gpointer) {
         if (!gtk_window_is_active(GTK_WINDOW(gtk_window)))
             return;
@@ -126,7 +123,6 @@ BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls)
     }),
         nullptr);
 
-    // Clean up when window is destroyed — defer removal to avoid mutating m_windows during iteration
     g_signal_connect(window_ref.gtk_window(), "destroy", G_CALLBACK(+[](GtkWidget* gtk_window, gpointer) {
         auto& app = Application::the();
         BrowserWindow* to_remove = nullptr;
@@ -145,7 +141,25 @@ BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls)
         }
     }),
         nullptr);
+}
 
+BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls)
+{
+    auto window = make<BrowserWindow>(m_adw_application, initial_urls);
+    auto& window_ref = *window;
+    m_active_window = &window_ref;
+    track_browser_window(window_ref);
+    window_ref.present();
+    m_windows.append(move(window));
+    return window_ref;
+}
+
+BrowserWindow& Application::new_popup_window(Tab& parent_tab, Web::HTML::WebViewHints const& hints, Optional<u64> page_index)
+{
+    auto window = make<BrowserWindow>(m_adw_application, hints, parent_tab, move(page_index));
+    auto& window_ref = *window;
+    m_active_window = &window_ref;
+    track_browser_window(window_ref);
     window_ref.present();
     m_windows.append(move(window));
     return window_ref;

@@ -10,6 +10,7 @@
 #include <LibWeb/HTML/SelectItem.h>
 #include <LibWebView/Menu.h>
 #include <LibWebView/URL.h>
+#include <UI/Gtk/Application.h>
 #include <UI/Gtk/BrowserWindow.h>
 #include <UI/Gtk/Dialogs.h>
 #include <UI/Gtk/Events.h>
@@ -154,7 +155,11 @@ void Tab::setup_callbacks()
         gtk_widget_set_tooltip_text(root, nullptr);
     };
 
-    m_view->on_new_web_view = [this](auto activate_tab, auto, auto page_index) -> String {
+    m_view->on_new_web_view = [this](auto activate_tab, auto hints, auto page_index) -> String {
+        if (hints.popup) {
+            auto& window = Application::the().new_popup_window(*this, hints, move(page_index));
+            return window.current_tab()->view().handle();
+        }
         if (page_index.has_value()) {
             auto& new_tab = m_window.create_child_tab(activate_tab, *this, page_index.value());
             return new_tab.view().handle();

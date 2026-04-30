@@ -9,6 +9,7 @@
 #include <AK/Function.h>
 #include <AK/Vector.h>
 #include <LibURL/URL.h>
+#include <LibWeb/HTML/WebViewHints.h>
 #include <LibWebView/Application.h>
 
 #include <adwaita.h>
@@ -25,6 +26,7 @@ public:
     virtual ~Application() override;
 
     BrowserWindow& new_window(Vector<URL::URL> const& initial_urls);
+    BrowserWindow& new_popup_window(Tab& parent_tab, Web::HTML::WebViewHints const& hints, Optional<u64> page_index);
     void remove_window(BrowserWindow&);
 
     BrowserWindow* active_window() const { return m_active_window; }

@@ -9,6 +9,7 @@
 #include <AK/Vector.h>
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/ActivateTab.h>
+#include <LibWeb/HTML/WebViewHints.h>
 #include <LibWebView/Menu.h>
 #include <UI/Gtk/Widgets/LadybirdBrowserWindow.h>
 #include <UI/Gtk/Widgets/LadybirdLocationEntry.h>
@@ -23,6 +24,7 @@ class WebContentView;
 class BrowserWindow {
 public:
     BrowserWindow(AdwApplication* app, Vector<URL::URL> const& initial_urls);
+    BrowserWindow(AdwApplication* app, Web::HTML::WebViewHints const& hints, Tab& parent_tab, Optional<u64> page_index);
     ~BrowserWindow();
 
     GtkWindow* gtk_window() const { return GTK_WINDOW(m_window); }
@@ -60,6 +62,7 @@ private:
     void on_tab_switched();
     void bind_navigation_actions(WebContentView& view);
 
+    bool m_is_popup { false };
     AdwApplicationWindow* m_window { nullptr };
     LadybirdLocationEntry* m_location_entry { nullptr };
     Vector<NonnullOwnPtr<Tab>> m_tabs;

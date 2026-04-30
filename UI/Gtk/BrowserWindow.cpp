@@ -56,6 +56,22 @@ BrowserWindow::BrowserWindow(AdwApplication* app, Vector<URL::URL> const& initia
     }
 }
 
+BrowserWindow::BrowserWindow(AdwApplication* app, Web::HTML::WebViewHints const& hints, Tab& parent_tab, Optional<u64> page_index)
+    : m_is_popup(true)
+{
+    setup_ui(app);
+    setup_keyboard_shortcuts();
+
+    int width = hints.width.value_or(Web::DevicePixels(800)).value();
+    int height = hints.height.value_or(Web::DevicePixels(600)).value();
+    gtk_window_set_default_size(GTK_WINDOW(m_window), width, height);
+
+    if (page_index.has_value())
+        create_child_tab(Web::HTML::ActivateTab::Yes, parent_tab, *page_index);
+    else
+        create_new_tab(Web::HTML::ActivateTab::Yes);
+}
+
 BrowserWindow::~BrowserWindow()
 {
     m_back_binding.detach();
