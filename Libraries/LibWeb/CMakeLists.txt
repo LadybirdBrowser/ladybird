@@ -290,6 +290,7 @@ set(SOURCES
     CSS/StyleValues/NumberStyleValue.cpp
     CSS/StyleValues/OpacityValueStyleValue.cpp
     CSS/StyleValues/OpenTypeTaggedStyleValue.cpp
+    CSS/StyleValues/OverflowClipMarginStyleValue.cpp
     CSS/StyleValues/PositionStyleValue.cpp
     CSS/StyleValues/RadialGradientStyleValue.cpp
     CSS/StyleValues/RadialSizeStyleValue.cpp

@@ -57,6 +57,7 @@
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpacityValueStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/OverflowClipMarginStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PendingSubstitutionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>

@@ -363,20 +363,36 @@ CSSPixelRect PaintableBox::overflow_clip_edge_rect() const
     // '<visual-box>'
     //     Specifies the box edge to use as the overflow clip edge origin, i.e. when the specified offset is zero.
     //     If omitted, defaults to 'padding-box' on non-replaced elements, or 'content-box' on replaced elements.
-    // FIXME: We can't parse this yet so it's always omitted for now.
-    auto overflow_clip_edge = absolute_padding_box_rect();
-    if (layout_node().is_replaced_box()) {
-        overflow_clip_edge = absolute_rect();
-    }
+    auto const& overflow_clip_margin = computed_values().overflow_clip_margin();
+    auto resolve_box_edge = [&](CSS::OverflowClipMarginSide const& side) -> CSSPixelRect {
+        auto box = side.visual_box;
+        if (!box.has_value()) {
+            if (layout_node().is_replaced_box())
+                box = CSS::BackgroundBox::ContentBox;
+            else
+                box = CSS::BackgroundBox::PaddingBox;
+        }
+        switch (*box) {
+        case CSS::BackgroundBox::ContentBox:
+            return absolute_rect();
+        case CSS::BackgroundBox::BorderBox:
+            return absolute_border_box_rect();
+        case CSS::BackgroundBox::PaddingBox:
+        default:
+            return absolute_padding_box_rect();
+        }
+    };
+
+    auto overflow_clip_edge = resolve_box_edge(overflow_clip_margin.top);
 
     // '<length [0,∞]>'
     //     The specified offset dictates how much the overflow clip edge is expanded from the specified box edge
     //     Negative values are invalid. Defaults to zero if omitted.
     overflow_clip_edge.inflate(
-        computed_values().overflow_clip_margin().top().length().absolute_length_to_px(),
-        computed_values().overflow_clip_margin().right().length().absolute_length_to_px(),
-        computed_values().overflow_clip_margin().bottom().length().absolute_length_to_px(),
-        computed_values().overflow_clip_margin().left().length().absolute_length_to_px());
+        overflow_clip_margin.top.offset.absolute_length_to_px(),
+        overflow_clip_margin.right.offset.absolute_length_to_px(),
+        overflow_clip_margin.bottom.offset.absolute_length_to_px(),
+        overflow_clip_margin.left.offset.absolute_length_to_px());
     return overflow_clip_edge;
 }
 

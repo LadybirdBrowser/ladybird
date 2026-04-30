@@ -47,6 +47,7 @@
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/OverflowClipMarginStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RepeatStyleStyleValue.h>
@@ -3330,22 +3331,29 @@ RefPtr<StyleValue const> Parser::parse_math_depth_value(TokenStream<ComponentVal
 RefPtr<StyleValue const> Parser::parse_overflow_clip_margin_value(TokenStream<ComponentValue>& tokens)
 {
     // <visual-box> || <length>
-    auto parse_visual_box = [this](auto& tokens) -> Optional<Keyword> {
+    auto parse_visual_box = [this](auto& tokens) -> Optional<BackgroundBox> {
         auto transaction = tokens.begin_transaction();
         auto maybe_visual_box = parse_keyword_value(tokens);
         if (!maybe_visual_box)
             return {};
 
         auto keyword = maybe_visual_box->to_keyword();
-        if (keyword != Keyword::ContentBox && keyword != Keyword::PaddingBox && keyword != Keyword::BorderBox)
+        Optional<BackgroundBox> box;
+        if (keyword == Keyword::ContentBox)
+            box = BackgroundBox::ContentBox;
+        else if (keyword == Keyword::PaddingBox)
+            box = BackgroundBox::PaddingBox;
+        else if (keyword == Keyword::BorderBox)
+            box = BackgroundBox::BorderBox;
+        else
             return {};
 
         transaction.commit();
-        return keyword;
+        return box;
     };
 
     RefPtr<StyleValue const> length;
-    Optional<Keyword> visual_box;
+    Optional<BackgroundBox> visual_box;
 
     for (size_t i = 0; i < 2; ++i) {
         tokens.discard_whitespace();
@@ -3360,7 +3368,7 @@ RefPtr<StyleValue const> Parser::parse_overflow_clip_margin_value(TokenStream<Co
         }
 
         if (!length) {
-            if (auto maybe_length = parse_length_value(tokens, infinite_range)) {
+            if (auto maybe_length = parse_length_value(tokens, non_negative_range)) {
                 length = maybe_length.release_nonnull();
                 continue;
             }
@@ -3376,13 +3384,7 @@ RefPtr<StyleValue const> Parser::parse_overflow_clip_margin_value(TokenStream<Co
     if (!length)
         length = LengthStyleValue::create(Length::make_px(0));
 
-    if (!visual_box.has_value() || *visual_box == Keyword::PaddingBox)
-        return length;
-
-    if (length->is_length() && length->as_length().length().raw_value() == 0)
-        return KeywordStyleValue::create(*visual_box);
-
-    return StyleValueList::create({ KeywordStyleValue::create(*visual_box), length.release_nonnull() }, StyleValueList::Separator::Space);
+    return OverflowClipMarginStyleValue::create(visual_box, length.release_nonnull());
 }
 
 RefPtr<StyleValue const> Parser::parse_overflow_clip_margin_shorthand(PropertyID property_id, TokenStream<ComponentValue>& tokens)

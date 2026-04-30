@@ -17,6 +17,7 @@
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/OverflowClipMarginStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
@@ -828,7 +829,25 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_inset(computed_style.length_box(CSS::PropertyID::Left, CSS::PropertyID::Top, CSS::PropertyID::Right, CSS::PropertyID::Bottom, CSS::LengthPercentageOrAuto::make_auto()));
     computed_values.set_margin(computed_style.length_box(CSS::PropertyID::MarginLeft, CSS::PropertyID::MarginTop, CSS::PropertyID::MarginRight, CSS::PropertyID::MarginBottom, CSS::Length::make_px(0)));
     computed_values.set_padding(computed_style.length_box(CSS::PropertyID::PaddingLeft, CSS::PropertyID::PaddingTop, CSS::PropertyID::PaddingRight, CSS::PropertyID::PaddingBottom, CSS::Length::make_px(0)));
-    computed_values.set_overflow_clip_margin(computed_style.length_box(CSS::PropertyID::OverflowClipMarginLeft, CSS::PropertyID::OverflowClipMarginTop, CSS::PropertyID::OverflowClipMarginRight, CSS::PropertyID::OverflowClipMarginBottom, CSS::Length::make_px(0)));
+    {
+        auto extract_side = [&](CSS::PropertyID property_id) -> CSS::OverflowClipMarginSide {
+            auto const& value = computed_style.property(property_id);
+            if (value.is_overflow_clip_margin()) {
+                auto const& overflow_clip_margin = value.as_overflow_clip_margin();
+                CSS::Length offset = CSS::Length::make_px(0);
+                if (overflow_clip_margin.offset().is_length())
+                    offset = overflow_clip_margin.offset().as_length().length();
+                return { overflow_clip_margin.visual_box(), offset };
+            }
+            return {};
+        };
+        CSS::OverflowClipMarginData data;
+        data.left = extract_side(CSS::PropertyID::OverflowClipMarginLeft);
+        data.top = extract_side(CSS::PropertyID::OverflowClipMarginTop);
+        data.right = extract_side(CSS::PropertyID::OverflowClipMarginRight);
+        data.bottom = extract_side(CSS::PropertyID::OverflowClipMarginBottom);
+        computed_values.set_overflow_clip_margin(data);
+    }
 
     computed_values.set_box_shadow(computed_style.box_shadow(*this));
 
