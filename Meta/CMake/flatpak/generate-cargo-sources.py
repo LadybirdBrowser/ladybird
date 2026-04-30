@@ -9,6 +9,7 @@ import json
 import re
 
 from pathlib import Path
+from typing import Any
 
 script_dir = Path(__file__).parent
 repo_root = script_dir / ".." / ".." / ".."
@@ -23,7 +24,7 @@ for m in re.finditer(
 ):
     crates.append((m.group(1), m.group(2), m.group(3)))
 
-sources = [
+sources: list[dict[str, Any]] = [
     {
         "type": "git",
         "url": "https://github.com/corrosion-rs/corrosion.git",
