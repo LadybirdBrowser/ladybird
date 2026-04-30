@@ -446,23 +446,30 @@ void Heap::gather_roots(HashMap<Cell*, HeapRoot>& roots, HashTable<HeapBlock*>& 
 }
 
 #ifdef HAS_ADDRESS_SANITIZER
-NO_SANITIZE_ADDRESS void Heap::gather_asan_fake_stack_roots(HashMap<FlatPtr, HeapRoot>& possible_pointers, FlatPtr addr, FlatPtr min_block_address, FlatPtr max_block_address)
+NO_SANITIZE_ADDRESS void Heap::gather_asan_fake_stack_roots(HashMap<FlatPtr, HeapRoot>& possible_pointers, FlatPtr addr, FlatPtr min_block_address, FlatPtr max_block_address, FlatPtr stack_reference, FlatPtr stack_top)
 {
     void* begin = nullptr;
     void* end = nullptr;
     void* real_stack = __asan_addr_is_in_fake_stack(__asan_get_current_fake_stack(), reinterpret_cast<void*>(addr), &begin, &end);
+    if (real_stack == nullptr)
+        return;
 
-    if (real_stack != nullptr) {
-        for (auto* real_stack_addr = reinterpret_cast<void const* const*>(begin); real_stack_addr < end; ++real_stack_addr) {
-            void const* real_address = *real_stack_addr;
-            if (real_address == nullptr)
-                continue;
-            add_possible_value(possible_pointers, reinterpret_cast<FlatPtr>(real_address), HeapRoot { .type = HeapRoot::Type::StackPointer }, min_block_address, max_block_address);
-        }
+    // Only consider stack addresses that are inside the real stack's active range. ASan keeps fake frames in a
+    // per-thread pool after the owning function returns, and we need to take care not to resurrect dead pointers from
+    // below the stack pointer.
+    auto real_stack_addr = bit_cast<FlatPtr>(real_stack);
+    if (real_stack_addr < stack_reference || real_stack_addr >= stack_top)
+        return;
+
+    for (auto* real_stack_addr = reinterpret_cast<void const* const*>(begin); real_stack_addr < end; ++real_stack_addr) {
+        void const* real_address = *real_stack_addr;
+        if (real_address == nullptr)
+            continue;
+        add_possible_value(possible_pointers, reinterpret_cast<FlatPtr>(real_address), HeapRoot { .type = HeapRoot::Type::StackPointer }, min_block_address, max_block_address);
     }
 }
 #else
-void Heap::gather_asan_fake_stack_roots(HashMap<FlatPtr, HeapRoot>&, FlatPtr, FlatPtr, FlatPtr)
+void Heap::gather_asan_fake_stack_roots(HashMap<FlatPtr, HeapRoot>&, FlatPtr, FlatPtr, FlatPtr, FlatPtr, FlatPtr)
 {
 }
 #endif
@@ -582,7 +589,7 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot
     for (FlatPtr stack_address = stack_reference; stack_address < stack_top; stack_address += sizeof(FlatPtr)) {
         auto data = *reinterpret_cast<FlatPtr*>(stack_address);
         add_possible_value(possible_pointers, data, HeapRoot { .type = HeapRoot::Type::StackPointer, .stack_frame_index = frame_index_for_stack_address(stack_address) }, min_block_address, max_block_address);
-        gather_asan_fake_stack_roots(possible_pointers, data, min_block_address, max_block_address);
+        gather_asan_fake_stack_roots(possible_pointers, data, min_block_address, max_block_address, stack_reference, stack_top);
     }
 
     for (auto& vector : m_conservative_vectors) {
