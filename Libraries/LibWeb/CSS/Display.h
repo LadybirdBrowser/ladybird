@@ -138,6 +138,7 @@ public:
         Math,
     };
 
+    static Display from_keyword(Keyword);
     static Display from_short(Short short_);
     Optional<Keyword> to_keyword() const;
 

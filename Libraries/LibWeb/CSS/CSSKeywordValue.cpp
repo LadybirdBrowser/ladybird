@@ -12,6 +12,7 @@
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
+#include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -105,8 +106,15 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSKeywordValue::create_an_
     // NB: Non-applicable.
 
     //     Return the value.
-    if (auto keyword = keyword_from_string(m_value); keyword.has_value())
+    if (auto keyword = keyword_from_string(m_value); keyword.has_value()) {
+        if (!is_css_wide_keyword(m_value)) {
+            // NB: Non-css-wide keyword `display` values are represented internally by DisplayStyleValue, not KeywordStyleValue.
+            if (property.id() == PropertyID::Display)
+                return DisplayStyleValue::create(Display::from_keyword(keyword.release_value()));
+        }
+
         return KeywordStyleValue::create(*keyword);
+    }
     return CustomIdentStyleValue::create(m_value);
 }
 

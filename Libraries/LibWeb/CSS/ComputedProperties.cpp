@@ -1248,11 +1248,7 @@ Visibility ComputedProperties::visibility() const
 
 Display ComputedProperties::display() const
 {
-    auto const& value = property(PropertyID::Display);
-    if (value.is_display()) {
-        return value.as_display().display();
-    }
-    return Display::from_short(Display::Short::Inline);
+    return property(PropertyID::Display).as_display().display();
 }
 
 Vector<TextDecorationLine> ComputedProperties::text_decoration_line() const

@@ -1,0 +1,40 @@
+<!doctype html>
+<html class="reftest-wait">
+    <link rel="match" href="../expected/typed-om-display-none-ref.html" />
+    <style>
+        body {
+            margin: 0;
+        }
+
+        #green,
+        #red-child {
+            width: 100px;
+            height: 100px;
+        }
+
+        #green {
+            background: green;
+        }
+
+        #red {
+            display: inline;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        #red-child {
+            background: red;
+        }
+    </style>
+    <div id="green"></div>
+    <div id="red"><div id="red-child"></div></div>
+    <script>
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                red.attributeStyleMap.set("display", "none");
+                document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    </script>
+</html>

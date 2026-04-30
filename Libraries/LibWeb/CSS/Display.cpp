@@ -27,6 +27,53 @@ String Display::to_string() const
     return MUST(String::join(' ', parts));
 }
 
+Display Display::from_keyword(Keyword keyword)
+{
+    switch (keyword) {
+    case Keyword::None:
+        return Display::from_short(Short::None);
+    case Keyword::Contents:
+        return Display::from_short(Short::Contents);
+    case Keyword::Block:
+        return Display::from_short(Short::Block);
+    case Keyword::Inline:
+        return Display::from_short(Short::Inline);
+    case Keyword::Flow:
+        return Display::from_short(Short::Flow);
+    case Keyword::FlowRoot:
+        return Display::from_short(Short::FlowRoot);
+    case Keyword::InlineBlock:
+        return Display::from_short(Short::InlineBlock);
+    case Keyword::RunIn:
+        return Display::from_short(Short::RunIn);
+    case Keyword::ListItem:
+        return Display::from_short(Short::ListItem);
+    case Keyword::Flex:
+        return Display::from_short(Short::Flex);
+    case Keyword::InlineFlex:
+        return Display::from_short(Short::InlineFlex);
+    case Keyword::Grid:
+        return Display::from_short(Short::Grid);
+    case Keyword::InlineGrid:
+        return Display::from_short(Short::InlineGrid);
+    case Keyword::Ruby:
+        return Display::from_short(Short::Ruby);
+    case Keyword::Table:
+        return Display::from_short(Short::Table);
+    case Keyword::InlineTable:
+        return Display::from_short(Short::InlineTable);
+    case Keyword::Math:
+        return Display::from_short(Short::Math);
+    default:
+        break;
+    }
+
+    if (auto internal_value = keyword_to_display_internal(keyword); internal_value.has_value())
+        return Display { internal_value.release_value() };
+
+    VERIFY_NOT_REACHED();
+}
+
 Display Display::from_short(Short short_)
 {
     switch (short_) {
