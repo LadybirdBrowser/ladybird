@@ -96,6 +96,7 @@ enum class SetNeedsLayoutReason {
     X(NodeRemove)                                         \
     X(NodeSetTextContent)                                 \
     X(None)                                               \
+    X(ShadowRootSetInnerHTML)                             \
     X(StyleChange)
 
 enum class SetNeedsLayoutTreeUpdateReason {

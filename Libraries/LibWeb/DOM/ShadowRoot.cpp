@@ -128,8 +128,8 @@ WebIDL::ExceptionOr<void> ShadowRoot::set_inner_html(TrustedTypes::TrustedHTMLOr
         this->set_needs_style_update(true);
 
         if (this->is_connected()) {
-            // NOTE: Since the DOM has changed, we have to rebuild the layout tree.
-            this->document().invalidate_layout_tree(InvalidateLayoutTreeReason::ShadowRootSetInnerHTML);
+            // NOTE: Since the DOM has changed, we have to rebuild this shadow root's layout subtree.
+            this->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::ShadowRootSetInnerHTML);
         }
     }
 
