@@ -11,7 +11,6 @@
 #include <AK/Span.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
-#include <LibCore/SharedCircularQueue.h>
 
 // These concepts are used to help the compiler distinguish between specializations that would be
 // ambiguous otherwise. For example, if the specializations for int and Vector<T> were declared as
@@ -45,11 +44,6 @@ constexpr inline bool IsHashMap = false;
 template<typename K, typename V, typename KeyTraits, typename ValueTraits, bool IsOrdered>
 constexpr inline bool IsHashMap<HashMap<K, V, KeyTraits, ValueTraits, IsOrdered>> = true;
 
-template<typename T>
-constexpr inline bool IsSharedSingleProducerCircularQueue = false;
-template<typename T, size_t Size>
-constexpr inline bool IsSharedSingleProducerCircularQueue<Core::SharedSingleProducerCircularQueue<T, Size>> = true;
-
 }
 
 template<typename T>
@@ -63,9 +57,6 @@ concept Span = SpecializationOf<T, AK::Span>;
 
 template<typename T>
 concept HashMap = Detail::IsHashMap<T>;
-
-template<typename T>
-concept SharedSingleProducerCircularQueue = Detail::IsSharedSingleProducerCircularQueue<T>;
 
 template<typename T>
 concept Optional = SpecializationOf<T, AK::Optional>;

@@ -13,7 +13,6 @@
 #include <AK/StdLibExtras.h>
 #include <AK/Variant.h>
 #include <LibCore/Forward.h>
-#include <LibCore/SharedCircularQueue.h>
 #include <LibIPC/Attachment.h>
 #include <LibIPC/Concepts.h>
 #include <LibIPC/File.h>
@@ -192,13 +191,6 @@ ErrorOr<void> encode(Encoder& encoder, T const& hashmap)
         TRY(encoder.encode(it.value));
     }
 
-    return {};
-}
-
-template<Concepts::SharedSingleProducerCircularQueue T>
-ErrorOr<void> encode(Encoder& encoder, T const& queue)
-{
-    TRY(encoder.encode(TRY(IPC::File::clone_fd(queue.fd()))));
     return {};
 }
 

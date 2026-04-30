@@ -250,10 +250,6 @@
 #    cmakedefine01 RSA_PARSE_DEBUG
 #endif
 
-#ifndef SHARED_QUEUE_DEBUG
-#    cmakedefine01 SHARED_QUEUE_DEBUG
-#endif
-
 #ifndef SPAM_DEBUG
 #    cmakedefine01 SPAM_DEBUG
 #endif
