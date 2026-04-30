@@ -2565,6 +2565,7 @@ Messages::WebDriverClient::TakeScreenshotResponse WebDriverConnection::take_scre
             // 3. Return success with data encoded string.
             async_driver_execution_complete(move(encoded_string));
         }));
+        document->page().client().request_frame();
     });
 
     return JsonValue {};
@@ -2603,6 +2604,7 @@ Messages::WebDriverClient::TakeElementScreenshotResponse WebDriverConnection::ta
             // 6. Return success with data encoded string.
             async_driver_execution_complete(move(encoded_string));
         }));
+        document->page().client().request_frame();
     });
 
     return JsonValue {};
