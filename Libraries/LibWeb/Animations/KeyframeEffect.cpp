@@ -940,7 +940,7 @@ void KeyframeEffect::update_computed_properties(AnimationUpdateContext& context)
     if (!target || !target->is_connected())
         return;
 
-    if (target->has_inclusive_ancestor_with_display_none()) {
+    if (target->has_inclusive_ancestor_with_display_none_ignoring_animations()) {
         // FIXME: Reaching this point means we failed to cancel animation for an element that started
         //        being nested in "display: none".
         //        For now this hack is needed to avoid lots of unnecessary work.
