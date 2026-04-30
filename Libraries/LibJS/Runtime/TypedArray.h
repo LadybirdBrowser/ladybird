@@ -83,6 +83,12 @@ public:
 
     virtual GC::Ref<NativeFunction> intrinsic_constructor(Realm&) const = 0;
 
+    // OPTIMIZATION: Fast-path factories used by TypedArraySpeciesCreate when the resolved species constructor is the
+    // default intrinsic. These bypass the public TypedArray constructor (which would otherwise allocate a throwaway
+    // ArrayBuffer in the `is_object()` branch of its argument handling).
+    virtual ThrowCompletionOr<GC::Ref<TypedArrayBase>> create_default(Realm&, u32 array_length) const = 0;
+    virtual GC::Ref<TypedArrayBase> create_default_view_on_buffer(Realm&, ArrayBuffer&) const = 0;
+
 protected:
     TypedArrayBase(Object& prototype, Kind kind, u32 element_size)
         : Object(ConstructWithPrototypeTag::Tag, prototype, MayInterfereWithIndexedPropertyAccess::Yes)
@@ -546,6 +552,7 @@ protected:
 };
 
 JS_API ThrowCompletionOr<TypedArrayBase*> typed_array_from(VM&, Value);
+ThrowCompletionOr<void> initialize_typed_array_from_array_buffer(VM&, TypedArrayBase&, ArrayBuffer&, Value byte_offset, Value length);
 ThrowCompletionOr<TypedArrayBase*> typed_array_create(VM&, FunctionObject& constructor, GC::RootVector<Value> arguments);
 ThrowCompletionOr<TypedArrayBase*> typed_array_create_same_type(VM&, TypedArrayBase const& exemplar, GC::RootVector<Value> arguments);
 ThrowCompletionOr<TypedArrayWithBufferWitness> validate_typed_array(VM&, Object const&, ArrayBuffer::Order);
@@ -563,6 +570,8 @@ ThrowCompletionOr<double> compare_typed_array_elements(VM&, Value x, Value y, Fu
         static GC::Ref<ClassName> create(Realm&, u32 length, ArrayBuffer& buffer);                           \
         virtual Utf16FlyString const& element_name() const override;                                         \
         virtual GC::Ref<NativeFunction> intrinsic_constructor(Realm&) const override;                        \
+        virtual ThrowCompletionOr<GC::Ref<TypedArrayBase>> create_default(Realm&, u32) const override;       \
+        virtual GC::Ref<TypedArrayBase> create_default_view_on_buffer(Realm&, ArrayBuffer&) const override;  \
                                                                                                              \
     protected:                                                                                               \
         ClassName(Object& prototype, u32 length, ArrayBuffer& array_buffer);                                 \

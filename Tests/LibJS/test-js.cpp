@@ -133,6 +133,18 @@ TESTJS_GLOBAL_FUNCTION(to_utf8_bytes, toUTF8Bytes)
     return typed_array;
 }
 
+TESTJS_GLOBAL_FUNCTION(create_default_typed_array, createDefaultTypedArray)
+{
+    auto& realm = *vm.current_realm();
+
+    auto* typed_array = TRY(JS::typed_array_from(vm, vm.argument(0)));
+    auto length = TRY(vm.argument(1).to_index(vm));
+    if (length > NumericLimits<u32>::max())
+        return vm.throw_completion<JS::RangeError>(JS::ErrorType::InvalidLength, "typed array");
+
+    return TRY(typed_array->create_default(realm, length));
+}
+
 TESTJS_RUN_FILE_FUNCTION(ByteString const& test_file, JS::Realm& realm, JS::ExecutionContext&)
 {
     if (!test262_parser_tests)

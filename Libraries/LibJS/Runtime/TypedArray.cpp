@@ -29,8 +29,17 @@ ThrowCompletionOr<TypedArrayBase*> typed_array_from(VM& vm, Value typed_array_va
     return static_cast<TypedArrayBase*>(this_object.ptr());
 }
 
+static ThrowCompletionOr<void> validate_typed_array_length(VM& vm, size_t array_length, size_t element_size)
+{
+    if (array_length > NumericLimits<i32>::max() / element_size)
+        return vm.throw_completion<RangeError>(ErrorType::InvalidLength, "typed array");
+    if (Checked<u32>::multiplication_would_overflow(array_length, element_size))
+        return vm.throw_completion<RangeError>(ErrorType::InvalidLength, "typed array");
+    return {};
+}
+
 // 22.2.5.1.3 InitializeTypedArrayFromArrayBuffer, https://tc39.es/ecma262/#sec-initializetypedarrayfromarraybuffer
-static ThrowCompletionOr<void> initialize_typed_array_from_array_buffer(VM& vm, TypedArrayBase& typed_array, ArrayBuffer& array_buffer, Value byte_offset, Value length)
+ThrowCompletionOr<void> initialize_typed_array_from_array_buffer(VM& vm, TypedArrayBase& typed_array, ArrayBuffer& array_buffer, Value byte_offset, Value length)
 {
     // 1. Let elementSize be TypedArrayElementSize(O).
     auto element_size = typed_array.element_size();
@@ -497,6 +506,17 @@ void TypedArrayBase::finalize()
         return realm.intrinsics().snake_name##_constructor();                                                               \
     }                                                                                                                       \
                                                                                                                             \
+    ThrowCompletionOr<GC::Ref<TypedArrayBase>> ClassName::create_default(Realm& realm, u32 array_length) const              \
+    {                                                                                                                       \
+        TRY(validate_typed_array_length(realm.vm(), array_length, sizeof(UnderlyingBufferDataType)));                       \
+        return GC::Ref<TypedArrayBase> { *TRY(create(realm, array_length)) };                                               \
+    }                                                                                                                       \
+                                                                                                                            \
+    GC::Ref<TypedArrayBase> ClassName::create_default_view_on_buffer(Realm& realm, ArrayBuffer& buffer) const               \
+    {                                                                                                                       \
+        return create(realm, 0, buffer);                                                                                    \
+    }                                                                                                                       \
+                                                                                                                            \
     PrototypeName::PrototypeName(Object& prototype)                                                                         \
         : Object(ConstructWithPrototypeTag::Tag, prototype, MayInterfereWithIndexedPropertyAccess::Yes)                     \
     {                                                                                                                       \
@@ -586,11 +606,7 @@ void TypedArrayBase::finalize()
             return error;                                                                                                   \
         }                                                                                                                   \
         auto array_length = array_length_or_error.release_value();                                                          \
-        if (array_length > NumericLimits<i32>::max() / sizeof(Type))                                                        \
-            return vm.throw_completion<RangeError>(ErrorType::InvalidLength, "typed array");                                \
-        /* FIXME: What is the best/correct behavior here? */                                                                \
-        if (Checked<u32>::multiplication_would_overflow(array_length, sizeof(Type)))                                        \
-            return vm.throw_completion<RangeError>(ErrorType::InvalidLength, "typed array");                                \
+        TRY(validate_typed_array_length(vm, array_length, sizeof(Type)));                                                   \
         return TRY(ClassName::create(realm, array_length, new_target));                                                     \
     }
 

@@ -92,7 +92,13 @@ static ThrowCompletionOr<GC::Ref<FunctionObject>> callback_from_args(VM& vm, Str
 }
 
 // 23.2.4.1 TypedArraySpeciesCreate ( exemplar, argumentList ), https://tc39.es/ecma262/#typedarray-species-create
-static ThrowCompletionOr<TypedArrayBase*> typed_array_species_create(VM& vm, TypedArrayBase const& exemplar, GC::RootVector<Value> arguments)
+//
+// OPTIMIZATION: When the resolved species constructor is the default intrinsic (the common case), `default_construct`
+// is invoked to build the result directly, bypassing the user-observable Construct(...) call. This avoids the
+// throwaway ArrayBuffer that the public TypedArray constructor allocates in its `is_object()` branch before
+// overwriting it via InitializeTypedArrayFromArrayBuffer/TypedArray/etc.
+template<typename DefaultConstruct>
+static ThrowCompletionOr<TypedArrayBase*> typed_array_species_create(VM& vm, TypedArrayBase const& exemplar, DefaultConstruct&& default_construct, GC::RootVector<Value> slow_path_arguments)
 {
     auto& realm = *vm.current_realm();
 
@@ -102,8 +108,15 @@ static ThrowCompletionOr<TypedArrayBase*> typed_array_species_create(VM& vm, Typ
     // 2. Let constructor be ? SpeciesConstructor(exemplar, defaultConstructor).
     auto* constructor = TRY(species_constructor(vm, exemplar, *default_constructor));
 
-    // 3. Let result be ? TypedArrayCreate(constructor, argumentList).
-    auto* result = TRY(typed_array_create(vm, *constructor, move(arguments)));
+    TypedArrayBase* result;
+    if (constructor == default_constructor.ptr()) {
+        // OPTIMIZATION: Same outcome as `Construct(defaultConstructor, argumentList)` would produce, but without the
+        //               throwaway buffer or the constructor invocation overhead.
+        result = TRY(default_construct());
+    } else {
+        // 3. Let result be ? TypedArrayCreate(constructor, argumentList).
+        result = TRY(typed_array_create(vm, *constructor, move(slow_path_arguments)));
+    }
 
     // 4. Assert: result has [[TypedArrayName]] and [[ContentType]] internal slots.
     // 5. If result.[[ContentType]] ≠ exemplar.[[ContentType]], throw a TypeError exception.
@@ -672,7 +685,8 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::filter)
     // 9. Let A be ? TypedArraySpeciesCreate(O, « 𝔽(captured) »).
     GC::RootVector<Value> arguments(vm.heap());
     arguments.empend(captured);
-    auto* filter_array = TRY(typed_array_species_create(vm, *typed_array, move(arguments)));
+    auto& realm = *vm.current_realm();
+    auto* filter_array = TRY(typed_array_species_create(vm, *typed_array, [&]() -> ThrowCompletionOr<GC::Ref<TypedArrayBase>> { return TRY(typed_array->create_default(realm, captured)); }, move(arguments)));
 
     // 10. Let n be 0.
     size_t index = 0;
@@ -1194,7 +1208,8 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::map)
     // 5. Let A be ? TypedArraySpeciesCreate(O, « 𝔽(len) »).
     GC::RootVector<Value> arguments(vm.heap());
     arguments.empend(length);
-    auto* array = TRY(typed_array_species_create(vm, *typed_array, move(arguments)));
+    auto& realm = *vm.current_realm();
+    auto* array = TRY(typed_array_species_create(vm, *typed_array, [&]() -> ThrowCompletionOr<GC::Ref<TypedArrayBase>> { return TRY(typed_array->create_default(realm, length)); }, move(arguments)));
 
     // 6. Let k be 0.
     // 7. Repeat, while k < len,
@@ -1676,7 +1691,8 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::slice)
     // 13. Let A be ? TypedArraySpeciesCreate(O, « 𝔽(count) »).
     GC::RootVector<Value> arguments(vm.heap());
     arguments.empend(count);
-    auto* array = TRY(typed_array_species_create(vm, *typed_array, move(arguments)));
+    auto& realm = *vm.current_realm();
+    auto* array = TRY(typed_array_species_create(vm, *typed_array, [&]() -> ThrowCompletionOr<GC::Ref<TypedArrayBase>> { return TRY(typed_array->create_default(realm, count)); }, move(arguments)));
 
     // 14. If count > 0, then
     if (count > 0) {
@@ -1929,6 +1945,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::subarray)
     }
 
     GC::RootVector<Value> arguments(vm.heap());
+    Optional<u32> new_length;
 
     // 15. If O.[[ArrayLength]] is auto and end is undefined, then
     if (typed_array->array_length().is_auto() && end.is_undefined()) {
@@ -1957,16 +1974,21 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::subarray)
             end_index = min(relative_end, source_length);
 
         // e. Let newLength be max(endIndex - beginIndex, 0).
-        auto new_length = max(end_index - begin_index, 0);
+        new_length = max(end_index - begin_index, 0);
 
         // f. Let argumentsList be « buffer, 𝔽(beginByteOffset), 𝔽(newLength) ».
         arguments.empend(buffer);
         arguments.empend(begin_byte_offset.value());
-        arguments.empend(new_length);
+        arguments.empend(*new_length);
     }
 
+    auto& realm = *vm.current_realm();
+
     // 17. Return ? TypedArraySpeciesCreate(O, argumentsList).
-    return TRY(typed_array_species_create(vm, *typed_array, move(arguments)));
+    return TRY(typed_array_species_create(vm, *typed_array, [&]() -> ThrowCompletionOr<GC::Ref<TypedArrayBase>> {
+        auto view = typed_array->create_default_view_on_buffer(realm, *buffer);
+        TRY(initialize_typed_array_from_array_buffer(vm, *view, *buffer, Value(begin_byte_offset.value()), new_length.has_value() ? Value(*new_length) : js_undefined()));
+        return view; }, move(arguments)));
 }
 
 // 23.2.3.31 %TypedArray%.prototype.toLocaleString ( [ reserved1 [ , reserved2 ] ] ), https://tc39.es/ecma262/#sec-%typedarray%.prototype.tolocalestring
