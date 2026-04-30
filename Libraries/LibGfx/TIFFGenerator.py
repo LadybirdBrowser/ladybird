@@ -22,14 +22,16 @@ class EnumWithExportName(Enum):
 
 
 class TIFFType(EnumWithExportName):
+    size: int
+
     @classmethod
     def export_name(cls) -> str:
         return "Type"
 
-    def __new__(cls, *args):
+    def __new__(cls, value: int, size: int) -> "TIFFType":
         obj = object.__new__(cls)
-        obj._value_ = args[0]
-        obj.size = args[1]
+        obj._value_ = value
+        obj.size = size
         return obj
 
     # First value is the underlying u16, second one is the size in bytes
