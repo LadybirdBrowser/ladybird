@@ -2395,7 +2395,9 @@ CSSPixels FormattingContext::box_baseline(Box const& box) const
     auto const& overflow_x = box.computed_values().overflow_x();
     auto const& overflow_y = box.computed_values().overflow_y();
     bool has_visible_overflow = overflow_x == CSS::Overflow::Visible && overflow_y == CSS::Overflow::Visible;
-    bool always_derive_from_content = display.is_flex_inside() || display.is_grid_inside() || has_visible_overflow;
+    bool is_flex_or_grid_container = display.is_flex_inside() || display.is_grid_inside();
+    bool is_inline_flex_or_grid_container = display.is_inline_outside() && is_flex_or_grid_container;
+    bool always_derive_from_content = is_flex_or_grid_container || has_visible_overflow;
 
     if (always_derive_from_content && !box_state.line_boxes.is_empty()) {
         auto const& last_line_box = box_state.line_boxes.last();
@@ -2412,6 +2414,22 @@ CSSPixels FormattingContext::box_baseline(Box const& box) const
         if (always_derive_from_content || is<HTML::HTMLInputElement>(box.dom_node())) {
             auto const& child_box_state = m_state.get(*child_box);
             auto child_offset_from_margin_edge = child_box_state.offset.y() - child_box_state.margin_box_top();
+
+            // https://drafts.csswg.org/css-flexbox-1/#flex-baselines
+            // Otherwise, if the flex container has at least one flex item, the flex container's first/last main-axis
+            // baseline set is generated from the alignment baseline of the startmost/endmost flex item.
+            // https://drafts.csswg.org/css-grid-1/#grid-baselines
+            // Otherwise, the grid container's first (last) baseline set is generated from the alignment baseline of the
+            // first (last) grid item in row-major grid order.
+            // FIXME: This does not yet select the spec-defined startmost/endmost flex item, or the first/last grid item
+            //        in row-major grid order.
+            if (is_inline_flex_or_grid_container && !child_box_state.line_boxes.is_empty() && !child_box_state.line_boxes.first().is_empty()) {
+                auto const& first_line_box = child_box_state.line_boxes.first();
+                auto first_line_box_top = first_line_box.bottom() - first_line_box.block_length();
+                auto child_first_line_baseline = child_box_state.margin_box_top() + first_line_box_top + first_line_box.baseline();
+                return box_state.margin_box_top() + child_offset_from_margin_edge + child_first_line_baseline;
+            }
+
             return box_state.margin_box_top() + child_offset_from_margin_edge + box_baseline(*child_box);
         }
     }
