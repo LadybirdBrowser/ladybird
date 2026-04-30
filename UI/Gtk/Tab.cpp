@@ -244,11 +244,18 @@ void Tab::setup_callbacks()
     };
 
     m_view->on_audio_play_state_changed = [this](auto play_state) {
-        if (m_tab_page) {
-            adw_tab_page_set_indicator_icon(m_tab_page,
-                play_state == Web::HTML::AudioPlayState::Playing
-                    ? g_themed_icon_new("audio-volume-high-symbolic")
-                    : nullptr);
+        if (!m_tab_page)
+            return;
+        if (play_state == Web::HTML::AudioPlayState::Playing) {
+            bool muted = m_view->page_mute_state() == Web::HTML::MuteState::Muted;
+            GObjectPtr icon { g_themed_icon_new(muted ? "audio-volume-muted-symbolic" : "audio-volume-high-symbolic") };
+            adw_tab_page_set_indicator_icon(m_tab_page, G_ICON(icon.ptr()));
+            adw_tab_page_set_indicator_tooltip(m_tab_page, muted ? "Unmute tab" : "Mute tab");
+            adw_tab_page_set_indicator_activatable(m_tab_page, TRUE);
+        } else {
+            adw_tab_page_set_indicator_icon(m_tab_page, nullptr);
+            adw_tab_page_set_indicator_tooltip(m_tab_page, nullptr);
+            adw_tab_page_set_indicator_activatable(m_tab_page, FALSE);
         }
     };
 

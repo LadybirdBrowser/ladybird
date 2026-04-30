@@ -7,6 +7,7 @@
 #include <AK/Format.h>
 #include <LibCore/EventLoop.h>
 #include <LibURL/Parser.h>
+#include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWebView/Menu.h>
 #include <LibWebView/URL.h>
 #include <UI/Gtk/Application.h>
@@ -180,6 +181,20 @@ void BrowserWindow::setup_ui(AdwApplication* app)
     g_signal_connect_swapped(m_tab_view, "close-page", G_CALLBACK(+[](BrowserWindow* self, AdwTabPage* page) -> gboolean {
         self->on_tab_close_request(page);
         return GDK_EVENT_STOP;
+    }),
+        this);
+
+    g_signal_connect_swapped(m_tab_view, "indicator-activated", G_CALLBACK(+[](BrowserWindow* self, AdwTabPage* page) {
+        for (auto& tab : self->m_tabs) {
+            if (tab->tab_page() != page)
+                continue;
+            tab->view().toggle_page_mute_state();
+            bool muted = tab->view().page_mute_state() == Web::HTML::MuteState::Muted;
+            GObjectPtr icon { g_themed_icon_new(muted ? "audio-volume-muted-symbolic" : "audio-volume-high-symbolic") };
+            adw_tab_page_set_indicator_icon(page, G_ICON(icon.ptr()));
+            adw_tab_page_set_indicator_tooltip(page, muted ? "Unmute tab" : "Mute tab");
+            return;
+        }
     }),
         this);
 
