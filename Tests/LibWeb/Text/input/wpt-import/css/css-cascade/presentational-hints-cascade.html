@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-cascade-5/#preshint">
+<link rel="author" title="Xiaocheng Hu" href="mailto:xiaochengh@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+.test {
+  height: 100px;
+  background-color: green;
+}
+
+#target1 {
+  width: 100px;
+}
+
+@layer {
+  #target3 {
+    width: 100px;
+  }
+}
+</style>
+
+<img class=test id=target1 width=200>
+<img class=test id=target2 width=200 style="width: 100px">
+<img class=test id=target3 width=200>
+
+<script>
+test(() => {
+  assert_equals(getComputedStyle(target1).width, '100px');
+}, 'Presentational hints have lower precedence than regular author style sheets');
+
+test(() => {
+  assert_equals(getComputedStyle(target2).width, '100px');
+}, 'Presentational hints have lower precedence than the style attribute');
+
+test(() => {
+  assert_equals(getComputedStyle(target3).width, '100px');
+}, 'Presentational hints have lower precedence than layered style');
+</script>

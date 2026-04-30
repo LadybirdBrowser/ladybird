@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Presentational hints have lower precedence than regular author style sheets
+Pass	Presentational hints have lower precedence than the style attribute
+Pass	Presentational hints have lower precedence than layered style

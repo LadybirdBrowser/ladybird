@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Cascade: rolling back the cascade with presentation hints</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="help" href="https://www.w3.org/TR/css-cascade-5/#preshint">
+<link rel="help" href="https://www.w3.org/TR/css-cascade-5/#default">
+<link rel="help" href="https://www.w3.org/TR/css-cascade-5/#revert-layer">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/embedded-content-other.html#dimension-attributes">
+<meta name="assert" content="Checks that 'revert' considers presentational hints as part of the author origin,
+    and 'revert-layer' considers them an independent origin between the user origin and the author origin.">
+
+<style>
+@layer {
+  .revert-1 {
+    width: revert;
+    height: revert;
+  }
+  .revert-layer-1 {
+    width: revert-layer;
+    height: revert-layer;
+  }
+}
+
+.revert-2 {
+  width: revert;
+  height: revert;
+}
+.revert-layer-2 {
+  width: revert-layer;
+  height: revert-layer;
+}
+
+.revert-3 {
+  animation: revert-3 paused 2s -1s;
+}
+.revert-layer-3 {
+  animation: revert-layer-3 paused 2s -1s;
+}
+@keyframes revert-3 {
+  from, to {
+    width: revert;
+    height: revert;
+  }
+}
+@keyframes revert-layer-3 {
+  from, to {
+    width: revert-layer;
+    height: revert-layer;
+  }
+}
+</style>
+
+<div id="log"></div>
+
+<div id="tests">
+  <!-- 'revert' considers presentational hints as part of the author origin, so it rolls back to user origin.
+        The images should then get an 'auto' size, which will use the natural size of the resource. -->
+  <img class="revert-1" src="../../css/support/60x60-green.png"
+      width="44" data-expected-client-width="60"
+      height="33" data-expected-client-height="60">
+  <img class="revert-2" src="../../css/support/60x60-green.png"
+      width="44" data-expected-client-width="60"
+      height="33" data-expected-client-height="60">
+  <img class="revert-3" src="../../css/support/60x60-green.png"
+       width="44" data-expected-client-width="60"
+       height="33" data-expected-client-height="60">
+  <img style="width: revert; height: revert" src="../../css/support/60x60-green.png"
+       width="44" data-expected-client-width="60"
+       height="33" data-expected-client-height="60">
+
+  <!-- 'revert-layer' considers presentational hints as an independent origin, so it rolls back to them.
+        The images should then get size specified in the attributes. -->
+  <img class="revert-layer-1" src="../../css/support/60x60-green.png"
+      width="44" data-expected-client-width="44"
+      height="33" data-expected-client-height="33">
+  <img class="revert-layer-2" src="../../css/support/60x60-green.png"
+      width="44" data-expected-client-width="44"
+      height="33" data-expected-client-height="33">
+  <img class="revert-layer-3" src="../../css/support/60x60-green.png"
+      width="44" data-expected-client-width="44"
+      height="33" data-expected-client-height="33">
+  <img style="width: revert-layer; height: revert-layer" src="../../css/support/60x60-green.png"
+       width="44" data-expected-client-width="44"
+       height="33" data-expected-client-height="33">
+
+  <!-- 'revert' considers presentational hints as part of the author origin, so it rolls back to user origin.
+        The iframes should then get an 'auto' size, which will default to 300x150. -->
+  <iframe class="revert-1" src="../../css/support/60x60-green.png"
+      width="44" data-expected-client-width="300"
+      height="33" data-expected-client-height="150"></iframe>
+  <iframe class="revert-2" src="../../css/support/60x60-green.png"
+      width="44" data-expected-client-width="300"
+      height="33" data-expected-client-height="150"></iframe>
+  <iframe class="revert-3" src="../../css/support/60x60-green.png"
+      width="44" data-expected-client-width="300"
+      height="33" data-expected-client-height="150"></iframe>
+  <iframe style="width: revert; height: revert" src="../../css/support/60x60-green.png"
+       width="44" data-expected-client-width="300"
+       height="33" data-expected-client-height="150"></iframe>
+
+  <!-- 'revert-layer' considers presentational hints as an independent origin, so it rolls back to them.
+        The iframes should then get size specified in the attributes. -->
+  <iframe class="revert-layer-1" src="../../css/support/60x60-green.png"
+      width="44" data-expected-client-width="44"
+      height="33" data-expected-client-height="33"></iframe>
+  <iframe class="revert-layer-2" src="../../css/support/60x60-green.png"
+      width="44" data-expected-client-width="44"
+      height="33" data-expected-client-height="33"></iframe>
+  <iframe class="revert-layer-3" src="../../css/support/60x60-green.png"
+      width="44" data-expected-client-width="44"
+      height="33" data-expected-client-height="33"></iframe>
+  <iframe style="width: revert-layer; height: revert-layer" src="../../css/support/60x60-green.png"
+       width="44" data-expected-client-width="44"
+       height="33" data-expected-client-height="33"></iframe>
+</div>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<script>
+addEventListener("load", function() {
+  checkLayout("#tests > *", false);
+  done();
+}, {once: true});
+</script>
