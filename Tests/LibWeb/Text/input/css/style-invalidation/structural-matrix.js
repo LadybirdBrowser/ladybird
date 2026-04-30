@@ -241,7 +241,15 @@ function readProbe(target, pseudoElement) {
     );
 }
 
+function isSlottedScope(scope) {
+    return scope.startsWith("slotted-");
+}
+
 function caseSupportedInScope(scope, selectorCase, pseudoElement = "") {
+    // Bare ::slotted() rules style the assigned element itself, not a pseudo-element of the assigned element.
+    // These cases can be enabled once ::slotted(...)::before selector chaining is supported.
+    if (pseudoElement && isSlottedScope(scope)) return false;
+
     if (selectorCase.requiresSvgSubject) {
         if (pseudoElement) return false;
         return ![
@@ -2045,6 +2053,8 @@ function runDetachedReconnectCase(scope, selectorCase, pseudoElement = "") {
 }
 
 function runInheritedLanguageCase(scope, selectorCase, pseudoElement = "") {
+    if (!caseSupportedInScope(scope, selectorCase, pseudoElement)) return;
+
     const suite = pseudoElement ? "inherited language pseudo-element mutation" : "inherited language mutation";
     const testName = `${suite}: ${scope}: ${selectorCase.name}`;
     const { cleanup, fixture, subject, target } = buildFixture(scope, selectorCase.selector, pseudoElement);
@@ -2371,6 +2381,8 @@ function runStateStressCase(scope, selectorCase, mode) {
 
 function runInheritedLanguageStressCase(scope, selectorCase, mode) {
     const pseudoElement = mode.includes("pseudo") ? "::before" : "";
+    if (!caseSupportedInScope(scope, selectorCase, pseudoElement)) return;
+
     const suite = `inherited language stress ${mode}`;
     const testName = `${suite}: ${scope}: ${selectorCase.name}`;
     const { cleanup, fixture, subject, target } = buildFixture(scope, selectorCase.selector, pseudoElement);
