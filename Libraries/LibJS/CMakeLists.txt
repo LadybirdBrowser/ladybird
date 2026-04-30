@@ -316,10 +316,17 @@ endif()
 # AsmInterpreter: generate platform-specific assembly from DSL
 # NB: Win64 uses a different ABI (shadow space, different arg registers)
 #     from SysV AMD64, and the x86_64 backend only supports SysV for now.
-if (NOT WIN32 AND ("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(x86_64|amd64|AMD64)$"))
-    set(ASMINT_ARCH "x86_64")
-elseif ("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(aarch64|arm64)$")
-    set(ASMINT_ARCH "aarch64")
+# NB: Cross-compilation builds (e.g. Android NDK) are excluded because
+#     gen_asm_offsets must run on the host but is compiled for the target;
+#     use LIBJS_DISABLE_ASM_INTERPRETER to fall back to the C++ interpreter.
+if (NOT CMAKE_CROSSCOMPILING)
+    if (NOT WIN32 AND ("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(x86_64|amd64|AMD64)$"))
+        set(ASMINT_ARCH "x86_64")
+    elseif ("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(aarch64|arm64)$")
+        set(ASMINT_ARCH "aarch64")
+    endif()
+else()
+    target_compile_definitions(LibJS PRIVATE LIBJS_DISABLE_ASM_INTERPRETER)
 endif()
 
 if (DEFINED ASMINT_ARCH)
