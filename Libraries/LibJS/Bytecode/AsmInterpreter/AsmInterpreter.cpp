@@ -82,7 +82,11 @@ namespace JS::Bytecode {
 
 // The asm interpreter is available on x86_64 (non-Windows) and AArch64.
 // Win64 uses a different ABI that the x86_64 backend doesn't support yet.
-#if ARCH(AARCH64)
+// It is also disabled when LIBJS_DISABLE_ASM_INTERPRETER is defined (e.g.
+// cross-compilation builds where gen_asm_offsets cannot run on the host).
+#if defined(LIBJS_DISABLE_ASM_INTERPRETER)
+#    define HAS_ASM_INTERPRETER 0
+#elif ARCH(AARCH64)
 #    define HAS_ASM_INTERPRETER 1
 #elif ARCH(X86_64) && !defined(_WIN32)
 #    define HAS_ASM_INTERPRETER 1
