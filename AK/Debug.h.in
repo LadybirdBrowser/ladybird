@@ -70,10 +70,6 @@
 #    cmakedefine01 EDITOR_DEBUG
 #endif
 
-#ifndef EMOJI_DEBUG
-#    cmakedefine01 EMOJI_DEBUG
-#endif
-
 #ifndef FILE_WATCHER_DEBUG
 #    cmakedefine01 FILE_WATCHER_DEBUG
 #endif
@@ -84,14 +80,6 @@
 
 #ifndef FORMATTING_CONTEXT_TRACE_DEBUG
 #    cmakedefine01 FORMATTING_CONTEXT_TRACE_DEBUG
-#endif
-
-#ifndef GENERATE_DEBUG
-#    cmakedefine01 GENERATE_DEBUG
-#endif
-
-#ifndef GHASH_PROCESS_DEBUG
-#    cmakedefine01 GHASH_PROCESS_DEBUG
 #endif
 
 #ifndef GIF_DEBUG
@@ -122,10 +110,6 @@
 #    cmakedefine01 HTTPJOB_DEBUG
 #endif
 
-#ifndef HUNKS_DEBUG
-#    cmakedefine01 HUNKS_DEBUG
-#endif
-
 #ifndef ICO_DEBUG
 #    cmakedefine01 ICO_DEBUG
 #endif
@@ -144,10 +128,6 @@
 
 #ifndef IMAGE_LOADER_DEBUG
 #    cmakedefine01 IMAGE_LOADER_DEBUG
-#endif
-
-#ifndef JOB_DEBUG
-#    cmakedefine01 JOB_DEBUG
 #endif
 
 #ifndef JS_BYTECODE_DEBUG
@@ -198,18 +178,6 @@
 #    cmakedefine01 MATROSKA_TRACE_DEBUG
 #endif
 
-#ifndef NETWORKJOB_DEBUG
-#    cmakedefine01 NETWORKJOB_DEBUG
-#endif
-
-#ifndef NT_DEBUG
-#    cmakedefine01 NT_DEBUG
-#endif
-
-#ifndef OPENTYPE_GPOS_DEBUG
-#    cmakedefine01 OPENTYPE_GPOS_DEBUG
-#endif
-
 #ifndef HTML_PARSER_DEBUG
 #    cmakedefine01 HTML_PARSER_DEBUG
 #endif
@@ -246,10 +214,6 @@
 #    cmakedefine01 RESOURCE_DEBUG
 #endif
 
-#ifndef RSA_PARSE_DEBUG
-#    cmakedefine01 RSA_PARSE_DEBUG
-#endif
-
 #ifndef SPAM_DEBUG
 #    cmakedefine01 SPAM_DEBUG
 #endif
@@ -268,10 +232,6 @@
 
 #ifndef TIFF_DEBUG
 #    cmakedefine01 TIFF_DEBUG
-#endif
-
-#ifndef TIME_ZONE_DEBUG
-#    cmakedefine01 TIME_ZONE_DEBUG
 #endif
 
 #ifndef TLS_DEBUG
