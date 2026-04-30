@@ -227,7 +227,11 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         if key not in echo_store:
             key = f"{method} {parsed_url.path}"
 
-        recorded_request_headers[self.path] = {header: self.headers.get_all(header) for header in self.headers.keys()}
+        headers_for_path: Dict[str, list[str]] = {}
+        for header, value in self.headers.items():
+            headers_for_path.setdefault(header, []).append(value)
+        recorded_request_headers[self.path] = headers_for_path
+
         if parsed_url.path != self.path:
             recorded_request_headers[parsed_url.path] = recorded_request_headers[self.path]
 
