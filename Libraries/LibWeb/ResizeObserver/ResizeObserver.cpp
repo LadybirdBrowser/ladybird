@@ -10,6 +10,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 
@@ -74,6 +75,8 @@ void ResizeObserver::observe(DOM::Element& target, ResizeObserverOptions options
     if (!m_list_node.is_in_list()) {
         m_document->register_resize_observer({}, *this);
     }
+
+    m_document->page().client().request_frame();
 }
 
 // https://drafts.csswg.org/resize-observer-1/#dom-resizeobserver-unobserve

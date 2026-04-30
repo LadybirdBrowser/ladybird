@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+#box {
+    width: 200px;
+    height: 200px;
+    background-color: lightblue;
+}
+</style>
+<script src="../include.js"></script>
+<div id="box"></div>
+<script>
+    asyncTest(done => {
+        // Calling observe() after the page has fully loaded should still trigger
+        // an initial size callback on the next rendering opportunity.
+        window.addEventListener("load", () => {
+            // Defer past the load event so any frame requested by the loading
+            // pipeline has already been dispatched.
+            setTimeout(() => {
+                const observer = new ResizeObserver(entries => {
+                    const { width, height } = entries[0].contentRect;
+                    println(`width=${width} height=${height}`);
+                    done();
+                });
+                observer.observe(document.getElementById("box"));
+            }, 100);
+        });
+    });
+</script>
