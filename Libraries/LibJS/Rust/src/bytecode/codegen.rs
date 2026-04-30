@@ -121,9 +121,9 @@ fn generate_expression_inner(
 
         // === This ===
         ExpressionKind::This => {
-            // OPTIMIZATION: When function_environment_needed is false, the `this`
-            // value is inherited from the outer function and already in the register.
-            if generator.function_environment_needed {
+            // OPTIMIZATION: When this_value_needs_environment_resolution is false,
+            // `this` is already cached in the function's this register.
+            if generator.this_value_needs_environment_resolution {
                 emit_resolve_this_if_needed(generator);
             }
             Some(generator.this_value())

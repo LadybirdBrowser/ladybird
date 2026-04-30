@@ -71,8 +71,8 @@ void SharedFunctionInstanceData::update_asm_call_metadata()
     m_asm_call_metadata = m_formal_parameter_count;
     if (m_can_inline_call)
         m_asm_call_metadata |= asm_call_metadata_can_inline_call;
-    if (m_function_environment_needed)
-        m_asm_call_metadata |= asm_call_metadata_function_environment_needed;
+    if (m_function_environment_needed || m_this_value_needs_environment_resolution)
+        m_asm_call_metadata |= asm_call_metadata_needs_environment_or_this_value_resolution;
     if (m_uses_this)
         m_asm_call_metadata |= asm_call_metadata_uses_this;
     if (m_strict)

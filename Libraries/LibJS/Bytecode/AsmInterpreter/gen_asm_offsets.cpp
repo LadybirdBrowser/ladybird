@@ -292,7 +292,7 @@ int main()
     EMIT_OFFSET(SHARED_FUNCTION_INSTANCE_DATA_USES_THIS, SharedFunctionInstanceData, m_uses_this);
     EMIT_OFFSET(SHARED_FUNCTION_INSTANCE_DATA_CAN_INLINE_CALL, SharedFunctionInstanceData, m_can_inline_call);
     outln("const SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_CAN_INLINE_CALL = {}", SharedFunctionInstanceData::asm_call_metadata_can_inline_call);
-    outln("const SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_FUNCTION_ENVIRONMENT_NEEDED = {}", SharedFunctionInstanceData::asm_call_metadata_function_environment_needed);
+    outln("const SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_NEEDS_ENVIRONMENT_OR_THIS_VALUE_RESOLUTION = {}", SharedFunctionInstanceData::asm_call_metadata_needs_environment_or_this_value_resolution);
     outln("const SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_USES_THIS = {}", SharedFunctionInstanceData::asm_call_metadata_uses_this);
     outln("const SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_STRICT = {}", SharedFunctionInstanceData::asm_call_metadata_strict);
 

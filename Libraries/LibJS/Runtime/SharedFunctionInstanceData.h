@@ -49,7 +49,7 @@ class JS_API SharedFunctionInstanceData final : public GC::Cell {
 
 public:
     static constexpr u64 asm_call_metadata_can_inline_call = 1ull << 32;
-    static constexpr u64 asm_call_metadata_function_environment_needed = 1ull << 33;
+    static constexpr u64 asm_call_metadata_needs_environment_or_this_value_resolution = 1ull << 33;
     static constexpr u64 asm_call_metadata_uses_this = 1ull << 34;
     static constexpr u64 asm_call_metadata_strict = 1ull << 35;
 
@@ -123,6 +123,7 @@ public:
     Vector<FunctionToInitialize> m_functions_to_initialize;
     bool m_arguments_object_needed { false };
     bool m_function_environment_needed { false };
+    bool m_this_value_needs_environment_resolution { false };
     bool m_uses_this { false };
     Vector<VarBinding> m_var_names_to_initialize_binding;
     Vector<Utf16FlyString> m_function_names_to_initialize_binding;

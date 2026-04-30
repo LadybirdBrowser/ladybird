@@ -2728,11 +2728,14 @@ ThrowCompletionOr<void> ResolveThisBinding::execute_impl(VM& vm) const
     // OPTIMIZATION: Because the value of 'this' cannot be reassigned during a function execution, it's
     //               resolved once and then saved for subsequent use.
     auto& running_execution_context = vm.running_execution_context();
-    if (auto function = running_execution_context.function; function && is<ECMAScriptFunctionObject>(*function) && !static_cast<ECMAScriptFunctionObject&>(*function).allocates_function_environment()) {
-        cached_this_value = running_execution_context.this_value.value();
-    } else {
-        cached_this_value = TRY(vm.resolve_this_binding());
+    if (auto function = running_execution_context.function; function && is<ECMAScriptFunctionObject>(*function)) {
+        auto& ecmascript_function = static_cast<ECMAScriptFunctionObject&>(*function);
+        if (!ecmascript_function.allocates_function_environment() && !ecmascript_function.this_value_needs_environment_resolution()) {
+            cached_this_value = running_execution_context.this_value.value();
+            return {};
+        }
     }
+    cached_this_value = TRY(vm.resolve_this_binding());
     return {};
 }
 

@@ -2228,13 +2228,13 @@ fn compile_function_payload_to_bytecode(
         _ => None,
     };
 
-    // Compute SFD metadata before codegen so the generator can use
-    // function_environment_needed to optimize `this` access.
+    // Compute SFD metadata before codegen so the generator can optimize
+    // direct `this` access when it does not need environment resolution.
     let sfd_metadata = compute_sfd_metadata(&function_data);
 
     let mut generator = bytecode::generator::Generator::new();
     generator.strict = function_data.is_strict_mode;
-    generator.function_environment_needed = sfd_metadata.function_environment_needed;
+    generator.this_value_needs_environment_resolution = sfd_metadata.this_value_needs_environment_resolution;
     generator.builtin_abstract_operations_enabled = builtin_abstract_operations_enabled;
     generator.function_table = payload.function_table;
     generator.source_len = source_len;
@@ -2502,15 +2502,17 @@ fn compute_sfd_metadata(function_data: &ast::FunctionData) -> bytecode::generato
         }
     }
 
+    let this_value_needs_environment_resolution = bsi.uses_this_from_env;
     let function_environment_needed = arguments_object_needs_binding
         || function_environment_bindings_count > 0
         || var_environment_bindings_count > 0
         || lex_environment_bindings_count > 0
-        || bsi.uses_this_from_env
+        || (!is_arrow && bsi.uses_this_from_env)
         || bsi.contains_eval;
 
     bytecode::generator::FunctionSfdMetadata {
         uses_this: bsi.uses_this,
+        this_value_needs_environment_resolution,
         function_environment_needed,
         function_environment_bindings_count,
         var_environment_bindings_count,
@@ -2528,6 +2530,7 @@ unsafe fn write_sfd_metadata(sfd_ptr: *mut c_void, metadata: &bytecode::generato
         rust_sfd_set_metadata(
             sfd_ptr,
             metadata.uses_this,
+            metadata.this_value_needs_environment_resolution,
             metadata.function_environment_needed,
             metadata.function_environment_bindings_count,
             metadata.might_need_arguments,
@@ -2627,6 +2630,7 @@ unsafe extern "C" {
     fn rust_sfd_set_metadata(
         sfd_ptr: *mut c_void,
         uses_this: bool,
+        this_value_needs_environment_resolution: bool,
         function_environment_needed: bool,
         function_environment_bindings_count: usize,
         might_need_arguments_object: bool,

@@ -976,7 +976,8 @@ extern "C" void* rust_create_sfd(
 
     // Set parsing insights that must be available before lazy compilation.
     shared->m_uses_this = data->uses_this;
-    if (data->uses_this_from_environment)
+    shared->m_this_value_needs_environment_resolution = data->uses_this_from_environment;
+    if (data->uses_this_from_environment && !data->is_arrow)
         shared->m_function_environment_needed = true;
     shared->update_asm_call_metadata();
 
@@ -993,6 +994,7 @@ extern "C" void* rust_create_sfd(
 extern "C" void rust_sfd_set_metadata(
     void* sfd_ptr,
     bool uses_this,
+    bool this_value_needs_environment_resolution,
     bool function_environment_needed,
     size_t function_environment_bindings_count,
     bool might_need_arguments_object,
@@ -1000,6 +1002,7 @@ extern "C" void rust_sfd_set_metadata(
 {
     auto& shared = *static_cast<JS::SharedFunctionInstanceData*>(sfd_ptr);
     shared.m_uses_this = uses_this;
+    shared.m_this_value_needs_environment_resolution = this_value_needs_environment_resolution;
     shared.m_function_environment_needed = function_environment_needed;
     shared.update_asm_call_metadata();
     shared.m_function_environment_bindings_count = function_environment_bindings_count;
@@ -1026,6 +1029,7 @@ extern "C" void rust_sfd_set_precompiled_executable(
     void* sfd_ptr,
     void* executable_ptr,
     bool uses_this,
+    bool this_value_needs_environment_resolution,
     bool function_environment_needed,
     size_t function_environment_bindings_count,
     bool might_need_arguments_object,
@@ -1035,6 +1039,7 @@ extern "C" void rust_sfd_set_precompiled_executable(
     auto& executable = *static_cast<JS::Bytecode::Executable*>(executable_ptr);
 
     shared.m_uses_this = uses_this;
+    shared.m_this_value_needs_environment_resolution = this_value_needs_environment_resolution;
     shared.m_function_environment_needed = function_environment_needed;
     shared.m_function_environment_bindings_count = function_environment_bindings_count;
     shared.m_might_need_arguments_object = might_need_arguments_object;

@@ -48,6 +48,7 @@ pub struct PendingSharedFunctionData {
 /// Metadata computed from scope analysis for a SharedFunctionInstanceData.
 pub struct FunctionSfdMetadata {
     pub uses_this: bool,
+    pub this_value_needs_environment_resolution: bool,
     pub function_environment_needed: bool,
     pub function_environment_bindings_count: usize,
     pub var_environment_bindings_count: usize,
@@ -235,7 +236,7 @@ pub struct Generator {
 
     // --- Codegen state ---
     pub strict: bool,
-    pub function_environment_needed: bool,
+    pub this_value_needs_environment_resolution: bool,
     pub enclosing_function_kind: FunctionKind,
     pub local_variables: Vec<LocalVariable>,
     pub initialized_locals: Vec<bool>,
@@ -382,7 +383,7 @@ impl Generator {
             next_object_shape_cache: 0,
             next_object_property_iterator_cache: 0,
             strict: false,
-            function_environment_needed: true,
+            this_value_needs_environment_resolution: true,
             enclosing_function_kind: FunctionKind::Normal,
             local_variables: Vec::new(),
             initialized_locals: Vec::new(),

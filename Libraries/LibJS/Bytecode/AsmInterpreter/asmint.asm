@@ -2022,9 +2022,9 @@ handler Call
     load64 shared_data, [callee, ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA]
     load_pair64 exec_ptr, meta, [shared_data, SHARED_FUNCTION_INSTANCE_DATA_EXECUTABLE], [shared_data, SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA]
     branch_bits_clear meta, SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_CAN_INLINE_CALL, .call_slow
-    # NewFunctionEnvironment() allocates and has to stay out of the pure asm
-    # path, but we still preserve inline-call semantics via .call_interp_inline.
-    branch_bits_set meta, SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_FUNCTION_ENVIRONMENT_NEEDED, .call_interp_inline
+    # NewFunctionEnvironment() allocation and lexical-this resolution both use
+    # the C++ helper, instead of the pure asm path.
+    branch_bits_set meta, SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_NEEDS_ENVIRONMENT_OR_THIS_VALUE_RESOLUTION, .call_interp_inline
 
     # Bind this without allocations. Sloppy primitive this-values still need
     # ToObject(), so they use the C++ inline-frame helper.

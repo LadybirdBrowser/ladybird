@@ -82,6 +82,10 @@ public:
     [[nodiscard]] bool is_arrow_function() const { return shared_data().m_is_arrow_function; }
     [[nodiscard]] bool is_class_constructor() const { return shared_data().m_is_class_constructor; }
     [[nodiscard]] bool uses_this() const { return shared_data().m_uses_this; }
+    [[nodiscard]] bool this_value_needs_environment_resolution() const
+    {
+        return shared_data().m_this_value_needs_environment_resolution;
+    }
     [[nodiscard]] i32 function_length() const { return shared_data().m_function_length; }
 
     Object* home_object() const { return m_home_object; }
