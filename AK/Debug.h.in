@@ -302,10 +302,6 @@
 #    cmakedefine01 UTF8_DEBUG
 #endif
 
-#ifndef VPX_DEBUG
-#    cmakedefine01 VPX_DEBUG
-#endif
-
 #ifndef VULKAN_VALIDATION_LAYERS_DEBUG
 #    cmakedefine01 VULKAN_VALIDATION_LAYERS_DEBUG
 #endif

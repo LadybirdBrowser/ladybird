@@ -25,7 +25,6 @@ set(SOURCES
     ImageFormats/AVIFLoader.cpp
     ImageFormats/BMPLoader.cpp
     ImageFormats/BMPWriter.cpp
-    ImageFormats/BooleanDecoder.cpp
     ImageFormats/CCITTDecoder.cpp
     ImageFormats/GIFLoader.cpp
     ImageFormats/ICOLoader.cpp
