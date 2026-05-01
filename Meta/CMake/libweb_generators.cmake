@@ -93,6 +93,8 @@ function (generate_css_implementation)
         "CSS/Parser/GeneratedValueTypesParsing.h"
         "CSS/Parser/GeneratedValueTypesParsing.cpp"
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/ValueTypes.json"
+                  -u "${LIBWEB_INPUT_FOLDER}/CSS/Units.json"
+        dependencies "${LIBWEB_INPUT_FOLDER}/CSS/Units.json"
     )
 
     invoke_py_generator(

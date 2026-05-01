@@ -6,7 +6,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(os.environ["LADYBIRD_SOURCE_DIR"]) / "Meta"))
 
+from Utils.css_dimensions import load_css_dimensions
 from Utils.CSSGrammar.Parser.parser import parse_value_definition_grammar
+
+load_css_dimensions(str(Path(os.environ["LADYBIRD_SOURCE_DIR"]).joinpath("Libraries/LibWeb/CSS/Units.json")))
 
 
 class TestCSSGrammarParser(unittest.TestCase):
