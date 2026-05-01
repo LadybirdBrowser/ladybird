@@ -46,7 +46,7 @@ void MutationObserver::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://dom.spec.whatwg.org/#dom-mutationobserver-observe
-WebIDL::ExceptionOr<void> MutationObserver::observe(Node& target, MutationObserverInit options)
+WebIDL::ExceptionOr<void> MutationObserver::observe(Node& target, Bindings::MutationObserverInit options)
 {
     // 1. If either options["attributeOldValue"] or options["attributeFilter"] exists, and options["attributes"] does not exist, then set options["attributes"] to true.
     if ((options.attribute_old_value.has_value() || options.attribute_filter.has_value()) && !options.attributes.has_value())
@@ -152,12 +152,12 @@ Vector<GC::Root<MutationRecord>> MutationObserver::take_records()
     return records;
 }
 
-GC::Ref<RegisteredObserver> RegisteredObserver::create(MutationObserver& observer, MutationObserverInit const& options)
+GC::Ref<RegisteredObserver> RegisteredObserver::create(MutationObserver& observer, Bindings::MutationObserverInit const& options)
 {
     return observer.heap().allocate<RegisteredObserver>(observer, options);
 }
 
-RegisteredObserver::RegisteredObserver(MutationObserver& observer, MutationObserverInit const& options)
+RegisteredObserver::RegisteredObserver(MutationObserver& observer, Bindings::MutationObserverInit const& options)
     : m_observer(observer)
     , m_options(options)
 {
@@ -171,12 +171,12 @@ void RegisteredObserver::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_observer);
 }
 
-GC::Ref<TransientRegisteredObserver> TransientRegisteredObserver::create(MutationObserver& observer, MutationObserverInit const& options, RegisteredObserver& source)
+GC::Ref<TransientRegisteredObserver> TransientRegisteredObserver::create(MutationObserver& observer, Bindings::MutationObserverInit const& options, RegisteredObserver& source)
 {
     return observer.heap().allocate<TransientRegisteredObserver>(observer, options, source);
 }
 
-TransientRegisteredObserver::TransientRegisteredObserver(MutationObserver& observer, MutationObserverInit const& options, RegisteredObserver& source)
+TransientRegisteredObserver::TransientRegisteredObserver(MutationObserver& observer, Bindings::MutationObserverInit const& options, RegisteredObserver& source)
     : RegisteredObserver(observer, options)
     , m_source(source)
 {

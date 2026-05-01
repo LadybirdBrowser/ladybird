@@ -48,7 +48,7 @@ public:
     WebIDL::ExceptionOr<void> post_message(JS::Value message, Vector<GC::Root<JS::Object>> const& transfer);
 
     // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-postmessage-options
-    WebIDL::ExceptionOr<void> post_message(JS::Value message, StructuredSerializeOptions const& options);
+    WebIDL::ExceptionOr<void> post_message(JS::Value message, Bindings::StructuredSerializeOptions const& options);
 
     void enable();
     void start();
@@ -68,7 +68,7 @@ public:
 
     void set_worker_event_target(GC::Ref<DOM::EventTarget>);
 
-    WebIDL::ExceptionOr<void> message_port_post_message_steps(GC::Ptr<MessagePort> target_port, JS::Value message, StructuredSerializeOptions const& options);
+    WebIDL::ExceptionOr<void> message_port_post_message_steps(GC::Ptr<MessagePort> target_port, JS::Value message, Bindings::StructuredSerializeOptions const& options);
 
 private:
     explicit MessagePort(JS::Realm&);

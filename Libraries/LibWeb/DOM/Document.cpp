@@ -38,6 +38,7 @@
 #include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/Animations/TimeValue.h>
 #include <LibWeb/Bindings/Document.h>
+#include <LibWeb/Bindings/IntersectionObserver.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/CSS/AnimationEvent.h>
@@ -2234,11 +2235,11 @@ void Document::set_hovered_node(GC::Ptr<Node> node)
 
     // https://w3c.github.io/pointerevents/#the-pointerout-event
     if (old_hovered_node && old_hovered_node != m_hovered_node) {
-        UIEvents::PointerEventInit pointer_event_init {};
+        Bindings::PointerEventInit pointer_event_init {};
         pointer_event_init.bubbles = true;
         pointer_event_init.cancelable = true;
         pointer_event_init.composed = true;
-        pointer_event_init.related_target = m_hovered_node;
+        pointer_event_init.related_target = GC::Root<DOM::EventTarget> { m_hovered_node.ptr() };
         pointer_event_init.is_primary = true;
         pointer_event_init.pointer_type = UIEvents::PointerTypes::Mouse;
         if (auto navigable = this->navigable())
@@ -2249,11 +2250,11 @@ void Document::set_hovered_node(GC::Ptr<Node> node)
 
     // https://w3c.github.io/uievents/#mouseout
     if (old_hovered_node && old_hovered_node != m_hovered_node) {
-        UIEvents::MouseEventInit mouse_event_init {};
+        Bindings::MouseEventInit mouse_event_init {};
         mouse_event_init.bubbles = true;
         mouse_event_init.cancelable = true;
         mouse_event_init.composed = true;
-        mouse_event_init.related_target = m_hovered_node;
+        mouse_event_init.related_target = GC::Root<DOM::EventTarget> { m_hovered_node.ptr() };
         if (auto navigable = this->navigable())
             mouse_event_init.view = navigable->active_window_proxy();
         auto event = UIEvents::MouseEvent::create(realm(), UIEvents::EventNames::mouseout, mouse_event_init);
@@ -2264,8 +2265,8 @@ void Document::set_hovered_node(GC::Ptr<Node> node)
     if (old_hovered_node && (!m_hovered_node || !m_hovered_node->is_descendant_of(*old_hovered_node))) {
         for (auto target = old_hovered_node; target && target.ptr() != common_ancestor; target = target->parent()) {
             // FIXME: Populate the event with mouse coordinates, etc.
-            UIEvents::PointerEventInit pointer_event_init {};
-            pointer_event_init.related_target = m_hovered_node;
+            Bindings::PointerEventInit pointer_event_init {};
+            pointer_event_init.related_target = GC::Root<DOM::EventTarget> { m_hovered_node.ptr() };
             pointer_event_init.is_primary = true;
             pointer_event_init.pointer_type = UIEvents::PointerTypes::Mouse;
             if (auto navigable = this->navigable())
@@ -2278,19 +2279,19 @@ void Document::set_hovered_node(GC::Ptr<Node> node)
     if (old_hovered_node && (!m_hovered_node || !m_hovered_node->is_descendant_of(*old_hovered_node))) {
         for (auto target = old_hovered_node; target && target.ptr() != common_ancestor; target = target->parent_or_shadow_host()) {
             // FIXME: Populate the event with mouse coordinates, etc.
-            UIEvents::MouseEventInit mouse_event_init {};
-            mouse_event_init.related_target = m_hovered_node;
+            Bindings::MouseEventInit mouse_event_init {};
+            mouse_event_init.related_target = GC::Root<DOM::EventTarget> { m_hovered_node.ptr() };
             target->dispatch_event(UIEvents::MouseEvent::create(realm(), UIEvents::EventNames::mouseleave, mouse_event_init));
         }
     }
 
     // https://w3c.github.io/pointerevents/#the-pointerover-event
     if (m_hovered_node && m_hovered_node != old_hovered_node) {
-        UIEvents::PointerEventInit pointer_event_init {};
+        Bindings::PointerEventInit pointer_event_init {};
         pointer_event_init.bubbles = true;
         pointer_event_init.cancelable = true;
         pointer_event_init.composed = true;
-        pointer_event_init.related_target = old_hovered_node;
+        pointer_event_init.related_target = GC::Root<DOM::EventTarget> { old_hovered_node.ptr() };
         pointer_event_init.is_primary = true;
         pointer_event_init.pointer_type = UIEvents::PointerTypes::Mouse;
         if (auto navigable = this->navigable())
@@ -2301,11 +2302,11 @@ void Document::set_hovered_node(GC::Ptr<Node> node)
 
     // https://w3c.github.io/uievents/#mouseover
     if (m_hovered_node && m_hovered_node != old_hovered_node) {
-        UIEvents::MouseEventInit mouse_event_init {};
+        Bindings::MouseEventInit mouse_event_init {};
         mouse_event_init.bubbles = true;
         mouse_event_init.cancelable = true;
         mouse_event_init.composed = true;
-        mouse_event_init.related_target = old_hovered_node;
+        mouse_event_init.related_target = GC::Root<DOM::EventTarget> { old_hovered_node.ptr() };
         if (auto navigable = this->navigable())
             mouse_event_init.view = navigable->active_window_proxy();
         auto event = UIEvents::MouseEvent::create(realm(), UIEvents::EventNames::mouseover, mouse_event_init);
@@ -2323,15 +2324,15 @@ void Document::set_hovered_node(GC::Ptr<Node> node)
 
         for (auto target : entered_ancestors.in_reverse()) {
             // FIXME: Populate the events with mouse coordinates, etc.
-            UIEvents::PointerEventInit pointer_event_init {};
-            pointer_event_init.related_target = old_hovered_node;
+            Bindings::PointerEventInit pointer_event_init {};
+            pointer_event_init.related_target = GC::Root<DOM::EventTarget> { old_hovered_node.ptr() };
             pointer_event_init.is_primary = true;
             pointer_event_init.pointer_type = UIEvents::PointerTypes::Mouse;
             if (auto navigable = this->navigable())
                 pointer_event_init.view = navigable->active_window_proxy();
             target->dispatch_event(UIEvents::PointerEvent::create(realm(), UIEvents::EventNames::pointerenter, pointer_event_init));
-            UIEvents::MouseEventInit mouse_event_init {};
-            mouse_event_init.related_target = old_hovered_node;
+            Bindings::MouseEventInit mouse_event_init {};
+            mouse_event_init.related_target = GC::Root<DOM::EventTarget> { old_hovered_node.ptr() };
             target->dispatch_event(UIEvents::MouseEvent::create(realm(), UIEvents::EventNames::mouseenter, mouse_event_init));
         }
     }
@@ -2486,7 +2487,7 @@ HTML::EnvironmentSettingsObject& Document::relevant_settings_object() const
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createelement
-WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(String const& local_name, Variant<String, ElementCreationOptions> const& options)
+WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(String const& local_name, Variant<String, Bindings::ElementCreationOptions> const& options)
 {
     // 1. If localName is not a valid element local name, then throw an "InvalidCharacterError" DOMException.
     if (!is_valid_element_local_name(local_name))
@@ -2512,7 +2513,7 @@ WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(String const& loc
 
 // https://dom.spec.whatwg.org/#dom-document-createelementns
 // https://dom.spec.whatwg.org/#internal-createelementns-steps
-WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element_ns(Optional<FlyString> const& namespace_, String const& qualified_name, Variant<String, ElementCreationOptions> const& options)
+WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element_ns(Optional<FlyString> const& namespace_, String const& qualified_name, Variant<String, Bindings::ElementCreationOptions> const& options)
 {
     // 1. Let (namespace, prefix, localName) be the result of validating and extracting namespace and qualifiedName
     //    given "element".
@@ -2719,7 +2720,7 @@ Vector<GC::Root<HTML::HTMLScriptElement>> Document::take_scripts_to_execute_in_o
 }
 
 // https://dom.spec.whatwg.org/#dom-document-importnode
-WebIDL::ExceptionOr<GC::Ref<Node>> Document::import_node(GC::Ref<Node> node, Variant<bool, ImportNodeOptions> options)
+WebIDL::ExceptionOr<GC::Ref<Node>> Document::import_node(GC::Ref<Node> node, Variant<bool, Bindings::ImportNodeOptions> options)
 {
     // 1. If node is a document or shadow root, then throw a "NotSupportedError" DOMException.
     if (is<Document>(*node) || is<ShadowRoot>(*node))
@@ -2738,13 +2739,13 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Document::import_node(GC::Ref<Node> node, Var
             return {};
         },
         // 5. Otherwise:
-        [&subtree, &registry, this](ImportNodeOptions const& options) -> WebIDL::ExceptionOr<void> {
+        [&subtree, &registry, this](Bindings::ImportNodeOptions const& options) -> WebIDL::ExceptionOr<void> {
             // 1. Set subtree to the negation of options["selfOnly"].
             subtree = !options.self_only;
 
             // 2. If options["customElementRegistry"] exists, then set registry to it.
-            if (options.custom_element_registry)
-                registry = options.custom_element_registry;
+            if (options.custom_element_registry.has_value())
+                registry = options.custom_element_registry->ptr();
 
             // 3. If registry’s is scoped is false and registry is not this’s custom element registry, then throw a
             //    "NotSupportedError" DOMException.
@@ -2935,7 +2936,7 @@ void Document::set_focused_area(GC::Ptr<Node> node)
         new_focused_element->queue_an_element_task(HTML::Task::Source::UserInteraction, [new_focused_element] {
             if (new_focused_element->document().focused_area().ptr() != new_focused_element)
                 return;
-            ScrollIntoViewOptions scroll_options;
+            Bindings::ScrollIntoViewOptions scroll_options;
             scroll_options.block = Bindings::ScrollLogicalPosition::Nearest;
             scroll_options.inline_ = Bindings::ScrollLogicalPosition::Nearest;
             (void)new_focused_element->scroll_into_view(scroll_options);
@@ -3230,19 +3231,20 @@ void Document::dispatch_events_for_transition(GC::Ref<CSS::CSSTransition> transi
             break;
         }
 
+        Bindings::TransitionEventInit event_init {};
+        event_init.bubbles = true;
+        event_init.property_name = MUST(String::from_utf8(transition->transition_property()));
+        event_init.elapsed_time = elapsed_time_output;
+        event_init.pseudo_element = transition->owning_element()->pseudo_element().map([](auto it) {
+                                                                                      return MUST(String::formatted("::{}", CSS::pseudo_element_name(it)));
+                                                                                  })
+                                        .value_or({});
+
         append_pending_animation_event({
             .event = CSS::TransitionEvent::create(
                 transition->owning_element()->element().realm(),
                 type,
-                CSS::TransitionEventInit {
-                    { .bubbles = true },
-                    MUST(String::from_utf8(transition->transition_property())),
-                    elapsed_time_output,
-                    transition->owning_element()->pseudo_element().map([](auto it) {
-                                                                      return MUST(String::formatted("::{}", CSS::pseudo_element_name(it)));
-                                                                  })
-                        .value_or({}),
-                }),
+                event_init),
             .animation = transition,
             .target = transition->owning_element()->element(),
             .scheduled_event_time = HighResolutionTime::unsafe_shared_current_time(),
@@ -3334,19 +3336,20 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
             break;
         }
 
+        Bindings::AnimationEventInit event_init {};
+        event_init.bubbles = true;
+        event_init.animation_name = static_cast<String>(css_animation.animation_name());
+        event_init.elapsed_time = elapsed_time_output;
+        event_init.pseudo_element = owning_element->pseudo_element().map([](auto it) {
+                                                                        return MUST(String::formatted("::{}", CSS::pseudo_element_name(it)));
+                                                                    })
+                                        .value_or({});
+
         append_pending_animation_event({
             .event = CSS::AnimationEvent::create(
                 owning_element->element().realm(),
                 name,
-                {
-                    { .bubbles = true },
-                    css_animation.animation_name(),
-                    elapsed_time_output,
-                    owning_element->pseudo_element().map([](auto it) {
-                                                        return MUST(String::formatted("::{}", CSS::pseudo_element_name(it)));
-                                                    })
-                        .value_or({}),
-                }),
+                event_init),
             .animation = css_animation,
             .target = *target,
             .scheduled_event_time = HighResolutionTime::unsafe_shared_current_time(),
@@ -3452,7 +3455,7 @@ void Document::scroll_to_the_fragment()
         // FIXME: 4. Run the ancestor revealing algorithm on target.
 
         // 5. Scroll target into view, with behavior set to "auto", block set to "start", and inline set to "nearest". [CSSOMVIEW]
-        ScrollIntoViewOptions scroll_options;
+        Bindings::ScrollIntoViewOptions scroll_options;
         scroll_options.block = Bindings::ScrollLogicalPosition::Start;
         scroll_options.inline_ = Bindings::ScrollLogicalPosition::Nearest;
         (void)target->scroll_into_view(scroll_options);
@@ -4043,7 +4046,7 @@ void Document::evaluate_media_queries_and_report_changes()
         media_query_list->set_has_changed_state(false);
 
         if (did_change_internally == true || did_match != now_matches) {
-            CSS::MediaQueryListEventInit init;
+            Bindings::MediaQueryListEventInit init;
             init.media = media_query_list->media();
             init.matches = now_matches;
             auto event = CSS::MediaQueryListEvent::create(realm(), HTML::EventNames::change, init);
@@ -5683,7 +5686,7 @@ void Document::start_intersection_observing_a_lazy_loading_element(Element& elem
 
         // FIXME: The options is an IntersectionObserverInit dictionary with the following dictionary members: «[ "rootMargin" → lazy load root margin ]»
         // Spec Note: This allows for fetching the image during scrolling, when it does not yet — but is about to — intersect the viewport.
-        auto options = IntersectionObserver::IntersectionObserverInit {};
+        auto options = Bindings::IntersectionObserverInit {};
 
         auto wrapped_callback = realm.heap().allocate<WebIDL::CallbackType>(callback, realm);
         m_lazy_load_intersection_observer = IntersectionObserver::IntersectionObserver::construct_impl(realm, wrapped_callback, options).release_value_but_fixme_should_propagate_errors();
@@ -5966,7 +5969,7 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
             //    with the state attribute initialized to document's history object's state and hasUAVisualTransition initialized to true
             //    if a visual transition, to display a cached rendered state of the latest entry, was done by the user agent.
             // FIXME: Initialise hasUAVisualTransition
-            HTML::PopStateEventInit popstate_event_init;
+            Bindings::PopStateEventInit popstate_event_init;
             popstate_event_init.state = history()->unsafe_state();
             auto& relevant_global_object = as<HTML::Window>(HTML::relevant_global_object(*this));
             auto pop_state_event = HTML::PopStateEvent::create(realm(), "popstate"_fly_string, popstate_event_init);
@@ -5979,7 +5982,7 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
             //    using HashChangeEvent, with the oldURL attribute initialized to the serialization of oldURL and the newURL attribute
             //    initialized to the serialization of entry's URL.
             if (old_url.fragment() != entry->url().fragment()) {
-                HTML::HashChangeEventInit hashchange_event_init;
+                Bindings::HashChangeEventInit hashchange_event_init;
                 hashchange_event_init.old_url = old_url.serialize();
                 hashchange_event_init.new_url = entry->url().serialize();
                 auto hashchange_event = HTML::HashChangeEvent::create(realm(), "hashchange"_fly_string, hashchange_event_init);
@@ -6237,7 +6240,7 @@ void Document::remove_replaced_animations()
             // - Set removeEvent’s currentTime attribute to the current time of animation.
             // - Set removeEvent’s timelineTime attribute to the current time of the timeline with which animation is
             //   associated.
-            Animations::AnimationPlaybackEventInit init;
+            Bindings::AnimationPlaybackEventInit init;
             init.current_time = animation->current_time().has_value() ? Animations::NullableCSSNumberish { animation->current_time()->as_css_numberish(realm()) } : Animations::NullableCSSNumberish { Empty {} };
             init.timeline_time = animation->timeline()->current_time().has_value() ? Animations::NullableCSSNumberish { animation->timeline()->current_time()->as_css_numberish(realm()) } : Animations::NullableCSSNumberish { Empty {} };
             auto remove_event = Animations::AnimationPlaybackEvent::create(realm(), HTML::EventNames::remove, init);
@@ -7176,10 +7179,10 @@ void Document::run_fullscreen_steps()
         // 2. Fire an event named type, with its bubbles and composed attributes set to true, at target.
         switch (type) {
         case PendingFullscreenEvent::Type::Change:
-            target->dispatch_event(Event::create(realm(), HTML::EventNames::fullscreenchange, EventInit { .bubbles = true, .composed = true }));
+            target->dispatch_event(Event::create(realm(), HTML::EventNames::fullscreenchange, Bindings::EventInit { .bubbles = true, .composed = true }));
             break;
         case PendingFullscreenEvent::Type::Error:
-            target->dispatch_event(Event::create(realm(), HTML::EventNames::fullscreenerror, EventInit { .bubbles = true, .composed = true }));
+            target->dispatch_event(Event::create(realm(), HTML::EventNames::fullscreenerror, Bindings::EventInit { .bubbles = true, .composed = true }));
             break;
         }
     }
@@ -7746,7 +7749,7 @@ void Document::run_csp_initialization() const
 }
 
 // https://dom.spec.whatwg.org/#flatten-element-creation-options
-WebIDL::ExceptionOr<Document::RegistryAndIs> Document::flatten_element_creation_options(Variant<String, ElementCreationOptions> const& options) const
+WebIDL::ExceptionOr<Document::RegistryAndIs> Document::flatten_element_creation_options(Variant<String, Bindings::ElementCreationOptions> const& options) const
 {
     // 1. Let registry be the result of looking up a custom element registry given document.
     GC::Ptr<HTML::CustomElementRegistry> registry = HTML::look_up_a_custom_element_registry(*this);
@@ -7755,7 +7758,7 @@ WebIDL::ExceptionOr<Document::RegistryAndIs> Document::flatten_element_creation_
     Optional<String> is;
 
     // 3. If options is a dictionary:
-    if (auto* dictionary = options.get_pointer<ElementCreationOptions>()) {
+    if (auto* dictionary = options.get_pointer<Bindings::ElementCreationOptions>()) {
         // 1. If options["is"] exists, then set is to it.
         if (dictionary->is.has_value())
             is = dictionary->is;

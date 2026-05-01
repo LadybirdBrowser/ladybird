@@ -25,7 +25,7 @@ namespace Web::Streams {
 GC_DEFINE_ALLOCATOR(WritableStream);
 
 // https://streams.spec.whatwg.org/#ws-constructor
-WebIDL::ExceptionOr<GC::Ref<WritableStream>> WritableStream::construct_impl(JS::Realm& realm, Optional<GC::Root<JS::Object>> const& underlying_sink_object, QueuingStrategy const& strategy)
+WebIDL::ExceptionOr<GC::Ref<WritableStream>> WritableStream::construct_impl(JS::Realm& realm, Optional<GC::Root<JS::Object>> const& underlying_sink_object, Bindings::QueuingStrategy const& strategy)
 {
     auto& vm = realm.vm();
 

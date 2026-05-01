@@ -23,7 +23,7 @@ GC::Ref<CSSMatrixComponent> CSSMatrixComponent::create(JS::Realm& realm, Is2D is
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssmatrixcomponent-cssmatrixcomponent
-WebIDL::ExceptionOr<GC::Ref<CSSMatrixComponent>> CSSMatrixComponent::construct_impl(JS::Realm& realm, GC::Ref<Geometry::DOMMatrixReadOnly> matrix, Optional<CSSMatrixComponentOptions> options)
+WebIDL::ExceptionOr<GC::Ref<CSSMatrixComponent>> CSSMatrixComponent::construct_impl(JS::Realm& realm, GC::Ref<Geometry::DOMMatrixReadOnly> matrix, Optional<Bindings::CSSMatrixComponentOptions> options)
 {
     // The CSSMatrixComponent(matrix, options) constructor must, when invoked, perform the following steps:
 

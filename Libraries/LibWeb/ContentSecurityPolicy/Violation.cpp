@@ -316,7 +316,7 @@ void Violation::report_a_violation(JS::Realm& realm)
         if (is<DOM::EventTarget>(target_as_object.ptr())) {
             auto& event_target = static_cast<DOM::EventTarget&>(*target_as_object.ptr());
 
-            SecurityPolicyViolationEventInit event_init {};
+            Bindings::SecurityPolicyViolationEventInit event_init {};
 
             // bubbles
             //    true

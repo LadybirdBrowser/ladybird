@@ -29,7 +29,7 @@ GC::Ref<DOMRect> DOMRect::create(JS::Realm& realm)
 }
 
 // https://drafts.fxtf.org/geometry/#create-a-domrect-from-the-dictionary
-GC::Ref<DOMRect> DOMRect::from_rect(JS::VM& vm, Geometry::DOMRectInit const& other)
+GC::Ref<DOMRect> DOMRect::from_rect(JS::VM& vm, Bindings::DOMRectInit const& other)
 {
     auto& realm = *vm.current_realm();
     return realm.create<DOMRect>(realm, other.x, other.y, other.width, other.height);

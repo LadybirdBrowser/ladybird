@@ -6,6 +6,7 @@
 
 #include <LibJS/Runtime/Array.h>
 #include <LibWeb/Bindings/IDBIndex.h>
+#include <LibWeb/Bindings/IDBObjectStore.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/IndexedDB/IDBCursor.h>
@@ -306,7 +307,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::open_key_cursor(JS::Value que
     return request;
 }
 
-WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::get_all_records(IDBGetAllOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::get_all_records(Bindings::IDBGetAllOptions const& options)
 {
     // 1. Return the result of creating a request to retrieve multiple items with the current Realm record, this,
     //    "record", and options. Rethrow any exceptions.

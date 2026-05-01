@@ -6,14 +6,10 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/ConstantSourceNode.h>
 #include <LibWeb/WebAudio/AudioScheduledSourceNode.h>
 
 namespace Web::WebAudio {
-
-// https://webaudio.github.io/web-audio-api/#ChannelMergerOptions
-struct ConstantSourceOptions : AudioNodeOptions {
-    float offset { 1.0f };
-};
 
 // https://webaudio.github.io/web-audio-api/#ChannelMergerNode
 class ConstantSourceNode final : public AudioScheduledSourceNode {
@@ -23,8 +19,8 @@ class ConstantSourceNode final : public AudioScheduledSourceNode {
 public:
     virtual ~ConstantSourceNode() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<ConstantSourceNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, ConstantSourceOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<ConstantSourceNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, ConstantSourceOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<ConstantSourceNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::ConstantSourceOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<ConstantSourceNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::ConstantSourceOptions const& = {});
 
     virtual WebIDL::UnsignedLong number_of_inputs() override { return 0; }
     virtual WebIDL::UnsignedLong number_of_outputs() override { return 1; }
@@ -32,7 +28,7 @@ public:
     GC::Ref<AudioParam const> offset() const { return m_offset; }
 
 private:
-    ConstantSourceNode(JS::Realm&, GC::Ref<BaseAudioContext>, ConstantSourceOptions const&);
+    ConstantSourceNode(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::ConstantSourceOptions const&);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

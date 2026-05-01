@@ -12,24 +12,13 @@
 
 namespace Web::WebAudio {
 
-// https://webaudio.github.io/web-audio-api/#PeriodicWaveConstraints
-struct PeriodicWaveConstraints {
-    bool disable_normalization { false };
-};
-
-// https://webaudio.github.io/web-audio-api/#PeriodicWaveOptions
-struct PeriodicWaveOptions : PeriodicWaveConstraints {
-    Optional<Vector<float>> real;
-    Optional<Vector<float>> imag;
-};
-
 // https://webaudio.github.io/web-audio-api/#PeriodicWave
 class PeriodicWave : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(PeriodicWave, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(PeriodicWave);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, PeriodicWaveOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::PeriodicWaveOptions const&);
 
     explicit PeriodicWave(JS::Realm&);
     virtual ~PeriodicWave() override;

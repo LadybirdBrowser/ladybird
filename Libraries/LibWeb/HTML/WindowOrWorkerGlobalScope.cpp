@@ -19,6 +19,7 @@
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/ImageBitmap.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Bindings/PerformanceObserver.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/Fetch/FetchMethod.h>
@@ -125,19 +126,19 @@ bool WindowOrWorkerGlobalScopeMixin::cross_origin_isolated() const
 }
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#dom-createimagebitmap
-GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap(ImageBitmapSource image, Optional<ImageBitmapOptions> options) const
+GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap(ImageBitmapSource image, Optional<Bindings::ImageBitmapOptions> options) const
 {
     return create_image_bitmap_impl(image, {}, {}, {}, {}, options);
 }
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#dom-createimagebitmap
-GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap(ImageBitmapSource image, WebIDL::Long sx, WebIDL::Long sy, WebIDL::Long sw, WebIDL::Long sh, Optional<ImageBitmapOptions> options) const
+GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap(ImageBitmapSource image, WebIDL::Long sx, WebIDL::Long sy, WebIDL::Long sw, WebIDL::Long sh, Optional<Bindings::ImageBitmapOptions> options) const
 {
     return create_image_bitmap_impl(image, sx, sy, sw, sh, options);
 }
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#cropped-to-the-source-rectangle-with-formatting
-static ErrorOr<NonnullRefPtr<Gfx::Bitmap>> crop_to_the_source_rectangle_with_formatting(RefPtr<Gfx::Bitmap const> input, Optional<WebIDL::Long> sx, Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, Optional<ImageBitmapOptions> const& options)
+static ErrorOr<NonnullRefPtr<Gfx::Bitmap>> crop_to_the_source_rectangle_with_formatting(RefPtr<Gfx::Bitmap const> input, Optional<WebIDL::Long> sx, Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, Optional<Bindings::ImageBitmapOptions> const& options)
 {
     // 1. Let input be the bitmap data being transformed.
 
@@ -262,7 +263,7 @@ static ErrorOr<NonnullRefPtr<Gfx::Bitmap>> crop_to_the_source_rectangle_with_for
     return output;
 }
 
-GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(ImageBitmapSource& image, Optional<WebIDL::Long> sx, Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, Optional<ImageBitmapOptions>& options) const
+GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(ImageBitmapSource& image, Optional<WebIDL::Long> sx, Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, Optional<Bindings::ImageBitmapOptions>& options) const
 {
     auto& realm = this_impl().realm();
 
@@ -499,7 +500,7 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
     return p;
 }
 
-GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::fetch(Fetch::RequestInfo const& input, Fetch::RequestInit const& init) const
+GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::fetch(Fetch::RequestInfo const& input, Bindings::RequestInit const& init) const
 {
     auto& vm = this_impl().vm();
     return Fetch::fetch(vm, input, init);
@@ -727,7 +728,7 @@ void WindowOrWorkerGlobalScopeMixin::queue_performance_entry(GC::Ref<Performance
     for (auto const& registered_observer : m_registered_performance_observer_objects) {
         // 1. If regObs's options list contains a PerformanceObserverInit options whose entryTypes member includes entryType
         //    or whose type member equals to entryType:
-        auto iterator = registered_observer->options_list().find_if([&entry_type](PerformanceTimeline::PerformanceObserverInit const& entry) {
+        auto iterator = registered_observer->options_list().find_if([&entry_type](Bindings::PerformanceObserverInit const& entry) {
             if (entry.entry_types.has_value())
                 return entry.entry_types->contains_slow(entry_type.to_string());
 
@@ -1245,7 +1246,7 @@ void WindowOrWorkerGlobalScopeMixin::report_an_exception(JS::Value exception, Om
         // 2. If global implements EventTarget, then set notHandled to the result of firing an event named
         //    error at global, using ErrorEvent, with the cancelable attribute initialized to true, and
         //    additional attributes initialized according to errorInfo.
-        ErrorEventInit event_init = {};
+        Bindings::ErrorEventInit event_init = {};
         event_init.cancelable = true;
         event_init.message = error_info.message;
         event_init.filename = error_info.filename;

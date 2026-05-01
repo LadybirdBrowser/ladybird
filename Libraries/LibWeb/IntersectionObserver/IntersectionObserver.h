@@ -15,20 +15,12 @@
 namespace Web::IntersectionObserver {
 
 using NullableIntersectionObserverRoot = Variant<GC::Root<DOM::Element>, GC::Root<DOM::Document>, Empty>;
+using IntersectionObserverRoot = NullableIntersectionObserverRoot;
 
 struct ObservationTarget {
     GC::Ref<DOM::Element> target;
     Optional<size_t> previous_threshold_index;
     bool previous_is_intersecting { false };
-};
-
-struct IntersectionObserverInit {
-    NullableIntersectionObserverRoot root { Empty {} };
-    String root_margin { "0px"_string };
-    String scroll_margin { "0px"_string };
-    Variant<double, Vector<double>> threshold { 0 };
-    long delay = 0;
-    bool track_visibility = false;
 };
 
 // https://w3c.github.io/IntersectionObserver/#intersection-observer-interface
@@ -39,7 +31,7 @@ class IntersectionObserver final : public Bindings::PlatformObject {
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    static WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> construct_impl(JS::Realm&, GC::Ptr<WebIDL::CallbackType> callback, IntersectionObserverInit const& options = {});
+    static WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> construct_impl(JS::Realm&, GC::Ptr<WebIDL::CallbackType> callback, Bindings::IntersectionObserverInit const& options);
 
     virtual ~IntersectionObserver() override;
 
@@ -69,7 +61,7 @@ public:
     WebIDL::CallbackType& callback() { return *m_callback; }
 
 private:
-    explicit IntersectionObserver(JS::Realm&, GC::Ptr<WebIDL::CallbackType> callback, NullableIntersectionObserverRoot const& root, Vector<CSS::LengthPercentage> root_margin, Vector<CSS::LengthPercentage> scroll_margin, Vector<double>&& thresholds, double debug, bool track_visibility);
+    explicit IntersectionObserver(JS::Realm&, GC::Ptr<WebIDL::CallbackType> callback, IntersectionObserverRoot const& root, Vector<CSS::LengthPercentage> root_margin, Vector<CSS::LengthPercentage> scroll_margin, Vector<double>&& thresholds, double debug, bool track_visibility);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(JS::Cell::Visitor&) override;

@@ -252,7 +252,7 @@ GC::Ref<FileAPI::FileList> DataTransfer::files() const
         auto file_name = MUST(String::from_byte_string(item.file_name));
 
         // FIXME: Fill in other fields (e.g. last_modified).
-        FileAPI::FilePropertyBag options {};
+        Bindings::FilePropertyBag options {};
         options.type = item.type_string;
 
         auto file = MUST(FileAPI::File::create(realm, { GC::make_root(blob) }, file_name, move(options)));

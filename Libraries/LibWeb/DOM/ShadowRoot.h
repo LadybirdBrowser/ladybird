@@ -61,7 +61,7 @@ public:
 
     WebIDL::ExceptionOr<void> set_html_unsafe(TrustedTypes::TrustedHTMLOrString const&);
 
-    WebIDL::ExceptionOr<String> get_html(GetHTMLOptions const&) const;
+    WebIDL::ExceptionOr<String> get_html(Bindings::GetHTMLOptions const&) const;
 
     GC::Ptr<Element> active_element();
 

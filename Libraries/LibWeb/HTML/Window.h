@@ -12,6 +12,7 @@
 #include <AK/IterationDecision.h>
 #include <AK/RefPtr.h>
 #include <LibGC/Heap.h>
+#include <LibWeb/Bindings/IdleRequest.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/Window.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -23,28 +24,15 @@
 #include <LibWeb/HTML/MimeType.h>
 #include <LibWeb/HTML/Plugin.h>
 #include <LibWeb/HTML/ScrollOptions.h>
-#include <LibWeb/HTML/StructuredSerializeOptions.h>
 #include <LibWeb/HTML/UniversalGlobalScope.h>
 #include <LibWeb/HTML/WindowEventHandlers.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HTML/WindowType.h>
-#include <LibWeb/RequestIdleCallback/IdleRequest.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
 
 class IdleCallback;
-
-// https://w3c.github.io/csswg-drafts/cssom-view/#dictdef-scrolltooptions
-struct ScrollToOptions : public ScrollOptions {
-    Optional<double> left;
-    Optional<double> top;
-};
-
-// https://html.spec.whatwg.org/multipage/nav-history-apis.html#windowpostmessageoptions
-struct WindowPostMessageOptions : public StructuredSerializeOptions {
-    String target_origin { "/"_string };
-};
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#specifier-resolution-record
 // A specifier resolution record is a struct. It has the following items:
@@ -207,7 +195,7 @@ public:
     Optional<String> prompt(Optional<String> const& message, Optional<String> const& default_);
 
     WebIDL::ExceptionOr<void> post_message(JS::Value message, String const&, Vector<GC::Root<JS::Object>> const&);
-    WebIDL::ExceptionOr<void> post_message(JS::Value message, WindowPostMessageOptions const&);
+    WebIDL::ExceptionOr<void> post_message(JS::Value message, Bindings::WindowPostMessageOptions const&);
 
     Variant<GC::Root<DOM::Event>, Empty> event() const;
 
@@ -227,9 +215,9 @@ public:
 
     double scroll_x() const;
     double scroll_y() const;
-    GC::Ref<WebIDL::Promise> scroll(ScrollToOptions const&);
+    GC::Ref<WebIDL::Promise> scroll(Bindings::ScrollToOptions const&);
     GC::Ref<WebIDL::Promise> scroll(double x, double y);
-    GC::Ref<WebIDL::Promise> scroll_by(ScrollToOptions);
+    GC::Ref<WebIDL::Promise> scroll_by(Bindings::ScrollToOptions);
     GC::Ref<WebIDL::Promise> scroll_by(double x, double y);
 
     i32 screen_x() const;
@@ -244,7 +232,7 @@ public:
     WebIDL::UnsignedLong request_animation_frame(GC::Ref<WebIDL::CallbackType>);
     void cancel_animation_frame(WebIDL::UnsignedLong handle);
 
-    u32 request_idle_callback(WebIDL::CallbackType&, RequestIdleCallback::IdleRequestOptions const&);
+    u32 request_idle_callback(WebIDL::CallbackType&, Bindings::IdleRequestOptions const&);
     void cancel_idle_callback(u32 handle);
 
     GC::Ptr<Selection::Selection> get_selection() const;
@@ -304,7 +292,7 @@ private:
     };
     NamedObjects named_objects(StringView name);
 
-    WebIDL::ExceptionOr<void> window_post_message_steps(JS::Value, WindowPostMessageOptions const&);
+    WebIDL::ExceptionOr<void> window_post_message_steps(JS::Value, Bindings::WindowPostMessageOptions const&);
 
     // https://html.spec.whatwg.org/multipage/window-object.html#concept-document-window
     GC::Ptr<DOM::Document> m_associated_document;

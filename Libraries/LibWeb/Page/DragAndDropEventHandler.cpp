@@ -16,6 +16,7 @@
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/SelectedFile.h>
+#include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/MimeSniff/Resource.h>
 #include <LibWeb/Page/DragAndDropEventHandler.h>
 #include <LibWeb/UIEvents/KeyCode.h>
@@ -582,7 +583,7 @@ GC::Ref<HTML::DragEvent> DragAndDropEventHandler::fire_a_drag_and_drop_event(
 
     // 9. Let event be the result of creating an event using DragEvent.
     // FIXME: Implement https://dom.spec.whatwg.org/#concept-event-create
-    HTML::DragEventInit event_init {};
+    Bindings::DragEventInit event_init {};
 
     // 10. Initialize event's type attribute to e, its bubbles attribute to true, its view attribute to window, its
     //     relatedTarget attribute to related target, and its dataTransfer attribute to dataTransfer.

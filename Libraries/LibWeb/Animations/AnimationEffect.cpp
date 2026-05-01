@@ -10,7 +10,9 @@
 #include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/Bindings/AnimationEffect.h>
+#include <LibWeb/Bindings/CSSStyleSheet.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
@@ -59,43 +61,43 @@ Bindings::PlaybackDirection css_animation_direction_to_bindings_playback_directi
     }
 }
 
-OptionalEffectTiming EffectTiming::to_optional_effect_timing() const
+Bindings::OptionalEffectTiming to_optional_effect_timing(Bindings::EffectTiming const& effect_timing)
 {
     return {
-        .delay = delay,
-        .end_delay = end_delay,
-        .fill = fill,
-        .iteration_start = iteration_start,
-        .iterations = iterations,
-        .duration = duration.visit(
+        .delay = effect_timing.delay,
+        .direction = effect_timing.direction,
+        .duration = effect_timing.duration.visit(
             [](double const& value) -> Variant<double, String> { return value; },
             [](String const& value) -> Variant<double, String> { return value; },
             // NB: We check that this isn't the case in the caller
             [](GC::Root<CSS::CSSNumericValue> const&) -> Variant<double, String> { VERIFY_NOT_REACHED(); }),
-        .direction = direction,
-        .easing = easing,
+        .easing = effect_timing.easing,
+        .end_delay = effect_timing.end_delay,
+        .fill = effect_timing.fill,
+        .iteration_start = effect_timing.iteration_start,
+        .iterations = effect_timing.iterations,
     };
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-animationeffect-gettiming
-EffectTiming AnimationEffect::get_timing() const
+Bindings::EffectTiming AnimationEffect::get_timing() const
 {
     // 1. Returns the specified timing properties for this animation effect.
     return {
         .delay = m_specified_start_delay,
+        .direction = m_playback_direction,
+        .duration = m_specified_iteration_duration,
+        .easing = m_timing_function.to_string(),
         .end_delay = m_specified_end_delay,
         .fill = m_fill_mode,
         .iteration_start = m_iteration_start,
         .iterations = m_iteration_count,
-        .duration = m_specified_iteration_duration,
-        .direction = m_playback_direction,
-        .easing = m_timing_function.to_string(),
     };
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-animationeffect-getcomputedtiming
 // https://drafts.csswg.org/web-animations-2/#dom-animationeffect-getcomputedtiming
-ComputedEffectTiming AnimationEffect::get_computed_timing() const
+Bindings::ComputedEffectTiming AnimationEffect::get_computed_timing() const
 {
     // 1. Returns the calculated timing properties for this animation effect.
 
@@ -118,24 +120,21 @@ ComputedEffectTiming AnimationEffect::get_computed_timing() const
     //       In this level of the specification, that simply means that an auto value is replaced by the none FillMode.
     auto fill = m_fill_mode == Bindings::FillMode::Auto ? Bindings::FillMode::None : m_fill_mode;
 
-    return {
-        {
-            .delay = m_specified_start_delay,
-            .end_delay = m_specified_end_delay,
-            .fill = fill,
-            .iteration_start = m_iteration_start,
-            .iterations = m_iteration_count,
-            .duration = duration,
-            .direction = m_playback_direction,
-            .easing = m_timing_function.to_string(),
-        },
-
-        end_time().as_css_numberish(realm()),
-        active_duration().as_css_numberish(realm()),
-        NullableCSSNumberish::from_optional_css_numberish_time(realm(), local_time()),
-        transformed_progress(),
-        current_iteration(),
-    };
+    Bindings::ComputedEffectTiming computed_timing {};
+    computed_timing.delay = m_specified_start_delay;
+    computed_timing.end_delay = m_specified_end_delay;
+    computed_timing.fill = fill;
+    computed_timing.iteration_start = m_iteration_start;
+    computed_timing.iterations = m_iteration_count;
+    computed_timing.duration = duration;
+    computed_timing.direction = m_playback_direction;
+    computed_timing.easing = m_timing_function.to_string();
+    computed_timing.active_duration = active_duration().as_css_numberish(realm());
+    computed_timing.current_iteration = current_iteration();
+    computed_timing.end_time = end_time().as_css_numberish(realm());
+    computed_timing.local_time = NullableCSSNumberish::from_optional_css_numberish_time(realm(), local_time());
+    computed_timing.progress = transformed_progress();
+    return computed_timing;
 }
 
 // https://drafts.csswg.org/web-animations-2/#intrinsic-iteration-duration
@@ -269,7 +268,7 @@ void AnimationEffect::normalize_specified_timing()
 // https://www.w3.org/TR/web-animations-1/#dom-animationeffect-updatetiming
 // https://www.w3.org/TR/web-animations-1/#update-the-timing-properties-of-an-animation-effect
 // https://drafts.csswg.org/web-animations-2/#updating-animationeffect-timing
-WebIDL::ExceptionOr<void> AnimationEffect::update_timing(OptionalEffectTiming timing)
+WebIDL::ExceptionOr<void> AnimationEffect::update_timing(Bindings::OptionalEffectTiming const& timing)
 {
     // 1. If the iterationStart member of input exists and is less than zero, throw a TypeError and abort this
     //    procedure.

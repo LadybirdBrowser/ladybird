@@ -6,6 +6,7 @@
  */
 
 #include <LibJS/Runtime/VM.h>
+#include <LibWeb/Bindings/CSS.h>
 #include <LibWeb/CSS/CSS.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
@@ -61,7 +62,7 @@ WebIDL::ExceptionOr<bool> supports(JS::VM& vm, StringView condition_text)
 }
 
 // https://www.w3.org/TR/css-properties-values-api-1/#the-registerproperty-function
-WebIDL::ExceptionOr<void> register_property(JS::VM& vm, PropertyDefinition definition)
+WebIDL::ExceptionOr<void> register_property(JS::VM& vm, Bindings::PropertyDefinition const& definition)
 {
     // 1. Let property set be the value of the current global object’s associated Document’s [[registeredPropertySet]] slot.
     auto& realm = *vm.current_realm();

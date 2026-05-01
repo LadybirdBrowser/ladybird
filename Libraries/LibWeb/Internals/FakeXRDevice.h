@@ -12,12 +12,6 @@
 
 namespace Web::Internals {
 
-struct FakeXRDeviceInit {
-    Optional<Vector<Bindings::XRSessionMode>> supported_modes;
-
-    Optional<Vector<String>> supported_features;
-};
-
 // https://github.com/immersive-web/webxr-test-api/blob/main/explainer.md
 class WEB_API FakeXRDevice final : public InternalsBase {
     WEB_PLATFORM_OBJECT(FakeXRDevice, InternalsBase);

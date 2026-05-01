@@ -7,6 +7,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MediaStream.h>
 #include <LibWeb/Bindings/MediaStreamTrack.h>
+#include <LibWeb/Bindings/MediaStreamTrackEvent.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/MediaCapture/MediaStream.h>
@@ -119,7 +120,7 @@ void MediaStream::add_track(GC::Ref<MediaStreamTrack> track)
     m_tracks.append(track);
 
     // 4. Fire a track event named addtrack with track at stream.
-    MediaStreamTrackEventInit event_init {};
+    Bindings::MediaStreamTrackEventInit event_init {};
     event_init.track = track;
     auto event = MediaStreamTrackEvent::create(realm(), HTML::EventNames::addtrack, event_init);
     dispatch_event(event);
@@ -138,7 +139,7 @@ void MediaStream::remove_track(GC::Ref<MediaStreamTrack> track)
         return;
 
     // 4. Fire a track event named removetrack with track at stream.
-    MediaStreamTrackEventInit event_init;
+    Bindings::MediaStreamTrackEventInit event_init;
     event_init.track = track;
     auto event = MediaStreamTrackEvent::create(realm(), HTML::EventNames::removetrack, event_init);
     dispatch_event(event);

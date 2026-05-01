@@ -13,18 +13,18 @@ namespace Web::WebXR {
 
 GC_DEFINE_ALLOCATOR(XRSessionEvent);
 
-GC::Ref<XRSessionEvent> XRSessionEvent::create(JS::Realm& realm, FlyString const& type, XRSessionEventInit const& event_init)
+GC::Ref<XRSessionEvent> XRSessionEvent::create(JS::Realm& realm, FlyString const& type, Bindings::XRSessionEventInit const& event_init)
 {
     return realm.create<XRSessionEvent>(realm, type, event_init);
 }
 
 // https://immersive-web.github.io/webxr/#dom-xrsessionevent-xrsessionevent
-GC::Ref<XRSessionEvent> XRSessionEvent::construct_impl(JS::Realm& realm, FlyString const& type, XRSessionEventInit const& event_init)
+GC::Ref<XRSessionEvent> XRSessionEvent::construct_impl(JS::Realm& realm, FlyString const& type, Bindings::XRSessionEventInit const& event_init)
 {
     return create(realm, type, event_init);
 }
 
-XRSessionEvent::XRSessionEvent(JS::Realm& realm, FlyString const& type, XRSessionEventInit const& event_init)
+XRSessionEvent::XRSessionEvent(JS::Realm& realm, FlyString const& type, Bindings::XRSessionEventInit const& event_init)
     : DOM::Event(realm, type, event_init)
     , m_session(event_init.session)
 {

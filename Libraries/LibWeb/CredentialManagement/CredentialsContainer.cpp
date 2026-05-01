@@ -18,7 +18,7 @@ GC::Ref<CredentialsContainer> CredentialsContainer::create(JS::Realm& realm)
 CredentialsContainer::~CredentialsContainer() { }
 
 // https://www.w3.org/TR/credential-management-1/#dom-credentialscontainer-get
-GC::Ref<WebIDL::Promise> CredentialsContainer::get(CredentialRequestOptions const&)
+GC::Ref<WebIDL::Promise> CredentialsContainer::get(Bindings::CredentialRequestOptions const&)
 {
     auto* realm = vm().current_realm();
     return WebIDL::create_rejected_promise_from_exception(*realm, vm().throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "get"sv));
@@ -32,7 +32,7 @@ GC::Ref<WebIDL::Promise> CredentialsContainer::store(Credential const&)
 }
 
 // https://www.w3.org/TR/credential-management-1/#dom-credentialscontainer-create
-GC::Ref<WebIDL::Promise> CredentialsContainer::create(CredentialCreationOptions const&)
+GC::Ref<WebIDL::Promise> CredentialsContainer::create(Bindings::CredentialCreationOptions const&)
 {
     auto* realm = vm().current_realm();
     return WebIDL::create_rejected_promise_from_exception(*realm, vm().throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "create"sv));

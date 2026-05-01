@@ -10,9 +10,9 @@
 #include <AK/SinglyLinkedList.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/QueuingStrategy.h>
 #include <LibWeb/Bindings/Transferable.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/Streams/QueuingStrategy.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Streams {
@@ -47,7 +47,7 @@ public:
         Errored,
     };
 
-    static WebIDL::ExceptionOr<GC::Ref<WritableStream>> construct_impl(JS::Realm& realm, Optional<GC::Root<JS::Object>> const& underlying_sink, QueuingStrategy const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<WritableStream>> construct_impl(JS::Realm& realm, Optional<GC::Root<JS::Object>> const& underlying_sink, Bindings::QueuingStrategy const& = {});
 
     virtual ~WritableStream() = default;
 

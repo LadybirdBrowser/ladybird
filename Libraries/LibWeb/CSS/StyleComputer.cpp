@@ -2188,7 +2188,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
 
     auto animations = abstract_element.element().get_animations_internal(
         Animations::Animatable::GetAnimationsSorted::Yes,
-        Animations::GetAnimationsOptions { .subtree = false });
+        Bindings::GetAnimationsOptions { .subtree = false });
     if (animations.is_exception()) {
         dbgln("Error getting animations for element {}", abstract_element.debug_description());
     } else {

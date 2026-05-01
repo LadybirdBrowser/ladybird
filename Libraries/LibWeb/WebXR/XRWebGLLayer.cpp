@@ -25,7 +25,7 @@ GC::Ref<XRWebGLLayer> XRWebGLLayer::create(JS::Realm& realm)
 }
 
 // https://immersive-web.github.io/webxr/#dom-xrwebgllayer-xrwebgllayer
-WebIDL::ExceptionOr<GC::Ref<XRWebGLLayer>> XRWebGLLayer::construct_impl(JS::Realm& realm, XRSession const& session, XRWebGLRenderingContext const& context, XRWebGLLayerInit const& layer_init)
+WebIDL::ExceptionOr<GC::Ref<XRWebGLLayer>> XRWebGLLayer::construct_impl(JS::Realm& realm, XRSession const& session, XRWebGLRenderingContext const& context, Bindings::XRWebGLLayerInit const& layer_init)
 {
     // 1. Let layer be a new XRWebGLLayer in the relevant realm of session.
     auto layer = create(realm);

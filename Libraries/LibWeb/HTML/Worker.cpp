@@ -20,7 +20,7 @@ namespace Web::HTML {
 GC_DEFINE_ALLOCATOR(Worker);
 
 // https://html.spec.whatwg.org/multipage/workers.html#dedicated-workers-and-the-worker-interface
-Worker::Worker(JS::Realm& realm, String const& script_url, WorkerOptions const& options)
+Worker::Worker(JS::Realm& realm, String const& script_url, Bindings::WorkerOptions const& options)
     : DOM::EventTarget(realm)
     , m_script_url(script_url)
     , m_options(options)
@@ -41,7 +41,7 @@ void Worker::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-worker
-WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::create(JS::Realm& realm, TrustedTypes::TrustedScriptURLOrString const& script_url, WorkerOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::create(JS::Realm& realm, TrustedTypes::TrustedScriptURLOrString const& script_url, Bindings::WorkerOptions const& options)
 {
     // Returns a new Worker object. scriptURL will be fetched and executed in the background,
     // creating a new global environment for which worker represents the communication channel.
@@ -98,7 +98,7 @@ WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::create(JS::Realm& realm, TrustedTyp
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#run-a-worker
-void run_a_worker(Variant<GC::Ref<Worker>, GC::Ref<SharedWorker>> worker, URL::URL& url, EnvironmentSettingsObject& outside_settings, GC::Ptr<MessagePort> port, WorkerOptions const& options)
+void run_a_worker(Variant<GC::Ref<Worker>, GC::Ref<SharedWorker>> worker, URL::URL& url, EnvironmentSettingsObject& outside_settings, GC::Ptr<MessagePort> port, Bindings::WorkerOptions const& options)
 {
     // 1. Let is shared be true if worker is a SharedWorker object, and false otherwise.
     Bindings::AgentType agent_type = worker.has<GC::Ref<SharedWorker>>() ? Bindings::AgentType::SharedWorker : Bindings::AgentType::DedicatedWorker;
@@ -127,7 +127,7 @@ WebIDL::ExceptionOr<void> Worker::terminate()
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-worker-postmessage
-WebIDL::ExceptionOr<void> Worker::post_message(JS::Value message, StructuredSerializeOptions const& options)
+WebIDL::ExceptionOr<void> Worker::post_message(JS::Value message, Bindings::StructuredSerializeOptions const& options)
 {
     dbgln_if(WEB_WORKER_DEBUG, "WebWorker: Post Message: {}", message);
 

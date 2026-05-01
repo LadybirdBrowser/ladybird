@@ -6,14 +6,10 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/ChannelMergerNode.h>
 #include <LibWeb/WebAudio/AudioNode.h>
 
 namespace Web::WebAudio {
-
-// https://webaudio.github.io/web-audio-api/#ChannelMergerOptions
-struct ChannelMergerOptions : AudioNodeOptions {
-    WebIDL::UnsignedLong number_of_inputs { 6 };
-};
 
 // https://webaudio.github.io/web-audio-api/#ChannelMergerNode
 class ChannelMergerNode final : public AudioNode {
@@ -23,8 +19,8 @@ class ChannelMergerNode final : public AudioNode {
 public:
     virtual ~ChannelMergerNode() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<ChannelMergerNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, ChannelMergerOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<ChannelMergerNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, ChannelMergerOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<ChannelMergerNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::ChannelMergerOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<ChannelMergerNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::ChannelMergerOptions const& = {});
 
     WebIDL::UnsignedLong number_of_inputs() override { return m_number_of_inputs; }
     WebIDL::UnsignedLong number_of_outputs() override { return 1; }
@@ -34,7 +30,7 @@ public:
     virtual WebIDL::ExceptionOr<void> set_channel_count_mode(Bindings::ChannelCountMode) override;
 
 private:
-    ChannelMergerNode(JS::Realm&, GC::Ref<BaseAudioContext>, ChannelMergerOptions const&);
+    ChannelMergerNode(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::ChannelMergerOptions const&);
 
     WebIDL::UnsignedLong m_number_of_inputs;
 };

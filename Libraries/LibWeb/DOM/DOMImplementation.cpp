@@ -7,6 +7,7 @@
 
 #include <LibURL/Origin.h>
 #include <LibWeb/Bindings/DOMImplementation.h>
+#include <LibWeb/Bindings/Document.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/DOMImplementation.h>
@@ -60,7 +61,7 @@ WebIDL::ExceptionOr<GC::Ref<XMLDocument>> DOMImplementation::create_document(Opt
 
     // 3. If qualifiedName is not the empty string, then set element to the result of running the internal createElementNS steps, given document, namespace, qualifiedName, and an empty dictionary.
     if (!qualified_name.is_empty())
-        element = TRY(xml_document->create_element_ns(namespace_, qualified_name, ElementCreationOptions {}));
+        element = TRY(xml_document->create_element_ns(namespace_, qualified_name, Bindings::ElementCreationOptions {}));
 
     // 4. If doctype is non-null, append doctype to document.
     if (doctype)

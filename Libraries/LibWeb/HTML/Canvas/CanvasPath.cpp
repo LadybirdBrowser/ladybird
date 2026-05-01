@@ -296,21 +296,21 @@ void CanvasPath::rect(double x, double y, double w, double h)
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-roundrect
-WebIDL::ExceptionOr<void> CanvasPath::round_rect(double x, double y, double w, double h, Variant<double, Geometry::DOMPointInit, Vector<Variant<double, Geometry::DOMPointInit>>> radii)
+WebIDL::ExceptionOr<void> CanvasPath::round_rect(double x, double y, double w, double h, Variant<double, Bindings::DOMPointInit, Vector<Variant<double, Bindings::DOMPointInit>>> radii)
 {
-    using Radius = Variant<double, Geometry::DOMPointInit>;
+    using Radius = Variant<double, Bindings::DOMPointInit>;
 
     // 1. If any of x, y, w, or h are infinite or NaN, then return.
     if (!isfinite(x) || !isfinite(y) || !isfinite(w) || !isfinite(h))
         return {};
 
     // 2. If radii is an unrestricted double or DOMPointInit, then set radii to « radii ».
-    if (radii.has<double>() || radii.has<Geometry::DOMPointInit>()) {
+    if (radii.has<double>() || radii.has<Bindings::DOMPointInit>()) {
         Vector<Radius> radii_list;
         if (radii.has<double>())
             radii_list.append(radii.get<double>());
         else
-            radii_list.append(radii.get<Geometry::DOMPointInit>());
+            radii_list.append(radii.get<Bindings::DOMPointInit>());
         radii = radii_list;
     }
 
@@ -319,13 +319,13 @@ WebIDL::ExceptionOr<void> CanvasPath::round_rect(double x, double y, double w, d
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "roundRect: Can have between 1 and 4 radii"sv };
 
     // 4. Let normalizedRadii be an empty list.
-    Vector<Geometry::DOMPointInit> normalized_radii;
+    Vector<Bindings::DOMPointInit> normalized_radii;
 
     // 5. For each radius of radii:
     for (auto const& radius : radii.get<Vector<Radius>>()) {
         // 5.1. If radius is a DOMPointInit:
-        if (radius.has<Geometry::DOMPointInit>()) {
-            auto const& radius_as_dom_point = radius.get<Geometry::DOMPointInit>();
+        if (radius.has<Bindings::DOMPointInit>()) {
+            auto const& radius_as_dom_point = radius.get<Bindings::DOMPointInit>();
 
             // 5.1.1. If radius["x"] or radius["y"] is infinite or NaN, then return.
             if (!isfinite(radius_as_dom_point.x) || !isfinite(radius_as_dom_point.y))
@@ -352,15 +352,18 @@ WebIDL::ExceptionOr<void> CanvasPath::round_rect(double x, double y, double w, d
                 return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "roundRect: Radius can't be negative"sv };
 
             // 5.2.3. Otherwise append «[ "x" → radius, "y" → radius ]» to normalizedRadii.
-            normalized_radii.append(Geometry::DOMPointInit { radius_as_double, radius_as_double });
+            Bindings::DOMPointInit normalized_radius {};
+            normalized_radius.x = radius_as_double;
+            normalized_radius.y = radius_as_double;
+            normalized_radii.append(normalized_radius);
         }
     }
 
     // 6. Let upperLeft, upperRight, lowerRight, and lowerLeft be null.
-    Geometry::DOMPointInit upper_left {};
-    Geometry::DOMPointInit upper_right {};
-    Geometry::DOMPointInit lower_right {};
-    Geometry::DOMPointInit lower_left {};
+    Bindings::DOMPointInit upper_left {};
+    Bindings::DOMPointInit upper_right {};
+    Bindings::DOMPointInit lower_right {};
+    Bindings::DOMPointInit lower_left {};
 
     // 7. If normalizedRadii's size is 4, then set upperLeft to normalizedRadii[0], set upperRight to normalizedRadii[1], set lowerRight to normalizedRadii[2], and set lowerLeft to normalizedRadii[3].
     if (normalized_radii.size() == 4) {

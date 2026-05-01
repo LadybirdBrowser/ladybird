@@ -138,7 +138,7 @@ void NavigatorGamepadPartial::handle_gamepad_connected(SDL_JoystickID sdl_joysti
             // 2. If document is not null and is fully active, then fire an event named gamepadconnected at gamepad's
             //    relevant global object using GamepadEvent with its gamepad attribute initialized to gamepad.
             if (document.is_fully_active()) {
-                auto gamepad_connected_event_init = GamepadEventInit {
+                auto gamepad_connected_event_init = Bindings::GamepadEventInit {
                     {
                         .bubbles = false,
                         .cancelable = false,
@@ -202,7 +202,7 @@ void NavigatorGamepadPartial::handle_gamepad_disconnected(Badge<EventHandler>, S
         //    gamepaddisconnected at gamepad's relevant global object using GamepadEvent with its gamepad attribute
         //    initialized to gamepad.
         if (gamepad->exposed() && document.is_fully_active()) {
-            auto gamepad_disconnected_event_init = GamepadEventInit {
+            auto gamepad_disconnected_event_init = Bindings::GamepadEventInit {
                 {
                     .bubbles = false,
                     .cancelable = false,

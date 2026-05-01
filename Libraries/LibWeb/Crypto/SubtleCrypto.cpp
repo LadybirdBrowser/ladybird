@@ -30,6 +30,44 @@ static void normalize_key_usages(Vector<Bindings::KeyUsage>& key_usages)
 {
     quick_sort(key_usages);
 }
+
+static JsonWebKey to_internal_json_web_key(Bindings::JsonWebKey bindings_jwk)
+{
+    JsonWebKey jwk;
+    jwk.alg = move(bindings_jwk.alg);
+    jwk.crv = move(bindings_jwk.crv);
+    jwk.d = move(bindings_jwk.d);
+    jwk.dp = move(bindings_jwk.dp);
+    jwk.dq = move(bindings_jwk.dq);
+    jwk.e = move(bindings_jwk.e);
+    jwk.ext = move(bindings_jwk.ext);
+    jwk.k = move(bindings_jwk.k);
+    jwk.key_ops = move(bindings_jwk.key_ops);
+    jwk.kty = move(bindings_jwk.kty);
+    jwk.n = move(bindings_jwk.n);
+    if (bindings_jwk.oth.has_value()) {
+        Vector<RsaOtherPrimesInfo> oth;
+        oth.ensure_capacity(bindings_jwk.oth->size());
+        for (auto& bindings_prime : *bindings_jwk.oth) {
+            oth.append({
+                .r = move(bindings_prime.r),
+                .d = move(bindings_prime.d),
+                .t = move(bindings_prime.t),
+            });
+        }
+        jwk.oth = move(oth);
+    }
+    jwk.p = move(bindings_jwk.p);
+    jwk.priv = move(bindings_jwk.priv);
+    jwk.pub = move(bindings_jwk.pub);
+    jwk.q = move(bindings_jwk.q);
+    jwk.qi = move(bindings_jwk.qi);
+    jwk.use = move(bindings_jwk.use);
+    jwk.x = move(bindings_jwk.x);
+    jwk.y = move(bindings_jwk.y);
+    return jwk;
+}
+
 struct RegisteredAlgorithm {
     NonnullOwnPtr<AlgorithmMethods> (*create_methods)(JS::Realm&) = nullptr;
     JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> (*parameter_from_value)(JS::VM&, JS::Value) = nullptr;
@@ -409,7 +447,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::generate_key(AlgorithmIdentifier algorith
 }
 
 // https://w3c.github.io/webcrypto/#SubtleCrypto-method-importKey
-JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::import_key(Bindings::KeyFormat format, KeyDataType key_data, AlgorithmIdentifier algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages)
+JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::import_key(Bindings::KeyFormat format, Variant<GC::Root<WebIDL::BufferSource>, Bindings::JsonWebKey> key_data, AlgorithmIdentifier algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages)
 {
     auto& realm = this->realm();
 
@@ -426,7 +464,7 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::import_key(Binding
         || format == Bindings::KeyFormat::Pkcs8
         || format == Bindings::KeyFormat::Spki) {
         // 1. If the keyData parameter passed to the importKey() method is a JsonWebKey dictionary, throw a TypeError.
-        if (key_data.has<JsonWebKey>()) {
+        if (key_data.has<Bindings::JsonWebKey>()) {
             return realm.vm().throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
         }
 
@@ -436,12 +474,12 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::import_key(Binding
 
     if (format == Bindings::KeyFormat::Jwk) {
         // 1. If the keyData parameter passed to the importKey() method is not a JsonWebKey dictionary, throw a TypeError.
-        if (!key_data.has<JsonWebKey>()) {
+        if (!key_data.has<Bindings::JsonWebKey>()) {
             return realm.vm().throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "JsonWebKey");
         }
 
         // 2. Let keyData be the keyData parameter passed to the importKey() method.
-        real_key_data = key_data.get<JsonWebKey>();
+        real_key_data = to_internal_json_web_key(key_data.get<Bindings::JsonWebKey>());
     }
 
     // NOTE: The spec jumps to 5 here for some reason?

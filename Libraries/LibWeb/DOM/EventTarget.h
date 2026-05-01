@@ -29,8 +29,8 @@ public:
 
     virtual bool is_focusable() const { return false; }
 
-    void add_event_listener(FlyString const& type, IDLEventListener* callback, Variant<AddEventListenerOptions, bool> const& options);
-    void remove_event_listener(FlyString const& type, IDLEventListener* callback, Variant<EventListenerOptions, bool> const& options);
+    void add_event_listener(FlyString const& type, IDLEventListener* callback, Variant<Bindings::AddEventListenerOptions, bool> const& options);
+    void remove_event_listener(FlyString const& type, IDLEventListener* callback, Variant<Bindings::EventListenerOptions, bool> const& options);
 
     // NOTE: These are for internal use only. They operate as though addEventListener(type, callback) was called instead of addEventListener(type, callback, options).
     void add_event_listener_without_options(FlyString const& type, IDLEventListener& callback);

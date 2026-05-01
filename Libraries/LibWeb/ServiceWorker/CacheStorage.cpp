@@ -35,7 +35,7 @@ void CacheStorage::visit_edges(Visitor& visitor)
 }
 
 // https://w3c.github.io/ServiceWorker/#cache-storage-match
-GC::Ref<WebIDL::Promise> CacheStorage::match(Fetch::RequestInfo request, MultiCacheQueryOptions options)
+GC::Ref<WebIDL::Promise> CacheStorage::match(Fetch::RequestInfo request, Bindings::MultiCacheQueryOptions options)
 {
     auto& realm = HTML::relevant_realm(*this);
 

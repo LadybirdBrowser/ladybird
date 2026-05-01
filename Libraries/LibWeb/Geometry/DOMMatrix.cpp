@@ -77,7 +77,7 @@ WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::construct_impl(JS::Realm& rea
 }
 
 // https://drafts.fxtf.org/geometry/#create-a-dommatrix-from-the-2d-dictionary
-WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::create_from_dom_matrix_2d_init(JS::Realm& realm, DOMMatrix2DInit& init)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::create_from_dom_matrix_2d_init(JS::Realm& realm, Bindings::DOMMatrix2DInit& init)
 {
     // 1. Validate and fixup (2D) other.
     TRY(validate_and_fixup_dom_matrix_2d_init(init));
@@ -96,7 +96,7 @@ WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::create_from_dom_matrix_2d_ini
 }
 
 // https://drafts.fxtf.org/geometry/#create-a-dommatrix-from-the-dictionary
-WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::create_from_dom_matrix_init(JS::Realm& realm, DOMMatrixInit& init)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::create_from_dom_matrix_init(JS::Realm& realm, Bindings::DOMMatrixInit& init)
 {
     // 1. Validate and fixup other.
     TRY(validate_and_fixup_dom_matrix_init(init));
@@ -153,7 +153,7 @@ void DOMMatrix::initialize(JS::Realm& realm)
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-frommatrix
-WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::from_matrix(JS::VM& vm, DOMMatrixInit other)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::from_matrix(JS::VM& vm, Bindings::DOMMatrixInit other)
 {
     return create_from_dom_matrix_init(*vm.current_realm(), other);
 }
@@ -375,7 +375,7 @@ void DOMMatrix::set_f(double value)
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-multiplyself
-WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::multiply_self(DOMMatrixInit other)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::multiply_self(Bindings::DOMMatrixInit other)
 {
     // 1. Let otherObject be the result of invoking create a DOMMatrix from the dictionary other.
     auto other_object = TRY(DOMMatrix::create_from_dom_matrix_init(realm(), other));
@@ -400,7 +400,7 @@ WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::multiply_self(GC::Ref<DOMMatr
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-premultiplyself
-WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::pre_multiply_self(DOMMatrixInit other)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::pre_multiply_self(Bindings::DOMMatrixInit other)
 {
     // 1. Let otherObject be the result of invoking create a DOMMatrix from the dictionary other.
     auto other_object = TRY(DOMMatrix::create_from_dom_matrix_init(realm(), other));

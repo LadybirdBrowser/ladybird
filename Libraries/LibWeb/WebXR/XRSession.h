@@ -22,7 +22,7 @@ public:
     virtual ~XRSession() override = default;
 
     // https://immersive-web.github.io/webxr/#dom-xrsession-updaterenderstate
-    void update_render_state(XRRenderStateInit const&);
+    void update_render_state(Bindings::XRRenderStateInit const&);
 
     // https://immersive-web.github.io/webxr/#dom-xrsession-end
     GC::Ref<WebIDL::Promise> end();

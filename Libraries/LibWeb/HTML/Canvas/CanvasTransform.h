@@ -10,6 +10,7 @@
 
 #include <AK/Debug.h>
 #include <LibGfx/Painter.h>
+#include <LibWeb/Bindings/DOMMatrixReadOnly.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/HTML/Canvas/CanvasPath.h>
 #include <LibWeb/HTML/Canvas/CanvasState.h>
@@ -79,7 +80,7 @@ public:
     {
         auto& realm = static_cast<IncludingClass&>(*this).realm();
         auto transform = my_drawing_state().transform;
-        Geometry::DOMMatrix2DInit init = { transform.a(), transform.b(), transform.c(), transform.d(), transform.e(), transform.f(), {}, {}, {}, {}, {}, {} };
+        Bindings::DOMMatrix2DInit init = { transform.a(), transform.b(), transform.c(), transform.d(), transform.e(), transform.f(), {}, {}, {}, {}, {}, {} };
         return Geometry::DOMMatrix::create_from_dom_matrix_2d_init(realm, init);
     }
 
@@ -99,7 +100,7 @@ public:
     }
 
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-settransform-matrix
-    WebIDL::ExceptionOr<void> set_transform(Geometry::DOMMatrix2DInit& init)
+    WebIDL::ExceptionOr<void> set_transform(Bindings::DOMMatrix2DInit& init)
     {
         // 1. Let matrix be the result of creating a DOMMatrix from the 2D dictionary transform.
         auto& realm = static_cast<IncludingClass&>(*this).realm();

@@ -26,7 +26,7 @@ struct Animatable::Transition {
 Animatable::Impl::~Impl() = default;
 
 // https://www.w3.org/TR/web-animations-1/#dom-animatable-animate
-WebIDL::ExceptionOr<GC::Ref<Animation>> Animatable::animate(Optional<GC::Root<JS::Object>> keyframes, Variant<Empty, double, KeyframeAnimationOptions> options)
+WebIDL::ExceptionOr<GC::Ref<Animation>> Animatable::animate(Optional<GC::Root<JS::Object>> keyframes, Variant<Empty, double, Bindings::KeyframeAnimationOptions> const& options)
 {
     // 1. Let target be the object on which this method was called.
     GC::Ref target { *static_cast<DOM::Element*>(this) };
@@ -45,8 +45,8 @@ WebIDL::ExceptionOr<GC::Ref<Animation>> Animatable::animate(Optional<GC::Root<JS
     //    timeline member of options is missing, be the default document timeline of the node document of the element
     //    on which this method was called.
     Optional<GC::Ptr<AnimationTimeline>> timeline;
-    if (options.has<KeyframeAnimationOptions>())
-        timeline = options.get<KeyframeAnimationOptions>().timeline;
+    if (options.has<Bindings::KeyframeAnimationOptions>() && options.get<Bindings::KeyframeAnimationOptions>().timeline.has_value())
+        timeline = options.get<Bindings::KeyframeAnimationOptions>().timeline->ptr();
     if (!timeline.has_value())
         timeline = target->document().timeline();
 
@@ -56,8 +56,8 @@ WebIDL::ExceptionOr<GC::Ref<Animation>> Animatable::animate(Optional<GC::Root<JS
 
     // 5. If options is a KeyframeAnimationOptions object, assign the value of the id member of options to animation’s
     //    id attribute.
-    if (options.has<KeyframeAnimationOptions>())
-        animation->set_id(options.get<KeyframeAnimationOptions>().id);
+    if (options.has<Bindings::KeyframeAnimationOptions>())
+        animation->set_id(options.get<Bindings::KeyframeAnimationOptions>().id);
 
     //  6. Run the procedure to play an animation for animation with the auto-rewind flag set to true.
     TRY(animation->play_an_animation(Animation::AutoRewind::Yes));
@@ -67,13 +67,13 @@ WebIDL::ExceptionOr<GC::Ref<Animation>> Animatable::animate(Optional<GC::Root<JS
 }
 
 // https://drafts.csswg.org/web-animations-1/#dom-animatable-getanimations
-WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> Animatable::get_animations(Optional<GetAnimationsOptions> options)
+WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> Animatable::get_animations(Optional<Bindings::GetAnimationsOptions> const& options)
 {
     as<DOM::Element>(*this).document().update_style();
     return get_animations_internal(GetAnimationsSorted::Yes, options);
 }
 
-WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> Animatable::get_animations_internal(GetAnimationsSorted sorted, Optional<GetAnimationsOptions> options)
+WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> Animatable::get_animations_internal(GetAnimationsSorted sorted, Optional<Bindings::GetAnimationsOptions> const& options)
 {
     // 1. Let object be the object on which this method was called.
 

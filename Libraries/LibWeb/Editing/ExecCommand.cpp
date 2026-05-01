@@ -5,6 +5,7 @@
  */
 
 #include <AK/TemporaryChange.h>
+#include <LibWeb/Bindings/InputEvent.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Range.h>
@@ -119,9 +120,9 @@ WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[may
     bool tree_was_modified = dom_tree_version() != old_dom_tree_version
         || character_data_version() != old_character_data_version;
     if (tree_was_modified && affected_editing_host) {
-        UIEvents::InputEventInit event_init {};
+        Bindings::InputEventInit event_init {};
         event_init.bubbles = true;
-        event_init.input_type = command_definition.mapped_value;
+        event_init.input_type = command_definition.mapped_value.to_string();
 
         // AD-HOC: For insertText, we do what other browsers do and set data to value.
         if (command == Editing::CommandNames::insertText)

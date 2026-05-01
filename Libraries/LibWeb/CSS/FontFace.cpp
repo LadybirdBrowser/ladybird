@@ -123,7 +123,7 @@ static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Typeface const>>> load_vec
 GC_DEFINE_ALLOCATOR(FontFace);
 
 // https://drafts.csswg.org/css-font-loading/#font-face-constructor
-GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, FontFaceSource source, FontFaceDescriptors const& descriptors)
+GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, FontFaceSource source, Bindings::FontFaceDescriptors const& descriptors)
 {
     auto& vm = realm.vm();
 

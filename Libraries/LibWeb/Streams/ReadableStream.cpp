@@ -34,7 +34,7 @@ namespace Web::Streams {
 GC_DEFINE_ALLOCATOR(ReadableStream);
 
 // https://streams.spec.whatwg.org/#rs-constructor
-WebIDL::ExceptionOr<GC::Ref<ReadableStream>> ReadableStream::construct_impl(JS::Realm& realm, Optional<GC::Root<JS::Object>> const& underlying_source_object, QueuingStrategy const& strategy)
+WebIDL::ExceptionOr<GC::Ref<ReadableStream>> ReadableStream::construct_impl(JS::Realm& realm, Optional<GC::Root<JS::Object>> const& underlying_source_object, Bindings::QueuingStrategy const& strategy)
 {
     auto& vm = realm.vm();
 
@@ -131,7 +131,7 @@ GC::Ref<WebIDL::Promise> ReadableStream::cancel(JS::Value reason)
 }
 
 // https://streams.spec.whatwg.org/#rs-get-reader
-WebIDL::ExceptionOr<ReadableStreamReader> ReadableStream::get_reader(ReadableStreamGetReaderOptions const& options)
+WebIDL::ExceptionOr<ReadableStreamReader> ReadableStream::get_reader(Bindings::ReadableStreamGetReaderOptions const& options)
 {
     // 1. If options["mode"] does not exist, return ? AcquireReadableStreamDefaultReader(this).
     if (!options.mode.has_value())
@@ -145,7 +145,7 @@ WebIDL::ExceptionOr<ReadableStreamReader> ReadableStream::get_reader(ReadableStr
 }
 
 // https://streams.spec.whatwg.org/#rs-pipe-through
-WebIDL::ExceptionOr<GC::Ref<ReadableStream>> ReadableStream::pipe_through(ReadableWritablePair transform, StreamPipeOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<ReadableStream>> ReadableStream::pipe_through(Bindings::ReadableWritablePair transform, Bindings::StreamPipeOptions const& options)
 {
     // 1. If ! IsReadableStreamLocked(this) is true, throw a TypeError exception.
     if (is_readable_stream_locked(*this))
@@ -156,7 +156,7 @@ WebIDL::ExceptionOr<GC::Ref<ReadableStream>> ReadableStream::pipe_through(Readab
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Failed to execute 'pipeThrough' on 'ReadableStream': parameter 1's 'writable' is locked"sv };
 
     // 3. Let signal be options["signal"] if it exists, or undefined otherwise.
-    auto signal = options.signal;
+    GC::Ptr<DOM::AbortSignal> signal = options.signal.has_value() ? options.signal->ptr() : nullptr;
 
     // 4. Let promise be ! ReadableStreamPipeTo(this, transform["writable"], options["preventClose"], options["preventAbort"], options["preventCancel"], signal).
     auto promise = readable_stream_pipe_to(*this, *transform.writable, options.prevent_close, options.prevent_abort, options.prevent_cancel, signal);
@@ -169,7 +169,7 @@ WebIDL::ExceptionOr<GC::Ref<ReadableStream>> ReadableStream::pipe_through(Readab
 }
 
 // https://streams.spec.whatwg.org/#rs-pipe-to
-GC::Ref<WebIDL::Promise> ReadableStream::pipe_to(WritableStream& destination, StreamPipeOptions const& options)
+GC::Ref<WebIDL::Promise> ReadableStream::pipe_to(WritableStream& destination, Bindings::StreamPipeOptions const& options)
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();
@@ -185,7 +185,7 @@ GC::Ref<WebIDL::Promise> ReadableStream::pipe_to(WritableStream& destination, St
     }
 
     // 3. Let signal be options["signal"] if it exists, or undefined otherwise.
-    auto signal = options.signal;
+    GC::Ptr<DOM::AbortSignal> signal = options.signal.has_value() ? options.signal->ptr() : nullptr;
 
     // 4. Return ! ReadableStreamPipeTo(this, destination, options["preventClose"], options["preventAbort"], options["preventCancel"], signal).
     return readable_stream_pipe_to(*this, destination, options.prevent_close, options.prevent_abort, options.prevent_cancel, signal);

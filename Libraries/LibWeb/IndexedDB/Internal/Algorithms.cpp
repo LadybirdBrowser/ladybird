@@ -227,7 +227,7 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
 
 bool fire_a_version_change_event(JS::Realm& realm, FlyString const& event_name, GC::Ref<DOM::EventTarget> target, u64 old_version, Optional<u64> new_version)
 {
-    IDBVersionChangeEventInit event_init = {};
+    Bindings::IDBVersionChangeEventInit event_init = {};
     // 4. Set event’s oldVersion attribute to oldVersion.
     event_init.old_version = old_version;
     // 5. Set event’s newVersion attribute to newVersion.

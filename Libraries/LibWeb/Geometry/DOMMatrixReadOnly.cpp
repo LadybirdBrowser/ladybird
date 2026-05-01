@@ -85,7 +85,7 @@ WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> DOMMatrixReadOnly::construct_imp
 }
 
 // https://drafts.fxtf.org/geometry/#create-a-dommatrixreadonly-from-the-2d-dictionary
-WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> DOMMatrixReadOnly::create_from_dom_matrix_2d_init(JS::Realm& realm, DOMMatrix2DInit& init)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> DOMMatrixReadOnly::create_from_dom_matrix_2d_init(JS::Realm& realm, Bindings::DOMMatrix2DInit& init)
 {
     // 1. Validate and fixup (2D) other.
     TRY(validate_and_fixup_dom_matrix_2d_init(init));
@@ -104,7 +104,7 @@ WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> DOMMatrixReadOnly::create_from_d
 }
 
 // https://drafts.fxtf.org/geometry/#create-a-dommatrixreadonly-from-the-dictionary
-WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> DOMMatrixReadOnly::create_from_dom_matrix_init(JS::Realm& realm, DOMMatrixInit& init)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> DOMMatrixReadOnly::create_from_dom_matrix_init(JS::Realm& realm, Bindings::DOMMatrixInit& init)
 {
     // 1. Validate and fixup other.
     TRY(validate_and_fixup_dom_matrix_init(init));
@@ -224,7 +224,7 @@ void DOMMatrixReadOnly::initialize_from_create_3d_matrix(double m11, double m12,
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-frommatrix
-WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> DOMMatrixReadOnly::from_matrix(JS::VM& vm, DOMMatrixInit& other)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> DOMMatrixReadOnly::from_matrix(JS::VM& vm, Bindings::DOMMatrixInit& other)
 {
     return create_from_dom_matrix_init(*vm.current_realm(), other);
 }
@@ -425,7 +425,7 @@ GC::Ref<DOMMatrix> DOMMatrixReadOnly::skew_y(double sy) const
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-multiply
-WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrixReadOnly::multiply(DOMMatrixInit other)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrixReadOnly::multiply(Bindings::DOMMatrixInit other)
 {
     // 1. Let result be the resulting matrix initialized to the values of the current matrix.
     auto result = DOMMatrix::create_from_dom_matrix_read_only(realm(), *this);
@@ -486,7 +486,7 @@ GC::Ref<DOMMatrix> DOMMatrixReadOnly::inverse() const
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-transformpoint
-GC::Ref<DOMPoint> DOMMatrixReadOnly::transform_point(DOMPointInit const& point) const
+GC::Ref<DOMPoint> DOMMatrixReadOnly::transform_point(Bindings::DOMPointInit const& point) const
 {
     // Let pointObject be the result of invoking create a DOMPoint from the dictionary point.
     auto point_object = DOMPoint::from_point(realm().vm(), point);
@@ -831,7 +831,7 @@ WebIDL::ExceptionOr<void> DOMMatrixReadOnly::deserialization_steps(HTML::Transfe
 }
 
 // https://drafts.fxtf.org/geometry/#matrix-validate-and-fixup-2d
-WebIDL::ExceptionOr<void> validate_and_fixup_dom_matrix_2d_init(DOMMatrix2DInit& init)
+WebIDL::ExceptionOr<void> validate_and_fixup_dom_matrix_2d_init(Bindings::DOMMatrix2DInit& init)
 {
     // 1. If at least one of the following conditions are true for dict, then throw a TypeError exception and abort these steps.
     // - a and m11 are both present and SameValueZero(a, m11) is false.
@@ -886,7 +886,7 @@ WebIDL::ExceptionOr<void> validate_and_fixup_dom_matrix_2d_init(DOMMatrix2DInit&
 }
 
 // https://drafts.fxtf.org/geometry/#matrix-validate-and-fixup
-WebIDL::ExceptionOr<void> validate_and_fixup_dom_matrix_init(DOMMatrixInit& init)
+WebIDL::ExceptionOr<void> validate_and_fixup_dom_matrix_init(Bindings::DOMMatrixInit& init)
 {
     // 1. Validate and fixup (2D) dict.
     TRY(validate_and_fixup_dom_matrix_2d_init(init));

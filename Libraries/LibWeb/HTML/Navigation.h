@@ -16,33 +16,6 @@
 
 namespace Web::HTML {
 
-// https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigationupdatecurrententryoptions
-struct NavigationUpdateCurrentEntryOptions {
-    JS::Value state;
-};
-
-// https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigationoptions
-struct NavigationOptions {
-    Optional<JS::Value> info;
-};
-
-// https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigationnavigateoptions
-struct NavigationNavigateOptions : public NavigationOptions {
-    Optional<JS::Value> state;
-    Bindings::NavigationHistoryBehavior history = Bindings::NavigationHistoryBehavior::Auto;
-};
-
-// https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigationreloadoptions
-struct NavigationReloadOptions : public NavigationOptions {
-    Optional<JS::Value> state;
-};
-
-// https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigationresult
-struct NavigationResult {
-    GC::Ref<WebIDL::Promise> committed;
-    GC::Ref<WebIDL::Promise> finished;
-};
-
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigation-api-method-tracker
 struct NavigationAPIMethodTracker final : public JS::Cell {
     GC_CELL(NavigationAPIMethodTracker, JS::Cell);
@@ -78,7 +51,7 @@ public:
     // IDL properties and methods
     Vector<GC::Ref<NavigationHistoryEntry>> entries() const;
     GC::Ptr<NavigationHistoryEntry> current_entry() const;
-    WebIDL::ExceptionOr<void> update_current_entry(NavigationUpdateCurrentEntryOptions);
+    WebIDL::ExceptionOr<void> update_current_entry(Bindings::NavigationUpdateCurrentEntryOptions);
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigation-transition
     GC::Ptr<NavigationTransition> transition() const { return m_transition; }
@@ -86,12 +59,12 @@ public:
     bool can_go_back() const;
     bool can_go_forward() const;
 
-    WebIDL::ExceptionOr<NavigationResult> navigate(String url, NavigationNavigateOptions const&);
-    WebIDL::ExceptionOr<NavigationResult> reload(NavigationReloadOptions const&);
+    WebIDL::ExceptionOr<Bindings::NavigationResult> navigate(String url, Bindings::NavigationNavigateOptions const&);
+    WebIDL::ExceptionOr<Bindings::NavigationResult> reload(Bindings::NavigationReloadOptions const&);
 
-    WebIDL::ExceptionOr<NavigationResult> traverse_to(String key, NavigationOptions const&);
-    WebIDL::ExceptionOr<NavigationResult> back(NavigationOptions const&);
-    WebIDL::ExceptionOr<NavigationResult> forward(NavigationOptions const&);
+    WebIDL::ExceptionOr<Bindings::NavigationResult> traverse_to(String key, Bindings::NavigationOptions const&);
+    WebIDL::ExceptionOr<Bindings::NavigationResult> back(Bindings::NavigationOptions const&);
+    WebIDL::ExceptionOr<Bindings::NavigationResult> forward(Bindings::NavigationOptions const&);
 
     // Event Handlers
     void set_onnavigate(WebIDL::CallbackType*);
@@ -143,11 +116,11 @@ private:
     virtual void visit_edges(Visitor&) override;
 
     using AnyException = decltype(declval<WebIDL::ExceptionOr<void>>().exception());
-    NavigationResult early_error_result(AnyException);
+    Bindings::NavigationResult early_error_result(AnyException);
 
     GC::Ref<NavigationAPIMethodTracker> maybe_set_the_upcoming_non_traverse_api_method_tracker(JS::Value info, Optional<SerializationRecord>);
     GC::Ref<NavigationAPIMethodTracker> add_an_upcoming_traverse_api_method_tracker(String destination_key, JS::Value info);
-    WebIDL::ExceptionOr<NavigationResult> perform_a_navigation_api_traversal(String key, NavigationOptions const&);
+    WebIDL::ExceptionOr<Bindings::NavigationResult> perform_a_navigation_api_traversal(String key, Bindings::NavigationOptions const&);
     void promote_an_upcoming_api_method_tracker_to_ongoing(Optional<String> destination_key);
     void resolve_the_finished_promise(GC::Ref<NavigationAPIMethodTracker>);
     void reject_the_finished_promise(GC::Ref<NavigationAPIMethodTracker>, JS::Value exception);

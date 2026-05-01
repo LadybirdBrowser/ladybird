@@ -9,11 +9,11 @@
 #include <AK/Atomic.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <LibWeb/Bindings/MediaStreamConstraints.h>
 #include <LibWeb/Bindings/MediaStreamTrack.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/MediaCapture/MediaStreamConstraints.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::MediaCapture {
@@ -45,11 +45,11 @@ public:
     bool is_audio() const;
     bool is_video() const;
 
-    MediaTrackCapabilities get_capabilities() const;
-    MediaTrackConstraints get_constraints() const;
-    MediaTrackSettings get_settings() const;
-    GC::Ref<WebIDL::Promise> apply_constraints(Optional<MediaTrackConstraints> const& constraints);
-    void set_settings(MediaTrackSettings settings);
+    Bindings::MediaTrackCapabilities get_capabilities() const;
+    Bindings::MediaTrackConstraints get_constraints() const;
+    Bindings::MediaTrackSettings get_settings() const;
+    GC::Ref<WebIDL::Promise> apply_constraints(Optional<Bindings::MediaTrackConstraints> const& constraints);
+    void set_settings(Bindings::MediaTrackSettings settings);
 
     Optional<String> device_id() const;
     u32 sample_rate_hz() const;
@@ -71,9 +71,9 @@ private:
     bool m_muted { false };
     Bindings::MediaStreamTrackState m_state { static_cast<Bindings::MediaStreamTrackState>(0) };
 
-    MediaTrackCapabilities m_capabilities;
-    MediaTrackConstraints m_constraints;
-    MediaTrackSettings m_settings;
+    Bindings::MediaTrackCapabilities m_capabilities;
+    Bindings::MediaTrackConstraints m_constraints;
+    Bindings::MediaTrackSettings m_settings;
 
     u64 m_provider_id { 0 };
 };

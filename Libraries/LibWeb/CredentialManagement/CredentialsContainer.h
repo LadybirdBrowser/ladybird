@@ -26,30 +26,14 @@ public:
 
     virtual ~CredentialsContainer() override;
 
-    GC::Ref<WebIDL::Promise> get(CredentialRequestOptions const& options);
+    GC::Ref<WebIDL::Promise> get(Bindings::CredentialRequestOptions const& options);
     GC::Ref<WebIDL::Promise> store(Credential const& credential);
-    GC::Ref<WebIDL::Promise> create(CredentialCreationOptions const& options);
+    GC::Ref<WebIDL::Promise> create(Bindings::CredentialCreationOptions const& options);
     GC::Ref<WebIDL::Promise> prevent_silent_access();
 
 private:
     explicit CredentialsContainer(JS::Realm&);
     virtual void initialize(JS::Realm&) override;
-};
-
-struct CredentialRequestOptions {
-    Bindings::CredentialMediationRequirement mediation { Bindings::CredentialMediationRequirement::Optional };
-    GC::Ptr<DOM::AbortSignal> signal;
-
-    Optional<bool> password;
-    Optional<FederatedCredentialRequestOptions> federated;
-};
-
-struct CredentialCreationOptions {
-    Bindings::CredentialMediationRequirement mediation { Bindings::CredentialMediationRequirement::Optional };
-    GC::Ptr<DOM::AbortSignal> signal;
-
-    Optional<PasswordCredentialInit> password;
-    Optional<FederatedCredentialInit> federated;
 };
 
 }

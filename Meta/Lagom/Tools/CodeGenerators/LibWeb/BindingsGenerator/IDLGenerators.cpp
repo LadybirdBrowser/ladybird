@@ -25,6 +25,7 @@ Vector<StringView> g_header_search_paths;
 
 template<typename ParameterType>
 static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, Context const&, bool optional = false, Optional<ByteString> optional_default_value = {}, bool variadic = false, size_t recursion_depth = 0);
+static ByteString dictionary_member_cpp_type(Context const& context, DictionaryMember const& member);
 
 // https://webidl.spec.whatwg.org/#dfn-platform-object
 static bool is_platform_object(Context const& context, Type const& type)
@@ -77,42 +78,12 @@ static ByteString interface_cpp_type_name(Context const& context, Type const& ty
     return type.name();
 }
 
-static ByteString cpp_namespace_for_module_path(ByteString const& module_own_path)
-{
-    auto path = LexicalPath { module_own_path };
-    auto parts = path.parts_view();
-    for (size_t i = 0; i + 2 < parts.size(); ++i) {
-        if (parts[i] != "LibWeb"sv)
-            continue;
-
-        return parts[i + 1].to_byte_string();
-    }
-
-    if (parts.size() >= 2)
-        return parts[parts.size() - 2].to_byte_string();
-
-    return {};
-}
-
-static ByteString dictionary_cpp_type_name(Context const& context, ByteString const& name)
-{
-    if (auto it = context.dictionaries.find(name); it != context.dictionaries.end()) {
-        auto namespace_name = cpp_namespace_for_module_path(it->value.module_own_path);
-        if (!namespace_name.is_empty())
-            return ByteString::formatted("{}::{}", namespace_name, name);
-    }
-
-    return name;
-}
-
 static ByteString cpp_type_name(Type const& type, Context const& context)
 {
     if (is_platform_object(context, type))
         return interface_cpp_type_name(context, type);
     if (is_javascript_builtin_buffer_source_type(type))
         return ByteString::formatted("JS::{}", type.name());
-    if (context.dictionaries.contains(type.name()))
-        return dictionary_cpp_type_name(context, type.name());
     return type.name();
 }
 
@@ -272,7 +243,7 @@ CppType idl_type_name_to_cpp_type(Type const& type, Context const& context)
     }
 
     if (context.dictionaries.contains(type.name()))
-        return { .name = dictionary_cpp_type_name(context, type.name()), .sequence_storage_type = SequenceStorageType::Vector };
+        return { .name = type.name(), .sequence_storage_type = SequenceStorageType::Vector };
 
     if (context.enumerations.contains(type.name()))
         return { .name = type.name(), .sequence_storage_type = SequenceStorageType::Vector };
@@ -334,12 +305,32 @@ static ByteString relative_module_path(ByteString const& module_own_path)
 static void generate_include_for_module(auto& generator, Module const& module)
 {
     auto forked_generator = generator.fork();
+    if (!module.interface.has_value() && (!module.own_dictionaries.is_empty() || !module.own_enumerations.is_empty())) {
+        LexicalPath generated_bindings_path { module.module_own_path };
+        auto generated_bindings_name = generated_bindings_path.title();
+        forked_generator.set("include.path", ByteString::formatted("LibWeb/Bindings/{}.h", generated_bindings_name));
+        forked_generator.append(R"~~~(
+#include <@include.path@>
+)~~~");
+        return;
+    }
     auto path_string = relative_module_path(module.module_own_path);
     LexicalPath include_path { path_string };
     ByteString include_title = include_path.title().to_byte_string();
     if (module.interface.has_value() && !module.interface->implemented_name.is_empty())
         include_title = module.interface->implemented_name;
     forked_generator.set("include.path", ByteString::formatted("{}/{}.h", include_path.dirname(), include_title));
+    forked_generator.append(R"~~~(
+#include <@include.path@>
+)~~~");
+}
+
+static void generate_bindings_include_for_module(auto& generator, Module const& module)
+{
+    auto forked_generator = generator.fork();
+    LexicalPath generated_bindings_path { module.module_own_path };
+    auto generated_bindings_name = generated_bindings_path.title();
+    forked_generator.set("include.path", ByteString::formatted("LibWeb/Bindings/{}.h", generated_bindings_name));
     forked_generator.append(R"~~~(
 #include <@include.path@>
 )~~~");
@@ -357,7 +348,9 @@ static Module const& module_for_path(Context const& context, ByteString const& m
 
 static bool module_will_generate_code(Module const& module)
 {
-    return module.interface.has_value() && module.interface->will_generate_code();
+    return (module.interface.has_value() && module.interface->will_generate_code())
+        || !module.own_dictionaries.is_empty()
+        || !module.own_enumerations.is_empty();
 }
 
 static void add_module_include_dependency(Vector<Module const*>& modules_to_include, HashTable<ByteString>& paths_included, Module const& module)
@@ -507,8 +500,11 @@ static void emit_includes_for_all_dependencies(auto& interface, auto& generator,
         return a->module_own_path < b->module_own_path;
     });
 
-    for (auto const* included_module : modules_to_include)
+    for (auto const* included_module : modules_to_include) {
         generate_include_for_module(generator, *included_module);
+        if (included_module->interface.has_value() && (!included_module->own_dictionaries.is_empty() || !included_module->own_enumerations.is_empty()))
+            generate_bindings_include_for_module(generator, *included_module);
+    }
 
     if (is_iterator) {
         auto iterator_path = ByteString::formatted("{}Iterator", interface.fully_qualified_name.replace("::"sv, "/"sv, ReplaceMode::All));
@@ -518,6 +514,79 @@ static void emit_includes_for_all_dependencies(auto& interface, auto& generator,
         auto iterator_path = ByteString::formatted("{}AsyncIterator", interface.fully_qualified_name.replace("::"sv, "/"sv, ReplaceMode::All));
         generate_include_for_iterator(generator, iterator_path);
     }
+}
+
+static void emit_includes_for_module_dictionary_dependencies(Module const& module, SourceGenerator& generator)
+{
+    auto& context = *module.context;
+    Vector<Module const*> modules_to_include;
+    HashTable<ByteString> paths_included;
+
+    auto add_module_dependency = [&](Module const& included_module) {
+        if (included_module.module_own_path == module.module_own_path)
+            return;
+        add_module_include_dependency(modules_to_include, paths_included, included_module);
+    };
+
+    auto add_dictionary_dependency = [&](ByteString const& dictionary_name) {
+        auto it = context.dictionaries.find(dictionary_name);
+        if (it == context.dictionaries.end())
+            return;
+        add_module_dependency(module_for_path(context, it->value.module_own_path));
+    };
+
+    auto add_enumeration_dependency = [&](ByteString const& enumeration_name) {
+        auto it = context.enumerations.find(enumeration_name);
+        if (it == context.enumerations.end())
+            return;
+        add_module_dependency(module_for_path(context, it->value.module_own_path));
+    };
+
+    auto collect_type_dependencies = [&](auto& self, Type const& type) -> void {
+        add_dictionary_dependency(type.name());
+        add_enumeration_dependency(type.name());
+
+        if (auto dictionary = context.dictionaries.find(type.name()); dictionary != context.dictionaries.end()) {
+            if (!dictionary->value.parent_name.is_empty()) {
+                add_dictionary_dependency(dictionary->value.parent_name);
+                if (auto parent_dictionary = context.dictionaries.find(dictionary->value.parent_name); parent_dictionary != context.dictionaries.end()) {
+                    for (auto const& member : parent_dictionary->value.members)
+                        self(self, *member.type);
+                }
+            }
+
+            for (auto const& member : dictionary->value.members)
+                self(self, *member.type);
+        }
+
+        if (type.is_parameterized()) {
+            for (auto const& parameter : type.as_parameterized().parameters())
+                self(self, *parameter);
+            return;
+        }
+
+        if (type.is_union()) {
+            for (auto const& member_type : type.as_union().member_types())
+                self(self, *member_type);
+        }
+    };
+
+    for (auto const& dictionary_name : module.own_dictionaries) {
+        auto dictionary = context.dictionaries.find(dictionary_name);
+        VERIFY(dictionary != context.dictionaries.end());
+
+        if (!dictionary->value.parent_name.is_empty())
+            add_dictionary_dependency(dictionary->value.parent_name);
+        for (auto const& member : dictionary->value.members)
+            collect_type_dependencies(collect_type_dependencies, *member.type);
+    }
+
+    quick_sort(modules_to_include, [](auto const* a, auto const* b) {
+        return a->module_own_path < b->module_own_path;
+    });
+
+    for (auto const* included_module : modules_to_include)
+        generate_bindings_include_for_module(generator, *included_module);
 }
 
 template<typename ParameterType>
@@ -1411,7 +1480,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
 
     if (dictionary_type) {
         auto dictionary_generator = union_generator.fork();
-        dictionary_generator.set("dictionary.type", dictionary_cpp_type_name(context, dictionary_type->name()));
+        dictionary_generator.set("dictionary.type", dictionary_type->name());
 
         // The lambda must take the JS::Value to convert as a parameter instead of capturing it in order to support union types being variadic.
         dictionary_generator.append(R"~~~(
@@ -2099,7 +2168,9 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 {
     auto scoped_generator = generator.fork();
     scoped_generator.set("value", value);
-    scoped_generator.set("value_cpp_name", value.replace("."sv, "_"sv));
+    auto value_cpp_name = value.replace("->"sv, "_"sv);
+    value_cpp_name = value_cpp_name.replace("."sv, "_"sv);
+    scoped_generator.set("value_cpp_name", value_cpp_name);
     // Use one non-optional expression for wrapping.
     // Some optional values are Optional<T> and need .value(), while others are pointer-like and do not.
     auto value_non_optional = value;
@@ -2108,7 +2179,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
     if (is_optional) {
         optional_uses_value_access = is<UnionType>(type)
             || type.is_string()
-            || type.name().is_one_of("sequence"sv, "FrozenArray"sv)
+            || type.name().is_one_of("sequence"sv, "FrozenArray"sv, "Promise"sv, "record"sv)
             || type.is_primitive()
             || context.enumerations.contains(type.name())
             || context.dictionaries.contains(type.name());
@@ -2136,12 +2207,12 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
             scoped_generator.append(R"~~~(
     if (@value@.has_value()) {
 )~~~");
-        } else if (type.name().is_one_of("sequence"sv, "FrozenArray"sv)) {
+        } else if (type.name().is_one_of("sequence"sv, "FrozenArray"sv, "record"sv)) {
             generate_optional_integral_type = true;
             scoped_generator.append(R"~~~(
     if (@value@.has_value()) {
 )~~~");
-        } else if (type.is_primitive() || context.enumerations.contains(type.name()) || context.dictionaries.contains(type.name())) {
+        } else if (type.is_primitive() || context.enumerations.contains(type.name()) || context.dictionaries.contains(type.name()) || type.name() == "Promise"sv) {
             generate_optional_integral_type = true;
             scoped_generator.append(R"~~~(
     if (@value@.has_value()) {
@@ -2388,8 +2459,9 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
                 //      the generated code to do some metaprogramming to inspect the type of the member in the C++ struct to
                 //      determine whether the type is present or not (e.g through a has_value() on an Optional<T>, or a null
                 //      check on a GC::Ptr<T>). So to save some complexity in the generator, give ourselves a hint of what to do.
-                bool is_optional = !member.required && !member.extended_attributes.contains("GenerateAsRequired") && !member.default_value.has_value();
-                if (is_optional) {
+                bool is_optional_storage = !member.required && !member.default_value.has_value();
+                bool is_optional_property = !member.required && !member.extended_attributes.contains("GenerateAsRequired") && !member.default_value.has_value() && !member.type->is_nullable();
+                if (is_optional_storage) {
                     dictionary_generator.append(R"~~~(
         Optional<JS::Value> @wrapped_value_name@;
 )~~~");
@@ -2400,13 +2472,23 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
                 }
 
                 next_iteration_index++;
-                generate_wrap_statement(dictionary_generator, ByteString::formatted("{}{}{}", value_non_optional, type.is_nullable() ? "->" : ".", member.name.to_snakecase()), member.type, context, ByteString::formatted("{} =", wrapped_value_name), recursion_depth + 1, is_optional, next_iteration_index);
+                generate_wrap_statement(dictionary_generator, ByteString::formatted("{}{}{}", value_non_optional, type.is_nullable() ? "->" : ".", member.name.to_snakecase()), member.type, context, ByteString::formatted("{} =", wrapped_value_name), recursion_depth + 1, is_optional_storage, next_iteration_index);
 
-                if (is_optional) {
+                if (is_optional_property) {
                     dictionary_generator.append(R"~~~(
         if (@wrapped_value_name@.has_value())
             MUST(dictionary_object@recursion_depth@->create_data_property("@member_key@"_utf16_fly_string, @wrapped_value_name@.release_value()));
 )~~~");
+                } else if (is_optional_storage) {
+                    if (member.type->is_nullable()) {
+                        dictionary_generator.append(R"~~~(
+        MUST(dictionary_object@recursion_depth@->create_data_property("@member_key@"_utf16_fly_string, @wrapped_value_name@.has_value() ? @wrapped_value_name@.release_value() : JS::js_null()));
+)~~~");
+                    } else {
+                        dictionary_generator.append(R"~~~(
+        MUST(dictionary_object@recursion_depth@->create_data_property("@member_key@"_utf16_fly_string, @wrapped_value_name@.release_value()));
+)~~~");
+                    }
                 } else {
                     dictionary_generator.append(R"~~~(
         MUST(dictionary_object@recursion_depth@->create_data_property("@member_key@"_utf16_fly_string, @wrapped_value_name@));
@@ -3272,14 +3354,13 @@ static void generate_dictionaries(SourceGenerator& generator, IDL::Interface con
             continue;
         auto dictionary_generator = generator.fork();
         dictionary_generator.set("dictionary.name", make_input_acceptable_cpp(it->key));
-        dictionary_generator.set("dictionary.cpp_type", dictionary_cpp_type_name(interface.context, it->key));
         dictionary_generator.set("dictionary.name:snakecase", make_input_acceptable_cpp(it->key.to_snakecase()));
         dictionary_generator.append(R"~~~(
-JS::Value @dictionary.name:snakecase@_to_value(JS::Realm&, @dictionary.cpp_type@ const&);
-JS::Value @dictionary.name:snakecase@_to_value(JS::Realm& realm, @dictionary.cpp_type@ const& dictionary)
+JS::Value @dictionary.name:snakecase@_to_value(JS::Realm&, @dictionary.name@ const&);
+JS::Value @dictionary.name:snakecase@_to_value(JS::Realm& realm, @dictionary.name@ const& dictionary)
 {
     auto& vm = realm.vm();
-    @dictionary.cpp_type@ copy = dictionary;
+    @dictionary.name@ copy = dictionary;
 )~~~");
         // FIXME: Support generating wrap statements for lvalues and get rid of the copy above
         auto dictionary_type = adopt_ref(*new Type(it->key, false));
@@ -3289,6 +3370,306 @@ JS::Value @dictionary.name:snakecase@_to_value(JS::Realm& realm, @dictionary.cpp
 }
 )~~~");
     }
+}
+
+static void emit_dictionary_support_includes(StringBuilder& builder)
+{
+    builder.append(R"~~~(
+#include <AK/ByteString.h>
+#include <AK/HashMap.h>
+#include <AK/Optional.h>
+#include <AK/String.h>
+#include <AK/Utf16String.h>
+#include <AK/Variant.h>
+#include <AK/Vector.h>
+#include <LibGC/Ptr.h>
+#include <LibGC/Root.h>
+#include <LibJS/Forward.h>
+#include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/Value.h>
+#include <LibWeb/Forward.h>
+#include <LibWeb/WebIDL/Buffers.h>
+#include <LibWeb/WebIDL/CallbackType.h>
+#include <LibWeb/WebIDL/Types.h>
+
+)~~~"sv);
+}
+
+static ByteString dictionary_member_cpp_type(Context const& context, DictionaryMember const& member)
+{
+    auto const& type = *member.type;
+    auto base_type = idl_type_name_to_cpp_type(type, context).name;
+    bool is_callback_like_type = callback_interface_for_type(context, type)
+        || context.callback_functions.contains(type.name());
+
+    bool base_type_represents_null = is_platform_object(context, type)
+        || is_callback_like_type
+        || type.name().is_one_of("any"sv, "object"sv)
+        || (type.is_union() && type.as_union().includes_nullable_type());
+
+    bool should_wrap_in_optional = (!member.required && !member.default_value.has_value() && !is_callback_like_type)
+        || (type.is_nullable() && !type.is_union() && !base_type_represents_null);
+
+    if (should_wrap_in_optional)
+        return ByteString::formatted("Optional<{}>", base_type);
+
+    return base_type;
+}
+
+static ByteString dictionary_default_value_expression(Context const&, Type const&, ByteString const&);
+static ByteString dictionary_default_constructed_value_expression(Context const&, Type const&);
+
+static ByteString dictionary_union_default_value_expression(Context const& context, UnionType const& union_type, ByteString const& default_value)
+{
+    auto types = union_type.flattened_member_types();
+
+    if (default_value == "null"sv) {
+        if (union_type.includes_undefined() || union_type.includes_nullable_type())
+            return "Empty {}"sv;
+        return "{}"sv;
+    }
+
+    if (default_value == "[]"sv) {
+        auto sequence_type = types.find_if([](auto const& type) { return type->name().is_one_of("sequence"sv, "FrozenArray"sv); });
+        VERIFY(sequence_type != types.end());
+        return ByteString::formatted("{} {{}}", idl_type_name_to_cpp_type(**sequence_type, context).name);
+    }
+
+    if (default_value == "{}"sv) {
+        auto object_type = types.find_if([&context](auto const& type) {
+            return type->name() == "record"sv || context.dictionaries.contains(type->name());
+        });
+        VERIFY(object_type != types.end());
+        return ByteString::formatted("{} {{}}", idl_type_name_to_cpp_type(**object_type, context).name);
+    }
+
+    if (default_value.starts_with("\""sv) && default_value.ends_with("\""sv)) {
+        auto default_string_value = default_value.substring_view(1, default_value.length() - 2);
+
+        auto enumeration_type = types.find_if([&](auto const& type) {
+            if (auto enumeration = context.enumerations.find(type->name()); enumeration != context.enumerations.end())
+                return enumeration->value.translated_cpp_names.contains(default_string_value);
+            return false;
+        });
+        if (enumeration_type != types.end())
+            return dictionary_default_value_expression(context, **enumeration_type, default_value);
+
+        auto string_type = types.find_if([](auto const& type) { return type->is_string(); });
+        VERIFY(string_type != types.end());
+        return dictionary_default_value_expression(context, **string_type, default_value);
+    }
+
+    if (default_value == "true"sv || default_value == "false"sv) {
+        auto boolean_type = types.find_if([](auto const& type) { return type->is_boolean(); });
+        VERIFY(boolean_type != types.end());
+        return default_value;
+    }
+
+    if (default_value.to_number<i32>().has_value() || default_value.to_number<u32>().has_value() || default_value.to_number<double>().has_value()) {
+        auto numeric_type = types.find_if([](auto const& type) { return type->is_numeric(); });
+        VERIFY(numeric_type != types.end());
+        return default_value;
+    }
+
+    TODO();
+}
+
+static ByteString dictionary_default_value_expression(Context const& context, Type const& type, ByteString const& default_value)
+{
+    auto cpp_type = idl_type_name_to_cpp_type(type, context).name;
+
+    if (is<UnionType>(type))
+        return dictionary_union_default_value_expression(context, as<UnionType>(type), default_value);
+
+    if (type.is_nullable() && default_value == "null"sv)
+        return "{}"sv;
+
+    if (type.name() == "any"sv && default_value == "null"sv)
+        return "JS::js_null()"sv;
+
+    if (type.name() == "object"sv && default_value == "null"sv)
+        return "{}"sv;
+
+    if (type.is_string()) {
+        if (cpp_type == "String"sv)
+            return default_value == "\"\""sv ? ByteString { "String {}"sv } : ByteString::formatted("{}_string", default_value);
+        if (cpp_type == "ByteString"sv)
+            return default_value == "\"\""sv ? ByteString { "ByteString {}"sv } : ByteString::formatted("ByteString {{ {}sv }}", default_value);
+        if (cpp_type == "Utf16String"sv)
+            return default_value == "\"\""sv ? ByteString { "Utf16String {}"sv } : ByteString::formatted("Utf16String::from_utf8_without_validation({}sv)", default_value);
+    }
+
+    if (type.is_boolean() || type.is_numeric())
+        return default_value;
+
+    if (type.name().is_one_of("sequence"sv, "FrozenArray"sv)) {
+        VERIFY(default_value == "[]"sv);
+        return ByteString::formatted("{} {{}}", cpp_type);
+    }
+
+    if (type.name() == "record"sv || context.dictionaries.contains(type.name())) {
+        VERIFY(default_value == "{}"sv);
+        return ByteString::formatted("{} {{}}", cpp_type);
+    }
+
+    if (context.enumerations.contains(type.name())) {
+        VERIFY(default_value.length() >= 2 && default_value[0] == '"' && default_value[default_value.length() - 1] == '"');
+        auto enum_member_name = default_value.substring_view(1, default_value.length() - 2);
+        auto default_value_cpp_name = context.enumerations.find(type.name())->value.translated_cpp_names.get(enum_member_name);
+        VERIFY(default_value_cpp_name.has_value());
+        return ByteString::formatted("{}::{}", type.name(), *default_value_cpp_name);
+    }
+
+    TODO();
+}
+
+static ByteString dictionary_default_constructed_value_expression(Context const& context, Type const& type)
+{
+    auto cpp_type = idl_type_name_to_cpp_type(type, context).name;
+
+    if (is<UnionType>(type)) {
+        auto const& union_type = as<UnionType>(type);
+        if (union_type.includes_undefined() || union_type.includes_nullable_type())
+            return "Empty {}"sv;
+
+        auto types = union_type.flattened_member_types();
+        VERIFY(!types.is_empty());
+        return dictionary_default_constructed_value_expression(context, *types.first());
+    }
+
+    if (type.is_nullable())
+        return "{}"sv;
+
+    if (type.is_string())
+        return ByteString::formatted("{} {{}}", cpp_type);
+
+    if (type.is_boolean())
+        return "false"sv;
+
+    if (type.is_numeric())
+        return "0"sv;
+
+    if (type.name().is_one_of("sequence"sv, "FrozenArray"sv, "record"sv))
+        return ByteString::formatted("{} {{}}", cpp_type);
+
+    if (context.dictionaries.contains(type.name()))
+        return ByteString::formatted("{} {{}}", cpp_type);
+
+    if (context.enumerations.contains(type.name())) {
+        auto& enumeration = context.enumerations.find(type.name())->value;
+        VERIFY(!enumeration.translated_cpp_names.is_empty());
+        return ByteString::formatted("{}::{}", type.name(), enumeration.translated_cpp_names.begin()->value);
+    }
+
+    if (is_platform_object(context, type)
+        || callback_interface_for_type(context, type)
+        || context.callback_functions.contains(type.name())
+        || type.name().is_one_of("any"sv, "object"sv, "BufferSource"sv, "ArrayBufferView"sv, "Promise"sv))
+        return "{}"sv;
+
+    TODO();
+}
+
+static ByteString dictionary_member_initializer(Context const& context, DictionaryMember const& member)
+{
+    auto member_cpp_type = dictionary_member_cpp_type(context, member);
+
+    if (member.default_value.has_value()) {
+        if (member_cpp_type.starts_with("Optional<"sv) && *member.default_value == "null"sv)
+            return " {}"sv;
+
+        auto default_value_expression = dictionary_default_value_expression(context, *member.type, *member.default_value);
+        if (default_value_expression == "{}"sv)
+            return " {}"sv;
+
+        return ByteString::formatted(" {{ {} }}", default_value_expression);
+    }
+
+    if (is<UnionType>(*member.type) && !member_cpp_type.starts_with("Optional<"sv))
+        return ByteString::formatted(" {{ {} }}", dictionary_default_constructed_value_expression(context, *member.type));
+
+    return " {}"sv;
+}
+
+static void generate_same_module_dictionary_dependencies(Context const& context, ByteString const& module_own_path, Type const& type, StringBuilder& builder, HashTable<ByteString>& emitted_dictionaries);
+
+static void generate_dictionary_struct(Context const& context, ByteString const& dictionary_name, StringBuilder& builder, HashTable<ByteString>& emitted_dictionaries)
+{
+    if (emitted_dictionaries.set(dictionary_name) != AK::HashSetResult::InsertedNewEntry)
+        return;
+
+    auto dictionary = context.dictionaries.find(dictionary_name);
+    VERIFY(dictionary != context.dictionaries.end());
+
+    if (!dictionary->value.parent_name.is_empty()) {
+        auto parent_dictionary = context.dictionaries.find(dictionary->value.parent_name);
+        VERIFY(parent_dictionary != context.dictionaries.end());
+        if (parent_dictionary->value.module_own_path == dictionary->value.module_own_path)
+            generate_dictionary_struct(context, dictionary->value.parent_name, builder, emitted_dictionaries);
+    }
+
+    auto const& members = dictionary->value.members;
+
+    for (auto const& member : members)
+        generate_same_module_dictionary_dependencies(context, dictionary->value.module_own_path, *member.type, builder, emitted_dictionaries);
+
+    SourceGenerator generator { builder };
+    generator.set("dictionary.name", dictionary_name);
+
+    if (!dictionary->value.parent_name.is_empty())
+        generator.set("dictionary.parent_cpp_type", dictionary->value.parent_name);
+
+    generator.append("struct @dictionary.name@");
+    if (!dictionary->value.parent_name.is_empty())
+        generator.append(" : public @dictionary.parent_cpp_type@");
+    generator.append(" {\n");
+
+    for (auto const& member : members) {
+        auto member_generator = generator.fork();
+        member_generator.set("member.type", dictionary_member_cpp_type(context, member));
+        member_generator.set("member.name", make_input_acceptable_cpp(member.name.to_snakecase()));
+        member_generator.set("member.initializer", dictionary_member_initializer(context, member));
+        member_generator.append("    @member.type@ @member.name@@member.initializer@;\n");
+    }
+    generator.append("};\n");
+}
+
+static void generate_same_module_dictionary_dependencies(Context const& context, ByteString const& module_own_path, Type const& type, StringBuilder& builder, HashTable<ByteString>& emitted_dictionaries)
+{
+    if (auto dictionary = context.dictionaries.find(type.name()); dictionary != context.dictionaries.end()) {
+        if (dictionary->value.module_own_path == module_own_path)
+            generate_dictionary_struct(context, type.name(), builder, emitted_dictionaries);
+    }
+
+    if (type.is_parameterized()) {
+        for (auto const& parameter : type.as_parameterized().parameters())
+            generate_same_module_dictionary_dependencies(context, module_own_path, *parameter, builder, emitted_dictionaries);
+        return;
+    }
+
+    if (type.is_union()) {
+        for (auto const& member_type : type.as_union().member_types())
+            generate_same_module_dictionary_dependencies(context, module_own_path, *member_type, builder, emitted_dictionaries);
+    }
+}
+
+static void generate_dictionary_structs(Context const& context, OrderedHashTable<ByteString> const& own_dictionaries, StringBuilder& builder)
+{
+    if (own_dictionaries.is_empty())
+        return;
+
+    builder.append(R"~~~(
+namespace Web::Bindings {
+
+)~~~"sv);
+
+    HashTable<ByteString> emitted_dictionaries;
+    for (auto const& dictionary_name : own_dictionaries)
+        generate_dictionary_struct(context, dictionary_name, builder, emitted_dictionaries);
+
+    builder.append(R"~~~(
+} // namespace Web::Bindings
+)~~~"sv);
 }
 
 static void generate_enumerations(IDL::Context const& context, OrderedHashTable<ByteString> const& own_enumerations, StringBuilder& builder)
@@ -3460,7 +3841,8 @@ static void generate_prototype_or_global_mixin_declarations(IDL::Interface const
 
 )~~~");
 
-    generate_enumerations(interface, builder);
+    if (interface.own_dictionaries.is_empty())
+        generate_enumerations(interface, builder);
 }
 
 // https://webidl.spec.whatwg.org/#create-an-inheritance-stack
@@ -6239,6 +6621,27 @@ static void generate_header_for_interface(IDL::Interface const& interface, Strin
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Object.h>
 
+)~~~"sv);
+
+    SourceGenerator generator { builder };
+    if (!interface.own_dictionaries.is_empty()) {
+        emit_includes_for_module_dictionary_dependencies(module_for_path(interface.context, interface.module_own_path), generator);
+        emit_dictionary_support_includes(builder);
+        if (!interface.own_enumerations.is_empty()) {
+            builder.append(R"~~~(
+namespace Web::Bindings {
+
+)~~~"sv);
+            generate_enumerations(interface.context, interface.own_enumerations, builder);
+            builder.append(R"~~~(
+}
+
+)~~~"sv);
+        }
+        generate_dictionary_structs(interface.context, interface.own_dictionaries, builder);
+    }
+
+    builder.append(R"~~~(
 namespace Web::Bindings {
 
 )~~~"sv);
@@ -6267,20 +6670,34 @@ namespace Web::Bindings {
 void generate_header(IDL::Module const& module, StringBuilder& builder)
 {
     if (!module.interface.has_value()) {
-        if (module.own_enumerations.is_empty())
+        if (module.own_dictionaries.is_empty() && module.own_enumerations.is_empty())
             return;
 
         builder.append(R"~~~(#pragma once
 
 #include <AK/String.h>
 
+)~~~"sv);
+
+        SourceGenerator generator { builder };
+        if (!module.own_dictionaries.is_empty()) {
+            emit_includes_for_module_dictionary_dependencies(module, generator);
+            emit_dictionary_support_includes(builder);
+        }
+
+        if (!module.own_enumerations.is_empty()) {
+            builder.append(R"~~~(
 namespace Web::Bindings {
 
 )~~~"sv);
-        generate_enumerations(*module.context, module.own_enumerations, builder);
-        builder.append(R"~~~(
+            generate_enumerations(*module.context, module.own_enumerations, builder);
+            builder.append(R"~~~(
 }
+
 )~~~"sv);
+        }
+
+        generate_dictionary_structs(*module.context, module.own_dictionaries, builder);
         return;
     }
 
@@ -6316,9 +6733,32 @@ static void generate_implementation_for_interface(IDL::Interface const& interfac
 
 void generate_implementation(IDL::Module const& module, StringBuilder& builder)
 {
-    if (!module_will_generate_code(module))
+    if (!module.interface.has_value() || !module.interface->will_generate_code())
         return;
     generate_implementation_for_interface(*module.interface, builder);
+}
+
+void generate_forward_header(IDL::Context const& context, StringBuilder& builder)
+{
+    Vector<ByteString> dictionary_names;
+    dictionary_names.ensure_capacity(context.dictionaries.size());
+    for (auto const& it : context.dictionaries)
+        dictionary_names.append(it.key);
+
+    quick_sort(dictionary_names);
+
+    builder.append(R"~~~(#pragma once
+
+namespace Web::Bindings {
+
+)~~~"sv);
+
+    for (auto const& dictionary_name : dictionary_names)
+        builder.appendff("struct {};\n", dictionary_name);
+
+    builder.append(R"~~~(
+}
+)~~~"sv);
 }
 
 }

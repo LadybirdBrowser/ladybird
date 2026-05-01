@@ -6,28 +6,11 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/PointerEvent.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::UIEvents {
-
-struct PointerEventInit : public MouseEventInit {
-    WebIDL::Long pointer_id { 0 };
-    double width { 1 };
-    double height { 1 };
-    float pressure { 0 };
-    float tangential_pressure { 0 };
-    Optional<WebIDL::Long> tilt_x;
-    Optional<WebIDL::Long> tilt_y;
-    WebIDL::Long twist { 0 };
-    Optional<double> altitude_angle;
-    Optional<double> azimuth_angle;
-    String pointer_type;
-    bool is_primary { false };
-    WebIDL::Long persistent_device_id { 0 };
-    AK::Vector<GC::Root<PointerEvent>> coalesced_events;
-    AK::Vector<GC::Root<PointerEvent>> predicted_events;
-};
 
 // https://w3c.github.io/pointerevents/#pointerevent-interface
 class PointerEvent : public MouseEvent {
@@ -35,9 +18,9 @@ class PointerEvent : public MouseEvent {
     GC_DECLARE_ALLOCATOR(PointerEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<PointerEvent> create(JS::Realm&, FlyString const& type, PointerEventInit const& = {}, double page_x = 0, double page_y = 0, double offset_x = 0, double offset_y = 0);
+    [[nodiscard]] static GC::Ref<PointerEvent> create(JS::Realm&, FlyString const& type, Bindings::PointerEventInit const& = {}, double page_x = 0, double page_y = 0, double offset_x = 0, double offset_y = 0);
     [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<PointerEvent>> create_from_platform_event(JS::Realm&, GC::Ptr<HTML::WindowProxy>, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers);
-    static WebIDL::ExceptionOr<GC::Ref<PointerEvent>> construct_impl(JS::Realm&, FlyString const& type, PointerEventInit const&);
+    static WebIDL::ExceptionOr<GC::Ref<PointerEvent>> construct_impl(JS::Realm&, FlyString const& type, Bindings::PointerEventInit const&);
 
     virtual ~PointerEvent() override;
 
@@ -75,7 +58,7 @@ public:
     static constexpr float ACTIVE_PRESSURE_DEFAULT_IN_ACTIVE_BUTTON_STATE { 0.5 };
 
 protected:
-    PointerEvent(JS::Realm&, FlyString const& type, PointerEventInit const&, double page_x, double page_y, double offset_x, double offset_y);
+    PointerEvent(JS::Realm&, FlyString const& type, Bindings::PointerEventInit const&, double page_x, double page_y, double offset_x, double offset_y);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

@@ -7,33 +7,22 @@
 #pragma once
 
 #include <AK/TypeCasts.h>
+#include <LibWeb/Bindings/EventModifier.h>
+#include <LibWeb/Bindings/MouseEvent.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/PixelUnits.h>
-#include <LibWeb/UIEvents/EventModifier.h>
 #include <LibWeb/UIEvents/UIEvent.h>
 
 namespace Web::UIEvents {
-
-struct MouseEventInit : public EventModifierInit {
-    double screen_x = 0;
-    double screen_y = 0;
-    double client_x = 0;
-    double client_y = 0;
-    double movement_x = 0;
-    double movement_y = 0;
-    i16 button = 0;
-    u16 buttons = 0;
-    GC::Ptr<DOM::EventTarget> related_target = nullptr;
-};
 
 class WEB_API MouseEvent : public UIEvent {
     WEB_PLATFORM_OBJECT(MouseEvent, UIEvent);
     GC_DECLARE_ALLOCATOR(MouseEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<MouseEvent> create(JS::Realm&, FlyString const& event_name, MouseEventInit const& = {}, double page_x = 0, double page_y = 0, double offset_x = 0, double offset_y = 0);
+    [[nodiscard]] static GC::Ref<MouseEvent> create(JS::Realm&, FlyString const& event_name, Bindings::MouseEventInit const& = {}, double page_x = 0, double page_y = 0, double offset_x = 0, double offset_y = 0);
     static WebIDL::ExceptionOr<GC::Ref<MouseEvent>> create_from_platform_event(JS::Realm&, GC::Ptr<HTML::WindowProxy>, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers, int detail = 0);
-    static WebIDL::ExceptionOr<GC::Ref<MouseEvent>> construct_impl(JS::Realm&, FlyString const& event_name, MouseEventInit const&);
+    static WebIDL::ExceptionOr<GC::Ref<MouseEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::MouseEventInit const&);
 
     virtual ~MouseEvent() override;
 
@@ -86,7 +75,7 @@ public:
     void set_offset_y(double offset_y) { m_offset_y = offset_y; }
 
 protected:
-    MouseEvent(JS::Realm&, FlyString const& event_name, MouseEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y);
+    MouseEvent(JS::Realm&, FlyString const& event_name, Bindings::MouseEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

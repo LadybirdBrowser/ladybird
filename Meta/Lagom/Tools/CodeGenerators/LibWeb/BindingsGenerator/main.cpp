@@ -19,11 +19,11 @@
 #include <LibIDL/IDLParser.h>
 #include <LibIDL/Types.h>
 
-template<typename GeneratorFunction>
-static ErrorOr<void> write_if_changed(GeneratorFunction generator_function, IDL::Module const& module, StringView file_path)
+template<typename GeneratorFunction, typename Input>
+static ErrorOr<void> write_if_changed(GeneratorFunction generator_function, Input const& input, StringView file_path)
 {
     StringBuilder output_builder;
-    generator_function(module, output_builder);
+    generator_function(input, output_builder);
 
     auto current_file_or_error = Core::File::open(file_path, Core::File::OpenMode::Read);
     if (current_file_or_error.is_error() && current_file_or_error.error().code() != ENOENT)
@@ -167,6 +167,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         output_files.append(header_path);
         output_files.append(implementation_path);
     }
+
+    auto forward_header_path = ByteString::formatted("{}/Forward.h", output_path);
+    TRY(write_if_changed(&IDL::generate_forward_header, context, forward_header_path));
+    output_files.append(forward_header_path);
 
     if (!depfile_path.is_empty()) {
         TRY(generate_depfile(depfile_path, dependency_paths, output_files));

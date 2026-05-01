@@ -8,14 +8,11 @@
 #pragma once
 
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/ResizeObserver.h>
 #include <LibWeb/ResizeObserver/ResizeObservation.h>
 #include <LibWeb/ResizeObserver/ResizeObserverEntry.h>
 
 namespace Web::ResizeObserver {
-
-struct ResizeObserverOptions {
-    Bindings::ResizeObserverBoxOptions box;
-};
 
 // https://drafts.csswg.org/resize-observer-1/#resize-observer-interface
 class ResizeObserver : public Bindings::PlatformObject {
@@ -29,7 +26,7 @@ public:
 
     virtual ~ResizeObserver() override;
 
-    void observe(DOM::Element& target, ResizeObserverOptions);
+    void observe(DOM::Element& target, Bindings::ResizeObserverOptions);
     void unobserve(DOM::Element& target);
     void disconnect();
 

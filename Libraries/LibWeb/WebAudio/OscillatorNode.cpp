@@ -18,21 +18,21 @@ GC_DEFINE_ALLOCATOR(OscillatorNode);
 
 OscillatorNode::~OscillatorNode() = default;
 
-WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> OscillatorNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, OscillatorOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> OscillatorNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::OscillatorOptions const& options)
 {
     return construct_impl(realm, context, options);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-oscillatornode-oscillatornode
-WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> OscillatorNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, OscillatorOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> OscillatorNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::OscillatorOptions const& options)
 {
-    if (options.type == Bindings::OscillatorType::Custom && !options.periodic_wave)
+    if (options.type == Bindings::OscillatorType::Custom && !options.periodic_wave.has_value())
         return WebIDL::InvalidStateError::create(realm, "Oscillator node type 'custom' requires PeriodicWave to be provided"_utf16);
 
     auto node = realm.create<OscillatorNode>(realm, context, options);
 
     if (options.type == Bindings::OscillatorType::Custom)
-        node->set_periodic_wave(options.periodic_wave);
+        node->set_periodic_wave(options.periodic_wave->ptr());
 
     // Default options for channel count and interpretation
     // https://webaudio.github.io/web-audio-api/#OscillatorNode
@@ -47,7 +47,7 @@ WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> OscillatorNode::construct_impl(JS::
     return node;
 }
 
-OscillatorNode::OscillatorNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, OscillatorOptions const& options)
+OscillatorNode::OscillatorNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::OscillatorOptions const& options)
     : AudioScheduledSourceNode(realm, context)
     , m_type(options.type)
     , m_frequency(AudioParam::create(realm, context, options.frequency, -context->nyquist_frequency(), context->nyquist_frequency(), Bindings::AutomationRate::ARate))

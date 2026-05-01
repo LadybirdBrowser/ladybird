@@ -19,6 +19,7 @@
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibURL/Origin.h>
+#include <LibWeb/Bindings/ProgressEvent.h>
 #include <LibWeb/Bindings/XMLHttpRequest.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentLoading.h>
@@ -105,7 +106,7 @@ static void fire_progress_event(XMLHttpRequestEventTarget& target, FlyString con
     // To fire a progress event named e at target, given transmitted and length, means to fire an event named e at target, using ProgressEvent,
     // with the loaded attribute initialized to transmitted, and if length is not 0, with the lengthComputable attribute initialized to true
     // and the total attribute initialized to length.
-    ProgressEventInit event_init {};
+    Bindings::ProgressEventInit event_init {};
     event_init.length_computable = length;
     event_init.loaded = transmitted;
     event_init.total = length;

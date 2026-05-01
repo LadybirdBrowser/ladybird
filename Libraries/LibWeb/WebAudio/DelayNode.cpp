@@ -13,7 +13,7 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(DelayNode);
 
-DelayNode::DelayNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, DelayOptions const& options)
+DelayNode::DelayNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::DelayOptions const& options)
     : AudioNode(realm, context)
     , m_delay_time(AudioParam::create(realm, context, options.delay_time, 0, options.max_delay_time, Bindings::AutomationRate::ARate))
 {
@@ -21,12 +21,12 @@ DelayNode::DelayNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, DelayO
 
 DelayNode::~DelayNode() = default;
 
-WebIDL::ExceptionOr<GC::Ref<DelayNode>> DelayNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, DelayOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<DelayNode>> DelayNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::DelayOptions const& options)
 {
     return construct_impl(realm, context, options);
 }
 
-WebIDL::ExceptionOr<GC::Ref<DelayNode>> DelayNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, DelayOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<DelayNode>> DelayNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::DelayOptions const& options)
 {
     // https://webaudio.github.io/web-audio-api/#dom-delayoptions-maxdelaytime
     // If specified, this value MUST be greater than zero and less than three minutes or a NotSupportedError exception MUST be thrown.

@@ -28,7 +28,7 @@ namespace Web::TrustedTypes {
 
 GC_DEFINE_ALLOCATOR(TrustedTypePolicy);
 
-TrustedTypePolicy::TrustedTypePolicy(JS::Realm& realm, Utf16String const& name, TrustedTypePolicyOptions const& options)
+TrustedTypePolicy::TrustedTypePolicy(JS::Realm& realm, Utf16String const& name, Bindings::TrustedTypePolicyOptions const& options)
     : PlatformObject(realm)
     , m_name(name)
     , m_create_html(options.create_html)

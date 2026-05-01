@@ -7,22 +7,18 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <LibWeb/Bindings/MediaQueryListEvent.h>
 #include <LibWeb/DOM/Event.h>
 
 namespace Web::CSS {
-
-struct MediaQueryListEventInit : public DOM::EventInit {
-    String media;
-    bool matches { false };
-};
 
 class MediaQueryListEvent final : public DOM::Event {
     WEB_PLATFORM_OBJECT(MediaQueryListEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(MediaQueryListEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<MediaQueryListEvent> create(JS::Realm&, FlyString const& event_name, MediaQueryListEventInit const& = {});
-    [[nodiscard]] static GC::Ref<MediaQueryListEvent> construct_impl(JS::Realm&, FlyString const& event_name, MediaQueryListEventInit const& = {});
+    [[nodiscard]] static GC::Ref<MediaQueryListEvent> create(JS::Realm&, FlyString const& event_name, Bindings::MediaQueryListEventInit const& = {});
+    [[nodiscard]] static GC::Ref<MediaQueryListEvent> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::MediaQueryListEventInit const& = {});
 
     virtual ~MediaQueryListEvent() override;
 
@@ -30,7 +26,7 @@ public:
     bool matches() const { return m_matches; }
 
 private:
-    MediaQueryListEvent(JS::Realm&, FlyString const& event_name, MediaQueryListEventInit const& event_init);
+    MediaQueryListEvent(JS::Realm&, FlyString const& event_name, Bindings::MediaQueryListEventInit const& event_init);
 
     virtual void initialize(JS::Realm&) override;
 

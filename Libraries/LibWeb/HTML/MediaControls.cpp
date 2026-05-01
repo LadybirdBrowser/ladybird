@@ -86,7 +86,7 @@ GC::Ref<DOM::IDLEventListener> MediaControls::add_event_listener(JS::Realm& real
     auto callback = realm.heap().allocate<WebIDL::CallbackType>(*callback_function, realm);
     auto listener = DOM::IDLEventListener::create(realm, callback);
 
-    DOM::AddEventListenerOptions options;
+    Bindings::AddEventListenerOptions options;
     options.once = listen_once == ListenOnce::Yes;
     target.add_event_listener(event_name, listener, options);
 

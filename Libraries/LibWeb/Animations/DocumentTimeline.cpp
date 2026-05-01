@@ -32,7 +32,7 @@ GC::Ref<DocumentTimeline> DocumentTimeline::create(JS::Realm& realm, DOM::Docume
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-documenttimeline-documenttimeline
-WebIDL::ExceptionOr<GC::Ref<DocumentTimeline>> DocumentTimeline::construct_impl(JS::Realm& realm, DocumentTimelineOptions options)
+WebIDL::ExceptionOr<GC::Ref<DocumentTimeline>> DocumentTimeline::construct_impl(JS::Realm& realm, Bindings::DocumentTimelineOptions options)
 {
     // Creates a new DocumentTimeline. The Document with which the timeline is associated is the Document associated
     // with the Window that is the current global object.

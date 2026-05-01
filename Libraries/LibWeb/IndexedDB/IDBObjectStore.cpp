@@ -147,7 +147,7 @@ bool IDBObjectStore::auto_increment() const
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-createindex
-WebIDL::ExceptionOr<GC::Ref<IDBIndex>> IDBObjectStore::create_index(String const& name, KeyPath key_path, IDBIndexParameters options)
+WebIDL::ExceptionOr<GC::Ref<IDBIndex>> IDBObjectStore::create_index(String const& name, KeyPath key_path, Bindings::IDBIndexParameters const& options)
 {
     auto& realm = this->realm();
 
@@ -651,7 +651,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::get_all_keys(Optional<J
 }
 
 // https://pr-preview.s3.amazonaws.com/w3c/IndexedDB/pull/461.html#dom-idbobjectstore-getallrecords
-WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::get_all_records(IDBGetAllOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::get_all_records(Bindings::IDBGetAllOptions const& options)
 {
     // 1. Return the result of creating a request to retrieve multiple items with the current Realm record, this,
     //    "record", and options. Rethrow any exceptions.

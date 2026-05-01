@@ -2601,7 +2601,7 @@ bool Node::in_a_document_tree() const
 }
 
 // https://dom.spec.whatwg.org/#dom-node-getrootnode
-GC::Ref<Node> Node::get_root_node(GetRootNodeOptions const& options)
+GC::Ref<Node> Node::get_root_node(Bindings::GetRootNodeOptions const& options)
 {
     // The getRootNode(options) method steps are to return this’s shadow-including root if options["composed"] is true;
     if (options.composed)

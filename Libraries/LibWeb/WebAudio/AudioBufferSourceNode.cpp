@@ -15,9 +15,9 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(AudioBufferSourceNode);
 
-AudioBufferSourceNode::AudioBufferSourceNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, AudioBufferSourceOptions const& options)
+AudioBufferSourceNode::AudioBufferSourceNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::AudioBufferSourceOptions const& options)
     : AudioScheduledSourceNode(realm, context)
-    , m_buffer(options.buffer)
+    , m_buffer(options.buffer.has_value() ? options.buffer->ptr() : nullptr)
     , m_playback_rate(AudioParam::create(realm, context, options.playback_rate, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::KRate, AudioParam::FixedAutomationRate::Yes))
     , m_detune(AudioParam::create(realm, context, options.detune, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::KRate, AudioParam::FixedAutomationRate::Yes))
     , m_loop(options.loop)
@@ -138,13 +138,13 @@ WebIDL::ExceptionOr<void> AudioBufferSourceNode::start(Optional<double> when, Op
     return {};
 }
 
-WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> AudioBufferSourceNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, AudioBufferSourceOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> AudioBufferSourceNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::AudioBufferSourceOptions const& options)
 {
     return construct_impl(realm, context, options);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audiobuffersourcenode-audiobuffersourcenode
-WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> AudioBufferSourceNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, AudioBufferSourceOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> AudioBufferSourceNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::AudioBufferSourceOptions const& options)
 {
     // When the constructor is called with a BaseAudioContext c and an option object option, the user agent
     // MUST initialize the AudioNode this, with context and options as arguments.
@@ -159,7 +159,7 @@ WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> AudioBufferSourceNode::const
     default_options.channel_interpretation = Bindings::ChannelInterpretation::Speakers;
     // FIXME: Set tail-time to no
 
-    TRY(node->initialize_audio_node_options(options, default_options));
+    TRY(node->initialize_audio_node_options(Bindings::AudioNodeOptions {}, default_options));
 
     return node;
 }

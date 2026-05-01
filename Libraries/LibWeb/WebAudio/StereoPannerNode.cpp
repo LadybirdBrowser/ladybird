@@ -16,13 +16,13 @@ GC_DEFINE_ALLOCATOR(StereoPannerNode);
 
 StereoPannerNode::~StereoPannerNode() = default;
 
-WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> StereoPannerNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, StereoPannerOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> StereoPannerNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::StereoPannerOptions const& options)
 {
     return construct_impl(realm, context, options);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-stereopannernode-stereopannernode
-WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> StereoPannerNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, StereoPannerOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> StereoPannerNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::StereoPannerOptions const& options)
 {
     // Create the node and allocate memory
     auto node = realm.create<StereoPannerNode>(realm, context, options);
@@ -64,7 +64,7 @@ WebIDL::ExceptionOr<void> StereoPannerNode::set_channel_count(WebIDL::UnsignedLo
     return AudioNode::set_channel_count(channel_count);
 }
 
-StereoPannerNode::StereoPannerNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, StereoPannerOptions const& options)
+StereoPannerNode::StereoPannerNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::StereoPannerOptions const& options)
     : AudioNode(realm, context)
     , m_pan(AudioParam::create(realm, context, options.pan, -1, 1, Bindings::AutomationRate::ARate))
 {

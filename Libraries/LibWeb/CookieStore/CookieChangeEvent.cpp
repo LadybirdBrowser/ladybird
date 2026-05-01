@@ -12,17 +12,17 @@ namespace Web::CookieStore {
 
 GC_DEFINE_ALLOCATOR(CookieChangeEvent);
 
-GC::Ref<CookieChangeEvent> CookieChangeEvent::create(JS::Realm& realm, FlyString const& event_name, CookieChangeEventInit const& event_init)
+GC::Ref<CookieChangeEvent> CookieChangeEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init)
 {
     return realm.create<CookieChangeEvent>(realm, event_name, event_init);
 }
 
-GC::Ref<CookieChangeEvent> CookieChangeEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, CookieChangeEventInit const& event_init)
+GC::Ref<CookieChangeEvent> CookieChangeEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init)
 {
     return create(realm, event_name, event_init);
 }
 
-CookieChangeEvent::CookieChangeEvent(JS::Realm& realm, FlyString const& event_name, CookieChangeEventInit const& event_init)
+CookieChangeEvent::CookieChangeEvent(JS::Realm& realm, FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init)
     : DOM::Event(realm, event_name, event_init)
     , m_changed(event_init.changed.value_or({}))
     , m_deleted(event_init.deleted.value_or({}))

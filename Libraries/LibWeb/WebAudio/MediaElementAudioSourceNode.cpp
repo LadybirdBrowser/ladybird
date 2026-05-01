@@ -14,7 +14,7 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(MediaElementAudioSourceNode);
 
-MediaElementAudioSourceNode::MediaElementAudioSourceNode(JS::Realm& realm, GC::Ref<AudioContext> context, MediaElementAudioSourceOptions const& options)
+MediaElementAudioSourceNode::MediaElementAudioSourceNode(JS::Realm& realm, GC::Ref<AudioContext> context, Bindings::MediaElementAudioSourceOptions const& options)
     : AudioNode(realm, context)
     , m_media_element(*options.media_element)
 {
@@ -22,12 +22,12 @@ MediaElementAudioSourceNode::MediaElementAudioSourceNode(JS::Realm& realm, GC::R
 
 MediaElementAudioSourceNode::~MediaElementAudioSourceNode() = default;
 
-WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> MediaElementAudioSourceNode::create(JS::Realm& realm, GC::Ref<AudioContext> context, MediaElementAudioSourceOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> MediaElementAudioSourceNode::create(JS::Realm& realm, GC::Ref<AudioContext> context, Bindings::MediaElementAudioSourceOptions const& options)
 {
     return construct_impl(realm, context, options);
 }
 
-WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> MediaElementAudioSourceNode::construct_impl(JS::Realm& realm, GC::Ref<AudioContext> context, MediaElementAudioSourceOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> MediaElementAudioSourceNode::construct_impl(JS::Realm& realm, GC::Ref<AudioContext> context, Bindings::MediaElementAudioSourceOptions const& options)
 {
     return realm.create<MediaElementAudioSourceNode>(realm, context, options);
 }

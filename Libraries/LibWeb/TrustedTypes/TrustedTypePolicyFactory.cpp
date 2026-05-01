@@ -142,7 +142,7 @@ void TrustedTypePolicyFactory::visit_edges(Visitor& visitor)
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-createpolicy
-WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create_policy(Utf16String const& policy_name, TrustedTypePolicyOptions const& policy_options)
+WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create_policy(Utf16String const& policy_name, Bindings::TrustedTypePolicyOptions const& policy_options)
 {
     // 1. Returns the result of executing a Create a Trusted Type Policy algorithm, with the following arguments:
     //      factory: this value
@@ -194,7 +194,7 @@ GC::Ref<TrustedScript const> TrustedTypePolicyFactory::empty_script()
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#create-trusted-type-policy-algorithm
-WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create_a_trusted_type_policy(Utf16String const& policy_name, TrustedTypePolicyOptions const& options, JS::Object& global)
+WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create_a_trusted_type_policy(Utf16String const& policy_name, Bindings::TrustedTypePolicyOptions const& options, JS::Object& global)
 {
     auto& realm = this->realm();
 

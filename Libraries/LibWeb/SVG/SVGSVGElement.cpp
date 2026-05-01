@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/Bindings/DOMPointReadOnly.h>
 #include <LibWeb/Bindings/SVGSVGElement.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
@@ -250,7 +251,7 @@ GC::Ref<SVGLength> SVGSVGElement::create_svg_length() const
 GC::Ref<Geometry::DOMPoint> SVGSVGElement::create_svg_point() const
 {
     // A new, detached DOMPoint object whose coordinates are all 0.
-    return Geometry::DOMPoint::from_point(vm(), Geometry::DOMPointInit {});
+    return Geometry::DOMPoint::from_point(vm(), Bindings::DOMPointInit {});
 }
 
 GC::Ref<Geometry::DOMMatrix> SVGSVGElement::create_svg_matrix() const

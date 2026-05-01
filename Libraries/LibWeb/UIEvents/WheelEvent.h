@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/WheelEvent.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
 #include <LibWeb/UIEvents/UIEvent.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -18,21 +19,13 @@ enum WheelDeltaMode : WebIDL::UnsignedLong {
     DOM_DELTA_PAGE = 2,
 };
 
-struct WheelEventInit : public MouseEventInit {
-    double delta_x = 0;
-    double delta_y = 0;
-    double delta_z = 0;
-
-    WebIDL::UnsignedLong delta_mode = WheelDeltaMode::DOM_DELTA_PIXEL;
-};
-
 class WheelEvent final : public MouseEvent {
     WEB_PLATFORM_OBJECT(WheelEvent, MouseEvent);
     GC_DECLARE_ALLOCATOR(WheelEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<WheelEvent> create(JS::Realm&, FlyString const& event_name, WheelEventInit const& = {}, double page_x = 0, double page_y = 0, double offset_x = 0, double offset_y = 0);
-    [[nodiscard]] static GC::Ref<WheelEvent> construct_impl(JS::Realm&, FlyString const& event_name, WheelEventInit const& = {});
+    [[nodiscard]] static GC::Ref<WheelEvent> create(JS::Realm&, FlyString const& event_name, Bindings::WheelEventInit const& = {}, double page_x = 0, double page_y = 0, double offset_x = 0, double offset_y = 0);
+    [[nodiscard]] static GC::Ref<WheelEvent> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::WheelEventInit const& = {});
 
     static WebIDL::ExceptionOr<GC::Ref<WheelEvent>> create_from_platform_event(JS::Realm&, GC::Ptr<HTML::WindowProxy>, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, double delta_x, double delta_y, unsigned button, unsigned buttons, unsigned modifiers);
 
@@ -44,7 +37,7 @@ public:
     WebIDL::UnsignedLong delta_mode() const { return m_delta_mode; }
 
 private:
-    WheelEvent(JS::Realm&, FlyString const& event_name, WheelEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y);
+    WheelEvent(JS::Realm&, FlyString const& event_name, Bindings::WheelEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y);
 
     virtual void initialize(JS::Realm&) override;
 

@@ -22,7 +22,7 @@ class FederatedCredential final
     GC_DECLARE_ALLOCATOR(FederatedCredential);
 
 public:
-    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<FederatedCredential>> construct_impl(JS::Realm&, FederatedCredentialInit const&);
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<FederatedCredential>> construct_impl(JS::Realm&, Bindings::FederatedCredentialInit const&);
 
     virtual ~FederatedCredential() override;
 
@@ -33,7 +33,7 @@ public:
     String type() const override { return "federated"_string; }
 
 private:
-    FederatedCredential(JS::Realm&, FederatedCredentialInit const&, URL::Origin);
+    FederatedCredential(JS::Realm&, Bindings::FederatedCredentialInit const&, URL::Origin);
     virtual void initialize(JS::Realm&) override;
 
     String m_provider;

@@ -1227,7 +1227,7 @@ WebIDL::ExceptionOr<void> Element::attach_a_shadow_root(Bindings::ShadowRootMode
 }
 
 // https://dom.spec.whatwg.org/#dom-element-attachshadow
-WebIDL::ExceptionOr<GC::Ref<ShadowRoot>> Element::attach_shadow(ShadowRootInit init)
+WebIDL::ExceptionOr<GC::Ref<ShadowRoot>> Element::attach_shadow(Bindings::ShadowRootInit const& init)
 {
     // 1. Let registry be this’s node document’s custom element registry.
     auto registry = document().custom_element_registry();
@@ -2923,7 +2923,7 @@ static GC::Ref<WebIDL::Promise> scroll_an_element_into_view(Element& target, Bin
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scrollintoview
-GC::Ref<WebIDL::Promise> Element::scroll_into_view(Optional<Variant<bool, ScrollIntoViewOptions>> arg)
+GC::Ref<WebIDL::Promise> Element::scroll_into_view(Optional<Variant<bool, Bindings::ScrollIntoViewOptions>> arg)
 {
     // 1. Let behavior be "auto".
     auto behavior = Bindings::ScrollBehavior::Auto;
@@ -2938,8 +2938,8 @@ GC::Ref<WebIDL::Promise> Element::scroll_into_view(Optional<Variant<bool, Scroll
     GC::Ptr<Element> container = nullptr;
 
     // 5. If arg is a ScrollIntoViewOptions dictionary, then:
-    if (arg.has_value() && arg->has<ScrollIntoViewOptions>()) {
-        auto options = arg->get<ScrollIntoViewOptions>();
+    if (arg.has_value() && arg->has<Bindings::ScrollIntoViewOptions>()) {
+        auto options = arg->get<Bindings::ScrollIntoViewOptions>();
 
         // 1. Set behavior to the behavior dictionary member of options.
         behavior = options.behavior;
@@ -3619,7 +3619,7 @@ GC::Ref<WebIDL::Promise> Element::scroll(double x, double y)
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scroll
-GC::Ref<WebIDL::Promise> Element::scroll(HTML::ScrollToOptions options)
+GC::Ref<WebIDL::Promise> Element::scroll(Bindings::ScrollToOptions options)
 {
     // 1. If invoked with one argument, follow these substeps:
     //     1. Let options be the argument.
@@ -3637,20 +3637,20 @@ GC::Ref<WebIDL::Promise> Element::scroll_by(double x, double y)
 {
     // 2. If invoked with two arguments, follow these substeps:
     //    1. Let options be null converted to a ScrollToOptions dictionary. [WEBIDL]
-    HTML::ScrollToOptions options;
+    Bindings::ScrollToOptions options;
 
     //    2. Let x and y be the arguments, respectively.
     //    3. Normalize non-finite values for x and y.
     //    4. Let the left dictionary member of options have the value x.
     //    5. Let the top dictionary member of options have the value y.
-    // NOTE: Element::scroll_by(HTML::ScrollToOptions) performs the normalization and following steps.
+    // NOTE: Element::scroll_by(Bindings::ScrollToOptions) performs the normalization and following steps.
     options.left = x;
     options.top = y;
     return scroll_by(options);
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scrollby
-GC::Ref<WebIDL::Promise> Element::scroll_by(HTML::ScrollToOptions options)
+GC::Ref<WebIDL::Promise> Element::scroll_by(Bindings::ScrollToOptions options)
 {
     // 1. If invoked with one argument, follow these substeps:
     //    1. Let options be the argument.
@@ -3671,7 +3671,7 @@ GC::Ref<WebIDL::Promise> Element::scroll_by(HTML::ScrollToOptions options)
 }
 
 // https://drafts.csswg.org/cssom-view-1/#dom-element-checkvisibility
-bool Element::check_visibility(Optional<CheckVisibilityOptions> options)
+bool Element::check_visibility(Optional<Bindings::CheckVisibilityOptions> options)
 {
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
     document().update_layout_if_needed_for_node(*this, UpdateLayoutReason::ElementCheckVisibility);
@@ -4403,7 +4403,7 @@ ElementByIdMap& Element::document_or_shadow_root_element_by_id_map()
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-gethtml
-WebIDL::ExceptionOr<String> Element::get_html(GetHTMLOptions const& options) const
+WebIDL::ExceptionOr<String> Element::get_html(Bindings::GetHTMLOptions const& options) const
 {
     // Element's getHTML(options) method steps are to return the result
     // of HTML fragment serialization algorithm with this,
@@ -4762,7 +4762,7 @@ double Element::ensure_css_random_base_value(CSS::RandomCachingKey const& random
     });
 }
 
-GC::Ref<WebIDL::Promise> Element::request_pointer_lock(Optional<PointerLockOptions>)
+GC::Ref<WebIDL::Promise> Element::request_pointer_lock(Optional<Bindings::PointerLockOptions>)
 {
     dbgln("FIXME: request_pointer_lock()");
     auto promise = WebIDL::create_promise(realm());

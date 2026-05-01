@@ -12,19 +12,13 @@
 
 namespace Web::XHR {
 
-struct ProgressEventInit : public DOM::EventInit {
-    bool length_computable { false };
-    WebIDL::Double loaded { 0 };
-    WebIDL::Double total { 0 };
-};
-
 class ProgressEvent final : public DOM::Event {
     WEB_PLATFORM_OBJECT(ProgressEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(ProgressEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<ProgressEvent> create(JS::Realm&, FlyString const& event_name, ProgressEventInit const& event_init);
-    static WebIDL::ExceptionOr<GC::Ref<ProgressEvent>> construct_impl(JS::Realm&, FlyString const& event_name, ProgressEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<ProgressEvent> create(JS::Realm&, FlyString const& event_name, Bindings::ProgressEventInit const&);
+    static WebIDL::ExceptionOr<GC::Ref<ProgressEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::ProgressEventInit const&);
 
     virtual ~ProgressEvent() override;
 
@@ -33,7 +27,7 @@ public:
     WebIDL::Double total() const { return m_total; }
 
 private:
-    ProgressEvent(JS::Realm&, FlyString const& event_name, ProgressEventInit const& event_init);
+    ProgressEvent(JS::Realm&, FlyString const& event_name, Bindings::ProgressEventInit const&);
 
     virtual void initialize(JS::Realm&) override;
 

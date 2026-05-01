@@ -10,14 +10,6 @@
 
 namespace Web::WebXR {
 
-// https://immersive-web.github.io/webxr/#dictdef-xrrenderstateinit
-struct XRRenderStateInit {
-    Optional<double> depth_near;
-    Optional<double> depth_far;
-    Optional<bool> passthrough_fully_obscured;
-    Optional<double> inline_vertical_field_of_view;
-};
-
 // https://immersive-web.github.io/webxr/#xrrenderstate
 class XRRenderState : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(XRRenderState, Bindings::PlatformObject);

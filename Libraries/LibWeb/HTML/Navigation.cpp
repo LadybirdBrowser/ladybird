@@ -36,7 +36,7 @@ namespace Web::HTML {
 GC_DEFINE_ALLOCATOR(Navigation);
 GC_DEFINE_ALLOCATOR(NavigationAPIMethodTracker);
 
-static NavigationResult navigation_api_method_tracker_derived_result(GC::Ref<NavigationAPIMethodTracker> api_method_tracker);
+static Bindings::NavigationResult navigation_api_method_tracker_derived_result(GC::Ref<NavigationAPIMethodTracker> api_method_tracker);
 
 NavigationAPIMethodTracker::NavigationAPIMethodTracker(GC::Ref<Navigation> navigation,
     Optional<String> key,
@@ -127,7 +127,7 @@ GC::Ptr<NavigationHistoryEntry> Navigation::current_entry() const
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigation-updatecurrententry
-WebIDL::ExceptionOr<void> Navigation::update_current_entry(NavigationUpdateCurrentEntryOptions options)
+WebIDL::ExceptionOr<void> Navigation::update_current_entry(Bindings::NavigationUpdateCurrentEntryOptions options)
 {
     // The updateCurrentEntry(options) method steps are:
 
@@ -146,7 +146,7 @@ WebIDL::ExceptionOr<void> Navigation::update_current_entry(NavigationUpdateCurre
 
     // 5. Fire an event named currententrychange at this using NavigationCurrentEntryChangeEvent,
     //    with its navigationType attribute initialized to null and its from initialized to current.
-    NavigationCurrentEntryChangeEventInit event_init = {};
+    Bindings::NavigationCurrentEntryChangeEventInit event_init = {};
     event_init.navigation_type = {};
     event_init.from = current;
     dispatch_event(HTML::NavigationCurrentEntryChangeEvent::construct_impl(realm(), HTML::EventNames::currententrychange, event_init));
@@ -222,7 +222,7 @@ Bindings::NavigationHistoryBehavior to_navigation_history_behavior(HistoryHandli
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigation-navigate
-WebIDL::ExceptionOr<NavigationResult> Navigation::navigate(String url, NavigationNavigateOptions const& options)
+WebIDL::ExceptionOr<Bindings::NavigationResult> Navigation::navigate(String url, Bindings::NavigationNavigateOptions const& options)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -297,7 +297,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::navigate(String url, Navigatio
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigation-reload
-WebIDL::ExceptionOr<NavigationResult> Navigation::reload(NavigationReloadOptions const& options)
+WebIDL::ExceptionOr<Bindings::NavigationResult> Navigation::reload(Bindings::NavigationReloadOptions const& options)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -351,7 +351,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::reload(NavigationReloadOptions
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigation-traverseto
-WebIDL::ExceptionOr<NavigationResult> Navigation::traverse_to(String key, NavigationOptions const& options)
+WebIDL::ExceptionOr<Bindings::NavigationResult> Navigation::traverse_to(String key, Bindings::NavigationOptions const& options)
 {
     auto& realm = this->realm();
     // The traverseTo(key, options) method steps are:
@@ -373,7 +373,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::traverse_to(String key, Naviga
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#performing-a-navigation-api-traversal
-WebIDL::ExceptionOr<NavigationResult> Navigation::back(NavigationOptions const& options)
+WebIDL::ExceptionOr<Bindings::NavigationResult> Navigation::back(Bindings::NavigationOptions const& options)
 {
     auto& realm = this->realm();
     // The back(options) method steps are:
@@ -390,7 +390,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::back(NavigationOptions const& 
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigation-forward
-WebIDL::ExceptionOr<NavigationResult> Navigation::forward(NavigationOptions const& options)
+WebIDL::ExceptionOr<Bindings::NavigationResult> Navigation::forward(Bindings::NavigationOptions const& options)
 {
     auto& realm = this->realm();
     // The forward(options) method steps are:
@@ -500,7 +500,7 @@ i64 Navigation::get_the_navigation_api_entry_index(SessionHistoryEntry const& sh
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigation-api-early-error-result
-NavigationResult Navigation::early_error_result(AnyException e)
+Bindings::NavigationResult Navigation::early_error_result(AnyException e)
 {
     auto& realm = this->realm();
 
@@ -513,7 +513,7 @@ NavigationResult Navigation::early_error_result(AnyException e)
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigation-api-method-tracker-derived-result
-NavigationResult navigation_api_method_tracker_derived_result(GC::Ref<NavigationAPIMethodTracker> api_method_tracker)
+Bindings::NavigationResult navigation_api_method_tracker_derived_result(GC::Ref<NavigationAPIMethodTracker> api_method_tracker)
 {
     // A navigation API method tracker-derived result for a navigation API method tracker is a NavigationResult
     /// dictionary instance given by «[ "committed" apiMethodTracker's committed promise, "finished" → apiMethodTracker's finished promise ]».
@@ -621,7 +621,7 @@ GC::Ref<NavigationAPIMethodTracker> Navigation::add_an_upcoming_traverse_api_met
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#performing-a-navigation-api-traversal
-WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_traversal(String key, NavigationOptions const& options)
+WebIDL::ExceptionOr<Bindings::NavigationResult> Navigation::perform_a_navigation_api_traversal(String key, Bindings::NavigationOptions const& options)
 {
     auto& realm = this->realm();
     // To perform a navigation API traversal given a Navigation navigation, a string key, and a NavigationOptions options:
@@ -643,7 +643,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
     // 5. If key equals current's session history entry's navigation API key, then return
     //    «[ "committed" → a promise resolved with current, "finished" → a promise resolved with current ]».
     if (key == current->session_history_entry().navigation_api_key()) {
-        return NavigationResult {
+        return Bindings::NavigationResult {
             .committed = WebIDL::create_resolved_promise(realm, current),
             .finished = WebIDL::create_resolved_promise(realm, current)
         };
@@ -798,7 +798,7 @@ void Navigation::abort_a_navigate_event(GC::Ref<NavigateEvent> event, GC::Ref<We
 
     // 6. Fire an event named navigateerror at navigation using ErrorEvent, with additional attributes initialized
     //    according to errorInfo.
-    ErrorEventInit event_init = {};
+    Bindings::ErrorEventInit event_init = {};
     event_init.filename = error_info.filename;
     event_init.message = error_info.message;
     event_init.lineno = error_info.lineno;
@@ -991,7 +991,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
 
     // Note: We create the Event in this algorithm instead of passing it in,
     //       and have all the following "initialize" steps set up the event init
-    NavigateEventInit event_init = {};
+    Bindings::NavigateEventInit event_init = {};
 
     // 9.  If document can have its URL rewritten to destination's URL,
     //     and either destination's is same document is true or navigationType is not "traverse",
@@ -1259,7 +1259,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
 
                 // 8. Fire an event named navigateerror at navigation using ErrorEvent,with additional attributes
                 //    initialized according to errorInfo.
-                ErrorEventInit event_init = {};
+                Bindings::ErrorEventInit event_init = {};
                 event_init.message = error_info.message;
                 event_init.filename = error_info.filename;
                 event_init.lineno = error_info.lineno;
@@ -1543,7 +1543,7 @@ void Navigation::update_the_navigation_api_entries_for_a_same_document_navigatio
 
     // 10. Fire an event named currententrychange at navigation using NavigationCurrentEntryChangeEvent,
     //     with its navigationType attribute initialized to navigationType and its from initialized to oldCurrentNHE.
-    NavigationCurrentEntryChangeEventInit event_init = {};
+    Bindings::NavigationCurrentEntryChangeEventInit event_init = {};
     event_init.navigation_type = navigation_type;
     event_init.from = old_current_nhe;
     dispatch_event(NavigationCurrentEntryChangeEvent::construct_impl(realm, EventNames::currententrychange, event_init));

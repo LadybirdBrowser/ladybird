@@ -12,30 +12,8 @@
 
 namespace Web::HTML {
 
-// https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigateeventinit
-struct NavigateEventInit : public DOM::EventInit {
-    Bindings::NavigationType navigation_type = Bindings::NavigationType::Push;
-    GC::Ptr<NavigationDestination> destination;
-    bool can_intercept = false;
-    bool user_initiated = false;
-    bool hash_change = false;
-    GC::Ptr<DOM::AbortSignal> signal;
-    GC::Ptr<XHR::FormData> form_data = nullptr;
-    Optional<String> download_request = {};
-    Optional<JS::Value> info;
-    bool has_ua_visual_transition = false;
-    GC::Ptr<DOM::Element> source_element = nullptr;
-};
-
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigationintercepthandler
 using NavigationInterceptHandler = GC::Ref<WebIDL::CallbackType>;
-
-// https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigationinterceptoptions
-struct NavigationInterceptOptions {
-    GC::Ptr<WebIDL::CallbackType> handler;
-    Optional<Bindings::NavigationFocusReset> focus_reset;
-    Optional<Bindings::NavigationScrollBehavior> scroll;
-};
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigateevent
 class NavigateEvent : public DOM::Event {
@@ -52,8 +30,8 @@ public:
         Finished
     };
 
-    [[nodiscard]] static GC::Ref<NavigateEvent> create(JS::Realm&, FlyString const& event_name, NavigateEventInit const&);
-    [[nodiscard]] static GC::Ref<NavigateEvent> construct_impl(JS::Realm&, FlyString const& event_name, NavigateEventInit const&);
+    [[nodiscard]] static GC::Ref<NavigateEvent> create(JS::Realm&, FlyString const& event_name, Bindings::NavigateEventInit const&);
+    [[nodiscard]] static GC::Ref<NavigateEvent> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::NavigateEventInit const&);
 
     // The navigationType, destination, canIntercept, userInitiated, hashChange, signal, formData, downloadRequest,
     // info, hasUAVisualTransition, and sourceElement attributes must return the values they are initialized to.
@@ -69,7 +47,7 @@ public:
     bool has_ua_visual_transition() const { return m_has_ua_visual_transition; }
     GC::Ptr<DOM::Element> source_element() const { return m_source_element; }
 
-    WebIDL::ExceptionOr<void> intercept(NavigationInterceptOptions const&);
+    WebIDL::ExceptionOr<void> intercept(Bindings::NavigationInterceptOptions const&);
     WebIDL::ExceptionOr<void> scroll();
 
     virtual ~NavigateEvent() override;
@@ -86,7 +64,7 @@ public:
     void finish(bool did_fulfill);
 
 private:
-    NavigateEvent(JS::Realm&, FlyString const& event_name, NavigateEventInit const& event_init);
+    NavigateEvent(JS::Realm&, FlyString const& event_name, Bindings::NavigateEventInit const& event_init);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

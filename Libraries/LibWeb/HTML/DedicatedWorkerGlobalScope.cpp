@@ -49,7 +49,7 @@ void DedicatedWorkerGlobalScope::finalize()
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-dedicatedworkerglobalscope-postmessage-options
-WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Value message, StructuredSerializeOptions const& options)
+WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Value message, Bindings::StructuredSerializeOptions const& options)
 {
     // The postMessage(message, transfer) and postMessage(message, options) methods on DedicatedWorkerGlobalScope objects act as if,
     // when invoked, it immediately invoked the respective postMessage(message, transfer) and postMessage(message, options)

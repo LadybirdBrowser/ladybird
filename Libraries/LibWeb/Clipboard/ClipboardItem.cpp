@@ -16,7 +16,7 @@ namespace Web::Clipboard {
 GC_DEFINE_ALLOCATOR(ClipboardItem);
 
 // https://w3c.github.io/clipboard-apis/#dom-clipboarditem-clipboarditem
-WebIDL::ExceptionOr<GC::Ref<ClipboardItem>> ClipboardItem::construct_impl(JS::Realm& realm, OrderedHashMap<String, GC::Root<WebIDL::Promise>> const& items, ClipboardItemOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<ClipboardItem>> ClipboardItem::construct_impl(JS::Realm& realm, OrderedHashMap<String, GC::Root<WebIDL::Promise>> const& items, Bindings::ClipboardItemOptions const& options)
 {
     // 1. If items is empty, then throw a TypeError.
     if (items.is_empty())

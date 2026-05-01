@@ -29,7 +29,7 @@ static Wasm::ValueType table_kind_to_value_type(Bindings::TableKind kind)
     VERIFY_NOT_REACHED();
 }
 
-WebIDL::ExceptionOr<GC::Ref<Table>> Table::construct_impl(JS::Realm& realm, TableDescriptor& descriptor, JS::Value value)
+WebIDL::ExceptionOr<GC::Ref<Table>> Table::construct_impl(JS::Realm& realm, Bindings::TableDescriptor& descriptor, JS::Value value)
 {
     auto& vm = realm.vm();
 

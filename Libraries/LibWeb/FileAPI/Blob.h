@@ -21,13 +21,8 @@ using BlobPart = Variant<GC::Root<WebIDL::BufferSource>, GC::Root<Blob>, String>
 using BlobParts = Vector<BlobPart>;
 using BlobPartsOrByteBuffer = Variant<BlobParts, ByteBuffer>;
 
-struct BlobPropertyBag {
-    String type = String {};
-    Bindings::EndingType endings;
-};
-
 [[nodiscard]] ErrorOr<String> convert_line_endings_to_native(StringView string);
-[[nodiscard]] ErrorOr<ByteBuffer> process_blob_parts(BlobParts const& blob_parts, Optional<BlobPropertyBag> const& options = {});
+[[nodiscard]] ErrorOr<ByteBuffer> process_blob_parts(BlobParts const& blob_parts, Optional<Bindings::BlobPropertyBag> const& options = {});
 [[nodiscard]] bool is_basic_latin(StringView view);
 
 class WEB_API Blob
@@ -40,8 +35,8 @@ public:
     virtual ~Blob() override;
 
     [[nodiscard]] static GC::Ref<Blob> create(JS::Realm&, ByteBuffer, String type);
-    [[nodiscard]] static GC::Ref<Blob> create(JS::Realm&, Optional<BlobPartsOrByteBuffer> const& blob_parts_or_byte_buffer = {}, Optional<BlobPropertyBag> const& options = {});
-    static WebIDL::ExceptionOr<GC::Ref<Blob>> construct_impl(JS::Realm&, Optional<BlobParts> const& blob_parts = {}, Optional<BlobPropertyBag> const& options = {});
+    [[nodiscard]] static GC::Ref<Blob> create(JS::Realm&, Optional<BlobPartsOrByteBuffer> const& blob_parts_or_byte_buffer = {}, Optional<Bindings::BlobPropertyBag> const& options = {});
+    static WebIDL::ExceptionOr<GC::Ref<Blob>> construct_impl(JS::Realm&, Optional<BlobParts> const& blob_parts = {}, Optional<Bindings::BlobPropertyBag> const& options = {});
 
     // https://w3c.github.io/FileAPI/#dfn-size
     u64 size() const { return m_byte_buffer.size(); }

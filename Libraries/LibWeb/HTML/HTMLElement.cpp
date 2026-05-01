@@ -1197,10 +1197,10 @@ WebIDL::ExceptionOr<bool> HTMLElement::check_popover_validity(ExpectedToBeShowin
 }
 
 // https://html.spec.whatwg.org/multipage/popover.html#dom-showpopover
-WebIDL::ExceptionOr<void> HTMLElement::show_popover_for_bindings(ShowPopoverOptions const& options)
+WebIDL::ExceptionOr<void> HTMLElement::show_popover_for_bindings(Bindings::ShowPopoverOptions const& options)
 {
     // 1. Let source be options["source"] if it exists; otherwise, null.
-    auto source = options.source;
+    auto source = options.source.has_value() ? GC::Ptr<HTMLElement> { options.source->ptr() } : GC::Ptr<HTMLElement> {};
     // 2. Run show popover given this, true, and source.
     return show_popover(ThrowExceptions::Yes, source);
 }
@@ -1242,11 +1242,11 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
     //    initialized to true, the oldState attribute initialized to "closed", the newState attribute initialized to
     //    "open" at element, and the source attribute initialized to source at element is false,
     //    then run cleanupShowingFlag and return.
-    ToggleEventInit event_init {};
+    Bindings::ToggleEventInit event_init {};
     event_init.old_state = "closed"_string;
     event_init.new_state = "open"_string;
     event_init.cancelable = true;
-    event_init.source = source;
+    event_init.source = GC::make_root<DOM::Element>(source.ptr());
     if (!dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::beforetoggle, move(event_init)))) {
         cleanup_showing_flag();
         return {};
@@ -1482,10 +1482,10 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
     if (fire_events == FireEvents::Yes) {
         // 1. Fire an event named beforetoggle, using ToggleEvent, with the oldState attribute initialized to "open",
         //    the newState attribute initialized to "closed", and the source attribute set to source at element.
-        ToggleEventInit event_init {};
+        Bindings::ToggleEventInit event_init {};
         event_init.old_state = "open"_string;
         event_init.new_state = "closed"_string;
-        event_init.source = source;
+        event_init.source = GC::make_root<DOM::Element>(source.ptr());
         dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::beforetoggle, move(event_init)));
 
         // 2. If autoPopoverListContainsElement is true and document's showing auto popover list's last item is not
@@ -1570,11 +1570,12 @@ WebIDL::ExceptionOr<bool> HTMLElement::toggle_popover(TogglePopoverOptionsOrForc
         [&force](bool forceBool) {
             force = forceBool;
         },
-        [&force, &source](TogglePopoverOptions options) {
+        [&force, &source](Bindings::TogglePopoverOptions options) {
             // 3. Otherwise, if options["force"] exists, set force to options["force"].
             force = options.force;
             // 4. Let source be options["source"] if it exists; otherwise, null.
-            source = options.source;
+            if (options.source.has_value())
+                source = options.source->ptr();
         });
 
     // 5. If this's popover visibility state is showing, and force is null or false, then run the hide popover algorithm given this, true, true, true, false, and null.
@@ -1883,10 +1884,10 @@ void HTMLElement::queue_a_popover_toggle_event_task(String old_state, String new
     auto task_id = queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, old_state, new_state = move(new_state), source]() mutable {
         // 1. Fire an event named toggle at element, using ToggleEvent, with the oldState attribute initialized to
         //    oldState, the newState attribute initialized to newState, and the source attribute initialized to source.
-        ToggleEventInit event_init {};
+        Bindings::ToggleEventInit event_init {};
         event_init.old_state = move(old_state);
         event_init.new_state = move(new_state);
-        event_init.source = source;
+        event_init.source = GC::make_root<DOM::Element>(source.ptr());
 
         dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::toggle, move(event_init)));
 

@@ -45,12 +45,12 @@ void CookieStore::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://cookiestore.spec.whatwg.org/#create-a-cookielistitem
-static CookieListItem create_a_cookie_list_item(HTTP::Cookie::Cookie const& cookie)
+static Bindings::CookieListItem create_a_cookie_list_item(HTTP::Cookie::Cookie const& cookie)
 {
     // 1. Let name be the result of running UTF-8 decode without BOM on cookie’s name.
     // 2. Let value be the result of running UTF-8 decode without BOM on cookie’s value.
     // 3. Return «[ "name" → name, "value" → value ]»
-    return CookieListItem {
+    return Bindings::CookieListItem {
         .name = cookie.name,
         .value = cookie.value,
     };
@@ -64,7 +64,7 @@ static String normalize(String const& input)
 }
 
 // https://cookiestore.spec.whatwg.org/#query-cookies
-static Vector<CookieListItem> query_cookies(PageClient& client, URL::URL const& url, Optional<String> const& name)
+static Vector<Bindings::CookieListItem> query_cookies(PageClient& client, URL::URL const& url, Optional<String> const& name)
 {
     // 1. Perform the steps defined in Cookies § Retrieval Model to compute the "cookie-string from a given cookie store"
     //    with url as request-uri. The cookie-string itself is ignored, but the intermediate cookie-list is used in subsequent steps.
@@ -72,7 +72,7 @@ static Vector<CookieListItem> query_cookies(PageClient& client, URL::URL const& 
     auto cookie_list = client.page_did_request_all_cookies_cookiestore(url);
 
     // 2. Let list be a new list.
-    Vector<CookieListItem> list;
+    Vector<Bindings::CookieListItem> list;
 
     // 3. For each cookie in cookie-list, run these steps:
     for (auto const& cookie : cookie_list) {
@@ -147,7 +147,7 @@ GC::Ref<WebIDL::Promise> CookieStore::get(String name)
 }
 
 // https://cookiestore.spec.whatwg.org/#dom-cookiestore-get-options
-GC::Ref<WebIDL::Promise> CookieStore::get(CookieStoreGetOptions const& options)
+GC::Ref<WebIDL::Promise> CookieStore::get(Bindings::CookieStoreGetOptions const& options)
 {
     auto& realm = this->realm();
 
@@ -218,9 +218,9 @@ GC::Ref<WebIDL::Promise> CookieStore::get(CookieStoreGetOptions const& options)
     return promise;
 }
 
-static JS::Value cookie_list_to_value(JS::Realm& realm, Vector<CookieListItem> const& cookie_list)
+static JS::Value cookie_list_to_value(JS::Realm& realm, Vector<Bindings::CookieListItem> const& cookie_list)
 {
-    return JS::Array::create_from<CookieListItem>(realm, cookie_list, [&](auto const& cookie) {
+    return JS::Array::create_from<Bindings::CookieListItem>(realm, cookie_list, [&](auto const& cookie) {
         return Bindings::cookie_list_item_to_value(realm, cookie);
     });
 }
@@ -267,7 +267,7 @@ GC::Ref<WebIDL::Promise> CookieStore::get_all(String name)
 }
 
 // https://cookiestore.spec.whatwg.org/#dom-cookiestore-getall-options
-GC::Ref<WebIDL::Promise> CookieStore::get_all(CookieStoreGetOptions const& options)
+GC::Ref<WebIDL::Promise> CookieStore::get_all(Bindings::CookieStoreGetOptions const& options)
 {
     auto& realm = this->realm();
 
@@ -576,7 +576,7 @@ GC::Ref<WebIDL::Promise> CookieStore::set(String name, String value)
 }
 
 // https://cookiestore.spec.whatwg.org/#dom-cookiestore-set-options
-GC::Ref<WebIDL::Promise> CookieStore::set(CookieInit const& options)
+GC::Ref<WebIDL::Promise> CookieStore::set(Bindings::CookieInit const& options)
 {
     auto& realm = this->realm();
 
@@ -684,7 +684,7 @@ GC::Ref<WebIDL::Promise> CookieStore::delete_(String name)
 }
 
 // https://cookiestore.spec.whatwg.org/#dom-cookiestore-delete-options
-GC::Ref<WebIDL::Promise> CookieStore::delete_(CookieStoreDeleteOptions const& options)
+GC::Ref<WebIDL::Promise> CookieStore::delete_(Bindings::CookieStoreDeleteOptions const& options)
 {
     auto& realm = this->realm();
 
@@ -773,18 +773,18 @@ static Vector<CookieChange> observable_changes(Vector<HTTP::Cookie::Cookie> chan
 }
 
 struct PreparedLists {
-    Vector<CookieListItem> changed_list;
-    Vector<CookieListItem> deleted_list;
+    Vector<Bindings::CookieListItem> changed_list;
+    Vector<Bindings::CookieListItem> deleted_list;
 };
 
 // https://cookiestore.spec.whatwg.org/#prepare-lists
 static PreparedLists prepare_lists(Vector<CookieChange> const& changes)
 {
     // 1. Let changedList be a new list.
-    Vector<CookieListItem> changed_list;
+    Vector<Bindings::CookieListItem> changed_list;
 
     // 2. Let deletedList be a new list.
-    Vector<CookieListItem> deleted_list;
+    Vector<Bindings::CookieListItem> deleted_list;
 
     // 3. For each change in changes, run these steps:
     for (auto const& change : changes) {
@@ -829,7 +829,7 @@ void CookieStore::process_cookie_changes(Vector<HTTP::Cookie::Cookie> all_change
         // 4. Let changedList and deletedList be the result of running prepare lists from changes.
         auto [changed_list, deleted_list] = prepare_lists(changes);
 
-        CookieChangeEventInit event_init = {};
+        Bindings::CookieChangeEventInit event_init = {};
         // 5. Set event’s changed attribute to changedList.
         event_init.changed = move(changed_list);
 

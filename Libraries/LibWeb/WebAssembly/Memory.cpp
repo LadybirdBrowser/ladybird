@@ -18,7 +18,7 @@ namespace Web::WebAssembly {
 
 GC_DEFINE_ALLOCATOR(Memory);
 
-WebIDL::ExceptionOr<GC::Ref<Memory>> Memory::construct_impl(JS::Realm& realm, MemoryDescriptor& descriptor)
+WebIDL::ExceptionOr<GC::Ref<Memory>> Memory::construct_impl(JS::Realm& realm, Bindings::MemoryDescriptor& descriptor)
 {
     auto& vm = realm.vm();
 
@@ -30,7 +30,7 @@ WebIDL::ExceptionOr<GC::Ref<Memory>> Memory::construct_impl(JS::Realm& realm, Me
 
     // 4. Let share be shared if descriptor["shared"] is true and unshared otherwise.
     // 5. If share is shared and maximum is empty, throw a TypeError exception.
-    auto shared = descriptor.shared.value_or(false);
+    auto shared = descriptor.shared;
     if (shared && !descriptor.maximum.has_value())
         return vm.throw_completion<JS::TypeError>("Maximum has to be specified for shared memory."sv);
 

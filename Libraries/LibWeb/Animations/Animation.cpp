@@ -658,7 +658,7 @@ void Animation::cancel(ShouldInvalidate should_invalidate)
         // 8. Let timeline time be the current time of the timeline with which animation is associated. If animation is
         //    not associated with an active timeline, let timeline time be an unresolved time value.
         // 9. Set cancelEvent’s timelineTime to timeline time. If timeline time is unresolved, set it to null.
-        AnimationPlaybackEventInit init;
+        Bindings::AnimationPlaybackEventInit init;
         init.timeline_time = m_timeline && !m_timeline->is_inactive() ? NullableCSSNumberish { m_timeline->current_time()->as_css_numberish(realm) } : NullableCSSNumberish { Empty {} };
         auto cancel_event = AnimationPlaybackEvent::create(realm, HTML::EventNames::cancel, init);
 
@@ -1330,7 +1330,7 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
             // 6. Set finishEvent’s timelineTime attribute to the current time of the timeline with which animation is
             //    associated. If animation is not associated with a timeline, or the timeline is inactive, let
             //    timelineTime be null.
-            AnimationPlaybackEventInit init;
+            Bindings::AnimationPlaybackEventInit init;
             init.current_time = current_time()->as_css_numberish(realm);
             if (m_timeline && !m_timeline->is_inactive())
                 init.timeline_time = m_timeline->current_time()->as_css_numberish(realm);

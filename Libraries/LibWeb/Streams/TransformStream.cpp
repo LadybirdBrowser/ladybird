@@ -25,7 +25,7 @@ namespace Web::Streams {
 GC_DEFINE_ALLOCATOR(TransformStream);
 
 // https://streams.spec.whatwg.org/#ts-constructor
-WebIDL::ExceptionOr<GC::Ref<TransformStream>> TransformStream::construct_impl(JS::Realm& realm, Optional<GC::Root<JS::Object>> transformer_object, QueuingStrategy const& writable_strategy, QueuingStrategy const& readable_strategy)
+WebIDL::ExceptionOr<GC::Ref<TransformStream>> TransformStream::construct_impl(JS::Realm& realm, Optional<GC::Root<JS::Object>> transformer_object, Bindings::QueuingStrategy const& writable_strategy, Bindings::QueuingStrategy const& readable_strategy)
 {
     auto& vm = realm.vm();
 

@@ -6,6 +6,7 @@
 
 #include <LibWeb/Bindings/AudioContext.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/MediaElementAudioSourceNode.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
@@ -22,7 +23,7 @@ namespace Web::WebAudio {
 GC_DEFINE_ALLOCATOR(AudioContext);
 
 // https://webaudio.github.io/web-audio-api/#dom-audiocontext-audiocontext
-WebIDL::ExceptionOr<GC::Ref<AudioContext>> AudioContext::construct_impl(JS::Realm& realm, Optional<AudioContextOptions> const& context_options)
+WebIDL::ExceptionOr<GC::Ref<AudioContext>> AudioContext::construct_impl(JS::Realm& realm, Optional<Bindings::AudioContextOptions> const& context_options)
 {
     // If the current settings object’s responsible document is NOT fully active, throw an InvalidStateError and abort these steps.
     auto& settings = HTML::current_settings_object();
@@ -132,7 +133,7 @@ void AudioContext::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://www.w3.org/TR/webaudio/#dom-audiocontext-getoutputtimestamp
-AudioTimestamp AudioContext::get_output_timestamp()
+Bindings::AudioTimestamp AudioContext::get_output_timestamp()
 {
     dbgln("(STUBBED) getOutputTimestamp()");
     return {};
@@ -354,7 +355,7 @@ bool AudioContext::start_rendering_audio_graph()
 // https://webaudio.github.io/web-audio-api/#dom-audiocontext-createmediaelementsource
 WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> AudioContext::create_media_element_source(GC::Ptr<HTML::HTMLMediaElement> media_element)
 {
-    MediaElementAudioSourceOptions options;
+    Bindings::MediaElementAudioSourceOptions options;
     options.media_element = media_element;
     return MediaElementAudioSourceNode::create(realm(), *this, options);
 }

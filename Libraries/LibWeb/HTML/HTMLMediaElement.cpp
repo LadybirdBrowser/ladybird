@@ -678,8 +678,8 @@ GC::Ref<TextTrack> HTMLMediaElement::add_text_track(Bindings::TextTrackKind kind
     //    textTracks attribute's TextTrackList object, using TrackEvent, with the track attribute initialized to the new
     //    text track's TextTrack object.
     queue_a_media_element_task([this, text_track] {
-        TrackEventInit event_init {};
-        event_init.track = GC::make_root(text_track);
+        Bindings::TrackEventInit event_init {};
+        event_init.track = GC::Root { text_track };
 
         auto event = TrackEvent::create(this->realm(), HTML::EventNames::addtrack, move(event_init));
         m_text_tracks->dispatch_event(event);
@@ -1647,7 +1647,7 @@ void HTMLMediaElement::on_audio_track_added(Media::Track const& track)
         audio_track->set_enabled(true);
 
     // 7. Fire an event named addtrack at this AudioTrackList object, using TrackEvent, with the track attribute initialized to the new AudioTrack object.
-    TrackEventInit event_init {};
+    Bindings::TrackEventInit event_init {};
     event_init.track = GC::make_root(audio_track);
 
     auto event = TrackEvent::create(realm, EventNames::addtrack, move(event_init));
@@ -1690,7 +1690,7 @@ void HTMLMediaElement::on_video_track_added(Media::Track const& track)
         video_track->set_selected(true);
 
     // 7. Fire an event named addtrack at this VideoTrackList object, using TrackEvent, with the track attribute initialized to the new VideoTrack object.
-    TrackEventInit event_init {};
+    Bindings::TrackEventInit event_init {};
     event_init.track = GC::make_root(video_track);
 
     auto event = TrackEvent::create(realm, HTML::EventNames::addtrack, move(event_init));

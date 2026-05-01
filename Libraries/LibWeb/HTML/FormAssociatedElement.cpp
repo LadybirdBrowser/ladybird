@@ -407,7 +407,7 @@ bool FormAssociatedElement::report_validity_steps()
         // FIXME: Does this align with other browsers?
         if (report && element.check_visibility({})) {
             run_focusing_steps(&element);
-            DOM::ScrollIntoViewOptions scroll_options;
+            Bindings::ScrollIntoViewOptions scroll_options;
             scroll_options.block = Bindings::ScrollLogicalPosition::Nearest;
             scroll_options.inline_ = Bindings::ScrollLogicalPosition::Nearest;
             scroll_options.behavior = Bindings::ScrollBehavior::Instant;
@@ -592,7 +592,7 @@ bool FormAssociatedElement::suffering_from_a_custom_error() const
     return !m_custom_validity_error_message.is_empty();
 }
 
-void FormAssociatedElement::set_face_validity_flags(Badge<ElementInternals>, ValidityStateFlags const& value)
+void FormAssociatedElement::set_face_validity_flags(Badge<ElementInternals>, Bindings::ValidityStateFlags const& value)
 {
     m_face_validity_flags = value;
 }

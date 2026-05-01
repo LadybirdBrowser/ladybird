@@ -125,7 +125,7 @@ void HTMLDetailsElement::queue_a_details_toggle_event_task(String old_state, Str
     auto task_id = queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, old_state, new_state = move(new_state)]() mutable {
         // 1. Fire an event named toggle at element, using ToggleEvent, with the oldState attribute initialized to
         //    oldState and the newState attribute initialized to newState.
-        ToggleEventInit event_init {};
+        Bindings::ToggleEventInit event_init {};
         event_init.old_state = move(old_state);
         event_init.new_state = move(new_state);
 

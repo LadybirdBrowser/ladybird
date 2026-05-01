@@ -6,6 +6,7 @@
 
 #include <LibWeb/Bindings/PointerEvent.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/UIEvents/MouseButton.h>
@@ -39,7 +40,7 @@ double PointerEvent::offset_y() const { return should_have_fractional_coordinate
 
 WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::create_from_platform_event(JS::Realm& realm, GC::Ptr<HTML::WindowProxy> window_proxy, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers)
 {
-    PointerEventInit event_init {};
+    Bindings::PointerEventInit event_init {};
     event_init.ctrl_key = modifiers & Mod_Ctrl;
     event_init.shift_key = modifiers & Mod_Shift;
     event_init.alt_key = modifiers & Mod_Alt;
@@ -63,7 +64,7 @@ WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::create_from_platform_ev
     return event;
 }
 
-PointerEvent::PointerEvent(JS::Realm& realm, FlyString const& type, PointerEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y)
+PointerEvent::PointerEvent(JS::Realm& realm, FlyString const& type, Bindings::PointerEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y)
     : MouseEvent(realm, type, event_init, page_x, page_y, offset_x, offset_y)
     , m_pointer_id(event_init.pointer_id)
     , m_width(event_init.width)
@@ -105,7 +106,7 @@ void PointerEvent::visit_edges(Cell::Visitor& visitor)
 
 GC::Ref<MouseEvent> PointerEvent::clone() const
 {
-    PointerEventInit init {};
+    Bindings::PointerEventInit init {};
     init.screen_x = screen_x();
     init.screen_y = screen_y();
     init.client_x = client_x();
@@ -137,12 +138,12 @@ GC::Ref<MouseEvent> PointerEvent::clone() const
     return create(realm(), type(), init, page_x(), page_y(), offset_x(), offset_y());
 }
 
-GC::Ref<PointerEvent> PointerEvent::create(JS::Realm& realm, FlyString const& type, PointerEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y)
+GC::Ref<PointerEvent> PointerEvent::create(JS::Realm& realm, FlyString const& type, Bindings::PointerEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y)
 {
     return realm.create<PointerEvent>(realm, type, event_init, page_x, page_y, offset_x, offset_y);
 }
 
-WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::construct_impl(JS::Realm& realm, FlyString const& type, PointerEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::construct_impl(JS::Realm& realm, FlyString const& type, Bindings::PointerEventInit const& event_init)
 {
     return create(realm, type, event_init, event_init.client_x, event_init.client_y, event_init.client_x, event_init.client_y);
 }

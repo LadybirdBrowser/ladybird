@@ -105,24 +105,24 @@ Vector<GC::Root<DOMEventListener>> EventTarget::event_listener_list()
 }
 
 // https://dom.spec.whatwg.org/#concept-flatten-options
-static bool flatten_event_listener_options(Variant<EventListenerOptions, bool> const& options)
+static bool flatten_event_listener_options(Variant<Bindings::EventListenerOptions, bool> const& options)
 {
     // 1. If options is a boolean, then return options.
     if (options.has<bool>())
         return options.get<bool>();
 
     // 2. Return options["capture"].
-    return options.get<EventListenerOptions>().capture;
+    return options.get<Bindings::EventListenerOptions>().capture;
 }
 
-static bool flatten_event_listener_options(Variant<AddEventListenerOptions, bool> const& options)
+static bool flatten_event_listener_options(Variant<Bindings::AddEventListenerOptions, bool> const& options)
 {
     // 1. If options is a boolean, then return options.
     if (options.has<bool>())
         return options.get<bool>();
 
     // 2. Return options["capture"].
-    return options.get<AddEventListenerOptions>().capture;
+    return options.get<Bindings::AddEventListenerOptions>().capture;
 }
 
 struct FlattenedAddEventListenerOptions {
@@ -133,7 +133,7 @@ struct FlattenedAddEventListenerOptions {
 };
 
 // https://dom.spec.whatwg.org/#event-flatten-more
-static FlattenedAddEventListenerOptions flatten_add_event_listener_options(Variant<AddEventListenerOptions, bool> const& options)
+static FlattenedAddEventListenerOptions flatten_add_event_listener_options(Variant<Bindings::AddEventListenerOptions, bool> const& options)
 {
     // 1. Let capture be the result of flattening options.
     bool capture = flatten_event_listener_options(options);
@@ -146,8 +146,8 @@ static FlattenedAddEventListenerOptions flatten_add_event_listener_options(Varia
     GC::Ptr<AbortSignal> signal;
 
     // 4. If options is a dictionary, then:
-    if (options.has<AddEventListenerOptions>()) {
-        auto const& add_event_listener_options = options.get<AddEventListenerOptions>();
+    if (options.has<Bindings::AddEventListenerOptions>()) {
+        auto const& add_event_listener_options = options.get<Bindings::AddEventListenerOptions>();
 
         // 1. Set once to options["once"].
         once = add_event_listener_options.once;
@@ -157,8 +157,8 @@ static FlattenedAddEventListenerOptions flatten_add_event_listener_options(Varia
             passive = add_event_listener_options.passive;
 
         // 3. If options["signal"] exists, then set signal to options["signal"].
-        if (add_event_listener_options.signal)
-            signal = add_event_listener_options.signal;
+        if (add_event_listener_options.signal.has_value())
+            signal = add_event_listener_options.signal->ptr();
     }
 
     // 5. Return capture, passive, once, and signal.
@@ -187,7 +187,7 @@ static bool default_passive_value(FlyString const& type, EventTarget* event_targ
 }
 
 // https://dom.spec.whatwg.org/#dom-eventtarget-addeventlistener
-void EventTarget::add_event_listener(FlyString const& type, IDLEventListener* callback, Variant<AddEventListenerOptions, bool> const& options)
+void EventTarget::add_event_listener(FlyString const& type, IDLEventListener* callback, Variant<Bindings::AddEventListenerOptions, bool> const& options)
 {
     // 1. Let capture, passive, once, and signal be the result of flattening more options.
     auto flattened_options = flatten_add_event_listener_options(options);
@@ -207,7 +207,7 @@ void EventTarget::add_event_listener(FlyString const& type, IDLEventListener* ca
 
 void EventTarget::add_event_listener_without_options(FlyString const& type, IDLEventListener& callback)
 {
-    add_event_listener(type, &callback, AddEventListenerOptions {});
+    add_event_listener(type, &callback, Bindings::AddEventListenerOptions {});
 }
 
 // https://dom.spec.whatwg.org/#add-an-event-listener
@@ -253,7 +253,7 @@ void EventTarget::add_an_event_listener(DOMEventListener& listener)
 }
 
 // https://dom.spec.whatwg.org/#dom-eventtarget-removeeventlistener
-void EventTarget::remove_event_listener(FlyString const& type, IDLEventListener* callback, Variant<EventListenerOptions, bool> const& options)
+void EventTarget::remove_event_listener(FlyString const& type, IDLEventListener* callback, Variant<Bindings::EventListenerOptions, bool> const& options)
 {
     auto& event_listener_list = ensure_data().event_listener_list;
 
@@ -280,7 +280,7 @@ void EventTarget::remove_event_listener(FlyString const& type, IDLEventListener*
 
 void EventTarget::remove_event_listener_without_options(FlyString const& type, IDLEventListener& callback)
 {
-    remove_event_listener(type, &callback, EventListenerOptions {});
+    remove_event_listener(type, &callback, Bindings::EventListenerOptions {});
 }
 
 // https://dom.spec.whatwg.org/#remove-an-event-listener

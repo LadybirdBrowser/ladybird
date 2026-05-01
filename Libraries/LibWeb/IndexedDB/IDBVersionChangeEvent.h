@@ -7,15 +7,11 @@
 #pragma once
 
 #include <LibGC/Ptr.h>
+#include <LibWeb/Bindings/IDBVersionChangeEvent.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::IndexedDB {
-
-struct IDBVersionChangeEventInit : public DOM::EventInit {
-    u64 old_version { 0 };
-    Optional<u64> new_version;
-};
 
 // https://w3c.github.io/IndexedDB/#events
 class IDBVersionChangeEvent : public DOM::Event {
@@ -25,13 +21,13 @@ class IDBVersionChangeEvent : public DOM::Event {
 public:
     virtual ~IDBVersionChangeEvent() override;
 
-    static GC::Ref<IDBVersionChangeEvent> create(JS::Realm&, FlyString const&, IDBVersionChangeEventInit const&);
+    static GC::Ref<IDBVersionChangeEvent> create(JS::Realm&, FlyString const&, Bindings::IDBVersionChangeEventInit const&);
 
     u64 old_version() const { return m_old_version; }
     Optional<u64> new_version() const { return m_new_version; }
 
 protected:
-    explicit IDBVersionChangeEvent(JS::Realm&, FlyString const& event_name, IDBVersionChangeEventInit const& event_init);
+    explicit IDBVersionChangeEvent(JS::Realm&, FlyString const& event_name, Bindings::IDBVersionChangeEventInit const& event_init);
 
     virtual void initialize(JS::Realm&) override;
 

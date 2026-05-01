@@ -8,25 +8,20 @@
 
 #include <AK/FlyString.h>
 #include <AK/String.h>
+#include <LibWeb/Bindings/ToggleEvent.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Utils.h>
 
 namespace Web::HTML {
 
-struct ToggleEventInit : public DOM::EventInit {
-    String old_state;
-    String new_state;
-    GC::Ptr<DOM::Element> source;
-};
-
 class ToggleEvent : public DOM::Event {
     WEB_PLATFORM_OBJECT(ToggleEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(ToggleEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<ToggleEvent> create(JS::Realm&, FlyString const& event_name, ToggleEventInit = {});
-    static WebIDL::ExceptionOr<GC::Ref<ToggleEvent>> construct_impl(JS::Realm&, FlyString const& event_name, ToggleEventInit);
+    [[nodiscard]] static GC::Ref<ToggleEvent> create(JS::Realm&, FlyString const& event_name, Bindings::ToggleEventInit const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<ToggleEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::ToggleEventInit const&);
 
     // https://html.spec.whatwg.org/multipage/interaction.html#dom-toggleevent-oldstate
     String const& old_state() const { return m_old_state; }
@@ -44,7 +39,7 @@ public:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
-    ToggleEvent(JS::Realm&, FlyString const& event_name, ToggleEventInit event_init);
+    ToggleEvent(JS::Realm&, FlyString const& event_name, Bindings::ToggleEventInit const&);
 
     virtual void initialize(JS::Realm&) override;
 

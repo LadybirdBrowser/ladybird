@@ -79,7 +79,7 @@ GC::Ref<WebIDL::Promise> XRSystem::is_session_supported(Bindings::XRSessionMode 
 }
 
 // https://immersive-web.github.io/webxr/#dom-xrsystem-requestsession
-GC::Ref<WebIDL::Promise> XRSystem::request_session(Bindings::XRSessionMode mode, XRSessionInit options)
+GC::Ref<WebIDL::Promise> XRSystem::request_session(Bindings::XRSessionMode mode, Bindings::XRSessionInit const& options)
 {
     // 1. Let promise be a new Promise in the relevant realm of this XRSystem.
     auto& realm = HTML::relevant_realm(*this);

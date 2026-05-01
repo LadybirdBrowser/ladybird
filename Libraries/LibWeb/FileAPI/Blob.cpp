@@ -30,9 +30,9 @@ GC_DEFINE_ALLOCATOR(Blob);
 
 GC::Ref<Blob> Blob::create(JS::Realm& realm, ByteBuffer byte_buffer, String type)
 {
-    BlobPropertyBag options = {
+    Bindings::BlobPropertyBag options = {
+        .endings = Bindings::EndingType::Transparent,
         .type = move(type),
-        .endings = Bindings::EndingType::Transparent
     };
     return create(realm, move(byte_buffer), move(options));
 }
@@ -85,7 +85,7 @@ ErrorOr<String> convert_line_endings_to_native(StringView string)
 }
 
 // https://w3c.github.io/FileAPI/#process-blob-parts
-ErrorOr<ByteBuffer> process_blob_parts(BlobParts const& blob_parts, Optional<BlobPropertyBag> const& options)
+ErrorOr<ByteBuffer> process_blob_parts(BlobParts const& blob_parts, Optional<Bindings::BlobPropertyBag> const& options)
 {
     // 1. Let bytes be an empty sequence of bytes.
     ByteBuffer bytes {};
@@ -186,7 +186,7 @@ WebIDL::ExceptionOr<void> Blob::deserialization_steps(HTML::TransferDataDecoder&
 }
 
 // https://w3c.github.io/FileAPI/#ref-for-dom-blob-blob
-GC::Ref<Blob> Blob::create(JS::Realm& realm, Optional<BlobPartsOrByteBuffer> const& blob_parts_or_byte_buffer, Optional<BlobPropertyBag> const& options)
+GC::Ref<Blob> Blob::create(JS::Realm& realm, Optional<BlobPartsOrByteBuffer> const& blob_parts_or_byte_buffer, Optional<Bindings::BlobPropertyBag> const& options)
 {
     // 1. If invoked with zero parameters, return a new Blob object consisting of 0 bytes, with size set to 0, and with type set to the empty string.
     if (!blob_parts_or_byte_buffer.has_value() && !options.has_value())
@@ -221,7 +221,7 @@ GC::Ref<Blob> Blob::create(JS::Realm& realm, Optional<BlobPartsOrByteBuffer> con
     return realm.create<Blob>(realm, move(byte_buffer), move(type));
 }
 
-WebIDL::ExceptionOr<GC::Ref<Blob>> Blob::construct_impl(JS::Realm& realm, Optional<BlobParts> const& blob_parts, Optional<BlobPropertyBag> const& options)
+WebIDL::ExceptionOr<GC::Ref<Blob>> Blob::construct_impl(JS::Realm& realm, Optional<BlobParts> const& blob_parts, Optional<Bindings::BlobPropertyBag> const& options)
 {
     return create(realm, blob_parts.has_value() ? blob_parts.value() : Optional<BlobPartsOrByteBuffer> {}, options);
 }

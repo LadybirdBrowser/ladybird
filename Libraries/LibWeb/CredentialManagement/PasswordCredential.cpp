@@ -23,7 +23,7 @@ WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> PasswordCredential::construct_i
 }
 
 // https://www.w3.org/TR/credential-management-1/#dom-passwordcredential-passwordcredential-data
-WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> PasswordCredential::construct_impl(JS::Realm& realm, PasswordCredentialData const& data)
+WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> PasswordCredential::construct_impl(JS::Realm& realm, Bindings::PasswordCredentialData const& data)
 {
     // AD-HOC: Let origin be the current settings object's origin.
     auto origin = HTML::current_settings_object().origin();
@@ -37,7 +37,7 @@ PasswordCredential::~PasswordCredential()
 {
 }
 
-PasswordCredential::PasswordCredential(JS::Realm& realm, PasswordCredentialData const& data, URL::Origin origin)
+PasswordCredential::PasswordCredential(JS::Realm& realm, Bindings::PasswordCredentialData const& data, URL::Origin origin)
     : Credential(realm, data.id)
     , CredentialUserData(data.name.value_or(String {}), data.icon_url.value_or(String {}))
     , m_password(data.password)

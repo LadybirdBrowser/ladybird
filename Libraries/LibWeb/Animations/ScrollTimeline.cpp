@@ -26,7 +26,7 @@ GC::Ref<ScrollTimeline> ScrollTimeline::create(JS::Realm& realm, DOM::Document& 
 }
 
 // https://drafts.csswg.org/scroll-animations-1/#dom-scrolltimeline-scrolltimeline
-GC::Ref<ScrollTimeline> ScrollTimeline::construct_impl(JS::Realm& realm, ScrollTimelineOptions options)
+GC::Ref<ScrollTimeline> ScrollTimeline::construct_impl(JS::Realm& realm, Bindings::ScrollTimelineOptions options)
 {
     auto& document = as<HTML::Window>(realm.global_object()).associated_document();
 
@@ -36,7 +36,7 @@ GC::Ref<ScrollTimeline> ScrollTimeline::construct_impl(JS::Realm& realm, ScrollT
         // If the source member of options is present,
         // The source member of options.
         if (options.source.has_value())
-            return options.source.value();
+            return options.source.value().ptr();
 
         // Otherwise,
         // The scrollingElement of the Document associated with the Window that is the current global object.

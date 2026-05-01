@@ -14,9 +14,9 @@
 #include <LibGC/Forward.h>
 #include <LibGC/Root.h>
 #include <LibJS/Forward.h>
+#include <LibWeb/Bindings/MediaStreamConstraints.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/IDLEventListener.h>
-#include <LibWeb/MediaCapture/MediaStreamConstraints.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::MediaCapture {
@@ -34,8 +34,8 @@ public:
     [[nodiscard]] static GC::Ref<MediaDevices> create(JS::Realm&);
 
     GC::Ref<WebIDL::Promise> enumerate_devices();
-    MediaTrackSupportedConstraints get_supported_constraints();
-    GC::Ref<WebIDL::Promise> get_user_media(Optional<MediaStreamConstraints> const& constraints = {});
+    Bindings::MediaTrackSupportedConstraints get_supported_constraints();
+    GC::Ref<WebIDL::Promise> get_user_media(Optional<Bindings::MediaStreamConstraints> const& constraints = {});
 
     void set_ondevicechange(WebIDL::CallbackType* event_handler);
     WebIDL::CallbackType* ondevicechange();

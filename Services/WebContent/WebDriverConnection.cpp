@@ -129,7 +129,7 @@ static Gfx::IntRect compute_window_rect(Web::Page const& page)
 static void scroll_element_into_view(Web::DOM::Element& element)
 {
     // 1. Let options be the following ScrollIntoViewOptions:
-    Web::DOM::ScrollIntoViewOptions options {};
+    Web::Bindings::ScrollIntoViewOptions options {};
     // "behavior"
     //     "instant"
     options.behavior = Web::Bindings::ScrollBehavior::Instant;

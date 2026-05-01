@@ -13,18 +13,18 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(FontFaceSetLoadEvent);
 
-GC::Ref<FontFaceSetLoadEvent> FontFaceSetLoadEvent::create(JS::Realm& realm, FlyString const& event_name, FontFaceSetLoadEventInit const& event_init)
+GC::Ref<FontFaceSetLoadEvent> FontFaceSetLoadEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::FontFaceSetLoadEventInit const& event_init)
 {
     return realm.create<FontFaceSetLoadEvent>(realm, event_name, event_init);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontfacesetloadevent-fontfacesetloadevent
-WebIDL::ExceptionOr<GC::Ref<FontFaceSetLoadEvent>> FontFaceSetLoadEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, FontFaceSetLoadEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<FontFaceSetLoadEvent>> FontFaceSetLoadEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::FontFaceSetLoadEventInit const& event_init)
 {
     return create(realm, event_name, event_init);
 }
 
-FontFaceSetLoadEvent::FontFaceSetLoadEvent(JS::Realm& realm, FlyString const& event_name, CSS::FontFaceSetLoadEventInit const& event_init)
+FontFaceSetLoadEvent::FontFaceSetLoadEvent(JS::Realm& realm, FlyString const& event_name, Bindings::FontFaceSetLoadEventInit const& event_init)
     : DOM::Event(realm, event_name, event_init)
 {
     m_fontfaces.ensure_capacity(event_init.fontfaces.size());

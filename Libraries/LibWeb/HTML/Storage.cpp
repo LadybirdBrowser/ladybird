@@ -243,7 +243,7 @@ void Storage::broadcast(Optional<String> const& key, Optional<String> const& old
     //    remoteStorage.
     for (auto remote_storage : remote_storages) {
         queue_global_task(Task::Source::DOMManipulation, relevant_global, GC::create_function(heap(), [&realm, key, old_value, new_value, url, remote_storage] {
-            StorageEventInit init;
+            Bindings::StorageEventInit init;
             init.key = move(key);
             init.old_value = move(old_value);
             init.new_value = move(new_value);

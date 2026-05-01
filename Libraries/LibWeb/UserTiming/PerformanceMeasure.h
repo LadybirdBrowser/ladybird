@@ -10,14 +10,6 @@
 
 namespace Web::UserTiming {
 
-// https://w3c.github.io/user-timing/#dom-performancemeasureoptions
-struct PerformanceMeasureOptions {
-    JS::Value detail { JS::js_undefined() };
-    Optional<Variant<String, HighResolutionTime::DOMHighResTimeStamp>> start;
-    Optional<HighResolutionTime::DOMHighResTimeStamp> duration;
-    Optional<Variant<String, HighResolutionTime::DOMHighResTimeStamp>> end;
-};
-
 // https://w3c.github.io/user-timing/#dom-performancemeasure
 class PerformanceMeasure final : public PerformanceTimeline::PerformanceEntry {
     WEB_PLATFORM_OBJECT(PerformanceMeasure, PerformanceTimeline::PerformanceEntry);
@@ -39,7 +31,7 @@ public:
     static Optional<u64> max_buffer_size() { return OptionalNone {}; }
 
     // https://w3c.github.io/timing-entrytypes-registry/#dfn-should-add-entry
-    virtual PerformanceTimeline::ShouldAddEntry should_add_entry(Optional<PerformanceTimeline::PerformanceObserverInit const&> = {}) const override { return PerformanceTimeline::ShouldAddEntry::Yes; }
+    virtual PerformanceTimeline::ShouldAddEntry should_add_entry(Optional<Bindings::PerformanceObserverInit const&> = {}) const override { return PerformanceTimeline::ShouldAddEntry::Yes; }
 
     virtual FlyString const& entry_type() const override;
 

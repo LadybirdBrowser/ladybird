@@ -15,12 +15,12 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(NavigationCurrentEntryChangeEvent);
 
-GC::Ref<NavigationCurrentEntryChangeEvent> NavigationCurrentEntryChangeEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, NavigationCurrentEntryChangeEventInit const& event_init)
+GC::Ref<NavigationCurrentEntryChangeEvent> NavigationCurrentEntryChangeEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::NavigationCurrentEntryChangeEventInit const& event_init)
 {
     return realm.create<NavigationCurrentEntryChangeEvent>(realm, event_name, event_init);
 }
 
-NavigationCurrentEntryChangeEvent::NavigationCurrentEntryChangeEvent(JS::Realm& realm, FlyString const& event_name, NavigationCurrentEntryChangeEventInit const& event_init)
+NavigationCurrentEntryChangeEvent::NavigationCurrentEntryChangeEvent(JS::Realm& realm, FlyString const& event_name, Bindings::NavigationCurrentEntryChangeEventInit const& event_init)
     : DOM::Event(realm, event_name, event_init)
     , m_navigation_type(event_init.navigation_type)
     , m_from(*event_init.from)

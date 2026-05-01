@@ -24,7 +24,7 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(WorkerAgentParent);
 
-WorkerAgentParent::WorkerAgentParent(URL::URL url, WorkerOptions const& options, GC::Ptr<MessagePort> outside_port, GC::Ref<EnvironmentSettingsObject> outside_settings, GC::Ref<DOM::EventTarget> worker_event_target, Bindings::AgentType agent_type)
+WorkerAgentParent::WorkerAgentParent(URL::URL url, Bindings::WorkerOptions const& options, GC::Ptr<MessagePort> outside_port, GC::Ref<EnvironmentSettingsObject> outside_settings, GC::Ref<DOM::EventTarget> worker_event_target, Bindings::AgentType agent_type)
     : m_worker_options(options)
     , m_agent_type(agent_type)
     , m_url(move(url))
@@ -98,7 +98,7 @@ void WorkerAgentParent::setup_worker_ipc_callbacks(JS::Realm& realm)
 
             // 2. Set notHandled to the result of firing an event named error at workerObject, using ErrorEvent, with the
             //    cancelable attribute initialized to true, and additional attributes initialized according to errorInfo.
-            ErrorEventInit event_init {};
+            Bindings::ErrorEventInit event_init {};
             event_init.cancelable = true;
             event_init.message = message;
             event_init.filename = filename;

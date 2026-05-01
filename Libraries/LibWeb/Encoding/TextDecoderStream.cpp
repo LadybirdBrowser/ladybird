@@ -12,6 +12,7 @@
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/TextDecoder.h>
 #include <LibWeb/Bindings/TextDecoderStream.h>
 #include <LibWeb/Encoding/TextDecoderStream.h>
 #include <LibWeb/Streams/TransformStream.h>
@@ -68,7 +69,7 @@ static size_t find_utf8_safe_decode_boundary(ReadonlyBytes bytes)
 }
 
 // https://encoding.spec.whatwg.org/#dom-textdecoderstream
-WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> TextDecoderStream::construct_impl(JS::Realm& realm, FlyString label, TextDecoderOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> TextDecoderStream::construct_impl(JS::Realm& realm, FlyString label, Bindings::TextDecoderOptions const& options)
 {
     // 1. Let encoding be the result of getting an encoding from label.
     auto encoding = TextCodec::get_standardized_encoding(label);

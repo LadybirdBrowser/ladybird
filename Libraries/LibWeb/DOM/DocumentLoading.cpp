@@ -423,7 +423,7 @@ static GC::Ref<DOM::Document> load_pdf_document(HTML::NavigationParams const& na
 
     auto listener_fn = JS::NativeFunction::create(
         realm, [document, js_response](JS::VM&) mutable -> JS::ThrowCompletionOr<JS::Value> {
-            DOM::CustomEventInit init;
+            Bindings::CustomEventInit init;
             init.detail = JS::Value(js_response.ptr());
             document->dispatch_event(*DOM::CustomEvent::create(document->realm(), "ladybirdpdf"_fly_string, init));
             return JS::js_undefined();

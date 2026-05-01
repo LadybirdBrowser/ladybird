@@ -17,12 +17,6 @@
 
 namespace Web::WebAssembly {
 
-struct MemoryDescriptor {
-    u32 initial { 0 };
-    Optional<u32> maximum;
-    Optional<bool> shared;
-};
-
 class Memory : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(Memory, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(Memory);
@@ -33,7 +27,7 @@ class Memory : public Bindings::PlatformObject {
     };
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<Memory>> construct_impl(JS::Realm&, MemoryDescriptor& descriptor);
+    static WebIDL::ExceptionOr<GC::Ref<Memory>> construct_impl(JS::Realm&, Bindings::MemoryDescriptor& descriptor);
 
     JS::ThrowCompletionOr<u32> grow(u32 delta);
 

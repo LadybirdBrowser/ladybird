@@ -21,10 +21,14 @@ GC_DEFINE_ALLOCATOR(AudioBuffer);
 
 WebIDL::ExceptionOr<GC::Ref<AudioBuffer>> AudioBuffer::create(JS::Realm& realm, WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate)
 {
-    return construct_impl(realm, { number_of_channels, length, sample_rate });
+    Bindings::AudioBufferOptions options {};
+    options.number_of_channels = number_of_channels;
+    options.length = length;
+    options.sample_rate = sample_rate;
+    return construct_impl(realm, options);
 }
 
-WebIDL::ExceptionOr<GC::Ref<AudioBuffer>> AudioBuffer::construct_impl(JS::Realm& realm, AudioBufferOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<AudioBuffer>> AudioBuffer::construct_impl(JS::Realm& realm, Bindings::AudioBufferOptions const& options)
 {
     // 1. If any of the values in options lie outside its nominal range, throw a NotSupportedError exception and abort the following steps.
     TRY(BaseAudioContext::verify_audio_options_inside_nominal_range(realm, options.number_of_channels, options.length, options.sample_rate));
@@ -136,7 +140,7 @@ WebIDL::ExceptionOr<void> AudioBuffer::copy_to_channel(GC::Root<JS::Float32Array
     return {};
 }
 
-AudioBuffer::AudioBuffer(JS::Realm& realm, AudioBufferOptions const& options)
+AudioBuffer::AudioBuffer(JS::Realm& realm, Bindings::AudioBufferOptions const& options)
     : Bindings::PlatformObject(realm)
     , m_length(options.length)
     , m_sample_rate(options.sample_rate)

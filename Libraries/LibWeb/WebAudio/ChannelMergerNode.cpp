@@ -11,7 +11,7 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(ChannelMergerNode);
 
-ChannelMergerNode::ChannelMergerNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, ChannelMergerOptions const& options)
+ChannelMergerNode::ChannelMergerNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::ChannelMergerOptions const& options)
     : AudioNode(realm, context)
     , m_number_of_inputs(options.number_of_inputs)
 {
@@ -19,12 +19,12 @@ ChannelMergerNode::ChannelMergerNode(JS::Realm& realm, GC::Ref<BaseAudioContext>
 
 ChannelMergerNode::~ChannelMergerNode() = default;
 
-WebIDL::ExceptionOr<GC::Ref<ChannelMergerNode>> ChannelMergerNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, ChannelMergerOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<ChannelMergerNode>> ChannelMergerNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::ChannelMergerOptions const& options)
 {
     return construct_impl(realm, context, options);
 }
 
-WebIDL::ExceptionOr<GC::Ref<ChannelMergerNode>> ChannelMergerNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, ChannelMergerOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<ChannelMergerNode>> ChannelMergerNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::ChannelMergerOptions const& options)
 {
     // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createchannelmerger
     // An IndexSizeError exception MUST be thrown if numberOfInputs is less than 1 or is greater

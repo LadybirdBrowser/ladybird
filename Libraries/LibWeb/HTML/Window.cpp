@@ -475,7 +475,7 @@ void Window::fire_a_page_transition_event(FlyString const& event_name, bool pers
     // To fire a page transition event named eventName at a Window window with a boolean persisted,
     // fire an event named eventName at window, using PageTransitionEvent,
     // with the persisted attribute initialized to persisted,
-    PageTransitionEventInit event_init {};
+    Bindings::PageTransitionEventInit event_init {};
     event_init.persisted = persisted;
     auto event = PageTransitionEvent::create(associated_document().realm(), event_name, event_init);
 
@@ -1222,7 +1222,7 @@ Optional<String> Window::prompt(Optional<String> const& message, Optional<String
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#window-post-message-steps
-WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, WindowPostMessageOptions const& options)
+WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, Bindings::WindowPostMessageOptions const& options)
 {
     // 1. Let targetRealm be targetWindow's realm.
     auto& target_realm = this->realm();
@@ -1281,11 +1281,10 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, W
         // If this throws an exception, catch it, fire an event named messageerror at targetWindow, using MessageEvent,
         // with its origin initialized to origin and the source attribute initialized to source, and then return.
         if (deserialize_record_or_error.is_exception()) {
-            MessageEventInit message_event_init {};
-            message_event_init.origin = origin;
+            Bindings::MessageEventInit message_event_init {};
             message_event_init.source = GC::make_root(source);
 
-            auto message_error_event = MessageEvent::create(target_realm, EventNames::messageerror, message_event_init);
+            auto message_error_event = MessageEvent::create(target_realm, EventNames::messageerror, message_event_init, origin);
             dispatch_event(message_error_event);
             return;
         }
@@ -1307,13 +1306,12 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, W
         // 7. Fire an event named message at targetWindow, using MessageEvent, with its origin initialized to origin,
         //    the source attribute initialized to source, the data attribute initialized to messageClone, and the ports
         //    attribute initialized to newPorts.
-        MessageEventInit message_event_init {};
-        message_event_init.origin = origin;
+        Bindings::MessageEventInit message_event_init {};
         message_event_init.source = GC::make_root(source);
         message_event_init.data = message_clone;
         message_event_init.ports = move(new_ports);
 
-        auto message_event = MessageEvent::create(target_realm, EventNames::message, message_event_init);
+        auto message_event = MessageEvent::create(target_realm, EventNames::message, message_event_init, origin);
         message_event->set_is_trusted(true);
         dispatch_event(message_event);
     }));
@@ -1322,7 +1320,7 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, W
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-window-postmessage-options
-WebIDL::ExceptionOr<void> Window::post_message(JS::Value message, WindowPostMessageOptions const& options)
+WebIDL::ExceptionOr<void> Window::post_message(JS::Value message, Bindings::WindowPostMessageOptions const& options)
 {
     // The Window interface's postMessage(message, options) method steps are to run the window post message steps given
     // this, message, and options.
@@ -1334,7 +1332,7 @@ WebIDL::ExceptionOr<void> Window::post_message(JS::Value message, String const& 
 {
     // The Window interface's postMessage(message, targetOrigin, transfer) method steps are to run the window post message
     // steps given this, message, and «[ "targetOrigin" → targetOrigin, "transfer" → transfer ]».
-    return window_post_message_steps(message, WindowPostMessageOptions { { .transfer = transfer }, target_origin });
+    return window_post_message_steps(message, Bindings::WindowPostMessageOptions { { .transfer = transfer }, target_origin });
 }
 
 // https://dom.spec.whatwg.org/#dom-window-event
@@ -1533,7 +1531,7 @@ double Window::scroll_y() const
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-window-scroll
-GC::Ref<WebIDL::Promise> Window::scroll(ScrollToOptions const& options)
+GC::Ref<WebIDL::Promise> Window::scroll(Bindings::ScrollToOptions const& options)
 {
     // 4. If there is no viewport, return a resolved Promise and abort the remaining steps.
     // AD-HOC: Done here as step 1 requires the viewport.
@@ -1629,7 +1627,7 @@ GC::Ref<WebIDL::Promise> Window::scroll(double x, double y)
     // 2. If invoked with two arguments, follow these substeps:
 
     //    1. Let options be null converted to a ScrollToOptions dictionary. [WEBIDL]
-    auto options = ScrollToOptions {};
+    auto options = Bindings::ScrollToOptions {};
 
     //    2. Let x and y be the arguments, respectively.
     options.left = x;
@@ -1639,7 +1637,7 @@ GC::Ref<WebIDL::Promise> Window::scroll(double x, double y)
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-window-scrollby
-GC::Ref<WebIDL::Promise> Window::scroll_by(ScrollToOptions options)
+GC::Ref<WebIDL::Promise> Window::scroll_by(Bindings::ScrollToOptions options)
 {
     // 1. If invoked with two arguments, follow these substeps:
     // NB: Implemented by the other overload, which then calls this.
@@ -1664,7 +1662,7 @@ GC::Ref<WebIDL::Promise> Window::scroll_by(double x, double y)
     // 1. If invoked with two arguments, follow these substeps:
 
     //    1. Let options be null converted to a ScrollToOptions dictionary. [WEBIDL]
-    auto options = ScrollToOptions {};
+    auto options = Bindings::ScrollToOptions {};
 
     //    2. Let x and y be the arguments, respectively.
 
@@ -1760,7 +1758,7 @@ bool Window::has_animation_frame_callbacks()
 }
 
 // https://w3c.github.io/requestidlecallback/#dom-window-requestidlecallback
-u32 Window::request_idle_callback(WebIDL::CallbackType& callback, RequestIdleCallback::IdleRequestOptions const& options)
+u32 Window::request_idle_callback(WebIDL::CallbackType& callback, Bindings::IdleRequestOptions const& options)
 {
     // 1. Let window be this Window object.
 

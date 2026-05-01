@@ -1046,6 +1046,9 @@ void Parser::parse_dictionary(HashMap<ByteString, ByteString> extended_attribute
         auto& it = interface.context.partial_dictionaries.ensure(name);
         it.append(move(dictionary));
     } else {
+        auto* module = interface.context.find_parsed_module(interface.module_own_path);
+        VERIFY(module);
+        module->own_dictionaries.set(name);
         interface.own_dictionaries.set(name);
         interface.context.dictionaries.set(name, move(dictionary));
     }

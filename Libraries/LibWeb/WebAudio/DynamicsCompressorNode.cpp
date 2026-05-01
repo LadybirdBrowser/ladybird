@@ -15,13 +15,13 @@ GC_DEFINE_ALLOCATOR(DynamicsCompressorNode);
 
 DynamicsCompressorNode::~DynamicsCompressorNode() = default;
 
-WebIDL::ExceptionOr<GC::Ref<DynamicsCompressorNode>> DynamicsCompressorNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, DynamicsCompressorOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<DynamicsCompressorNode>> DynamicsCompressorNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::DynamicsCompressorOptions const& options)
 {
     return construct_impl(realm, context, options);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-dynamicscompressornode-dynamicscompressornode
-WebIDL::ExceptionOr<GC::Ref<DynamicsCompressorNode>> DynamicsCompressorNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, DynamicsCompressorOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<DynamicsCompressorNode>> DynamicsCompressorNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::DynamicsCompressorOptions const& options)
 {
     // Create the node and allocate memory
     auto node = realm.create<DynamicsCompressorNode>(realm, context, options);
@@ -39,7 +39,7 @@ WebIDL::ExceptionOr<GC::Ref<DynamicsCompressorNode>> DynamicsCompressorNode::con
     return node;
 }
 
-DynamicsCompressorNode::DynamicsCompressorNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, DynamicsCompressorOptions const& options)
+DynamicsCompressorNode::DynamicsCompressorNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::DynamicsCompressorOptions const& options)
     : AudioNode(realm, context)
     , m_threshold(AudioParam::create(realm, context, options.threshold, -100, 0, Bindings::AutomationRate::KRate, AudioParam::FixedAutomationRate::Yes))
     , m_knee(AudioParam::create(realm, context, options.knee, 0, 40, Bindings::AutomationRate::KRate, AudioParam::FixedAutomationRate::Yes))

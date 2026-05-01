@@ -11,23 +11,19 @@
 
 namespace Web::WebAudio {
 
-struct OfflineAudioCompletionEventInit : public DOM::EventInit {
-    GC::Ptr<AudioBuffer> rendered_buffer;
-};
-
 class OfflineAudioCompletionEvent final : public DOM::Event {
     WEB_PLATFORM_OBJECT(OfflineAudioCompletionEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(OfflineAudioCompletionEvent);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<OfflineAudioCompletionEvent>> construct_impl(JS::Realm&, FlyString const& event_name, OfflineAudioCompletionEventInit const& event_init);
+    static WebIDL::ExceptionOr<GC::Ref<OfflineAudioCompletionEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::OfflineAudioCompletionEventInit const&);
 
     virtual ~OfflineAudioCompletionEvent() override;
 
     GC::Ptr<AudioBuffer> rendered_buffer() const { return m_rendered_buffer; }
 
 private:
-    OfflineAudioCompletionEvent(JS::Realm&, FlyString const& event_name, OfflineAudioCompletionEventInit const& event_init);
+    OfflineAudioCompletionEvent(JS::Realm&, FlyString const& event_name, Bindings::OfflineAudioCompletionEventInit const&);
 
     void initialize(JS::Realm&) override;
 

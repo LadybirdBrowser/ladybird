@@ -339,6 +339,7 @@ function (generate_js_bindings target)
 
     include("idl_files.cmake")
     list(REMOVE_DUPLICATES LIBWEB_ALL_PARSED_IDL_FILES)
+    list(APPEND LIBWEB_ALL_BINDINGS_SOURCES "Bindings/Forward.h")
 
     set(LIBWEB_ALL_IDL_FILES_ARGUMENT ${LIBWEB_ALL_IDL_FILES})
     set(LIBWEB_ALL_PARSED_IDL_FILES_ARGUMENT ${LIBWEB_ALL_PARSED_IDL_FILES})
@@ -370,5 +371,6 @@ function (generate_js_bindings target)
 
     generate_exposed_interface_files()
 
+    list(APPEND LIBWEB_ALL_GENERATED_HEADERS "${CMAKE_CURRENT_BINARY_DIR}/Bindings/Forward.h")
     set(LIBWEB_ALL_GENERATED_HEADERS ${LIBWEB_ALL_GENERATED_HEADERS} PARENT_SCOPE)
 endfunction()

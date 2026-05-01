@@ -13,7 +13,7 @@
 #include <AK/RefPtr.h>
 #include <AK/TypeCasts.h>
 #include <AK/Vector.h>
-#include <AK/WeakPtr.h>
+#include <LibWeb/Bindings/Node.h>
 #include <LibWeb/CSS/InvalidationSet.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/FragmentSerializationMode.h>
@@ -43,10 +43,6 @@ namespace Web::DOM {
 enum class NameOrDescription {
     Name,
     Description
-};
-
-struct GetRootNodeOptions {
-    bool composed { false };
 };
 
 enum class IsDescendant {
@@ -412,7 +408,7 @@ public:
     bool is_same_node(Node const*) const;
     bool is_equal_node(Node const*) const;
 
-    GC::Ref<Node> get_root_node(GetRootNodeOptions const& options = {});
+    GC::Ref<Node> get_root_node(Bindings::GetRootNodeOptions const& options = {});
 
     bool is_uninteresting_whitespace_node() const;
 

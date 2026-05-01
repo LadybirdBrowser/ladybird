@@ -11,6 +11,7 @@
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
+#include <LibWeb/Bindings/InputEvent.h>
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EditingHostManager.h>
@@ -1771,7 +1772,7 @@ EventResult EventHandler::input_event(FlyString const& event_name, FlyString con
     if (!document->is_fully_active())
         return EventResult::Dropped;
 
-    UIEvents::InputEventInit input_event_init;
+    Bindings::InputEventInit input_event_init;
 
     code_point_or_string.visit(
         [&](u32 code_point) {
@@ -1782,7 +1783,7 @@ EventResult EventHandler::input_event(FlyString const& event_name, FlyString con
             input_event_init.data = string;
         });
 
-    input_event_init.input_type = input_type;
+    input_event_init.input_type = input_type.to_string();
 
     if (auto focused_area = document->focused_area()) {
         if (is<HTML::NavigableContainer>(*focused_area)) {

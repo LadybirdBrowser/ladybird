@@ -9,18 +9,10 @@
 #include <AK/FlyString.h>
 #include <AK/Optional.h>
 #include <LibGC/Ptr.h>
+#include <LibWeb/Bindings/StorageEvent.h>
 #include <LibWeb/DOM/Event.h>
 
 namespace Web::HTML {
-
-// https://html.spec.whatwg.org/multipage/webstorage.html#storageeventinit
-struct StorageEventInit : public DOM::EventInit {
-    Optional<String> key;
-    Optional<String> old_value;
-    Optional<String> new_value;
-    String url;
-    GC::Ptr<Storage> storage_area;
-};
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#storageevent
 class StorageEvent : public DOM::Event {
@@ -28,8 +20,8 @@ class StorageEvent : public DOM::Event {
     GC_DECLARE_ALLOCATOR(StorageEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<StorageEvent> create(JS::Realm&, FlyString const& event_name, StorageEventInit const& event_init = {});
-    static GC::Ref<StorageEvent> construct_impl(JS::Realm&, FlyString const& event_name, StorageEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<StorageEvent> create(JS::Realm&, FlyString const& event_name, Bindings::StorageEventInit const& event_init = {});
+    static GC::Ref<StorageEvent> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::StorageEventInit const& event_init);
 
     virtual ~StorageEvent() override;
 
@@ -53,7 +45,7 @@ protected:
     virtual void initialize(JS::Realm&) override;
 
 private:
-    StorageEvent(JS::Realm&, FlyString const& event_name, StorageEventInit const& event_init);
+    StorageEvent(JS::Realm&, FlyString const& event_name, Bindings::StorageEventInit const& event_init);
 
     Optional<String> m_key;
     Optional<String> m_old_value;

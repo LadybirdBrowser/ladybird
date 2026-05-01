@@ -16,12 +16,12 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(TrackEvent);
 
-GC::Ref<TrackEvent> TrackEvent::create(JS::Realm& realm, FlyString const& event_name, TrackEventInit event_init)
+GC::Ref<TrackEvent> TrackEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::TrackEventInit const& event_init)
 {
     return realm.create<TrackEvent>(realm, event_name, move(event_init));
 }
 
-WebIDL::ExceptionOr<GC::Ref<TrackEvent>> TrackEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, TrackEventInit event_init)
+WebIDL::ExceptionOr<GC::Ref<TrackEvent>> TrackEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::TrackEventInit const& event_init)
 {
     return create(realm, event_name, move(event_init));
 }
@@ -33,7 +33,7 @@ TrackEvent::TrackTypeInternal TrackEvent::to_track_type_internal(NullableTrackTy
         [](auto const& root) -> TrackTypeInternal { return GC::Ref { *root }; });
 }
 
-TrackEvent::TrackEvent(JS::Realm& realm, FlyString const& event_name, TrackEventInit event_init)
+TrackEvent::TrackEvent(JS::Realm& realm, FlyString const& event_name, Bindings::TrackEventInit const& event_init)
     : DOM::Event(realm, event_name, event_init)
     , m_track(to_track_type_internal(event_init.track))
 {

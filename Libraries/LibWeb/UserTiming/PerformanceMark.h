@@ -6,15 +6,10 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/PerformanceMark.h>
 #include <LibWeb/PerformanceTimeline/PerformanceEntry.h>
 
 namespace Web::UserTiming {
-
-// https://w3c.github.io/user-timing/#ref-for-dom-performancemarkoptions-1
-struct PerformanceMarkOptions {
-    JS::Value detail { JS::js_null() };
-    Optional<HighResolutionTime::DOMHighResTimeStamp> start_time;
-};
 
 // https://w3c.github.io/user-timing/#dom-performancemark
 class PerformanceMark final : public PerformanceTimeline::PerformanceEntry {
@@ -24,7 +19,7 @@ class PerformanceMark final : public PerformanceTimeline::PerformanceEntry {
 public:
     virtual ~PerformanceMark();
 
-    static WebIDL::ExceptionOr<GC::Ref<PerformanceMark>> construct_impl(JS::Realm&, String const& mark_name, PerformanceMarkOptions const& mark_options = {});
+    static WebIDL::ExceptionOr<GC::Ref<PerformanceMark>> construct_impl(JS::Realm&, String const& mark_name, Bindings::PerformanceMarkOptions const& mark_options = {});
 
     // NOTE: These three functions are answered by the registry for the given entry type.
     // https://w3c.github.io/timing-entrytypes-registry/#registry
@@ -37,7 +32,7 @@ public:
     static Optional<u64> max_buffer_size() { return OptionalNone {}; }
 
     // https://w3c.github.io/timing-entrytypes-registry/#dfn-should-add-entry
-    virtual PerformanceTimeline::ShouldAddEntry should_add_entry(Optional<PerformanceTimeline::PerformanceObserverInit const&> = {}) const override { return PerformanceTimeline::ShouldAddEntry::Yes; }
+    virtual PerformanceTimeline::ShouldAddEntry should_add_entry(Optional<Bindings::PerformanceObserverInit const&> = {}) const override { return PerformanceTimeline::ShouldAddEntry::Yes; }
 
     virtual FlyString const& entry_type() const override;
 

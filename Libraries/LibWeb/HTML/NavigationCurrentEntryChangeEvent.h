@@ -6,22 +6,18 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/NavigationCurrentEntryChangeEvent.h>
 #include <LibWeb/Bindings/NavigationType.h>
 #include <LibWeb/DOM/Event.h>
 
 namespace Web::HTML {
-
-struct NavigationCurrentEntryChangeEventInit : public DOM::EventInit {
-    Optional<Bindings::NavigationType> navigation_type = {};
-    GC::Ptr<NavigationHistoryEntry> from;
-};
 
 class NavigationCurrentEntryChangeEvent final : public DOM::Event {
     WEB_PLATFORM_OBJECT(NavigationCurrentEntryChangeEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(NavigationCurrentEntryChangeEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<NavigationCurrentEntryChangeEvent> construct_impl(JS::Realm&, FlyString const& event_name, NavigationCurrentEntryChangeEventInit const&);
+    [[nodiscard]] static GC::Ref<NavigationCurrentEntryChangeEvent> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::NavigationCurrentEntryChangeEventInit const&);
 
     virtual ~NavigationCurrentEntryChangeEvent() override;
 
@@ -29,7 +25,7 @@ public:
     GC::Ref<NavigationHistoryEntry> from() const { return m_from; }
 
 private:
-    NavigationCurrentEntryChangeEvent(JS::Realm&, FlyString const& event_name, NavigationCurrentEntryChangeEventInit const& event_init);
+    NavigationCurrentEntryChangeEvent(JS::Realm&, FlyString const& event_name, Bindings::NavigationCurrentEntryChangeEventInit const& event_init);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

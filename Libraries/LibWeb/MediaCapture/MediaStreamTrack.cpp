@@ -66,7 +66,7 @@ GC::Ref<MediaStreamTrack> MediaStreamTrack::create(JS::Realm& realm, Bindings::M
     return track;
 }
 
-void MediaStreamTrack::set_settings(MediaTrackSettings settings)
+void MediaStreamTrack::set_settings(Bindings::MediaTrackSettings settings)
 {
     m_settings = move(settings);
 }
@@ -156,25 +156,25 @@ u32 MediaStreamTrack::channel_count() const
 }
 
 // https://w3c.github.io/mediacapture-main/#dom-mediastreamtrack-getcapabilities
-MediaTrackCapabilities MediaStreamTrack::get_capabilities() const
+Bindings::MediaTrackCapabilities MediaStreamTrack::get_capabilities() const
 {
     return m_capabilities;
 }
 
 // https://w3c.github.io/mediacapture-main/#dom-mediastreamtrack-getconstraints
-MediaTrackConstraints MediaStreamTrack::get_constraints() const
+Bindings::MediaTrackConstraints MediaStreamTrack::get_constraints() const
 {
     return m_constraints;
 }
 
 // https://w3c.github.io/mediacapture-main/#dom-mediastreamtrack-getsettings
-MediaTrackSettings MediaStreamTrack::get_settings() const
+Bindings::MediaTrackSettings MediaStreamTrack::get_settings() const
 {
     return m_settings;
 }
 
 // https://w3c.github.io/mediacapture-main/#dom-mediastreamtrack-applyconstraints
-GC::Ref<WebIDL::Promise> MediaStreamTrack::apply_constraints(Optional<MediaTrackConstraints> const& constraints)
+GC::Ref<WebIDL::Promise> MediaStreamTrack::apply_constraints(Optional<Bindings::MediaTrackConstraints> const& constraints)
 {
     if (constraints.has_value())
         m_constraints = constraints.value();

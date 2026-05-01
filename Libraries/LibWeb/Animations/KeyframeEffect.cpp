@@ -666,7 +666,7 @@ WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> KeyframeEffect::construct_impl(
     JS::Realm& realm,
     GC::Root<DOM::Element> const& target,
     Optional<GC::Root<JS::Object>> const& keyframes,
-    Variant<double, KeyframeEffectOptions> options)
+    Variant<double, Bindings::KeyframeEffectOptions> options)
 {
     // 1. Create a new KeyframeEffect object, effect.
     auto effect = realm.create<KeyframeEffect>(realm);
@@ -677,13 +677,13 @@ WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> KeyframeEffect::construct_impl(
     // 3. Set the target pseudo-selector to the result corresponding to the first matching condition from below.
 
     //    If options is a KeyframeEffectOptions object with a pseudoElement property,
-    if (options.has<KeyframeEffectOptions>()) {
+    if (options.has<Bindings::KeyframeEffectOptions>()) {
         // Set the target pseudo-selector to the value of the pseudoElement property.
         //
         // When assigning this property, the error-handling defined for the pseudoElement setter on the interface is
         // applied. If the setter requires an exception to be thrown, this procedure must throw the same exception and
         // abort all further steps.
-        TRY(effect->set_pseudo_element(options.get<KeyframeEffectOptions>().pseudo_element));
+        TRY(effect->set_pseudo_element(options.get<Bindings::KeyframeEffectOptions>().pseudo_element));
     }
     //     Otherwise,
     else {
@@ -692,12 +692,12 @@ WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> KeyframeEffect::construct_impl(
     }
 
     // 4. Let timing input be the result corresponding to the first matching condition from below.
-    KeyframeEffectOptions timing_input;
+    Bindings::KeyframeEffectOptions timing_input;
 
     //     If options is a KeyframeEffectOptions object,
-    if (options.has<KeyframeEffectOptions>()) {
+    if (options.has<Bindings::KeyframeEffectOptions>()) {
         // Let timing input be options.
-        timing_input = options.get<KeyframeEffectOptions>();
+        timing_input = options.get<Bindings::KeyframeEffectOptions>();
     }
     //     Otherwise (if options is a double),
     else {
@@ -716,7 +716,7 @@ WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> KeyframeEffect::construct_impl(
 
     // 5. Call the procedure to update the timing properties of an animation effect of effect from timing input.
     //    If that procedure causes an exception to be thrown, propagate the exception and abort this procedure.
-    TRY(effect->update_timing(timing_input.to_optional_effect_timing()));
+    TRY(effect->update_timing(to_optional_effect_timing(timing_input)));
 
     // 6. If options is a KeyframeEffectOptions object, assign the composite property of effect to the corresponding
     //    value from options.
@@ -724,8 +724,8 @@ WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> KeyframeEffect::construct_impl(
     //    When assigning this property, the error-handling defined for the corresponding setter on the KeyframeEffect
     //    interface is applied. If the setter requires an exception to be thrown for the value specified by options,
     //    this procedure must throw the same exception and abort all further steps.
-    if (options.has<KeyframeEffectOptions>())
-        effect->set_composite(options.get<KeyframeEffectOptions>().composite);
+    if (options.has<Bindings::KeyframeEffectOptions>())
+        effect->set_composite(options.get<Bindings::KeyframeEffectOptions>().composite);
 
     // 7. Initialize the set of keyframes by performing the procedure defined for setKeyframes() passing keyframes as
     //    the input.

@@ -47,7 +47,7 @@ void Geolocation::visit_edges(Visitor& visitor)
 
 // https://w3c.github.io/geolocation/#dom-geolocation-getcurrentposition
 void Geolocation::get_current_position(GC::Ref<WebIDL::CallbackType> success_callback,
-    GC::Ptr<WebIDL::CallbackType> error_callback, PositionOptions options)
+    GC::Ptr<WebIDL::CallbackType> error_callback, Bindings::PositionOptions const& options)
 {
     // 1. If this's relevant global object's associated Document is not fully active:
     auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
@@ -65,7 +65,7 @@ void Geolocation::get_current_position(GC::Ref<WebIDL::CallbackType> success_cal
 
 // https://w3c.github.io/geolocation/#watchposition-method
 WebIDL::Long Geolocation::watch_position(GC::Ref<WebIDL::CallbackType> success_callback,
-    GC::Ptr<WebIDL::CallbackType> error_callback, PositionOptions options)
+    GC::Ptr<WebIDL::CallbackType> error_callback, Bindings::PositionOptions const& options)
 {
     // 1. If this's relevant global object's associated Document is not fully active:
     auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
@@ -99,7 +99,7 @@ void Geolocation::clear_watch(WebIDL::Long watch_id)
 
 // https://w3c.github.io/geolocation/#dfn-acquire-a-position
 void Geolocation::acquire_a_position(GC::Ref<WebIDL::CallbackType> success_callback,
-    GC::Ptr<WebIDL::CallbackType> error_callback, PositionOptions options, Optional<WebIDL::UnsignedLong> watch_id)
+    GC::Ptr<WebIDL::CallbackType> error_callback, Bindings::PositionOptions const& options, Optional<WebIDL::UnsignedLong> watch_id)
 {
     // 1. If watchId was passed and this's [[watchIDs]] does not contain watchId, terminate this algorithm.
     if (watch_id.has_value() && !m_watch_ids.contains(watch_id.value()))
@@ -285,7 +285,7 @@ EmulatedPositionData Geolocation::get_emulated_position_data() const
 
 // https://w3c.github.io/geolocation/#dfn-request-a-position
 void Geolocation::request_a_position(GC::Ref<WebIDL::CallbackType> success_callback,
-    GC::Ptr<WebIDL::CallbackType> error_callback, PositionOptions options, Optional<WebIDL::UnsignedLong> watch_id)
+    GC::Ptr<WebIDL::CallbackType> error_callback, Bindings::PositionOptions const& options, Optional<WebIDL::UnsignedLong> watch_id)
 {
     // 1. Let watchIDs be geolocation's [[watchIDs]].
 

@@ -13,6 +13,7 @@
 #include <LibGfx/Forward.h>
 #include <LibIPC/Forward.h>
 #include <LibJS/Forward.h>
+#include <LibWeb/Bindings/Forward.h>
 #include <LibWeb/Export.h>
 
 namespace Web {
@@ -147,7 +148,6 @@ class Policy;
 class PolicyList;
 class SecurityPolicyViolationEvent;
 class Violation;
-struct SecurityPolicyViolationEventInit;
 struct SerializedPolicy;
 
 }
@@ -195,13 +195,6 @@ class Credential;
 class CredentialsContainer;
 class FederatedCredential;
 class PasswordCredential;
-
-struct CredentialData;
-struct CredentialRequestOptions;
-struct CredentialCreationOptions;
-struct FederatedCredentialRequestOptions;
-struct FederatedCredentialInit;
-struct PasswordCredentialData;
 
 }
 
@@ -480,7 +473,6 @@ struct BackgroundLayerData;
 struct CalculationContext;
 struct CalculationResolutionContext;
 struct ComputationContext;
-struct CSSStyleSheetInit;
 struct FunctionParameterInternal;
 struct GridRepeatParams;
 struct LogicalAliasMappingContext;
@@ -580,9 +572,6 @@ class XMLDocument;
 enum class QuirksMode;
 enum class SetNeedsLayoutReason;
 
-struct AddEventListenerOptions;
-struct EventListenerOptions;
-
 }
 
 namespace Web::Encoding {
@@ -590,10 +579,6 @@ namespace Web::Encoding {
 class TextDecoder;
 class TextEncoder;
 class TextEncoderStream;
-
-struct TextDecodeOptions;
-struct TextDecoderOptions;
-struct TextEncoderEncodeIntoResult;
 
 }
 
@@ -686,10 +671,6 @@ class DOMQuad;
 class DOMRect;
 class DOMRectList;
 class DOMRectReadOnly;
-
-struct DOMMatrix2DInit;
-struct DOMMatrixInit;
-struct DOMPointInit;
 
 }
 
@@ -896,13 +877,10 @@ struct OpenerPolicyEnforcementResult;
 struct PaintConfig;
 struct PolicyContainer;
 struct POSTResource;
-struct ScrollOptions;
-struct ScrollToOptions;
 struct SerializedFormData;
 struct SerializedPolicyContainer;
 struct SerializedTransferRecord;
 struct SourceSnapshotParams;
-struct StructuredSerializeOptions;
 struct ToggleTaskTracker;
 
 }
@@ -1001,17 +979,6 @@ namespace Web::MediaCapabilitiesAPI {
 
 class MediaCapabilities;
 
-struct AudioConfiguration;
-struct KeySystemTrackConfiguration;
-struct MediaCapabilitiesDecodingInfo;
-struct MediaCapabilitiesEncodingInfo;
-struct MediaCapabilitiesInfo;
-struct MediaCapabilitiesKeySystemConfiguration;
-struct MediaConfiguration;
-struct MediaDecodingConfiguration;
-struct MediaEncodingConfiguration;
-struct VideoConfiguration;
-
 }
 
 namespace Web::MediaSourceExtensions {
@@ -1040,9 +1007,6 @@ class PerformanceTiming;
 }
 
 namespace Web::NotificationsAPI {
-
-struct NotificationAction;
-struct NotificationOptions;
 
 class Notification;
 
@@ -1077,8 +1041,6 @@ namespace Web::PerformanceTimeline {
 class PerformanceEntry;
 class PerformanceObserver;
 class PerformanceObserverEntryList;
-
-struct PerformanceObserverInit;
 
 }
 
@@ -1129,13 +1091,6 @@ namespace Web::Serial {
 class Serial;
 class SerialPort;
 
-struct SerialPortFilter;
-struct SerialPortRequestOptions;
-struct SerialOptions;
-struct SerialOutputSignals;
-struct SerialInputSignals;
-struct SerialPortInfo;
-
 }
 
 namespace Web::ServiceWorker {
@@ -1185,9 +1140,7 @@ class WritableStreamDefaultController;
 class WritableStreamDefaultWriter;
 
 struct PullIntoDescriptor;
-struct QueuingStrategy;
-struct QueuingStrategyInit;
-struct ReadableStreamGetReaderOptions;
+
 struct Transformer;
 struct UnderlyingSink;
 struct UnderlyingSource;
@@ -1339,10 +1292,6 @@ class PeriodicWave;
 
 enum class AudioContextState;
 
-struct AudioContextOptions;
-struct DynamicsCompressorOptions;
-struct OscillatorOptions;
-
 }
 
 namespace Web::WebGL {
@@ -1461,7 +1410,6 @@ class TrustedScript;
 class TrustedScriptURL;
 class TrustedTypePolicy;
 class TrustedTypePolicyFactory;
-struct TrustedTypePolicyOptions;
 
 }
 

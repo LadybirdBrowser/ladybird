@@ -16,13 +16,13 @@ GC_DEFINE_ALLOCATOR(PannerNode);
 
 PannerNode::~PannerNode() = default;
 
-WebIDL::ExceptionOr<GC::Ref<PannerNode>> PannerNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, PannerOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<PannerNode>> PannerNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::PannerOptions const& options)
 {
     return construct_impl(realm, context, options);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-pannernode-pannernode
-WebIDL::ExceptionOr<GC::Ref<PannerNode>> PannerNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, PannerOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<PannerNode>> PannerNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::PannerOptions const& options)
 {
     // https://webaudio.github.io/web-audio-api/#dom-pannernode-refdistance
     // A RangeError exception MUST be thrown if this is set to a negative value.
@@ -59,7 +59,7 @@ WebIDL::ExceptionOr<GC::Ref<PannerNode>> PannerNode::construct_impl(JS::Realm& r
     return node;
 }
 
-PannerNode::PannerNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, PannerOptions const& options)
+PannerNode::PannerNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::PannerOptions const& options)
     : AudioNode(realm, context)
     , m_panning_model(options.panning_model)
     , m_position_x(AudioParam::create(realm, context, options.position_x, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))

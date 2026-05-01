@@ -25,19 +25,19 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(NavigateEvent);
 
-GC::Ref<NavigateEvent> NavigateEvent::create(JS::Realm& realm, FlyString const& event_name, NavigateEventInit const& event_init)
+GC::Ref<NavigateEvent> NavigateEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::NavigateEventInit const& event_init)
 {
     auto event = realm.create<NavigateEvent>(realm, event_name, event_init);
     event->set_is_trusted(true);
     return event;
 }
 
-GC::Ref<NavigateEvent> NavigateEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, NavigateEventInit const& event_init)
+GC::Ref<NavigateEvent> NavigateEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::NavigateEventInit const& event_init)
 {
     return realm.create<NavigateEvent>(realm, event_name, event_init);
 }
 
-NavigateEvent::NavigateEvent(JS::Realm& realm, FlyString const& event_name, NavigateEventInit const& event_init)
+NavigateEvent::NavigateEvent(JS::Realm& realm, FlyString const& event_name, Bindings::NavigateEventInit const& event_init)
     : DOM::Event(realm, event_name, event_init)
     , m_navigation_type(event_init.navigation_type)
     , m_destination(*event_init.destination)
@@ -74,7 +74,7 @@ void NavigateEvent::visit_edges(JS::Cell::Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigateevent-intercept
-WebIDL::ExceptionOr<void> NavigateEvent::intercept(NavigationInterceptOptions const& options)
+WebIDL::ExceptionOr<void> NavigateEvent::intercept(Bindings::NavigationInterceptOptions const& options)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();

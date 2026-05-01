@@ -229,7 +229,7 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
         // NOTE: DOM standard issue #1328 tracks how to better standardize associated event data in a way which makes
         //       sense on Events. Currently an event attribute initialized to a value cannot also have a getter, and so
         //       an internal slot (or map of additional fields) is required to properly specify this.
-        CommandEventInit event_init {};
+        Bindings::CommandEventInit event_init {};
         event_init.command = command;
         event_init.source = this;
         event_init.cancelable = true;

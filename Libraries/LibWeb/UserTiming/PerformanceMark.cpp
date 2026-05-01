@@ -28,7 +28,7 @@ PerformanceMark::PerformanceMark(JS::Realm& realm, String const& name, HighResol
 PerformanceMark::~PerformanceMark() = default;
 
 // https://w3c.github.io/user-timing/#dfn-performancemark-constructor
-WebIDL::ExceptionOr<GC::Ref<PerformanceMark>> PerformanceMark::construct_impl(JS::Realm& realm, String const& mark_name, Web::UserTiming::PerformanceMarkOptions const& mark_options)
+WebIDL::ExceptionOr<GC::Ref<PerformanceMark>> PerformanceMark::construct_impl(JS::Realm& realm, String const& mark_name, Bindings::PerformanceMarkOptions const& mark_options)
 {
     auto& current_global_object = HTML::current_global_object();
     auto& vm = realm.vm();
@@ -77,13 +77,13 @@ WebIDL::ExceptionOr<GC::Ref<PerformanceMark>> PerformanceMark::construct_impl(JS
 
     // 7. If markOptions's detail is null, set entry's detail to null.
     JS::Value detail;
-    if (mark_options.detail.is_null()) {
+    if (!mark_options.detail.has_value() || mark_options.detail->is_null()) {
         detail = JS::js_null();
     }
     // 8. Otherwise:
     else {
         // 1. Let record be the result of calling the StructuredSerialize algorithm on markOptions's detail.
-        auto record = TRY(HTML::structured_serialize(vm, mark_options.detail));
+        auto record = TRY(HTML::structured_serialize(vm, *mark_options.detail));
 
         // 2. Set entry's detail to the result of calling the StructuredDeserialize algorithm on record and the current realm.
         detail = TRY(HTML::structured_deserialize(vm, record, realm));

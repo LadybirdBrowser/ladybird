@@ -13,14 +13,14 @@ namespace Web::Gamepad {
 
 GC_DEFINE_ALLOCATOR(GamepadEvent);
 
-WebIDL::ExceptionOr<GC::Ref<GamepadEvent>> GamepadEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, GamepadEventInit const& gamepad_event_init)
+WebIDL::ExceptionOr<GC::Ref<GamepadEvent>> GamepadEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::GamepadEventInit const& gamepad_event_init)
 {
     return realm.create<GamepadEvent>(realm, event_name, gamepad_event_init);
 }
 
-GamepadEvent::GamepadEvent(JS::Realm& realm, FlyString const& event_name, GamepadEventInit const& event_init)
+GamepadEvent::GamepadEvent(JS::Realm& realm, FlyString const& event_name, Bindings::GamepadEventInit const& event_init)
     : DOM::Event(realm, event_name, event_init)
-    , m_gamepad(event_init.gamepad.has_value() ? event_init.gamepad->ptr() : nullptr)
+    , m_gamepad(event_init.gamepad)
 {
 }
 

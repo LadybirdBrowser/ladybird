@@ -14,7 +14,7 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(ConstantSourceNode);
 
-ConstantSourceNode::ConstantSourceNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, ConstantSourceOptions const& options)
+ConstantSourceNode::ConstantSourceNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::ConstantSourceOptions const& options)
     : AudioScheduledSourceNode(realm, context)
     , m_offset(AudioParam::create(realm, context, options.offset, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
 {
@@ -22,12 +22,12 @@ ConstantSourceNode::ConstantSourceNode(JS::Realm& realm, GC::Ref<BaseAudioContex
 
 ConstantSourceNode::~ConstantSourceNode() = default;
 
-WebIDL::ExceptionOr<GC::Ref<ConstantSourceNode>> ConstantSourceNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, ConstantSourceOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<ConstantSourceNode>> ConstantSourceNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::ConstantSourceOptions const& options)
 {
     return construct_impl(realm, context, options);
 }
 
-WebIDL::ExceptionOr<GC::Ref<ConstantSourceNode>> ConstantSourceNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, ConstantSourceOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<ConstantSourceNode>> ConstantSourceNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::ConstantSourceOptions const& options)
 {
     return realm.create<ConstantSourceNode>(realm, context, options);
 }

@@ -38,36 +38,6 @@
 
 namespace Web::DOM {
 
-struct ShadowRootInit {
-    Bindings::ShadowRootMode mode;
-    bool delegates_focus = false;
-    Bindings::SlotAssignmentMode slot_assignment { Bindings::SlotAssignmentMode::Named };
-    bool clonable = false;
-    bool serializable = false;
-    Optional<GC::Ptr<HTML::CustomElementRegistry>> custom_element_registry {};
-};
-
-struct GetHTMLOptions {
-    bool serializable_shadow_roots { false };
-    Vector<GC::Root<ShadowRoot>> shadow_roots {};
-};
-
-// https://w3c.github.io/csswg-drafts/cssom-view-1/#dictdef-scrollintoviewoptions
-struct ScrollIntoViewOptions : public HTML::ScrollOptions {
-    Bindings::ScrollLogicalPosition block { Bindings::ScrollLogicalPosition::Start };
-    Bindings::ScrollLogicalPosition inline_ { Bindings::ScrollLogicalPosition::Nearest };
-    Bindings::ScrollIntoViewContainer container { Bindings::ScrollIntoViewContainer::All };
-};
-
-// https://drafts.csswg.org/cssom-view-1/#dictdef-checkvisibilityoptions
-struct CheckVisibilityOptions {
-    bool check_opacity = false;
-    bool check_visibility_css = false;
-    bool content_visibility_auto = false;
-    bool opacity_property = false;
-    bool visibility_property = false;
-};
-
 // https://html.spec.whatwg.org/multipage/custom-elements.html#upgrade-reaction
 // An upgrade reaction, which will upgrade the custom element and contains a custom element definition; or
 struct CustomElementUpgradeReaction {
@@ -100,11 +70,6 @@ enum class ProximityToTheViewport : u8 {
     FarAwayFromTheViewport,
     // - The element’s proximity to the viewport is not determined:
     NotDetermined,
-};
-
-// https://w3c.github.io/pointerlock/#pointerlockoptions-dictionary
-struct PointerLockOptions {
-    bool unadjusted_movement = false;
 };
 
 class WEB_API Element
@@ -196,7 +161,7 @@ public:
     GC::Ref<DOMTokenList> part_list();
     ReadonlySpan<FlyString> part_names() const { return m_parts; }
 
-    WebIDL::ExceptionOr<GC::Ref<ShadowRoot>> attach_shadow(ShadowRootInit init);
+    WebIDL::ExceptionOr<GC::Ref<ShadowRoot>> attach_shadow(Bindings::ShadowRootInit const&);
     WebIDL::ExceptionOr<void> attach_a_shadow_root(Bindings::ShadowRootMode mode, bool clonable, bool serializable, bool delegates_focus, Bindings::SlotAssignmentMode slot_assignment, GC::Ptr<HTML::CustomElementRegistry> registry);
     GC::Ptr<ShadowRoot> shadow_root_for_bindings() const;
 
@@ -261,7 +226,7 @@ public:
 
     WebIDL::ExceptionOr<void> set_html_unsafe(TrustedTypes::TrustedHTMLOrString const&);
 
-    WebIDL::ExceptionOr<String> get_html(GetHTMLOptions const&) const;
+    WebIDL::ExceptionOr<String> get_html(Bindings::GetHTMLOptions const&) const;
 
     WebIDL::ExceptionOr<void> insert_adjacent_html(String const& position, TrustedTypes::TrustedHTMLOrString const&);
 
@@ -393,7 +358,7 @@ public:
     WebIDL::ExceptionOr<void> insert_adjacent_text(String const& where, Utf16String const& data);
 
     // https://w3c.github.io/csswg-drafts/cssom-view-1/#dom-element-scrollintoview
-    GC::Ref<WebIDL::Promise> scroll_into_view(Optional<Variant<bool, ScrollIntoViewOptions>> = {});
+    GC::Ref<WebIDL::Promise> scroll_into_view(Optional<Variant<bool, Bindings::ScrollIntoViewOptions>> = {});
 
     // https://www.w3.org/TR/wai-aria-1.2/#ARIAMixin
 #define __ENUMERATE_ARIA_ATTRIBUTE(name, attribute) \
@@ -438,12 +403,12 @@ public:
     void set_custom_element_state(CustomElementState);
     void setup_custom_element_from_constructor(HTML::CustomElementDefinition& custom_element_definition, Optional<String> const& is_value);
 
-    GC::Ref<WebIDL::Promise> scroll(HTML::ScrollToOptions);
+    GC::Ref<WebIDL::Promise> scroll(Bindings::ScrollToOptions);
     GC::Ref<WebIDL::Promise> scroll(double x, double y);
-    GC::Ref<WebIDL::Promise> scroll_by(HTML::ScrollToOptions);
+    GC::Ref<WebIDL::Promise> scroll_by(Bindings::ScrollToOptions);
     GC::Ref<WebIDL::Promise> scroll_by(double x, double y);
 
-    bool check_visibility(Optional<CheckVisibilityOptions>);
+    bool check_visibility(Optional<Bindings::CheckVisibilityOptions>);
 
     void register_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, GC::Ref<IntersectionObserver::IntersectionObserver>);
     void unregister_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, GC::Ref<IntersectionObserver::IntersectionObserver>);
@@ -611,7 +576,7 @@ public:
 
     double ensure_css_random_base_value(CSS::RandomCachingKey const&);
 
-    GC::Ref<WebIDL::Promise> request_pointer_lock(Optional<PointerLockOptions>);
+    GC::Ref<WebIDL::Promise> request_pointer_lock(Optional<Bindings::PointerLockOptions>);
 
     GC::Ptr<HTML::CustomElementRegistry> custom_element_registry() const { return m_custom_element_registry; }
     void set_custom_element_registry(GC::Ptr<HTML::CustomElementRegistry> registry) { m_custom_element_registry = registry; }

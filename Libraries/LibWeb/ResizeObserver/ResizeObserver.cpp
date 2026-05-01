@@ -56,7 +56,7 @@ void ResizeObserver::finalize()
 }
 
 // https://drafts.csswg.org/resize-observer-1/#dom-resizeobserver-observe
-void ResizeObserver::observe(DOM::Element& target, ResizeObserverOptions options)
+void ResizeObserver::observe(DOM::Element& target, Bindings::ResizeObserverOptions options)
 {
     // 1. If target is in [[observationTargets]] slot, call unobserve() with argument target.
     auto observation = m_observation_targets.find_if([&](auto& observation) { return observation->target().ptr() == &target; });

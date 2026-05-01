@@ -12,35 +12,12 @@
 
 namespace Web::IntersectionObserver {
 
-struct IntersectionObserverEntryInit {
-    // https://www.w3.org/TR/intersection-observer/#dom-intersectionobserverentry-time
-    HighResolutionTime::DOMHighResTimeStamp time { 0.0 };
-
-    // https://www.w3.org/TR/intersection-observer/#dom-intersectionobserverentry-rootbounds
-    Optional<Geometry::DOMRectInit> root_bounds;
-
-    // https://www.w3.org/TR/intersection-observer/#dom-intersectionobserverentry-boundingclientrect
-    Geometry::DOMRectInit bounding_client_rect;
-
-    // https://www.w3.org/TR/intersection-observer/#dom-intersectionobserverentry-intersectionrect
-    Geometry::DOMRectInit intersection_rect;
-
-    // https://www.w3.org/TR/intersection-observer/#dom-intersectionobserverentry-isintersecting
-    bool is_intersecting { false };
-
-    // https://www.w3.org/TR/intersection-observer/#dom-intersectionobserverentry-intersectionratio
-    double intersection_ratio { 0.0 };
-
-    // https://www.w3.org/TR/intersection-observer/#dom-intersectionobserverentry-target
-    GC::Root<DOM::Element> target;
-};
-
 class IntersectionObserverEntry final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(IntersectionObserverEntry, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(IntersectionObserverEntry);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<IntersectionObserverEntry>> construct_impl(JS::Realm&, IntersectionObserverEntryInit const& options);
+    static WebIDL::ExceptionOr<GC::Ref<IntersectionObserverEntry>> construct_impl(JS::Realm&, Bindings::IntersectionObserverEntryInit const&);
 
     virtual ~IntersectionObserverEntry() override;
 

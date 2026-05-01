@@ -43,12 +43,12 @@ GC::Ref<File> File::create(JS::Realm& realm)
 }
 
 // https://w3c.github.io/FileAPI/#ref-for-dom-file-file
-WebIDL::ExceptionOr<GC::Ref<File>> File::create(JS::Realm& realm, BlobParts const& file_bits, String const& file_name, Optional<FilePropertyBag> const& options)
+WebIDL::ExceptionOr<GC::Ref<File>> File::create(JS::Realm& realm, BlobParts const& file_bits, String const& file_name, Optional<Bindings::FilePropertyBag> const& options)
 {
     auto& vm = realm.vm();
 
     // 1. Let bytes be the result of processing blob parts given fileBits and options.
-    auto bytes = TRY_OR_THROW_OOM(vm, process_blob_parts(file_bits, options.has_value() ? static_cast<BlobPropertyBag const&>(*options) : Optional<BlobPropertyBag> {}));
+    auto bytes = TRY_OR_THROW_OOM(vm, process_blob_parts(file_bits, options.has_value() ? static_cast<Bindings::BlobPropertyBag const&>(*options) : Optional<Bindings::BlobPropertyBag> {}));
 
     // 2. Let n be the fileName argument to the constructor.
     //    NOTE: Underlying OS filesystems use differing conventions for file name; with constructed files, mandating UTF-16 lessens ambiquity when file names are converted to byte sequences.
@@ -83,7 +83,7 @@ WebIDL::ExceptionOr<GC::Ref<File>> File::create(JS::Realm& realm, BlobParts cons
     return realm.create<File>(realm, move(bytes), move(name), move(type), last_modified);
 }
 
-WebIDL::ExceptionOr<GC::Ref<File>> File::construct_impl(JS::Realm& realm, BlobParts const& file_bits, String const& file_name, Optional<FilePropertyBag> const& options)
+WebIDL::ExceptionOr<GC::Ref<File>> File::construct_impl(JS::Realm& realm, BlobParts const& file_bits, String const& file_name, Optional<Bindings::FilePropertyBag> const& options)
 {
     return create(realm, file_bits, file_name, options);
 }

@@ -8,16 +8,11 @@
 #pragma once
 
 #include <LibWeb/Animations/TimeValue.h>
+#include <LibWeb/Bindings/AnimationPlaybackEvent.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/Event.h>
 
 namespace Web::Animations {
-
-// https://www.w3.org/TR/web-animations-1/#dictdef-animationplaybackeventinit
-struct AnimationPlaybackEventInit : public DOM::EventInit {
-    NullableCSSNumberish current_time { Empty {} };
-    NullableCSSNumberish timeline_time { Empty {} };
-};
 
 // https://www.w3.org/TR/web-animations-1/#animationplaybackevent
 class AnimationPlaybackEvent : public DOM::Event {
@@ -25,8 +20,8 @@ class AnimationPlaybackEvent : public DOM::Event {
     GC_DECLARE_ALLOCATOR(AnimationPlaybackEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<AnimationPlaybackEvent> create(JS::Realm&, FlyString const& type, AnimationPlaybackEventInit const& event_init = {});
-    static WebIDL::ExceptionOr<GC::Ref<AnimationPlaybackEvent>> construct_impl(JS::Realm&, FlyString const& type, AnimationPlaybackEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<AnimationPlaybackEvent> create(JS::Realm&, FlyString const& type, Bindings::AnimationPlaybackEventInit const& event_init = {});
+    static WebIDL::ExceptionOr<GC::Ref<AnimationPlaybackEvent>> construct_impl(JS::Realm&, FlyString const& type, Bindings::AnimationPlaybackEventInit const& event_init);
 
     virtual ~AnimationPlaybackEvent() override = default;
 
@@ -34,7 +29,7 @@ public:
     NullableCSSNumberish timeline_time() const;
 
 private:
-    AnimationPlaybackEvent(JS::Realm&, FlyString const& type, AnimationPlaybackEventInit const& event_init);
+    AnimationPlaybackEvent(JS::Realm&, FlyString const& type, Bindings::AnimationPlaybackEventInit const& event_init);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;

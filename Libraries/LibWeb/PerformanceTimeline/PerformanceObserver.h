@@ -11,13 +11,6 @@
 
 namespace Web::PerformanceTimeline {
 
-// https://w3c.github.io/performance-timeline/#dom-performanceobserverinit
-struct PerformanceObserverInit {
-    Optional<Vector<String>> entry_types;
-    Optional<String> type;
-    Optional<bool> buffered;
-};
-
 // https://w3c.github.io/performance-timeline/#dom-performanceobserver
 class PerformanceObserver final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(PerformanceObserver, Bindings::PlatformObject);
@@ -33,14 +26,14 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<PerformanceObserver>> construct_impl(JS::Realm&, GC::Ptr<WebIDL::CallbackType>);
     virtual ~PerformanceObserver() override;
 
-    WebIDL::ExceptionOr<void> observe(PerformanceObserverInit& options);
+    WebIDL::ExceptionOr<void> observe(Bindings::PerformanceObserverInit& options);
     void disconnect();
     Vector<GC::Root<PerformanceTimeline::PerformanceEntry>> take_records();
 
     bool requires_dropped_entries() const { return m_requires_dropped_entries; }
     void unset_requires_dropped_entries(Badge<HTML::WindowOrWorkerGlobalScopeMixin>);
 
-    Vector<PerformanceObserverInit> const& options_list() const { return m_options_list; }
+    Vector<Bindings::PerformanceObserverInit> const& options_list() const { return m_options_list; }
 
     WebIDL::CallbackType& callback() { return *m_callback; }
 
@@ -74,7 +67,7 @@ private:
     // A registered performance observer is a struct consisting of an observer member (a PerformanceObserver object)
     // and an options list member (a list of PerformanceObserverInit dictionaries).
     // NOTE: This doesn't use a separate struct as methods such as disconnect() assume it can access an options list from `this`: a PerformanceObserver.
-    Vector<PerformanceObserverInit> m_options_list;
+    Vector<Bindings::PerformanceObserverInit> m_options_list;
 };
 
 }

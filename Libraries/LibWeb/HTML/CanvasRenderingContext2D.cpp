@@ -22,6 +22,7 @@
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/Bindings/CanvasRenderingContext2D.h>
+#include <LibWeb/Bindings/DOMRectReadOnly.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
@@ -520,7 +521,7 @@ void CanvasRenderingContext2D::fill(Path2D& path, StringView fill_rule)
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createimagedata
-WebIDL::ExceptionOr<GC::Ref<ImageData>> CanvasRenderingContext2D::create_image_data(int width, int height, Optional<ImageDataSettings> const& settings) const
+WebIDL::ExceptionOr<GC::Ref<ImageData>> CanvasRenderingContext2D::create_image_data(int width, int height, Optional<Bindings::ImageDataSettings> const& settings) const
 {
     // 1. If one or both of sw and sh are zero, then throw an "IndexSizeError" DOMException.
     if (width == 0 || height == 0)
@@ -553,7 +554,7 @@ WebIDL::ExceptionOr<GC::Ref<ImageData>> CanvasRenderingContext2D::create_image_d
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-getimagedata
-WebIDL::ExceptionOr<GC::Ptr<ImageData>> CanvasRenderingContext2D::get_image_data(int x, int y, int width, int height, Optional<ImageDataSettings> const& settings) const
+WebIDL::ExceptionOr<GC::Ptr<ImageData>> CanvasRenderingContext2D::get_image_data(int x, int y, int width, int height, Optional<Bindings::ImageDataSettings> const& settings) const
 {
     // 1. If either the sw or sh arguments are zero, then throw an "IndexSizeError" DOMException.
     if (width == 0 || height == 0)

@@ -11,11 +11,6 @@
 
 namespace Web::WebAudio {
 
-// https://webaudio.github.io/web-audio-api/#StereoPannerOptions
-struct StereoPannerOptions : AudioNodeOptions {
-    float pan { 0 };
-};
-
 // https://webaudio.github.io/web-audio-api/#stereopannernode
 class StereoPannerNode : public AudioNode {
     WEB_PLATFORM_OBJECT(StereoPannerNode, AudioNode);
@@ -24,8 +19,8 @@ class StereoPannerNode : public AudioNode {
 public:
     virtual ~StereoPannerNode() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, StereoPannerOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, StereoPannerOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::StereoPannerOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::StereoPannerOptions const& = {});
 
     WebIDL::UnsignedLong number_of_inputs() override { return 1; }
     WebIDL::UnsignedLong number_of_outputs() override { return 1; }
@@ -36,7 +31,7 @@ public:
     GC::Ref<AudioParam const> pan() const { return m_pan; }
 
 protected:
-    StereoPannerNode(JS::Realm&, GC::Ref<BaseAudioContext>, StereoPannerOptions const& = {});
+    StereoPannerNode(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::StereoPannerOptions const& = {});
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

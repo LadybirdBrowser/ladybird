@@ -13,6 +13,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MediaDeviceInfo.h>
 #include <LibWeb/Bindings/MediaDevices.h>
+#include <LibWeb/Bindings/MediaStreamConstraints.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/IDLEventListener.h>
@@ -23,7 +24,6 @@
 #include <LibWeb/MediaCapture/MediaDeviceInfo.h>
 #include <LibWeb/MediaCapture/MediaDevices.h>
 #include <LibWeb/MediaCapture/MediaStream.h>
-#include <LibWeb/MediaCapture/MediaStreamConstraints.h>
 #include <LibWeb/MediaCapture/MediaStreamTrack.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/CallbackType.h>
@@ -35,6 +35,8 @@ namespace Web::MediaCapture {
 static String const AUDIO_INPUT_KIND = "audioinput"_string;
 static String const AUDIO_OUTPUT_KIND = "audiooutput"_string;
 static String const VIDEO_INPUT_KIND = "videoinput"_string;
+
+using ConstrainDOMString = Variant<String, Vector<String>, Bindings::ConstrainDOMStringParameters>;
 
 static Optional<Vector<String>> extract_device_id_constraint(Optional<ConstrainDOMString> const& device_id_value);
 static void resolve_with_device_info_list(JS::Realm& realm, WebIDL::Promise& promise, GC::RootVector<GC::Ref<MediaDeviceInfo>> const& result_list);
@@ -307,7 +309,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
             Bindings::MediaStreamTrackKind::Audio,
             String::from_utf8_with_replacement_character(granted_device.label.view()));
 
-        MediaTrackSettings settings = track->get_settings();
+        Bindings::MediaTrackSettings settings = track->get_settings();
         settings.device_id = granted_device_id;
         settings.sample_rate = granted_device.sample_rate_hz;
         settings.channel_count = granted_device.channel_count;
@@ -573,16 +575,16 @@ void MediaDevices::run_device_change_notification_steps(Vector<StoredDevice> con
 }
 
 // https://w3c.github.io/mediacapture-main/#dom-mediadevices-getsupportedconstraints
-MediaTrackSupportedConstraints MediaDevices::get_supported_constraints()
+Bindings::MediaTrackSupportedConstraints MediaDevices::get_supported_constraints()
 {
     // Returns a dictionary whose members are the constrainable properties known to the User Agent.
-    MediaTrackSupportedConstraints supported_constraints;
+    Bindings::MediaTrackSupportedConstraints supported_constraints;
     supported_constraints.device_id = true;
     return supported_constraints;
 }
 
 // https://w3c.github.io/mediacapture-main/#dom-mediadevices-getusermedia
-GC::Ref<WebIDL::Promise> MediaDevices::get_user_media(Optional<MediaStreamConstraints> const& constraints)
+GC::Ref<WebIDL::Promise> MediaDevices::get_user_media(Optional<Bindings::MediaStreamConstraints> const& constraints)
 {
     JS::Realm& realm = this->realm();
     JS::VM& vm = realm.vm();
@@ -602,7 +604,7 @@ GC::Ref<WebIDL::Promise> MediaDevices::get_user_media(Optional<MediaStreamConstr
         audio_requested = audio_value.get<bool>();
     } else {
         audio_requested = true;
-        auto const& audio_constraints = audio_value.get<MediaTrackConstraints>();
+        auto const& audio_constraints = audio_value.get<Bindings::MediaTrackConstraints>();
         requested_device_ids = extract_device_id_constraint(audio_constraints.device_id);
     }
 
@@ -723,8 +725,8 @@ static Optional<Vector<String>> extract_dom_string_constraint_values(ConstrainDO
     // - ideal: (DOMString or sequence<DOMString>) The ideal (target) value for this property.
     // https://w3c.github.io/mediacapture-main/#constraint-types
     // List values MUST be interpreted as disjunctions.
-    if (constraint.has<ConstrainDOMStringParameters>()) {
-        auto const& parameters = constraint.get<ConstrainDOMStringParameters>();
+    if (constraint.has<Bindings::ConstrainDOMStringParameters>()) {
+        auto const& parameters = constraint.get<Bindings::ConstrainDOMStringParameters>();
         if (parameters.exact.has_value())
             return dom_string_values_from_variant(*parameters.exact);
         if (parameters.ideal.has_value())
