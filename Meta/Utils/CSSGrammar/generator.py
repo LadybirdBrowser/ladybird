@@ -50,7 +50,7 @@ def generate_css_parser_expression_for_type_component_value(out: TextIO, cpp_nam
 
 def generate_css_parser_expression_for_keyword_component_value(out: TextIO, cpp_name: str, keyword: Keyword) -> None:
     keyword_name = title_casify(keyword.value)
-    out.write(f"auto {cpp_name} = parse_specific_keyword_value(tokens, Keyword::{keyword_name});\n")
+    out.write(f"auto {cpp_name} = parse_specific_keyword_value(tokens, {{ {{ Keyword::{keyword_name} }} }});\n")
 
 
 def generate_css_parser_expression_for_component_value_grammar_node(

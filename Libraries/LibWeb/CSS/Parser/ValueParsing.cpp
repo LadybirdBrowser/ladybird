@@ -1242,11 +1242,11 @@ RefPtr<StyleValue const> Parser::parse_keyword_value(TokenStream<ComponentValue>
     return nullptr;
 }
 
-RefPtr<StyleValue const> Parser::parse_specific_keyword_value(TokenStream<ComponentValue>& tokens, Keyword keyword)
+RefPtr<StyleValue const> Parser::parse_specific_keyword_value(TokenStream<ComponentValue>& tokens, ReadonlySpan<Keyword> allowed_keywords)
 {
     auto transaction = tokens.begin_transaction();
 
-    if (auto keyword_value = parse_keyword_value(tokens); keyword_value && keyword_value->to_keyword() == keyword) {
+    if (auto keyword_value = parse_keyword_value(tokens); keyword_value && allowed_keywords.contains_slow(keyword_value->to_keyword())) {
         transaction.commit();
         return keyword_value;
     }
@@ -3646,7 +3646,7 @@ RefPtr<StyleValue const> Parser::parse_font_variant_alternates_value(TokenStream
         tokens.discard_whitespace();
 
         // historical-forms
-        if (auto maybe_historical_forms = parse_specific_keyword_value(tokens, Keyword::HistoricalForms)) {
+        if (auto maybe_historical_forms = parse_specific_keyword_value(tokens, { { Keyword::HistoricalForms } })) {
             if (historical_forms)
                 return nullptr;
 

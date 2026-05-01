@@ -79,7 +79,7 @@ RefPtr<StyleValue const> Parser::parse_all_as_single_keyword_value(TokenStream<C
 {
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
-    auto keyword_value = parse_specific_keyword_value(tokens, keyword);
+    auto keyword_value = parse_specific_keyword_value(tokens, { { keyword } });
     tokens.discard_whitespace();
 
     if (tokens.has_next_token() || !keyword_value)
@@ -5603,7 +5603,7 @@ RefPtr<StyleValue const> Parser::parse_container_name_value(TokenStream<Componen
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
 
-    if (auto none = parse_specific_keyword_value(tokens, Keyword::None)) {
+    if (auto none = parse_specific_keyword_value(tokens, { { Keyword::None } })) {
         transaction.commit();
         return none;
     }
