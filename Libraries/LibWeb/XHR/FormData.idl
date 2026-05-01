@@ -1,9 +1,3 @@
-// FIXME: This #import currently gives the following error after XHR/FormData.idl was #imported in Fetch/BodyInit.idl:
-//        "LibWeb/HTML/Window.idl:114: error: Mixin 'WindowOrWorkerGlobalScope' was never defined."
-//        XHR/FormData.idl needs to be #imported in Fetch/BodyInit.idl while removing #import HTML/HTMLFormElement.idl
-//        currently makes no difference.
-// #import <HTML/HTMLFormElement.idl>
-
 typedef (File or USVString) FormDataEntryValue;
 
 // https://xhr.spec.whatwg.org/#interface-formdata
