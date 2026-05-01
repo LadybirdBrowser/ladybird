@@ -190,37 +190,37 @@ CppType idl_type_name_to_cpp_type(Type const& type, Context const& context)
         return { .name = "String", .sequence_storage_type = SequenceStorageType::Vector };
     }
 
-    if ((type.name() == "double" || type.name() == "unrestricted double") && !type.is_nullable())
+    if (type.name() == "double" || type.name() == "unrestricted double")
         return { .name = "double", .sequence_storage_type = SequenceStorageType::Vector };
 
-    if ((type.name() == "float" || type.name() == "unrestricted float") && !type.is_nullable())
+    if (type.name() == "float" || type.name() == "unrestricted float")
         return { .name = "float", .sequence_storage_type = SequenceStorageType::Vector };
 
-    if (type.name() == "boolean" && !type.is_nullable())
+    if (type.name() == "boolean")
         return { .name = "bool", .sequence_storage_type = SequenceStorageType::Vector };
 
-    if (type.name() == "byte" && !type.is_nullable())
+    if (type.name() == "byte")
         return { .name = "WebIDL::Byte", .sequence_storage_type = SequenceStorageType::Vector };
 
-    if (type.name() == "octet" && !type.is_nullable())
+    if (type.name() == "octet")
         return { .name = "WebIDL::Octet", .sequence_storage_type = SequenceStorageType::Vector };
 
-    if (type.name() == "short" && !type.is_nullable())
+    if (type.name() == "short")
         return { .name = "WebIDL::Short", .sequence_storage_type = SequenceStorageType::Vector };
 
-    if (type.name() == "unsigned short" && !type.is_nullable())
+    if (type.name() == "unsigned short")
         return { .name = "WebIDL::UnsignedShort", .sequence_storage_type = SequenceStorageType::Vector };
 
-    if (type.name() == "long" && !type.is_nullable())
+    if (type.name() == "long")
         return { .name = "WebIDL::Long", .sequence_storage_type = SequenceStorageType::Vector };
 
-    if (type.name() == "unsigned long" && !type.is_nullable())
+    if (type.name() == "unsigned long")
         return { .name = "WebIDL::UnsignedLong", .sequence_storage_type = SequenceStorageType::Vector };
 
-    if (type.name() == "long long" && !type.is_nullable())
+    if (type.name() == "long long")
         return { .name = "WebIDL::LongLong", .sequence_storage_type = SequenceStorageType::Vector };
 
-    if (type.name() == "unsigned long long" && !type.is_nullable())
+    if (type.name() == "unsigned long long")
         return { .name = "WebIDL::UnsignedLongLong", .sequence_storage_type = SequenceStorageType::Vector };
 
     if (type.name() == "any")
@@ -271,13 +271,13 @@ CppType idl_type_name_to_cpp_type(Type const& type, Context const& context)
         return { .name = union_type_to_variant(union_type, context), .sequence_storage_type = SequenceStorageType::Vector };
     }
 
-    if (!type.is_nullable() && context.dictionaries.contains(type.name()))
+    if (context.dictionaries.contains(type.name()))
         return { .name = dictionary_cpp_type_name(context, type.name()), .sequence_storage_type = SequenceStorageType::Vector };
 
     if (context.enumerations.contains(type.name()))
         return { .name = type.name(), .sequence_storage_type = SequenceStorageType::Vector };
 
-    dbgln("Unimplemented type for idl_type_name_to_cpp_type: {}{}", type.name(), type.is_nullable() ? "?" : "");
+    dbgln("Unimplemented type for idl_type_name_to_cpp_type: {}", type.name());
     TODO();
 }
 
