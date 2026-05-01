@@ -22,6 +22,14 @@ Application::~Application()
     g_clear_object(&m_adw_application);
 }
 
+static void update_zoom_from_xft_dpi()
+{
+    gint gtk_xft_dpi = 0;
+    g_object_get(gtk_settings_get_default(), "gtk-xft-dpi", &gtk_xft_dpi, nullptr);
+    double text_scale = (gtk_xft_dpi > 0) ? (gtk_xft_dpi / 1024.0) / 96.0 : 1.0;
+    WebView::Application::settings().set_default_zoom_level_factor(text_scale);
+}
+
 NonnullOwnPtr<Core::EventLoop> Application::create_platform_event_loop()
 {
     if (!browser_options().headless_mode.has_value()) {
@@ -46,6 +54,13 @@ NonnullOwnPtr<Core::EventLoop> Application::create_platform_event_loop()
 
     if (!browser_options().headless_mode.has_value())
         static_cast<EventLoopImplementationGtk&>(event_loop->impl()).set_main_loop();
+
+    update_zoom_from_xft_dpi();
+    g_signal_connect(gtk_settings_get_default(), "notify::gtk-xft-dpi",
+        G_CALLBACK(+[](GtkSettings*, GParamSpec*, gpointer) {
+            update_zoom_from_xft_dpi();
+        }),
+        nullptr);
 
     return event_loop;
 }
