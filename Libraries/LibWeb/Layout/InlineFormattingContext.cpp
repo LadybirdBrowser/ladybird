@@ -92,6 +92,16 @@ void InlineFormattingContext::run(AvailableSpace const& available_space)
     for (auto& line_box : m_containing_block_used_values.line_boxes)
         content_height += line_box.height();
 
+    auto const content_offset = calculate_align_content_offset(
+        containing_block().computed_values().align_content(),
+        m_containing_block_used_values.content_height(),
+        content_height);
+
+    if (content_offset > 0) {
+        for (auto& line_box : m_containing_block_used_values.line_boxes)
+            line_box.translate_block_offset(content_offset);
+    }
+
     // NOTE: We ask the parent BFC to calculate the automatic content width of this IFC.
     //       This ensures that any floated boxes are taken into account.
     m_automatic_content_width = parent().greatest_child_width(containing_block());

@@ -140,6 +140,11 @@ bool FormattingContext::creates_block_formatting_context(Box const& box)
 
     // FIXME: column-span: all should always create a new formatting context, even when the column-span: all element isn't contained by a multicol container (Spec change, Chrome bug).
 
+    // https://www.w3.org/TR/css-align-3/#distribution-block
+    // All values other than 'normal' force the block container to establish an independent formatting context.
+    if (box.display().is_block_outside() && box.computed_values().align_content() != CSS::AlignContent::Normal)
+        return true;
+
     // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
     if (box.is_fieldset_box())
         // The fieldset element, when it generates a CSS box, is expected to act as follows:
@@ -147,6 +152,28 @@ bool FormattingContext::creates_block_formatting_context(Box const& box)
         return true;
 
     return false;
+}
+
+CSSPixels FormattingContext::calculate_align_content_offset(CSS::AlignContent const align_content, CSSPixels const container_height, CSSPixels const content_height)
+{
+    CSSPixels content_offset;
+    // FIXME: Add <baseline-position> and <overflow-position> values and handle them here (see https://www.w3.org/TR/css-align-3/#propdef-align-content).
+    switch (align_content) {
+    case CSS::AlignContent::Center:
+    case CSS::AlignContent::SpaceAround:
+    case CSS::AlignContent::SpaceEvenly: {
+        auto const space_above_and_below = container_height - content_height;
+        content_offset = space_above_and_below / 2;
+        break;
+    }
+    case CSS::AlignContent::End: {
+        content_offset = container_height - content_height;
+        break;
+    }
+    default:
+        break;
+    }
+    return max(content_offset, 0);
 }
 
 Optional<FormattingContext::Type> FormattingContext::formatting_context_type_created_by_box(Box const& box)

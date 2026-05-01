@@ -32,6 +32,8 @@ public:
     Vector<LineBoxFragment> const& fragments() const { return m_fragments; }
     Vector<LineBoxFragment>& fragments() { return m_fragments; }
 
+    void translate_block_offset(CSSPixels);
+
     CSSPixels get_trailing_whitespace_width() const;
     void trim_trailing_whitespace();
 

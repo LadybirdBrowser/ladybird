@@ -1024,6 +1024,53 @@ void BlockFormattingContext::layout_block_level_children(BlockContainer const& b
             block_container_state.set_content_height(bottom_of_lowest_margin_box);
         }
     }
+
+    apply_align_content_offset(block_container);
+}
+
+// https://www.w3.org/TR/css-align-3/#distribution-block
+void BlockFormattingContext::apply_align_content_offset(BlockContainer const& block_container) const
+{
+    auto const& block_container_state = m_state.get_mutable(block_container);
+
+    if (block_container.has_child_of_type<NodeWithStyle>()) {
+        Optional<LayoutState::UsedValues const&> first_child_state;
+        Optional<LayoutState::UsedValues const&> last_child_state;
+
+        for (auto const* first_child = block_container.first_child_of_type<NodeWithStyle>();
+            first_child;
+            first_child = first_child->next_sibling_of_type<NodeWithStyle>()) {
+            if (auto* const state = m_state.try_get_mutable(*first_child)) {
+                first_child_state = *state;
+                break;
+            }
+        }
+
+        for (auto const* last_child = block_container.last_child_of_type<NodeWithStyle>();
+            last_child;
+            last_child = last_child->next_sibling_of_type<NodeWithStyle>()) {
+            if (auto* const state = m_state.try_get_mutable(*last_child)) {
+                last_child_state = *state;
+                break;
+            }
+        }
+
+        if (first_child_state.has_value() && last_child_state.has_value()) {
+            auto const children_height = last_child_state->offset.y() + last_child_state->content_height() - first_child_state->offset.y();
+            auto content_offset = calculate_align_content_offset(
+                block_container.computed_values().align_content(),
+                block_container_state.content_height(),
+                children_height);
+
+            if (content_offset > 0) {
+                block_container.for_each_child_of_type<NodeWithStyle>([&](auto const& child) {
+                    auto& child_state = m_state.get_mutable(child);
+                    child_state.offset.set_y(child_state.offset.y() + content_offset);
+                    return IterationDecision::Continue;
+                });
+            }
+        }
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements

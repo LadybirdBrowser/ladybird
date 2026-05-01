@@ -117,6 +117,8 @@ public:
 
     [[nodiscard]] static Optional<Type> formatting_context_type_created_by_box(Box const&);
 
+    [[nodiscard]] static CSSPixels calculate_align_content_offset(CSS::AlignContent, CSSPixels container_height, CSSPixels content_height);
+
     static bool creates_block_formatting_context(Box const&);
 
     CSSPixels compute_table_box_width_inside_table_wrapper(Box const&, AvailableSpace const&);

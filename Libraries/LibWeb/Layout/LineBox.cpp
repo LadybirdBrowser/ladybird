@@ -60,6 +60,16 @@ void LineBox::add_fragment(Node const& layout_node, size_t start, size_t length,
     m_block_length = max(m_block_length, content_height + border_box_top + border_box_bottom);
 }
 
+void LineBox::translate_block_offset(CSSPixels delta)
+{
+    if (delta == 0)
+        return;
+    for (auto& fragment : m_fragments)
+        fragment.set_block_offset(fragment.block_offset() + delta);
+    m_bottom += delta;
+    m_baseline += delta;
+}
+
 CSSPixels LineBox::calculate_or_trim_trailing_whitespace(RemoveTrailingWhitespace should_remove)
 {
     auto should_trim = [](LineBoxFragment* fragment) {
