@@ -8,7 +8,6 @@
 #include <LibJS/Runtime/AsyncGenerator.h>
 #include <LibJS/Runtime/AsyncGeneratorPrototype.h>
 #include <LibJS/Runtime/AsyncGeneratorRequest.h>
-#include <LibJS/Runtime/CompletionCell.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/NativeJavaScriptBackedFunction.h>
@@ -60,6 +59,7 @@ void AsyncGenerator::visit_edges(Cell::Visitor& visitor)
     }
     visitor.visit(m_generating_executable);
     visitor.visit(m_current_promise);
+    visitor.visit(m_pending_completion_value);
     m_async_generator_context->visit_edges(visitor);
 }
 
@@ -165,7 +165,7 @@ ThrowCompletionOr<void> AsyncGenerator::await(Value value)
 void AsyncGenerator::execute(VM& vm, Completion completion)
 {
     while (true) {
-        auto completion_cell = heap().allocate<CompletionCell>(completion);
+        set_pending_completion(completion);
 
         // We should never enter `execute` again after the generator is complete.
         VERIFY(m_yield_continuation != ExecutionContext::no_yield_continuation);
@@ -173,7 +173,8 @@ void AsyncGenerator::execute(VM& vm, Completion completion)
         // Clear yield state so that a normal return (no yield) is detected as done.
         m_async_generator_context->yield_continuation = ExecutionContext::no_yield_continuation;
 
-        auto result_value = vm.run_executable(vm.running_execution_context(), m_generating_executable, m_yield_continuation, completion_cell);
+        auto result_value = vm.run_executable(vm.running_execution_context(), m_generating_executable, m_yield_continuation, Value(this));
+        clear_pending_completion();
 
         if (result_value.is_throw_completion()) {
             m_yield_continuation = ExecutionContext::no_yield_continuation;

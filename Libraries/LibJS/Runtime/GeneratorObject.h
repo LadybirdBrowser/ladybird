@@ -45,6 +45,20 @@ public:
     GeneratorState generator_state() const { return m_generator_state; }
     void set_generator_state(GeneratorState generator_state) { m_generator_state = generator_state; }
 
+    void set_pending_completion(Completion const& completion)
+    {
+        m_pending_completion_value = completion.value();
+        m_pending_completion_type = completion.type();
+    }
+    Value pending_completion_value() const { return m_pending_completion_value; }
+    Completion::Type pending_completion_type() const { return m_pending_completion_type; }
+    void set_pending_completion_type(Completion::Type completion_type) { m_pending_completion_type = completion_type; }
+    void clear_pending_completion()
+    {
+        m_pending_completion_value = js_undefined();
+        m_pending_completion_type = Completion::Type::Normal;
+    }
+
 protected:
     GeneratorObject(Realm&, Object* prototype, NonnullOwnPtr<ExecutionContext>, Optional<StringView> generator_brand = {});
 
@@ -57,6 +71,8 @@ private:
     u32 m_yield_continuation { ExecutionContext::no_yield_continuation };
     GeneratorState m_generator_state { GeneratorState::SuspendedStart };
     Optional<StringView> m_generator_brand;
+    Value m_pending_completion_value { js_undefined() };
+    Completion::Type m_pending_completion_type { Completion::Type::Normal };
 };
 
 }

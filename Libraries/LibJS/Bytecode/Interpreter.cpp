@@ -25,13 +25,14 @@
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/AsyncFromSyncIterator.h>
 #include <LibJS/Runtime/AsyncFromSyncIteratorPrototype.h>
+#include <LibJS/Runtime/AsyncGenerator.h>
 #include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/ClassConstruction.h>
-#include <LibJS/Runtime/CompletionCell.h>
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
 #include <LibJS/Runtime/Environment.h>
 #include <LibJS/Runtime/FunctionEnvironment.h>
+#include <LibJS/Runtime/GeneratorObject.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Iterator.h>
@@ -3429,16 +3430,28 @@ ThrowCompletionOr<void> TypeofBinding::execute_impl(VM& vm) const
 
 void GetCompletionFields::execute_impl(VM& vm) const
 {
-    auto const& completion_cell = static_cast<CompletionCell const&>(vm.get(m_completion).as_cell());
-    vm.set(m_value_dst, completion_cell.completion().value());
-    vm.set(m_type_dst, Value(to_underlying(completion_cell.completion().type())));
+    auto& completion_source = vm.get(m_completion).as_object();
+    if (is<GeneratorObject>(completion_source)) {
+        auto const& generator = as<GeneratorObject>(completion_source);
+        vm.set(m_value_dst, generator.pending_completion_value());
+        vm.set(m_type_dst, Value(to_underlying(generator.pending_completion_type())));
+        return;
+    }
+
+    auto const& async_generator = as<AsyncGenerator>(completion_source);
+    vm.set(m_value_dst, async_generator.pending_completion_value());
+    vm.set(m_type_dst, Value(to_underlying(async_generator.pending_completion_type())));
 }
 
 void SetCompletionType::execute_impl(VM& vm) const
 {
-    auto& completion_cell = static_cast<CompletionCell&>(vm.get(m_completion).as_cell());
-    auto completion = completion_cell.completion();
-    completion_cell.set_completion(Completion { m_completion_type, completion.value() });
+    auto& completion_source = vm.get(m_completion).as_object();
+    if (is<GeneratorObject>(completion_source)) {
+        as<GeneratorObject>(completion_source).set_pending_completion_type(m_completion_type);
+        return;
+    }
+
+    as<AsyncGenerator>(completion_source).set_pending_completion_type(m_completion_type);
 }
 
 ThrowCompletionOr<void> CreateImmutableBinding::execute_impl(VM& vm) const

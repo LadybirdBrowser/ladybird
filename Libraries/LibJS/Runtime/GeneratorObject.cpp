@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/TemporaryChange.h>
-#include <LibJS/Runtime/CompletionCell.h>
 #include <LibJS/Runtime/GeneratorObject.h>
 #include <LibJS/Runtime/GeneratorPrototype.h>
 #include <LibJS/Runtime/GlobalObject.h>
@@ -71,6 +69,7 @@ void GeneratorObject::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_generating_executable);
     m_execution_context->visit_edges(visitor);
+    visitor.visit(m_pending_completion_value);
 }
 
 // 27.5.3.2 GeneratorValidate ( generator, generatorBrand ), https://tc39.es/ecma262/#sec-generatorvalidate
@@ -102,7 +101,7 @@ ThrowCompletionOr<GeneratorObject::IterationResult> GeneratorObject::execute(VM&
 {
     // Loosely based on step 4 of https://tc39.es/ecma262/#sec-generatorstart mixed with https://tc39.es/ecma262/#sec-generatoryield at the end.
 
-    auto completion_cell = heap().allocate<CompletionCell>(completion);
+    set_pending_completion(completion);
 
     // We should never enter `execute` again after the generator is complete.
     VERIFY(m_yield_continuation != ExecutionContext::no_yield_continuation);
@@ -110,7 +109,8 @@ ThrowCompletionOr<GeneratorObject::IterationResult> GeneratorObject::execute(VM&
     // Clear yield state so that a normal return (no yield) is detected as done.
     m_execution_context->yield_continuation = ExecutionContext::no_yield_continuation;
 
-    auto result_value = vm.run_executable(vm.running_execution_context(), *m_generating_executable, m_yield_continuation, completion_cell);
+    auto result_value = vm.run_executable(vm.running_execution_context(), *m_generating_executable, m_yield_continuation, Value(this));
+    clear_pending_completion();
 
     vm.pop_execution_context();
 

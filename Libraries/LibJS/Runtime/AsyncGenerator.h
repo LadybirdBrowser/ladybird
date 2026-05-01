@@ -43,6 +43,20 @@ public:
 
     Optional<String> const& generator_brand() const { return m_generator_brand; }
 
+    void set_pending_completion(Completion const& completion)
+    {
+        m_pending_completion_value = completion.value();
+        m_pending_completion_type = completion.type();
+    }
+    Value pending_completion_value() const { return m_pending_completion_value; }
+    Completion::Type pending_completion_type() const { return m_pending_completion_type; }
+    void set_pending_completion_type(Completion::Type completion_type) { m_pending_completion_type = completion_type; }
+    void clear_pending_completion()
+    {
+        m_pending_completion_value = js_undefined();
+        m_pending_completion_type = Completion::Type::Normal;
+    }
+
 private:
     AsyncGenerator(Realm&, Object* prototype, NonnullOwnPtr<ExecutionContext>, GC::Ref<Bytecode::Executable>);
 
@@ -61,6 +75,8 @@ private:
     GC::Ref<Bytecode::Executable> m_generating_executable;
     u32 m_yield_continuation { ExecutionContext::no_yield_continuation };
     GC::Ptr<Promise> m_current_promise;
+    Value m_pending_completion_value { js_undefined() };
+    Completion::Type m_pending_completion_type { Completion::Type::Normal };
 };
 
 }
