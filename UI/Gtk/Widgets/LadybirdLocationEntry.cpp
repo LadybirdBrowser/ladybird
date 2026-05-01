@@ -32,8 +32,47 @@ struct LocationEntryState {
     bool is_loading { false };
     bool updating_text { false };
     guint loading_pulse_source_id { 0 };
+    // Inline autocomplete state
+    String current_inline_suggestion;
+    Optional<String> suppressed_query;
+    bool suppress_on_next_change { false };
+    bool applying_inline { false };
     Function<void(String)> on_navigate;
 };
+
+static Optional<String> inline_completion_for_suggestion(StringView query, StringView suggestion_url)
+{
+    // Strip trailing root slash: "example.com/" → "example.com" (but not "example.com/path/")
+    StringView candidate = suggestion_url;
+    if (candidate.ends_with('/')) {
+        auto without_slash = candidate.substring_view(0, candidate.length() - 1);
+        if (!without_slash.contains('/'))
+            candidate = without_slash;
+    }
+
+    auto try_prefix = [&](StringView url) -> Optional<String> {
+        if (!WebView::autocomplete_url_can_complete(query, url))
+            return {};
+        return MUST(String::formatted("{}{}", query, url.substring_view(query.length())));
+    };
+
+    if (auto r = try_prefix(candidate); r.has_value())
+        return r;
+    if (candidate.starts_with("www."sv))
+        if (auto r = try_prefix(candidate.substring_view(4)); r.has_value())
+            return r;
+    for (auto scheme : { "https://"sv, "http://"sv }) {
+        if (!candidate.starts_with(scheme))
+            continue;
+        auto rest = candidate.substring_view(scheme.length());
+        if (auto r = try_prefix(rest); r.has_value())
+            return r;
+        if (rest.starts_with("www."sv))
+            if (auto r = try_prefix(rest.substring_view(4)); r.has_value())
+                return r;
+    }
+    return {};
+}
 
 #define LADYBIRD_LOCATION_ENTRY(obj) (reinterpret_cast<LadybirdLocationEntry*>(obj))
 #define LADYBIRD_TYPE_LOCATION_ENTRY (ladybird_location_entry_get_type())
@@ -60,6 +99,11 @@ static void ladybird_location_entry_show_completions(LadybirdLocationEntry* self
 static void ladybird_location_entry_hide_completions(LadybirdLocationEntry* self);
 static void ladybird_location_entry_navigate(LadybirdLocationEntry* self);
 static void ladybird_location_entry_move_selection(LadybirdLocationEntry* self, int delta);
+static int ladybird_location_entry_apply_inline_autocomplete(LadybirdLocationEntry* self, Vector<WebView::AutocompleteSuggestion> const& suggestions);
+static void ladybird_location_entry_apply_inline_text(LadybirdLocationEntry* self, StringView inline_text, StringView query);
+static void ladybird_location_entry_restore_query(LadybirdLocationEntry* self);
+static void ladybird_location_entry_reset_inline_state(LadybirdLocationEntry* self);
+static String ladybird_location_entry_current_query(LadybirdLocationEntry* self);
 static void ladybird_location_entry_apply_selected_suggestion(LadybirdLocationEntry* self);
 static void ladybird_location_entry_update_leading_icon(LadybirdLocationEntry* self);
 
@@ -107,6 +151,10 @@ static void ladybird_location_entry_init(LadybirdLocationEntry* self)
         .is_loading = false,
         .updating_text = false,
         .loading_pulse_source_id = 0,
+        .current_inline_suggestion = {},
+        .suppressed_query = {},
+        .suppress_on_next_change = false,
+        .applying_inline = false,
         .on_navigate = {},
     });
 
@@ -146,6 +194,8 @@ static void ladybird_location_entry_init(LadybirdLocationEntry* self)
             return;
         }
 
+        int selected_row = ladybird_location_entry_apply_inline_autocomplete(self, suggestions);
+
         bool popup_visible = gtk_widget_get_visible(GTK_WIDGET(self->popover));
         if (result_kind == WebView::AutocompleteResultKind::Intermediate && popup_visible) {
             if (self->state->selected_row >= 0
@@ -167,18 +217,52 @@ static void ladybird_location_entry_init(LadybirdLocationEntry* self)
         self->state->suggestions = move(suggestions);
         self->state->selected_row = -1;
         ladybird_location_entry_show_completions(self);
+
+        if (selected_row >= 0) {
+            for (size_t i = 0; i < self->state->row_info.size(); ++i) {
+                auto const& info = self->state->row_info[i];
+                if (!info.is_section_header && info.suggestion_index == static_cast<size_t>(selected_row)) {
+                    self->state->selected_row = static_cast<int>(i);
+                    auto* row = gtk_list_box_get_row_at_index(self->list_box, static_cast<int>(i));
+                    if (row)
+                        gtk_list_box_select_row(self->list_box, row);
+                    break;
+                }
+            }
+        }
     };
 
     // Text changed -> query autocomplete
     g_signal_connect_swapped(self, "changed", G_CALLBACK(+[](LadybirdLocationEntry* self, GtkEditable*) {
-        if (!self->state->is_focused || self->state->updating_text)
+        if (!self->state->is_focused || self->state->updating_text || self->state->applying_inline)
             return;
         auto* text = gtk_editable_get_text(GTK_EDITABLE(self));
         if (!text || text[0] == '\0') {
             ladybird_location_entry_hide_completions(self);
             return;
         }
-        self->state->user_text = MUST(String::from_utf8(StringView { text, strlen(text) }));
+
+        auto query = ladybird_location_entry_current_query(self);
+
+        if (self->state->suppress_on_next_change) {
+            self->state->suppressed_query = query;
+            self->state->suppress_on_next_change = false;
+        } else if (self->state->suppressed_query.has_value() && self->state->suppressed_query.value() != query) {
+            self->state->suppressed_query = {};
+        }
+
+        if (!self->state->suppressed_query.has_value() && !self->state->current_inline_suggestion.is_empty()) {
+            auto query_sv = query.bytes_as_string_view();
+            auto completion = inline_completion_for_suggestion(query_sv, self->state->current_inline_suggestion.bytes_as_string_view());
+            if (!completion.has_value() || completion.value() == query) {
+                ladybird_location_entry_restore_query(self);
+                self->state->current_inline_suggestion = {};
+            } else {
+                ladybird_location_entry_apply_inline_text(self, completion.value(), query_sv);
+            }
+        }
+
+        self->state->user_text = query;
         self->state->autocomplete->query_autocomplete_engine(self->state->user_text);
     }),
         self);
@@ -193,6 +277,9 @@ static void ladybird_location_entry_init(LadybirdLocationEntry* self)
     // Key controller for Up/Down/Escape
     auto* key_controller = gtk_event_controller_key_new();
     g_signal_connect_swapped(key_controller, "key-pressed", G_CALLBACK(+[](LadybirdLocationEntry* self, guint keyval, guint, GdkModifierType) -> gboolean {
+        if (keyval == GDK_KEY_BackSpace || keyval == GDK_KEY_Delete)
+            self->state->suppress_on_next_change = true;
+
         if (!gtk_widget_get_visible(GTK_WIDGET(self->popover)))
             return GDK_EVENT_PROPAGATE;
 
@@ -205,6 +292,7 @@ static void ladybird_location_entry_init(LadybirdLocationEntry* self)
             return GDK_EVENT_STOP;
         case GDK_KEY_Escape:
             ladybird_location_entry_hide_completions(self);
+            ladybird_location_entry_reset_inline_state(self);
             if (!self->state->user_text.is_empty())
                 set_entry_text_suppressed(self, self->state->user_text.to_byte_string().characters());
             return GDK_EVENT_STOP;
@@ -224,7 +312,9 @@ static void ladybird_location_entry_init(LadybirdLocationEntry* self)
         self);
     g_signal_connect_swapped(focus_controller, "leave", G_CALLBACK(+[](LadybirdLocationEntry* self, GtkEventControllerFocus*) {
         self->state->is_focused = false;
+        self->state->autocomplete->cancel_pending_query();
         ladybird_location_entry_hide_completions(self);
+        ladybird_location_entry_reset_inline_state(self);
         ladybird_location_entry_update_display_attributes(self);
     }),
         self);
@@ -382,9 +472,9 @@ static GtkWidget* make_suggestion_icon(WebView::AutocompleteSuggestion const& su
         auto decoded = decode_base64(*suggestion.favicon_base64_png);
         if (!decoded.is_error()) {
             auto& bytes = decoded.value();
-            Ladybird::GObjectPtr<GBytes> gbytes { g_bytes_new(bytes.data(), bytes.size()) };
+            g_autoptr(GBytes) gbytes = g_bytes_new(bytes.data(), bytes.size());
             g_autoptr(GError) error = nullptr;
-            Ladybird::GObjectPtr<GdkTexture> texture { gdk_texture_new_from_bytes(gbytes.ptr(), &error) };
+            Ladybird::GObjectPtr<GdkTexture> texture { gdk_texture_new_from_bytes(gbytes, &error) };
             if (texture.ptr()) {
                 auto* image = gtk_image_new_from_paintable(GDK_PAINTABLE(texture.ptr()));
                 gtk_image_set_pixel_size(GTK_IMAGE(image), AUTOCOMPLETE_ICON_SIZE);
@@ -419,8 +509,8 @@ static GtkWidget* make_suggestion_row_widget(WebView::AutocompleteSuggestion con
         gtk_widget_add_css_class(title_label, "caption-heading");
         gtk_box_append(GTK_BOX(text_box), title_label);
 
-        auto url_str = suggestion.text.to_byte_string();
-        auto* url_label = gtk_label_new(url_str.characters());
+        auto secondary_str = (suggestion.subtitle.has_value() ? *suggestion.subtitle : suggestion.text).to_byte_string();
+        auto* url_label = gtk_label_new(secondary_str.characters());
         gtk_label_set_xalign(GTK_LABEL(url_label), 0.0);
         gtk_label_set_ellipsize(GTK_LABEL(url_label), PANGO_ELLIPSIZE_END);
         gtk_widget_add_css_class(url_label, "dim-label");
@@ -548,4 +638,144 @@ static void ladybird_location_entry_apply_selected_suggestion(LadybirdLocationEn
     if (info.is_section_header)
         return;
     set_entry_text_suppressed(self, state.suggestions[info.suggestion_index].text.to_byte_string().characters(), true);
+}
+
+static String ladybird_location_entry_current_query(LadybirdLocationEntry* self)
+{
+    auto* text = gtk_editable_get_text(GTK_EDITABLE(self));
+    if (!text || text[0] == '\0')
+        return {};
+    size_t text_bytes = strlen(text);
+    int text_chars = static_cast<int>(g_utf8_strlen(text, -1));
+    int start, end;
+    if (!gtk_editable_get_selection_bounds(GTK_EDITABLE(self), &start, &end))
+        return MUST(String::from_utf8(StringView(text, text_bytes)));
+    if (end != text_chars)
+        return MUST(String::from_utf8(StringView(text, text_bytes)));
+    size_t start_bytes = static_cast<size_t>(g_utf8_offset_to_pointer(text, start) - text);
+    return MUST(String::from_utf8(StringView(text, start_bytes)));
+}
+
+static void ladybird_location_entry_apply_inline_text(LadybirdLocationEntry* self, StringView inline_text, StringView query)
+{
+    if (!self->state->is_focused)
+        return;
+    int completion_start = static_cast<int>(g_utf8_strlen(query.characters_without_null_termination(), static_cast<gssize>(query.length())));
+    int completion_end = static_cast<int>(g_utf8_strlen(inline_text.characters_without_null_termination(), static_cast<gssize>(inline_text.length())));
+    if (completion_end <= completion_start)
+        return;
+    auto* current_text = gtk_editable_get_text(GTK_EDITABLE(self));
+    int cur_start, cur_end;
+    bool has_selection = gtk_editable_get_selection_bounds(GTK_EDITABLE(self), &cur_start, &cur_end);
+    auto inline_bs = ByteString(inline_text);
+    if (current_text && inline_bs == current_text && has_selection
+        && cur_start == completion_start && cur_end == completion_end)
+        return;
+    self->state->applying_inline = true;
+    gtk_editable_set_text(GTK_EDITABLE(self), inline_bs.characters());
+    gtk_editable_select_region(GTK_EDITABLE(self), completion_start, completion_end);
+    self->state->applying_inline = false;
+}
+
+static void ladybird_location_entry_restore_query(LadybirdLocationEntry* self)
+{
+    if (!self->state->is_focused)
+        return;
+    auto query = ladybird_location_entry_current_query(self);
+    auto* current_text = gtk_editable_get_text(GTK_EDITABLE(self));
+    int start, end;
+    bool has_selection = gtk_editable_get_selection_bounds(GTK_EDITABLE(self), &start, &end);
+    if (current_text && query.bytes_as_string_view() == StringView(current_text, strlen(current_text)) && !has_selection)
+        return;
+    auto query_bs = query.to_byte_string();
+    self->state->applying_inline = true;
+    gtk_editable_set_text(GTK_EDITABLE(self), query_bs.characters());
+    gtk_editable_set_position(GTK_EDITABLE(self), static_cast<int>(g_utf8_strlen(query_bs.characters(), -1)));
+    self->state->applying_inline = false;
+}
+
+static void ladybird_location_entry_reset_inline_state(LadybirdLocationEntry* self)
+{
+    self->state->current_inline_suggestion = {};
+    self->state->suppressed_query = {};
+    self->state->suppress_on_next_change = false;
+}
+
+static int ladybird_location_entry_apply_inline_autocomplete(LadybirdLocationEntry* self, Vector<WebView::AutocompleteSuggestion> const& suggestions)
+{
+    if (self->state->applying_inline || !self->state->is_focused)
+        return -1;
+
+    auto* text = gtk_editable_get_text(GTK_EDITABLE(self));
+    size_t text_bytes = text ? strlen(text) : 0;
+    int text_chars = text ? static_cast<int>(g_utf8_strlen(text, -1)) : 0;
+
+    String query;
+    int start, end;
+    if (!gtk_editable_get_selection_bounds(GTK_EDITABLE(self), &start, &end)) {
+        if (gtk_editable_get_position(GTK_EDITABLE(self)) != text_chars)
+            return -1;
+        query = MUST(String::from_utf8(StringView(text, text_bytes)));
+    } else {
+        if (end != text_chars)
+            return -1;
+        size_t start_bytes = static_cast<size_t>(g_utf8_offset_to_pointer(text, start) - text);
+        query = MUST(String::from_utf8(StringView(text, start_bytes)));
+    }
+
+    if (suggestions.is_empty())
+        return -1;
+
+    auto& state = *self->state;
+    auto query_sv = query.bytes_as_string_view();
+
+    if (suggestions.first().source == WebView::AutocompleteSuggestionSource::LiteralURL) {
+        state.current_inline_suggestion = {};
+        int cur_start2, cur_end2;
+        if (gtk_editable_get_selection_bounds(GTK_EDITABLE(self), &cur_start2, &cur_end2)
+            || (text && query_sv != StringView(text, text_bytes)))
+            ladybird_location_entry_restore_query(self);
+        return 0;
+    }
+
+    if (state.suppressed_query.has_value() && state.suppressed_query.value() == query) {
+        state.current_inline_suggestion = {};
+        int cur_start2, cur_end2;
+        if (gtk_editable_get_selection_bounds(GTK_EDITABLE(self), &cur_start2, &cur_end2)
+            || (text && query_sv != StringView(text, text_bytes)))
+            ladybird_location_entry_restore_query(self);
+        return 0;
+    }
+
+    if (!state.current_inline_suggestion.is_empty()) {
+        int preserved = -1;
+        for (size_t i = 0; i < suggestions.size(); ++i) {
+            if (suggestions[i].text == state.current_inline_suggestion) {
+                preserved = static_cast<int>(i);
+                break;
+            }
+        }
+        if (preserved != -1) {
+            auto preserved_inline = inline_completion_for_suggestion(query_sv, state.current_inline_suggestion.bytes_as_string_view());
+            if (preserved_inline.has_value()) {
+                ladybird_location_entry_apply_inline_text(self, preserved_inline.value(), query_sv);
+                return preserved;
+            }
+        }
+    }
+
+    auto const& first_text = suggestions.first().text;
+    auto first_inline = inline_completion_for_suggestion(query_sv, first_text.bytes_as_string_view());
+    if (first_inline.has_value()) {
+        state.current_inline_suggestion = first_text;
+        ladybird_location_entry_apply_inline_text(self, first_inline.value(), query_sv);
+        return 0;
+    }
+
+    state.current_inline_suggestion = {};
+    int cur_start2, cur_end2;
+    if (gtk_editable_get_selection_bounds(GTK_EDITABLE(self), &cur_start2, &cur_end2)
+        || (text && query_sv != StringView(text, text_bytes)))
+        ladybird_location_entry_restore_query(self);
+    return 0;
 }
