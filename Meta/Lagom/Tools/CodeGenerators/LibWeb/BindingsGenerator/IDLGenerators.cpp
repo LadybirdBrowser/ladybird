@@ -362,155 +362,158 @@ static void add_module_include_dependency(Vector<Module const*>& modules_to_incl
     modules_to_include.append(&module);
 }
 
-static void add_interface_include_dependency(Vector<Module const*>& modules_to_include, HashTable<ByteString>& paths_included, Interface const& interface)
+static void add_dictionary_include_dependency(Vector<Module const*>& modules_to_include, HashTable<ByteString>& paths_included, Context const& context, ByteString const& dictionary_name)
 {
-    add_module_include_dependency(modules_to_include, paths_included, module_for_path(interface.context, interface.module_own_path));
-}
-
-static void add_dictionary_include_dependency(Vector<Module const*>& modules_to_include, HashTable<ByteString>& paths_included, Interface const& interface, ByteString const& dictionary_name)
-{
-    auto it = interface.context.dictionaries.find(dictionary_name);
-    if (it == interface.context.dictionaries.end())
+    auto it = context.dictionaries.find(dictionary_name);
+    if (it == context.dictionaries.end())
         return;
-    add_module_include_dependency(modules_to_include, paths_included, module_for_path(interface.context, it->value.module_own_path));
+    add_module_include_dependency(modules_to_include, paths_included, module_for_path(context, it->value.module_own_path));
 }
 
-static void add_enumeration_include_dependency(Vector<Module const*>& modules_to_include, HashTable<ByteString>& paths_included, Interface const& interface, ByteString const& enumeration_name)
+static void add_enumeration_include_dependency(Vector<Module const*>& modules_to_include, HashTable<ByteString>& paths_included, Context const& context, ByteString const& enumeration_name)
 {
-    auto it = interface.context.enumerations.find(enumeration_name);
-    if (it == interface.context.enumerations.end())
+    auto it = context.enumerations.find(enumeration_name);
+    if (it == context.enumerations.end())
         return;
-    add_module_include_dependency(modules_to_include, paths_included, module_for_path(interface.context, it->value.module_own_path));
+    add_module_include_dependency(modules_to_include, paths_included, module_for_path(context, it->value.module_own_path));
 }
 
-static void collect_interface_include_dependencies(Interface const& interface, Type const& type, Vector<Module const*>& modules_to_include, HashTable<ByteString>& paths_included);
+struct IncludeCollector {
+    Vector<Module const*> source_modules;
+    HashTable<ByteString> source_paths;
+    Vector<Module const*> bindings_modules;
+    HashTable<ByteString> bindings_paths;
+};
 
-static void collect_interface_include_dependencies(Interface const& interface, Vector<Parameter> const& parameters, Vector<Module const*>& modules_to_include, HashTable<ByteString>& paths_included)
+static void collect_include_dependencies(Context const& context, Type const& type, IncludeCollector& collector);
+
+static void collect_include_dependencies(Context const& context, Vector<Parameter> const& parameters, IncludeCollector& collector)
 {
     for (auto const& parameter : parameters)
-        collect_interface_include_dependencies(interface, *parameter.type, modules_to_include, paths_included);
+        collect_include_dependencies(context, *parameter.type, collector);
 }
 
-static void collect_interface_include_dependencies(Interface const& interface, Function const& function, Vector<Module const*>& modules_to_include, HashTable<ByteString>& paths_included)
+static void collect_include_dependencies(Context const& context, Function const& function, IncludeCollector& collector)
 {
-    collect_interface_include_dependencies(interface, *function.return_type, modules_to_include, paths_included);
-    collect_interface_include_dependencies(interface, function.parameters, modules_to_include, paths_included);
+    collect_include_dependencies(context, *function.return_type, collector);
+    collect_include_dependencies(context, function.parameters, collector);
 }
 
-static void collect_interface_include_dependencies(Interface const& interface, CallbackFunction const& callback_function, Vector<Module const*>& modules_to_include, HashTable<ByteString>& paths_included)
+static void collect_include_dependencies(Context const& context, CallbackFunction const& callback_function, IncludeCollector& collector)
 {
-    collect_interface_include_dependencies(interface, *callback_function.return_type, modules_to_include, paths_included);
-    collect_interface_include_dependencies(interface, callback_function.parameters, modules_to_include, paths_included);
+    collect_include_dependencies(context, *callback_function.return_type, collector);
+    collect_include_dependencies(context, callback_function.parameters, collector);
 }
 
-static void collect_interface_include_dependencies(Interface const& interface, Dictionary const& dictionary, Vector<Module const*>& modules_to_include, HashTable<ByteString>& paths_included)
+static void collect_include_dependencies(Context const& context, Dictionary const& dictionary, IncludeCollector& collector)
 {
     if (!dictionary.parent_name.is_empty()) {
-        add_dictionary_include_dependency(modules_to_include, paths_included, interface, dictionary.parent_name);
-        if (auto parent_dictionary = interface.context.dictionaries.find(dictionary.parent_name); parent_dictionary != interface.context.dictionaries.end())
-            collect_interface_include_dependencies(interface, parent_dictionary->value, modules_to_include, paths_included);
+        add_dictionary_include_dependency(collector.bindings_modules, collector.bindings_paths, context, dictionary.parent_name);
+        if (auto parent_dictionary = context.dictionaries.find(dictionary.parent_name); parent_dictionary != context.dictionaries.end())
+            collect_include_dependencies(context, parent_dictionary->value, collector);
     }
 
     for (auto const& member : dictionary.members)
-        collect_interface_include_dependencies(interface, *member.type, modules_to_include, paths_included);
+        collect_include_dependencies(context, *member.type, collector);
 }
 
-static void collect_interface_include_dependencies(Interface const& interface, Type const& type, Vector<Module const*>& modules_to_include, HashTable<ByteString>& paths_included)
+static void collect_include_dependencies(Context const& context, Type const& type, IncludeCollector& collector)
 {
-    if (auto referenced_interface = interface.context.interfaces.get(type.name()); referenced_interface.has_value())
-        add_interface_include_dependency(modules_to_include, paths_included, *referenced_interface.value());
+    if (auto referenced_interface = context.interfaces.get(type.name()); referenced_interface.has_value())
+        add_module_include_dependency(collector.source_modules, collector.source_paths, module_for_path(context, referenced_interface.value()->module_own_path));
 
-    add_dictionary_include_dependency(modules_to_include, paths_included, interface, type.name());
-    add_enumeration_include_dependency(modules_to_include, paths_included, interface, type.name());
+    add_dictionary_include_dependency(collector.bindings_modules, collector.bindings_paths, context, type.name());
+    add_enumeration_include_dependency(collector.bindings_modules, collector.bindings_paths, context, type.name());
 
-    if (auto dictionary = interface.context.dictionaries.find(type.name()); dictionary != interface.context.dictionaries.end())
-        collect_interface_include_dependencies(interface, dictionary->value, modules_to_include, paths_included);
+    if (auto dictionary = context.dictionaries.find(type.name()); dictionary != context.dictionaries.end())
+        collect_include_dependencies(context, dictionary->value, collector);
 
-    if (auto callback_function = interface.context.callback_functions.find(type.name()); callback_function != interface.context.callback_functions.end())
-        collect_interface_include_dependencies(interface, callback_function->value, modules_to_include, paths_included);
+    if (auto callback_function = context.callback_functions.find(type.name()); callback_function != context.callback_functions.end())
+        collect_include_dependencies(context, callback_function->value, collector);
 
     if (type.is_parameterized()) {
         for (auto const& parameter : type.as_parameterized().parameters())
-            collect_interface_include_dependencies(interface, *parameter, modules_to_include, paths_included);
+            collect_include_dependencies(context, *parameter, collector);
         return;
     }
 
     if (type.is_union()) {
         for (auto const& member_type : type.as_union().member_types())
-            collect_interface_include_dependencies(interface, *member_type, modules_to_include, paths_included);
+            collect_include_dependencies(context, *member_type, collector);
     }
 }
 
-static void emit_includes_for_all_dependencies(auto& interface, auto& generator, bool is_iterator = false, bool is_async_iterator = false)
+static void emit_includes_for_all_dependencies(auto& interface, auto& generator)
 {
-    Vector<Module const*> modules_to_include;
-    HashTable<ByteString> paths_included;
+    IncludeCollector collector;
 
-    add_interface_include_dependency(modules_to_include, paths_included, interface);
+    add_module_include_dependency(collector.source_modules, collector.source_paths, module_for_path(interface.context, interface.module_own_path));
 
     if (!interface.parent_name.is_empty()) {
         auto parent_interface = interface.context.interfaces.get(interface.parent_name);
         VERIFY(parent_interface.has_value());
-        add_interface_include_dependency(modules_to_include, paths_included, *parent_interface.value());
+        add_module_include_dependency(collector.source_modules, collector.source_paths, module_for_path(interface.context, parent_interface.value()->module_own_path));
     }
 
-    auto collect_optional_type_include_dependencies = [&](auto const& optional) {
+    auto collect_optional_type = [&](auto const& optional) {
         if (optional.has_value())
-            collect_interface_include_dependencies(interface, **optional, modules_to_include, paths_included);
+            collect_include_dependencies(interface.context, **optional, collector);
     };
-    auto collect_optional_function_include_dependencies = [&](auto const& optional) {
+    auto collect_optional_function = [&](auto const& optional) {
         if (optional.has_value())
-            collect_interface_include_dependencies(interface, *optional, modules_to_include, paths_included);
+            collect_include_dependencies(interface.context, *optional, collector);
     };
 
     for (auto const& attribute : interface.attributes)
-        collect_interface_include_dependencies(interface, *attribute.type, modules_to_include, paths_included);
+        collect_include_dependencies(interface.context, *attribute.type, collector);
     for (auto const& attribute : interface.static_attributes)
-        collect_interface_include_dependencies(interface, *attribute.type, modules_to_include, paths_included);
+        collect_include_dependencies(interface.context, *attribute.type, collector);
     for (auto const& constant : interface.constants)
-        collect_interface_include_dependencies(interface, *constant.type, modules_to_include, paths_included);
+        collect_include_dependencies(interface.context, *constant.type, collector);
     for (auto const& constructor : interface.constructors)
-        collect_interface_include_dependencies(interface, constructor.parameters, modules_to_include, paths_included);
+        collect_include_dependencies(interface.context, constructor.parameters, collector);
     for (auto const& function : interface.functions)
-        collect_interface_include_dependencies(interface, function, modules_to_include, paths_included);
+        collect_include_dependencies(interface.context, function, collector);
     for (auto const& function : interface.static_functions)
-        collect_interface_include_dependencies(interface, function, modules_to_include, paths_included);
-    collect_optional_type_include_dependencies(interface.value_iterator_type);
+        collect_include_dependencies(interface.context, function, collector);
+    collect_optional_type(interface.value_iterator_type);
     if (interface.pair_iterator_types.has_value()) {
-        collect_interface_include_dependencies(interface, *interface.pair_iterator_types->template get<0>(), modules_to_include, paths_included);
-        collect_interface_include_dependencies(interface, *interface.pair_iterator_types->template get<1>(), modules_to_include, paths_included);
+        collect_include_dependencies(interface.context, *interface.pair_iterator_types->template get<0>(), collector);
+        collect_include_dependencies(interface.context, *interface.pair_iterator_types->template get<1>(), collector);
     }
-    collect_optional_type_include_dependencies(interface.async_value_iterator_type);
-    collect_interface_include_dependencies(interface, interface.async_value_iterator_parameters, modules_to_include, paths_included);
-    collect_optional_type_include_dependencies(interface.set_entry_type);
-    collect_optional_type_include_dependencies(interface.map_key_type);
-    collect_optional_type_include_dependencies(interface.map_value_type);
-    collect_optional_function_include_dependencies(interface.named_property_getter);
-    collect_optional_function_include_dependencies(interface.named_property_setter);
-    collect_optional_function_include_dependencies(interface.indexed_property_getter);
-    collect_optional_function_include_dependencies(interface.indexed_property_setter);
-    collect_optional_function_include_dependencies(interface.named_property_deleter);
+    collect_optional_type(interface.async_value_iterator_type);
+    collect_include_dependencies(interface.context, interface.async_value_iterator_parameters, collector);
+    collect_optional_type(interface.set_entry_type);
+    collect_optional_type(interface.map_key_type);
+    collect_optional_type(interface.map_value_type);
+    collect_optional_function(interface.named_property_getter);
+    collect_optional_function(interface.named_property_setter);
+    collect_optional_function(interface.indexed_property_getter);
+    collect_optional_function(interface.indexed_property_setter);
+    collect_optional_function(interface.named_property_deleter);
     for (auto const& dictionary_name : interface.own_dictionaries) {
         auto dictionary = interface.context.dictionaries.find(dictionary_name);
         VERIFY(dictionary != interface.context.dictionaries.end());
-        collect_interface_include_dependencies(interface, dictionary->value, modules_to_include, paths_included);
+        collect_include_dependencies(interface.context, dictionary->value, collector);
     }
 
-    quick_sort(modules_to_include, [](auto const* a, auto const* b) {
+    quick_sort(collector.source_modules, [](auto const* a, auto const* b) {
+        return a->module_own_path < b->module_own_path;
+    });
+    quick_sort(collector.bindings_modules, [](auto const* a, auto const* b) {
         return a->module_own_path < b->module_own_path;
     });
 
-    for (auto const* included_module : modules_to_include) {
+    for (auto const* included_module : collector.source_modules)
         generate_include_for_module(generator, *included_module);
-        if (included_module->interface.has_value() && (!included_module->own_dictionaries.is_empty() || !included_module->own_enumerations.is_empty()))
-            generate_bindings_include_for_module(generator, *included_module);
-    }
+    for (auto const* included_module : collector.bindings_modules)
+        generate_bindings_include_for_module(generator, *included_module);
 
-    if (is_iterator) {
+    if (interface.pair_iterator_types.has_value()) {
         auto iterator_path = ByteString::formatted("{}Iterator", interface.fully_qualified_name.replace("::"sv, "/"sv, ReplaceMode::All));
         generate_include_for_iterator(generator, iterator_path);
     }
-    if (is_async_iterator) {
+    if (interface.async_value_iterator_type.has_value()) {
         auto iterator_path = ByteString::formatted("{}AsyncIterator", interface.fully_qualified_name.replace("::"sv, "/"sv, ReplaceMode::All));
         generate_include_for_iterator(generator, iterator_path);
     }
@@ -6606,7 +6609,7 @@ static void generate_implementation_prologue(IDL::Interface const& interface, St
 )~~~");
     }
 
-    emit_includes_for_all_dependencies(interface, generator, interface.pair_iterator_types.has_value(), interface.async_value_iterator_type.has_value());
+    emit_includes_for_all_dependencies(interface, generator);
 
     generator.append(R"~~~(
 namespace Web::Bindings {
