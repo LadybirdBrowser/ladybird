@@ -1279,11 +1279,6 @@ static void resolve_typedefs(Interface& interface)
         for (auto& dictionary_member : dictionary.value.members)
             resolve_typedef(interface, dictionary_member.type, &dictionary_member.extended_attributes);
     }
-    for (auto& dictionaries : interface.context.partial_dictionaries) {
-        for (auto& dictionary : dictionaries.value)
-            for (auto& dictionary_member : dictionary.members)
-                resolve_typedef(interface, dictionary_member.type, &dictionary_member.extended_attributes);
-    }
     for (auto& callback_function : interface.context.callback_functions)
         resolve_function_typedefs(interface, callback_function.value);
 }
@@ -1458,6 +1453,18 @@ static void resolve_partials_and_mixins(Context& context)
                     interface->has_unscopable_member = true;
             }
         }
+    }
+
+    for (auto& partial_dictionaries : context.partial_dictionaries) {
+        auto dictionary = context.dictionaries.find(partial_dictionaries.key);
+        VERIFY(dictionary != context.dictionaries.end());
+
+        for (auto& partial_dictionary : partial_dictionaries.value)
+            dictionary->value.members.extend(move(partial_dictionary.members));
+
+        quick_sort(dictionary->value.members, [](auto const& a, auto const& b) {
+            return a.name < b.name;
+        });
     }
 }
 

@@ -433,11 +433,6 @@ static void collect_interface_include_dependencies(Interface const& interface, T
     if (auto dictionary = interface.context.dictionaries.find(type.name()); dictionary != interface.context.dictionaries.end())
         collect_interface_include_dependencies(interface, dictionary->value, modules_to_include, paths_included);
 
-    if (auto partial_dictionaries = interface.context.partial_dictionaries.find(type.name()); partial_dictionaries != interface.context.partial_dictionaries.end()) {
-        for (auto const& partial_dictionary : partial_dictionaries->value)
-            collect_interface_include_dependencies(interface, partial_dictionary, modules_to_include, paths_included);
-    }
-
     if (auto callback_function = interface.context.callback_functions.find(type.name()); callback_function != interface.context.callback_functions.end())
         collect_interface_include_dependencies(interface, callback_function->value, modules_to_include, paths_included);
 
@@ -728,16 +723,7 @@ static void generate_dictionary_to_cpp(SourceGenerator& generator, Context const
     // FIXME: This (i) is a hack to make sure we don't generate duplicate variable names.
     static auto i = 0;
     while (true) {
-        Vector<DictionaryMember> members;
-        for (auto& member : current_dictionary->members)
-            members.append(member);
-
-        if (context.partial_dictionaries.contains(current_dictionary_name)) {
-            auto& partial_dictionaries = context.partial_dictionaries.find(current_dictionary_name)->value;
-            for (auto& partial_dictionary : partial_dictionaries)
-                for (auto& member : partial_dictionary.members)
-                    members.append(member);
-        }
+        auto const& members = current_dictionary->members;
 
         for (auto& member : members) {
             generator.set("member_key", member.name);
