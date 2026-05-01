@@ -307,7 +307,7 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
                     }
                 }
 
-                rule_cache.add_rule(matching_rule, selector.target_pseudo_element().map([](auto& it) { return it.type(); }), contains_root_pseudo_class);
+                rule_cache.add_rule(matching_rule, selector.target_pseudo_element(), contains_root_pseudo_class);
             }
             ++rule_index;
         });

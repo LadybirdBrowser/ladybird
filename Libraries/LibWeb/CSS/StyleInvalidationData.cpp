@@ -376,6 +376,9 @@ struct SelectorRighthand {
 
 static NonnullRefPtr<InvalidationPlan> build_invalidation_for_combinator(Selector::Combinator combinator, SelectorRighthand const& righthand)
 {
+    if (combinator == Selector::Combinator::PseudoElement)
+        return righthand.payload;
+
     if (righthand.payload->invalidate_whole_subtree || (!righthand.subject_matches_any && righthand.subject_match_set.is_empty()))
         return make_invalidate_whole_subtree_invalidation();
 

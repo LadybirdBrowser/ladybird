@@ -32,17 +32,8 @@ static void invalidate_style_after_pseudo_class_state_change_impl(CSS::PseudoCla
             return false;
 
         SelectorEngine::MatchContext context;
-        auto const& target_pseudo = selector.target_pseudo_element();
-        if (!target_pseudo.has_value())
-            return SelectorEngine::matches(selector, element, {}, context);
-        switch (target_pseudo->type()) {
-        case CSS::PseudoElement::Before:
-            return SelectorEngine::matches(selector, { element, CSS::PseudoElement::Before }, {}, context);
-        case CSS::PseudoElement::After:
-            return SelectorEngine::matches(selector, { element, CSS::PseudoElement::After }, {}, context);
-        default:
-            return false;
-        }
+        auto target_pseudo = selector.target_pseudo_element();
+        return SelectorEngine::matches(selector, { element, target_pseudo }, {}, context);
     };
 
     auto matches_different_set_of_rules_after_state_change = [&](DOM::Element& element) {
@@ -81,17 +72,13 @@ static void invalidate_style_after_pseudo_class_state_change_impl(CSS::PseudoCla
 
     // Seed the ancestor filter with ancestors above the starting node,
     // so that ancestor-dependent selectors can still be correctly rejected.
-    for (auto* ancestor = invalidation_root.parent(); ancestor; ancestor = ancestor->parent()) {
-        if (ancestor->is_element())
-            style_computer.push_ancestor(static_cast<DOM::Element&>(*ancestor));
-    }
+    for (auto* ancestor = invalidation_root.parent_or_shadow_host_element(); ancestor; ancestor = ancestor->parent_or_shadow_host_element())
+        style_computer.push_ancestor(*ancestor);
 
     invalidate_affected_elements_recursively(invalidation_root);
 
-    for (auto* ancestor = invalidation_root.parent(); ancestor; ancestor = ancestor->parent()) {
-        if (ancestor->is_element())
-            style_computer.pop_ancestor(static_cast<DOM::Element&>(*ancestor));
-    }
+    for (auto* ancestor = invalidation_root.parent_or_shadow_host_element(); ancestor; ancestor = ancestor->parent_or_shadow_host_element())
+        style_computer.pop_ancestor(*ancestor);
 }
 
 void invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass pseudo_class, DOM::Document& document, GC::Ptr<DOM::Node>& state_slot, DOM::Node& invalidation_root, GC::Ptr<DOM::Node> new_state)

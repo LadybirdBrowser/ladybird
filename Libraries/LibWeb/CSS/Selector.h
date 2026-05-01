@@ -196,12 +196,14 @@ public:
         NextSibling,       // +
         SubsequentSibling, // ~
         Column,            // ||
+        PseudoElement,     // Internal-only transition to a different AbstractElement
     };
 
     struct CompoundSelector {
         // Spec-wise, the <combinator> is not part of a <compound-selector>,
         // but it is more understandable to put them together.
         Combinator combinator { Combinator::None };
+        bool is_implicit_universal_anchor { false };
         Vector<SimpleSelector> simple_selectors;
 
         Optional<CompoundSelector> absolutized(SimpleSelector const& selector_for_nesting) const;
@@ -215,7 +217,8 @@ public:
     ~Selector() = default;
 
     Vector<CompoundSelector> const& compound_selectors() const { return m_compound_selectors; }
-    Optional<PseudoElementSelector> const& target_pseudo_element() const { return m_target_pseudo_element; }
+    Optional<PseudoElement> target_pseudo_element() const { return m_target_pseudo_element; }
+    bool contains_pseudo_element_transition() const { return m_contains_pseudo_element_transition; }
     NonnullRefPtr<Selector> relative_to(SimpleSelector const&) const;
     bool contains_the_nesting_selector() const { return m_contains_the_nesting_selector; }
     bool contains_pseudo_class(PseudoClass pseudo_class) const { return m_contained_pseudo_classes.get(pseudo_class); }
@@ -231,8 +234,7 @@ public:
 
     size_t sibling_invalidation_distance() const;
 
-    // FIXME: Assess these once we fully support multiple pseudo-elements in one selector.
-    bool is_slotted() const { return m_target_pseudo_element.has_value() && m_target_pseudo_element->type() == PseudoElement::Slotted; }
+    bool is_slotted() const { return m_contains_slotted_pseudo_element; }
     bool has_part_pseudo_element() const { return m_contains_part_pseudo_element; }
 
 private:
@@ -240,11 +242,13 @@ private:
 
     Vector<CompoundSelector> m_compound_selectors;
     mutable Optional<u32> m_specificity;
-    Optional<PseudoElementSelector> m_target_pseudo_element;
+    Optional<PseudoElement> m_target_pseudo_element;
     mutable Optional<size_t> m_sibling_invalidation_distance;
     bool m_can_use_fast_matches { false };
     bool m_can_use_ancestor_filter { false };
     bool m_contains_the_nesting_selector { false };
+    bool m_contains_pseudo_element_transition { false };
+    bool m_contains_slotted_pseudo_element { false };
     bool m_contains_part_pseudo_element { false };
 
     PseudoClassBitmap m_contained_pseudo_classes;

@@ -296,7 +296,7 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules(
             auto queried_pseudo_element = *abstract_element.pseudo_element();
             for (auto const& rule : rules) {
                 auto const& target_pseudo_element = rule.selector.target_pseudo_element();
-                if (!target_pseudo_element.has_value() || target_pseudo_element->type() != queried_pseudo_element)
+                if (target_pseudo_element != queried_pseudo_element)
                     continue;
                 if (!filter_namespace_rule(element_namespace_uri, rule))
                     continue;
@@ -397,34 +397,7 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules(
         ScopeGuard guard = [&] {
             attempted_pseudo_class_matches |= context.attempted_pseudo_class_matches;
         };
-        if (selector.is_slotted()) {
-            if (!abstract_element.element().assigned_slot_internal() || subject_is_reslotted_slot)
-                continue;
-            // We're collecting rules for element, which is assigned to a slot.
-            // For ::slotted() matching, slot should be used as a subject instead of element,
-            // while element itself is saved in matching context, so selector engine could
-            // switch back to it when matching inside ::slotted() argument.
-            // For nested slots, find the slot that lives in the same shadow root as the rule.
-            GC::Ptr<HTML::HTMLSlotElement const> matching_slot;
-            for (GC::Ptr<HTML::HTMLSlotElement const> slot = abstract_element.element().assigned_slot_internal(); slot; slot = slot->assigned_slot_internal()) {
-                if (as_if<DOM::ShadowRoot>(slot->root()) == rule_root) {
-                    matching_slot = slot;
-                    break;
-                }
-            }
-            if (!matching_slot)
-                continue;
-            context.slotted_element = &abstract_element.element();
-            context.subject = matching_slot;
-            // The slot lives inside a shadow tree. Derive the shadow host from the
-            // slot's containing shadow root so that combinators like
-            // `:host ::slotted(...)` can traverse from the slot to the shadow host.
-            GC::Ptr<DOM::Element const> slot_shadow_host;
-            if (auto const* slot_shadow_root = as_if<DOM::ShadowRoot>(matching_slot->root()))
-                slot_shadow_host = slot_shadow_root->host();
-            if (!SelectorEngine::matches(selector, { *matching_slot, PseudoElement::Slotted }, slot_shadow_host, context))
-                continue;
-        } else if (!SelectorEngine::matches(selector, abstract_element, shadow_host_to_use, context))
+        if (!SelectorEngine::matches(selector, abstract_element, shadow_host_to_use, context))
             continue;
         matching_rules.append(rule_to_run);
     }
@@ -1805,12 +1778,18 @@ GC::Ref<ComputedProperties> StyleComputer::compute_style(DOM::AbstractElement ab
 
 GC::Ref<ComputedProperties> StyleComputer::compute_style_with_seeded_ancestors(DOM::AbstractElement abstract_element)
 {
-    for (auto parent = abstract_element.parent_element(); parent; parent = parent->parent_element()) {
+    auto const first_ancestor = [&] -> GC::Ptr<DOM::Element const> {
+        if (abstract_element.pseudo_element().has_value())
+            return &abstract_element.element();
+        return abstract_element.element().parent_or_shadow_host_element();
+    }();
+
+    for (auto parent = first_ancestor; parent; parent = parent->parent_or_shadow_host_element()) {
         push_ancestor(*parent);
     }
 
     ScopeGuard pop_ancestors = [&] {
-        for (auto parent = abstract_element.parent_element(); parent; parent = parent->parent_element())
+        for (auto parent = first_ancestor; parent; parent = parent->parent_or_shadow_host_element())
             pop_ancestor(*parent);
     };
 
@@ -3004,7 +2983,19 @@ void RuleCache::add_rule(MatchingRule const& matching_rule, Optional<PseudoEleme
         rules_by_tag_name.ensure(name).append(matching_rule);
     };
 
-    for (auto const& simple_selector : matching_rule.selector.compound_selectors().last().simple_selectors.in_reverse()) {
+    auto const& bucket_compound_selector = [&]() -> Selector::CompoundSelector const& {
+        if (matching_rule.contains_pseudo_element && pseudo_element.has_value()) {
+            // Normalized pseudo-element selectors end with a pseudo-element compound; bucket them
+            // by the originating element compound so `.foo::before` keeps using the `.foo` bucket.
+            for (auto const& compound_selector : matching_rule.selector.compound_selectors().in_reverse()) {
+                if (compound_selector.combinator != Selector::Combinator::PseudoElement)
+                    return compound_selector;
+            }
+        }
+        return matching_rule.selector.compound_selectors().last();
+    }();
+
+    for (auto const& simple_selector : bucket_compound_selector.simple_selectors.in_reverse()) {
         if (simple_selector.type == Selector::SimpleSelector::Type::Id) {
             add_to_id_bucket(simple_selector.name());
             return;

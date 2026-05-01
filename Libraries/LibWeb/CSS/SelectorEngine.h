@@ -46,11 +46,8 @@ using HasResultCache = HashMap<HasResultCacheKey, HasMatchResult, HasResultCache
 struct MatchContext {
     GC::Ptr<CSS::CSSStyleSheet const> style_sheet_for_rule {};
     GC::Ptr<DOM::Element const> subject {};
-    GC::Ptr<DOM::Element const> slotted_element {};     // Only set when matching a ::slotted() pseudo-element
-    GC::Ptr<DOM::Element const> part_owning_parent {};  // Only set temporarily when matching a ::part() pseudo-element
     GC::Ptr<DOM::ShadowRoot const> rule_shadow_root {}; // Shadow root the matched rule belongs to
     bool collect_per_element_selector_involvement_metadata { false };
-    bool for_host_part_matching { false };
     // True while we are evaluating the argument of a :has() pseudo-class.
     // Elements visited by selector walks (descendants, siblings, etc.) while
     // this is set get marked as in_has_scope so the invalidation walker can

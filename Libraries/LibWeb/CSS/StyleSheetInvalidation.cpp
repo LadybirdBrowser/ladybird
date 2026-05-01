@@ -33,9 +33,14 @@ bool selector_may_match_light_dom_under_shadow_host(Selector const& selector)
     if (!selector.contains_pseudo_class(PseudoClass::Host))
         return false;
 
-    // A bare :host selector only targets the host itself, but once a shadow rule keeps walking to another compound it
-    // can match light-DOM nodes in the host tree instead of staying confined to the shadow subtree.
-    return selector.compound_selectors().size() > 1;
+    // A bare :host selector only targets the host itself, and pseudo-element transitions such as :host::part() stay
+    // anchored on that same host. We only escape to light-DOM once the selector keeps walking through a real DOM
+    // combinator after matching :host.
+    for (size_t i = 1; i < selector.compound_selectors().size(); ++i) {
+        if (selector.compound_selectors()[i].combinator != Selector::Combinator::PseudoElement)
+            return true;
+    }
+    return false;
 }
 
 static bool selector_may_match_shadow_host(Selector const&);
@@ -144,15 +149,10 @@ static bool is_universal_only_compound(Selector::CompoundSelector const& compoun
     return true;
 }
 
-static bool is_pseudo_element_only_compound(Selector::CompoundSelector const& compound_selector)
+static bool is_pseudo_element_targeting_compound(Selector::CompoundSelector const& compound_selector)
 {
-    if (compound_selector.simple_selectors.is_empty())
-        return false;
-    for (auto const& simple_selector : compound_selector.simple_selectors) {
-        if (simple_selector.type != Selector::SimpleSelector::Type::PseudoElement)
-            return false;
-    }
-    return true;
+    return !compound_selector.simple_selectors.is_empty()
+        && compound_selector.simple_selectors.first().type == Selector::SimpleSelector::Type::PseudoElement;
 }
 
 // :has() in the rightmost set filters by an element's previously recorded "affected by :has()" flags. Those flags
@@ -179,30 +179,48 @@ struct AnchorInvalidationRule {
     GC::Ptr<CSSStyleSheet const> style_sheet_for_rule;
 };
 
+enum class AllowSkippingUntargetablePseudoElementCompounds {
+    No,
+    Yes,
+};
+
 // If the leading compounds (everything except the rightmost) of `compound_selectors` produce a usable invalidation
 // set, return an anchor rule built from them.
-static Optional<AnchorInvalidationRule> try_build_anchor_for_leading_compounds(Vector<Selector::CompoundSelector> const& compound_selectors, StyleInvalidationData& throwaway_data, GC::Ptr<CSSStyleSheet const> style_sheet_for_rule)
+static Optional<AnchorInvalidationRule> try_build_anchor_for_leading_compounds(Vector<Selector::CompoundSelector> const& compound_selectors, StyleInvalidationData& throwaway_data, GC::Ptr<CSSStyleSheet const> style_sheet_for_rule, AllowSkippingUntargetablePseudoElementCompounds allow_skipping_untargetable_pseudo_element_compounds = AllowSkippingUntargetablePseudoElementCompounds::No)
 {
     if (compound_selectors.size() < 2)
         return {};
 
-    Vector<Selector::CompoundSelector> anchor_compound_selectors;
-    anchor_compound_selectors.ensure_capacity(compound_selectors.size() - 1);
-    for (size_t i = 0; i < compound_selectors.size() - 1; ++i)
-        anchor_compound_selectors.append(compound_selectors[i]);
+    auto anchor_compound_count = compound_selectors.size() - 1;
+    while (anchor_compound_count > 0) {
+        auto const& rightmost_anchor = compound_selectors[anchor_compound_count - 1];
 
-    auto const& rightmost_anchor = anchor_compound_selectors.last();
-    InvalidationSet anchor_set;
-    for (auto const& simple : rightmost_anchor.simple_selectors)
-        build_invalidation_sets_for_simple_selector(simple, anchor_set, ExcludePropertiesNestedInNotPseudoClass::No, throwaway_data, InsideNthChildPseudoClass::No);
-    if (!anchor_set.has_properties())
-        return {};
+        InvalidationSet anchor_set;
+        for (auto const& simple : rightmost_anchor.simple_selectors)
+            build_invalidation_sets_for_simple_selector(simple, anchor_set, ExcludePropertiesNestedInNotPseudoClass::No, throwaway_data, InsideNthChildPseudoClass::No);
 
-    RefPtr<Selector> anchor_selector;
-    if (anchor_compound_selectors.size() > 1)
-        anchor_selector = Selector::create(move(anchor_compound_selectors));
+        if (anchor_set.has_properties()) {
+            Vector<Selector::CompoundSelector> anchor_compound_selectors;
+            anchor_compound_selectors.ensure_capacity(anchor_compound_count);
+            for (size_t i = 0; i < anchor_compound_count; ++i)
+                anchor_compound_selectors.append(compound_selectors[i]);
 
-    return AnchorInvalidationRule { move(anchor_set), move(anchor_selector), style_sheet_for_rule };
+            RefPtr<Selector> anchor_selector;
+            if (anchor_compound_selectors.size() > 1)
+                anchor_selector = Selector::create(move(anchor_compound_selectors));
+
+            return AnchorInvalidationRule { move(anchor_set), move(anchor_selector), style_sheet_for_rule };
+        }
+
+        if (allow_skipping_untargetable_pseudo_element_compounds == AllowSkippingUntargetablePseudoElementCompounds::No
+            || !is_pseudo_element_targeting_compound(rightmost_anchor)) {
+            return {};
+        }
+
+        --anchor_compound_count;
+    }
+
+    return {};
 }
 
 void extend_style_sheet_invalidation_set_with_style_rule(StyleSheetInvalidationSet& result, CSSStyleRule const& style_rule)
@@ -265,8 +283,11 @@ void extend_style_sheet_invalidation_set_with_style_rule(StyleSheetInvalidationS
 
         // The rightmost compound has no targetable properties on its own, but we can still avoid a whole-subtree
         // invalidation if the leading compounds carry an anchor invalidation set that we can match against.
-        if (is_pseudo_element_only_compound(rightmost)) {
-            if (auto anchor = try_build_anchor_for_leading_compounds(compound_selectors, throwaway_data, style_sheet_for_rule); anchor.has_value()) {
+        if (is_pseudo_element_targeting_compound(rightmost)) {
+            // Pseudo-element normalization can leave untargetable pseudo-element-transition compounds before the
+            // final pseudo-element, e.g. `x-host::part(foo):dir(rtl)::before`. Anchor those rules on the nearest
+            // targetable leading compound instead of broadening to the whole subtree.
+            if (auto anchor = try_build_anchor_for_leading_compounds(compound_selectors, throwaway_data, style_sheet_for_rule, AllowSkippingUntargetablePseudoElementCompounds::Yes); anchor.has_value()) {
                 result.pseudo_element_rules.append({
                     .anchor_set = move(anchor->anchor_set),
                     .anchor_selector = move(anchor->anchor_selector),
@@ -354,6 +375,8 @@ static void apply_trailing_universal_combinator(Selector::Combinator combinator,
         }
         break;
     case Selector::Combinator::None:
+        break;
+    case Selector::Combinator::PseudoElement:
         break;
     }
 }
