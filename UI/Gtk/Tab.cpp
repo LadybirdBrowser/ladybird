@@ -38,26 +38,26 @@ static ListPopoverShell create_list_popover_shell(GtkWidget* parent)
 static void append_select_option_row(GtkListBox* list_box, char const* label, bool selected, bool disabled, unsigned id, int margin_start)
 {
     auto* row = gtk_list_box_row_new();
-    auto* box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
-    gtk_widget_set_margin_start(box, margin_start);
-    gtk_widget_set_margin_end(box, 8);
-    gtk_widget_set_margin_top(box, 4);
-    gtk_widget_set_margin_bottom(box, 4);
+    auto* option_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    gtk_widget_set_margin_start(option_box, margin_start);
+    gtk_widget_set_margin_end(option_box, 8);
+    gtk_widget_set_margin_top(option_box, 4);
+    gtk_widget_set_margin_bottom(option_box, 4);
 
     if (selected) {
         auto* check = gtk_image_new_from_icon_name("object-select-symbolic");
-        gtk_box_append(GTK_BOX(box), check);
+        gtk_box_append(GTK_BOX(option_box), check);
     } else {
         auto* spacer = gtk_image_new_from_icon_name("object-select-symbolic");
         gtk_widget_set_opacity(spacer, 0);
-        gtk_box_append(GTK_BOX(box), spacer);
+        gtk_box_append(GTK_BOX(option_box), spacer);
     }
 
     auto* label_widget = gtk_label_new(label);
     gtk_label_set_xalign(GTK_LABEL(label_widget), 0.0);
-    gtk_box_append(GTK_BOX(box), label_widget);
+    gtk_box_append(GTK_BOX(option_box), label_widget);
 
-    gtk_list_box_row_set_child(GTK_LIST_BOX_ROW(row), box);
+    gtk_list_box_row_set_child(GTK_LIST_BOX_ROW(row), option_box);
     gtk_widget_set_sensitive(row, !disabled);
     g_object_set_data(G_OBJECT(row), "item-id", GUINT_TO_POINTER(id));
     gtk_list_box_append(GTK_LIST_BOX(list_box), row);
@@ -273,13 +273,14 @@ void Tab::show_select_dropdown(Gfx::IntPoint content_position, i32 minimum_width
     auto shell = create_list_popover_shell(root);
     auto* popover = shell.popover;
     auto* list_box = shell.list_box;
-    gtk_widget_set_size_request(GTK_WIDGET(popover), minimum_width, -1);
-
     auto device_pixel_ratio = m_view->device_pixel_ratio();
+    auto logical_width = static_cast<int>(minimum_width / device_pixel_ratio);
+    gtk_widget_set_size_request(GTK_WIDGET(popover), logical_width, -1);
+
     GdkRectangle rect = {
         static_cast<int>(content_position.x() / device_pixel_ratio),
         static_cast<int>(content_position.y() / device_pixel_ratio),
-        1, 1
+        logical_width, 1
     };
     gtk_popover_set_pointing_to(GTK_POPOVER(popover), &rect);
     gtk_list_box_set_selection_mode(GTK_LIST_BOX(list_box), GTK_SELECTION_NONE);
@@ -323,8 +324,7 @@ void Tab::show_select_dropdown(Gfx::IntPoint content_position, i32 minimum_width
     };
     auto* dropdown_state = new DropdownState { m_view.ptr(), GTK_POPOVER(popover) };
 
-    g_signal_connect(list_box, "row-activated", G_CALLBACK(+[](GtkListBox*, GtkListBoxRow* row, gpointer user_data) {
-        auto* state = static_cast<DropdownState*>(user_data);
+    g_signal_connect_swapped(list_box, "row-activated", G_CALLBACK(+[](DropdownState* state, GtkListBoxRow* row, GtkListBox*) {
         auto item_id = GPOINTER_TO_UINT(g_object_get_data(G_OBJECT(row), "item-id"));
         state->selected = true;
         state->view->select_dropdown_closed(item_id);
@@ -332,8 +332,7 @@ void Tab::show_select_dropdown(Gfx::IntPoint content_position, i32 minimum_width
     }),
         dropdown_state);
 
-    g_signal_connect(popover, "closed", G_CALLBACK(+[](GtkPopover* popover, gpointer user_data) {
-        auto* state = static_cast<DropdownState*>(user_data);
+    g_signal_connect_swapped(popover, "closed", G_CALLBACK(+[](DropdownState* state, GtkPopover* popover) {
         if (!state->selected)
             state->view->select_dropdown_closed({});
         delete state;
