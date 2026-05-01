@@ -69,12 +69,26 @@ def generate_css_parser_expression_for_alternatives(
 ) -> None:
     out.write(f"auto const parse_{cpp_name}_alternatives = [&]() -> RefPtr<StyleValue const> {{\n")
 
+    # NB: As an optimization we combine all keyword alternatives into a single parse_specific_keyword_value call to
+    #     avoid unnecessary backtracking in the common case of multiple keyword alternatives.
+    keyword_alternatives: list[str] = []
+
     for i, alternative in enumerate(alternatives):
+        if isinstance(alternative, ComponentValueGrammarNode) and isinstance(alternative.component_value, Keyword):
+            keyword_alternatives.append(alternative.component_value.value)
+            continue
+
         alternative_name = f"{cpp_name}_alternative_{i}"
         generate_css_parser_expression_for_grammar_node(out, alternative_name, alternative)
         out.write(f"""if ({alternative_name})
     return {alternative_name};
+""")
 
+    if keyword_alternatives:
+        keyword_alternatives_names = ", ".join(f"Keyword::{title_casify(keyword)}" for keyword in keyword_alternatives)
+        out.write(f"""auto {cpp_name}_keyword_alternative = parse_specific_keyword_value(tokens, {{ {{ {keyword_alternatives_names} }} }});
+if ({cpp_name}_keyword_alternative)
+    return {cpp_name}_keyword_alternative;
 """)
 
     out.write(f"""return nullptr;
