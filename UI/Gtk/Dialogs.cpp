@@ -97,11 +97,10 @@ void show_color_picker(GtkWindow* parent, WebContentView* view, Color current_co
 
     gtk_color_dialog_choose_rgba(GTK_COLOR_DIALOG(dialog.ptr()), parent, &rgba, nullptr, +[](GObject* source, GAsyncResult* result, gpointer user_data) {
             auto* view = static_cast<WebContentView*>(user_data);
-            GError* error = nullptr;
+            g_autoptr(GError) error = nullptr;
             auto* color = gtk_color_dialog_choose_rgba_finish(GTK_COLOR_DIALOG(source), result, &error);
             if (error) {
                 view->color_picker_update({}, Web::HTML::ColorPickerUpdateState::Closed);
-                g_error_free(error);
                 return;
             }
             auto picked = Color(
@@ -161,11 +160,10 @@ void show_file_picker(GtkWindow* parent, WebContentView* view, Web::HTML::FileFi
     if (allow_multiple == Web::HTML::AllowMultipleFiles::Yes) {
         gtk_file_dialog_open_multiple(GTK_FILE_DIALOG(dialog.ptr()), parent, nullptr, +[](GObject* source, GAsyncResult* result, gpointer user_data) {
                 auto* view = static_cast<WebContentView*>(user_data);
-                GError* error = nullptr;
+                g_autoptr(GError) error = nullptr;
                 auto* file_list = gtk_file_dialog_open_multiple_finish(GTK_FILE_DIALOG(source), result, &error);
                 if (error) {
                     view->file_picker_closed({});
-                    g_error_free(error);
                     return;
                 }
                 GObjectPtr owned_file_list { file_list };
@@ -184,11 +182,10 @@ void show_file_picker(GtkWindow* parent, WebContentView* view, Web::HTML::FileFi
     } else {
         gtk_file_dialog_open(GTK_FILE_DIALOG(dialog.ptr()), parent, nullptr, +[](GObject* source, GAsyncResult* result, gpointer user_data) {
                 auto* view = static_cast<WebContentView*>(user_data);
-                GError* error = nullptr;
+                g_autoptr(GError) error = nullptr;
                 auto* file = gtk_file_dialog_open_finish(GTK_FILE_DIALOG(source), result, &error);
                 if (error) {
                     view->file_picker_closed({});
-                    g_error_free(error);
                     return;
                 }
                 GObjectPtr owned_file { file };

@@ -26,8 +26,9 @@ Follow the project [Coding Style](CodingStyle.md). Prefer C++ over C idioms wher
 - For buttons in popover menus, prefer `action-name` properties over click signal handlers
 
 ### Memory Management
-- No manual `g_object_unref` — use `GObjectPtr<T>` (see `UI/Gtk/GLibPtr.h`)
-- No manual `g_free` — use `g_autofree`
+- `GObjectPtr<T>` for GObject-derived types (calls `g_object_unref`); supports class members and move semantics — see `UI/Gtk/GLibPtr.h`
+- `g_autoptr(T)` for GError and GBoxed types
+- `g_autofree` for `g_malloc`-allocated memory (strings, etc.)
 
 ```cpp
 // Local scope — auto-unrefs when out of scope
@@ -39,6 +40,9 @@ m_texture = GObjectPtr<GdkTexture> { gdk_memory_texture_builder_build(builder) }
 
 // g_autofree for glib-allocated strings
 g_autofree char* path = g_file_get_path(file);
+
+// g_autoptr for GError and GBoxed types
+g_autoptr(GError) error = nullptr;
 ```
 
 ## Test Checklist
