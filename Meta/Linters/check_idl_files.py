@@ -10,7 +10,7 @@ import sys
 script_name = pathlib.Path(__file__).resolve().name
 
 lines_to_skip = re.compile(
-    r"^($| *//|\};|#import |.+ includes .+|\[[^\]]+\]"
+    r"^($| *//|\};|.+ includes .+|\[[^\]]+\]"
     r"|(?:partial )?interface |(?:partial )?dictionary |enum |namespace |typedef |callback )"
 )
 
