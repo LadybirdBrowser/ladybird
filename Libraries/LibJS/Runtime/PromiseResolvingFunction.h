@@ -11,18 +11,6 @@
 
 namespace JS {
 
-struct AlreadyResolved final : public Cell {
-    GC_CELL(AlreadyResolved, Cell);
-    GC_DECLARE_ALLOCATOR(AlreadyResolved);
-
-    bool value { false };
-
-protected:
-    // Allocated cells must be >= sizeof(FreelistEntry), which is 24 bytes -
-    // but AlreadyResolved is only 16 bytes without this.
-    u8 dummy[8];
-};
-
 class PromiseResolvingFunction final : public NativeFunction {
     JS_OBJECT(PromiseResolvingFunction, NativeFunction);
     GC_DECLARE_ALLOCATOR(PromiseResolvingFunction);
@@ -33,7 +21,8 @@ public:
         Reject,
     };
 
-    static GC::Ref<PromiseResolvingFunction> create(Realm&, Promise&, AlreadyResolved&, Kind);
+    static GC::Ref<PromiseResolvingFunction> create_resolve(Realm&, Promise&);
+    static GC::Ref<PromiseResolvingFunction> create_reject(Realm&, Promise&, PromiseResolvingFunction& resolve_function);
 
     virtual void initialize(Realm&) override;
     virtual ~PromiseResolvingFunction() override = default;
@@ -41,12 +30,14 @@ public:
     virtual ThrowCompletionOr<Value> call() override;
 
 private:
-    explicit PromiseResolvingFunction(Promise&, AlreadyResolved&, Kind, Object& prototype);
+    explicit PromiseResolvingFunction(Promise&, Kind, GC::Ptr<PromiseResolvingFunction>, Object& prototype);
 
     virtual void visit_edges(Visitor&) override;
+    bool& already_resolved();
 
     GC::Ref<Promise> m_promise;
-    GC::Ref<AlreadyResolved> m_already_resolved;
+    GC::Ptr<PromiseResolvingFunction> m_resolve_function;
+    bool m_already_resolved { false };
     Kind m_kind;
 };
 

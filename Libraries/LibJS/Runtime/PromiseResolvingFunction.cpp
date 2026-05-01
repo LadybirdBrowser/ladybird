@@ -11,18 +11,22 @@
 
 namespace JS {
 
-GC_DEFINE_ALLOCATOR(AlreadyResolved);
 GC_DEFINE_ALLOCATOR(PromiseResolvingFunction);
 
-GC::Ref<PromiseResolvingFunction> PromiseResolvingFunction::create(Realm& realm, Promise& promise, AlreadyResolved& already_resolved, Kind kind)
+GC::Ref<PromiseResolvingFunction> PromiseResolvingFunction::create_resolve(Realm& realm, Promise& promise)
 {
-    return realm.create<PromiseResolvingFunction>(promise, already_resolved, kind, realm.intrinsics().function_prototype());
+    return realm.create<PromiseResolvingFunction>(promise, Kind::Resolve, nullptr, realm.intrinsics().function_prototype());
 }
 
-PromiseResolvingFunction::PromiseResolvingFunction(Promise& promise, AlreadyResolved& already_resolved, Kind kind, Object& prototype)
+GC::Ref<PromiseResolvingFunction> PromiseResolvingFunction::create_reject(Realm& realm, Promise& promise, PromiseResolvingFunction& resolve_function)
+{
+    return realm.create<PromiseResolvingFunction>(promise, Kind::Reject, &resolve_function, realm.intrinsics().function_prototype());
+}
+
+PromiseResolvingFunction::PromiseResolvingFunction(Promise& promise, Kind kind, GC::Ptr<PromiseResolvingFunction> resolve_function, Object& prototype)
     : NativeFunction(prototype)
     , m_promise(promise)
-    , m_already_resolved(already_resolved)
+    , m_resolve_function(resolve_function)
     , m_kind(kind)
 {
 }
@@ -37,9 +41,9 @@ ThrowCompletionOr<Value> PromiseResolvingFunction::call()
 {
     switch (m_kind) {
     case Kind::Resolve:
-        return Promise::resolve_function_steps(vm(), m_promise, m_already_resolved);
+        return Promise::resolve_function_steps(vm(), m_promise, already_resolved());
     case Kind::Reject:
-        return Promise::reject_function_steps(vm(), m_promise, m_already_resolved);
+        return Promise::reject_function_steps(vm(), m_promise, already_resolved());
     }
     VERIFY_NOT_REACHED();
 }
@@ -48,7 +52,17 @@ void PromiseResolvingFunction::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_promise);
-    visitor.visit(m_already_resolved);
+    if (m_resolve_function)
+        visitor.visit(m_resolve_function);
+}
+
+bool& PromiseResolvingFunction::already_resolved()
+{
+    if (m_kind == Kind::Resolve)
+        return m_already_resolved;
+
+    VERIFY(m_resolve_function);
+    return m_resolve_function->m_already_resolved;
 }
 
 }

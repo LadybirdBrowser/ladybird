@@ -42,8 +42,8 @@ public:
     };
     ResolvingFunctions create_resolving_functions();
 
-    static Value resolve_function_steps(VM&, Promise&, AlreadyResolved&);
-    static Value reject_function_steps(VM&, Promise&, AlreadyResolved&);
+    static Value resolve_function_steps(VM&, Promise&, bool& already_resolved);
+    static Value reject_function_steps(VM&, Promise&, bool& already_resolved);
 
     void fulfill(Value value);
     void reject(Value reason);

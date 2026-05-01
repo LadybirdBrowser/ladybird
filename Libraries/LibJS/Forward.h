@@ -221,7 +221,6 @@ class PrototypeChainValidity;
 class Value;
 class WrappedFunction;
 enum class DeclarationKind;
-struct AlreadyResolved;
 class JobCallback;
 struct ModuleRequest;
 struct LoadedModuleRequest;

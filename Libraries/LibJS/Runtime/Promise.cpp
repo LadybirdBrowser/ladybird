@@ -64,7 +64,8 @@ Promise::ResolvingFunctions Promise::create_resolving_functions()
     auto& realm = *vm.current_realm();
 
     // 1. Let alreadyResolved be the Record { [[Value]]: false }.
-    auto already_resolved = vm.heap().allocate<AlreadyResolved>();
+    // NOTE: This is stored directly on the resolve function. The reject function keeps the resolve function alive and
+    //       uses the same bit.
 
     // 2. Let stepsResolve be the algorithm steps defined in Promise Resolve Functions.
     // 3. Let lengthResolve be the number of non-optional parameters of the function definition in Promise Resolve Functions.
@@ -73,7 +74,7 @@ Promise::ResolvingFunctions Promise::create_resolving_functions()
     // 6. Set resolve.[[AlreadyResolved]] to alreadyResolved.
 
     // 27.2.1.3.2 Promise Resolve Functions, https://tc39.es/ecma262/#sec-promise-resolve-functions
-    auto resolve_function = PromiseResolvingFunction::create(realm, *this, *already_resolved, PromiseResolvingFunction::Kind::Resolve);
+    auto resolve_function = PromiseResolvingFunction::create_resolve(realm, *this);
     resolve_function->define_direct_property(vm.names.name, PrimitiveString::create(vm, String {}), Attribute::Configurable);
 
     // 7. Let stepsReject be the algorithm steps defined in Promise Reject Functions.
@@ -83,7 +84,7 @@ Promise::ResolvingFunctions Promise::create_resolving_functions()
     // 11. Set reject.[[AlreadyResolved]] to alreadyResolved.
 
     // 27.2.1.3.1 Promise Reject Functions, https://tc39.es/ecma262/#sec-promise-reject-functions
-    auto reject_function = PromiseResolvingFunction::create(realm, *this, *already_resolved, PromiseResolvingFunction::Kind::Reject);
+    auto reject_function = PromiseResolvingFunction::create_reject(realm, *this, resolve_function);
     reject_function->define_direct_property(vm.names.name, PrimitiveString::create(vm, String {}), Attribute::Configurable);
 
     // 12. Return the Record { [[Resolve]]: resolve, [[Reject]]: reject }.
@@ -91,7 +92,7 @@ Promise::ResolvingFunctions Promise::create_resolving_functions()
 }
 
 // 27.2.1.3.2 Promise Resolve Functions, https://tc39.es/ecma262/#sec-promise-resolve-functions
-Value Promise::resolve_function_steps(VM& vm, Promise& promise, AlreadyResolved& already_resolved)
+Value Promise::resolve_function_steps(VM& vm, Promise& promise, bool& already_resolved)
 {
     dbgln_if(PROMISE_DEBUG, "[Promise @ {} / PromiseResolvingFunction]: Resolve function was called", &promise);
 
@@ -105,13 +106,13 @@ Value Promise::resolve_function_steps(VM& vm, Promise& promise, AlreadyResolved&
 
     // 4. Let alreadyResolved be F.[[AlreadyResolved]].
     // 5. If alreadyResolved.[[Value]] is true, return undefined.
-    if (already_resolved.value) {
+    if (already_resolved) {
         dbgln_if(PROMISE_DEBUG, "[Promise @ {} / PromiseResolvingFunction]: Promise is already resolved, returning undefined", &promise);
         return js_undefined();
     }
 
     // 6. Set alreadyResolved.[[Value]] to true.
-    already_resolved.value = true;
+    already_resolved = true;
 
     // 7. If SameValue(resolution, promise) is true, then
     if (resolution.is_object() && &resolution.as_object() == &promise) {
@@ -180,7 +181,7 @@ Value Promise::resolve_function_steps(VM& vm, Promise& promise, AlreadyResolved&
 }
 
 // 27.2.1.3.1 Promise Reject Functions, https://tc39.es/ecma262/#sec-promise-reject-functions
-Value Promise::reject_function_steps(VM& vm, Promise& promise, AlreadyResolved& already_resolved)
+Value Promise::reject_function_steps(VM& vm, Promise& promise, bool& already_resolved)
 {
     dbgln_if(PROMISE_DEBUG, "[Promise @ {} / PromiseResolvingFunction]: Reject function was called", &promise);
 
@@ -192,11 +193,11 @@ Value Promise::reject_function_steps(VM& vm, Promise& promise, AlreadyResolved& 
 
     // 4. Let alreadyResolved be F.[[AlreadyResolved]].
     // 5. If alreadyResolved.[[Value]] is true, return undefined.
-    if (already_resolved.value)
+    if (already_resolved)
         return js_undefined();
 
     // 6. Set alreadyResolved.[[Value]] to true.
-    already_resolved.value = true;
+    already_resolved = true;
 
     // 7. Perform RejectPromise(promise, reason).
     promise.reject(reason);
