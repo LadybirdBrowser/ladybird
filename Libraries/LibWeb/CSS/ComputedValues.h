@@ -702,7 +702,7 @@ public:
     LengthPercentage const& cx() const { return m_noninherited.cx; }
     LengthPercentage const& cy() const { return m_noninherited.cy; }
     LengthPercentage const& r() const { return m_noninherited.r; }
-    LengthPercentageOrAuto const& rx() const { return m_noninherited.ry; }
+    LengthPercentageOrAuto const& rx() const { return m_noninherited.rx; }
     LengthPercentageOrAuto const& ry() const { return m_noninherited.ry; }
     LengthPercentage const& x() const { return m_noninherited.x; }
     LengthPercentage const& x1() const { return m_noninherited.x1; }
