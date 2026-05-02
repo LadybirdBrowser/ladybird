@@ -173,16 +173,16 @@ static ByteString union_type_to_variant(UnionType const& union_type, Context con
 CppType idl_type_name_to_cpp_type(Type const& type, Context const& context)
 {
     if (is_platform_object(context, type))
-        return { .name = ByteString::formatted("GC::Root<{}>", interface_cpp_type_name(context, type)), .sequence_storage_type = SequenceStorageType::RootVector };
+        return { .name = ByteString::formatted("GC::Root<{}>", interface_cpp_type_name(context, type)), .sequence_storage_type = SequenceStorageType::Vector };
 
     if (is_javascript_builtin_buffer_source_type(type))
-        return { .name = ByteString::formatted("GC::Root<JS::{}>", type.name()), .sequence_storage_type = SequenceStorageType::RootVector };
+        return { .name = ByteString::formatted("GC::Root<JS::{}>", type.name()), .sequence_storage_type = SequenceStorageType::Vector };
 
     if (auto const* callback_interface = callback_interface_for_type(context, type))
-        return { .name = ByteString::formatted("GC::Root<{}>", interface_cpp_type_name(*callback_interface)), .sequence_storage_type = SequenceStorageType::RootVector };
+        return { .name = ByteString::formatted("GC::Root<{}>", interface_cpp_type_name(*callback_interface)), .sequence_storage_type = SequenceStorageType::Vector };
 
     if (context.callback_functions.contains(type.name()))
-        return { .name = "GC::Root<WebIDL::CallbackType>", .sequence_storage_type = SequenceStorageType::RootVector };
+        return { .name = "GC::Root<WebIDL::CallbackType>", .sequence_storage_type = SequenceStorageType::Vector };
 
     if (type.is_string()) {
         if (type.name().contains("Utf16"sv))
@@ -230,19 +230,19 @@ CppType idl_type_name_to_cpp_type(Type const& type, Context const& context)
     //       only ever js_undefined). Therefore, we say that the type is Empty here, so that a union of (T, undefined) is
     //       generated as Variant<T, Empty>, which is then returned in the Variant's visit as undefined if it is Empty.
     if (type.name() == "undefined")
-        return { .name = "Empty", .sequence_storage_type = SequenceStorageType::RootVector };
+        return { .name = "Empty", .sequence_storage_type = SequenceStorageType::Vector };
 
     if (type.name() == "object")
         return { .name = "GC::Root<JS::Object>", .sequence_storage_type = SequenceStorageType::Vector };
 
     if (type.name() == "BufferSource")
-        return { .name = "GC::Root<WebIDL::BufferSource>", .sequence_storage_type = SequenceStorageType::RootVector };
+        return { .name = "GC::Root<WebIDL::BufferSource>", .sequence_storage_type = SequenceStorageType::Vector };
 
     if (type.name() == "ArrayBufferView")
-        return { .name = "GC::Root<WebIDL::ArrayBufferView>", .sequence_storage_type = SequenceStorageType::RootVector };
+        return { .name = "GC::Root<WebIDL::ArrayBufferView>", .sequence_storage_type = SequenceStorageType::Vector };
 
     if (type.name() == "Promise")
-        return { .name = "GC::Root<WebIDL::Promise>", .sequence_storage_type = SequenceStorageType::RootVector };
+        return { .name = "GC::Root<WebIDL::Promise>", .sequence_storage_type = SequenceStorageType::Vector };
 
     if (type.name().is_one_of("sequence"sv, "FrozenArray"sv)) {
         auto& parameterized_type = as<ParameterizedType>(type);

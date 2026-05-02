@@ -30,7 +30,7 @@ GC::Ref<MediaStream> MediaStream::create(JS::Realm& realm)
 }
 
 // https://w3c.github.io/mediacapture-main/#mediastream
-GC::Ref<MediaStream> MediaStream::construct_impl(JS::Realm& realm, GC::RootVector<GC::Root<MediaStreamTrack>> const& tracks)
+GC::Ref<MediaStream> MediaStream::construct_impl(JS::Realm& realm, Vector<GC::Root<MediaStreamTrack>> const& tracks)
 {
     // 1. Let stream be a newly constructed MediaStream object.
     // 2. Initialize stream.id attribute to a newly generated value.

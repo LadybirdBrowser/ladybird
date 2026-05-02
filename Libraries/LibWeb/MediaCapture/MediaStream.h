@@ -20,7 +20,7 @@ class MediaStream final : public DOM::EventTarget {
 
 public:
     static GC::Ref<MediaStream> create(JS::Realm&);
-    static GC::Ref<MediaStream> construct_impl(JS::Realm&, GC::RootVector<GC::Root<MediaStreamTrack>> const& tracks);
+    static GC::Ref<MediaStream> construct_impl(JS::Realm&, Vector<GC::Root<MediaStreamTrack>> const&);
 
     virtual ~MediaStream() override = default;
 

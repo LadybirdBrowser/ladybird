@@ -398,7 +398,7 @@ GC::Ref<WebIDL::Promise> Clipboard::read_text()
 }
 
 // https://w3c.github.io/clipboard-apis/#dom-clipboard-write
-GC::Ref<WebIDL::Promise> Clipboard::write(GC::RootVector<GC::Root<ClipboardItem>>& data)
+GC::Ref<WebIDL::Promise> Clipboard::write(Vector<GC::Root<ClipboardItem>> const& data)
 {
     // 1. Let realm be this's relevant realm.
     auto& realm = HTML::relevant_realm(*this);

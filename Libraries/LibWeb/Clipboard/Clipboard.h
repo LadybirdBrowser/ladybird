@@ -31,7 +31,7 @@ public:
     GC::Ref<WebIDL::Promise> read(ClipboardUnsanitizedFormats formats = {});
     GC::Ref<WebIDL::Promise> read_text();
 
-    GC::Ref<WebIDL::Promise> write(GC::RootVector<GC::Root<ClipboardItem>>&);
+    GC::Ref<WebIDL::Promise> write(Vector<GC::Root<ClipboardItem>> const&);
     GC::Ref<WebIDL::Promise> write_text(String);
 
 private:
