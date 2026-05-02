@@ -2168,14 +2168,27 @@ void Document::update_animated_style_if_needed()
 
     Animations::AnimationUpdateContext context;
 
+    GC::RootVector<GC::Ref<Animations::Animation>> animations;
     for (auto& timeline : m_associated_animation_timelines) {
         for (auto& animation : timeline->associated_animations()) {
             if (animation.is_idle())
                 continue;
-            if (auto effect = animation.effect())
-                effect->update_computed_properties(context);
+
+            if (!animation.effect())
+                continue;
+
+            animations.append(animation);
         }
     }
+
+    quick_sort(animations, [](GC::Ref<Animations::Animation>& a, GC::Ref<Animations::Animation>& b) {
+        auto& a_effect = as<Animations::KeyframeEffect>(*a->effect());
+        auto& b_effect = as<Animations::KeyframeEffect>(*b->effect());
+        return Animations::KeyframeEffect::composite_order(a_effect, b_effect) < 0;
+    });
+
+    for (auto& animation : animations)
+        animation->effect()->update_computed_properties(context);
 
     m_needs_animated_style_update = false;
 }
