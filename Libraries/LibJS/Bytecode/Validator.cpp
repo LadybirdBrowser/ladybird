@@ -81,9 +81,7 @@ ErrorOr<void> validate_bytecode(Executable const& executable, CacheState cache_s
         .number_of_registers = executable.number_of_registers,
         .number_of_locals = static_cast<u32>(executable.local_variable_names.size()),
         .number_of_constants = static_cast<u32>(executable.constants.size()),
-        // Argument count isn't tracked on Executable yet; per-instruction
-        // argument-index checks land in a follow-up commit.
-        .number_of_arguments = NumericLimits<u32>::max(),
+        .number_of_arguments = executable.number_of_arguments,
         .identifier_table_size = static_cast<u32>(executable.identifier_table->identifiers().size()),
         .string_table_size = static_cast<u32>(executable.string_table->size()),
         .property_key_table_size = static_cast<u32>(executable.property_key_table->property_keys().size()),

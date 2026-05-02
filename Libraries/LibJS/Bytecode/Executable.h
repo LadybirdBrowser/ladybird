@@ -189,6 +189,7 @@ public:
 
     NonnullRefPtr<SourceCode const> source_code;
     u32 number_of_registers { 0 };
+    u32 number_of_arguments { 0 };
     bool is_strict_mode { false };
 
     u32 registers_and_locals_count { 0 };

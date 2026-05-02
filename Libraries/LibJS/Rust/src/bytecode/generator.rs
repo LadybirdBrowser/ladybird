@@ -1378,6 +1378,7 @@ impl Generator {
         let number_of_constants = u32_from_usize(self.constants.len());
 
         // Phase 1: Operand rewriting
+        let mut max_argument_index: Option<u32> = None;
         for block in &mut self.basic_blocks {
             for (instruction, _) in &mut block.instructions {
                 instruction.visit_operands(&mut |op: &mut Operand| {
@@ -1388,12 +1389,15 @@ impl Generator {
                             op.offset_index_by(number_of_registers + number_of_locals);
                         }
                         OperandType::Argument => {
+                            let index = op.index();
+                            max_argument_index = Some(max_argument_index.map_or(index, |m| m.max(index)));
                             op.offset_index_by(number_of_registers + number_of_locals + number_of_constants);
                         }
                     }
                 });
             }
         }
+        let number_of_arguments = max_argument_index.map_or(0, |m| m + 1);
 
         // Phase 1b: Peephole optimization - merge consecutive Mov instructions into Mov2/Mov3.
         for block in &mut self.basic_blocks {
@@ -1728,6 +1732,7 @@ impl Generator {
             exception_handlers: merged_handlers,
             basic_block_start_offsets,
             number_of_registers,
+            number_of_arguments,
         }
     }
 }
@@ -1739,6 +1744,10 @@ pub struct AssembledBytecode {
     pub exception_handlers: Vec<ExceptionHandler>,
     pub basic_block_start_offsets: Vec<usize>,
     pub number_of_registers: u32,
+    /// One past the highest `Operand::argument` index referenced by any
+    /// instruction, or 0 if the bytecode never reads an argument. Used by
+    /// the validator as the upper bound for argument operands.
+    pub number_of_arguments: u32,
 }
 
 /// Exception handler range (with byte offsets, post-linking).
