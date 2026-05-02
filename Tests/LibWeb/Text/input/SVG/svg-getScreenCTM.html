@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400">
+    <circle
+            id="circle"
+            cx="50"
+            cy="50"
+            r="30"
+            fill="blue"
+            transform="translate(100, 150) scale(2)"
+    />
+</svg>
+<script>
+    test(() => {
+        const circle = document.getElementById("circle");
+        const screenCTM = circle.getScreenCTM();
+        const inversed = screenCTM.inverse();
+
+        println(`a: ${screenCTM.a}, b: ${screenCTM.b}, c: ${screenCTM.c}, d: ${screenCTM.d}, e: ${screenCTM.e}, f: ${screenCTM.f}`);
+        println(`(inversed) a: ${inversed.a}, b: ${inversed.b}, c: ${inversed.c}, d: ${inversed.d}, e: ${inversed.e}, f: ${inversed.f}`);
+    });
+</script>

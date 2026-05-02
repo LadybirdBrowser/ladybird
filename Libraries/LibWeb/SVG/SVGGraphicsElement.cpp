@@ -391,10 +391,62 @@ GC::Ref<SVGAnimatedTransformList> SVGGraphicsElement::transform() const
     return SVGAnimatedTransformList::create(realm(), base_val, anim_val);
 }
 
+// https://svgwg.org/svg2-draft/types.html#__svg__SVGGraphicsElement__getScreenCTM
 GC::Ptr<Geometry::DOMMatrix> SVGGraphicsElement::get_screen_ctm()
 {
-    dbgln("(STUBBED) SVGGraphicsElement::get_screen_ctm(). Called on: {}", debug_description());
-    return Geometry::DOMMatrix::create(realm());
+    // 1. If the current element is not in the document, then return null.
+    if (!is_connected())
+        return {};
+
+    document().update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::SVGGraphicsElementGetBBox);
+
+    // 2. If the current element is a non-rendered element, and the UA is not able to resolve the style of the element, then return null.
+    if (!layout_node())
+        return {};
+
+    auto const self_paintable = paintable_box();
+    if (!self_paintable)
+        return {};
+
+    // 3. Let ctm be a matrix that transforms the coordinate space of the current element
+    //    (including its transform property) to the coordinate space of the document's viewport.
+    Gfx::AffineTransform screen_ctm;
+
+    auto const owner_svg_element = this->owner_svg_element();
+    if (!owner_svg_element) {
+        // This element IS the outermost SVG viewport (e.g. <svg> itself with no ancestor <svg>).
+        if (!is<SVGSVGElement>(*this))
+            return {};
+
+        // The SVGSVGPaintable does not store the viewbox transform directly. Recover it from the
+        // first direct child SVGGraphicsPaintable. All children of the same viewport share the
+        // same svg_to_viewbox_transform, so any one of them gives us the right value.
+        Gfx::AffineTransform svg_to_viewbox;
+        self_paintable->for_each_child_of_type<Painting::SVGGraphicsPaintable>([&](auto const& child) {
+            svg_to_viewbox = child.computed_transforms().svg_to_viewbox_transform();
+            return IterationDecision::Break;
+        });
+
+        auto const svg_origin = self_paintable->absolute_rect().location();
+        screen_ctm.translate(svg_origin.x().to_float(), svg_origin.y().to_float());
+        screen_ctm.multiply(svg_to_viewbox);
+    } else {
+        auto const owner_paintable = owner_svg_element->paintable_box();
+        auto const* graphics_paintable = as_if<Painting::SVGGraphicsPaintable>(*self_paintable);
+        if (!owner_paintable || !graphics_paintable)
+            return {};
+
+        auto const svg_to_css = graphics_paintable->computed_transforms().svg_to_css_pixels_transform();
+        auto const svg_origin = owner_paintable->absolute_rect().location();
+        screen_ctm.translate(svg_origin.x().to_float(), svg_origin.y().to_float());
+        screen_ctm.multiply(svg_to_css);
+    }
+
+    // 4. Return a newly created, detached DOMMatrix object that represents the same matrix as ctm.
+    return realm().create<Geometry::DOMMatrix>(realm(),
+        static_cast<double>(screen_ctm.a()), static_cast<double>(screen_ctm.b()),
+        static_cast<double>(screen_ctm.c()), static_cast<double>(screen_ctm.d()),
+        static_cast<double>(screen_ctm.e()), static_cast<double>(screen_ctm.f()));
 }
 
 GC::Ptr<Geometry::DOMMatrix> SVGGraphicsElement::get_ctm()
