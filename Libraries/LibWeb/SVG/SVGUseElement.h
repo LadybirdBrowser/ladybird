@@ -63,9 +63,6 @@ private:
     bool would_create_circular_reference(Element const& target) const;
     bool would_create_circular_reference_impl(Element const& target, GC::HeapHashTable<GC::Ref<Element const>>& visited) const;
 
-    Optional<float> m_x;
-    Optional<float> m_y;
-
     Optional<URL::URL> m_href;
 
     GC::Ptr<DOM::DocumentObserver> m_document_observer;

@@ -59,11 +59,6 @@ private:
     virtual GC::Ptr<Layout::Node> create_layout_node(GC::Ref<CSS::ComputedProperties>) override;
     void animate();
 
-    GC::Ptr<SVG::SVGAnimatedLength> m_x;
-    GC::Ptr<SVG::SVGAnimatedLength> m_y;
-    GC::Ptr<SVG::SVGAnimatedLength> m_width;
-    GC::Ptr<SVG::SVGAnimatedLength> m_height;
-
     RefPtr<Core::Timer> m_animation_timer;
     size_t m_current_frame_index { 0 };
     size_t m_loops_completed { 0 };
