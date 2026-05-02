@@ -2,6 +2,7 @@ FROM ubuntu:24.04
 
 ARG GCC_VERSION=14
 ARG LLVM_VERSION=21
+ARG WASM_TOOLS_VERSION=1.243.0
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV RUSTUP_HOME=/opt/rustup
@@ -51,8 +52,10 @@ RUN apt-get update -o APT::Update::Error-Mode=any \
         libstdc++-${GCC_VERSION}-dev \
         libtool \
         libxkbcommon-dev \
+        libclang-rt-${LLVM_VERSION}-dev \
         lld-${LLVM_VERSION} \
         llvm-${LLVM_VERSION} \
+        llvm-${LLVM_VERSION}-dev \
         nasm \
         ninja-build \
         pkg-config \
@@ -74,4 +77,20 @@ RUN apt-get update -o APT::Update::Error-Mode=any \
     && rm "${rustup_init}" \
     && rustup component add rustfmt clippy \
     && rm -rf /opt/rustup/downloads /opt/rustup/tmp /opt/cargo/registry /tmp/rust-toolchain.toml \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-${GCC_VERSION} 100 \
+    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-${GCC_VERSION} 100 \
+    && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${LLVM_VERSION} 100 \
+    && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${LLVM_VERSION} 100 \
+    && update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/ld.lld-${LLVM_VERSION} 100 \
+    && update-alternatives --install /usr/bin/lld lld /usr/bin/lld-${LLVM_VERSION} 100 \
+    && update-alternatives --install /usr/bin/llvm-symbolizer llvm-symbolizer /usr/bin/llvm-symbolizer-${LLVM_VERSION} 100
+
+RUN ARCH=$(uname -m) \
+    && NAME="wasm-tools-${WASM_TOOLS_VERSION}-${ARCH}-linux" \
+    && curl --fail --location \
+        "https://github.com/bytecodealliance/wasm-tools/releases/download/v${WASM_TOOLS_VERSION}/${NAME}.tar.gz" \
+        -o /tmp/wasm-tools.tar.gz \
+    && tar -xzf /tmp/wasm-tools.tar.gz -C /tmp \
+    && install -m755 "/tmp/${NAME}/wasm-tools" /usr/local/bin/wasm-tools \
+    && rm -rf /tmp/wasm-tools.tar.gz "/tmp/${NAME}"
