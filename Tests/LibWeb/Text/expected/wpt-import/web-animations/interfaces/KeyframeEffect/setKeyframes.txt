@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 80 tests
 
-66 Pass
-14 Fail
+67 Pass
+13 Fail
 Pass	Keyframes can be replaced with an empty keyframe
 Pass	Keyframes can be replaced with a one property two value property-indexed keyframes specification
 Pass	Keyframes can be replaced with a one shorthand property two value property-indexed keyframes specification
@@ -83,4 +83,4 @@ Pass	KeyframeEffect constructor throws with a keyframe sequence with an invalid 
 Pass	KeyframeEffect constructor throws with property-indexed keyframes with an invalid composite value
 Pass	KeyframeEffect constructor throws with property-indexed keyframes with an invalid composite value as one of the array values
 Pass	KeyframeEffect constructor throws with keyframes with an invalid composite value
-Fail	Changes made via setKeyframes should be immediately visible in style
+Pass	Changes made via setKeyframes should be immediately visible in style

@@ -1,0 +1,23 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<style>
+    #target {
+        width: 100px;
+    }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const effect = new KeyframeEffect(target, { width: ["20px", "20px"] }, 1000);
+        const animation = new Animation(effect, document.timeline);
+        animation.pause();
+        animation.currentTime = 500;
+
+        // Force style update
+        getComputedStyle(target).width;
+
+        effect.composite = "add";
+
+        println(getComputedStyle(target).width === "120px" ? "PASS" : "FAIL");
+    });
+</script>
