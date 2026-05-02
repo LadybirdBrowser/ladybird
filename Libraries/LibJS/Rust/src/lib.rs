@@ -2688,7 +2688,9 @@ pub unsafe extern "C" fn rust_tokenize(
     }
 }
 
-/// Validate the structural integrity of a packed bytecode buffer.
+/// Validate the structural integrity of a packed bytecode buffer along with
+/// the structural metadata that travels with it (basic block offsets,
+/// exception handler ranges, source map entries).
 ///
 /// Returns `true` if every instruction is well-formed against the supplied
 /// bounds. On failure, writes the error category, byte offset, and opcode
@@ -2699,12 +2701,15 @@ pub unsafe extern "C" fn rust_tokenize(
 ///   to 8 bytes (matching `alignof(Instruction)`). May be null only when
 ///   `bytecode_len` is zero.
 /// - `bounds` must point to a valid `FFIValidatorBounds`.
+/// - `extras` must point to a valid `FFIValidatorExtras`. Each
+///   inner pointer may be null only when its corresponding count is zero.
 /// - `error_out` must be either null or a writable `FFIValidationError`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_validate_bytecode(
     bytecode_ptr: *const u8,
     bytecode_len: usize,
     bounds: *const bytecode::validator::FFIValidatorBounds,
+    extras: *const bytecode::validator::FFIValidatorExtras,
     error_out: *mut bytecode::validator::FFIValidationError,
 ) -> bool {
     unsafe {
@@ -2725,7 +2730,7 @@ pub unsafe extern "C" fn rust_validate_bytecode(
                 write_error(FFIValidationError::new(ValidationErrorKind::BufferNotAligned, 0, 0));
                 return false;
             }
-            if bounds.is_null() {
+            if bounds.is_null() || extras.is_null() {
                 write_error(FFIValidationError::new(ValidationErrorKind::TruncatedInstruction, 0, 0));
                 return false;
             }
@@ -2736,7 +2741,30 @@ pub unsafe extern "C" fn rust_validate_bytecode(
                 std::slice::from_raw_parts(bytecode_ptr, bytecode_len)
             };
 
-            match validate_bytecode(bytes, &*bounds) {
+            let extras_ref = &*extras;
+            let basic_block_offsets = if extras_ref.basic_block_count == 0 {
+                &[][..]
+            } else {
+                std::slice::from_raw_parts(extras_ref.basic_block_offsets, extras_ref.basic_block_count)
+            };
+            let exception_handlers = if extras_ref.exception_handler_count == 0 {
+                &[][..]
+            } else {
+                std::slice::from_raw_parts(extras_ref.exception_handlers, extras_ref.exception_handler_count)
+            };
+            let source_map_offsets = if extras_ref.source_map_count == 0 {
+                &[][..]
+            } else {
+                std::slice::from_raw_parts(extras_ref.source_map_offsets, extras_ref.source_map_count)
+            };
+
+            match validate_bytecode(
+                bytes,
+                &*bounds,
+                basic_block_offsets,
+                exception_handlers,
+                source_map_offsets,
+            ) {
                 Ok(()) => true,
                 Err(err) => {
                     write_error(err);

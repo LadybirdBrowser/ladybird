@@ -79,6 +79,12 @@ pub enum ValidationErrorKind {
     SharedFunctionDataIndexOutOfRange = 18,
     ClassBlueprintIndexOutOfRange = 19,
     EnumOutOfRange = 20,
+    BasicBlockOffsetInvalid = 21,
+    ExceptionHandlerStartInvalid = 22,
+    ExceptionHandlerEndInvalid = 23,
+    ExceptionHandlerHandlerInvalid = 24,
+    ExceptionHandlerRangeInvalid = 25,
+    SourceMapOffsetInvalid = 26,
 }
 
 /// Detail returned to the C++ caller on validation failure.
@@ -88,6 +94,29 @@ pub struct FFIValidationError {
     pub kind: ValidationErrorKind,
     pub offset: u32,
     pub opcode: u32,
+}
+
+/// Layout-compatible mirror of `Bytecode::Executable::ExceptionHandlers`,
+/// flattened to plain offsets for FFI.
+#[repr(C)]
+pub struct FFIExceptionHandlerOffsets {
+    pub start: u32,
+    pub end: u32,
+    pub handler: u32,
+}
+
+/// Structural metadata that lives on `Executable` alongside the bytecode
+/// itself. Every offset must point at an instruction boundary; some endpoints
+/// (handler ranges, source map entries) may also be one-past-the-last
+/// instruction so that "end of bytecode" is representable.
+#[repr(C)]
+pub struct FFIValidatorExtras {
+    pub basic_block_offsets: *const u32,
+    pub basic_block_count: usize,
+    pub exception_handlers: *const FFIExceptionHandlerOffsets,
+    pub exception_handler_count: usize,
+    pub source_map_offsets: *const u32,
+    pub source_map_count: usize,
 }
 
 impl FFIValidationError {
@@ -285,8 +314,18 @@ pub fn validate_class_blueprint_index(raw: u32, ctx: &ValidationContext) -> Resu
 /// an instruction boundary. The set of valid instruction-start offsets
 /// is collected for use in Pass 2.
 ///
-/// Pass 2 (currently a stub) will dispatch per-opcode field validation.
-pub fn validate_bytecode(bytes: &[u8], bounds: &FFIValidatorBounds) -> Result<(), FFIValidationError> {
+/// Pass 2 dispatches per-opcode field validation.
+///
+/// Pass 3 validates the structural metadata that travels alongside the
+/// bytecode buffer in `Executable` (basic block start offsets, exception
+/// handler ranges, source map entries) against the offset set.
+pub fn validate_bytecode(
+    bytes: &[u8],
+    bounds: &FFIValidatorBounds,
+    basic_block_offsets: &[u32],
+    exception_handlers: &[FFIExceptionHandlerOffsets],
+    source_map_offsets: &[u32],
+) -> Result<(), FFIValidationError> {
     let mut valid_offsets: Vec<u32> = Vec::with_capacity(bytes.len() / 16);
 
     let mut at: usize = 0;
@@ -335,6 +374,62 @@ pub fn validate_bytecode(bytes: &[u8], bounds: &FFIValidatorBounds) -> Result<()
         let off = off_u32 as usize;
         let opcode = bytes[off];
         validate_instruction(opcode, &ctx, off).map_err(|kind| FFIValidationError::new(kind, off, opcode))?;
+    }
+
+    // Pass 3: structural metadata.
+    let bytecode_end = bytes.len() as u32;
+    let is_instruction_boundary = |offset: u32| -> bool { valid_offsets.binary_search(&offset).is_ok() };
+    let is_instruction_or_end = |offset: u32| -> bool { offset == bytecode_end || is_instruction_boundary(offset) };
+
+    for &off in basic_block_offsets {
+        if !is_instruction_boundary(off) {
+            return Err(FFIValidationError::new(
+                ValidationErrorKind::BasicBlockOffsetInvalid,
+                off as usize,
+                0,
+            ));
+        }
+    }
+
+    for handler in exception_handlers {
+        if !is_instruction_or_end(handler.start) {
+            return Err(FFIValidationError::new(
+                ValidationErrorKind::ExceptionHandlerStartInvalid,
+                handler.start as usize,
+                0,
+            ));
+        }
+        if !is_instruction_or_end(handler.end) {
+            return Err(FFIValidationError::new(
+                ValidationErrorKind::ExceptionHandlerEndInvalid,
+                handler.end as usize,
+                0,
+            ));
+        }
+        if handler.start > handler.end {
+            return Err(FFIValidationError::new(
+                ValidationErrorKind::ExceptionHandlerRangeInvalid,
+                handler.start as usize,
+                0,
+            ));
+        }
+        if !is_instruction_boundary(handler.handler) {
+            return Err(FFIValidationError::new(
+                ValidationErrorKind::ExceptionHandlerHandlerInvalid,
+                handler.handler as usize,
+                0,
+            ));
+        }
+    }
+
+    for &off in source_map_offsets {
+        if !is_instruction_or_end(off) {
+            return Err(FFIValidationError::new(
+                ValidationErrorKind::SourceMapOffsetInvalid,
+                off as usize,
+                0,
+            ));
+        }
     }
 
     Ok(())

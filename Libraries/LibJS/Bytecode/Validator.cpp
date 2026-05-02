@@ -59,6 +59,18 @@ static StringView validation_error_kind_to_string(JS::FFI::ValidationErrorKind k
         return "ClassBlueprintIndexOutOfRange"sv;
     case JS::FFI::ValidationErrorKind::EnumOutOfRange:
         return "EnumOutOfRange"sv;
+    case JS::FFI::ValidationErrorKind::BasicBlockOffsetInvalid:
+        return "BasicBlockOffsetInvalid"sv;
+    case JS::FFI::ValidationErrorKind::ExceptionHandlerStartInvalid:
+        return "ExceptionHandlerStartInvalid"sv;
+    case JS::FFI::ValidationErrorKind::ExceptionHandlerEndInvalid:
+        return "ExceptionHandlerEndInvalid"sv;
+    case JS::FFI::ValidationErrorKind::ExceptionHandlerHandlerInvalid:
+        return "ExceptionHandlerHandlerInvalid"sv;
+    case JS::FFI::ValidationErrorKind::ExceptionHandlerRangeInvalid:
+        return "ExceptionHandlerRangeInvalid"sv;
+    case JS::FFI::ValidationErrorKind::SourceMapOffsetInvalid:
+        return "SourceMapOffsetInvalid"sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -88,11 +100,43 @@ ErrorOr<void> validate_bytecode(Executable const& executable, CacheState cache_s
         .before_cache_fixup = cache_state == CacheState::BeforeFixup,
     };
 
+    // Project Executable's exception handlers down to plain offsets; the
+    // structural metadata's source-position parts aren't validated here.
+    Vector<JS::FFI::FFIExceptionHandlerOffsets> handler_offsets;
+    handler_offsets.ensure_capacity(executable.exception_handlers.size());
+    for (auto const& h : executable.exception_handlers) {
+        handler_offsets.append({
+            .start = static_cast<u32>(h.start_offset),
+            .end = static_cast<u32>(h.end_offset),
+            .handler = static_cast<u32>(h.handler_offset),
+        });
+    }
+
+    Vector<u32> basic_block_offsets;
+    basic_block_offsets.ensure_capacity(executable.basic_block_start_offsets.size());
+    for (auto offset : executable.basic_block_start_offsets)
+        basic_block_offsets.append(static_cast<u32>(offset));
+
+    Vector<u32> source_map_offsets;
+    source_map_offsets.ensure_capacity(executable.source_map.size());
+    for (auto const& entry : executable.source_map)
+        source_map_offsets.append(entry.bytecode_offset);
+
+    JS::FFI::FFIValidatorExtras extras {
+        .basic_block_offsets = basic_block_offsets.data(),
+        .basic_block_count = basic_block_offsets.size(),
+        .exception_handlers = handler_offsets.data(),
+        .exception_handler_count = handler_offsets.size(),
+        .source_map_offsets = source_map_offsets.data(),
+        .source_map_count = source_map_offsets.size(),
+    };
+
     JS::FFI::FFIValidationError error {};
     auto ok = rust_validate_bytecode(
         executable.bytecode.data(),
         executable.bytecode.size(),
         &bounds,
+        &extras,
         &error);
     if (ok)
         return {};
