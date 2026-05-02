@@ -45,6 +45,7 @@ public:
 
     void associate_with_animation(GC::Ref<Animation>);
     void disassociate_with_animation(GC::Ref<Animation>);
+    void on_document_changed(DOM::Document& old_document, DOM::Document& new_document);
 
     void set_has_css_defined_animations();
     bool has_css_defined_animations() const;

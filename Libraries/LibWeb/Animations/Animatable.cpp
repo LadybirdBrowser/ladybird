@@ -128,12 +128,27 @@ void Animatable::associate_with_animation(GC::Ref<Animation> animation)
     auto& impl = ensure_impl();
     impl.associated_animations.append(animation);
     impl.is_sorted_by_composite_order = false;
+
+    as<DOM::Element>(*this).document().associate_with_animation(animation);
 }
 
 void Animatable::disassociate_with_animation(GC::Ref<Animation> animation)
 {
     auto& impl = *m_impl;
     impl.associated_animations.remove_first_matching([&](auto element) { return animation == element; });
+
+    as<DOM::Element>(*this).document().disassociate_with_animation(animation);
+}
+
+void Animatable::on_document_changed(DOM::Document& old_document, DOM::Document& new_document)
+{
+    if (!m_impl)
+        return;
+
+    for (auto const& animation : m_impl->associated_animations) {
+        old_document.disassociate_with_animation(animation);
+        new_document.associate_with_animation(animation);
+    }
 }
 
 void Animatable::add_transitioned_properties(Optional<CSS::PseudoElement> pseudo_element, Vector<CSS::TransitionProperties> const& transitions)

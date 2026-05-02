@@ -2189,16 +2189,15 @@ void Document::update_animated_style_if_needed()
     Animations::AnimationUpdateContext context;
 
     GC::RootVector<GC::Ref<Animations::Animation>> animations;
-    for (auto& timeline : m_associated_animation_timelines) {
-        for (auto& animation : timeline->associated_animations()) {
-            if (animation.is_idle())
-                continue;
 
-            if (!animation.effect())
-                continue;
+    for (auto& animation : m_associated_animations) {
+        if (animation.is_idle())
+            continue;
 
-            animations.append(animation);
-        }
+        if (!animation.effect())
+            continue;
+
+        animations.append(animation);
     }
 
     quick_sort(animations, [](GC::Ref<Animations::Animation>& a, GC::Ref<Animations::Animation>& b) {
@@ -6492,6 +6491,16 @@ void Document::associate_with_timeline(GC::Ref<Animations::AnimationTimeline> ti
 void Document::disassociate_with_timeline(GC::Ref<Animations::AnimationTimeline> timeline)
 {
     m_associated_animation_timelines.remove(timeline);
+}
+
+void Document::associate_with_animation(GC::Ref<Animations::Animation> animation)
+{
+    m_associated_animations.set(animation);
+}
+
+void Document::disassociate_with_animation(GC::Ref<Animations::Animation> animation)
+{
+    m_associated_animations.remove(animation);
 }
 
 void Document::append_pending_animation_event(Web::DOM::Document::PendingAnimationEvent const& event)
