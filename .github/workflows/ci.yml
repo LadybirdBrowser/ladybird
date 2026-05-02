@@ -21,6 +21,7 @@ jobs:
         toolchain: ['GNU']
         clang_plugins: [false]
         runner_labels: ['["blacksmith-16vcpu-ubuntu-2404"]']
+        container_image: ['ghcr.io/ladybirdbrowser/ladybird-ci:latest']
 
         include:
           - os_name: 'Linux'
@@ -29,6 +30,7 @@ jobs:
             toolchain: 'Clang'
             clang_plugins: true
             runner_labels: '["blacksmith-16vcpu-ubuntu-2404"]'
+            container_image: 'ghcr.io/ladybirdbrowser/ladybird-ci:latest'
 
           - os_name: 'macOS'
             arch: 'arm64'
@@ -43,6 +45,7 @@ jobs:
             toolchain: 'Clang'
             clang_plugins: false
             runner_labels: '["blacksmith-16vcpu-ubuntu-2404-arm"]'
+            container_image: 'ghcr.io/ladybirdbrowser/ladybird-ci:latest'
 
           - os_name: 'Linux'
             arch: 'x86_64'
@@ -50,6 +53,7 @@ jobs:
             toolchain: 'Clang'
             clang_plugins: false
             runner_labels: '["blacksmith-16vcpu-ubuntu-2404"]'
+            container_image: 'ghcr.io/ladybirdbrowser/ladybird-ci:latest'
 
           - os_name: 'Linux'
             arch: 'x86_64'
@@ -57,6 +61,7 @@ jobs:
             toolchain: 'Clang'
             clang_plugins: false
             runner_labels: '["blacksmith-16vcpu-ubuntu-2404"]'
+            container_image: 'ghcr.io/ladybirdbrowser/ladybird-ci:latest'
 
           - os_name: 'Windows'
             arch: 'x86_64'
@@ -74,3 +79,4 @@ jobs:
       arch: ${{ matrix.arch }}
       build_preset: ${{ matrix.build_preset }}
       clang_plugins: ${{ matrix.clang_plugins }}
+      container_image: ${{ matrix.container_image || '' }}

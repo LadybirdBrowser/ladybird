@@ -26,6 +26,10 @@ inputs:
     description: 'Whether the setup is for building or linting'
     required: false
     default: 'build'
+  skip_apt_install:
+    description: 'Skip apt repo setup and package installation (use when running in a pre-built CI container)'
+    required: false
+    default: 'false'
 
 outputs:
   gcc_version:
@@ -55,7 +59,7 @@ runs:
         fi
 
     - name: Install apt repositories
-      if: ${{ inputs.os == 'Linux' }}
+      if: ${{ inputs.os == 'Linux' && inputs.skip_apt_install != 'true' }}
       shell: bash
       run: |
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
@@ -73,7 +77,7 @@ runs:
         sudo apt-get update -y
 
     - name: Install Dependencies
-      if: ${{ inputs.os == 'Linux' && inputs.type == 'build' }}
+      if: ${{ inputs.os == 'Linux' && inputs.type == 'build' && inputs.skip_apt_install != 'true' }}
       shell: bash
       run: |
         sudo apt-get install -y \
@@ -188,6 +192,11 @@ runs:
       if: ${{ inputs.type == 'build' }}
       shell: bash
       run: |
+        if command -v wasm-tools >/dev/null 2>&1; then
+          echo "wasm-tools $(wasm-tools --version) already installed, skipping download"
+          exit 0
+        fi
+
         VERSION=1.243.0
         if ${{ inputs.arch == 'arm64' }} ; then
           ARCH=aarch64
@@ -221,6 +230,15 @@ runs:
       with:
         script: |
           core.exportVariable('VCPKG_FORCE_SYSTEM_BINARIES', '1')
+
+    - name: 'Seed vcpkg from CI image'
+      if: ${{ inputs.os == 'Linux' && inputs.type == 'build' && inputs.skip_apt_install == 'true' }}
+      shell: bash
+      run: |
+        if [ -d /usr/local/share/vcpkg ] && [ ! -e "$VCPKG_ROOT" ]; then
+          mkdir -p "$(dirname "$VCPKG_ROOT")"
+          ln -s /usr/local/share/vcpkg "$VCPKG_ROOT"
+        fi
 
     - name: 'Install vcpkg'
       if: ${{ inputs.type == 'build' }}
