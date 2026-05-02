@@ -1539,10 +1539,15 @@ void Node::set_document(Document& document)
     if (m_document.ptr() == &document)
         return;
 
+    auto& old_document = *m_document;
     bool const node_needs_style_update = needs_style_update();
     bool const subtree_needs_style_update = entire_subtree_needs_style_update();
     bool const descendants_need_style_update = child_needs_style_update();
     m_document = &document;
+
+    if (auto* animatable = as_if<Animations::Animatable>(*this))
+        animatable->on_document_changed(old_document, document);
+
     if (node_needs_style_update) {
         // NOTE: We unset and reset the "needs style update" flag here.
         //       This ensures that there's a pending style update in the new document

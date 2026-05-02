@@ -21,6 +21,7 @@
 #include <AK/WeakPtr.h>
 #include <LibCore/Forward.h>
 #include <LibCore/SharedVersion.h>
+#include <LibGC/WeakHashSet.h>
 #include <LibJS/Forward.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
@@ -807,6 +808,8 @@ public:
 
     void associate_with_timeline(GC::Ref<Animations::AnimationTimeline>);
     void disassociate_with_timeline(GC::Ref<Animations::AnimationTimeline>);
+    void associate_with_animation(GC::Ref<Animations::Animation>);
+    void disassociate_with_animation(GC::Ref<Animations::Animation>);
 
     struct PendingAnimationEvent {
         GC::Ref<DOM::Event> event;
@@ -1416,6 +1419,10 @@ private:
 
     // https://www.w3.org/TR/web-animations-1/#timeline-associated-with-a-document
     HashTable<GC::Ref<Animations::AnimationTimeline>> m_associated_animation_timelines;
+
+    // NB: Weak so the document does not unnecessarily keep animations alive. Note that this also includes animations
+    //     associated with elements in shadow trees so differs from getAnimations()
+    GC::WeakHashSet<Animations::Animation> m_associated_animations;
 
     // https://www.w3.org/TR/web-animations-1/#document-default-document-timeline
     GC::Ptr<Animations::DocumentTimeline> m_default_timeline;
