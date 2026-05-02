@@ -13,7 +13,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/StdLibExtras.h>
 #include <LibGfx/DecodedImageFrame.h>
+#include <LibGfx/ImmutableBitmap.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/RegExpObject.h>
@@ -1419,7 +1421,7 @@ void HTMLInputElement::create_range_input_shadow_tree()
             return;
 
         double fraction = (client_x - rect.left().to_double()) / rect.width().to_double();
-        double value = fraction * (maximum - minimum) + minimum;
+        double value = mix(minimum, maximum, fraction);
 
         // Snap to allowed value step per the HTML spec for <input type=range>.
         // https://html.spec.whatwg.org/multipage/input.html#range-state-(type=range)
