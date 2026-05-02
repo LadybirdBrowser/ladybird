@@ -1,0 +1,138 @@
+name: Build CI Image
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ci-image.yml'
+      - 'Meta/Docker/ci/**'
+      - 'rust-toolchain.toml'
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/ci-image.yml'
+      - 'Meta/Docker/ci/**'
+      - 'rust-toolchain.toml'
+  workflow_dispatch:
+  schedule:
+    # Keep image build breakage visible before dependency changes block regular CI.
+    - cron: '0 0 * * 1'
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_NAME: ghcr.io/ladybirdbrowser/ladybird-ci
+
+jobs:
+  prepare:
+    if: github.repository == 'LadybirdBrowser/ladybird'
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+
+    outputs:
+      ci_image_version: ${{ steps.ci-image-version.outputs.ci_image_version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Read image version
+        id: ci-image-version
+        shell: bash
+        run: |
+          ci_image_version="$(tr -d '[:space:]' < Meta/Docker/ci/VERSION)"
+          if ! [[ "${ci_image_version}" =~ ^[0-9]{4}\.[0-9]{2}\.[0-9]+$ ]]; then
+            echo "Invalid CI image version: ${ci_image_version}"
+            exit 1
+          fi
+          echo "ci_image_version=${ci_image_version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Require version bump for Dockerfile changes
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}...HEAD")"
+          if grep -Eqx 'Meta/Docker/ci/Dockerfile|rust-toolchain.toml' <<< "${changed_files}" \
+            && ! grep -qx 'Meta/Docker/ci/VERSION' <<< "${changed_files}"; then
+            echo "Meta/Docker/ci/VERSION must change when CI image inputs change."
+            exit 1
+          fi
+
+  build:
+    if: github.repository == 'LadybirdBrowser/ladybird'
+    needs: prepare
+    name: ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: blacksmith-8vcpu-ubuntu-2404
+            arch_suffix: amd64
+          - platform: linux/arm64
+            runner: blacksmith-8vcpu-ubuntu-2404-arm
+            arch_suffix: arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Prepare Docker context
+        shell: bash
+        run: cp rust-toolchain.toml Meta/Docker/ci/rust-toolchain.toml
+
+      - name: Login to GitHub Container Registry
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and publish image
+        uses: docker/build-push-action@v6
+        with:
+          context: Meta/Docker/ci
+          file: Meta/Docker/ci/Dockerfile
+          platforms: ${{ matrix.platform }}
+          push: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ needs.prepare.outputs.ci_image_version }}-${{ matrix.arch_suffix }}
+            ${{ env.IMAGE_NAME }}:sha-${{ github.sha }}-${{ matrix.arch_suffix }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/LadybirdBrowser/ladybird
+            org.opencontainers.image.description=Ladybird Linux CI build image
+            org.opencontainers.image.version=${{ needs.prepare.outputs.ci_image_version }}
+
+  publish-manifest:
+    if: github.repository == 'LadybirdBrowser/ladybird' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    needs: [prepare, build]
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+
+    steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Publish multi-arch manifests
+        shell: bash
+        run: |
+          docker buildx imagetools create \
+            --tag "${IMAGE_NAME}:${{ needs.prepare.outputs.ci_image_version }}" \
+            --tag "${IMAGE_NAME}:sha-${{ github.sha }}" \
+            --tag "${IMAGE_NAME}:latest" \
+            "${IMAGE_NAME}:${{ needs.prepare.outputs.ci_image_version }}-amd64" \
+            "${IMAGE_NAME}:${{ needs.prepare.outputs.ci_image_version }}-arm64"
