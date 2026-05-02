@@ -17,7 +17,17 @@
 //! the Rust `Instruction` enum, so it works on freshly-encoded as well as
 //! freshly-deserialized bytecode.
 
-use super::instruction::{NUM_OPCODES, instruction_length_from_bytes};
+use super::instruction::{NUM_OPCODES, instruction_length_from_bytes, validate_instruction};
+
+/// Sentinel u32 used by `Operand::INVALID` and by `Optional<*TableIndex>` for
+/// "no value". Mirrors the C++ `0xFFFFFFFF` constant used throughout
+/// `Bytecode/Operand.h` and the per-table index types.
+const INVALID_INDEX_U32: u32 = 0xFFFF_FFFF;
+
+/// Sentinel u64 written into cache fields by the bytecode encoder when no
+/// cache slot was reserved. The fixup pass replaces real indices with
+/// pointers, leaving the sentinel as `0`.
+const NO_CACHE_INDEX: u64 = u32::MAX as u64;
 
 /// Bounds against which bytecode references are checked.
 #[repr(C)]
@@ -54,24 +64,21 @@ pub enum ValidationErrorKind {
     UnknownOpcode = 3,
     TruncatedInstruction = 4,
     InvalidLength = 5,
-    OperandRegisterOutOfRange = 6,
-    OperandLocalOutOfRange = 7,
-    OperandConstantOutOfRange = 8,
-    OperandArgumentOutOfRange = 9,
-    OperandInvalid = 10,
-    LabelNotAtInstructionBoundary = 11,
-    IdentifierIndexOutOfRange = 12,
-    StringIndexOutOfRange = 13,
-    PropertyKeyIndexOutOfRange = 14,
-    RegexIndexOutOfRange = 15,
-    PropertyLookupCacheIndexOutOfRange = 16,
-    GlobalVariableCacheIndexOutOfRange = 17,
-    TemplateObjectCacheIndexOutOfRange = 18,
-    ObjectShapeCacheIndexOutOfRange = 19,
-    ObjectPropertyIteratorCacheIndexOutOfRange = 20,
-    SharedFunctionDataIndexOutOfRange = 21,
-    ClassBlueprintIndexOutOfRange = 22,
-    EnumOutOfRange = 23,
+    OperandOutOfRange = 6,
+    OperandInvalid = 7,
+    LabelNotAtInstructionBoundary = 8,
+    IdentifierIndexOutOfRange = 9,
+    StringIndexOutOfRange = 10,
+    PropertyKeyIndexOutOfRange = 11,
+    RegexIndexOutOfRange = 12,
+    PropertyLookupCacheIndexOutOfRange = 13,
+    GlobalVariableCacheIndexOutOfRange = 14,
+    TemplateObjectCacheIndexOutOfRange = 15,
+    ObjectShapeCacheIndexOutOfRange = 16,
+    ObjectPropertyIteratorCacheIndexOutOfRange = 17,
+    SharedFunctionDataIndexOutOfRange = 18,
+    ClassBlueprintIndexOutOfRange = 19,
+    EnumOutOfRange = 20,
 }
 
 /// Detail returned to the C++ caller on validation failure.
@@ -91,6 +98,183 @@ impl FFIValidationError {
             opcode: opcode as u32,
         }
     }
+}
+
+/// Borrowed state passed to the generated per-instruction validator.
+pub struct ValidationContext<'a> {
+    pub bounds: &'a FFIValidatorBounds,
+    pub bytes: &'a [u8],
+    /// Sorted byte offsets of valid instruction starts, populated by Pass 1.
+    pub valid_offsets: &'a [u32],
+}
+
+#[inline]
+pub fn read_u32(bytes: &[u8], at: usize) -> u32 {
+    u32::from_ne_bytes(bytes[at..at + 4].try_into().unwrap())
+}
+
+#[inline]
+pub fn read_u64(bytes: &[u8], at: usize) -> u64 {
+    u64::from_ne_bytes(bytes[at..at + 8].try_into().unwrap())
+}
+
+#[inline]
+pub fn validate_operand(raw: u32, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
+    // After the assembler runs, operands in the encoded instruction stream
+    // are flat indices into the runtime [registers | locals | constants |
+    // arguments] array; the original 3-bit type tag has been zeroed out by
+    // Operand::offset_index_by. The runtime indexes the combined array
+    // directly with raw, so the validator just needs to keep raw inside that
+    // array's bounds.
+    if raw == INVALID_INDEX_U32 {
+        return Err(ValidationErrorKind::OperandInvalid);
+    }
+    let max = ctx
+        .bounds
+        .number_of_registers
+        .saturating_add(ctx.bounds.number_of_locals)
+        .saturating_add(ctx.bounds.number_of_constants)
+        .saturating_add(ctx.bounds.number_of_arguments);
+    if raw >= max {
+        return Err(ValidationErrorKind::OperandOutOfRange);
+    }
+    Ok(())
+}
+
+#[inline]
+pub fn validate_optional_operand(raw: u32, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
+    if raw == INVALID_INDEX_U32 {
+        return Ok(());
+    }
+    validate_operand(raw, ctx)
+}
+
+#[inline]
+pub fn validate_label(addr: u32, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
+    if ctx.valid_offsets.binary_search(&addr).is_err() {
+        return Err(ValidationErrorKind::LabelNotAtInstructionBoundary);
+    }
+    Ok(())
+}
+
+#[inline]
+pub fn validate_identifier_index(raw: u32, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
+    if raw == INVALID_INDEX_U32 || raw >= ctx.bounds.identifier_table_size {
+        return Err(ValidationErrorKind::IdentifierIndexOutOfRange);
+    }
+    Ok(())
+}
+
+#[inline]
+pub fn validate_optional_identifier_index(raw: u32, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
+    if raw == INVALID_INDEX_U32 {
+        return Ok(());
+    }
+    if raw >= ctx.bounds.identifier_table_size {
+        return Err(ValidationErrorKind::IdentifierIndexOutOfRange);
+    }
+    Ok(())
+}
+
+#[inline]
+pub fn validate_string_index(raw: u32, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
+    if raw == INVALID_INDEX_U32 || raw >= ctx.bounds.string_table_size {
+        return Err(ValidationErrorKind::StringIndexOutOfRange);
+    }
+    Ok(())
+}
+
+#[inline]
+pub fn validate_optional_string_index(raw: u32, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
+    if raw == INVALID_INDEX_U32 {
+        return Ok(());
+    }
+    if raw >= ctx.bounds.string_table_size {
+        return Err(ValidationErrorKind::StringIndexOutOfRange);
+    }
+    Ok(())
+}
+
+#[inline]
+pub fn validate_property_key_index(raw: u32, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
+    if raw == INVALID_INDEX_U32 || raw >= ctx.bounds.property_key_table_size {
+        return Err(ValidationErrorKind::PropertyKeyIndexOutOfRange);
+    }
+    Ok(())
+}
+
+#[inline]
+pub fn validate_property_lookup_cache_index(raw: u64, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
+    if !ctx.bounds.before_cache_fixup || raw == NO_CACHE_INDEX {
+        return Ok(());
+    }
+    if raw >= ctx.bounds.property_lookup_cache_count as u64 {
+        return Err(ValidationErrorKind::PropertyLookupCacheIndexOutOfRange);
+    }
+    Ok(())
+}
+
+#[inline]
+pub fn validate_global_variable_cache_index(raw: u64, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
+    if !ctx.bounds.before_cache_fixup || raw == NO_CACHE_INDEX {
+        return Ok(());
+    }
+    if raw >= ctx.bounds.global_variable_cache_count as u64 {
+        return Err(ValidationErrorKind::GlobalVariableCacheIndexOutOfRange);
+    }
+    Ok(())
+}
+
+#[inline]
+pub fn validate_template_object_cache_index(raw: u64, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
+    if !ctx.bounds.before_cache_fixup || raw == NO_CACHE_INDEX {
+        return Ok(());
+    }
+    if raw >= ctx.bounds.template_object_cache_count as u64 {
+        return Err(ValidationErrorKind::TemplateObjectCacheIndexOutOfRange);
+    }
+    Ok(())
+}
+
+#[inline]
+pub fn validate_object_shape_cache_index(raw: u64, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
+    if !ctx.bounds.before_cache_fixup || raw == NO_CACHE_INDEX {
+        return Ok(());
+    }
+    if raw >= ctx.bounds.object_shape_cache_count as u64 {
+        return Err(ValidationErrorKind::ObjectShapeCacheIndexOutOfRange);
+    }
+    Ok(())
+}
+
+#[inline]
+pub fn validate_object_property_iterator_cache_index(
+    raw: u64,
+    ctx: &ValidationContext,
+) -> Result<(), ValidationErrorKind> {
+    if !ctx.bounds.before_cache_fixup || raw == NO_CACHE_INDEX {
+        return Ok(());
+    }
+    if raw >= ctx.bounds.object_property_iterator_cache_count as u64 {
+        return Err(ValidationErrorKind::ObjectPropertyIteratorCacheIndexOutOfRange);
+    }
+    Ok(())
+}
+
+#[inline]
+pub fn validate_shared_function_data_index(raw: u32, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
+    if raw >= ctx.bounds.shared_function_data_count {
+        return Err(ValidationErrorKind::SharedFunctionDataIndexOutOfRange);
+    }
+    Ok(())
+}
+
+#[inline]
+pub fn validate_class_blueprint_index(raw: u32, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
+    if raw >= ctx.bounds.class_blueprint_count {
+        return Err(ValidationErrorKind::ClassBlueprintIndexOutOfRange);
+    }
+    Ok(())
 }
 
 /// Walk `bytes` and verify the structural integrity of every instruction.
@@ -142,9 +326,16 @@ pub fn validate_bytecode(bytes: &[u8], bounds: &FFIValidatorBounds) -> Result<()
         at = end;
     }
 
-    // Pass 2 lands in a follow-up commit. Suppress unused warnings for now.
-    let _ = bounds;
-    let _ = valid_offsets;
+    let ctx = ValidationContext {
+        bounds,
+        bytes,
+        valid_offsets: &valid_offsets,
+    };
+    for &off_u32 in &valid_offsets {
+        let off = off_u32 as usize;
+        let opcode = bytes[off];
+        validate_instruction(opcode, &ctx, off).map_err(|kind| FFIValidationError::new(kind, off, opcode))?;
+    }
 
     Ok(())
 }

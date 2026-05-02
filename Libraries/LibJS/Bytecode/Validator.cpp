@@ -29,14 +29,8 @@ static StringView validation_error_kind_to_string(JS::FFI::ValidationErrorKind k
         return "TruncatedInstruction"sv;
     case JS::FFI::ValidationErrorKind::InvalidLength:
         return "InvalidLength"sv;
-    case JS::FFI::ValidationErrorKind::OperandRegisterOutOfRange:
-        return "OperandRegisterOutOfRange"sv;
-    case JS::FFI::ValidationErrorKind::OperandLocalOutOfRange:
-        return "OperandLocalOutOfRange"sv;
-    case JS::FFI::ValidationErrorKind::OperandConstantOutOfRange:
-        return "OperandConstantOutOfRange"sv;
-    case JS::FFI::ValidationErrorKind::OperandArgumentOutOfRange:
-        return "OperandArgumentOutOfRange"sv;
+    case JS::FFI::ValidationErrorKind::OperandOutOfRange:
+        return "OperandOutOfRange"sv;
     case JS::FFI::ValidationErrorKind::OperandInvalid:
         return "OperandInvalid"sv;
     case JS::FFI::ValidationErrorKind::LabelNotAtInstructionBoundary:
