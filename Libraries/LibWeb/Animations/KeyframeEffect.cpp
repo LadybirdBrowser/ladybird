@@ -796,6 +796,10 @@ void KeyframeEffect::set_target(DOM::Element* target)
             target->associate_with_animation(*animation);
     }
     m_target_element = target;
+
+    invalidate_effect();
+    // FIXME: We don't remove the animated style from the old target element as part of normal animated style update and
+    //        it will remain "stuck" until it's style is fully invalidated for some other reason.
 }
 
 Optional<String> KeyframeEffect::pseudo_element() const
@@ -812,6 +816,11 @@ WebIDL::ExceptionOr<void> KeyframeEffect::set_pseudo_element(Optional<String> va
     // pseudo-element parsing on the provided value, defined as the following:
     // NOTE: The actual definition is in pseudo_element_parsing().
     m_target_pseudo_selector = TRY(pseudo_element_parsing(realm(), value));
+
+    invalidate_effect();
+    // FIXME: We don't remove the animated style from the old target element as part of normal animated style update and
+    //        it will remain "stuck" until it's style is fully invalidated for some other reason.
+
     return {};
 }
 
@@ -833,6 +842,12 @@ Optional<CSS::PseudoElement> KeyframeEffect::pseudo_element_type() const
     if (!m_target_pseudo_selector.has_value())
         return {};
     return m_target_pseudo_selector->type();
+}
+
+void KeyframeEffect::set_composite(Bindings::CompositeOperation value)
+{
+    m_composite = value;
+    invalidate_effect();
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-keyframeeffect-getkeyframes
@@ -913,12 +928,20 @@ WebIDL::ExceptionOr<void> KeyframeEffect::set_keyframes(Optional<GC::Root<JS::Ob
     generate_initial_and_final_frames(keyframe_set, m_target_properties);
     m_key_frame_set = keyframe_set;
 
+    invalidate_effect();
+
     return {};
 }
 
 KeyframeEffect::KeyframeEffect(JS::Realm& realm)
     : AnimationEffect(realm)
 {
+}
+
+void KeyframeEffect::invalidate_effect()
+{
+    if (m_target_element)
+        m_target_element->document().set_needs_animated_style_update();
 }
 
 void KeyframeEffect::initialize(JS::Realm& realm)

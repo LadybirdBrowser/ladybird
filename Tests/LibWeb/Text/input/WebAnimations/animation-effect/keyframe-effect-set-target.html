@@ -1,0 +1,19 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<div id="first"></div>
+<div id="second"></div>
+<script>
+    test(() => {
+        const effect = new KeyframeEffect(first, { opacity: [0.2, 0.2] }, 1000);
+        const animation = new Animation(effect, document.timeline);
+        animation.pause();
+        animation.currentTime = 500;
+
+        // Force style update
+        getComputedStyle(second).width;
+
+        effect.target = second;
+
+        println(getComputedStyle(second).opacity === "0.2" ? "PASS" : "FAIL");
+    });
+</script>

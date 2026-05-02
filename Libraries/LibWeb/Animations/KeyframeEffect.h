@@ -96,7 +96,7 @@ public:
     void set_pseudo_element(Optional<CSS::Selector::PseudoElementSelector> pseudo_element) { m_target_pseudo_selector = pseudo_element; }
 
     Bindings::CompositeOperation composite() const { return m_composite; }
-    void set_composite(Bindings::CompositeOperation value) { m_composite = value; }
+    void set_composite(Bindings::CompositeOperation value);
 
     WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> get_keyframes();
     WebIDL::ExceptionOr<void> set_keyframes(Optional<GC::Root<JS::Object>> const&);
@@ -111,6 +111,8 @@ public:
 private:
     KeyframeEffect(JS::Realm&);
     virtual ~KeyframeEffect() override = default;
+
+    void invalidate_effect();
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

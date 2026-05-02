@@ -1,0 +1,30 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<style>
+    #target::before,
+    #target::after {
+        content: "";
+        display: block;
+        height: 20px;
+    }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const effect = new KeyframeEffect(
+            target,
+            { opacity: [0.1, 0.1] },
+            { duration: 1000, pseudoElement: "::before" }
+        );
+        const animation = new Animation(effect, document.timeline);
+        animation.pause();
+        animation.currentTime = 500;
+
+        // Force style update
+        getComputedStyle(target).width;
+
+        effect.pseudoElement = "::after";
+
+        println(getComputedStyle(target, "::after").opacity === "0.1" ? "PASS" : "FAIL");
+    });
+</script>
