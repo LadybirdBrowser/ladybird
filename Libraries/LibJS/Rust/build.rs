@@ -32,9 +32,78 @@ fn generate_rust_code(mut w: impl Write, ops: &[OpDef]) -> Result<(), Box<dyn st
     writeln!(w)?;
 
     generate_opcode_enum(&mut w, ops)?;
+    generate_num_opcodes_const(&mut w, ops)?;
     generate_instruction_enum(&mut w, ops)?;
     generate_instruction_impl(&mut w, ops)?;
+    generate_instruction_length_from_bytes(&mut w, ops)?;
 
+    Ok(())
+}
+
+fn generate_num_opcodes_const(mut w: impl Write, ops: &[OpDef]) -> Result<(), Box<dyn std::error::Error>> {
+    writeln!(w, "/// Number of distinct opcodes (the valid range for the type byte).")?;
+    writeln!(w, "pub const NUM_OPCODES: u32 = {};", ops.len())?;
+    writeln!(w)?;
+    Ok(())
+}
+
+fn generate_instruction_length_from_bytes(mut w: impl Write, ops: &[OpDef]) -> Result<(), Box<dyn std::error::Error>> {
+    writeln!(
+        w,
+        "/// Returns the encoded length in bytes of the instruction at `bytes[at..]`."
+    )?;
+    writeln!(
+        w,
+        "/// Reads `m_length` from the buffer for variable-length instructions; for fixed-"
+    )?;
+    writeln!(w, "/// length instructions, returns the statically-known size.")?;
+    writeln!(
+        w,
+        "pub fn instruction_length_from_bytes(opcode: u8, bytes: &[u8], at: usize) -> Result<usize, super::validator::ValidationErrorKind> {{"
+    )?;
+    writeln!(w, "    use super::validator::ValidationErrorKind;")?;
+    writeln!(w, "    match opcode {{")?;
+
+    for (i, op) in ops.iter().enumerate() {
+        let has_array = op.fields.iter().any(|f| f.is_array);
+
+        if !has_array {
+            let mut offset: usize = 2;
+            for f in &op.fields {
+                if f.is_array || f.name == "m_type" || f.name == "m_strict" {
+                    continue;
+                }
+                let info = field_type_info(&f.ty);
+                offset = round_up(offset, info.align);
+                offset += info.size;
+            }
+            let final_size = round_up(offset, STRUCT_ALIGN);
+            let op_name = &op.name;
+            writeln!(w, "        {i} => Ok({final_size}), // {op_name}")?;
+        } else {
+            let m_length_offset = find_m_length_offset(&op.fields);
+            let op_name = &op.name;
+            writeln!(w, "        {i} => {{ // {op_name} (variable-length)")?;
+            writeln!(w, "            let m_length_end = at + {m_length_offset} + 4;")?;
+            writeln!(w, "            if m_length_end > bytes.len() {{")?;
+            writeln!(
+                w,
+                "                return Err(ValidationErrorKind::TruncatedInstruction);"
+            )?;
+            writeln!(w, "            }}")?;
+            writeln!(
+                w,
+                "            let raw = u32::from_ne_bytes(bytes[at + {m_length_offset}..m_length_end].try_into().unwrap());"
+            )?;
+            writeln!(w, "            Ok(raw as usize)")?;
+            writeln!(w, "        }}")?;
+        }
+    }
+
+    writeln!(w, "        _ => Err(ValidationErrorKind::UnknownOpcode),")?;
+    writeln!(w, "    }}")?;
+    writeln!(w, "}}")?;
+    writeln!(w)?;
     Ok(())
 }
 

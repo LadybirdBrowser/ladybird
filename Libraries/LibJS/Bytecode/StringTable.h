@@ -29,6 +29,7 @@ public:
     Utf16String const& get(StringTableIndex) const;
     void dump() const;
     bool is_empty() const { return m_strings.is_empty(); }
+    size_t size() const { return m_strings.size(); }
 
 private:
     Vector<Utf16String> m_strings;

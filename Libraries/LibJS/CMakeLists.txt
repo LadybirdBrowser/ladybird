@@ -12,6 +12,7 @@ set(SOURCES
     Bytecode/PropertyKeyTable.cpp
     Bytecode/RegexTable.cpp
     Bytecode/StringTable.cpp
+    Bytecode/Validator.cpp
     Console.cpp
     Contrib/Test262/262Object.cpp
     Contrib/Test262/AgentObject.cpp

@@ -2687,3 +2687,62 @@ pub unsafe extern "C" fn rust_tokenize(
         });
     }
 }
+
+/// Validate the structural integrity of a packed bytecode buffer.
+///
+/// Returns `true` if every instruction is well-formed against the supplied
+/// bounds. On failure, writes the error category, byte offset, and opcode
+/// into `*error_out` (when non-null) and returns `false`.
+///
+/// # Safety
+/// - `bytecode_ptr` must point to a buffer of `bytecode_len` bytes, aligned
+///   to 8 bytes (matching `alignof(Instruction)`). May be null only when
+///   `bytecode_len` is zero.
+/// - `bounds` must point to a valid `FFIValidatorBounds`.
+/// - `error_out` must be either null or a writable `FFIValidationError`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_validate_bytecode(
+    bytecode_ptr: *const u8,
+    bytecode_len: usize,
+    bounds: *const bytecode::validator::FFIValidatorBounds,
+    error_out: *mut bytecode::validator::FFIValidationError,
+) -> bool {
+    unsafe {
+        abort_on_panic(|| {
+            use bytecode::validator::{FFIValidationError, ValidationErrorKind, validate_bytecode};
+
+            let write_error = |err: FFIValidationError| {
+                if !error_out.is_null() {
+                    *error_out = err;
+                }
+            };
+
+            if bytecode_len > 0 && bytecode_ptr.is_null() {
+                write_error(FFIValidationError::new(ValidationErrorKind::TruncatedInstruction, 0, 0));
+                return false;
+            }
+            if !bytecode_ptr.is_null() && !(bytecode_ptr as usize).is_multiple_of(8) {
+                write_error(FFIValidationError::new(ValidationErrorKind::BufferNotAligned, 0, 0));
+                return false;
+            }
+            if bounds.is_null() {
+                write_error(FFIValidationError::new(ValidationErrorKind::TruncatedInstruction, 0, 0));
+                return false;
+            }
+
+            let bytes = if bytecode_ptr.is_null() {
+                &[][..]
+            } else {
+                std::slice::from_raw_parts(bytecode_ptr, bytecode_len)
+            };
+
+            match validate_bytecode(bytes, &*bounds) {
+                Ok(()) => true,
+                Err(err) => {
+                    write_error(err);
+                    false
+                }
+            }
+        })
+    }
+}

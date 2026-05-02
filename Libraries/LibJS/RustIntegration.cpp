@@ -17,6 +17,7 @@
 #include <LibJS/Bytecode/PropertyKeyTable.h>
 #include <LibJS/Bytecode/RegexTable.h>
 #include <LibJS/Bytecode/StringTable.h>
+#include <LibJS/Bytecode/Validator.h>
 #include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/Intrinsics.h>
 #include <LibJS/Runtime/NativeJavaScriptBackedFunction.h>
@@ -937,6 +938,11 @@ extern "C" void* rust_create_executable(
         executable->class_blueprints.append(move(*bp));
         delete bp;
     }
+
+#if !defined(NDEBUG) || defined(HAS_ADDRESS_SANITIZER)
+    if (auto validation = JS::Bytecode::validate_bytecode(*executable, JS::Bytecode::CacheState::BeforeFixup); validation.is_error())
+        VERIFY_NOT_REACHED();
+#endif
 
     executable->fixup_cache_pointers();
 
