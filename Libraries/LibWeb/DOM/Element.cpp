@@ -66,6 +66,7 @@
 #include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
 #include <LibWeb/HTML/CustomElements/CustomStateSet.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/HTMLBaseElement.h>
@@ -116,6 +117,7 @@
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
+#include <LibWeb/PixelUnits.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/SVG/SVGAElement.h>
 #include <LibWeb/Selection/Selection.h>
@@ -2723,12 +2725,17 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
     // block flow direction position block, an inline base direction position inline, and a scrolling box scrolling box,
     // run the following steps:
 
-    if (!scrolling_box.is_document()) {
-        // FIXME: Add support for scrolling boxes other than the viewport.
+    CSSPixelRect scrolling_box_rect;
+    CSSPixelPoint scroll_offset;
+    if (scrolling_box.is_document()) {
+        // NOTE: For a viewport scrolling box is initial containing block
+        scrolling_box_rect = scrolling_box.document().viewport_rect();
+    } else if (auto paintable_box = scrolling_box.paintable_box()) {
+        scroll_offset = paintable_box->scroll_offset();
+        scrolling_box_rect = paintable_box->absolute_rect().translated(scroll_offset);
+    } else {
         return {};
     }
-    // NOTE: For a viewport scrolling box is initial containing block
-    CSSPixelRect scrolling_box_rect = scrolling_box.document().viewport_rect();
 
     // FIXME: All of this needs to support different block/inline directions.
 
@@ -2736,6 +2743,13 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
     //    getBoundingClientRect(), if target is an Element, or Range’s getBoundingClientRect(),
     //    if target is a Range.
     auto target_bounding_border_box = target.get_bounding_client_rect();
+
+    // AD-HOC: If scrolling_box is a box, translate target bounding box so that the following math works for both the
+    //         viewport and a regular scrollable box.
+    if (!scrolling_box.is_document()) {
+        target_bounding_border_box.translate_by(scroll_offset);
+        target_bounding_border_box.translate_by(-scrolling_box.paintable_box()->absolute_rect().top_left());
+    }
 
     // 2. Let scrolling box edge A be the beginning edge in the block flow direction of scrolling box, and
     //    let element edge A be target bounding border box’s edge on the same physical side as that of
@@ -2783,7 +2797,7 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
         }
         // 2. Otherwise, if block is "end", then align element edge B with scrolling box edge B.
         else if (block == Bindings::ScrollLogicalPosition::End) {
-            y = element_edge_a + element_height - scrolling_box_height;
+            y = element_edge_b - scrolling_box_height;
         }
         // 3. Otherwise, if block is "center", then align the center of target bounding border box with the center of
         //    scrolling box in scrolling box’s block flow direction.
@@ -2806,7 +2820,7 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
             // If element edge B is outside scrolling box edge B and element height is less than scrolling box height
             else if ((element_edge_b >= scrolling_box_height && element_height < scrolling_box_height) || (element_edge_a <= 0 && element_height > scrolling_box_height)) {
                 // Align element edge B with scrolling box edge B.
-                y = element_edge_a + element_height - scrolling_box_height;
+                y = element_edge_b - scrolling_box_height;
             }
         }
 
@@ -2816,7 +2830,7 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
         }
         // 6. Otherwise, if inline is "end", then align element edge D with scrolling box edge D.
         else if (inline_ == Bindings::ScrollLogicalPosition::End) {
-            x = element_edge_d + element_width - scrolling_box_width;
+            x = element_edge_d - scrolling_box_width;
         }
         // 7. Otherwise, if inline is "center", then align the center of target bounding border box with the center of
         //    scrolling box in scrolling box’s inline base direction.
@@ -2839,9 +2853,14 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
             // If element edge D is outside scrolling box edge D and element width is less than scrolling box width
             else if ((element_edge_d >= scrolling_box_width && element_width < scrolling_box_width) || (element_edge_c <= 0 && element_width > scrolling_box_width)) {
                 // Align element edge D with scrolling box edge D.
-                x = element_edge_d + element_width - scrolling_box_width;
+                x = element_edge_d - scrolling_box_width;
             }
         }
+
+        // FIXME: 9. If target is an Element, and the target element defines some scroll snap positions, then the user
+        //           agent must scroll snap the resulting position to one of that element’s scroll snap positions if its
+        //           nearest scroll container is a scroll snap container. The user agent may also do this even when the
+        //           scroll container has scroll-snap-type: none.
 
         return CSSPixelPoint { x, y };
     }();
@@ -2882,8 +2901,9 @@ static GC::Ref<WebIDL::Promise> scroll_an_element_into_view(Element& target, Bin
         // FIXME: Actually check this condition.
         if (true) {
             // -> If scrolling box is associated with an element
-            if (scrolling_box.is_element()) {
+            if (auto* element = as_if<Element>(scrolling_box)) {
                 // FIXME: Perform a scroll of the element’s scrolling box to position, with the element as the associated element and behavior as the scroll behavior.
+                element->paintable_box()->set_scroll_offset(position);
             }
             // -> If scrolling box is associated with a viewport
             else if (scrolling_box.is_document()) {

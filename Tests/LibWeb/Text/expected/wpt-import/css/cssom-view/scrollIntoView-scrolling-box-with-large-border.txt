@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	scrollIntoView takes into account the border of the scroller
+1 Pass
+Pass	scrollIntoView takes into account the border of the scroller
