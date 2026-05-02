@@ -434,3 +434,228 @@ pub fn validate_bytecode(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::super::instruction::OpCode;
+    use super::*;
+
+    fn permissive_bounds() -> FFIValidatorBounds {
+        FFIValidatorBounds {
+            number_of_registers: 8,
+            number_of_locals: 4,
+            number_of_constants: 4,
+            number_of_arguments: 4,
+            identifier_table_size: 4,
+            string_table_size: 4,
+            property_key_table_size: 4,
+            regex_table_size: 0,
+            property_lookup_cache_count: 4,
+            global_variable_cache_count: 4,
+            template_object_cache_count: 4,
+            object_shape_cache_count: 4,
+            object_property_iterator_cache_count: 4,
+            class_blueprint_count: 4,
+            shared_function_data_count: 4,
+            before_cache_fixup: true,
+        }
+    }
+
+    fn validate(bytes: &[u8], bounds: &FFIValidatorBounds) -> Result<(), FFIValidationError> {
+        validate_bytecode(bytes, bounds, &[], &[], &[])
+    }
+
+    fn put_u32(bytes: &mut [u8], at: usize, v: u32) {
+        bytes[at..at + 4].copy_from_slice(&v.to_ne_bytes());
+    }
+
+    /// Build the smallest possible valid bytecode buffer: a single `End` with
+    /// `m_value` set to register 0. Useful as a baseline that callers can then
+    /// corrupt to trigger a specific error.
+    fn minimal_end_buffer() -> [u8; 8] {
+        let mut bytes = [0u8; 8];
+        bytes[0] = OpCode::End as u8;
+        // m_value at offset 4 stays as 0, which encodes register 0.
+        bytes
+    }
+
+    #[test]
+    fn accepts_minimal_valid_buffer() {
+        let bytes = minimal_end_buffer();
+        validate(&bytes, &permissive_bounds()).expect("valid buffer should pass");
+    }
+
+    #[test]
+    fn rejects_unknown_opcode() {
+        let mut bytes = minimal_end_buffer();
+        bytes[0] = 0xFF;
+        let err = validate(&bytes, &permissive_bounds()).unwrap_err();
+        assert_eq!(err.kind, ValidationErrorKind::UnknownOpcode);
+    }
+
+    #[test]
+    fn rejects_truncated_instruction() {
+        // End is 8 bytes; lop one off so the walker can't fit the trailing
+        // operand inside the buffer.
+        let bytes = &minimal_end_buffer()[..7];
+        let err = validate(bytes, &permissive_bounds()).unwrap_err();
+        assert_eq!(err.kind, ValidationErrorKind::TruncatedInstruction);
+    }
+
+    #[test]
+    fn rejects_misaligned_second_instruction() {
+        // First instruction is End (8 bytes), but we trail a 1-byte payload that
+        // can't possibly start an instruction at an 8-aligned offset.
+        let mut bytes = [0u8; 9];
+        bytes[..8].copy_from_slice(&minimal_end_buffer());
+        bytes[8] = OpCode::End as u8;
+        let err = validate(&bytes, &permissive_bounds()).unwrap_err();
+        // The walker stops when it can't fit a whole 8-byte End at offset 8.
+        assert_eq!(err.kind, ValidationErrorKind::TruncatedInstruction);
+    }
+
+    #[test]
+    fn rejects_undersized_variable_length_instruction() {
+        // NewArray's fixed prefix is 16 bytes. A shorter m_length must be
+        // rejected before pass 2 reads fixed fields beyond the buffer.
+        let mut bytes = [0u8; 8];
+        bytes[0] = OpCode::NewArray as u8;
+        put_u32(&mut bytes, 4, 8);
+
+        let err = validate(&bytes, &permissive_bounds()).unwrap_err();
+        assert_eq!(err.kind, ValidationErrorKind::InvalidLength);
+    }
+
+    #[test]
+    fn rejects_operand_invalid() {
+        let mut bytes = minimal_end_buffer();
+        put_u32(&mut bytes, 4, 0xFFFF_FFFF);
+        let err = validate(&bytes, &permissive_bounds()).unwrap_err();
+        assert_eq!(err.kind, ValidationErrorKind::OperandInvalid);
+    }
+
+    #[test]
+    fn rejects_operand_out_of_range() {
+        let mut bytes = minimal_end_buffer();
+        // Bounds total = 8+4+4+4 = 20, so flat index 20 is out of range.
+        put_u32(&mut bytes, 4, 20);
+        let err = validate(&bytes, &permissive_bounds()).unwrap_err();
+        assert_eq!(err.kind, ValidationErrorKind::OperandOutOfRange);
+    }
+
+    #[test]
+    fn rejects_label_not_at_instruction_boundary() {
+        // Build [Jump @4, End]: the Jump's target points into the middle of
+        // its own instruction, which is not an instruction-start offset.
+        let mut bytes = [0u8; 16];
+        bytes[0] = OpCode::Jump as u8;
+        // m_target at offset 4 (the only field on Jump after the header).
+        put_u32(&mut bytes, 4, 4);
+        bytes[8] = OpCode::End as u8;
+        let err = validate(&bytes, &permissive_bounds()).unwrap_err();
+        assert_eq!(err.kind, ValidationErrorKind::LabelNotAtInstructionBoundary);
+    }
+
+    #[test]
+    fn accepts_label_at_instruction_boundary() {
+        let mut bytes = [0u8; 16];
+        bytes[0] = OpCode::Jump as u8;
+        put_u32(&mut bytes, 4, 8); // points at the End below
+        bytes[8] = OpCode::End as u8;
+        validate(&bytes, &permissive_bounds()).expect("forward jump to End should pass");
+    }
+
+    #[test]
+    fn rejects_basic_block_offset_invalid() {
+        let bytes = minimal_end_buffer();
+        let bad_basic_blocks: [u32; 1] = [4]; // mid-instruction
+        let err = validate_bytecode(&bytes, &permissive_bounds(), &bad_basic_blocks, &[], &[]).unwrap_err();
+        assert_eq!(err.kind, ValidationErrorKind::BasicBlockOffsetInvalid);
+    }
+
+    #[test]
+    fn rejects_exception_handler_handler_invalid() {
+        let bytes = minimal_end_buffer();
+        let handlers = [FFIExceptionHandlerOffsets {
+            start: 0,
+            end: 8,
+            handler: 4, // mid-instruction
+        }];
+        let err = validate_bytecode(&bytes, &permissive_bounds(), &[], &handlers, &[]).unwrap_err();
+        assert_eq!(err.kind, ValidationErrorKind::ExceptionHandlerHandlerInvalid);
+    }
+
+    #[test]
+    fn rejects_exception_handler_range_invalid() {
+        let bytes = minimal_end_buffer();
+        let handlers = [FFIExceptionHandlerOffsets {
+            start: 8,
+            end: 0,
+            handler: 0,
+        }];
+        let err = validate_bytecode(&bytes, &permissive_bounds(), &[], &handlers, &[]).unwrap_err();
+        assert_eq!(err.kind, ValidationErrorKind::ExceptionHandlerRangeInvalid);
+    }
+
+    #[test]
+    fn accepts_exception_handler_at_end_of_buffer() {
+        let bytes = minimal_end_buffer();
+        let handlers = [FFIExceptionHandlerOffsets {
+            start: 0,
+            end: 8, // one-past-last is OK for end
+            handler: 0,
+        }];
+        validate_bytecode(&bytes, &permissive_bounds(), &[], &handlers, &[])
+            .expect("end-of-buffer handler end should pass");
+    }
+
+    #[test]
+    fn rejects_source_map_offset_invalid() {
+        let bytes = minimal_end_buffer();
+        let bad_source_map: [u32; 1] = [4];
+        let err = validate_bytecode(&bytes, &permissive_bounds(), &[], &[], &bad_source_map).unwrap_err();
+        assert_eq!(err.kind, ValidationErrorKind::SourceMapOffsetInvalid);
+    }
+
+    #[test]
+    fn rejects_cache_index_out_of_range_before_fixup() {
+        // NewObject layout: header(2) + pad(2) + m_dst(4) + m_cache(8) -> 16 bytes.
+        let mut bytes = [0u8; 16];
+        bytes[0] = OpCode::NewObject as u8;
+        // m_dst at offset 4 stays 0 (register 0).
+        // m_cache at offset 8: an index well past object_shape_cache_count.
+        bytes[8..16].copy_from_slice(&999_999_u64.to_ne_bytes());
+
+        let err = validate(&bytes, &permissive_bounds()).unwrap_err();
+        assert_eq!(err.kind, ValidationErrorKind::ObjectShapeCacheIndexOutOfRange);
+    }
+
+    #[test]
+    fn rejects_object_literal_shape_cache_index_out_of_range_before_fixup() {
+        // InitObjectLiteralProperty layout: header(2) + pad(2) + m_object(4)
+        // + m_property(4) + m_src(4) + m_shape_cache_index(4)
+        // + m_property_slot(4) = 24 bytes.
+        let mut bytes = [0u8; 24];
+        bytes[0] = OpCode::InitObjectLiteralProperty as u8;
+        // m_object, m_property, and m_src stay at 0.
+        // m_shape_cache_index at offset 16: an index well past
+        // object_shape_cache_count.
+        put_u32(&mut bytes, 16, 999_999);
+
+        let err = validate(&bytes, &permissive_bounds()).unwrap_err();
+        assert_eq!(err.kind, ValidationErrorKind::ObjectShapeCacheIndexOutOfRange);
+    }
+
+    #[test]
+    fn skips_cache_fields_after_fixup() {
+        let mut bytes = [0u8; 16];
+        bytes[0] = OpCode::NewObject as u8;
+        // Same out-of-range garbage as above; once before_cache_fixup is
+        // false, the validator must treat the slot as an opaque pointer.
+        bytes[8..16].copy_from_slice(&999_999_u64.to_ne_bytes());
+
+        let mut bounds = permissive_bounds();
+        bounds.before_cache_fixup = false;
+        validate(&bytes, &bounds).expect("post-fixup cache slot is opaque and should be skipped");
+    }
+}

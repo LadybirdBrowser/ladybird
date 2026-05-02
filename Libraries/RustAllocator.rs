@@ -4,6 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+// Under `cargo test`, fall back to the standard system allocator so that the
+// crate's unit tests don't need to link against the C++ runtime.
+#![cfg(not(test))]
+
 use std::alloc::{GlobalAlloc, Layout};
 
 unsafe extern "C" {
