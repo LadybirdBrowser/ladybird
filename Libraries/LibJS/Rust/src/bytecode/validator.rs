@@ -47,6 +47,15 @@ pub struct FFIValidatorBounds {
     pub object_property_iterator_cache_count: u32,
     pub class_blueprint_count: u32,
     pub shared_function_data_count: u32,
+    /// Variant counts for the C++ enum types referenced by Bytecode.def
+    /// fields. Plumbed across the FFI rather than hardcoded so that adding
+    /// or removing a variant in the C++ enum can't silently outdate the
+    /// Rust validator.
+    pub completion_type_variant_count: u32,
+    pub iterator_hint_variant_count: u32,
+    pub environment_mode_variant_count: u32,
+    pub put_kind_variant_count: u32,
+    pub arguments_kind_variant_count: u32,
     /// If true, m_cache fields hold indices that should be range-checked
     /// against the corresponding cache_count. If false, the cache fixup
     /// pass has already replaced them with real pointers and they are
@@ -306,6 +315,46 @@ pub fn validate_class_blueprint_index(raw: u32, ctx: &ValidationContext) -> Resu
     Ok(())
 }
 
+#[inline]
+pub fn validate_completion_type(raw: u32, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
+    if raw >= ctx.bounds.completion_type_variant_count {
+        return Err(ValidationErrorKind::EnumOutOfRange);
+    }
+    Ok(())
+}
+
+#[inline]
+pub fn validate_iterator_hint(raw: u32, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
+    if raw >= ctx.bounds.iterator_hint_variant_count {
+        return Err(ValidationErrorKind::EnumOutOfRange);
+    }
+    Ok(())
+}
+
+#[inline]
+pub fn validate_environment_mode(raw: u32, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
+    if raw >= ctx.bounds.environment_mode_variant_count {
+        return Err(ValidationErrorKind::EnumOutOfRange);
+    }
+    Ok(())
+}
+
+#[inline]
+pub fn validate_put_kind(raw: u32, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
+    if raw >= ctx.bounds.put_kind_variant_count {
+        return Err(ValidationErrorKind::EnumOutOfRange);
+    }
+    Ok(())
+}
+
+#[inline]
+pub fn validate_arguments_kind(raw: u32, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
+    if raw >= ctx.bounds.arguments_kind_variant_count {
+        return Err(ValidationErrorKind::EnumOutOfRange);
+    }
+    Ok(())
+}
+
 /// Walk `bytes` and verify the structural integrity of every instruction.
 ///
 /// Pass 1 verifies that the buffer is a tight sequence of well-formed
@@ -457,6 +506,11 @@ mod tests {
             object_property_iterator_cache_count: 4,
             class_blueprint_count: 4,
             shared_function_data_count: 4,
+            completion_type_variant_count: 6,
+            iterator_hint_variant_count: 2,
+            environment_mode_variant_count: 2,
+            put_kind_variant_count: 5,
+            arguments_kind_variant_count: 2,
             before_cache_fixup: true,
         }
     }
@@ -644,6 +698,18 @@ mod tests {
 
         let err = validate(&bytes, &permissive_bounds()).unwrap_err();
         assert_eq!(err.kind, ValidationErrorKind::ObjectShapeCacheIndexOutOfRange);
+    }
+
+    #[test]
+    fn rejects_enum_out_of_range() {
+        // SetCompletionType layout: header(2) + pad(2) + m_completion(4) + m_completion_type(4) = 12, padded to 16.
+        let mut bytes = [0u8; 16];
+        bytes[0] = OpCode::SetCompletionType as u8;
+        // m_completion at offset 4 stays as register 0.
+        // m_completion_type at offset 8: 99 is well past the 6 valid variants.
+        put_u32(&mut bytes, 8, 99);
+        let err = validate(&bytes, &permissive_bounds()).unwrap_err();
+        assert_eq!(err.kind, ValidationErrorKind::EnumOutOfRange);
     }
 
     #[test]

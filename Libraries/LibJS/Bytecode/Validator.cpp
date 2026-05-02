@@ -9,7 +9,11 @@
 #include <AK/NumericLimits.h>
 #include <AK/StringView.h>
 #include <LibJS/Bytecode/Executable.h>
+#include <LibJS/Bytecode/Instruction.h>
+#include <LibJS/Bytecode/PutKind.h>
 #include <LibJS/Bytecode/Validator.h>
+#include <LibJS/Runtime/Completion.h>
+#include <LibJS/Runtime/Iterator.h>
 #include <LibJS/RustFFI.h>
 
 namespace JS::Bytecode {
@@ -75,6 +79,21 @@ static StringView validation_error_kind_to_string(JS::FFI::ValidationErrorKind k
     VERIFY_NOT_REACHED();
 }
 
+// Variant counts for the C++ enums referenced by Bytecode.def fields. The
+// static_asserts pin the last variant so adding a new one without bumping
+// the count here breaks the build instead of silently outdating the
+// validator.
+static constexpr u32 completion_type_variant_count = to_underlying(Completion::Type::Throw) + 1;
+static_assert(completion_type_variant_count == 6);
+static constexpr u32 iterator_hint_variant_count = to_underlying(IteratorHint::Async) + 1;
+static_assert(iterator_hint_variant_count == 2);
+static constexpr u32 environment_mode_variant_count = to_underlying(Op::EnvironmentMode::Var) + 1;
+static_assert(environment_mode_variant_count == 2);
+static constexpr u32 put_kind_variant_count = to_underlying(PutKind::Own) + 1;
+static_assert(put_kind_variant_count == 5);
+static constexpr u32 arguments_kind_variant_count = to_underlying(Op::ArgumentsKind::Unmapped) + 1;
+static_assert(arguments_kind_variant_count == 2);
+
 ErrorOr<void> validate_bytecode(Executable const& executable, CacheState cache_state)
 {
     JS::FFI::FFIValidatorBounds bounds {
@@ -95,6 +114,11 @@ ErrorOr<void> validate_bytecode(Executable const& executable, CacheState cache_s
         .object_property_iterator_cache_count = static_cast<u32>(executable.object_property_iterator_caches.size()),
         .class_blueprint_count = static_cast<u32>(executable.class_blueprints.size()),
         .shared_function_data_count = static_cast<u32>(executable.shared_function_data.size()),
+        .completion_type_variant_count = completion_type_variant_count,
+        .iterator_hint_variant_count = iterator_hint_variant_count,
+        .environment_mode_variant_count = environment_mode_variant_count,
+        .put_kind_variant_count = put_kind_variant_count,
+        .arguments_kind_variant_count = arguments_kind_variant_count,
         .before_cache_fixup = cache_state == CacheState::BeforeFixup,
     };
 

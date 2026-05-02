@@ -234,10 +234,28 @@ fn emit_scalar_field_check(
                 )?;
             }
         }
-        // bool, u64, Value, EnvironmentCoordinate, Builtin, Completion::Type,
-        // IteratorHint, EnvironmentMode, PutKind, ArgumentsKind: not validated
-        // here (no useful per-instruction bound to apply, or covered in a
-        // later commit).
+        "Completion::Type" => writeln!(
+            w,
+            "            validate_completion_type(read_u32(bytes, at + {offset}), ctx)?;"
+        )?,
+        "IteratorHint" => writeln!(
+            w,
+            "            validate_iterator_hint(read_u32(bytes, at + {offset}), ctx)?;"
+        )?,
+        "EnvironmentMode" => writeln!(
+            w,
+            "            validate_environment_mode(read_u32(bytes, at + {offset}), ctx)?;"
+        )?,
+        "PutKind" => writeln!(
+            w,
+            "            validate_put_kind(read_u32(bytes, at + {offset}), ctx)?;"
+        )?,
+        "ArgumentsKind" => writeln!(
+            w,
+            "            validate_arguments_kind(read_u32(bytes, at + {offset}), ctx)?;"
+        )?,
+        // bool, u64, Value, EnvironmentCoordinate, Builtin: no per-field
+        // bound applied here.
         _ => {}
     }
     Ok(())
