@@ -197,7 +197,7 @@ public:
     static JustifyContent justify_content() { return JustifyContent::FlexStart; }
     static JustifyItems justify_items() { return JustifyItems::Legacy; }
     static JustifySelf justify_self() { return JustifySelf::Auto; }
-    static AlignContent align_content() { return AlignContent::Stretch; }
+    static AlignContent align_content() { return AlignContent::Normal; }
     static AlignItems align_items() { return AlignItems::Stretch; }
     static AlignSelf align_self() { return AlignSelf::Auto; }
     static Appearance appearance() { return Appearance::Auto; }
