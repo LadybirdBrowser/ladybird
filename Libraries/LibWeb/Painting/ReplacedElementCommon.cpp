@@ -12,6 +12,8 @@
 
 namespace Web::Painting {
 
+static CSSPixelRect resolve_replaced_content_rect(PaintableBox const& paintable, CSSPixelSize concrete_size);
+
 Gfx::IntRect get_replaced_box_painting_area(PaintableBox const& paintable, DisplayListRecordingContext const& context, CSS::ObjectFit object_fit, Gfx::IntSize content_size)
 {
     if (content_size.is_empty())
@@ -68,11 +70,29 @@ Gfx::IntRect get_replaced_box_painting_area(PaintableBox const& paintable, Displ
 
     auto scaled_bitmap_width = CSSPixels(content_size.width()) * scale_x;
     auto scaled_bitmap_height = CSSPixels(content_size.height()) * scale_y;
+    CSSPixelRect destination_rect = resolve_replaced_content_rect(paintable, { scaled_bitmap_width, scaled_bitmap_height });
 
-    auto residual_horizontal = paintable_rect.width() - scaled_bitmap_width;
-    auto residual_vertical = paintable_rect.height() - scaled_bitmap_height;
+    return Gfx::IntRect(
+        paintable_rect_device_pixels.x().value() + context.rounded_device_pixels(destination_rect.x() - paintable_rect.x()).value(),
+        paintable_rect_device_pixels.y().value() + context.rounded_device_pixels(destination_rect.y() - paintable_rect.y()).value(),
+        context.rounded_device_pixels(destination_rect.width()).value(),
+        context.rounded_device_pixels(destination_rect.height()).value());
+}
 
-    // https://drafts.csswg.org/css-images/#the-object-position
+CSSPixelRect get_replaced_content_rect(PaintableBox const& paintable, CSS::SizeWithAspectRatio const& natural_size)
+{
+    CSSPixelRect paintable_rect = paintable.absolute_rect();
+    CSSPixelSize concrete_size = CSS::replaced_object_fit_size(paintable.computed_values().object_fit(), natural_size, paintable_rect.size());
+    return resolve_replaced_content_rect(paintable, concrete_size);
+}
+
+static CSSPixelRect resolve_replaced_content_rect(PaintableBox const& paintable, CSSPixelSize concrete_size)
+{
+    CSSPixelRect paintable_rect = paintable.absolute_rect();
+    CSSPixels residual_horizontal = paintable_rect.width() - concrete_size.width();
+    CSSPixels residual_vertical = paintable_rect.height() - concrete_size.height();
+
+    // https://drafts.csswg.org/css-images-3/#the-object-position
     auto const& object_position = paintable.computed_values().object_position();
 
     auto offset_x = CSSPixels::from_raw(0);
@@ -89,11 +109,7 @@ Gfx::IntRect get_replaced_box_painting_area(PaintableBox const& paintable, Displ
         offset_y = residual_vertical - object_position.offset_y.to_px(paintable.layout_node(), residual_vertical);
     }
 
-    return Gfx::IntRect(
-        paintable_rect_device_pixels.x().value() + context.rounded_device_pixels(offset_x).value(),
-        paintable_rect_device_pixels.y().value() + context.rounded_device_pixels(offset_y).value(),
-        context.rounded_device_pixels(scaled_bitmap_width).value(),
-        context.rounded_device_pixels(scaled_bitmap_height).value());
+    return CSSPixelRect({ paintable_rect.x() + offset_x, paintable_rect.y() + offset_y }, concrete_size);
 }
 
 }

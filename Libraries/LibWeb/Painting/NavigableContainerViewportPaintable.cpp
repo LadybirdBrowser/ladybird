@@ -13,6 +13,8 @@
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/ExternalContentSource.h>
 #include <LibWeb/Painting/NavigableContainerViewportPaintable.h>
+#include <LibWeb/Painting/ReplacedElementCommon.h>
+#include <LibWeb/SVG/SVGSVGElement.h>
 
 namespace Web::Painting {
 
@@ -51,10 +53,18 @@ void NavigableContainerViewportPaintable::paint(DisplayListRecordingContext& con
         auto content_navigable = navigable_container.content_navigable();
         VERIFY(content_navigable);
 
+        CSSPixelRect external_content_rect = absolute_rect;
+        if (auto* root = as_if<SVG::SVGSVGElement>(hosted_document->document_element())) {
+            // https://drafts.csswg.org/css-images-3/#the-object-fit
+            // The object-fit property specifies how the contents of a replaced element should be fitted to the box established by its used height and width.
+            // SVG uses the given size as the size of the SVG Viewport and then uses the values of several attributes on the root svg element to determine how to draw itself.
+            external_content_rect = get_replaced_content_rect(*this, SVG::SVGSVGElement::negotiate_natural_metrics(*root));
+        }
+
         context.display_list_recorder().save();
         context.display_list_recorder().add_clip_rect(clip_rect.to_type<int>());
         context.display_list_recorder().draw_external_content(
-            context.enclosing_device_rect(absolute_rect).to_type<int>(),
+            context.rounded_device_rect(external_content_rect).to_type<int>(),
             content_navigable->external_content_source(),
             Gfx::ScalingMode::NearestNeighbor);
         context.display_list_recorder().restore();

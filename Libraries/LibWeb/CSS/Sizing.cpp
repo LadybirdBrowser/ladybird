@@ -62,4 +62,58 @@ CSSPixelSize run_default_sizing_algorithm(
     return default_size;
 }
 
+// https://drafts.csswg.org/css-images-3/#the-object-fit
+CSSPixelSize replaced_object_fit_size(ObjectFit object_fit, SizeWithAspectRatio const& natural_size, CSSPixelSize default_size)
+{
+    if (default_size.is_empty())
+        return default_size;
+
+    switch (object_fit) {
+    case ObjectFit::Fill: {
+        // The replaced content is sized to fill the element's content box: the object's concrete object
+        // size is the element's used width and height.
+        return default_size;
+    }
+    case ObjectFit::Contain: {
+        // The replaced content is sized to maintain its natural aspect ratio while fitting within the
+        // element's content box: its concrete object size is resolved as a contain constraint against the
+        // element's used width and height.
+        SizeWithAspectRatio aspect_only_size { {}, {}, natural_size.aspect_ratio };
+        return run_default_sizing_algorithm({}, {}, aspect_only_size, default_size);
+    }
+    case ObjectFit::Cover: {
+        // The replaced content is sized to maintain its natural aspect ratio while filling the element's
+        // entire content box: its concrete object size is resolved as a cover constraint against the
+        // element's used width and height.
+        if (!natural_size.has_aspect_ratio() || natural_size.aspect_ratio->might_be_saturated())
+            return default_size;
+
+        double aspect_ratio = natural_size.aspect_ratio->to_double();
+        double default_width = default_size.width().to_double();
+        double default_height = default_size.height().to_double();
+        if (aspect_ratio >= default_width / default_height)
+            return CSSPixelSize { CSSPixels::nearest_value_for(default_height * aspect_ratio), default_size.height() };
+
+        return CSSPixelSize { default_size.width(), CSSPixels::nearest_value_for(default_width / aspect_ratio) };
+    }
+    case ObjectFit::None: {
+        // The replaced content is not resized to fit inside the element's content box: determine the object's
+        // concrete object size using the default sizing algorithm with no specified size, and a default
+        // object size equal to the replaced element's used width and height.
+        return run_default_sizing_algorithm({}, {}, natural_size, default_size);
+    }
+    case ObjectFit::ScaleDown: {
+        // Size the content as if none or contain were specified, whichever would result in a smaller
+        // concrete object size.
+        CSSPixelSize none_size = run_default_sizing_algorithm({}, {}, natural_size, default_size);
+        SizeWithAspectRatio aspect_only_size { {}, {}, natural_size.aspect_ratio };
+        CSSPixelSize contain_size = run_default_sizing_algorithm({}, {}, aspect_only_size, default_size);
+        double none_area = none_size.width().to_double() * none_size.height().to_double();
+        double contain_area = contain_size.width().to_double() * contain_size.height().to_double();
+        return none_area <= contain_area ? none_size : contain_size;
+    }
+    }
+    VERIFY_NOT_REACHED();
+}
+
 }
