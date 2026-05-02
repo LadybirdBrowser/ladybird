@@ -34,12 +34,14 @@ RUN apt-get update -o APT::Update::Error-Mode=any \
         ccache \
         clang-${LLVM_VERSION} \
         clang++-${LLVM_VERSION} \
+        clang-format-${LLVM_VERSION} \
         clang-tools-${LLVM_VERSION} \
         cmake \
         file \
         fonts-liberation2 \
         g++-${GCC_VERSION} \
         gcc-${GCC_VERSION} \
+        generate-ninja \
         git \
         jq \
         libcurl4-openssl-dev \
@@ -55,17 +57,31 @@ RUN apt-get update -o APT::Update::Error-Mode=any \
         llvm-${LLVM_VERSION} \
         nasm \
         ninja-build \
+        nodejs \
+        npm \
+        openssl \
+        optipng \
         pkg-config \
         pulseaudio \
         python3 \
         python3-venv \
         qt6-base-dev \
         qt6-tools-dev-tools \
+        shellcheck \
         tar \
         unzip \
         xz-utils \
         zip \
         zstd \
+    && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${LLVM_VERSION} 100 \
+    && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${LLVM_VERSION} 100 \
+    && update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-${LLVM_VERSION} 100 \
+    && update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-${GCC_VERSION} 100 \
+    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-${GCC_VERSION} 100 \
+    && update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/ld.lld-${LLVM_VERSION} 100 \
+    && update-alternatives --install /usr/bin/lld lld /usr/bin/lld-${LLVM_VERSION} 100 \
+    && update-alternatives --install /usr/bin/llvm-symbolizer llvm-symbolizer /usr/bin/llvm-symbolizer-${LLVM_VERSION} 100 \
+    && npm install -g prettier@3.8.1 \
     && rustup_init="$(mktemp)" \
     && curl -fsSL https://sh.rustup.rs -o "${rustup_init}" \
     && chmod +x "${rustup_init}" \
