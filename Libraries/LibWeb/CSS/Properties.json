@@ -4671,8 +4671,64 @@
       "unitless-length"
     ]
   },
+  "x1": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ]
+  },
+  "x2": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ]
+  },
   "y": {
     "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#Y.",
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ]
+  },
+  "y1": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "percentages-resolve-to": "length",
+    "quirks": [
+      "unitless-length"
+    ]
+  },
+  "y2": {
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
