@@ -24,6 +24,7 @@ jobs:
         toolchain: ['Clang']
         clang_plugins: [false]
         runner_labels: ['["blacksmith-8vcpu-ubuntu-2404-arm"]']
+        container: [&ci_container '{"image":"ghcr.io/ladybirdbrowser/ladybird-ci:2026.05.3"}']
 
         include:
           - os_name: 'Linux'
@@ -32,6 +33,7 @@ jobs:
             toolchain: 'GNU'
             clang_plugins: false
             runner_labels: '["blacksmith-8vcpu-ubuntu-2404"]'
+            container: *ci_container
 
           - os_name: 'macOS'
             arch: 'arm64'
@@ -39,6 +41,7 @@ jobs:
             toolchain: 'Clang'
             clang_plugins: false
             runner_labels: '["macos-15", "self-hosted"]'
+            container: 'null'
 
           - os_name: 'Linux'
             arch: 'arm64'
@@ -46,6 +49,7 @@ jobs:
             toolchain: 'Clang'
             clang_plugins: false
             runner_labels: '["blacksmith-8vcpu-ubuntu-2404-arm"]'
+            container: *ci_container
 
           - os_name: 'Windows'
             arch: 'x86_64'
@@ -53,6 +57,7 @@ jobs:
             toolchain: 'ClangCL'
             clang_plugins: false
             runner_labels: '["blacksmith-8vcpu-windows-2025"]'
+            container: 'null'
 
     secrets: inherit
     uses: ./.github/workflows/lagom-template.yml
@@ -63,6 +68,7 @@ jobs:
       arch: ${{ matrix.arch }}
       build_preset: ${{ matrix.build_preset }}
       clang_plugins: ${{ matrix.clang_plugins }}
+      container: ${{ matrix.container }}
 
   flatpak:
     if: github.repository == 'LadybirdBrowser/ladybird'

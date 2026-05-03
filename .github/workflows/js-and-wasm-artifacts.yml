@@ -20,6 +20,7 @@ jobs:
     runs-on: ${{ fromJSON(matrix.runner_labels) }}
     if: github.repository == 'LadybirdBrowser/ladybird'
     name: ${{ matrix.os_name }}, ${{ matrix.arch }}
+    container: ${{ fromJSON(matrix.container) }}
 
     strategy:
       fail-fast: false
@@ -29,6 +30,7 @@ jobs:
         toolchain: ['Clang']
         package_type: ['Linux-x86_64']
         runner_labels: ['["blacksmith-8vcpu-ubuntu-2404"]']
+        container: [&ci_container '{"image":"ghcr.io/ladybirdbrowser/ladybird-ci:2026.05.3"}']
 
         include:
           - os_name: 'macOS'
@@ -36,12 +38,14 @@ jobs:
             toolchain: 'Clang'
             package_type: 'macOS-arm64'
             runner_labels: '["macos-15", "self-hosted"]'
+            container: 'null'
 
           - os_name: 'Linux'
             arch: 'arm64'
             toolchain: 'Clang'
             package_type: 'Linux-aarch64'
             runner_labels: '["blacksmith-8vcpu-ubuntu-2404-arm"]'
+            container: *ci_container
 
     steps:
       - name: Checkout LadybirdBrowser/ladybird
@@ -63,8 +67,8 @@ jobs:
           git checkout origin/master -- .github/actions
 
       - name: "Set up environment"
-        uses: ./.github/actions/setup
         id: 'setup'
+        uses: ./.github/actions/setup
         with:
           os: ${{ matrix.os_name }}
           arch: ${{ matrix.arch }}
@@ -77,14 +81,14 @@ jobs:
           arch: ${{ matrix.arch }}
           toolchain: ${{ matrix.toolchain }}
           cache_key_extra: 'LibJS and LibWasm Artifacts'
-          ccache_path: ${{ env.CCACHE_DIR }}
-          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
+          ccache_path: ${{ steps.setup.outputs.ccache_path }}
+          vcpkg_cache_path: ${{ steps.setup.outputs.vcpkg_cache_path }}
 
       - name: Create build directory Ubuntu
         run: |
           cmake --preset Distribution \
-            -DCMAKE_C_COMPILER=clang-${{ steps.setup.outputs.llvm_version }} \
-            -DCMAKE_CXX_COMPILER=clang++-${{ steps.setup.outputs.llvm_version }} \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++ \
             -DENABLE_CI_BASELINE_CPU=ON \
             -DENABLE_GUI_TARGETS=OFF
         if: ${{ matrix.os_name == 'Linux' }}
@@ -130,9 +134,9 @@ jobs:
         uses: ./.github/actions/cache-save
         with:
           arch: 'Lagom'
-          ccache_path: ${{ env.CCACHE_DIR }}
+          ccache_path: ${{ steps.setup.outputs.ccache_path }}
           ccache_primary_key: ${{ steps.cache-restore.outputs.ccache_primary_key }}
-          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
+          vcpkg_cache_path: ${{ steps.setup.outputs.vcpkg_cache_path }}
           vcpkg_cache_primary_key: ${{ steps.cache-restore.outputs.vcpkg_cache_primary_key }}
 
       - name: Sanity-check the js repl
@@ -154,7 +158,7 @@ jobs:
           path="Build/distribution/ladybird-wasm-${{ matrix.package_type }}.tar.gz"
           if [ -f "${path}" ]; then
             tar -xvzf "${path}"
-            bin/wasm -e run_sanity_check -w ${{ github.workspace }}/Libraries/LibWasm/Tests/CI/ci-sanity-check.wasm > wasm-repl-out.txt
+            bin/wasm -e run_sanity_check -w "${GITHUB_WORKSPACE}/Libraries/LibWasm/Tests/CI/ci-sanity-check.wasm" > wasm-repl-out.txt
             if ! grep -q "Hello, World\!" wasm-repl-out.txt; then
               echo "Sanity check failed: Hello, World\! not found in output."
               exit 1

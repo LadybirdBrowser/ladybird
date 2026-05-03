@@ -1,5 +1,5 @@
 name: 'Setup action'
-description: 'Sets up the dependencies for the CI VM'
+description: 'Sets up shared CI tooling'
 author: 'Andrew Kaster <akaster@serenityos.org>'
 inputs:
   os:
@@ -11,37 +11,52 @@ inputs:
     required: true
     default: 'x86_64'
   toolchain:
-    description: 'Toolchain to set up'
+    description: 'Toolchain to use'
     required: true
     default: 'Clang'
-  gcc_version:
-    description: 'GCC version to install'
-    required: false
-    default: '14'
-  llvm_version:
-    description: 'LLVM version to install'
-    required: false
-    default: '21'
   type:
     description: 'Whether the setup is for building or linting'
     required: false
     default: 'build'
-
 outputs:
-  gcc_version:
-    description: 'The installed GCC version'
-    value: ${{ steps.export-versions.outputs.gcc_version }}
-  llvm_version:
-    description: 'The installed LLVM version'
-    value: ${{ steps.export-versions.outputs.llvm_version }}
+  ccache_path:
+    description: 'Path to the ccache directory'
+    value: ${{ steps.workspace.outputs.ccache_path }}
+  vcpkg_cache_path:
+    description: 'Path to the vcpkg binary cache'
+    value: ${{ steps.workspace.outputs.vcpkg_cache_path }}
 
 runs:
   using: "composite"
   steps:
+    - name: 'Set workspace environment'
+      id: 'workspace'
+      shell: bash
+      run: |
+        echo "LADYBIRD_SOURCE_DIR=${GITHUB_WORKSPACE}" >> "$GITHUB_ENV"
+        echo "CCACHE_DIR=${GITHUB_WORKSPACE}/.ccache" >> "$GITHUB_ENV"
+        echo "VCPKG_ROOT=${GITHUB_WORKSPACE}/Build/vcpkg" >> "$GITHUB_ENV"
+        echo "ccache_path=${GITHUB_WORKSPACE}/.ccache" >> "$GITHUB_OUTPUT"
+        echo "vcpkg_cache_path=${GITHUB_WORKSPACE}/Build/caches/vcpkg-binary-cache" >> "$GITHUB_OUTPUT"
+        echo "GIT_CONFIG_GLOBAL=${RUNNER_TEMP}/gitconfig" >> "$GITHUB_ENV"
+        git config --file "${RUNNER_TEMP}/gitconfig" --add safe.directory "${GITHUB_WORKSPACE}"
+        mkdir -p "${RUNNER_TEMP}/pip-cache"
+        echo "PIP_CACHE_DIR=${RUNNER_TEMP}/pip-cache" >> "$GITHUB_ENV"
+
     - uses: actions/setup-python@v6
+      if: ${{ inputs.os != 'Linux' }}
       with:
         python-version: 3.12
         cache: 'pip'
+
+    # actions/setup-python can fail to find its tool-cache pip inside job containers.
+    - name: 'Set up Python environment'
+      if: ${{ inputs.os == 'Linux' }}
+      shell: bash
+      run: |
+        python3 -m venv "${RUNNER_TEMP}/ladybird-python"
+        echo "${RUNNER_TEMP}/ladybird-python/bin" >> "$GITHUB_PATH"
+        echo "pythonLocation=${RUNNER_TEMP}/ladybird-python" >> "$GITHUB_ENV"
 
     - name: 'Install Python dependencies'
       shell: bash
@@ -53,91 +68,6 @@ runs:
         else
           pip3 install ruff
         fi
-
-    - name: Install apt repositories
-      if: ${{ inputs.os == 'Linux' }}
-      shell: bash
-      run: |
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-
-        UBUNTU_RELEASE=$(lsb_release -cs)
-
-        LLVM_LIST="/etc/apt/sources.list.d/llvm.list"
-        LLVM_TOOLCHAIN="llvm-toolchain-${UBUNTU_RELEASE}-${{ inputs.llvm_version }}"
-
-        if [ ! -f "${LLVM_LIST}" ] || ! grep -q "${LLVM_TOOLCHAIN}" "${LLVM_LIST}" ; then
-          curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm-snapshot.gpg
-          echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg] http://apt.llvm.org/${UBUNTU_RELEASE}/ ${LLVM_TOOLCHAIN} main" | sudo tee "${LLVM_LIST}"
-        fi
-
-        sudo apt-get update -y
-
-    - name: Install Dependencies
-      if: ${{ inputs.os == 'Linux' && inputs.type == 'build' }}
-      shell: bash
-      run: |
-        sudo apt-get install -y \
-            autoconf \
-            autoconf-archive \
-            automake \
-            bison \
-            build-essential \
-            ccache \
-            cmake \
-            curl \
-            fonts-liberation2 \
-            g++-${{ inputs.gcc_version }} \
-            gcc-${{ inputs.gcc_version }} \
-            libcurl4-openssl-dev \
-            libdrm-dev \
-            libegl1-mesa-dev \
-            libgl1-mesa-dev \
-            libpulse-dev \
-            libssl-dev \
-            libstdc++-${{ inputs.gcc_version }}-dev \
-            libtool \
-            libxkbcommon-dev \
-            lld-${{ inputs.llvm_version }} \
-            llvm-${{ inputs.llvm_version }} \
-            nasm \
-            ninja-build \
-            pulseaudio \
-            qt6-base-dev \
-            qt6-tools-dev-tools \
-            tar \
-            unzip \
-            zip
-
-        if ${{ inputs.toolchain == 'Clang' }} ; then
-          sudo apt-get install -y \
-              clang-${{ inputs.llvm_version }} \
-              clang++-${{ inputs.llvm_version }} \
-              clang-tools-${{ inputs.llvm_version }}
-
-          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${{ inputs.llvm_version }} 100
-          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${{ inputs.llvm_version }} 100
-        fi
-
-        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-${{ inputs.gcc_version }} 100
-        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-${{ inputs.gcc_version }} 100
-
-        sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/ld.lld-${{ inputs.llvm_version }} 100
-        sudo update-alternatives --install /usr/bin/lld lld /usr/bin/lld-${{ inputs.llvm_version }} 100
-        sudo update-alternatives --install /usr/bin/llvm-symbolizer llvm-symbolizer /usr/bin/llvm-symbolizer-${{ inputs.llvm_version }} 100
-
-    - name: Install Dependencies
-      if: ${{ inputs.os == 'Linux' && inputs.type == 'lint' }}
-      shell: bash
-      run: |
-        sudo apt-get install -y \
-            clang-format-${{ inputs.llvm_version }} \
-            generate-ninja \
-            optipng \
-            shellcheck
-
-        sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-${{ inputs.llvm_version }} 100
-
-        sudo npm install -g prettier@3.8.1
 
     - name: Ensure clang-cl is available
       if: ${{ inputs.os == 'Windows' && inputs.toolchain == 'ClangCL' }}
@@ -173,7 +103,7 @@ runs:
             ccache \
             coreutils \
             libtool \
-            llvm@${{ inputs.llvm_version }} \
+            llvm@21 \
             nasm \
             ninja \
             pkg-config \
@@ -181,7 +111,7 @@ runs:
             unzip
 
     - name: 'Install Rust toolchain'
-      if: ${{ inputs.os != 'Windows' }}
+      if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
       uses: dtolnay/rust-toolchain@stable
 
     - name: 'Install wasm-tools'
@@ -213,23 +143,14 @@ runs:
         fi
         rm "${FILENAME}"
 
-        echo "${{ github.workspace }}/${NAME}" >> $GITHUB_PATH
+        echo "${GITHUB_WORKSPACE}/${NAME}" >> $GITHUB_PATH
 
     - name: 'Set required environment variables'
       if: ${{ inputs.os == 'Linux' && inputs.arch == 'arm64' }}
-      uses: actions/github-script@v7
-      with:
-        script: |
-          core.exportVariable('VCPKG_FORCE_SYSTEM_BINARIES', '1')
+      shell: bash
+      run: echo "VCPKG_FORCE_SYSTEM_BINARIES=1" >> "$GITHUB_ENV"
 
     - name: 'Install vcpkg'
       if: ${{ inputs.type == 'build' }}
       shell: bash
       run: ./Meta/Utils/build_vcpkg.py
-
-    - name: 'Export installed versions'
-      id: 'export-versions'
-      shell: bash
-      run: |
-        echo "gcc_version=${{ inputs.gcc_version }}" >> "$GITHUB_OUTPUT"
-        echo "llvm_version=${{ inputs.llvm_version }}" >> "$GITHUB_OUTPUT"

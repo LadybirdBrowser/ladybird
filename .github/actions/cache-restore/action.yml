@@ -57,7 +57,7 @@ runs:
           ccache -M 0
 
           # Reset all ccache modification dates to a known epoch. This provides a baseline that we can prune against.
-          find ${{ inputs.ccache_path }} | tac | xargs touch -a -m -d "2018-10-10T09:53:07Z"
+          find "${{ inputs.ccache_path }}" | tac | xargs touch -a -m -d "2018-10-10T09:53:07Z"
 
           ccache -s
           ccache -z

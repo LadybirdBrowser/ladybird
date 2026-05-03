@@ -14,6 +14,7 @@ jobs:
     runs-on: ${{ fromJSON(matrix.runner_labels) }}
     if: ${{ github.repository == 'LadybirdBrowser/ladybird' }}
     name: ${{ matrix.os_name }}, ${{ matrix.arch }}
+    container: ${{ fromJSON(matrix.container) }}
 
     strategy:
       fail-fast: false
@@ -21,11 +22,13 @@ jobs:
         os_name: ['Linux']
         arch: ['x86_64']
         runner_labels: ['["ubuntu-24.04-internal", "web-benchmarks", "self-hosted"]']
+        container: [&ci_container '{"image":"ghcr.io/ladybirdbrowser/ladybird-ci:2026.05.3"}']
 
         include:
           - os_name: 'macOS'
             arch: 'arm64'
             runner_labels: '["macos-15", "web-benchmarks", "self-hosted"]'
+            container: 'null'
 
     permissions:
       actions: read
@@ -58,8 +61,8 @@ jobs:
           echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
 
       - name: 'Set Up Environment'
-        uses: ./.github/actions/setup
         id: 'setup'
+        uses: ./.github/actions/setup
         with:
           os: ${{ matrix.os_name }}
           arch: ${{ matrix.arch }}
@@ -73,16 +76,16 @@ jobs:
           arch: ${{ matrix.arch }}
           toolchain: 'Clang'
           cache_key_extra: 'Distribution'
-          ccache_path: ${{ env.CCACHE_DIR }}
-          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
+          ccache_path: ${{ steps.setup.outputs.ccache_path }}
+          vcpkg_cache_path: ${{ steps.setup.outputs.vcpkg_cache_path }}
 
       - name: 'Assign Build Parameters'
         id: 'build-parameters'
         shell: bash
         run: |
           if ${{ matrix.os_name == 'Linux' }} ; then
-            echo "host_cc=clang-${{ steps.setup.outputs.llvm_version }}" >> "$GITHUB_OUTPUT"
-            echo "host_cxx=clang++-${{ steps.setup.outputs.llvm_version }}" >> "$GITHUB_OUTPUT"
+            echo "host_cc=clang" >> "$GITHUB_OUTPUT"
+            echo "host_cxx=clang++" >> "$GITHUB_OUTPUT"
           elif ${{ matrix.os_name == 'macOS' }} ; then
             echo "host_cc=$(xcrun --find clang)" >> "$GITHUB_OUTPUT"
             echo "host_cxx=$(xcrun --find clang++)" >> "$GITHUB_OUTPUT"
@@ -101,15 +104,15 @@ jobs:
         working-directory: ${{ github.workspace }}/Build
         run: |
           cmake --build .
-          cmake --install . --strip --prefix ${{ github.workspace }}/Install
+          cmake --install . --strip --prefix "${GITHUB_WORKSPACE}/Install"
 
       - name: 'Save Caches'
         uses: ./.github/actions/cache-save
         with:
           arch: ${{ matrix.arch }}
-          ccache_path: ${{ env.CCACHE_DIR }}
+          ccache_path: ${{ steps.setup.outputs.ccache_path }}
           ccache_primary_key: ${{ steps.cache-restore.outputs.ccache_primary_key }}
-          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
+          vcpkg_cache_path: ${{ steps.setup.outputs.vcpkg_cache_path }}
           vcpkg_cache_primary_key: ${{ steps.cache-restore.outputs.vcpkg_cache_primary_key }}
 
       - name: 'Run the benchmarks'
@@ -121,9 +124,9 @@ jobs:
           python3 -m pip install -r requirements.txt
 
           if [ "${{ matrix.os_name }}" = "macOS" ]; then
-            executable="${{ github.workspace }}/Install/bundle/Ladybird.app/Contents/MacOS/Ladybird"
+            executable="${GITHUB_WORKSPACE}/Install/bundle/Ladybird.app/Contents/MacOS/Ladybird"
           else
-            executable="${{ github.workspace }}/Install/bin/Ladybird"
+            executable="${GITHUB_WORKSPACE}/Install/bin/Ladybird"
           fi
 
           ./run.py --iterations=5 --executable="${executable}"

@@ -15,6 +15,8 @@ jobs:
   run_and_update_results:
     runs-on: 'blacksmith-16vcpu-ubuntu-2404'
     if: github.repository == 'LadybirdBrowser/ladybird'
+    container:
+      image: ghcr.io/ladybirdbrowser/ladybird-ci:2026.05.3
 
     steps:
       - name: Checkout LadybirdBrowser/ladybird
@@ -47,8 +49,8 @@ jobs:
           path: test262-parser-tests
 
       - name: Set up environment
-        uses: ./.github/actions/setup
         id: 'setup'
+        uses: ./.github/actions/setup
         with:
           os: 'Linux'
           arch: 'x86_64'
@@ -66,8 +68,8 @@ jobs:
           arch: 'x86_64'
           toolchain: 'Clang'
           cache_key_extra: 'test262'
-          ccache_path: ${{ env.CCACHE_DIR }}
-          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
+          ccache_path: ${{ steps.setup.outputs.ccache_path }}
+          vcpkg_cache_path: ${{ steps.setup.outputs.vcpkg_cache_path }}
 
       - name: Get previous results
         run: |
@@ -77,8 +79,8 @@ jobs:
       - name: Build test262-runner, test-js, test-wasm and test-js-bytecode
         run: |
           cmake --preset Release -B libjs-test262/Build \
-            -DCMAKE_C_COMPILER=clang-${{ steps.setup.outputs.llvm_version }} \
-            -DCMAKE_CXX_COMPILER=clang++-${{ steps.setup.outputs.llvm_version }} \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++ \
             -DWASM_SPEC_TEST_SKIP_FORMATTING=ON \
             -DINCLUDE_WASM_SPEC_TESTS=ON \
             -DENABLE_GUI_TARGETS=OFF
@@ -88,9 +90,9 @@ jobs:
         uses: ./.github/actions/cache-save
         with:
           arch: 'x86_64'
-          ccache_path: ${{ env.CCACHE_DIR }}
+          ccache_path: ${{ steps.setup.outputs.ccache_path }}
           ccache_primary_key: ${{ steps.cache-restore.outputs.ccache_primary_key }}
-          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
+          vcpkg_cache_path: ${{ steps.setup.outputs.vcpkg_cache_path }}
           vcpkg_cache_primary_key: ${{ steps.cache-restore.outputs.vcpkg_cache_primary_key }}
 
       - name: Run test262 and test262-parser-tests

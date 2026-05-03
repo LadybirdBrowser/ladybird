@@ -22,6 +22,10 @@ on:
         required: false
         type: boolean
         default: false
+      container:
+        required: false
+        type: string
+        default: 'null'
 
 env:
   # runner.workspace = /home/runner/work/ladybird
@@ -39,6 +43,7 @@ env:
 jobs:
   CI:
     runs-on: ${{ fromJSON(inputs.runner_labels) }}
+    container: ${{ fromJSON(inputs.container) }}
 
     steps:
       # Pull requests can trail behind `master` and can cause breakage if merging before running the CI checks on an updated branch.
@@ -76,11 +81,11 @@ jobs:
             fi
 
             if ${{ inputs.toolchain == 'Clang' }} ; then
-              echo "host_cc=clang-${{ steps.setup.outputs.llvm_version }}" >> "$GITHUB_OUTPUT"
-              echo "host_cxx=clang++-${{ steps.setup.outputs.llvm_version }}" >> "$GITHUB_OUTPUT"
+              echo "host_cc=clang" >> "$GITHUB_OUTPUT"
+              echo "host_cxx=clang++" >> "$GITHUB_OUTPUT"
             elif ${{ inputs.toolchain == 'GNU' }} ; then
-              echo "host_cc=gcc-${{ steps.setup.outputs.gcc_version }}" >> "$GITHUB_OUTPUT"
-              echo "host_cxx=g++-${{ steps.setup.outputs.gcc_version }}" >> "$GITHUB_OUTPUT"
+              echo "host_cc=gcc" >> "$GITHUB_OUTPUT"
+              echo "host_cxx=g++" >> "$GITHUB_OUTPUT"
             fi
           elif ${{ inputs.os_name == 'macOS' }} ; then
             echo "host_cc=$(xcrun --find clang)" >> "$GITHUB_OUTPUT"
@@ -109,8 +114,8 @@ jobs:
           arch: ${{ inputs.arch }}
           toolchain: ${{ inputs.toolchain }}
           cache_key_extra: ${{ inputs.os_name == 'Windows' && inputs.build_preset || steps.build-parameters.outputs.ccache_key }}
-          ccache_path: ${{ env.CCACHE_DIR }}
-          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
+          ccache_path: ${{ steps.setup.outputs.ccache_path }}
+          vcpkg_cache_path: ${{ steps.setup.outputs.vcpkg_cache_path }}
 
       - name: Set dynamic environment variables
         if: ${{ inputs.os_name != 'Windows' }}
@@ -149,20 +154,20 @@ jobs:
           VCPKG_CACHE_SAS: ${{ github.ref == 'refs/heads/master' && secrets.VCPKG_CACHE_SAS || '' }}
           VCPKG_CACHE_MODE: ${{ github.ref == 'refs/heads/master' && 'write' || '' }}
         run: |
-          cmake --preset=Distribution -B ${{ github.workspace }}/Build/tools-build \
+          cmake --preset=Distribution -B "${GITHUB_WORKSPACE}/Build/tools-build" \
             -DLAGOM_TOOLS_ONLY=ON \
             -DINSTALL_LAGOM_TOOLS=ON \
-            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/Build/tools-install \
+            -DCMAKE_INSTALL_PREFIX="${GITHUB_WORKSPACE}/Build/tools-install" \
             -DPython3_EXECUTABLE=${{ env.pythonLocation }}/bin/python \
             -Dpackage=LagomTools
 
-          ninja -C ${{ github.workspace }}/Build/tools-build install
+          ninja -C "${GITHUB_WORKSPACE}/Build/tools-build" install
 
           cmake --preset ${{ inputs.build_preset }} -B Build \
             -DPython3_EXECUTABLE=${{ env.pythonLocation }}/bin/python \
             -DCMAKE_C_COMPILER=${{ steps.build-parameters.outputs.host_cc }} \
             -DCMAKE_CXX_COMPILER=${{ steps.build-parameters.outputs.host_cxx }} \
-            -DCMAKE_PREFIX_PATH=${{ github.workspace }}/Build/tools-install
+            -DCMAKE_PREFIX_PATH="${GITHUB_WORKSPACE}/Build/tools-install"
 
       # === BUILD ===
 
@@ -170,7 +175,7 @@ jobs:
         working-directory: ${{ github.workspace }}/Build
         run: |
           cmake --build .
-          cmake --install . --strip --prefix ${{ github.workspace }}/Install
+          cmake --install . --strip --prefix "${GITHUB_WORKSPACE}/Install"
 
       - name: Build with Qt
         if: ${{ (inputs.os_name == 'macOS' || inputs.os_name == 'Linux') && inputs.build_preset == 'Sanitizer' }}
@@ -183,16 +188,20 @@ jobs:
         uses: ./.github/actions/cache-save
         with:
           arch: ${{ inputs.arch }}
-          ccache_path: ${{ env.CCACHE_DIR }}
+          ccache_path: ${{ steps.setup.outputs.ccache_path }}
           ccache_primary_key: ${{ steps.cache-restore.outputs.ccache_primary_key }}
-          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
+          vcpkg_cache_path: ${{ steps.setup.outputs.vcpkg_cache_path }}
           vcpkg_cache_primary_key: ${{ steps.cache-restore.outputs.vcpkg_cache_primary_key }}
 
       # === TEST ===
 
       - name: Start PulseAudio
         if: ${{ inputs.os_name == 'Linux' }}
-        run: pulseaudio -D --exit-idle-time=1800 --load="module-null-sink sink_name=virtual_sink"
+        run: |
+          echo "PULSE_SERVER=unix:/tmp/pulse-native" >> "$GITHUB_ENV"
+          pulseaudio --system -D --exit-idle-time=1800 \
+            --load="module-native-protocol-unix auth-anonymous=1 socket=/tmp/pulse-native" \
+            --load="module-null-sink sink_name=virtual_sink"
 
       - name: Test
         if: ${{ inputs.build_preset == 'Sanitizer' }}
@@ -201,8 +210,8 @@ jobs:
         env:
           TESTS_ONLY: 1
           # NOTE: These are appended to the preset's options.
-          ASAN_OPTIONS: 'log_path="${{ github.workspace }}/asan.log"'
-          UBSAN_OPTIONS: 'log_path="${{ github.workspace }}/ubsan.log"'
+          ASAN_OPTIONS: 'log_path=asan.log'
+          UBSAN_OPTIONS: 'log_path=ubsan.log'
 
       - name: Test
         if: ${{ inputs.build_preset != 'Fuzzers' && inputs.build_preset != 'All_Debug' && inputs.build_preset != 'Sanitizer' }}

@@ -30,6 +30,7 @@ jobs:
       - uses: actions/checkout@v6.0.2
 
       - name: Set Up Environment
+        id: 'setup'
         uses: ./.github/actions/setup
         with:
           os: ${{ matrix.os_name }}
@@ -54,8 +55,8 @@ jobs:
           arch: 'Lagom'
           toolchain: 'Clang'
           cache_key_extra: 'Nightly Android'
-          ccache_path: ${{ env.CCACHE_DIR }}
-          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
+          ccache_path: ${{ steps.setup.outputs.ccache_path }}
+          vcpkg_cache_path: ${{ steps.setup.outputs.vcpkg_cache_path }}
 
       - name: Assign Build Parameters
         id: 'build-parameters'
@@ -101,7 +102,7 @@ jobs:
         uses: ./.github/actions/cache-save
         with:
           arch: 'Lagom'
-          ccache_path: ${{ env.CCACHE_DIR }}
+          ccache_path: ${{ steps.setup.outputs.ccache_path }}
           ccache_primary_key: ${{ steps.cache-restore.outputs.ccache_primary_key }}
-          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
+          vcpkg_cache_path: ${{ steps.setup.outputs.vcpkg_cache_path }}
           vcpkg_cache_primary_key: ${{ steps.cache-restore.outputs.vcpkg_cache_primary_key }}

@@ -11,6 +11,7 @@ jobs:
     runs-on: ${{ fromJSON(matrix.runner_labels) }}
     if: ${{ github.repository == 'LadybirdBrowser/ladybird' && github.event.workflow_run.conclusion == 'success' }}
     name: ${{ matrix.os_name }}, ${{ matrix.arch }}
+    container: ${{ fromJSON(matrix.container) }}
 
     strategy:
       fail-fast: false
@@ -19,12 +20,14 @@ jobs:
         arch: ['x86_64']
         package_type: ['Linux-x86_64']
         runner_labels: ['["ubuntu-24.04-internal", "js-benchmarks", "self-hosted"]']
+        container: [&ci_container '{"image":"ghcr.io/ladybirdbrowser/ladybird-ci:2026.05.3"}']
 
         include:
           - os_name: 'macOS'
             arch: 'arm64'
             package_type: 'macOS-arm64'
             runner_labels: '["macos-15", "js-benchmarks", "self-hosted"]'
+            container: 'null'
 
     permissions:
       actions: read
@@ -44,13 +47,6 @@ jobs:
         run: |
           cd js-benchmarks
           echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
-
-      - name: 'Install dependencies'
-        if: ${{ matrix.os_name == 'Linux' }}
-        shell: bash
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y python3-venv
 
       - name: 'Download JS repl artifact'
         uses: dawidd6/action-download-artifact@v21
@@ -97,10 +93,10 @@ jobs:
 
           run_options='--iterations=5'
 
-          js_path="${{ github.workspace }}/js-repl/bin/js"
+          js_path="${GITHUB_WORKSPACE}/js-repl/bin/js"
           run_options="${run_options} --executable=${js_path}"
 
-          wasm_path="${{ github.workspace }}/wasm-repl/bin/wasm"
+          wasm_path="${GITHUB_WORKSPACE}/wasm-repl/bin/wasm"
           if [ -x "${wasm_path}" ]; then
               run_options="${run_options} --wasm-executable=${wasm_path}"
           else

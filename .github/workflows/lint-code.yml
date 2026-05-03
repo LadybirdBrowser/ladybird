@@ -6,18 +6,18 @@ jobs:
   lint:
     runs-on: blacksmith-2vcpu-ubuntu-2404
     if: github.repository == 'LadybirdBrowser/ladybird'
+    container:
+      image: ghcr.io/ladybirdbrowser/ladybird-ci:2026.05.3
 
     steps:
       - uses: actions/checkout@v6.0.2
 
       - name: Set Up Environment
         uses: ./.github/actions/setup
-        id: 'setup'
         with:
           os: 'Linux'
           arch: 'x86_64'
-          llvm_version: 21
           type: 'lint'
 
       - name: Lint
-        run: ${{ github.workspace }}/Meta/lint-ci.sh
+        run: "${GITHUB_WORKSPACE}/Meta/lint-ci.sh"
