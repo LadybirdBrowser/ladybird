@@ -344,16 +344,20 @@ GC::Ptr<BrowsingContext> BrowsingContext::top_level_browsing_context() const
     return navigable->active_browsing_context();
 }
 
+// https://html.spec.whatwg.org/multipage/document-sequences.html#active-document
 DOM::Document const* BrowsingContext::active_document() const
 {
+    // A browsing context's active document is its active window's associated Document.
     auto* window = active_window();
     if (!window)
         return nullptr;
     return &window->associated_document();
 }
 
+// https://html.spec.whatwg.org/multipage/document-sequences.html#active-document
 DOM::Document* BrowsingContext::active_document()
 {
+    // A browsing context's active document is its active window's associated Document.
     auto* window = active_window();
     if (!window)
         return nullptr;
@@ -363,12 +367,14 @@ DOM::Document* BrowsingContext::active_document()
 // https://html.spec.whatwg.org/multipage/browsers.html#active-window
 HTML::Window* BrowsingContext::active_window()
 {
+    // A browsing context's active window is its WindowProxy object's [[Window]] internal slot value.
     return m_window_proxy->window();
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#active-window
 HTML::Window const* BrowsingContext::active_window() const
 {
+    // A browsing context's active window is its WindowProxy object's [[Window]] internal slot value.
     return m_window_proxy->window();
 }
 
