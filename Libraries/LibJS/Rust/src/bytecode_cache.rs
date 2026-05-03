@@ -12,10 +12,12 @@
 
 use std::collections::HashMap;
 
-use crate::bytecode::ffi::ConstantTag;
+use crate::bytecode::basic_block::SourceMapEntry;
+use crate::bytecode::ffi::{AbstractOperationKind, ConstantTag, WellKnownSymbolKind};
 use crate::bytecode::generator::{
-    AssembledBytecode, ConstantValue, FunctionSfdMetadata, Generator, PendingClassBlueprint, PendingClassElement,
-    PendingLiteralValueKind, PendingSharedFunctionData, PrecompiledFunction,
+    AssembledBytecode, ConstantValue, ExceptionHandler, FunctionSfdMetadata, Generator, LocalVariable,
+    PendingClassBlueprint, PendingClassElement, PendingLiteralValueKind, PendingSharedFunctionData,
+    PrecompiledFunction,
 };
 use crate::{CompiledProgram, CompiledProgramBytecode, ast, u32_from_usize};
 
@@ -84,20 +86,14 @@ impl<'a> Decoder<'a> {
         (self.bytes(expected.len())? == expected).then_some(())
     }
 
-    fn sequence(&mut self, mut decode_item: impl FnMut(&mut Self) -> Option<()>) -> Option<()> {
+    fn sequence_values<T>(&mut self, mut decode_item: impl FnMut(&mut Self) -> Option<T>) -> Option<Vec<T>> {
         let length: usize = u32::decode(self)?.try_into().ok()?;
+        // Reject lengths that cannot fit in the remaining blob even for one-byte items, so a
+        // malformed sidecar with a four-billion element header cannot drag the allocator down.
         if length > self.bytes.len() {
             return None;
         }
 
-        for _ in 0..length {
-            decode_item(self)?;
-        }
-        Some(())
-    }
-
-    fn sequence_values<T>(&mut self, mut decode_item: impl FnMut(&mut Self) -> Option<T>) -> Option<Vec<T>> {
-        let length: usize = u32::decode(self)?.try_into().ok()?;
         let mut values = Vec::with_capacity(length);
         for _ in 0..length {
             values.push(decode_item(self)?);
@@ -202,6 +198,16 @@ impl Decode for f64 {
     }
 }
 
+impl Decode for ast::Position {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+        Some(Self {
+            line: u32::decode(decoder)?,
+            column: u32::decode(decoder)?,
+            offset: u32::decode(decoder)?,
+        })
+    }
+}
+
 impl<T: Encode> Encode for Option<T> {
     fn encode(&self, encoder: &mut Encoder) {
         self.is_some().encode(encoder);
@@ -242,13 +248,12 @@ impl Encode for Bytes<'_> {
     }
 }
 
-struct IgnoredBytes;
+struct ByteVector;
 
-impl Decode for IgnoredBytes {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+impl ByteVector {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<u8>> {
         let length: usize = u32::decode(decoder)?.try_into().ok()?;
-        decoder.bytes(length)?;
-        Some(Self)
+        Some(decoder.bytes(length)?.to_vec())
     }
 }
 
@@ -260,16 +265,6 @@ impl Encode for Utf16<'_> {
         for code_unit in self.0 {
             encoder.bytes(&code_unit.to_le_bytes());
         }
-    }
-}
-
-struct IgnoredUtf16;
-
-impl Decode for IgnoredUtf16 {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
-        let length: usize = u32::decode(decoder)?.try_into().ok()?;
-        decoder.bytes(length.checked_mul(size_of::<u16>())?)?;
-        Some(Self)
     }
 }
 
@@ -302,7 +297,8 @@ impl CacheBlob<'_> {
         bool::decode(decoder)?;
         bool::decode(decoder)?;
         DeclarationMetadataRecord::decode(decoder)?.validate();
-        ProgramRecord::decode(decoder)
+        ProgramRecord::decode(decoder)?.validate();
+        Some(())
     }
 }
 
@@ -328,6 +324,18 @@ impl Decode for ast::ExportEntryKind {
             0 => Some(Self::NamedExport),
             1 => Some(Self::ModuleRequestAll),
             2 => Some(Self::ModuleRequestAllButDefault),
+            _ => None,
+        }
+    }
+}
+
+impl Decode for ast::FunctionKind {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+        match u8::decode(decoder)? {
+            0 => Some(Self::Normal),
+            1 => Some(Self::Generator),
+            2 => Some(Self::Async),
+            3 => Some(Self::AsyncGenerator),
             _ => None,
         }
     }
@@ -1187,9 +1195,23 @@ impl Encode for ProgramRecord<'_> {
 }
 
 impl ProgramRecord<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
-        ProgramKind::decode(decoder)?;
-        ExecutableRecord::decode(decoder)
+    fn decode(decoder: &mut Decoder<'_>) -> Option<DecodedProgramRecord> {
+        Some(DecodedProgramRecord {
+            kind: ProgramKind::decode(decoder)?,
+            executable: ExecutableRecord::decode(decoder)?,
+        })
+    }
+}
+
+struct DecodedProgramRecord {
+    kind: ProgramKind,
+    executable: DecodedExecutableRecord,
+}
+
+impl DecodedProgramRecord {
+    fn validate(&self) {
+        let _ = self.kind as u8;
+        self.executable.validate();
     }
 }
 
@@ -1245,25 +1267,73 @@ impl Encode for ExecutableRecord<'_> {
 }
 
 impl ExecutableRecord<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
-        bool::decode(decoder)?;
-        u32::decode(decoder)?;
-        u32::decode(decoder)?;
-        CacheCounters::decode(decoder)?;
-        bool::decode(decoder)?;
-        Option::<u32>::decode(decoder)?;
+    fn decode(decoder: &mut Decoder<'_>) -> Option<DecodedExecutableRecord> {
+        Some(DecodedExecutableRecord {
+            strict: bool::decode(decoder)?,
+            number_of_registers: u32::decode(decoder)?,
+            number_of_arguments: u32::decode(decoder)?,
+            cache_counters: CacheCounters::decode(decoder)?,
+            this_value_needs_environment_resolution: bool::decode(decoder)?,
+            length_identifier: Option::<u32>::decode(decoder)?,
+            bytecode: ByteVector::decode(decoder)?,
+            identifier_table: Utf16Table::decode(decoder)?,
+            property_key_table: Utf16Table::decode(decoder)?,
+            string_table: Utf16Table::decode(decoder)?,
+            constants: ConstantTable::decode(decoder)?,
+            exception_handlers: ExceptionHandlerTable::decode(decoder)?,
+            source_map: SourceMapTable::decode(decoder)?,
+            basic_block_start_offsets: BasicBlockOffsetTable::decode(decoder)?,
+            local_variables: LocalVariableTable::decode(decoder)?,
+            shared_functions: SharedFunctionTable::decode(decoder)?,
+            class_blueprints: ClassBlueprintTable::decode(decoder)?,
+        })
+    }
+}
 
-        IgnoredBytes::decode(decoder)?;
-        Utf16Table::decode(decoder)?;
-        Utf16Table::decode(decoder)?;
-        Utf16Table::decode(decoder)?;
-        ConstantTable::decode(decoder)?;
-        ExceptionHandlerTable::decode(decoder)?;
-        SourceMapTable::decode(decoder)?;
-        BasicBlockOffsetTable::decode(decoder)?;
-        LocalVariableTable::decode(decoder)?;
-        SharedFunctionTable::decode(decoder)?;
-        ClassBlueprintTable::decode(decoder)
+struct DecodedExecutableRecord {
+    strict: bool,
+    number_of_registers: u32,
+    number_of_arguments: u32,
+    cache_counters: DecodedCacheCounters,
+    this_value_needs_environment_resolution: bool,
+    length_identifier: Option<u32>,
+    bytecode: Vec<u8>,
+    identifier_table: Vec<ast::Utf16String>,
+    property_key_table: Vec<ast::Utf16String>,
+    string_table: Vec<ast::Utf16String>,
+    constants: Vec<ConstantValue>,
+    exception_handlers: Vec<ExceptionHandler>,
+    source_map: Vec<SourceMapEntry>,
+    basic_block_start_offsets: Vec<usize>,
+    local_variables: Vec<LocalVariable>,
+    shared_functions: Vec<DecodedFunctionRecord>,
+    class_blueprints: Vec<DecodedClassBlueprintRecord>,
+}
+
+impl DecodedExecutableRecord {
+    fn validate(&self) {
+        let _ = self.strict;
+        let _ = self.number_of_registers + self.number_of_arguments;
+        self.cache_counters.validate();
+        let _ = self.this_value_needs_environment_resolution;
+        let _ = self.length_identifier;
+        let _ = self.bytecode.len()
+            + self.identifier_table.len()
+            + self.property_key_table.len()
+            + self.string_table.len()
+            + self.constants.len()
+            + self.exception_handlers.len()
+            + self.source_map.len()
+            + self.basic_block_start_offsets.len()
+            + self.local_variables.len()
+            + self.shared_functions.len()
+            + self.class_blueprints.len();
+        for function in &self.shared_functions {
+            function.validate();
+        }
+        for blueprint in &self.class_blueprints {
+            blueprint.validate();
+        }
     }
 }
 
@@ -1280,13 +1350,32 @@ impl Encode for CacheCounters<'_> {
 }
 
 impl CacheCounters<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
-        u32::decode(decoder)?;
-        u32::decode(decoder)?;
-        u32::decode(decoder)?;
-        u32::decode(decoder)?;
-        u32::decode(decoder)?;
-        Some(())
+    fn decode(decoder: &mut Decoder<'_>) -> Option<DecodedCacheCounters> {
+        Some(DecodedCacheCounters {
+            property_lookup_cache_count: u32::decode(decoder)?,
+            global_variable_cache_count: u32::decode(decoder)?,
+            template_object_cache_count: u32::decode(decoder)?,
+            object_shape_cache_count: u32::decode(decoder)?,
+            object_property_iterator_cache_count: u32::decode(decoder)?,
+        })
+    }
+}
+
+struct DecodedCacheCounters {
+    property_lookup_cache_count: u32,
+    global_variable_cache_count: u32,
+    template_object_cache_count: u32,
+    object_shape_cache_count: u32,
+    object_property_iterator_cache_count: u32,
+}
+
+impl DecodedCacheCounters {
+    fn validate(&self) {
+        let _ = self.property_lookup_cache_count
+            + self.global_variable_cache_count
+            + self.template_object_cache_count
+            + self.object_shape_cache_count
+            + self.object_property_iterator_cache_count;
     }
 }
 
@@ -1299,8 +1388,8 @@ impl Encode for Utf16Table<'_> {
 }
 
 impl Utf16Table<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
-        decoder.sequence(|decoder| IgnoredUtf16::decode(decoder).map(|_| ()))
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<ast::Utf16String>> {
+        decoder.sequence_values(ast::Utf16String::decode)
     }
 }
 
@@ -1313,8 +1402,8 @@ impl Encode for ConstantTable<'_> {
 }
 
 impl ConstantTable<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
-        decoder.sequence(ConstantRecord::decode)
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<ConstantValue>> {
+        decoder.sequence_values(ConstantValue::decode)
     }
 }
 
@@ -1350,25 +1439,30 @@ impl Encode for ConstantValue {
     }
 }
 
-struct ConstantRecord;
-
-impl ConstantRecord {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
+impl Decode for ConstantValue {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
         match u8::decode(decoder)? {
-            tag if tag == ConstantTag::Number as u8 => f64::decode(decoder).map(|_| ()),
-            tag if tag == ConstantTag::BooleanTrue as u8 => Some(()),
-            tag if tag == ConstantTag::BooleanFalse as u8 => Some(()),
-            tag if tag == ConstantTag::Null as u8 => Some(()),
-            tag if tag == ConstantTag::Undefined as u8 => Some(()),
-            tag if tag == ConstantTag::Empty as u8 => Some(()),
-            tag if tag == ConstantTag::String as u8 => IgnoredUtf16::decode(decoder).map(|_| ()),
-            tag if tag == ConstantTag::BigInt as u8 => IgnoredBytes::decode(decoder).map(|_| ()),
+            tag if tag == ConstantTag::Number as u8 => Some(Self::Number(f64::decode(decoder)?)),
+            tag if tag == ConstantTag::BooleanTrue as u8 => Some(Self::Boolean(true)),
+            tag if tag == ConstantTag::BooleanFalse as u8 => Some(Self::Boolean(false)),
+            tag if tag == ConstantTag::Null as u8 => Some(Self::Null),
+            tag if tag == ConstantTag::Undefined as u8 => Some(Self::Undefined),
+            tag if tag == ConstantTag::Empty as u8 => Some(Self::Empty),
+            tag if tag == ConstantTag::String as u8 => Some(Self::String(ast::Utf16String::decode(decoder)?)),
+            tag if tag == ConstantTag::BigInt as u8 => {
+                Some(Self::BigInt(String::from_utf8(ByteVector::decode(decoder)?).ok()?))
+            }
             tag if tag == ConstantTag::WellKnownSymbol as u8 => match u8::decode(decoder)? {
-                0 | 1 => Some(()),
+                0 => Some(Self::WellKnownSymbol(WellKnownSymbolKind::SymbolIterator)),
+                1 => Some(Self::WellKnownSymbol(WellKnownSymbolKind::SymbolAsyncIterator)),
                 _ => None,
             },
             tag if tag == ConstantTag::AbstractOperation as u8 => match u8::decode(decoder)? {
-                0..=4 => Some(()),
+                0 => Some(Self::AbstractOperation(AbstractOperationKind::AsyncIteratorClose)),
+                1 => Some(Self::AbstractOperation(AbstractOperationKind::GetMethod)),
+                2 => Some(Self::AbstractOperation(AbstractOperationKind::GetIteratorDirect)),
+                3 => Some(Self::AbstractOperation(AbstractOperationKind::GetIteratorFromMethod)),
+                4 => Some(Self::AbstractOperation(AbstractOperationKind::IteratorComplete)),
                 _ => None,
             },
             _ => None,
@@ -1389,12 +1483,13 @@ impl Encode for ExceptionHandlerTable<'_> {
 }
 
 impl ExceptionHandlerTable<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
-        decoder.sequence(|decoder| {
-            u32::decode(decoder)?;
-            u32::decode(decoder)?;
-            u32::decode(decoder)?;
-            Some(())
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<ExceptionHandler>> {
+        decoder.sequence_values(|decoder| {
+            Some(ExceptionHandler {
+                start_offset: u32::decode(decoder)?,
+                end_offset: u32::decode(decoder)?,
+                handler_offset: u32::decode(decoder)?,
+            })
         })
     }
 }
@@ -1416,12 +1511,13 @@ impl Encode for SourceMapTable<'_> {
 }
 
 impl SourceMapTable<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
-        decoder.sequence(|decoder| {
-            for _ in 0..7 {
-                u32::decode(decoder)?;
-            }
-            Some(())
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<SourceMapEntry>> {
+        decoder.sequence_values(|decoder| {
+            Some(SourceMapEntry {
+                bytecode_offset: u32::decode(decoder)?,
+                source_start: ast::Position::decode(decoder)?,
+                source_end: ast::Position::decode(decoder)?,
+            })
         })
     }
 }
@@ -1437,8 +1533,8 @@ impl Encode for BasicBlockOffsetTable<'_> {
 }
 
 impl BasicBlockOffsetTable<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
-        decoder.sequence(|decoder| usize::decode(decoder).map(|_| ()))
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<usize>> {
+        decoder.sequence_values(usize::decode)
     }
 }
 
@@ -1457,12 +1553,13 @@ impl Encode for LocalVariableTable<'_> {
 }
 
 impl LocalVariableTable<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
-        decoder.sequence(|decoder| {
-            IgnoredUtf16::decode(decoder)?;
-            bool::decode(decoder)?;
-            bool::decode(decoder)?;
-            Some(())
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<LocalVariable>> {
+        decoder.sequence_values(|decoder| {
+            Some(LocalVariable {
+                name: ast::Utf16String::decode(decoder)?,
+                is_lexically_declared: bool::decode(decoder)?,
+                is_initialized_during_declaration_instantiation: bool::decode(decoder)?,
+            })
         })
     }
 }
@@ -1482,8 +1579,8 @@ impl Encode for SharedFunctionTable<'_> {
 }
 
 impl SharedFunctionTable<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
-        decoder.sequence(FunctionRecord::decode)
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<DecodedFunctionRecord>> {
+        decoder.sequence_values(FunctionRecord::decode)
     }
 }
 
@@ -1530,24 +1627,57 @@ impl Encode for FunctionRecord<'_> {
 }
 
 impl FunctionRecord<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
-        Option::<IgnoredUtf16>::decode(decoder)?;
-        u32::decode(decoder)?;
-        u32::decode(decoder)?;
-        i32::decode(decoder)?;
-        u32::decode(decoder)?;
-        match u8::decode(decoder)? {
-            0..=3 => {}
-            _ => return None,
-        }
-        bool::decode(decoder)?;
-        bool::decode(decoder)?;
-        SimpleParameterList::decode(decoder)?;
-        bool::decode(decoder)?;
-        bool::decode(decoder)?;
-        ClassFieldInitializerName::decode(decoder)?;
-        FunctionSfdMetadata::decode(decoder)?;
-        PrecompiledFunctionRecord::decode(decoder)
+    fn decode(decoder: &mut Decoder<'_>) -> Option<DecodedFunctionRecord> {
+        Some(DecodedFunctionRecord {
+            name: Option::<ast::Utf16String>::decode(decoder)?,
+            source_text_start: u32::decode(decoder)?,
+            source_text_end: u32::decode(decoder)?,
+            function_length: i32::decode(decoder)?,
+            formal_parameter_count: u32::decode(decoder)?,
+            kind: ast::FunctionKind::decode(decoder)?,
+            is_strict_mode: bool::decode(decoder)?,
+            is_arrow_function: bool::decode(decoder)?,
+            parameter_names: SimpleParameterList::decode(decoder)?,
+            uses_this: bool::decode(decoder)?,
+            uses_this_from_environment: bool::decode(decoder)?,
+            class_field_initializer_name: ClassFieldInitializerName::decode(decoder)?,
+            metadata: FunctionSfdMetadata::decode(decoder)?,
+            precompiled: PrecompiledFunctionRecord::decode(decoder)?,
+        })
+    }
+}
+
+struct DecodedFunctionRecord {
+    name: Option<ast::Utf16String>,
+    source_text_start: u32,
+    source_text_end: u32,
+    function_length: i32,
+    formal_parameter_count: u32,
+    kind: ast::FunctionKind,
+    is_strict_mode: bool,
+    is_arrow_function: bool,
+    parameter_names: Option<Vec<ast::Utf16String>>,
+    uses_this: bool,
+    uses_this_from_environment: bool,
+    class_field_initializer_name: Option<(ast::Utf16String, bool)>,
+    metadata: FunctionSfdMetadata,
+    precompiled: DecodedExecutableRecord,
+}
+
+impl DecodedFunctionRecord {
+    fn validate(&self) {
+        let _ = self.name.as_ref().map(|name| name.as_slice().len());
+        let _ = self.source_text_start + self.source_text_end + self.formal_parameter_count;
+        let _ = self.function_length;
+        let _ = self.kind as u8;
+        let _ = self.is_strict_mode || self.is_arrow_function || self.uses_this || self.uses_this_from_environment;
+        let _ = self.parameter_names.as_ref().map(|names| names.len());
+        let _ = self
+            .class_field_initializer_name
+            .as_ref()
+            .map(|(name, _)| name.as_slice().len());
+        self.precompiled.validate();
+        validate_function_metadata(&self.metadata);
     }
 }
 
@@ -1581,11 +1711,12 @@ impl Encode for SimpleParameterList<'_> {
 }
 
 impl SimpleParameterList<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Option<Vec<ast::Utf16String>>> {
         if bool::decode(decoder)? {
-            decoder.sequence(|decoder| IgnoredUtf16::decode(decoder).map(|_| ()))?;
+            Some(Some(decoder.sequence_values(ast::Utf16String::decode)?))
+        } else {
+            Some(None)
         }
-        Some(())
     }
 }
 
@@ -1619,12 +1750,8 @@ impl Encode for ClassFieldInitializerName<'_> {
 }
 
 impl ClassFieldInitializerName<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
-        if bool::decode(decoder)? {
-            IgnoredUtf16::decode(decoder)?;
-            bool::decode(decoder)?;
-        }
-        Some(())
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Option<(ast::Utf16String, bool)>> {
+        Option::<(ast::Utf16String, bool)>::decode(decoder)
     }
 }
 
@@ -1635,9 +1762,9 @@ impl Encode for (Utf16<'_>, bool) {
     }
 }
 
-impl Decode for (IgnoredUtf16, bool) {
+impl Decode for (ast::Utf16String, bool) {
     fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
-        Some((IgnoredUtf16::decode(decoder)?, bool::decode(decoder)?))
+        Some((ast::Utf16String::decode(decoder)?, bool::decode(decoder)?))
     }
 }
 
@@ -1654,16 +1781,26 @@ impl Encode for FunctionSfdMetadata {
 }
 
 impl FunctionSfdMetadata {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
-        bool::decode(decoder)?;
-        bool::decode(decoder)?;
-        bool::decode(decoder)?;
-        usize::decode(decoder)?;
-        usize::decode(decoder)?;
-        bool::decode(decoder)?;
-        bool::decode(decoder)?;
-        Some(())
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+        Some(Self {
+            uses_this: bool::decode(decoder)?,
+            this_value_needs_environment_resolution: bool::decode(decoder)?,
+            function_environment_needed: bool::decode(decoder)?,
+            function_environment_bindings_count: usize::decode(decoder)?,
+            var_environment_bindings_count: usize::decode(decoder)?,
+            might_need_arguments: bool::decode(decoder)?,
+            contains_eval: bool::decode(decoder)?,
+        })
     }
+}
+
+fn validate_function_metadata(metadata: &FunctionSfdMetadata) {
+    let _ = metadata.uses_this
+        || metadata.this_value_needs_environment_resolution
+        || metadata.function_environment_needed
+        || metadata.might_need_arguments
+        || metadata.contains_eval;
+    let _ = metadata.function_environment_bindings_count + metadata.var_environment_bindings_count;
 }
 
 struct PrecompiledFunctionRecord<'a>(&'a PrecompiledFunction);
@@ -1679,7 +1816,7 @@ impl Encode for PrecompiledFunctionRecord<'_> {
 }
 
 impl PrecompiledFunctionRecord<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<DecodedExecutableRecord> {
         ExecutableRecord::decode(decoder)
     }
 }
@@ -1695,8 +1832,8 @@ impl Encode for ClassBlueprintTable<'_> {
 }
 
 impl ClassBlueprintTable<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
-        decoder.sequence(ClassBlueprintRecord::decode)
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<DecodedClassBlueprintRecord>> {
+        decoder.sequence_values(ClassBlueprintRecord::decode)
     }
 }
 
@@ -1717,14 +1854,38 @@ impl Encode for ClassBlueprintRecord<'_> {
 }
 
 impl ClassBlueprintRecord<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
-        Option::<IgnoredUtf16>::decode(decoder)?;
-        usize::decode(decoder)?;
-        usize::decode(decoder)?;
-        u32::decode(decoder)?;
-        bool::decode(decoder)?;
-        bool::decode(decoder)?;
-        decoder.sequence(ClassElementRecord::decode)
+    fn decode(decoder: &mut Decoder<'_>) -> Option<DecodedClassBlueprintRecord> {
+        Some(DecodedClassBlueprintRecord {
+            name: Option::<ast::Utf16String>::decode(decoder)?,
+            source_text_offset: usize::decode(decoder)?,
+            source_text_length: usize::decode(decoder)?,
+            constructor_sfd_index: u32::decode(decoder)?,
+            has_super_class: bool::decode(decoder)?,
+            has_name: bool::decode(decoder)?,
+            elements: decoder.sequence_values(ClassElementRecord::decode)?,
+        })
+    }
+}
+
+struct DecodedClassBlueprintRecord {
+    name: Option<ast::Utf16String>,
+    source_text_offset: usize,
+    source_text_length: usize,
+    constructor_sfd_index: u32,
+    has_super_class: bool,
+    has_name: bool,
+    elements: Vec<DecodedClassElementRecord>,
+}
+
+impl DecodedClassBlueprintRecord {
+    fn validate(&self) {
+        let _ = self.name.as_ref().map(|name| name.as_slice().len());
+        let _ = self.source_text_offset + self.source_text_length;
+        let _ = self.constructor_sfd_index;
+        let _ = self.has_super_class || self.has_name;
+        for element in &self.elements {
+            element.validate();
+        }
     }
 }
 
@@ -1745,20 +1906,56 @@ impl Encode for ClassElementRecord<'_> {
 }
 
 impl ClassElementRecord<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
-        u8::decode(decoder)?;
-        bool::decode(decoder)?;
-        bool::decode(decoder)?;
-        Option::<IgnoredUtf16>::decode(decoder)?;
-        Option::<u32>::decode(decoder)?;
-        bool::decode(decoder)?;
+    fn decode(decoder: &mut Decoder<'_>) -> Option<DecodedClassElementRecord> {
+        Some(DecodedClassElementRecord {
+            kind: u8::decode(decoder)?,
+            is_static: bool::decode(decoder)?,
+            is_private: bool::decode(decoder)?,
+            private_identifier: Option::<ast::Utf16String>::decode(decoder)?,
+            shared_function_data_index: Option::<u32>::decode(decoder)?,
+            has_initializer: bool::decode(decoder)?,
+            literal_value_kind: PendingLiteralValueKind::decode(decoder)?,
+            literal_value_number: f64::decode(decoder)?,
+            literal_value_string: Option::<ast::Utf16String>::decode(decoder)?,
+        })
+    }
+}
+
+struct DecodedClassElementRecord {
+    kind: u8,
+    is_static: bool,
+    is_private: bool,
+    private_identifier: Option<ast::Utf16String>,
+    shared_function_data_index: Option<u32>,
+    has_initializer: bool,
+    literal_value_kind: PendingLiteralValueKind,
+    literal_value_number: f64,
+    literal_value_string: Option<ast::Utf16String>,
+}
+
+impl DecodedClassElementRecord {
+    fn validate(&self) {
+        let _ = self.kind;
+        let _ = self.is_static || self.is_private || self.has_initializer;
+        let _ = self.private_identifier.as_ref().map(|name| name.as_slice().len());
+        let _ = self.shared_function_data_index;
+        let _ = literal_value_kind_tag(self.literal_value_kind);
+        let _ = self.literal_value_number;
+        let _ = self.literal_value_string.as_ref().map(|value| value.as_slice().len());
+    }
+}
+
+impl Decode for PendingLiteralValueKind {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
         match u8::decode(decoder)? {
-            0..=5 => {}
-            _ => return None,
+            0 => Some(Self::None),
+            1 => Some(Self::Number),
+            2 => Some(Self::BooleanTrue),
+            3 => Some(Self::BooleanFalse),
+            4 => Some(Self::Null),
+            5 => Some(Self::String),
+            _ => None,
         }
-        f64::decode(decoder)?;
-        Option::<IgnoredUtf16>::decode(decoder)?;
-        Some(())
     }
 }
 
@@ -1782,7 +1979,7 @@ mod tests {
         let bytes = u32::MAX.to_le_bytes();
 
         let mut decoder = Decoder::new(&bytes);
-        assert!(decoder.sequence(|_| Some(())).is_none());
+        assert!(decoder.sequence_values(u8::decode).is_none());
     }
 
     #[test]
@@ -1792,6 +1989,6 @@ mod tests {
         bytes.extend_from_slice(&[1, 2, 3]);
 
         let mut decoder = Decoder::new(&bytes);
-        assert!(decoder.sequence(|d| u8::decode(d).map(|_| ())).is_none());
+        assert!(decoder.sequence_values(u8::decode).is_none());
     }
 }
