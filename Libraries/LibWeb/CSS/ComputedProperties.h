@@ -284,6 +284,12 @@ public:
         m_attempted_pseudo_class_matches = results;
     }
 
+    HashMap<PropertyID, NonnullRefPtr<StyleValue const>> const& inheritance_dependent_specified_values() const { return m_inheritance_dependent_specified_values; }
+    void add_inheritance_dependent_specified_value(PropertyID property_id, NonnullRefPtr<StyleValue const> value) { m_inheritance_dependent_specified_values.set(property_id, move(value)); }
+
+    RefPtr<StyleValue const> raw_cascaded_font_size() const { return m_raw_cascaded_font_size; }
+    void set_raw_cascaded_font_size(NonnullRefPtr<StyleValue const> value) { m_raw_cascaded_font_size = move(value); }
+
 private:
     ComputedProperties();
 
@@ -314,6 +320,9 @@ private:
     Optional<CSSPixels> m_line_height;
 
     PseudoClassBitmap m_attempted_pseudo_class_matches;
+
+    HashMap<PropertyID, NonnullRefPtr<StyleValue const>> m_inheritance_dependent_specified_values;
+    RefPtr<StyleValue const> m_raw_cascaded_font_size;
 };
 
 }

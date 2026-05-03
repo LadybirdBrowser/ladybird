@@ -1060,36 +1060,21 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
     counters.element_inherited_style_recomputations++;
 
     auto computed_properties = this->computed_properties();
-    VERIFY(m_cascaded_properties);
     VERIFY(computed_properties);
 
     CSS::RequiredInvalidationAfterStyleChange invalidation;
 
     HashMap<size_t, RefPtr<CSS::StyleValue const>> property_values_affected_by_inherited_style;
+
+    for (auto const& [property_id, specified_value] : computed_properties->inheritance_dependent_specified_values()) {
+        RefPtr old_value = computed_properties->property(property_id);
+        computed_properties->set_property_without_modifying_flags(property_id, specified_value);
+        property_values_affected_by_inherited_style.set(to_underlying(property_id), old_value);
+    }
+
     for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
         auto property_id = static_cast<CSS::PropertyID>(i);
-        // FIXME: We should use the specified value rather than the cascaded value as the cascaded value may include
-        //        unresolved CSS-wide keywords (e.g. 'initial' or 'inherit') rather than the resolved value.
-        auto const& preabsolutized_value = m_cascaded_properties->property(property_id);
         RefPtr old_value = computed_properties->property(property_id);
-
-        if (preabsolutized_value) {
-            // A property needs updating if:
-            // - It uses relative units as it might have been affected by a change in ancestor element style.
-            //   FIXME: Consider other style values that rely on relative lengths (e.g. CalculatedStyleValue,
-            //          StyleValues which contain lengths (e.g. StyleValueList)) - maybe we can use
-            //          `is_computationally_independent()`
-            // - font-weight is `bolder` or `lighter`
-            // - font-size is `larger` or `smaller`
-            // FIXME: Consider any other properties that rely on inherited values for computation.
-            auto needs_updating = (preabsolutized_value->is_length() && preabsolutized_value->as_length().length().is_font_relative())
-                || (property_id == CSS::PropertyID::FontWeight && first_is_one_of(preabsolutized_value->to_keyword(), CSS::Keyword::Bolder, CSS::Keyword::Lighter))
-                || (property_id == CSS::PropertyID::FontSize && first_is_one_of(preabsolutized_value->to_keyword(), CSS::Keyword::Larger, CSS::Keyword::Smaller));
-            if (needs_updating) {
-                computed_properties->set_property_without_modifying_flags(property_id, *preabsolutized_value);
-                property_values_affected_by_inherited_style.set(i, old_value);
-            }
-        }
 
         if (!computed_properties->is_property_inherited(property_id))
             continue;
