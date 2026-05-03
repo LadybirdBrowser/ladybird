@@ -42,6 +42,7 @@ public:
 
     DOM::Document const* active_document() const;
     DOM::Document* active_document();
+    void set_active_document(GC::Ptr<DOM::Document>);
 
     HTML::WindowProxy* window_proxy();
     HTML::WindowProxy const* window_proxy() const;
@@ -92,6 +93,8 @@ private:
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#browsing-context
     GC::Ptr<WindowProxy> m_window_proxy;
+
+    GC::Ptr<DOM::Document> m_active_document;
 
     // https://html.spec.whatwg.org/multipage/browsers.html#opener-browsing-context
     GC::Ptr<BrowsingContext> m_opener_browsing_context;

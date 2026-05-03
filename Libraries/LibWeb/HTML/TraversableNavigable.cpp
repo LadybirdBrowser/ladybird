@@ -652,7 +652,10 @@ void ApplyHistoryStepState::start()
             signal_progress();
             continue;
         }
-        queue_global_task(Task::Source::NavigationAndTraversal, *navigable->active_window(), GC::create_function(heap(), [this, navigable] {
+        // AD-HOC: Queue with navigable's active Document instead of using queue_global_task(active_window).
+        //         During initial about:blank Window reuse, active_window()->associated_document() can already be
+        //         the pending Document. This activation task must stay runnable against the current active Document.
+        queue_a_task(Task::Source::NavigationAndTraversal, nullptr, navigable->active_document(), GC::create_function(heap(), [this, navigable] {
             // NOTE: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
             if (navigable->has_been_destroyed()) {
                 ++m_completed_change_jobs;
@@ -819,9 +822,12 @@ void ApplyHistoryStepState::start()
                         *potentially_target_specific_source_snapshot_params, target_snapshot_params,
                         user_involvement, {}, Navigable::NullOrError {},
                         ContentSecurityPolicy::Directives::Directive::NavigationType::Other, allow_POST,
-                        GC::create_function(this->heap(), [this, after_document_populated](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) {
+                        GC::create_function(this->heap(), [this, after_document_populated, navigable](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) {
                             VERIFY(m_traversable->active_window());
-                            queue_global_task(Task::Source::NavigationAndTraversal, *m_traversable->active_window(), GC::create_function(heap(), [after_document_populated, output]() {
+                            // AD-HOC: Queue with navigable's active Document instead of using queue_global_task(active_window).
+                            //         During initial about:blank Window reuse, active_window()->associated_document() can already be
+                            //         the pending Document. This continuation must stay runnable against the current active Document.
+                            queue_a_task(Task::Source::NavigationAndTraversal, nullptr, navigable->active_document(), GC::create_function(heap(), [after_document_populated, output]() {
                                 after_document_populated->function()(output);
                             }));
                         }));

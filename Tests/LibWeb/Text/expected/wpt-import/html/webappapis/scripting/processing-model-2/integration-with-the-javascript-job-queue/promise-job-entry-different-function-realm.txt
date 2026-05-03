@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	Fulfillment handler on fulfilled promise
+Pass	Rejection handler on rejected promise
+Pass	Fulfillment handler on pending-then-fulfilled promise
+Pass	Rejection handler on pending-then-rejected promise
+Pass	Thenable resolution
