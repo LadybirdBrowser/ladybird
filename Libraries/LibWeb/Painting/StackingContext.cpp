@@ -110,6 +110,32 @@ static PaintPhase to_paint_phase(StackingContext::StackingContextPaintPhase phas
     }
 }
 
+static bool establishes_inline_level_painting_context(Paintable const& paintable)
+{
+    // CSS 2.2 painting order puts inline-block and inline-table boxes in the inline-level painting step and
+    // says to paint each "as if it created a new stacking context", while keeping positioned descendants and
+    // actual child stacking contexts in the parent stacking context:
+    // https://drafts.csswg.org/css2/#painting-order
+    // https://drafts.csswg.org/css2/#elaborate-stacking-contexts
+    auto const& layout_node = paintable.layout_node();
+    return layout_node.is_inline_block() || layout_node.is_inline_table();
+}
+
+static void paint_inline_level_non_positioned_descendant(DisplayListRecordingContext& context, Paintable const& paintable)
+{
+    paint_node(paintable, context, PaintPhase::Background);
+    paint_node(paintable, context, PaintPhase::Border);
+    paint_node(paintable, context, PaintPhase::TableCollapsedBorder);
+    StackingContext::paint_descendants(context, paintable, StackingContext::StackingContextPaintPhase::BackgroundAndBorders);
+
+    // https://drafts.csswg.org/css2/#elaborate-stacking-contexts
+    // "For inline-block and inline-table elements: [...] treat the element as if it created a new stacking context,
+    // but any positioned descendants and descendants which actually create a new stacking context should be
+    // considered part of the parent stacking context, not this new one."
+    if (establishes_inline_level_painting_context(paintable))
+        StackingContext::paint_descendants(context, paintable, StackingContext::StackingContextPaintPhase::Floats);
+}
+
 void StackingContext::paint_node_as_stacking_context(Paintable const& paintable, DisplayListRecordingContext& context)
 {
     if (paintable.is_svg_svg_paintable()) {
@@ -181,6 +207,7 @@ void StackingContext::paint_descendants(DisplayListRecordingContext& context, Pa
         }
 
         bool child_is_inline_or_replaced = child.is_inline() || is<Layout::ReplacedBox>(child.layout_node());
+        bool child_has_inline_level_painting_context = establishes_inline_level_painting_context(child);
         switch (phase) {
         case StackingContextPaintPhase::BackgroundAndBorders:
             if (!child_is_inline_or_replaced && !child.is_floating()) {
@@ -196,14 +223,15 @@ void StackingContext::paint_descendants(DisplayListRecordingContext& context, Pa
                 paint_node(child, context, PaintPhase::Border);
                 paint_descendants(context, child, StackingContextPaintPhase::BackgroundAndBorders);
             }
-            paint_descendants(context, child, phase);
+            // Atomic inline-level descendants such as inline-blocks and inline tables participate in the parent's
+            // inline-level painting step, so their internal floats must not be painted early during the ancestor's
+            // float sweep.
+            if (!child_has_inline_level_painting_context)
+                paint_descendants(context, child, phase);
             break;
         case StackingContextPaintPhase::BackgroundAndBordersForInlineLevelAndReplaced:
             if (child_is_inline_or_replaced) {
-                paint_node(child, context, PaintPhase::Background);
-                paint_node(child, context, PaintPhase::Border);
-                paint_node(child, context, PaintPhase::TableCollapsedBorder);
-                paint_descendants(context, child, StackingContextPaintPhase::BackgroundAndBorders);
+                paint_inline_level_non_positioned_descendant(context, child);
             }
             paint_descendants(context, child, phase);
             break;
