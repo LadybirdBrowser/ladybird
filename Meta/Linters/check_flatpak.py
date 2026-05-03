@@ -9,13 +9,14 @@ import json
 import os
 import subprocess
 import sys
+import urllib.request
 
 from enum import Enum
 
 VCPKG = "vcpkg.json"
 VCPKG_OVERLAYS_PORTS = "Meta/CMake/vcpkg/overlay-ports/*"
-VCPKG_URL = "https://github.com/microsoft/vcpkg.git"
 VCPKG_REPO = "Build/vcpkg"
+VCPKG_BASELINE_URL = "https://raw.githubusercontent.com/microsoft/vcpkg/{}/versions/baseline.json"
 FLATPAK_MANIFEST = "Meta/CMake/flatpak/org.ladybird.Ladybird.json"
 SELF = "Ladybird"
 
@@ -74,26 +75,42 @@ class DepMatch(Enum):
     Excluded = (3,)
 
 
+baseline_versions = {}
+
+
 def get_baseline_version(baseline, name):
-    if not os.path.isdir(VCPKG_REPO):
-        cmd = f"git clone --revision {baseline} --depth 1 {VCPKG_URL} {VCPKG_REPO}"
-        subprocess.run(cmd, stdout=subprocess.PIPE, shell=True, check=True)
+    if baseline not in baseline_versions:
+        if os.path.isdir(VCPKG_REPO):
+            # Clear GIT_DIR so git operates on the vcpkg repo, not the parent repo (pre-commit sets GIT_DIR)
+            env = {k: v for k, v in os.environ.items() if k != "GIT_DIR"}
+            try:
+                result = subprocess.run(
+                    ["git", "-C", VCPKG_REPO, "show", f"{baseline}:versions/baseline.json"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL,
+                    check=True,
+                    env=env,
+                    text=True,
+                )
+                baseline_versions[baseline] = json.loads(result.stdout)
+            except (subprocess.CalledProcessError, json.JSONDecodeError):
+                pass
 
-    # Query the current vcpkg baseline for its version of this package, this becomes the reference for linting
-    # Clear GIT_DIR so git operates on the vcpkg repo, not the parent repo (pre-commit sets GIT_DIR)
-    env = {k: v for k, v in os.environ.items() if k != "GIT_DIR"}
-    cmd = f"cd {VCPKG_REPO} && git show {baseline}:versions/baseline.json 2> /dev/null | grep -E -A 3 -e '\"{name}\"'"
-    try:
-        result = subprocess.run(cmd, stdout=subprocess.PIPE, shell=True, check=True, env=env)
+        if baseline not in baseline_versions:
+            url = VCPKG_BASELINE_URL.format(baseline)
 
-        if not result.returncode:
-            json_string = result.stdout.decode("utf-8").replace("\n", "").removesuffix(",")
-            result = json.loads(f"{{{json_string}}}")
+            try:
+                with urllib.request.urlopen(url) as response:
+                    baseline_versions[baseline] = json.load(response)
+            except Exception as error:
+                print(f"Failed to fetch vcpkg baseline {baseline[:7]}: {error}")
+                baseline_versions[baseline] = {}
 
-            if "baseline" in result[name]:
-                return result[name]["baseline"]
-    except subprocess.CalledProcessError:
-        print(f"{name} cannot be matched, {VCPKG_REPO} is not at baseline revision: {baseline[:7]}")
+    port = baseline_versions[baseline].get("default", {}).get(name)
+    if port and "baseline" in port:
+        return port["baseline"]
+
+    print(f"{name} cannot be matched, vcpkg baseline revision: {baseline[:7]}")
 
 
 def check_for_match(vcpkg: dict, vcpkg_baseline, name: str, identifier: str) -> DepMatch:
