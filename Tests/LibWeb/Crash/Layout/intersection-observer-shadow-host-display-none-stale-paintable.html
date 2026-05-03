@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<div id="host"></div>
+<script>
+    const host = document.getElementById("host");
+    const shadowRoot = host.attachShadow({ mode: "open" });
+    shadowRoot.innerHTML = `
+        <style>
+            #target {
+                width: 20px;
+                height: 20px;
+                background: green;
+                transform: translateX(10px);
+            }
+        </style>
+        <div id="target"></div>
+    `;
+    const target = shadowRoot.getElementById("target");
+
+    new IntersectionObserver(() => {}).observe(target);
+    target.getBoundingClientRect();
+
+    requestAnimationFrame(() => {
+        host.style.display = "none";
+
+        requestAnimationFrame(() => {
+            internals.signalTestIsDone("PASS");
+        });
+    });
+</script>

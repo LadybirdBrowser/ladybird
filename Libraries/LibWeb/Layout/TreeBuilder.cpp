@@ -639,9 +639,9 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
 
     ScopeGuard remove_stale_layout_node_guard = [&] {
         // If we didn't create a layout node for this DOM node,
-        // go through the DOM tree and remove any old layout & paint nodes since they are now all stale.
+        // go through the shadow-including subtree and remove any old layout & paint nodes since they are now all stale.
         if (!layout_node) {
-            dom_node.for_each_in_inclusive_subtree([&](auto& node) {
+            dom_node.for_each_shadow_including_inclusive_descendant([&](auto& node) {
                 return clear_stale_layout_and_paint_node(node);
             });
         }
