@@ -153,7 +153,8 @@ private:
 
     union {
         char m_ascii_data[0];
-        char16_t m_utf16_data[0];
+        // simdutf writes directly into this buffer, so keep it aligned for its vectorized stores.
+        alignas(16) char16_t m_utf16_data[0];
     };
 };
 
