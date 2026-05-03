@@ -366,6 +366,11 @@ CompiledProgram* compile_parsed_program_off_thread(ParsedProgram* parsed, size_t
     return rust_compile_parsed_program_off_thread(parsed, length_in_code_units);
 }
 
+CompiledProgram* compile_parsed_program_fully_off_thread(ParsedProgram* parsed, size_t length_in_code_units)
+{
+    return rust_compile_parsed_program_fully_off_thread(parsed, length_in_code_units);
+}
+
 bool parsed_program_has_errors(ParsedProgram const* parsed)
 {
     return rust_parsed_program_has_errors(const_cast<ParsedProgram*>(parsed));
