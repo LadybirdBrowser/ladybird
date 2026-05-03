@@ -42,7 +42,7 @@ void FileDownloader::download_file(URL::URL const& url, LexicalPath destination)
     auto request_id = next_request_id++;
 
     request->set_buffered_request_finished_callback(
-        [this, request_id, destination = move(destination)](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const& network_error, HTTP::HeaderList const&, Optional<u32> response_code, Optional<String> const& reason_phrase, ReadonlyBytes payload) {
+        [this, request_id, destination = move(destination)](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const& network_error, HTTP::HeaderList const&, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::AnonymousBuffer>, Optional<u64>, ReadonlyBytes payload) {
             Core::deferred_invoke([this, request_id]() { m_requests.remove(request_id); });
 
             if (network_error.has_value()) {

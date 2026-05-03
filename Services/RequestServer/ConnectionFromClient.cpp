@@ -454,12 +454,12 @@ void ConnectionFromClient::remove_cache_entries_accessed_since(UnixDateTime sinc
         m_disk_cache->remove_entries_accessed_since(since);
 }
 
-Messages::RequestServer::StoreCacheAssociatedDataResponse ConnectionFromClient::store_cache_associated_data(URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, HTTP::CacheEntryAssociatedData associated_data, Core::AnonymousBuffer data)
+Messages::RequestServer::StoreCacheAssociatedDataResponse ConnectionFromClient::store_cache_associated_data(URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data, Core::AnonymousBuffer data)
 {
     if (!m_disk_cache.has_value() || !data.is_valid())
         return false;
 
-    auto result = m_disk_cache->store_associated_data(url, method, *HTTP::HeaderList::create(move(request_headers)), associated_data, data.bytes());
+    auto result = m_disk_cache->store_associated_data(url, method, *HTTP::HeaderList::create(move(request_headers)), vary_key, associated_data, data.bytes());
     if (result.is_error()) {
         dbgln("Failed to store cache associated data for {}: {}", url, result.error());
         return false;
@@ -468,12 +468,12 @@ Messages::RequestServer::StoreCacheAssociatedDataResponse ConnectionFromClient::
     return result.value();
 }
 
-Messages::RequestServer::RetrieveCacheAssociatedDataResponse ConnectionFromClient::retrieve_cache_associated_data(URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, HTTP::CacheEntryAssociatedData associated_data)
+Messages::RequestServer::RetrieveCacheAssociatedDataResponse ConnectionFromClient::retrieve_cache_associated_data(URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data)
 {
     if (!m_disk_cache.has_value())
         return Optional<Core::AnonymousBuffer> {};
 
-    auto data = m_disk_cache->retrieve_associated_data(url, method, *HTTP::HeaderList::create(move(request_headers)), associated_data);
+    auto data = m_disk_cache->retrieve_associated_data(url, method, *HTTP::HeaderList::create(move(request_headers)), vary_key, associated_data);
     if (data.is_error()) {
         dbgln("Failed to retrieve cache associated data for {}: {}", url, data.error());
         return Optional<Core::AnonymousBuffer> {};

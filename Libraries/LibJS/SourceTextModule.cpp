@@ -106,6 +106,29 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_f
         module_result.executable.ptr(), module_result.tla_shared_data.ptr());
 }
 
+Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_from_bytecode_cache(FFI::DecodedBytecodeCacheBlob* bytecode_cache, NonnullRefPtr<SourceCode const> source_code, Realm& realm, Script::HostDefined* host_defined)
+{
+    auto filename = source_code->filename();
+    auto rust_result = RustIntegration::materialize_bytecode_cache_module(bytecode_cache, move(source_code), realm);
+    // Always from the Rust pipeline, so the Optional must have a value.
+    VERIFY(rust_result.has_value());
+    if (rust_result->is_error())
+        return rust_result->release_error();
+    auto& module_result = rust_result->value();
+    Vector<FunctionToInitialize> functions_to_initialize;
+    functions_to_initialize.ensure_capacity(module_result.functions_to_initialize.size());
+    for (auto& f : module_result.functions_to_initialize)
+        functions_to_initialize.append({ *f.shared_data, move(f.name) });
+    return realm.heap().allocate<SourceTextModule>(
+        realm, filename, host_defined, module_result.has_top_level_await,
+        move(module_result.requested_modules), move(module_result.import_entries),
+        move(module_result.local_export_entries), move(module_result.indirect_export_entries),
+        move(module_result.star_export_entries), move(module_result.default_export_binding_name),
+        move(module_result.var_declared_names), move(module_result.lexical_bindings),
+        move(functions_to_initialize),
+        module_result.executable.ptr(), module_result.tla_shared_data.ptr());
+}
+
 // 16.2.1.7.1 ParseModule ( sourceText, realm, hostDefined ), https://tc39.es/ecma262/#sec-parsemodule
 Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse(StringView source_text, Realm& realm, StringView filename, Script::HostDefined* host_defined)
 {

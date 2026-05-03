@@ -223,18 +223,24 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
     return Optional<CacheEntryReader&> { *cache_entry_pointer };
 }
 
-ErrorOr<bool> DiskCache::store_associated_data(URL::URL const& url, StringView method, HeaderList const& request_headers, CacheEntryAssociatedData associated_data, ReadonlyBytes data)
+ErrorOr<bool> DiskCache::store_associated_data(URL::URL const& url, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData associated_data, ReadonlyBytes data)
 {
     if (!is_cacheable(method, request_headers))
         return false;
 
     auto serialized_url = serialize_url_for_cache_storage(url);
     auto cache_key = create_cache_key(serialized_url, method, m_partitioned_cache_key);
-    auto index_entry = m_index.find_entry(cache_key, request_headers);
-    if (!index_entry.has_value())
+    if (!vary_key.has_value()) {
+        auto index_entry = m_index.find_entry(cache_key, request_headers);
+        if (!index_entry.has_value())
+            return false;
+        vary_key = index_entry->vary_key;
+    }
+
+    if (!m_index.has_entry(cache_key, *vary_key))
         return false;
 
-    auto path = path_for_cache_entry_associated_data(m_cache_directory, cache_key, index_entry->vary_key, associated_data);
+    auto path = path_for_cache_entry_associated_data(m_cache_directory, cache_key, *vary_key, associated_data);
     auto temporary_path = LexicalPath::join(m_cache_directory.string(), ByteString::formatted("{}.tmp", path.basename()));
     ArmedScopeGuard remove_temporary_file = [&]() {
         (void)FileSystem::remove(temporary_path.string(), FileSystem::RecursionMode::Disallowed);
@@ -247,23 +253,29 @@ ErrorOr<bool> DiskCache::store_associated_data(URL::URL const& url, StringView m
 
     TRY(Core::System::rename(temporary_path.string(), path.string()));
     remove_temporary_file.disarm();
-    m_index.update_associated_data_size(cache_key, index_entry->vary_key, TRY(compute_associated_data_size(m_cache_directory, cache_key, index_entry->vary_key)));
+    m_index.update_associated_data_size(cache_key, *vary_key, TRY(compute_associated_data_size(m_cache_directory, cache_key, *vary_key)));
     remove_entries_exceeding_cache_limit();
-    return m_index.find_entry(cache_key, request_headers).has_value();
+    return m_index.has_entry(cache_key, *vary_key);
 }
 
-ErrorOr<Optional<ByteBuffer>> DiskCache::retrieve_associated_data(URL::URL const& url, StringView method, HeaderList const& request_headers, CacheEntryAssociatedData associated_data)
+ErrorOr<Optional<ByteBuffer>> DiskCache::retrieve_associated_data(URL::URL const& url, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData associated_data)
 {
     if (!is_cacheable(method, request_headers))
         return Optional<ByteBuffer> {};
 
     auto serialized_url = serialize_url_for_cache_storage(url);
     auto cache_key = create_cache_key(serialized_url, method, m_partitioned_cache_key);
-    auto index_entry = m_index.find_entry(cache_key, request_headers);
-    if (!index_entry.has_value())
+    if (!vary_key.has_value()) {
+        auto index_entry = m_index.find_entry(cache_key, request_headers);
+        if (!index_entry.has_value())
+            return Optional<ByteBuffer> {};
+        vary_key = index_entry->vary_key;
+    }
+
+    if (!m_index.has_entry(cache_key, *vary_key))
         return Optional<ByteBuffer> {};
 
-    auto path = path_for_cache_entry_associated_data(m_cache_directory, cache_key, index_entry->vary_key, associated_data);
+    auto path = path_for_cache_entry_associated_data(m_cache_directory, cache_key, *vary_key, associated_data);
     auto file = Core::File::open(path.string(), Core::File::OpenMode::Read);
     if (file.is_error()) {
         if (file.error().is_errno() && file.error().code() == ENOENT)

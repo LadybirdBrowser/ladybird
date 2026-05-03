@@ -54,8 +54,8 @@ public:
     };
     Variant<Optional<CacheEntryReader&>, CacheHasOpenEntry> open_entry(CacheRequest&, URL::URL const&, StringView method, HeaderList const& request_headers, CacheMode, OpenMode);
 
-    ErrorOr<bool> store_associated_data(URL::URL const&, StringView method, HeaderList const& request_headers, CacheEntryAssociatedData, ReadonlyBytes);
-    ErrorOr<Optional<ByteBuffer>> retrieve_associated_data(URL::URL const&, StringView method, HeaderList const& request_headers, CacheEntryAssociatedData);
+    ErrorOr<bool> store_associated_data(URL::URL const&, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData, ReadonlyBytes);
+    ErrorOr<Optional<ByteBuffer>> retrieve_associated_data(URL::URL const&, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData);
 
     void remove_entries_exceeding_cache_limit();
     void set_maximum_disk_cache_size(u64 maximum_disk_cache_size);

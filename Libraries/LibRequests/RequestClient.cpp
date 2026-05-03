@@ -65,19 +65,19 @@ RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL 
     return request;
 }
 
-ErrorOr<bool> RequestClient::store_cache_associated_data(URL::URL const& url, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, HTTP::CacheEntryAssociatedData associated_data, ReadonlyBytes data)
+ErrorOr<bool> RequestClient::store_cache_associated_data(URL::URL const& url, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data, ReadonlyBytes data)
 {
     auto buffer = TRY(Core::AnonymousBuffer::create_with_size(data.size()));
     memcpy(buffer.data<void>(), data.data(), data.size());
 
     auto headers = request_headers.map([](auto const& headers) { return headers.headers(); }).value_or({});
-    return IPCProxy::store_cache_associated_data(url, method, headers, associated_data, move(buffer));
+    return IPCProxy::store_cache_associated_data(url, method, headers, vary_key, associated_data, move(buffer));
 }
 
-ErrorOr<Optional<Core::AnonymousBuffer>> RequestClient::retrieve_cache_associated_data(URL::URL const& url, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, HTTP::CacheEntryAssociatedData associated_data)
+ErrorOr<Optional<Core::AnonymousBuffer>> RequestClient::retrieve_cache_associated_data(URL::URL const& url, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data)
 {
     auto headers = request_headers.map([](auto const& headers) { return headers.headers(); }).value_or({});
-    return IPCProxy::retrieve_cache_associated_data(url, method, headers, associated_data);
+    return IPCProxy::retrieve_cache_associated_data(url, method, headers, vary_key, associated_data);
 }
 
 bool RequestClient::stop_request(Badge<Request>, Request& request)
@@ -138,10 +138,10 @@ void RequestClient::request_finished(u64 request_id, u64 total_size, RequestTimi
     }
 }
 
-void RequestClient::headers_became_available(u64 request_id, Vector<HTTP::Header> response_headers, Optional<u32> status_code, Optional<String> reason_phrase)
+void RequestClient::headers_became_available(u64 request_id, Vector<HTTP::Header> response_headers, Optional<u32> status_code, Optional<String> reason_phrase, Optional<Core::AnonymousBuffer> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key)
 {
     if (auto request = m_requests.get(request_id); request.has_value())
-        (*request)->did_receive_headers({}, HTTP::HeaderList::create(move(response_headers)), status_code, reason_phrase);
+        (*request)->did_receive_headers({}, HTTP::HeaderList::create(move(response_headers)), status_code, reason_phrase, move(javascript_bytecode), javascript_bytecode_cache_vary_key);
     else
         warnln("Received headers for non-existent request {}", request_id);
 }

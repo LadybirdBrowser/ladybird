@@ -180,6 +180,8 @@ GC::Ref<Response> Response::clone(JS::Realm& realm) const
     new_response->set_request_includes_credentials(m_request_includes_credentials);
     new_response->set_timing_allow_passed(m_timing_allow_passed);
     new_response->set_body_info(m_body_info);
+    new_response->set_javascript_bytecode_cache(m_javascript_bytecode_cache);
+    new_response->set_javascript_bytecode_cache_vary_key(m_javascript_bytecode_cache_vary_key);
     // FIXME: service worker timing info
 
     // 3. If response’s body is non-null, then set newResponse’s body to the result of cloning response’s body.

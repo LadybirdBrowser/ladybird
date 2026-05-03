@@ -53,6 +53,17 @@ Result<GC::Ref<Script>, Vector<ParserError>> Script::create_from_compiled(FFI::C
     return realm.heap().allocate<Script>(realm, filename, move(rust_compilation->value()), host_defined);
 }
 
+Result<GC::Ref<Script>, Vector<ParserError>> Script::create_from_bytecode_cache(FFI::DecodedBytecodeCacheBlob* bytecode_cache, NonnullRefPtr<SourceCode const> source_code, Realm& realm, HostDefined* host_defined)
+{
+    auto filename = source_code->filename();
+    auto rust_compilation = RustIntegration::materialize_bytecode_cache_script(bytecode_cache, move(source_code), realm);
+    if (!rust_compilation.has_value())
+        return Vector<ParserError> {};
+    if (rust_compilation->is_error())
+        return rust_compilation->release_error();
+    return realm.heap().allocate<Script>(realm, filename, move(rust_compilation->value()), host_defined);
+}
+
 Script::Script(Realm& realm, StringView filename, RustIntegration::ScriptResult&& result, HostDefined* host_defined)
     : m_realm(realm)
     , m_executable(result.executable)

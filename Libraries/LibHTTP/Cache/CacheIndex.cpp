@@ -354,6 +354,11 @@ Optional<CacheIndex::Entry const&> CacheIndex::find_entry(u64 cache_key, HeaderL
     });
 }
 
+bool CacheIndex::has_entry(u64 cache_key, u64 vary_key)
+{
+    return get_entry(cache_key, vary_key).has_value();
+}
+
 Optional<CacheIndex::Entry&> CacheIndex::get_entry(u64 cache_key, u64 vary_key)
 {
     auto entries = m_entries.get(cache_key);

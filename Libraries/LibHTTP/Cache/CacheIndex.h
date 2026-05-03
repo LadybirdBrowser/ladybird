@@ -50,6 +50,7 @@ public:
     void remove_entries_accessed_since(UnixDateTime, Function<void(u64 cache_key, u64 vary_key)> on_entry_removed);
 
     Optional<Entry const&> find_entry(u64 cache_key, HeaderList const& request_headers);
+    bool has_entry(u64 cache_key, u64 vary_key);
 
     void update_response_headers(u64 cache_key, u64 vary_key, NonnullRefPtr<HeaderList>);
     void update_associated_data_size(u64 cache_key, u64 vary_key, u64 associated_data_size);

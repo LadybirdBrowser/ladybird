@@ -138,6 +138,39 @@ GC::Ref<ClassicScript> ClassicScript::create_from_pre_compiled(ByteString filena
     return script;
 }
 
+GC::Ref<ClassicScript> ClassicScript::create_from_bytecode_cache(ByteString filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject& settings, URL::URL base_url, JS::FFI::DecodedBytecodeCacheBlob* bytecode_cache, MutedErrors muted_errors)
+{
+    auto& realm = settings.realm();
+    auto& vm = realm.vm();
+
+    if (muted_errors == MutedErrors::Yes)
+        base_url = URL::about_blank();
+
+    auto script = vm.heap().allocate<ClassicScript>(move(base_url), move(filename), settings);
+
+    script->m_muted_errors = muted_errors;
+    script->set_parse_error(JS::js_null());
+    script->set_error_to_rethrow(JS::js_null());
+
+    auto parse_timer = Core::ElapsedTimer::start_new();
+    auto result = JS::Script::create_from_bytecode_cache(bytecode_cache, move(source_code), realm, script);
+    dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Materialized cached bytecode {} in {}ms", script->filename(), parse_timer.elapsed_milliseconds());
+
+    if (result.is_error()) {
+        auto& parse_error = result.error().first();
+        dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Failed to materialize bytecode cache: {}", parse_error.to_string());
+
+        script->set_parse_error(JS::SyntaxError::create(realm, parse_error.to_string()));
+        script->set_error_to_rethrow(script->parse_error());
+
+        return script;
+    }
+
+    script->m_script_record = *result.release_value();
+
+    return script;
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#run-a-classic-script
 JS::Completion ClassicScript::run(RethrowErrors rethrow_errors, GC::Ptr<JS::Environment> lexical_environment_override)
 {

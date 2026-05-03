@@ -66,10 +66,12 @@ void Request::set_buffered_request_finished_callback(BufferedRequestFinished on_
 
     m_internal_buffered_data = make<InternalBufferedData>();
 
-    on_headers_received = [this](auto headers, auto response_code, auto const& reason_phrase) {
+    on_headers_received = [this](auto headers, auto response_code, auto const& reason_phrase, auto javascript_bytecode, auto javascript_bytecode_cache_vary_key) {
         m_internal_buffered_data->response_headers = move(headers);
         m_internal_buffered_data->response_code = move(response_code);
         m_internal_buffered_data->reason_phrase = reason_phrase;
+        m_internal_buffered_data->javascript_bytecode = move(javascript_bytecode);
+        m_internal_buffered_data->javascript_bytecode_cache_vary_key = javascript_bytecode_cache_vary_key;
     };
 
     on_finish = [this, on_buffered_request_finished = move(on_buffered_request_finished)](auto total_size, auto& timing_info, auto network_error) {
@@ -83,6 +85,8 @@ void Request::set_buffered_request_finished_callback(BufferedRequestFinished on_
             m_internal_buffered_data->response_headers,
             m_internal_buffered_data->response_code,
             m_internal_buffered_data->reason_phrase,
+            move(m_internal_buffered_data->javascript_bytecode),
+            m_internal_buffered_data->javascript_bytecode_cache_vary_key,
             output_buffer);
     };
 
@@ -109,10 +113,10 @@ void Request::did_finish(Badge<RequestClient>, u64 total_size, RequestTimingInfo
         on_finish(total_size, timing_info, network_error);
 }
 
-void Request::did_receive_headers(Badge<RequestClient>, NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase)
+void Request::did_receive_headers(Badge<RequestClient>, NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::AnonymousBuffer> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key)
 {
     if (on_headers_received)
-        on_headers_received(move(response_headers), response_code, reason_phrase);
+        on_headers_received(move(response_headers), response_code, reason_phrase, move(javascript_bytecode), javascript_bytecode_cache_vary_key);
 }
 
 void Request::did_request_certificates(Badge<RequestClient>)

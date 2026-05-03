@@ -368,7 +368,7 @@ RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<On
             request,
             [on_headers_received = move(on_headers_received), on_data_received = move(on_data_received), on_complete = move(on_complete), request](ReadonlyBytes data, Requests::RequestTimingInfo const& timing_info, HTTP::HeaderList const& response_headers) {
                 log_success(request);
-                on_headers_received->function()(response_headers, {}, {});
+                on_headers_received->function()(response_headers, {}, {}, {}, {});
                 on_data_received->function()(data);
                 on_complete->function()(true, timing_info, {});
             });
@@ -379,7 +379,7 @@ RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<On
         handle_resource_load_request(
             request,
             [on_headers_received = move(on_headers_received), on_data_received = move(on_data_received), on_complete](FileLoadResult const& load_result) {
-                on_headers_received->function()(load_result.response_headers, {}, {});
+                on_headers_received->function()(load_result.response_headers, {}, {}, {}, {});
                 on_data_received->function()(load_result.data);
                 on_complete->function()(true, load_result.timing_info, {});
             },
@@ -395,7 +395,7 @@ RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<On
             request,
             [request, on_headers_received = move(on_headers_received), on_data_received = move(on_data_received), on_complete](FileLoadResult const& load_result) {
                 log_success(request);
-                on_headers_received->function()(load_result.response_headers, {}, {});
+                on_headers_received->function()(load_result.response_headers, {}, {}, {}, {});
                 on_data_received->function()(load_result.data);
                 on_complete->function()(true, load_result.timing_info, {});
             },
@@ -420,13 +420,13 @@ RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<On
         return nullptr;
     }
 
-    auto protocol_headers_received = [this, on_headers_received = move(on_headers_received), request, request_id = protocol_request->id()](auto const& response_headers, auto status_code, auto const& reason_phrase) {
+    auto protocol_headers_received = [this, on_headers_received = move(on_headers_received), request, request_id = protocol_request->id()](auto const& response_headers, auto status_code, auto const& reason_phrase, auto javascript_bytecode, auto javascript_bytecode_cache_vary_key) {
         handle_network_response_headers(request, response_headers);
 
         if (auto page = request.page())
             page->client().page_did_receive_network_response_headers(request_id, status_code.value_or(0), reason_phrase, response_headers->headers());
 
-        on_headers_received->function()(response_headers, move(status_code), reason_phrase);
+        on_headers_received->function()(response_headers, move(status_code), reason_phrase, move(javascript_bytecode), javascript_bytecode_cache_vary_key);
     };
 
     auto protocol_data_received = [on_data_received = move(on_data_received), request, request_id = protocol_request->id()](auto data) {

@@ -53,9 +53,15 @@ struct BytecodeCacheContext {
     URL::URL url;
     ByteString method;
     NonnullRefPtr<HTTP::HeaderList> request_headers;
+    u64 vary_key { 0 };
 };
 
-static Optional<BytecodeCacheContext> bytecode_cache_context_for_request(Fetch::Infrastructure::Request const& request, URL::URL const& response_url)
+static ::Crypto::Hash::Digest<::Crypto::Hash::SHA256::DigestSize * 8> bytecode_cache_source_hash(JS::SourceCode const& source_code)
+{
+    return ::Crypto::Hash::SHA256::hash(reinterpret_cast<u8 const*>(source_code.utf16_data()), source_code.length_in_code_units() * sizeof(u16));
+}
+
+static Optional<BytecodeCacheContext> bytecode_cache_context_for_request(Fetch::Infrastructure::Request const& request, Fetch::Infrastructure::Response const& response, URL::URL const& response_url)
 {
     if (!Fetch::Infrastructure::is_http_or_https_scheme(response_url.scheme()))
         return {};
@@ -63,16 +69,16 @@ static Optional<BytecodeCacheContext> bytecode_cache_context_for_request(Fetch::
     if (!ResourceLoader::is_initialized() || !ResourceLoader::the().request_client())
         return {};
 
+    auto vary_key = response.javascript_bytecode_cache_vary_key();
+    if (!vary_key.has_value())
+        return {};
+
     return BytecodeCacheContext {
         .url = response_url,
         .method = request.method(),
         .request_headers = HTTP::HeaderList::create(request.header_list()->headers()),
+        .vary_key = *vary_key,
     };
-}
-
-static ::Crypto::Hash::Digest<::Crypto::Hash::SHA256::DigestSize * 8> bytecode_cache_source_hash(JS::SourceCode const& source_code)
-{
-    return ::Crypto::Hash::SHA256::hash(reinterpret_cast<u8 const*>(source_code.utf16_data()), source_code.length_in_code_units() * sizeof(u16));
 }
 
 // Schedule a fresh, fully off-thread compile of the script source for the sole purpose of producing a bytecode cache
@@ -114,7 +120,7 @@ static void schedule_bytecode_cache_generation(JS::SourceCode const& original_so
         origin->deferred_invoke([cache_context = move(cache_context), blob = move(blob)]() mutable {
             if (!ResourceLoader::is_initialized() || !ResourceLoader::the().request_client())
                 return;
-            (void)ResourceLoader::the().request_client()->store_cache_associated_data(cache_context.url, cache_context.method, *cache_context.request_headers, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, blob.bytes());
+            (void)ResourceLoader::the().request_client()->store_cache_associated_data(cache_context.url, cache_context.method, *cache_context.request_headers, cache_context.vary_key, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, blob.bytes());
         });
     });
 }
@@ -599,7 +605,22 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
             auto source_code = JS::SourceCode::create(
                 String::from_utf8(response_url_string.view()).release_value_but_fixme_should_propagate_errors(),
                 Utf16String::from_utf8(source_text));
-            auto bytecode_cache_context = bytecode_cache_context_for_request(*request, response_url);
+            auto bytecode_cache_context = bytecode_cache_context_for_request(*request, *response, response_url);
+            // Warm-cache fast path: a sidecar arrived with the response, decode it, and try to materialize a script
+            // straight from the cached bytecode without parsing or compiling. Pass non-moved source_code / response_url
+            // so the fallback compile path below can reuse them if decode or materialization is rejected.
+            if (auto const& bytecode = response->javascript_bytecode_cache(); bytecode.has_value()) {
+                auto source_hash = bytecode_cache_source_hash(*source_code);
+                if (auto* bytecode_cache = JS::RustIntegration::decode_bytecode_cache_blob(bytecode->bytes(), JS::RustIntegration::ProgramType::Script, source_hash.bytes())) {
+                    auto script = ClassicScript::create_from_bytecode_cache(response_url_string, source_code, settings_object, response_url, bytecode_cache, muted_errors);
+                    // Bytecode validation runs during materialization and may reject a structurally valid blob whose
+                    // bytecode is corrupt. Treat that as a cache miss and fall through to off-thread source compile.
+                    if (script->parse_error().is_null()) {
+                        on_complete->function()(script);
+                        return;
+                    }
+                }
+            }
 
             compile_off_thread(move(source_code), JS::RustIntegration::ProgramType::Script, 1,
                 [response_url = move(response_url), response_url_string = move(response_url_string),
@@ -922,6 +943,8 @@ void fetch_single_module_script(JS::Realm& realm,
     //     Otherwise, fetch request with processResponseConsumeBody set to processResponseConsumeBody as defined below.
     //     In both cases, let processResponseConsumeBody given response response and null, failure, or a byte sequence bodyBytes be the following algorithm:
     auto process_response_consume_body = [request, &module_map, url, module_type, &settings_object, on_complete](GC::Ref<Fetch::Infrastructure::Response> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
+        auto internal_response = response->unsafe_response();
+
         // 1. If any of the following are true:
         //    - bodyBytes is null or failure; or
         //    - response's status is not an ok status,
@@ -971,7 +994,18 @@ void fetch_single_module_script(JS::Realm& realm,
                     auto source_code = JS::SourceCode::create(
                         String::from_utf8(url_string.view()).release_value_but_fixme_should_propagate_errors(),
                         Utf16String::from_utf8(source_text));
-                    auto bytecode_cache_context = bytecode_cache_context_for_request(*request, response_url);
+                    auto bytecode_cache_context = bytecode_cache_context_for_request(*request, *internal_response, response_url);
+                    if (auto const& bytecode = internal_response->javascript_bytecode_cache(); bytecode.has_value()) {
+                        auto source_hash = bytecode_cache_source_hash(*source_code);
+                        if (auto* bytecode_cache = JS::RustIntegration::decode_bytecode_cache_blob(bytecode->bytes(), JS::RustIntegration::ProgramType::Module, source_hash.bytes())) {
+                            auto module_script = ModuleScript::create_from_bytecode_cache(url_string, source_code, settings_object, response_url, bytecode_cache).release_value_but_fixme_should_propagate_errors();
+                            if (module_script && module_script->parse_error().is_null()) {
+                                settings_object.module_map().set(url, module_type_string, { ModuleMap::EntryType::ModuleScript, module_script });
+                                on_complete->function()(module_script);
+                                return;
+                            }
+                        }
+                    }
 
                     compile_off_thread(move(source_code), JS::RustIntegration::ProgramType::Module, 0,
                         [url = move(url), url_string = move(url_string), response_url = move(response_url),
