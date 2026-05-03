@@ -55,13 +55,67 @@ impl Encoder {
     }
 }
 
+struct Decoder<'a> {
+    bytes: &'a [u8],
+}
+
+impl<'a> Decoder<'a> {
+    fn new(bytes: &'a [u8]) -> Self {
+        Self { bytes }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.bytes.is_empty()
+    }
+
+    fn bytes(&mut self, length: usize) -> Option<&'a [u8]> {
+        if self.bytes.len() < length {
+            return None;
+        }
+
+        let (bytes, rest) = self.bytes.split_at(length);
+        self.bytes = rest;
+        Some(bytes)
+    }
+
+    fn expect_bytes(&mut self, expected: &[u8]) -> Option<()> {
+        (self.bytes(expected.len())? == expected).then_some(())
+    }
+
+    fn sequence(&mut self, mut decode_item: impl FnMut(&mut Self) -> Option<()>) -> Option<()> {
+        let length: usize = u32::decode(self)?.try_into().ok()?;
+        if length > self.bytes.len() {
+            return None;
+        }
+
+        for _ in 0..length {
+            decode_item(self)?;
+        }
+        Some(())
+    }
+}
+
 trait Encode {
     fn encode(&self, encoder: &mut Encoder);
+}
+
+trait Decode: Sized {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Self>;
 }
 
 impl Encode for bool {
     fn encode(&self, encoder: &mut Encoder) {
         encoder.byte(*self as u8);
+    }
+}
+
+impl Decode for bool {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+        match u8::decode(decoder)? {
+            0 => Some(false),
+            1 => Some(true),
+            _ => None,
+        }
     }
 }
 
@@ -71,9 +125,21 @@ impl Encode for u8 {
     }
 }
 
+impl Decode for u8 {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+        decoder.bytes(1)?.first().copied()
+    }
+}
+
 impl Encode for u32 {
     fn encode(&self, encoder: &mut Encoder) {
         encoder.bytes(&self.to_le_bytes());
+    }
+}
+
+impl Decode for u32 {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+        Some(u32::from_le_bytes(decoder.bytes(4)?.try_into().ok()?))
     }
 }
 
@@ -83,9 +149,21 @@ impl Encode for i32 {
     }
 }
 
+impl Decode for i32 {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+        Some(i32::from_le_bytes(decoder.bytes(4)?.try_into().ok()?))
+    }
+}
+
 impl Encode for u64 {
     fn encode(&self, encoder: &mut Encoder) {
         encoder.bytes(&self.to_le_bytes());
+    }
+}
+
+impl Decode for u64 {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+        Some(u64::from_le_bytes(decoder.bytes(8)?.try_into().ok()?))
     }
 }
 
@@ -95,9 +173,21 @@ impl Encode for usize {
     }
 }
 
+impl Decode for usize {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+        u64::decode(decoder)?.try_into().ok()
+    }
+}
+
 impl Encode for f64 {
     fn encode(&self, encoder: &mut Encoder) {
         encoder.bytes(&self.to_le_bytes());
+    }
+}
+
+impl Decode for f64 {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+        Some(f64::from_le_bytes(decoder.bytes(8)?.try_into().ok()?))
     }
 }
 
@@ -110,12 +200,32 @@ impl<T: Encode> Encode for Option<T> {
     }
 }
 
+impl<T: Decode> Decode for Option<T> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+        if bool::decode(decoder)? {
+            Some(Some(T::decode(decoder)?))
+        } else {
+            Some(None)
+        }
+    }
+}
+
 struct Bytes<'a>(&'a [u8]);
 
 impl Encode for Bytes<'_> {
     fn encode(&self, encoder: &mut Encoder) {
         u32_from_usize(self.0.len()).encode(encoder);
         encoder.bytes(self.0);
+    }
+}
+
+struct IgnoredBytes;
+
+impl Decode for IgnoredBytes {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+        let length: usize = u32::decode(decoder)?.try_into().ok()?;
+        decoder.bytes(length)?;
+        Some(Self)
     }
 }
 
@@ -130,6 +240,16 @@ impl Encode for Utf16<'_> {
     }
 }
 
+struct IgnoredUtf16;
+
+impl Decode for IgnoredUtf16 {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+        let length: usize = u32::decode(decoder)?.try_into().ok()?;
+        decoder.bytes(length.checked_mul(size_of::<u16>())?)?;
+        Some(Self)
+    }
+}
+
 struct CacheBlob<'a> {
     compiled: &'a CompiledProgram,
 }
@@ -141,6 +261,16 @@ impl Encode for CacheBlob<'_> {
         self.compiled.parsed.has_top_level_await.encode(encoder);
         self.compiled.parsed.is_strict_mode.encode(encoder);
         ProgramRecord::from(self.compiled).encode(encoder);
+    }
+}
+
+impl CacheBlob<'_> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
+        decoder.expect_bytes(MAGIC)?;
+        (u32::decode(decoder)? == FORMAT_VERSION).then_some(())?;
+        bool::decode(decoder)?;
+        bool::decode(decoder)?;
+        ProgramRecord::decode(decoder)
     }
 }
 
@@ -177,6 +307,13 @@ impl Encode for ProgramRecord<'_> {
     }
 }
 
+impl ProgramRecord<'_> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
+        ProgramKind::decode(decoder)?;
+        ExecutableRecord::decode(decoder)
+    }
+}
+
 #[repr(u8)]
 #[derive(Clone, Copy)]
 enum ProgramKind {
@@ -187,6 +324,16 @@ enum ProgramKind {
 impl Encode for ProgramKind {
     fn encode(&self, encoder: &mut Encoder) {
         (*self as u8).encode(encoder);
+    }
+}
+
+impl Decode for ProgramKind {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+        match u8::decode(decoder)? {
+            0 => Some(Self::ScriptOrModule),
+            1 => Some(Self::AsyncModule),
+            _ => None,
+        }
     }
 }
 
@@ -218,6 +365,29 @@ impl Encode for ExecutableRecord<'_> {
     }
 }
 
+impl ExecutableRecord<'_> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
+        bool::decode(decoder)?;
+        u32::decode(decoder)?;
+        u32::decode(decoder)?;
+        CacheCounters::decode(decoder)?;
+        bool::decode(decoder)?;
+        Option::<u32>::decode(decoder)?;
+
+        IgnoredBytes::decode(decoder)?;
+        Utf16Table::decode(decoder)?;
+        Utf16Table::decode(decoder)?;
+        Utf16Table::decode(decoder)?;
+        ConstantTable::decode(decoder)?;
+        ExceptionHandlerTable::decode(decoder)?;
+        SourceMapTable::decode(decoder)?;
+        BasicBlockOffsetTable::decode(decoder)?;
+        LocalVariableTable::decode(decoder)?;
+        SharedFunctionTable::decode(decoder)?;
+        ClassBlueprintTable::decode(decoder)
+    }
+}
+
 struct CacheCounters<'a>(&'a Generator);
 
 impl Encode for CacheCounters<'_> {
@@ -230,6 +400,17 @@ impl Encode for CacheCounters<'_> {
     }
 }
 
+impl CacheCounters<'_> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
+        u32::decode(decoder)?;
+        u32::decode(decoder)?;
+        u32::decode(decoder)?;
+        u32::decode(decoder)?;
+        u32::decode(decoder)?;
+        Some(())
+    }
+}
+
 struct Utf16Table<'a>(&'a [ast::Utf16String]);
 
 impl Encode for Utf16Table<'_> {
@@ -238,11 +419,23 @@ impl Encode for Utf16Table<'_> {
     }
 }
 
+impl Utf16Table<'_> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
+        decoder.sequence(|decoder| IgnoredUtf16::decode(decoder).map(|_| ()))
+    }
+}
+
 struct ConstantTable<'a>(&'a [ConstantValue]);
 
 impl Encode for ConstantTable<'_> {
     fn encode(&self, encoder: &mut Encoder) {
         encoder.sequence(self.0, |constant, encoder| constant.encode(encoder));
+    }
+}
+
+impl ConstantTable<'_> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
+        decoder.sequence(ConstantRecord::decode)
     }
 }
 
@@ -278,6 +471,32 @@ impl Encode for ConstantValue {
     }
 }
 
+struct ConstantRecord;
+
+impl ConstantRecord {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
+        match u8::decode(decoder)? {
+            tag if tag == ConstantTag::Number as u8 => f64::decode(decoder).map(|_| ()),
+            tag if tag == ConstantTag::BooleanTrue as u8 => Some(()),
+            tag if tag == ConstantTag::BooleanFalse as u8 => Some(()),
+            tag if tag == ConstantTag::Null as u8 => Some(()),
+            tag if tag == ConstantTag::Undefined as u8 => Some(()),
+            tag if tag == ConstantTag::Empty as u8 => Some(()),
+            tag if tag == ConstantTag::String as u8 => IgnoredUtf16::decode(decoder).map(|_| ()),
+            tag if tag == ConstantTag::BigInt as u8 => IgnoredBytes::decode(decoder).map(|_| ()),
+            tag if tag == ConstantTag::WellKnownSymbol as u8 => match u8::decode(decoder)? {
+                0 | 1 => Some(()),
+                _ => None,
+            },
+            tag if tag == ConstantTag::AbstractOperation as u8 => match u8::decode(decoder)? {
+                0..=4 => Some(()),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+}
+
 struct ExceptionHandlerTable<'a>(&'a AssembledBytecode);
 
 impl Encode for ExceptionHandlerTable<'_> {
@@ -287,6 +506,17 @@ impl Encode for ExceptionHandlerTable<'_> {
             handler.end_offset.encode(encoder);
             handler.handler_offset.encode(encoder);
         });
+    }
+}
+
+impl ExceptionHandlerTable<'_> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
+        decoder.sequence(|decoder| {
+            u32::decode(decoder)?;
+            u32::decode(decoder)?;
+            u32::decode(decoder)?;
+            Some(())
+        })
     }
 }
 
@@ -306,6 +536,17 @@ impl Encode for SourceMapTable<'_> {
     }
 }
 
+impl SourceMapTable<'_> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
+        decoder.sequence(|decoder| {
+            for _ in 0..7 {
+                u32::decode(decoder)?;
+            }
+            Some(())
+        })
+    }
+}
+
 struct BasicBlockOffsetTable<'a>(&'a AssembledBytecode);
 
 impl Encode for BasicBlockOffsetTable<'_> {
@@ -313,6 +554,12 @@ impl Encode for BasicBlockOffsetTable<'_> {
         encoder.sequence(&self.0.basic_block_start_offsets, |offset, encoder| {
             offset.encode(encoder);
         });
+    }
+}
+
+impl BasicBlockOffsetTable<'_> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
+        decoder.sequence(|decoder| usize::decode(decoder).map(|_| ()))
     }
 }
 
@@ -330,6 +577,17 @@ impl Encode for LocalVariableTable<'_> {
     }
 }
 
+impl LocalVariableTable<'_> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
+        decoder.sequence(|decoder| {
+            IgnoredUtf16::decode(decoder)?;
+            bool::decode(decoder)?;
+            bool::decode(decoder)?;
+            Some(())
+        })
+    }
+}
+
 struct SharedFunctionTable<'a>(&'a Generator);
 
 impl Encode for SharedFunctionTable<'_> {
@@ -341,6 +599,12 @@ impl Encode for SharedFunctionTable<'_> {
             }
             .encode(encoder);
         });
+    }
+}
+
+impl SharedFunctionTable<'_> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
+        decoder.sequence(FunctionRecord::decode)
     }
 }
 
@@ -386,6 +650,28 @@ impl Encode for FunctionRecord<'_> {
     }
 }
 
+impl FunctionRecord<'_> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
+        Option::<IgnoredUtf16>::decode(decoder)?;
+        u32::decode(decoder)?;
+        u32::decode(decoder)?;
+        i32::decode(decoder)?;
+        u32::decode(decoder)?;
+        match u8::decode(decoder)? {
+            0..=3 => {}
+            _ => return None,
+        }
+        bool::decode(decoder)?;
+        bool::decode(decoder)?;
+        SimpleParameterList::decode(decoder)?;
+        bool::decode(decoder)?;
+        bool::decode(decoder)?;
+        ClassFieldInitializerName::decode(decoder)?;
+        FunctionSfdMetadata::decode(decoder)?;
+        PrecompiledFunctionRecord::decode(decoder)
+    }
+}
+
 impl<'a> FunctionRecord<'a> {
     fn function_name(&self, function_data: &'a ast::FunctionData) -> Option<Utf16<'a>> {
         self.shared_data
@@ -412,6 +698,15 @@ impl Encode for SimpleParameterList<'_> {
         if let Some(names) = names {
             encoder.sequence(&names, |name, encoder| Utf16(name).encode(encoder));
         }
+    }
+}
+
+impl SimpleParameterList<'_> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
+        if bool::decode(decoder)? {
+            decoder.sequence(|decoder| IgnoredUtf16::decode(decoder).map(|_| ()))?;
+        }
+        Some(())
     }
 }
 
@@ -444,10 +739,26 @@ impl Encode for ClassFieldInitializerName<'_> {
     }
 }
 
+impl ClassFieldInitializerName<'_> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
+        if bool::decode(decoder)? {
+            IgnoredUtf16::decode(decoder)?;
+            bool::decode(decoder)?;
+        }
+        Some(())
+    }
+}
+
 impl Encode for (Utf16<'_>, bool) {
     fn encode(&self, encoder: &mut Encoder) {
         self.0.encode(encoder);
         self.1.encode(encoder);
+    }
+}
+
+impl Decode for (IgnoredUtf16, bool) {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+        Some((IgnoredUtf16::decode(decoder)?, bool::decode(decoder)?))
     }
 }
 
@@ -463,6 +774,19 @@ impl Encode for FunctionSfdMetadata {
     }
 }
 
+impl FunctionSfdMetadata {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
+        bool::decode(decoder)?;
+        bool::decode(decoder)?;
+        bool::decode(decoder)?;
+        usize::decode(decoder)?;
+        usize::decode(decoder)?;
+        bool::decode(decoder)?;
+        bool::decode(decoder)?;
+        Some(())
+    }
+}
+
 struct PrecompiledFunctionRecord<'a>(&'a PrecompiledFunction);
 
 impl Encode for PrecompiledFunctionRecord<'_> {
@@ -475,6 +799,12 @@ impl Encode for PrecompiledFunctionRecord<'_> {
     }
 }
 
+impl PrecompiledFunctionRecord<'_> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
+        ExecutableRecord::decode(decoder)
+    }
+}
+
 struct ClassBlueprintTable<'a>(&'a Generator);
 
 impl Encode for ClassBlueprintTable<'_> {
@@ -482,6 +812,12 @@ impl Encode for ClassBlueprintTable<'_> {
         encoder.sequence(&self.0.class_blueprints, |blueprint, encoder| {
             ClassBlueprintRecord(blueprint).encode(encoder);
         });
+    }
+}
+
+impl ClassBlueprintTable<'_> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
+        decoder.sequence(ClassBlueprintRecord::decode)
     }
 }
 
@@ -501,6 +837,18 @@ impl Encode for ClassBlueprintRecord<'_> {
     }
 }
 
+impl ClassBlueprintRecord<'_> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
+        Option::<IgnoredUtf16>::decode(decoder)?;
+        usize::decode(decoder)?;
+        usize::decode(decoder)?;
+        u32::decode(decoder)?;
+        bool::decode(decoder)?;
+        bool::decode(decoder)?;
+        decoder.sequence(ClassElementRecord::decode)
+    }
+}
+
 struct ClassElementRecord<'a>(&'a PendingClassElement);
 
 impl Encode for ClassElementRecord<'_> {
@@ -517,6 +865,24 @@ impl Encode for ClassElementRecord<'_> {
     }
 }
 
+impl ClassElementRecord<'_> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
+        u8::decode(decoder)?;
+        bool::decode(decoder)?;
+        bool::decode(decoder)?;
+        Option::<IgnoredUtf16>::decode(decoder)?;
+        Option::<u32>::decode(decoder)?;
+        bool::decode(decoder)?;
+        match u8::decode(decoder)? {
+            0..=5 => {}
+            _ => return None,
+        }
+        f64::decode(decoder)?;
+        Option::<IgnoredUtf16>::decode(decoder)?;
+        Some(())
+    }
+}
+
 fn literal_value_kind_tag(kind: PendingLiteralValueKind) -> u8 {
     match kind {
         PendingLiteralValueKind::None => 0,
@@ -525,5 +891,28 @@ fn literal_value_kind_tag(kind: PendingLiteralValueKind) -> u8 {
         PendingLiteralValueKind::BooleanFalse => 3,
         PendingLiteralValueKind::Null => 4,
         PendingLiteralValueKind::String => 5,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sequence_decode_rejects_lengths_larger_than_remaining_bytes() {
+        let bytes = u32::MAX.to_le_bytes();
+
+        let mut decoder = Decoder::new(&bytes);
+        assert!(decoder.sequence(|_| Some(())).is_none());
+    }
+
+    #[test]
+    fn sequence_decode_rejects_truncated_items_without_large_allocation() {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&4u32.to_le_bytes());
+        bytes.extend_from_slice(&[1, 2, 3]);
+
+        let mut decoder = Decoder::new(&bytes);
+        assert!(decoder.sequence(|d| u8::decode(d).map(|_| ())).is_none());
     }
 }
