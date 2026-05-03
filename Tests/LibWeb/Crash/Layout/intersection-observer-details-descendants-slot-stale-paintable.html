@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<style>
+    details {
+        margin: 40px;
+    }
+
+    details-menu {
+        display: none;
+    }
+
+    details[open] details-menu {
+        display: block;
+    }
+
+    .list {
+        height: 200px;
+        overflow: auto;
+    }
+
+    .item {
+        display: flex;
+        height: 32px;
+        align-items: center;
+    }
+
+    .target {
+        width: 20px;
+        height: 20px;
+        background: green;
+    }
+</style>
+<details id="details" open>
+    <summary>summary</summary>
+    <details-menu>
+        <div class="list">
+            <a class="item"><div id="target" class="target"></div></a>
+        </div>
+    </details-menu>
+</details>
+<script>
+    const details = document.getElementById("details");
+    const target = document.getElementById("target");
+
+    new IntersectionObserver(() => {}).observe(target);
+    target.getBoundingClientRect();
+
+    requestAnimationFrame(() => {
+        details.removeAttribute("open");
+
+        requestAnimationFrame(() => {
+            internals.signalTestIsDone("PASS");
+        });
+    });
+</script>
