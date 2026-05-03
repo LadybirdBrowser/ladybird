@@ -290,15 +290,35 @@ impl Encode for CacheBlob<'_> {
 }
 
 impl CacheBlob<'_> {
-    fn decode(decoder: &mut Decoder<'_>, expected_program_type: ast::ProgramType) -> Option<()> {
+    fn decode(decoder: &mut Decoder<'_>, expected_program_type: ast::ProgramType) -> Option<DecodedCacheBlob> {
         decoder.expect_bytes(MAGIC)?;
         (u32::decode(decoder)? == FORMAT_VERSION).then_some(())?;
-        (ast::ProgramType::decode(decoder)? == expected_program_type).then_some(())?;
-        bool::decode(decoder)?;
-        bool::decode(decoder)?;
-        DeclarationMetadataRecord::decode(decoder)?.validate();
-        ProgramRecord::decode(decoder)?.validate();
-        Some(())
+        let program_type = ast::ProgramType::decode(decoder)?;
+        (program_type == expected_program_type).then_some(())?;
+        Some(DecodedCacheBlob {
+            program_type,
+            has_top_level_await: bool::decode(decoder)?,
+            is_strict_mode: bool::decode(decoder)?,
+            metadata: DeclarationMetadataRecord::decode(decoder)?,
+            program: ProgramRecord::decode(decoder)?,
+        })
+    }
+}
+
+struct DecodedCacheBlob {
+    program_type: ast::ProgramType,
+    has_top_level_await: bool,
+    is_strict_mode: bool,
+    metadata: DecodedDeclarationMetadata,
+    program: DecodedProgramRecord,
+}
+
+impl DecodedCacheBlob {
+    fn validate(&self) {
+        let _ = self.program_type as u8;
+        let _ = self.has_top_level_await || self.is_strict_mode;
+        self.metadata.validate();
+        self.program.validate();
     }
 }
 
