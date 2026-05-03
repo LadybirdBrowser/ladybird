@@ -112,3 +112,29 @@ TEST_CASE(remove_entries_exceeding_cache_limit_tolerates_replaced_unloaded_entri
     EXPECT_EQ(removed_entries.size(), 0u);
     EXPECT_EQ(reloaded_index.estimate_cache_size_accessed_since(UnixDateTime::earliest()).total, 80u);
 }
+
+TEST_CASE(associated_data_counts_toward_cache_size)
+{
+    auto state = create_cache_index();
+
+    auto request_headers = HTTP::HeaderList::create();
+    auto response_headers = HTTP::HeaderList::create();
+    auto vary_key = HTTP::create_vary_key(*request_headers, *response_headers);
+    auto now = UnixDateTime::now();
+
+    state.index.set_maximum_disk_cache_size(80);
+
+    for (u64 cache_key = 1; cache_key <= 5; ++cache_key)
+        TRY_OR_FAIL(state.index.create_entry(cache_key, vary_key, "https://example.com/script.js"_string, request_headers, response_headers, 10, now, now));
+    state.index.update_associated_data_size(1, vary_key, 50);
+
+    EXPECT_EQ(state.index.estimate_cache_size_accessed_since(UnixDateTime::earliest()).total, 100u);
+
+    Vector<u64> removed_entries;
+    state.index.remove_entries_exceeding_cache_limit([&](auto removed_cache_key, auto) {
+        removed_entries.append(removed_cache_key);
+    });
+
+    EXPECT(removed_entries.size() > 0);
+    EXPECT(state.index.estimate_cache_size_accessed_since(UnixDateTime::earliest()).total <= 80u);
+}

@@ -111,6 +111,24 @@ LexicalPath path_for_cache_entry(LexicalPath const& cache_directory, u64 cache_k
     return cache_directory.append(file);
 }
 
+static StringView cache_entry_associated_data_suffix(CacheEntryAssociatedData associated_data)
+{
+    switch (associated_data) {
+    case CacheEntryAssociatedData::JavaScriptBytecode:
+        return "jsbc"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+LexicalPath path_for_cache_entry_associated_data(LexicalPath const& cache_directory, u64 cache_key, u64 vary_key, CacheEntryAssociatedData associated_data)
+{
+    auto file = vary_key == 0
+        ? ByteString::formatted("{:016x}.{}", cache_key, cache_entry_associated_data_suffix(associated_data))
+        : ByteString::formatted("{:016x}_{:016x}.{}", cache_key, vary_key, cache_entry_associated_data_suffix(associated_data));
+
+    return cache_directory.append(file);
+}
+
 // https://httpwg.org/specs/rfc9111.html#response.cacheability
 bool is_cacheable(StringView method, HTTP::HeaderList const& request_headers)
 {

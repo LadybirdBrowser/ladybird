@@ -89,6 +89,8 @@ void CacheEntry::remove()
         return;
 
     (void)FileSystem::remove(m_path->string(), FileSystem::RecursionMode::Disallowed);
+    for (auto associated_data : CACHE_ENTRY_ASSOCIATED_DATA_TYPES)
+        (void)FileSystem::remove(path_for_cache_entry_associated_data(m_disk_cache.cache_directory(), m_cache_key, m_vary_key, associated_data).string(), FileSystem::RecursionMode::Disallowed);
     m_index.remove_entry(m_cache_key, m_vary_key);
 }
 
@@ -202,6 +204,11 @@ ErrorOr<void> CacheEntryWriter::flush(NonnullRefPtr<HeaderList> request_headers,
 
         return result.release_error();
     }
+
+    // Drop any sidecars left over from an older entry at the same (cache_key, vary_key). They are tied to the previous
+    // response body, so reusing them with the freshly written one would mismatch the source they were generated for.
+    for (auto associated_data : CACHE_ENTRY_ASSOCIATED_DATA_TYPES)
+        (void)FileSystem::remove(path_for_cache_entry_associated_data(m_disk_cache.cache_directory(), m_cache_key, m_vary_key, associated_data).string(), FileSystem::RecursionMode::Disallowed);
 
     if (auto result = m_index.create_entry(m_cache_key, m_vary_key, m_url, move(request_headers), move(response_headers), m_cache_footer.data_size, m_request_time, m_response_time); result.is_error()) {
         dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mUnable to flush cache entry for\033[0m {} ({} bytes): {}", m_url, m_cache_footer.data_size, result.error());

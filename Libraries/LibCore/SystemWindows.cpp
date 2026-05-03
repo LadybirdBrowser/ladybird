@@ -159,6 +159,15 @@ ErrorOr<void> mkdir(StringView path, mode_t)
     return {};
 }
 
+ErrorOr<void> rename(StringView old_path, StringView new_path)
+{
+    ByteString old_path_string = old_path;
+    ByteString new_path_string = new_path;
+    if (!MoveFileExA(old_path_string.characters(), new_path_string.characters(), MOVEFILE_REPLACE_EXISTING))
+        return Error::from_windows_error();
+    return {};
+}
+
 ErrorOr<int> openat(int, StringView, int, mode_t)
 {
     dbgln("Core::System::openat() is not implemented");

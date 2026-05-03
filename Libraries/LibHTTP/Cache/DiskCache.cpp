@@ -5,8 +5,10 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/ScopeGuard.h>
 #include <LibCore/Directory.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
@@ -18,6 +20,25 @@
 namespace HTTP {
 
 static constexpr auto INDEX_DATABASE = "INDEX"sv;
+
+static ErrorOr<u64> compute_associated_data_size(LexicalPath const& cache_directory, u64 cache_key, u64 vary_key)
+{
+    u64 associated_data_size = 0;
+    for (auto associated_data : CACHE_ENTRY_ASSOCIATED_DATA_TYPES) {
+        auto path = path_for_cache_entry_associated_data(cache_directory, cache_key, vary_key, associated_data);
+        auto size = FileSystem::size_from_stat(path.string());
+        if (size.is_error()) {
+            if (size.error().is_errno() && size.error().code() == ENOENT)
+                continue;
+            return size.release_error();
+        }
+
+        if (size.value() < 0)
+            return Error::from_errno(EINVAL);
+        associated_data_size += static_cast<u64>(size.value());
+    }
+    return associated_data_size;
+}
 
 static constexpr StringView cache_directory_for_mode(DiskCache::Mode mode)
 {
@@ -202,6 +223,57 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
     return Optional<CacheEntryReader&> { *cache_entry_pointer };
 }
 
+ErrorOr<bool> DiskCache::store_associated_data(URL::URL const& url, StringView method, HeaderList const& request_headers, CacheEntryAssociatedData associated_data, ReadonlyBytes data)
+{
+    if (!is_cacheable(method, request_headers))
+        return false;
+
+    auto serialized_url = serialize_url_for_cache_storage(url);
+    auto cache_key = create_cache_key(serialized_url, method, m_partitioned_cache_key);
+    auto index_entry = m_index.find_entry(cache_key, request_headers);
+    if (!index_entry.has_value())
+        return false;
+
+    auto path = path_for_cache_entry_associated_data(m_cache_directory, cache_key, index_entry->vary_key, associated_data);
+    auto temporary_path = LexicalPath::join(m_cache_directory.string(), ByteString::formatted("{}.tmp", path.basename()));
+    ArmedScopeGuard remove_temporary_file = [&]() {
+        (void)FileSystem::remove(temporary_path.string(), FileSystem::RecursionMode::Disallowed);
+    };
+
+    {
+        auto file = TRY(Core::File::open(temporary_path.string(), Core::File::OpenMode::Write));
+        TRY(file->write_until_depleted(data));
+    }
+
+    TRY(Core::System::rename(temporary_path.string(), path.string()));
+    remove_temporary_file.disarm();
+    m_index.update_associated_data_size(cache_key, index_entry->vary_key, TRY(compute_associated_data_size(m_cache_directory, cache_key, index_entry->vary_key)));
+    remove_entries_exceeding_cache_limit();
+    return m_index.find_entry(cache_key, request_headers).has_value();
+}
+
+ErrorOr<Optional<ByteBuffer>> DiskCache::retrieve_associated_data(URL::URL const& url, StringView method, HeaderList const& request_headers, CacheEntryAssociatedData associated_data)
+{
+    if (!is_cacheable(method, request_headers))
+        return Optional<ByteBuffer> {};
+
+    auto serialized_url = serialize_url_for_cache_storage(url);
+    auto cache_key = create_cache_key(serialized_url, method, m_partitioned_cache_key);
+    auto index_entry = m_index.find_entry(cache_key, request_headers);
+    if (!index_entry.has_value())
+        return Optional<ByteBuffer> {};
+
+    auto path = path_for_cache_entry_associated_data(m_cache_directory, cache_key, index_entry->vary_key, associated_data);
+    auto file = Core::File::open(path.string(), Core::File::OpenMode::Read);
+    if (file.is_error()) {
+        if (file.error().is_errno() && file.error().code() == ENOENT)
+            return Optional<ByteBuffer> {};
+        return file.release_error();
+    }
+
+    return TRY(file.value()->read_until_eof());
+}
+
 bool DiskCache::check_if_cache_has_open_entry(CacheRequest& request, u64 cache_key, URL::URL const& url, CheckReaderEntries check_reader_entries)
 {
     // FIXME: We purposefully do not use the vary key here, as we do not yet have it when creating a CacheEntryWriter
@@ -294,6 +366,8 @@ void DiskCache::delete_entry(u64 cache_key, u64 vary_key)
 
     auto cache_path = path_for_cache_entry(m_cache_directory, cache_key, vary_key);
     (void)FileSystem::remove(cache_path.string(), FileSystem::RecursionMode::Disallowed);
+    for (auto associated_data : CACHE_ENTRY_ASSOCIATED_DATA_TYPES)
+        (void)FileSystem::remove(path_for_cache_entry_associated_data(m_cache_directory, cache_key, vary_key, associated_data).string(), FileSystem::RecursionMode::Disallowed);
 }
 
 }
