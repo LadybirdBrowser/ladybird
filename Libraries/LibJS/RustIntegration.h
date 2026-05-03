@@ -28,6 +28,7 @@ namespace JS::FFI {
 struct ParsedProgram;
 struct CompiledProgram;
 struct CompiledFunction;
+struct DecodedBytecodeCacheBlob;
 
 }
 
@@ -109,6 +110,12 @@ JS_API void free_compiled_program(FFI::CompiledProgram*);
 
 // Serialize a fully compiled program into a versioned bytecode cache blob.
 JS_API ByteBuffer serialize_compiled_program_for_bytecode_cache(FFI::CompiledProgram const&, ProgramType);
+
+// Decode a bytecode cache blob into an owned parser-free cache handle.
+JS_API FFI::DecodedBytecodeCacheBlob* decode_bytecode_cache_blob(ReadonlyBytes, ProgramType);
+
+// Free a decoded bytecode cache blob.
+JS_API void free_decoded_bytecode_cache_blob(FFI::DecodedBytecodeCacheBlob*);
 
 // Compile a previously parsed script. Must be called on the main thread.
 // Consumes and frees the Rust ParsedProgram.

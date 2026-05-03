@@ -146,6 +146,10 @@ pub struct BytecodeCacheBlob {
     length: usize,
 }
 
+pub struct DecodedBytecodeCacheBlob {
+    _blob: bytecode_cache::DecodedCacheBlob,
+}
+
 enum CompiledProgramBytecode {
     Program(CompiledBytecode),
     AsyncModule(CompiledBytecode),
@@ -903,6 +907,47 @@ pub unsafe extern "C" fn rust_free_bytecode_cache_blob(data: *mut u8, length: us
                 drop(Vec::from_raw_parts(data, length, length));
             }
         });
+    }
+}
+
+/// Decode a bytecode cache blob into an owned parser-free cache handle.
+///
+/// # Safety
+/// `data` must point to `length` readable bytes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_decode_bytecode_cache_blob(
+    data: *const u8,
+    length: usize,
+    expected_program_type: u8,
+) -> *mut DecodedBytecodeCacheBlob {
+    unsafe {
+        abort_on_panic(|| {
+            if data.is_null() {
+                return std::ptr::null_mut();
+            }
+            let expected_program_type = match expected_program_type {
+                0 => ast::ProgramType::Script,
+                1 => ast::ProgramType::Module,
+                _ => return std::ptr::null_mut(),
+            };
+            let Some(blob) =
+                bytecode_cache::decode_blob(std::slice::from_raw_parts(data, length), expected_program_type)
+            else {
+                return std::ptr::null_mut();
+            };
+            Box::into_raw(Box::new(DecodedBytecodeCacheBlob { _blob: blob }))
+        })
+    }
+}
+
+/// Free a decoded bytecode cache blob.
+///
+/// # Safety
+/// `blob` must be a valid pointer from `rust_decode_bytecode_cache_blob()`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_free_decoded_bytecode_cache_blob(blob: *mut DecodedBytecodeCacheBlob) {
+    unsafe {
+        drop(Box::from_raw(blob));
     }
 }
 

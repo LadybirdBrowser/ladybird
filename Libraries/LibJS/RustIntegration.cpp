@@ -397,6 +397,16 @@ ByteBuffer serialize_compiled_program_for_bytecode_cache(CompiledProgram const& 
     return bytes;
 }
 
+DecodedBytecodeCacheBlob* decode_bytecode_cache_blob(ReadonlyBytes bytes, ProgramType expected_type)
+{
+    return rust_decode_bytecode_cache_blob(bytes.data(), bytes.size(), static_cast<u8>(expected_type));
+}
+
+void free_decoded_bytecode_cache_blob(DecodedBytecodeCacheBlob* blob)
+{
+    rust_free_decoded_bytecode_cache_blob(blob);
+}
+
 Optional<Result<ScriptResult, Vector<ParserError>>> compile_parsed_script(ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm)
 {
     if (!parsed)

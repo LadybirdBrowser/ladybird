@@ -30,6 +30,16 @@ pub fn serialize_compiled_program(compiled: &CompiledProgram, program_type: ast:
     encoder.finish()
 }
 
+pub(crate) fn decode_blob(bytes: &[u8], expected_program_type: ast::ProgramType) -> Option<DecodedCacheBlob> {
+    let mut decoder = Decoder::new(bytes);
+    let blob = CacheBlob::decode(&mut decoder, expected_program_type)?;
+    if !decoder.is_empty() {
+        return None;
+    }
+    blob.validate();
+    Some(blob)
+}
+
 struct Encoder {
     bytes: Vec<u8>,
 }
@@ -305,7 +315,7 @@ impl CacheBlob<'_> {
     }
 }
 
-struct DecodedCacheBlob {
+pub(crate) struct DecodedCacheBlob {
     program_type: ast::ProgramType,
     has_top_level_await: bool,
     is_strict_mode: bool,
