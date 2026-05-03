@@ -128,6 +128,8 @@ DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_stream(NonnullR
 
     auto demuxer = DECODER_TRY_ALLOC(adopt_nonnull_ref_or_enomem(new (nothrow) FFmpegDemuxer(stream)));
     demuxer->m_total_duration = AK::Duration::from_time_units(format_context->duration, 1, AV_TIME_BASE);
+    if (format_context->start_time_realtime != AV_NOPTS_VALUE)
+        demuxer->m_start_time_realtime = AK::UnixDateTime::from_microseconds_since_epoch(format_context->start_time_realtime);
 
     auto format_name = StringView(format_context->iformat->name, strlen(format_context->iformat->name));
     auto seen_types = HashTable<TrackType>();
@@ -217,6 +219,11 @@ static inline i64 duration_to_time_units(AK::Duration duration, AVRational const
 DecoderErrorOr<AK::Duration> FFmpegDemuxer::total_duration()
 {
     return m_total_duration;
+}
+
+Optional<AK::UnixDateTime> FFmpegDemuxer::start_time_realtime() const
+{
+    return m_start_time_realtime;
 }
 
 TimeRanges FFmpegDemuxer::buffered_time_ranges() const

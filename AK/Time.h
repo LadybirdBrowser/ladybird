@@ -448,6 +448,11 @@ public:
         return UnixDateTime { Duration::from_milliseconds(milliseconds) };
     }
 
+    [[nodiscard]] constexpr static UnixDateTime from_microseconds_since_epoch(i64 microseconds)
+    {
+        return UnixDateTime { Duration::from_microseconds(microseconds) };
+    }
+
     [[nodiscard]] constexpr static UnixDateTime from_nanoseconds_since_epoch(i64 nanoseconds)
     {
         return UnixDateTime { Duration::from_nanoseconds(nanoseconds) };

@@ -9,6 +9,7 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/EnumBits.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/Time.h>
 #include <LibCore/EventReceiver.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 
@@ -56,6 +57,9 @@ public:
 
     virtual DecoderErrorOr<AK::Duration> duration_of_track(Track const&) = 0;
     virtual DecoderErrorOr<AK::Duration> total_duration() = 0;
+
+    // Returns the timeline offset if the media resource provides one.
+    virtual Optional<AK::UnixDateTime> start_time_realtime() const { return {}; }
 
     virtual TimeRanges buffered_time_ranges() const = 0;
 

@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const video = document.createElement("video");
+
+        const date = video.getStartDate();
+        println(date instanceof Date);
+        println(isNaN(date.getTime()));
+    });
+</script>

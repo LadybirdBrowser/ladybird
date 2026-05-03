@@ -34,6 +34,7 @@ public:
 
     virtual DecoderErrorOr<AK::Duration> duration_of_track(Track const&) override;
     virtual DecoderErrorOr<AK::Duration> total_duration() override;
+    virtual Optional<AK::UnixDateTime> start_time_realtime() const override;
 
     virtual TimeRanges buffered_time_ranges() const override;
 
@@ -81,6 +82,7 @@ private:
 
     NonnullRefPtr<MediaStream> m_stream;
     AK::Duration m_total_duration;
+    Optional<AK::UnixDateTime> m_start_time_realtime;
     Vector<StreamInfo> m_stream_info;
     Array<int, to_underlying(TrackType::Unknown)> m_preferred_track_for_type;
 

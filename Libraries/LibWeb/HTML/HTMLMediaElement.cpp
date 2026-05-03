@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Promise.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/PlaybackManager.h>
@@ -473,6 +474,16 @@ double HTMLMediaElement::duration() const
     return m_duration;
 }
 
+// https://html.spec.whatwg.org/multipage/media.html#dom-media-getstartdate
+JS::Object* HTMLMediaElement::get_start_date()
+{
+    // The getStartDate() method must return a new Date object representing the current timeline offset.
+    auto date_value = m_timeline_offset.has_value()
+        ? static_cast<double>(m_timeline_offset->milliseconds_since_epoch())
+        : NAN;
+    return JS::Date::create(realm(), date_value).ptr();
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-ended
 bool HTMLMediaElement::ended() const
 {
@@ -752,7 +763,8 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
             });
         }
 
-        // FIXME: 9. Set the timeline offset to Not-a-Number (NaN).
+        // 9. Set the timeline offset to Not-a-Number (NaN).
+        m_timeline_offset = {};
 
         // 10. Update the duration attribute to Not-a-Number (NaN).
         set_duration(NAN);
@@ -1689,8 +1701,9 @@ void HTMLMediaElement::on_metadata_parsed()
     m_source_element_selector = nullptr;
 
     // FIXME: 1. Establish the media timeline for the purposes of the current playback position and the earliest possible position, based on the media data.
-    // FIXME: 2. Update the timeline offset to the date and time that corresponds to the zero time in the media timeline established in the previous step,
-    //           if any. If no explicit time and date is given by the media resource, the timeline offset must be set to Not-a-Number (NaN).
+    // 2. Update the timeline offset to the date and time that corresponds to the zero time in the media timeline established in the previous step,
+    //    if any. If no explicit time and date is given by the media resource, the timeline offset must be set to Not-a-Number (NaN).
+    m_timeline_offset = m_playback_manager->start_time_realtime();
 
     // 3. Set the current playback position and the official playback position to the earliest possible position.
     m_current_playback_position = 0;

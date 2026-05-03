@@ -77,9 +77,10 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
         preferred_audio_track = {};
 
     auto duration = demuxer->total_duration().value_or(AK::Duration::zero());
+    auto start_time_realtime = demuxer->start_time_realtime();
 
     auto main_thread_event_loop = main_thread_event_loop_reference->take();
-    main_thread_event_loop->deferred_invoke([self, video_tracks = move(supported_video_tracks), video_track_datas = move(supported_video_track_datas), preferred_video_track, audio_tracks = move(supported_audio_tracks), audio_track_datas = move(supported_audio_track_datas), preferred_audio_track, duration] mutable {
+    main_thread_event_loop->deferred_invoke([self, video_tracks = move(supported_video_tracks), video_track_datas = move(supported_video_track_datas), preferred_video_track, audio_tracks = move(supported_audio_tracks), audio_track_datas = move(supported_audio_track_datas), preferred_audio_track, duration, start_time_realtime] mutable {
         if (!self)
             return;
 
@@ -109,6 +110,7 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
         if (!self->m_preferred_audio_track.has_value())
             self->m_preferred_audio_track = preferred_audio_track;
 
+        self->m_start_time_realtime = start_time_realtime;
         self->check_for_duration_change(duration);
 
         self->set_up_data_providers();

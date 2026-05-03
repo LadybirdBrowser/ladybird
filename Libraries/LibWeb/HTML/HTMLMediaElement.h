@@ -114,6 +114,7 @@ public:
     void set_current_playback_position(double);
 
     double duration() const;
+    JS::Object* get_start_date();
     bool show_poster() const { return m_show_poster; }
     bool paused() const { return m_paused; }
     bool ended() const;
@@ -318,6 +319,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-duration
     double m_duration { NAN };
+
+    // https://html.spec.whatwg.org/multipage/media.html#timeline-offset
+    Optional<AK::UnixDateTime> m_timeline_offset;
 
     // https://html.spec.whatwg.org/multipage/media.html#list-of-pending-play-promises
     Vector<GC::Ref<WebIDL::Promise>> m_pending_play_promises;

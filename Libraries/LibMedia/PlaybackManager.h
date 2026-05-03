@@ -59,6 +59,8 @@ public:
     void set_duration(AK::Duration duration) { m_duration = duration; }
     AK::Duration current_time() const { return min(m_time_provider->current_time(), duration()); }
 
+    Optional<AK::UnixDateTime> start_time_realtime() const { return m_start_time_realtime; }
+
     auto const& video_tracks() const { return m_video_tracks; }
     auto const& audio_tracks() const { return m_audio_tracks; }
     Optional<Track> preferred_video_track() { return m_preferred_video_track; }
@@ -175,6 +177,7 @@ private:
     Optional<Track> m_preferred_audio_track;
 
     AK::Duration m_duration;
+    Optional<AK::UnixDateTime> m_start_time_realtime;
 
     HashTable<Track> m_tracks_still_buffering;
 

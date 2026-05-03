@@ -50,7 +50,7 @@ interface HTMLMediaElement : HTMLElement {
     attribute double currentTime;
     undefined fastSeek(double time);
     readonly attribute unrestricted double duration;
-    [FIXME] object getStartDate();
+    object getStartDate();
     readonly attribute boolean paused;
     attribute double defaultPlaybackRate;
     attribute double playbackRate;
