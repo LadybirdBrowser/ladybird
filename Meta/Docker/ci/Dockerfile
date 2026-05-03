@@ -53,8 +53,10 @@ RUN apt-get update -o APT::Update::Error-Mode=any \
         libstdc++-${GCC_VERSION}-dev \
         libtool \
         libxkbcommon-dev \
+        libclang-${LLVM_VERSION}-dev \
         lld-${LLVM_VERSION} \
         llvm-${LLVM_VERSION} \
+        llvm-${LLVM_VERSION}-dev \
         nasm \
         ninja-build \
         nodejs \
