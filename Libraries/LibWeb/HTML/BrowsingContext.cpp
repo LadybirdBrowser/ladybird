@@ -302,6 +302,7 @@ void BrowsingContext::visit_edges(Cell::Visitor& visitor)
 
     visitor.visit(m_page);
     visitor.visit(m_window_proxy);
+    visitor.visit(m_active_document);
     visitor.visit(m_group);
     visitor.visit(m_opener_browsing_context);
 }
@@ -347,21 +348,24 @@ GC::Ptr<BrowsingContext> BrowsingContext::top_level_browsing_context() const
 // https://html.spec.whatwg.org/multipage/document-sequences.html#active-document
 DOM::Document const* BrowsingContext::active_document() const
 {
-    // A browsing context's active document is its active window's associated Document.
-    auto* window = active_window();
-    if (!window)
-        return nullptr;
-    return &window->associated_document();
+    // AD-HOC: The HTML Standard currently defines this as the active window's associated Document.
+    //         That changes too early when the initial about:blank Window is reused for its first
+    //         same-origin navigation, because create-and-initialize updates the associated Document
+    //         before the new Document is made active.
+    //         Spec issue: https://github.com/whatwg/html/issues/12415
+    return m_active_document;
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#active-document
 DOM::Document* BrowsingContext::active_document()
 {
-    // A browsing context's active document is its active window's associated Document.
-    auto* window = active_window();
-    if (!window)
-        return nullptr;
-    return &window->associated_document();
+    // AD-HOC: See the const overload above.
+    return m_active_document;
+}
+
+void BrowsingContext::set_active_document(GC::Ptr<DOM::Document> document)
+{
+    m_active_document = document;
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#active-window

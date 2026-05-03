@@ -344,15 +344,11 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     // 6. If browsingContext's active document's is initial about:blank is true,
     //    and browsingContext's active document's origin is same origin-domain with navigationParams's origin,
     //    then set window to browsingContext's active window.
-    // FIXME: still_on_its_initial_about_blank_document() is not in the spec anymore.
-    //        However, replacing this with the spec-mandated is_initial_about_blank() results in the browsing context
-    //        holding an incorrect active document for the replace from initial about:blank to the real document.
-    //        See #22293 for more details.
-    if (false
-        && (browsing_context->active_document() && browsing_context->active_document()->origin().is_same_origin(navigation_params.origin))) {
+    VERIFY(browsing_context->active_document());
+    if (browsing_context->active_document()->is_initial_about_blank()
+        && browsing_context->active_document()->origin().is_same_origin_domain(navigation_params.origin)) {
         window = browsing_context->active_window();
     }
-
     // 7. Otherwise:
     else {
         // FIXME: 1. Let oacHeader be the result of getting a structured field value given `Origin-Agent-Cluster` and "item" from response's header list.
@@ -5630,6 +5626,12 @@ void Document::make_active()
     auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
 
     set_window(window);
+
+    // AD-HOC: Keep the browsing context's active document distinct from the Window's associated Document.
+    //         The associated Document can be updated during document creation, but the browsing context
+    //         should only expose the new Document once it is made active.
+    //         Spec issue: https://github.com/whatwg/html/issues/12415
+    m_browsing_context->set_active_document(*this);
 
     // 2. Set document's browsing context's WindowProxy's [[Window]] internal slot value to window.
     m_browsing_context->window_proxy()->set_window(window);

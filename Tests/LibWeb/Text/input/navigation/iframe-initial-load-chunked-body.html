@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const childHTML = [
+        "<!DOCTYPE html>",
+        "<title>chunked iframe</title>",
+        "<body>",
+        Array.from({ length: 4096 }, (_, index) => `<span>${index}</span>`).join(""),
+        "<p id=\"result\">chunked iframe loaded</p>",
+        "</body>",
+    ].join("");
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/echo", false);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.send(JSON.stringify({
+        method: "GET",
+        path: "/echo/iframe-initial-load-chunked-body-child",
+        status: 200,
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+        body: childHTML,
+    }));
+</script>
+<iframe id="target" src="/echo/iframe-initial-load-chunked-body-child?chunks=1024,1024,1024,1024&chunk_delay_ms=1"></iframe>
+<script>
+    asyncTest(done => {
+        const iframe = document.getElementById("target");
+
+        window.addEventListener("load", () => {
+            println(iframe.contentDocument.getElementById("result").textContent);
+            done();
+        }, { once: true });
+    });
+</script>
