@@ -54,6 +54,7 @@ RUN apt-get update -o APT::Update::Error-Mode=any \
         libtool \
         libxkbcommon-dev \
         libclang-${LLVM_VERSION}-dev \
+        libclang-rt-${LLVM_VERSION}-dev \
         lld-${LLVM_VERSION} \
         llvm-${LLVM_VERSION} \
         llvm-${LLVM_VERSION}-dev \
