@@ -386,6 +386,17 @@ void free_compiled_program(CompiledProgram* compiled)
     rust_free_compiled_program(compiled);
 }
 
+ByteBuffer serialize_compiled_program_for_bytecode_cache(CompiledProgram const& compiled)
+{
+    auto blob = rust_serialize_compiled_program_for_bytecode_cache(&compiled);
+    if (!blob.data || blob.length == 0)
+        return {};
+
+    auto bytes = ByteBuffer::copy({ blob.data, blob.length }).release_value_but_fixme_should_propagate_errors();
+    rust_free_bytecode_cache_blob(blob.data, blob.length);
+    return bytes;
+}
+
 Optional<Result<ScriptResult, Vector<ParserError>>> compile_parsed_script(ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm)
 {
     if (!parsed)

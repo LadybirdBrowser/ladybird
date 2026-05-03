@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/ByteBuffer.h>
 #include <AK/HashTable.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
@@ -105,6 +106,9 @@ JS_API void free_parsed_program(FFI::ParsedProgram*);
 
 // Free a compiled program without materializing it.
 JS_API void free_compiled_program(FFI::CompiledProgram*);
+
+// Serialize a fully compiled program into a versioned bytecode cache blob.
+JS_API ByteBuffer serialize_compiled_program_for_bytecode_cache(FFI::CompiledProgram const&);
 
 // Compile a previously parsed script. Must be called on the main thread.
 // Consumes and frees the Rust ParsedProgram.

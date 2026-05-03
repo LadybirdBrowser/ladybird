@@ -83,6 +83,7 @@ macro_rules! utf16 {
 pub mod ast;
 pub mod ast_dump;
 pub mod bytecode;
+mod bytecode_cache;
 pub mod fast_hash;
 pub mod lexer;
 pub mod parser;
@@ -134,6 +135,12 @@ pub struct CompiledProgram {
 
 pub struct CompiledFunction {
     precompiled: Box<bytecode::generator::PrecompiledFunction>,
+}
+
+#[repr(C)]
+pub struct BytecodeCacheBlob {
+    data: *mut u8,
+    length: usize,
 }
 
 enum CompiledProgramBytecode {
@@ -684,6 +691,51 @@ pub unsafe extern "C" fn rust_compile_parsed_program_fully_off_thread(
 pub unsafe extern "C" fn rust_free_compiled_program(compiled: *mut CompiledProgram) {
     unsafe {
         drop(Box::from_raw(compiled));
+    }
+}
+
+/// Serialize a fully compiled program into a versioned bytecode cache blob.
+///
+/// The caller owns the returned bytes and must release them with
+/// `rust_free_bytecode_cache_blob()`.
+///
+/// # Safety
+/// `compiled` must be a valid pointer from `rust_compile_parsed_program_fully_off_thread()`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_serialize_compiled_program_for_bytecode_cache(
+    compiled: *const CompiledProgram,
+) -> BytecodeCacheBlob {
+    unsafe {
+        abort_on_panic(|| {
+            if compiled.is_null() {
+                return BytecodeCacheBlob {
+                    data: std::ptr::null_mut(),
+                    length: 0,
+                };
+            }
+
+            let bytes = bytecode_cache::serialize_compiled_program(&*compiled);
+            let length = bytes.len();
+            let mut bytes = bytes.into_boxed_slice();
+            let data = bytes.as_mut_ptr();
+            std::mem::forget(bytes);
+            BytecodeCacheBlob { data, length }
+        })
+    }
+}
+
+/// Free a bytecode cache blob returned by `rust_serialize_compiled_program_for_bytecode_cache()`.
+///
+/// # Safety
+/// `data` and `length` must match a blob returned by Rust.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_free_bytecode_cache_blob(data: *mut u8, length: usize) {
+    unsafe {
+        abort_on_panic(|| {
+            if !data.is_null() {
+                drop(Vec::from_raw_parts(data, length, length));
+            }
+        });
     }
 }
 
