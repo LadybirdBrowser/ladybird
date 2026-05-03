@@ -386,9 +386,9 @@ void free_compiled_program(CompiledProgram* compiled)
     rust_free_compiled_program(compiled);
 }
 
-ByteBuffer serialize_compiled_program_for_bytecode_cache(CompiledProgram const& compiled)
+ByteBuffer serialize_compiled_program_for_bytecode_cache(CompiledProgram const& compiled, ProgramType type)
 {
-    auto blob = rust_serialize_compiled_program_for_bytecode_cache(&compiled);
+    auto blob = rust_serialize_compiled_program_for_bytecode_cache(&compiled, static_cast<u8>(type));
     if (!blob.data || blob.length == 0)
         return {};
 

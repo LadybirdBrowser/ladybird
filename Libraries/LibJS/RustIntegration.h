@@ -108,7 +108,7 @@ JS_API void free_parsed_program(FFI::ParsedProgram*);
 JS_API void free_compiled_program(FFI::CompiledProgram*);
 
 // Serialize a fully compiled program into a versioned bytecode cache blob.
-JS_API ByteBuffer serialize_compiled_program_for_bytecode_cache(FFI::CompiledProgram const&);
+JS_API ByteBuffer serialize_compiled_program_for_bytecode_cache(FFI::CompiledProgram const&, ProgramType);
 
 // Compile a previously parsed script. Must be called on the main thread.
 // Consumes and frees the Rust ParsedProgram.

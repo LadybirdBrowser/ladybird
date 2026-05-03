@@ -20,9 +20,9 @@ use crate::{CompiledProgram, CompiledProgramBytecode, ast, u32_from_usize};
 const MAGIC: &[u8; 8] = b"LBJSBC\0\0";
 const FORMAT_VERSION: u32 = 1;
 
-pub fn serialize_compiled_program(compiled: &CompiledProgram) -> Vec<u8> {
+pub fn serialize_compiled_program(compiled: &CompiledProgram, program_type: ast::ProgramType) -> Vec<u8> {
     let mut encoder = Encoder::new();
-    CacheBlob { compiled }.encode(&mut encoder);
+    CacheBlob { compiled, program_type }.encode(&mut encoder);
     encoder.finish()
 }
 
@@ -252,12 +252,14 @@ impl Decode for IgnoredUtf16 {
 
 struct CacheBlob<'a> {
     compiled: &'a CompiledProgram,
+    program_type: ast::ProgramType,
 }
 
 impl Encode for CacheBlob<'_> {
     fn encode(&self, encoder: &mut Encoder) {
         encoder.bytes(MAGIC);
         FORMAT_VERSION.encode(encoder);
+        self.program_type.encode(encoder);
         self.compiled.parsed.has_top_level_await.encode(encoder);
         self.compiled.parsed.is_strict_mode.encode(encoder);
         ProgramRecord::from(self.compiled).encode(encoder);
@@ -265,12 +267,29 @@ impl Encode for CacheBlob<'_> {
 }
 
 impl CacheBlob<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<()> {
+    fn decode(decoder: &mut Decoder<'_>, expected_program_type: ast::ProgramType) -> Option<()> {
         decoder.expect_bytes(MAGIC)?;
         (u32::decode(decoder)? == FORMAT_VERSION).then_some(())?;
+        (ast::ProgramType::decode(decoder)? == expected_program_type).then_some(())?;
         bool::decode(decoder)?;
         bool::decode(decoder)?;
         ProgramRecord::decode(decoder)
+    }
+}
+
+impl Encode for ast::ProgramType {
+    fn encode(&self, encoder: &mut Encoder) {
+        (*self as u8).encode(encoder);
+    }
+}
+
+impl Decode for ast::ProgramType {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+        match u8::decode(decoder)? {
+            0 => Some(Self::Script),
+            1 => Some(Self::Module),
+            _ => None,
+        }
     }
 }
 

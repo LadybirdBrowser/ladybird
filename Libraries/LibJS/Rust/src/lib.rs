@@ -704,6 +704,7 @@ pub unsafe extern "C" fn rust_free_compiled_program(compiled: *mut CompiledProgr
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_serialize_compiled_program_for_bytecode_cache(
     compiled: *const CompiledProgram,
+    program_type: u8,
 ) -> BytecodeCacheBlob {
     unsafe {
         abort_on_panic(|| {
@@ -714,7 +715,18 @@ pub unsafe extern "C" fn rust_serialize_compiled_program_for_bytecode_cache(
                 };
             }
 
-            let bytes = bytecode_cache::serialize_compiled_program(&*compiled);
+            let program_type = match program_type {
+                0 => ast::ProgramType::Script,
+                1 => ast::ProgramType::Module,
+                _ => {
+                    return BytecodeCacheBlob {
+                        data: std::ptr::null_mut(),
+                        length: 0,
+                    };
+                }
+            };
+
+            let bytes = bytecode_cache::serialize_compiled_program(&*compiled, program_type);
             let length = bytes.len();
             let mut bytes = bytes.into_boxed_slice();
             let data = bytes.as_mut_ptr();
