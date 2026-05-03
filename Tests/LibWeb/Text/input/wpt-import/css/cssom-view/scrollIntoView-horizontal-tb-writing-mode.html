@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<title>CSSOM View - scrollIntoView considers horizontal-tb writing mode</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="author" title="Cathie Chen" href="mailto:cathiechen@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-element-scrollintoview">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style>
+.box {
+  float: left;
+  width: 200px;
+  height: 200px;
+}
+#scroller {
+  overflow: scroll;
+  width: 300px;
+  height: 300px;
+}
+#container{
+  width: 600px;
+  height: 600px;
+}
+#target {
+  background-color: #ff0;
+}
+</style>
+<body>
+<div id="scroller">
+  <div id="container">
+    <!--  ROW-1  -->
+    <div class="row">
+      <div class="box"></div>
+      <div class="box"></div>
+      <div class="box"></div>
+    </div>
+
+    <!--  ROW-2  -->
+    <div class="row">
+      <div class="box"></div>
+      <div class="box" id="target"></div>
+      <div class="box"></div>
+    </div>
+
+    <!--  ROW-3  -->
+    <div class="row">
+      <div class="box"></div>
+      <div class="box"></div>
+      <div class="box"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// In horizontal-tb mode, X corresponds to the inline axis and is oriented
+// rightward. Y corresponds to the block axis and is oriented downward.
+// So the beginning edges are the top and left edges and the ending
+// edges are the bottom and right edges.
+
+// This assumes that the horizontal scrollbar is on the bottom side and
+// the vertical scrollbar is on the right side.
+
+var target = document.getElementById("target");
+var scroller = document.getElementById("scroller");
+var scrollbar_width = scroller.offsetWidth - scroller.clientWidth;
+
+var scroller_width = scroller.offsetWidth;
+var scroller_height = scroller.offsetHeight;
+var box_width = target.offsetWidth;
+var box_height = target.offsetHeight;
+
+var expectedX = {
+    inlineStart: box_width,
+    inlineCenter: (3*box_width - scroller_width)/2 + scrollbar_width/2,
+    inlineEnd: 2*box_width - scroller_width + scrollbar_width,
+  };
+
+var expectedY = {
+  blockStart: box_height,
+  blockCenter: (3*box_height - scroller_height)/2 + scrollbar_width/2,
+  blockEnd: 2*box_height - scroller_height + scrollbar_width,
+};
+
+[
+  [{block: "start", inline: "start"}, expectedX.inlineStart, expectedY.blockStart],
+  [{block: "start", inline: "center"}, expectedX.inlineCenter, expectedY.blockStart],
+  [{block: "start", inline: "end"}, expectedX.inlineEnd, expectedY.blockStart],
+  [{block: "center", inline: "start"}, expectedX.inlineStart, expectedY.blockCenter],
+  [{block: "center", inline: "center"}, expectedX.inlineCenter, expectedY.blockCenter],
+  [{block: "center", inline: "end"}, expectedX.inlineEnd, expectedY.blockCenter],
+  [{block: "end", inline: "start"}, expectedX.inlineStart, expectedY.blockEnd],
+  [{block: "end", inline: "center"}, expectedX.inlineCenter, expectedY.blockEnd],
+  [{block: "end", inline: "end"}, expectedX.inlineEnd, expectedY.blockEnd],
+].forEach(([input, expectedX, expectedY]) => {
+  test(() => {
+    scroller.scrollTo(0, 0);
+    target.scrollIntoView(input);
+    assert_approx_equals(scroller.scrollLeft, expectedX, 0.5, "scrollX");
+    assert_approx_equals(scroller.scrollTop, expectedY, 0.5, "scrollY");
+  }, `scrollIntoView(${JSON.stringify(input)})`);
+})
+
+</script>
+
+</body>
+</html>

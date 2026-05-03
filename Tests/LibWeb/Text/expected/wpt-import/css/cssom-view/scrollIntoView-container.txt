@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Fail
+Fail	scrollIntoView() defaults to scrolling ancestors
+Fail	scrollIntoView({container: 'all'}) scrolls ancestors
+Fail	scrollIntoView({container: 'nearest'}) only scrolls nearest scroll container
+Fail	scrollIntoView({container: 'nearest'}) doesn't stop at itself
+Fail	scrollIntoView({container: 'nearest'}) doesn't propagate to outer frames
