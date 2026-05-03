@@ -97,6 +97,7 @@ pub(crate) fn u32_from_usize(value: usize) -> u32 {
 }
 
 use ast::StatementKind;
+use bytecode::generator::PendingSharedFunctionData;
 use parser::{ParseError, Parser, ProgramType};
 use std::collections::HashSet;
 use std::ffi::c_void;
@@ -122,6 +123,7 @@ pub struct ParsedProgram {
     function_table: ast::FunctionTable,
     arena: std::sync::Arc<ast::AstArena>,
     scope_ref: ast::ScopeId,
+    program_type: ast::ProgramType,
     is_strict_mode: bool,
     has_top_level_await: bool,
     errors: Vec<ParseError>,
@@ -131,6 +133,7 @@ pub struct ParsedProgram {
 pub struct CompiledProgram {
     parsed: ParsedProgram,
     bytecode: CompiledProgramBytecode,
+    declaration_functions: Vec<PendingSharedFunctionData>,
 }
 
 pub struct CompiledFunction {
@@ -342,7 +345,7 @@ unsafe fn create_executable_from_compiled_bytecode(
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 enum FunctionPrecompileMode {
     EagerOnly,
     All,
@@ -385,6 +388,138 @@ fn precompile_functions(generator: &mut bytecode::generator::Generator, mode: Fu
         // immediately cleared after the precompiled executable is attached.
         pending.subtable = Some(ast::FunctionTable::new());
         pending.precompiled_function = Some(precompiled);
+    }
+}
+
+fn precompile_declaration_functions(
+    program_type: ast::ProgramType,
+    scope_id: ast::ScopeId,
+    generator: &mut bytecode::generator::Generator,
+    mode: FunctionPrecompileMode,
+) -> Vec<PendingSharedFunctionData> {
+    if mode != FunctionPrecompileMode::All {
+        return Vec::new();
+    }
+
+    match program_type {
+        ast::ProgramType::Script => precompile_script_declaration_functions(scope_id, generator, mode),
+        ast::ProgramType::Module => precompile_module_declaration_functions(scope_id, generator, mode),
+    }
+}
+
+fn precompile_script_declaration_functions(
+    scope_id: ast::ScopeId,
+    generator: &mut bytecode::generator::Generator,
+    mode: FunctionPrecompileMode,
+) -> Vec<PendingSharedFunctionData> {
+    use ast::StatementKind;
+
+    let arena = generator.arena.clone();
+    let scope = &arena.scopes[scope_id];
+    let mut last_position: std::collections::HashMap<ast::StringId, usize> = std::collections::HashMap::new();
+    for (index, child) in scope.children.iter().enumerate() {
+        if let StatementKind::FunctionDeclaration(ref function) = child.inner
+            && let Some(name) = function.name
+        {
+            last_position.insert(arena.identifiers[name].name, index);
+        }
+    }
+
+    let mut declaration_functions = Vec::new();
+    for (index, child) in scope.children.iter().enumerate() {
+        if let StatementKind::FunctionDeclaration(ref function) = child.inner
+            && let Some(name) = function.name
+            && last_position.get(&arena.identifiers[name].name).copied() == Some(index)
+        {
+            declaration_functions.push(precompile_declaration_function(
+                function.function_id,
+                None,
+                generator,
+                mode,
+            ));
+        }
+    }
+
+    declaration_functions
+}
+
+fn precompile_module_declaration_functions(
+    scope_id: ast::ScopeId,
+    generator: &mut bytecode::generator::Generator,
+    mode: FunctionPrecompileMode,
+) -> Vec<PendingSharedFunctionData> {
+    use ast::StatementKind;
+
+    let arena = generator.arena.clone();
+    let scope = &arena.scopes[scope_id];
+    let default_name: ast::Utf16String = utf16!("*default*").into();
+    let mut declaration_functions = Vec::new();
+    for child in &scope.children {
+        let (declaration, is_exported) = match &child.inner {
+            StatementKind::Export(export_data) => {
+                if let Some(ref statement) = export_data.statement {
+                    (&statement.inner, true)
+                } else {
+                    continue;
+                }
+            }
+            other => (other, false),
+        };
+
+        if let StatementKind::FunctionDeclaration(function) = declaration {
+            let is_default = is_exported
+                && function
+                    .name
+                    .is_some_and(|name| arena.name_slice(name) == default_name.as_slice());
+            let name_override = if is_default {
+                Some(utf16!("default").into())
+            } else {
+                None
+            };
+            declaration_functions.push(precompile_declaration_function(
+                function.function_id,
+                name_override,
+                generator,
+                mode,
+            ));
+        }
+    }
+
+    declaration_functions
+}
+
+fn precompile_declaration_function(
+    function_id: ast::FunctionId,
+    name_override: Option<ast::Utf16String>,
+    generator: &mut bytecode::generator::Generator,
+    mode: FunctionPrecompileMode,
+) -> PendingSharedFunctionData {
+    let function_data = generator.function_table.take(function_id);
+    let arena = generator.arena.clone();
+    let subtable = generator
+        .function_table
+        .extract_reachable(&function_data, &arena.scopes);
+    let payload = ast::FunctionPayload {
+        data: *function_data,
+        function_table: subtable,
+        arena: arena.clone(),
+    };
+    let (function_data, precompiled_function) = compile_function_payload_to_bytecode(
+        payload,
+        generator.source_len,
+        generator.builtin_abstract_operations_enabled,
+        arena.clone(),
+        mode,
+    );
+
+    PendingSharedFunctionData {
+        function_data: Some(function_data),
+        subtable: Some(ast::FunctionTable::new()),
+        arena: Some(arena),
+        name_override,
+        class_field_initializer_name: None,
+        should_eager_compile: false,
+        precompiled_function: Some(precompiled_function),
     }
 }
 
@@ -556,6 +691,7 @@ pub unsafe extern "C" fn rust_parse_program(
                 function_table: std::mem::take(&mut parser.function_table),
                 arena: std::sync::Arc::new(std::mem::take(&mut parser.arena)),
                 scope_ref,
+                program_type: pt,
                 is_strict_mode: is_strict,
                 has_top_level_await: has_tla,
                 errors,
@@ -623,13 +759,22 @@ fn compile_parsed_program_off_thread_impl(
 
             let mut parsed = Box::from_raw(parsed);
             let arena_arc = parsed.arena.clone();
-            let bytecode = if parsed.has_top_level_await {
+            let (bytecode, declaration_functions) = if parsed.has_top_level_await {
                 let mut generator = new_module_async_generator(source_len, std::mem::take(&mut parsed.function_table));
                 generator.arena = arena_arc;
                 generator.eager_compile_direct_iifes = true;
                 let assembled = compile_module_as_async_to_bytecode(&parsed.program, parsed.scope_ref, &mut generator);
+                let declaration_functions = precompile_declaration_functions(
+                    parsed.program_type,
+                    parsed.scope_ref,
+                    &mut generator,
+                    function_precompile_mode,
+                );
                 precompile_functions(&mut generator, function_precompile_mode);
-                CompiledProgramBytecode::AsyncModule(CompiledBytecode { generator, assembled })
+                (
+                    CompiledProgramBytecode::AsyncModule(CompiledBytecode { generator, assembled }),
+                    declaration_functions,
+                )
             } else {
                 let mut generator = new_program_generator(
                     parsed.is_strict_mode,
@@ -641,13 +786,23 @@ fn compile_parsed_program_off_thread_impl(
                 generator.eager_compile_direct_iifes = true;
                 generator.function_table = std::mem::take(&mut parsed.function_table);
                 let assembled = compile_program_body_to_bytecode(&mut generator, &parsed.program, parsed.scope_ref);
+                let declaration_functions = precompile_declaration_functions(
+                    parsed.program_type,
+                    parsed.scope_ref,
+                    &mut generator,
+                    function_precompile_mode,
+                );
                 precompile_functions(&mut generator, function_precompile_mode);
-                CompiledProgramBytecode::Program(CompiledBytecode { generator, assembled })
+                (
+                    CompiledProgramBytecode::Program(CompiledBytecode { generator, assembled }),
+                    declaration_functions,
+                )
             };
 
             Box::into_raw(Box::new(CompiledProgram {
                 parsed: *parsed,
                 bytecode,
+                declaration_functions,
             }))
         })
     }

@@ -371,37 +371,63 @@ impl Encode for DeclarationMetadataRecord<'_> {
         let ast::StatementKind::Program(program) = &self.compiled.parsed.program.inner else {
             unreachable!("bytecode cache expects a parsed program root");
         };
-        let scope = program.scope.borrow();
+        let arena = &self.compiled.parsed.arena;
+        let scope = &arena.scopes[program.scope];
         match self.program_type {
-            ast::ProgramType::Script => ScriptDeclarationMetadata::from_scope(&scope).encode(encoder),
-            ast::ProgramType::Module => ModuleDeclarationMetadata::from_scope(&scope).encode(encoder),
+            ast::ProgramType::Script => ScriptDeclarationMetadata::from_scope(scope, arena).encode(encoder),
+            ast::ProgramType::Module => ModuleDeclarationMetadata::from_scope(scope, arena).encode(encoder),
         }
+        DeclarationFunctionTable(&self.compiled.declaration_functions).encode(encoder);
     }
 }
 
 impl DeclarationMetadataRecord<'_> {
     fn decode(decoder: &mut Decoder<'_>) -> Option<DecodedDeclarationMetadata> {
         match MetadataKind::decode(decoder)? {
-            MetadataKind::Script => {
-                ScriptDeclarationMetadata::decode_payload(decoder).map(DecodedDeclarationMetadata::Script)
-            }
-            MetadataKind::Module => {
-                ModuleDeclarationMetadata::decode_payload(decoder).map(DecodedDeclarationMetadata::Module)
-            }
+            MetadataKind::Script => Some(DecodedDeclarationMetadata::Script {
+                metadata: ScriptDeclarationMetadata::decode_payload(decoder)?,
+                declaration_functions: DeclarationFunctionTable::decode(decoder)?,
+            }),
+            MetadataKind::Module => Some(DecodedDeclarationMetadata::Module {
+                metadata: ModuleDeclarationMetadata::decode_payload(decoder)?,
+                declaration_functions: DeclarationFunctionTable::decode(decoder)?,
+            }),
         }
     }
 }
 
 enum DecodedDeclarationMetadata {
-    Script(ScriptDeclarationMetadata),
-    Module(ModuleDeclarationMetadata),
+    Script {
+        metadata: ScriptDeclarationMetadata,
+        declaration_functions: Vec<DecodedFunctionRecord>,
+    },
+    Module {
+        metadata: ModuleDeclarationMetadata,
+        declaration_functions: Vec<DecodedFunctionRecord>,
+    },
 }
 
 impl DecodedDeclarationMetadata {
     fn validate(&self) {
         match self {
-            Self::Script(metadata) => metadata.validate(),
-            Self::Module(metadata) => metadata.validate(),
+            Self::Script {
+                metadata,
+                declaration_functions,
+            } => {
+                metadata.validate();
+                for function in declaration_functions {
+                    function.validate();
+                }
+            }
+            Self::Module {
+                metadata,
+                declaration_functions,
+            } => {
+                metadata.validate();
+                for function in declaration_functions {
+                    function.validate();
+                }
+            }
         }
     }
 }
@@ -439,26 +465,26 @@ struct ScriptDeclarationMetadata {
 }
 
 impl ScriptDeclarationMetadata {
-    fn from_scope(scope: &ast::ScopeData) -> Self {
+    fn from_scope(scope: &ast::ScopeData, arena: &ast::AstArena) -> Self {
         let mut metadata = Self {
             lexical_names: Vec::new(),
             var_names: Vec::new(),
-            function_names: script_function_names(scope),
+            function_names: script_function_names(scope, arena),
             var_scoped_names: Vec::new(),
             annex_b_candidate_names: scope.annexb_function_names.to_vec(),
             lexical_bindings: Vec::new(),
         };
 
         for child in &scope.children {
-            collect_var_names_recursive(&child.inner, &mut metadata.var_names);
+            collect_var_names_recursive(&child.inner, arena, &mut metadata.var_names);
             if let ast::StatementKind::FunctionDeclaration(ref function) = child.inner
-                && let Some(ref name) = function.name
+                && let Some(name) = function.name
             {
-                metadata.var_names.push(name.name.to_utf16_string());
+                metadata.var_names.push(arena.name_of(name).clone());
             }
-            collect_script_lexical_names(&child.inner, &mut metadata.lexical_names);
-            collect_script_lexical_bindings(&child.inner, &mut metadata.lexical_bindings);
-            collect_var_names_recursive(&child.inner, &mut metadata.var_scoped_names);
+            collect_script_lexical_names(&child.inner, arena, &mut metadata.lexical_names);
+            collect_script_lexical_bindings(&child.inner, arena, &mut metadata.lexical_bindings);
+            collect_var_names_recursive(&child.inner, arena, &mut metadata.var_scoped_names);
         }
 
         metadata
@@ -510,7 +536,7 @@ struct ModuleDeclarationMetadata {
 }
 
 impl ModuleDeclarationMetadata {
-    fn from_scope(scope: &ast::ScopeData) -> Self {
+    fn from_scope(scope: &ast::ScopeData, arena: &ast::AstArena) -> Self {
         let mut metadata = Self {
             import_entries: Vec::new(),
             local_exports: Vec::new(),
@@ -527,7 +553,7 @@ impl ModuleDeclarationMetadata {
 
         let mut function_index = 0;
         for child in &scope.children {
-            collect_module_var_names(&child.inner, &mut metadata.var_declared_names);
+            collect_module_var_names(&child.inner, arena, &mut metadata.var_declared_names);
 
             let (declaration, is_exported) = match &child.inner {
                 ast::StatementKind::Export(export_data) => {
@@ -539,7 +565,7 @@ impl ModuleDeclarationMetadata {
                 }
                 other => (other, false),
             };
-            collect_module_declaration(declaration, is_exported, function_index, &mut metadata);
+            collect_module_declaration(declaration, is_exported, function_index, arena, &mut metadata);
             if matches!(declaration, ast::StatementKind::FunctionDeclaration(_)) {
                 function_index += 1;
             }
@@ -816,33 +842,41 @@ impl ModuleExportEntryTable<'_> {
     }
 }
 
-fn collect_script_lexical_names(statement: &ast::StatementKind, names: &mut Vec<ast::Utf16String>) {
+fn collect_script_lexical_names(
+    statement: &ast::StatementKind,
+    arena: &ast::AstArena,
+    names: &mut Vec<ast::Utf16String>,
+) {
     match statement {
         ast::StatementKind::VariableDeclaration(declaration) if declaration.kind != ast::DeclarationKind::Var => {
             for declarator in &declaration.declarations {
-                for_each_bound_name(&declarator.target, &mut |name| names.push(name.to_vec().into()));
+                for_each_bound_name(&declarator.target, arena, &mut |name| names.push(name.to_vec().into()));
             }
         }
         ast::StatementKind::UsingDeclaration(declarations) => {
             for declarator in declarations.iter() {
-                for_each_bound_name(&declarator.target, &mut |name| names.push(name.to_vec().into()));
+                for_each_bound_name(&declarator.target, arena, &mut |name| names.push(name.to_vec().into()));
             }
         }
         ast::StatementKind::ClassDeclaration(class_data) => {
-            if let Some(ref name) = class_data.name {
-                names.push(name.name.to_utf16_string());
+            if let Some(name) = class_data.name {
+                names.push(arena.name_of(name).clone());
             }
         }
         _ => {}
     }
 }
 
-fn collect_script_lexical_bindings(statement: &ast::StatementKind, bindings: &mut Vec<LexicalBindingRecord>) {
+fn collect_script_lexical_bindings(
+    statement: &ast::StatementKind,
+    arena: &ast::AstArena,
+    bindings: &mut Vec<LexicalBindingRecord>,
+) {
     match statement {
         ast::StatementKind::VariableDeclaration(declaration) if declaration.kind != ast::DeclarationKind::Var => {
             let is_constant = declaration.kind == ast::DeclarationKind::Const;
             for declarator in &declaration.declarations {
-                for_each_bound_name(&declarator.target, &mut |name| {
+                for_each_bound_name(&declarator.target, arena, &mut |name| {
                     bindings.push(LexicalBindingRecord {
                         name: name.to_vec().into(),
                         is_constant,
@@ -852,7 +886,7 @@ fn collect_script_lexical_bindings(statement: &ast::StatementKind, bindings: &mu
         }
         ast::StatementKind::UsingDeclaration(declarations) => {
             for declarator in declarations.iter() {
-                for_each_bound_name(&declarator.target, &mut |name| {
+                for_each_bound_name(&declarator.target, arena, &mut |name| {
                     bindings.push(LexicalBindingRecord {
                         name: name.to_vec().into(),
                         is_constant: false,
@@ -861,9 +895,9 @@ fn collect_script_lexical_bindings(statement: &ast::StatementKind, bindings: &mu
             }
         }
         ast::StatementKind::ClassDeclaration(class_data) => {
-            if let Some(ref name) = class_data.name {
+            if let Some(name) = class_data.name {
                 bindings.push(LexicalBindingRecord {
-                    name: name.name.to_utf16_string(),
+                    name: arena.name_of(name).clone(),
                     is_constant: false,
                 });
             }
@@ -872,23 +906,23 @@ fn collect_script_lexical_bindings(statement: &ast::StatementKind, bindings: &mu
     }
 }
 
-fn script_function_names(scope: &ast::ScopeData) -> Vec<ast::Utf16String> {
+fn script_function_names(scope: &ast::ScopeData, arena: &ast::AstArena) -> Vec<ast::Utf16String> {
     let mut last_position = HashMap::new();
     for (index, child) in scope.children.iter().enumerate() {
         if let ast::StatementKind::FunctionDeclaration(ref function) = child.inner
-            && let Some(ref name) = function.name
+            && let Some(name) = function.name
         {
-            last_position.insert(name.name.clone(), index);
+            last_position.insert(arena.identifiers[name].name, index);
         }
     }
 
     let mut names = Vec::new();
     for (index, child) in scope.children.iter().enumerate() {
         if let ast::StatementKind::FunctionDeclaration(ref function) = child.inner
-            && let Some(ref name) = function.name
-            && last_position.get(&name.name).copied() == Some(index)
+            && let Some(name) = function.name
+            && last_position.get(&arena.identifiers[name].name).copied() == Some(index)
         {
-            names.push(name.name.to_utf16_string());
+            names.push(arena.name_of(name).clone());
         }
     }
     names
@@ -1010,31 +1044,32 @@ fn collect_module_declaration(
     declaration: &ast::StatementKind,
     is_exported: bool,
     function_index: i32,
+    arena: &ast::AstArena,
     metadata: &mut ModuleDeclarationMetadata,
 ) {
     let default_name: ast::Utf16String = utf16!("*default*").into();
     match declaration {
         ast::StatementKind::FunctionDeclaration(function) => {
-            let Some(name) = &function.name else {
+            let Some(name) = function.name else {
                 return;
             };
-            let is_default = is_exported && name.name == default_name;
+            let is_default = is_exported && arena.name_slice(name) == default_name.as_slice();
             let function_name = if is_default {
                 utf16!("default").into()
             } else {
-                name.name.to_utf16_string()
+                arena.name_of(name).clone()
             };
             metadata.function_names.push(function_name);
             metadata.lexical_bindings.push(ModuleLexicalBindingRecord {
-                name: name.name.to_utf16_string(),
+                name: arena.name_of(name).clone(),
                 is_constant: false,
                 function_index,
             });
         }
         ast::StatementKind::ClassDeclaration(class_data) => {
-            if let Some(ref name) = class_data.name {
+            if let Some(name) = class_data.name {
                 metadata.lexical_bindings.push(ModuleLexicalBindingRecord {
-                    name: name.name.to_utf16_string(),
+                    name: arena.name_of(name).clone(),
                     is_constant: false,
                     function_index: -1,
                 });
@@ -1043,7 +1078,7 @@ fn collect_module_declaration(
         ast::StatementKind::VariableDeclaration(declaration) if declaration.kind != ast::DeclarationKind::Var => {
             let is_constant = declaration.kind == ast::DeclarationKind::Const;
             for declarator in &declaration.declarations {
-                for_each_bound_name(&declarator.target, &mut |name| {
+                for_each_bound_name(&declarator.target, arena, &mut |name| {
                     metadata.lexical_bindings.push(ModuleLexicalBindingRecord {
                         name: name.to_vec().into(),
                         is_constant,
@@ -1054,7 +1089,7 @@ fn collect_module_declaration(
         }
         ast::StatementKind::UsingDeclaration(declarations) => {
             for declarator in declarations.iter() {
-                for_each_bound_name(&declarator.target, &mut |name| {
+                for_each_bound_name(&declarator.target, arena, &mut |name| {
                     metadata.lexical_bindings.push(ModuleLexicalBindingRecord {
                         name: name.to_vec().into(),
                         is_constant: false,
@@ -1067,69 +1102,87 @@ fn collect_module_declaration(
     }
 }
 
-fn collect_var_names_recursive(statement: &ast::StatementKind, names: &mut Vec<ast::Utf16String>) {
+fn collect_var_names_recursive(
+    statement: &ast::StatementKind,
+    arena: &ast::AstArena,
+    names: &mut Vec<ast::Utf16String>,
+) {
     match statement {
         ast::StatementKind::VariableDeclaration(declaration) if declaration.kind == ast::DeclarationKind::Var => {
             for declarator in &declaration.declarations {
-                for_each_bound_name(&declarator.target, &mut |name| names.push(name.to_vec().into()));
+                for_each_bound_name(&declarator.target, arena, &mut |name| names.push(name.to_vec().into()));
             }
         }
         _ => {
-            for_each_child_statement(statement, &mut |child| {
-                collect_var_names_recursive(child, names);
+            for_each_child_statement(statement, arena, &mut |child| {
+                collect_var_names_recursive(child, arena, names);
             });
         }
     }
 }
 
-fn collect_module_var_names(statement: &ast::StatementKind, names: &mut Vec<ast::Utf16String>) {
+fn collect_module_var_names(statement: &ast::StatementKind, arena: &ast::AstArena, names: &mut Vec<ast::Utf16String>) {
     match statement {
         ast::StatementKind::VariableDeclaration(declaration) if declaration.kind == ast::DeclarationKind::Var => {
             for declarator in &declaration.declarations {
-                for_each_bound_name(&declarator.target, &mut |name| names.push(name.to_vec().into()));
+                for_each_bound_name(&declarator.target, arena, &mut |name| names.push(name.to_vec().into()));
             }
         }
         ast::StatementKind::Export(export_data) => {
             if let Some(ref statement) = export_data.statement {
-                collect_module_var_names(&statement.inner, names);
+                collect_module_var_names(&statement.inner, arena, names);
             }
         }
         _ => {
-            for_each_child_statement(statement, &mut |child| {
-                collect_module_var_names(child, names);
+            for_each_child_statement(statement, arena, &mut |child| {
+                collect_module_var_names(child, arena, names);
             });
         }
     }
 }
 
-fn for_each_bound_name(target: &ast::VariableDeclaratorTarget, callback: &mut dyn FnMut(&[u16])) {
+fn for_each_bound_name(
+    target: &ast::VariableDeclaratorTarget,
+    arena: &ast::AstArena,
+    callback: &mut dyn FnMut(&[u16]),
+) {
     match target {
-        ast::VariableDeclaratorTarget::Identifier(identifier) => callback(identifier.name.as_slice()),
-        ast::VariableDeclaratorTarget::BindingPattern(pattern) => for_each_bound_name_in_pattern(pattern, callback),
+        ast::VariableDeclaratorTarget::Identifier(identifier) => callback(arena.name_slice(*identifier)),
+        ast::VariableDeclaratorTarget::BindingPattern(pattern) => {
+            for_each_bound_name_in_pattern(pattern, arena, callback);
+        }
     }
 }
 
-fn for_each_bound_name_in_pattern(pattern: &ast::BindingPattern, callback: &mut dyn FnMut(&[u16])) {
+fn for_each_bound_name_in_pattern(
+    pattern: &ast::BindingPattern,
+    arena: &ast::AstArena,
+    callback: &mut dyn FnMut(&[u16]),
+) {
     for entry in &pattern.entries {
         match &entry.alias {
-            Some(ast::BindingEntryAlias::Identifier(identifier)) => callback(identifier.name.as_slice()),
+            Some(ast::BindingEntryAlias::Identifier(identifier)) => callback(arena.name_slice(*identifier)),
             Some(ast::BindingEntryAlias::BindingPattern(pattern)) => {
-                for_each_bound_name_in_pattern(pattern, callback);
+                for_each_bound_name_in_pattern(pattern, arena, callback);
             }
             Some(ast::BindingEntryAlias::MemberExpression(_)) => {}
             None => {
                 if let Some(ast::BindingEntryName::Identifier(identifier)) = &entry.name {
-                    callback(identifier.name.as_slice());
+                    callback(arena.name_slice(*identifier));
                 }
             }
         }
     }
 }
 
-fn for_each_child_statement(statement: &ast::StatementKind, callback: &mut dyn FnMut(&ast::StatementKind)) {
+fn for_each_child_statement(
+    statement: &ast::StatementKind,
+    arena: &ast::AstArena,
+    callback: &mut dyn FnMut(&ast::StatementKind),
+) {
     match statement {
         ast::StatementKind::Block(scope) => {
-            for child in &scope.borrow().children {
+            for child in &arena.scopes[*scope].children {
                 callback(&child.inner);
             }
         }
@@ -1157,7 +1210,7 @@ fn for_each_child_statement(statement: &ast::StatementKind, callback: &mut dyn F
         }
         ast::StatementKind::Switch(data) => {
             for case in &data.cases {
-                for child in &case.scope.borrow().children {
+                for child in &arena.scopes[case.scope].children {
                     callback(&child.inner);
                 }
             }
@@ -1599,6 +1652,26 @@ impl Encode for SharedFunctionTable<'_> {
 }
 
 impl SharedFunctionTable<'_> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<DecodedFunctionRecord>> {
+        decoder.sequence_values(FunctionRecord::decode)
+    }
+}
+
+struct DeclarationFunctionTable<'a>(&'a [PendingSharedFunctionData]);
+
+impl Encode for DeclarationFunctionTable<'_> {
+    fn encode(&self, encoder: &mut Encoder) {
+        encoder.sequence(self.0, |shared_data, encoder| {
+            let arena = shared_data
+                .arena
+                .as_deref()
+                .expect("bytecode cache declaration function is missing its AST arena");
+            FunctionRecord { shared_data, arena }.encode(encoder);
+        });
+    }
+}
+
+impl DeclarationFunctionTable<'_> {
     fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<DecodedFunctionRecord>> {
         decoder.sequence_values(FunctionRecord::decode)
     }
