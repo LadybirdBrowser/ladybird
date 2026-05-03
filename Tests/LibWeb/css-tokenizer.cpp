@@ -16,10 +16,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     StringView backend = "cpp"sv;
     StringView encoding = "utf-8"sv;
     StringView input_path;
+    bool silent = false;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(backend, "Tokenizer backend to use (cpp or rust)", "backend", 'b', "backend");
     args_parser.add_option(encoding, "Source encoding label", "encoding", 'e', "encoding");
+    args_parser.add_option(silent, "Don't print the tokens (useful for perf testing)", "silent", 's');
     args_parser.add_positional_argument(input_path, "Path to the CSS input file", "input", Core::ArgsParser::Required::Yes);
     args_parser.parse(arguments);
 
@@ -34,8 +36,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         ? Web::CSS::Parser::RustTokenizer::tokenize(input, encoding)
         : Web::CSS::Parser::Tokenizer::tokenize(input, encoding);
 
-    for (auto const& token : tokens)
-        outln("{}", token.to_debug_string());
+    if (!silent) {
+        for (auto const& token : tokens)
+            outln("{}", token.to_debug_string());
+    }
 
     return 0;
 }
