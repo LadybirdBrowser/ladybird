@@ -26,7 +26,6 @@
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
-#include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/Invalidation/AttributeInvalidator.h>
@@ -178,7 +177,6 @@ void Element::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_custom_element_registry);
     visitor.visit(m_custom_element_definition);
     visitor.visit(m_custom_state_set);
-    visitor.visit(m_cascaded_properties);
     visitor.visit(m_computed_properties);
     visitor.visit(m_computed_style_map_cache);
     visitor.visit(m_attribute_style_map);
@@ -3435,31 +3433,6 @@ bool Element::has_attributes() const
 size_t Element::attribute_list_size() const
 {
     return m_attributes ? m_attributes->length() : 0;
-}
-
-GC::Ptr<CSS::CascadedProperties> Element::cascaded_properties(Optional<CSS::PseudoElement> pseudo_element) const
-{
-    if (pseudo_element.has_value()) {
-        auto pseudo_element_data = get_pseudo_element(pseudo_element.value());
-        if (pseudo_element_data.has_value())
-            return pseudo_element_data->cascaded_properties();
-        return nullptr;
-    }
-    return m_cascaded_properties;
-}
-
-void Element::set_cascaded_properties(Optional<CSS::PseudoElement> pseudo_element, GC::Ptr<CSS::CascadedProperties> cascaded_properties)
-{
-    if (pseudo_element.has_value()) {
-        if (pseudo_element.value() >= CSS::PseudoElement::KnownPseudoElementCount)
-            return;
-        if (cascaded_properties)
-            ensure_pseudo_element(pseudo_element.value()).set_cascaded_properties(cascaded_properties);
-        else if (auto existing_pseudo_element = get_pseudo_element(pseudo_element.value()); existing_pseudo_element.has_value())
-            existing_pseudo_element->set_cascaded_properties({});
-        return;
-    }
-    m_cascaded_properties = cascaded_properties;
 }
 
 GC::Ptr<CSS::ComputedProperties> Element::computed_properties(Optional<CSS::PseudoElement> pseudo_element_type)

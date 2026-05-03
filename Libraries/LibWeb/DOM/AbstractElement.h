@@ -52,9 +52,6 @@ public:
     [[nodiscard]] RefPtr<CSS::CustomPropertyData const> custom_property_data() const;
     RefPtr<CSS::StyleValue const> get_custom_property(FlyString const& name) const;
 
-    GC::Ptr<CSS::CascadedProperties> cascaded_properties() const;
-    void set_cascaded_properties(GC::Ptr<CSS::CascadedProperties>);
-
     bool has_non_empty_counters_set() const;
     Optional<CSS::CountersSet const&> counters_set() const;
     CSS::CountersSet& ensure_counters_set();

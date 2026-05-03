@@ -1832,10 +1832,6 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
 
         auto style = compute_style(abstract_element_for_pseudo_element);
 
-        // Copy cascaded properties to the element itself so that elements
-        // slotted into this slot can find them via element_to_inherit_style_from().
-        abstract_element.set_cascaded_properties(abstract_element_for_pseudo_element.cascaded_properties());
-
         // Merge back inline styles
         if (auto inline_style = element.inline_style()) {
             for (auto const& property : inline_style->properties())
@@ -1863,10 +1859,9 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
             PseudoElement::Marker,
             PseudoElement::Placeholder);
 
-        // Bail if no pseudo-element rules matched. Clear any stale cascaded/custom property data so
+        // Bail if no pseudo-element rules matched. Clear any stale custom property data so
         // getComputedStyle() doesn't return values from a previous match.
         if (!did_match_any_pseudo_element_rules && !has_implicit_style) {
-            abstract_element.set_cascaded_properties(nullptr);
             abstract_element.set_custom_property_data(nullptr);
             return {};
         }
@@ -1910,7 +1905,6 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
     }
 
     auto cascaded_properties = compute_cascaded_values(abstract_element, did_match_any_pseudo_element_rules, mode, matching_rule_set);
-    abstract_element.set_cascaded_properties(cascaded_properties);
 
     if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded) {
         // Bail if no pseudo-element would be generated due to...

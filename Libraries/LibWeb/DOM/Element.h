@@ -239,9 +239,6 @@ public:
     GC::Ptr<CSS::ComputedProperties const> computed_properties(Optional<CSS::PseudoElement> = {}) const;
     void set_computed_properties(Optional<CSS::PseudoElement>, GC::Ptr<CSS::ComputedProperties>);
 
-    [[nodiscard]] GC::Ptr<CSS::CascadedProperties> cascaded_properties(Optional<CSS::PseudoElement>) const;
-    void set_cascaded_properties(Optional<CSS::PseudoElement>, GC::Ptr<CSS::CascadedProperties>);
-
     Optional<PseudoElement&> get_pseudo_element(CSS::PseudoElement) const;
 
     GC::Ptr<CSS::CSSStyleProperties> inline_style() { return m_inline_style; }
@@ -675,7 +672,6 @@ private:
     GC::Ptr<ShadowRoot> m_shadow_root;
     GC::Ptr<DOMTokenList> m_part_list;
 
-    GC::Ptr<CSS::CascadedProperties> m_cascaded_properties;
     GC::Ptr<CSS::ComputedProperties> m_computed_properties;
     RefPtr<CSS::CustomPropertyData const> m_custom_property_data;
 
