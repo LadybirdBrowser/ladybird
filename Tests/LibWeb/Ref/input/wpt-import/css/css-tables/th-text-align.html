@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <link rel="author" title="David Shin" href="mailto:dshin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+  <link rel="help" href="https://html.spec.whatwg.org/#tables-2">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-tables/th-text-align-ref.html">
+
+  <style>
+  table {
+    font-size: 15px;
+    border: 1px solid green;
+    margin-bottom: 5px;
+  }
+
+  th {
+    width: 150px;
+    border: 1px solid blue;
+  }
+
+  td {
+    border: 1px solid purple;
+  }
+  </style>
+
+  <body>
+    <table style="text-align: start;">
+      <tr>
+        <th>A</th>
+      </tr>
+      <tr>
+        <td>A</td>
+      </tr>
+    </table>
+    <table style="text-align: end;">
+      <tr>
+        <th>A</th>
+      </tr>
+      <tr>
+        <td>A</td>
+      </tr>
+    </table>
+    <table>
+      <tr>
+        <th style="text-align: inherit;">A</th>
+      </tr>
+      <tr>
+        <td>A</td>
+      </tr>
+    </table>
+  </body>
+</html>

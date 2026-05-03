@@ -1623,20 +1623,18 @@ static void compute_text_align(ComputedProperties& style, DOM::AbstractElement a
         }
     }
 
-    // AD-HOC: The -libweb-inherit-or-center style defaults to centering, unless a style value usually would have been
-    //         inherited. This is used to support the ad-hoc default <th> text-align behavior.
+    // AD-HOC: The -libweb-inherit-or-center style defaults to centering, unless the parent element has a non-initial
+    //         computed text-align value. This is used to support the ad-hoc default <th> text-align behavior.
     if (text_align_keyword == Keyword::LibwebInheritOrCenter && abstract_element.element().local_name() == HTML::TagNames::th) {
-        for (auto parent_element = abstract_element.element_to_inherit_style_from(); parent_element.has_value(); parent_element = parent_element->element_to_inherit_style_from()) {
-            auto parent_computed = parent_element->computed_properties();
-            auto parent_cascaded = parent_element->cascaded_properties();
-            if (!parent_computed || !parent_cascaded)
-                break;
-            if (parent_cascaded->property(PropertyID::TextAlign)) {
-                auto const& style_value = parent_computed->property(PropertyID::TextAlign);
-                style.set_property(PropertyID::TextAlign, style_value, ComputedProperties::Inherited::Yes);
-                break;
+        auto parent_element = abstract_element.element_to_inherit_style_from();
+        if (parent_element.has_value() && parent_element->computed_properties()) {
+            auto const& parent_text_align = parent_element->computed_properties()->property(PropertyID::TextAlign);
+            if (parent_text_align.to_keyword() != Keyword::Start) {
+                style.set_property(PropertyID::TextAlign, parent_text_align, ComputedProperties::Inherited::Yes);
+                return;
             }
         }
+        style.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Center));
     }
 }
 

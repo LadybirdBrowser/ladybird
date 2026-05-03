@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <link rel="author" title="David Shin" href="mailto:dshin@mozilla.com">
+  <link rel="author" title="Mozilla" href="http://www.mozilla.org/">
+  <link rel="help" href="https://html.spec.whatwg.org/#tables-2">
+
+  <style>
+  table {
+    font-size: 15px;
+    border: 1px solid green;
+    margin-bottom: 5px;
+  }
+
+  th {
+    width: 150px;
+    border: 1px solid blue;
+  }
+
+  td {
+    border: 1px solid purple;
+  }
+  </style>
+
+  <body>
+    <table>
+      <tr>
+        <th style="text-align: center;">A</th>
+      </tr>
+      <tr>
+        <td style="text-align: start;">A</td>
+      </tr>
+    </table>
+    <table>
+      <tr>
+        <th style="text-align: end;">A</th>
+      </tr>
+      <tr>
+        <td style="text-align: end;">A</td>
+      </tr>
+    </table>
+    <table>
+      <tr>
+        <th style="text-align: start;">A</th>
+      </tr>
+      <tr>
+        <td style="text-align: start;">A</td>
+      </tr>
+    </table>
+  </body>
+</html>
