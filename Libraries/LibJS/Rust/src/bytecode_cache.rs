@@ -10,6 +10,8 @@
 //! implementations. The matching decoder should mirror these records instead
 //! of growing a separate procedural parser.
 
+use std::collections::HashMap;
+
 use crate::bytecode::ffi::ConstantTag;
 use crate::bytecode::generator::{
     AssembledBytecode, ConstantValue, FunctionSfdMetadata, Generator, PendingClassBlueprint, PendingClassElement,
@@ -92,6 +94,15 @@ impl<'a> Decoder<'a> {
             decode_item(self)?;
         }
         Some(())
+    }
+
+    fn sequence_values<T>(&mut self, mut decode_item: impl FnMut(&mut Self) -> Option<T>) -> Option<Vec<T>> {
+        let length: usize = u32::decode(self)?.try_into().ok()?;
+        let mut values = Vec::with_capacity(length);
+        for _ in 0..length {
+            values.push(decode_item(self)?);
+        }
+        Some(values)
     }
 }
 
@@ -210,6 +221,18 @@ impl<T: Decode> Decode for Option<T> {
     }
 }
 
+impl Decode for ast::Utf16String {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+        let length: usize = u32::decode(decoder)?.try_into().ok()?;
+        let bytes = decoder.bytes(length.checked_mul(size_of::<u16>())?)?;
+        let mut code_units = Vec::with_capacity(length);
+        for chunk in bytes.chunks_exact(size_of::<u16>()) {
+            code_units.push(u16::from_le_bytes(chunk.try_into().ok()?));
+        }
+        Some(code_units.into())
+    }
+}
+
 struct Bytes<'a>(&'a [u8]);
 
 impl Encode for Bytes<'_> {
@@ -262,6 +285,11 @@ impl Encode for CacheBlob<'_> {
         self.program_type.encode(encoder);
         self.compiled.parsed.has_top_level_await.encode(encoder);
         self.compiled.parsed.is_strict_mode.encode(encoder);
+        DeclarationMetadataRecord {
+            compiled: self.compiled,
+            program_type: self.program_type,
+        }
+        .encode(encoder);
         ProgramRecord::from(self.compiled).encode(encoder);
     }
 }
@@ -273,6 +301,7 @@ impl CacheBlob<'_> {
         (ast::ProgramType::decode(decoder)? == expected_program_type).then_some(())?;
         bool::decode(decoder)?;
         bool::decode(decoder)?;
+        DeclarationMetadataRecord::decode(decoder)?.validate();
         ProgramRecord::decode(decoder)
     }
 }
@@ -290,6 +319,837 @@ impl Decode for ast::ProgramType {
             1 => Some(Self::Module),
             _ => None,
         }
+    }
+}
+
+impl Decode for ast::ExportEntryKind {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+        match u8::decode(decoder)? {
+            0 => Some(Self::NamedExport),
+            1 => Some(Self::ModuleRequestAll),
+            2 => Some(Self::ModuleRequestAllButDefault),
+            _ => None,
+        }
+    }
+}
+
+struct DeclarationMetadataRecord<'a> {
+    compiled: &'a CompiledProgram,
+    program_type: ast::ProgramType,
+}
+
+impl Encode for DeclarationMetadataRecord<'_> {
+    fn encode(&self, encoder: &mut Encoder) {
+        let ast::StatementKind::Program(program) = &self.compiled.parsed.program.inner else {
+            unreachable!("bytecode cache expects a parsed program root");
+        };
+        let scope = program.scope.borrow();
+        match self.program_type {
+            ast::ProgramType::Script => ScriptDeclarationMetadata::from_scope(&scope).encode(encoder),
+            ast::ProgramType::Module => ModuleDeclarationMetadata::from_scope(&scope).encode(encoder),
+        }
+    }
+}
+
+impl DeclarationMetadataRecord<'_> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<DecodedDeclarationMetadata> {
+        match MetadataKind::decode(decoder)? {
+            MetadataKind::Script => {
+                ScriptDeclarationMetadata::decode_payload(decoder).map(DecodedDeclarationMetadata::Script)
+            }
+            MetadataKind::Module => {
+                ModuleDeclarationMetadata::decode_payload(decoder).map(DecodedDeclarationMetadata::Module)
+            }
+        }
+    }
+}
+
+enum DecodedDeclarationMetadata {
+    Script(ScriptDeclarationMetadata),
+    Module(ModuleDeclarationMetadata),
+}
+
+impl DecodedDeclarationMetadata {
+    fn validate(&self) {
+        match self {
+            Self::Script(metadata) => metadata.validate(),
+            Self::Module(metadata) => metadata.validate(),
+        }
+    }
+}
+
+#[repr(u8)]
+#[derive(Clone, Copy)]
+enum MetadataKind {
+    Script = 0,
+    Module = 1,
+}
+
+impl Encode for MetadataKind {
+    fn encode(&self, encoder: &mut Encoder) {
+        (*self as u8).encode(encoder);
+    }
+}
+
+impl Decode for MetadataKind {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+        match u8::decode(decoder)? {
+            0 => Some(Self::Script),
+            1 => Some(Self::Module),
+            _ => None,
+        }
+    }
+}
+
+struct ScriptDeclarationMetadata {
+    lexical_names: Vec<ast::Utf16String>,
+    var_names: Vec<ast::Utf16String>,
+    function_names: Vec<ast::Utf16String>,
+    var_scoped_names: Vec<ast::Utf16String>,
+    annex_b_candidate_names: Vec<ast::Utf16String>,
+    lexical_bindings: Vec<LexicalBindingRecord>,
+}
+
+impl ScriptDeclarationMetadata {
+    fn from_scope(scope: &ast::ScopeData) -> Self {
+        let mut metadata = Self {
+            lexical_names: Vec::new(),
+            var_names: Vec::new(),
+            function_names: script_function_names(scope),
+            var_scoped_names: Vec::new(),
+            annex_b_candidate_names: scope.annexb_function_names.to_vec(),
+            lexical_bindings: Vec::new(),
+        };
+
+        for child in &scope.children {
+            collect_var_names_recursive(&child.inner, &mut metadata.var_names);
+            if let ast::StatementKind::FunctionDeclaration(ref function) = child.inner
+                && let Some(ref name) = function.name
+            {
+                metadata.var_names.push(name.name.to_utf16_string());
+            }
+            collect_script_lexical_names(&child.inner, &mut metadata.lexical_names);
+            collect_script_lexical_bindings(&child.inner, &mut metadata.lexical_bindings);
+            collect_var_names_recursive(&child.inner, &mut metadata.var_scoped_names);
+        }
+
+        metadata
+    }
+
+    fn decode_payload(decoder: &mut Decoder<'_>) -> Option<Self> {
+        Some(Self {
+            lexical_names: Utf16Vector::decode(decoder)?,
+            var_names: Utf16Vector::decode(decoder)?,
+            function_names: Utf16Vector::decode(decoder)?,
+            var_scoped_names: Utf16Vector::decode(decoder)?,
+            annex_b_candidate_names: Utf16Vector::decode(decoder)?,
+            lexical_bindings: LexicalBindingTable::decode(decoder)?,
+        })
+    }
+
+    fn validate(&self) {
+        let _ = self.lexical_names.len()
+            + self.var_names.len()
+            + self.function_names.len()
+            + self.var_scoped_names.len()
+            + self.annex_b_candidate_names.len()
+            + self.lexical_bindings.len();
+    }
+}
+
+impl Encode for ScriptDeclarationMetadata {
+    fn encode(&self, encoder: &mut Encoder) {
+        MetadataKind::Script.encode(encoder);
+        Utf16Vector(&self.lexical_names).encode(encoder);
+        Utf16Vector(&self.var_names).encode(encoder);
+        Utf16Vector(&self.function_names).encode(encoder);
+        Utf16Vector(&self.var_scoped_names).encode(encoder);
+        Utf16Vector(&self.annex_b_candidate_names).encode(encoder);
+        LexicalBindingTable(&self.lexical_bindings).encode(encoder);
+    }
+}
+
+struct ModuleDeclarationMetadata {
+    import_entries: Vec<ModuleImportEntryRecord>,
+    local_exports: Vec<ModuleExportEntryRecord>,
+    indirect_exports: Vec<ModuleExportEntryRecord>,
+    star_exports: Vec<ModuleExportEntryRecord>,
+    requested_modules: Vec<ModuleRequestRecord>,
+    default_export_binding_name: Option<ast::Utf16String>,
+    var_declared_names: Vec<ast::Utf16String>,
+    function_names: Vec<ast::Utf16String>,
+    lexical_bindings: Vec<ModuleLexicalBindingRecord>,
+}
+
+impl ModuleDeclarationMetadata {
+    fn from_scope(scope: &ast::ScopeData) -> Self {
+        let mut metadata = Self {
+            import_entries: Vec::new(),
+            local_exports: Vec::new(),
+            indirect_exports: Vec::new(),
+            star_exports: Vec::new(),
+            requested_modules: requested_modules(scope),
+            default_export_binding_name: None,
+            var_declared_names: Vec::new(),
+            function_names: Vec::new(),
+            lexical_bindings: Vec::new(),
+        };
+
+        collect_module_imports_and_exports(scope, &mut metadata);
+
+        let mut function_index = 0;
+        for child in &scope.children {
+            collect_module_var_names(&child.inner, &mut metadata.var_declared_names);
+
+            let (declaration, is_exported) = match &child.inner {
+                ast::StatementKind::Export(export_data) => {
+                    if let Some(ref statement) = export_data.statement {
+                        (&statement.inner, true)
+                    } else {
+                        continue;
+                    }
+                }
+                other => (other, false),
+            };
+            collect_module_declaration(declaration, is_exported, function_index, &mut metadata);
+            if matches!(declaration, ast::StatementKind::FunctionDeclaration(_)) {
+                function_index += 1;
+            }
+        }
+
+        metadata
+    }
+
+    fn decode_payload(decoder: &mut Decoder<'_>) -> Option<Self> {
+        Some(Self {
+            import_entries: ModuleImportEntryTable::decode(decoder)?,
+            local_exports: ModuleExportEntryTable::decode(decoder)?,
+            indirect_exports: ModuleExportEntryTable::decode(decoder)?,
+            star_exports: ModuleExportEntryTable::decode(decoder)?,
+            requested_modules: ModuleRequestTable::decode(decoder)?,
+            default_export_binding_name: Option::<ast::Utf16String>::decode(decoder)?,
+            var_declared_names: Utf16Vector::decode(decoder)?,
+            function_names: Utf16Vector::decode(decoder)?,
+            lexical_bindings: ModuleLexicalBindingTable::decode(decoder)?,
+        })
+    }
+
+    fn validate(&self) {
+        let _ = self.import_entries.len()
+            + self.local_exports.len()
+            + self.indirect_exports.len()
+            + self.star_exports.len()
+            + self.requested_modules.len()
+            + self.var_declared_names.len()
+            + self.function_names.len()
+            + self.lexical_bindings.len();
+        let _ = self
+            .default_export_binding_name
+            .as_ref()
+            .map(|name| name.as_slice().len());
+    }
+}
+
+impl Encode for ModuleDeclarationMetadata {
+    fn encode(&self, encoder: &mut Encoder) {
+        MetadataKind::Module.encode(encoder);
+        ModuleImportEntryTable(&self.import_entries).encode(encoder);
+        ModuleExportEntryTable(&self.local_exports).encode(encoder);
+        ModuleExportEntryTable(&self.indirect_exports).encode(encoder);
+        ModuleExportEntryTable(&self.star_exports).encode(encoder);
+        ModuleRequestTable(&self.requested_modules).encode(encoder);
+        self.default_export_binding_name
+            .as_ref()
+            .map(|name| Utf16(name))
+            .encode(encoder);
+        Utf16Vector(&self.var_declared_names).encode(encoder);
+        Utf16Vector(&self.function_names).encode(encoder);
+        ModuleLexicalBindingTable(&self.lexical_bindings).encode(encoder);
+    }
+}
+
+struct Utf16Vector<'a>(&'a [ast::Utf16String]);
+
+impl Encode for Utf16Vector<'_> {
+    fn encode(&self, encoder: &mut Encoder) {
+        encoder.sequence(self.0, |value, encoder| Utf16(value).encode(encoder));
+    }
+}
+
+impl Utf16Vector<'_> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<ast::Utf16String>> {
+        decoder.sequence_values(ast::Utf16String::decode)
+    }
+}
+
+struct LexicalBindingRecord {
+    name: ast::Utf16String,
+    is_constant: bool,
+}
+
+impl Encode for LexicalBindingRecord {
+    fn encode(&self, encoder: &mut Encoder) {
+        Utf16(&self.name).encode(encoder);
+        self.is_constant.encode(encoder);
+    }
+}
+
+struct LexicalBindingTable<'a>(&'a [LexicalBindingRecord]);
+
+impl Encode for LexicalBindingTable<'_> {
+    fn encode(&self, encoder: &mut Encoder) {
+        encoder.sequence(self.0, |binding, encoder| binding.encode(encoder));
+    }
+}
+
+impl LexicalBindingTable<'_> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<LexicalBindingRecord>> {
+        decoder.sequence_values(|decoder| {
+            Some(LexicalBindingRecord {
+                name: ast::Utf16String::decode(decoder)?,
+                is_constant: bool::decode(decoder)?,
+            })
+        })
+    }
+}
+
+struct ModuleLexicalBindingRecord {
+    name: ast::Utf16String,
+    is_constant: bool,
+    function_index: i32,
+}
+
+impl Encode for ModuleLexicalBindingRecord {
+    fn encode(&self, encoder: &mut Encoder) {
+        Utf16(&self.name).encode(encoder);
+        self.is_constant.encode(encoder);
+        self.function_index.encode(encoder);
+    }
+}
+
+struct ModuleLexicalBindingTable<'a>(&'a [ModuleLexicalBindingRecord]);
+
+impl Encode for ModuleLexicalBindingTable<'_> {
+    fn encode(&self, encoder: &mut Encoder) {
+        encoder.sequence(self.0, |binding, encoder| binding.encode(encoder));
+    }
+}
+
+impl ModuleLexicalBindingTable<'_> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<ModuleLexicalBindingRecord>> {
+        decoder.sequence_values(|decoder| {
+            Some(ModuleLexicalBindingRecord {
+                name: ast::Utf16String::decode(decoder)?,
+                is_constant: bool::decode(decoder)?,
+                function_index: i32::decode(decoder)?,
+            })
+        })
+    }
+}
+
+#[derive(Clone)]
+struct ModuleRequestRecord {
+    specifier: ast::Utf16String,
+    attributes: Vec<ast::ImportAttribute>,
+}
+
+impl From<&ast::ModuleRequest> for ModuleRequestRecord {
+    fn from(request: &ast::ModuleRequest) -> Self {
+        Self {
+            specifier: request.module_specifier.clone(),
+            attributes: request.attributes.clone(),
+        }
+    }
+}
+
+impl Encode for ModuleRequestRecord {
+    fn encode(&self, encoder: &mut Encoder) {
+        Utf16(&self.specifier).encode(encoder);
+        ImportAttributeTable(&self.attributes).encode(encoder);
+    }
+}
+
+impl Decode for ModuleRequestRecord {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+        Some(Self {
+            specifier: ast::Utf16String::decode(decoder)?,
+            attributes: ImportAttributeTable::decode(decoder)?,
+        })
+    }
+}
+
+struct ModuleRequestTable<'a>(&'a [ModuleRequestRecord]);
+
+impl Encode for ModuleRequestTable<'_> {
+    fn encode(&self, encoder: &mut Encoder) {
+        encoder.sequence(self.0, |request, encoder| request.encode(encoder));
+    }
+}
+
+impl ModuleRequestTable<'_> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<ModuleRequestRecord>> {
+        decoder.sequence_values(ModuleRequestRecord::decode)
+    }
+}
+
+struct ImportAttributeTable<'a>(&'a [ast::ImportAttribute]);
+
+impl Encode for ImportAttributeTable<'_> {
+    fn encode(&self, encoder: &mut Encoder) {
+        encoder.sequence(self.0, |attribute, encoder| {
+            Utf16(&attribute.key).encode(encoder);
+            Utf16(&attribute.value).encode(encoder);
+        });
+    }
+}
+
+impl ImportAttributeTable<'_> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<ast::ImportAttribute>> {
+        decoder.sequence_values(|decoder| {
+            Some(ast::ImportAttribute {
+                key: ast::Utf16String::decode(decoder)?,
+                value: ast::Utf16String::decode(decoder)?,
+            })
+        })
+    }
+}
+
+struct ModuleImportEntryRecord {
+    import_name: Option<ast::Utf16String>,
+    local_name: ast::Utf16String,
+    module_request: ModuleRequestRecord,
+}
+
+impl Encode for ModuleImportEntryRecord {
+    fn encode(&self, encoder: &mut Encoder) {
+        self.import_name.as_ref().map(|name| Utf16(name)).encode(encoder);
+        Utf16(&self.local_name).encode(encoder);
+        self.module_request.encode(encoder);
+    }
+}
+
+struct ModuleImportEntryTable<'a>(&'a [ModuleImportEntryRecord]);
+
+impl Encode for ModuleImportEntryTable<'_> {
+    fn encode(&self, encoder: &mut Encoder) {
+        encoder.sequence(self.0, |entry, encoder| entry.encode(encoder));
+    }
+}
+
+impl ModuleImportEntryTable<'_> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<ModuleImportEntryRecord>> {
+        decoder.sequence_values(|decoder| {
+            Some(ModuleImportEntryRecord {
+                import_name: Option::<ast::Utf16String>::decode(decoder)?,
+                local_name: ast::Utf16String::decode(decoder)?,
+                module_request: ModuleRequestRecord::decode(decoder)?,
+            })
+        })
+    }
+}
+
+struct ModuleExportEntryRecord {
+    kind: ast::ExportEntryKind,
+    export_name: Option<ast::Utf16String>,
+    local_or_import_name: Option<ast::Utf16String>,
+    module_request: Option<ModuleRequestRecord>,
+}
+
+impl Encode for ModuleExportEntryRecord {
+    fn encode(&self, encoder: &mut Encoder) {
+        (self.kind as u8).encode(encoder);
+        self.export_name.as_ref().map(|name| Utf16(name)).encode(encoder);
+        self.local_or_import_name
+            .as_ref()
+            .map(|name| Utf16(name))
+            .encode(encoder);
+        self.module_request.encode(encoder);
+    }
+}
+
+struct ModuleExportEntryTable<'a>(&'a [ModuleExportEntryRecord]);
+
+impl Encode for ModuleExportEntryTable<'_> {
+    fn encode(&self, encoder: &mut Encoder) {
+        encoder.sequence(self.0, |entry, encoder| entry.encode(encoder));
+    }
+}
+
+impl ModuleExportEntryTable<'_> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<ModuleExportEntryRecord>> {
+        decoder.sequence_values(|decoder| {
+            Some(ModuleExportEntryRecord {
+                kind: ast::ExportEntryKind::decode(decoder)?,
+                export_name: Option::<ast::Utf16String>::decode(decoder)?,
+                local_or_import_name: Option::<ast::Utf16String>::decode(decoder)?,
+                module_request: Option::<ModuleRequestRecord>::decode(decoder)?,
+            })
+        })
+    }
+}
+
+fn collect_script_lexical_names(statement: &ast::StatementKind, names: &mut Vec<ast::Utf16String>) {
+    match statement {
+        ast::StatementKind::VariableDeclaration(declaration) if declaration.kind != ast::DeclarationKind::Var => {
+            for declarator in &declaration.declarations {
+                for_each_bound_name(&declarator.target, &mut |name| names.push(name.to_vec().into()));
+            }
+        }
+        ast::StatementKind::UsingDeclaration(declarations) => {
+            for declarator in declarations.iter() {
+                for_each_bound_name(&declarator.target, &mut |name| names.push(name.to_vec().into()));
+            }
+        }
+        ast::StatementKind::ClassDeclaration(class_data) => {
+            if let Some(ref name) = class_data.name {
+                names.push(name.name.to_utf16_string());
+            }
+        }
+        _ => {}
+    }
+}
+
+fn collect_script_lexical_bindings(statement: &ast::StatementKind, bindings: &mut Vec<LexicalBindingRecord>) {
+    match statement {
+        ast::StatementKind::VariableDeclaration(declaration) if declaration.kind != ast::DeclarationKind::Var => {
+            let is_constant = declaration.kind == ast::DeclarationKind::Const;
+            for declarator in &declaration.declarations {
+                for_each_bound_name(&declarator.target, &mut |name| {
+                    bindings.push(LexicalBindingRecord {
+                        name: name.to_vec().into(),
+                        is_constant,
+                    });
+                });
+            }
+        }
+        ast::StatementKind::UsingDeclaration(declarations) => {
+            for declarator in declarations.iter() {
+                for_each_bound_name(&declarator.target, &mut |name| {
+                    bindings.push(LexicalBindingRecord {
+                        name: name.to_vec().into(),
+                        is_constant: false,
+                    });
+                });
+            }
+        }
+        ast::StatementKind::ClassDeclaration(class_data) => {
+            if let Some(ref name) = class_data.name {
+                bindings.push(LexicalBindingRecord {
+                    name: name.name.to_utf16_string(),
+                    is_constant: false,
+                });
+            }
+        }
+        _ => {}
+    }
+}
+
+fn script_function_names(scope: &ast::ScopeData) -> Vec<ast::Utf16String> {
+    let mut last_position = HashMap::new();
+    for (index, child) in scope.children.iter().enumerate() {
+        if let ast::StatementKind::FunctionDeclaration(ref function) = child.inner
+            && let Some(ref name) = function.name
+        {
+            last_position.insert(name.name.clone(), index);
+        }
+    }
+
+    let mut names = Vec::new();
+    for (index, child) in scope.children.iter().enumerate() {
+        if let ast::StatementKind::FunctionDeclaration(ref function) = child.inner
+            && let Some(ref name) = function.name
+            && last_position.get(&name.name).copied() == Some(index)
+        {
+            names.push(name.name.to_utf16_string());
+        }
+    }
+    names
+}
+
+fn collect_module_imports_and_exports(scope: &ast::ScopeData, metadata: &mut ModuleDeclarationMetadata) {
+    struct ImportEntryWithRequest {
+        import_name: Option<ast::Utf16String>,
+        local_name: ast::Utf16String,
+        module_request: ModuleRequestRecord,
+    }
+
+    let mut all_import_entries = Vec::new();
+
+    for child in &scope.children {
+        if let ast::StatementKind::Import(import_data) = &child.inner {
+            for entry in &import_data.entries {
+                let module_request = ModuleRequestRecord::from(&import_data.module_request);
+                metadata.import_entries.push(ModuleImportEntryRecord {
+                    import_name: entry.import_name.clone(),
+                    local_name: entry.local_name.clone(),
+                    module_request: module_request.clone(),
+                });
+                all_import_entries.push(ImportEntryWithRequest {
+                    import_name: entry.import_name.clone(),
+                    local_name: entry.local_name.clone(),
+                    module_request,
+                });
+            }
+        }
+    }
+
+    for child in &scope.children {
+        let ast::StatementKind::Export(export_data) = &child.inner else {
+            continue;
+        };
+
+        if export_data.is_default_export && export_data.entries.len() == 1 {
+            let entry = &export_data.entries[0];
+            let is_declaration = export_data.statement.as_ref().is_some_and(|statement| {
+                matches!(
+                    statement.inner,
+                    ast::StatementKind::FunctionDeclaration(_) | ast::StatementKind::ClassDeclaration(_)
+                )
+            });
+            if !is_declaration {
+                metadata.default_export_binding_name = entry.local_or_import_name.clone();
+            }
+        }
+
+        for entry in &export_data.entries {
+            if entry.kind == ast::ExportEntryKind::EmptyNamedExport {
+                break;
+            }
+
+            let has_module_request = export_data.module_request.is_some();
+            if !has_module_request {
+                let matching_import = all_import_entries
+                    .iter()
+                    .find(|import| entry.local_or_import_name.as_ref() == Some(&import.local_name));
+                if let Some(import_entry) = matching_import {
+                    if import_entry.import_name.is_none() {
+                        metadata.local_exports.push(export_record(entry, None));
+                    } else {
+                        metadata
+                            .indirect_exports
+                            .push(export_record(entry, Some(&import_entry.module_request)));
+                    }
+                } else {
+                    metadata.local_exports.push(export_record(entry, None));
+                }
+            } else if entry.kind == ast::ExportEntryKind::ModuleRequestAllButDefault {
+                let module_request = export_data.module_request.as_ref().map(ModuleRequestRecord::from);
+                metadata
+                    .star_exports
+                    .push(export_record(entry, module_request.as_ref()));
+            } else {
+                let module_request = export_data.module_request.as_ref().map(ModuleRequestRecord::from);
+                metadata
+                    .indirect_exports
+                    .push(export_record(entry, module_request.as_ref()));
+            }
+        }
+    }
+}
+
+fn export_record(entry: &ast::ExportEntry, module_request: Option<&ModuleRequestRecord>) -> ModuleExportEntryRecord {
+    ModuleExportEntryRecord {
+        kind: entry.kind,
+        export_name: entry.export_name.clone(),
+        local_or_import_name: entry.local_or_import_name.clone(),
+        module_request: module_request.cloned(),
+    }
+}
+
+fn requested_modules(scope: &ast::ScopeData) -> Vec<ModuleRequestRecord> {
+    let mut modules = Vec::new();
+    for child in &scope.children {
+        match &child.inner {
+            ast::StatementKind::Import(import_data) => {
+                modules.push((
+                    child.range.start.offset,
+                    ModuleRequestRecord::from(&import_data.module_request),
+                ));
+            }
+            ast::StatementKind::Export(export_data) => {
+                if let Some(module_request) = &export_data.module_request {
+                    modules.push((child.range.start.offset, ModuleRequestRecord::from(module_request)));
+                }
+            }
+            _ => {}
+        }
+    }
+    modules.sort_by_key(|(source_offset, _)| *source_offset);
+    modules.into_iter().map(|(_, module_request)| module_request).collect()
+}
+
+fn collect_module_declaration(
+    declaration: &ast::StatementKind,
+    is_exported: bool,
+    function_index: i32,
+    metadata: &mut ModuleDeclarationMetadata,
+) {
+    let default_name: ast::Utf16String = utf16!("*default*").into();
+    match declaration {
+        ast::StatementKind::FunctionDeclaration(function) => {
+            let Some(name) = &function.name else {
+                return;
+            };
+            let is_default = is_exported && name.name == default_name;
+            let function_name = if is_default {
+                utf16!("default").into()
+            } else {
+                name.name.to_utf16_string()
+            };
+            metadata.function_names.push(function_name);
+            metadata.lexical_bindings.push(ModuleLexicalBindingRecord {
+                name: name.name.to_utf16_string(),
+                is_constant: false,
+                function_index,
+            });
+        }
+        ast::StatementKind::ClassDeclaration(class_data) => {
+            if let Some(ref name) = class_data.name {
+                metadata.lexical_bindings.push(ModuleLexicalBindingRecord {
+                    name: name.name.to_utf16_string(),
+                    is_constant: false,
+                    function_index: -1,
+                });
+            }
+        }
+        ast::StatementKind::VariableDeclaration(declaration) if declaration.kind != ast::DeclarationKind::Var => {
+            let is_constant = declaration.kind == ast::DeclarationKind::Const;
+            for declarator in &declaration.declarations {
+                for_each_bound_name(&declarator.target, &mut |name| {
+                    metadata.lexical_bindings.push(ModuleLexicalBindingRecord {
+                        name: name.to_vec().into(),
+                        is_constant,
+                        function_index: -1,
+                    });
+                });
+            }
+        }
+        ast::StatementKind::UsingDeclaration(declarations) => {
+            for declarator in declarations.iter() {
+                for_each_bound_name(&declarator.target, &mut |name| {
+                    metadata.lexical_bindings.push(ModuleLexicalBindingRecord {
+                        name: name.to_vec().into(),
+                        is_constant: false,
+                        function_index: -1,
+                    });
+                });
+            }
+        }
+        _ => {}
+    }
+}
+
+fn collect_var_names_recursive(statement: &ast::StatementKind, names: &mut Vec<ast::Utf16String>) {
+    match statement {
+        ast::StatementKind::VariableDeclaration(declaration) if declaration.kind == ast::DeclarationKind::Var => {
+            for declarator in &declaration.declarations {
+                for_each_bound_name(&declarator.target, &mut |name| names.push(name.to_vec().into()));
+            }
+        }
+        _ => {
+            for_each_child_statement(statement, &mut |child| {
+                collect_var_names_recursive(child, names);
+            });
+        }
+    }
+}
+
+fn collect_module_var_names(statement: &ast::StatementKind, names: &mut Vec<ast::Utf16String>) {
+    match statement {
+        ast::StatementKind::VariableDeclaration(declaration) if declaration.kind == ast::DeclarationKind::Var => {
+            for declarator in &declaration.declarations {
+                for_each_bound_name(&declarator.target, &mut |name| names.push(name.to_vec().into()));
+            }
+        }
+        ast::StatementKind::Export(export_data) => {
+            if let Some(ref statement) = export_data.statement {
+                collect_module_var_names(&statement.inner, names);
+            }
+        }
+        _ => {
+            for_each_child_statement(statement, &mut |child| {
+                collect_module_var_names(child, names);
+            });
+        }
+    }
+}
+
+fn for_each_bound_name(target: &ast::VariableDeclaratorTarget, callback: &mut dyn FnMut(&[u16])) {
+    match target {
+        ast::VariableDeclaratorTarget::Identifier(identifier) => callback(identifier.name.as_slice()),
+        ast::VariableDeclaratorTarget::BindingPattern(pattern) => for_each_bound_name_in_pattern(pattern, callback),
+    }
+}
+
+fn for_each_bound_name_in_pattern(pattern: &ast::BindingPattern, callback: &mut dyn FnMut(&[u16])) {
+    for entry in &pattern.entries {
+        match &entry.alias {
+            Some(ast::BindingEntryAlias::Identifier(identifier)) => callback(identifier.name.as_slice()),
+            Some(ast::BindingEntryAlias::BindingPattern(pattern)) => {
+                for_each_bound_name_in_pattern(pattern, callback);
+            }
+            Some(ast::BindingEntryAlias::MemberExpression(_)) => {}
+            None => {
+                if let Some(ast::BindingEntryName::Identifier(identifier)) = &entry.name {
+                    callback(identifier.name.as_slice());
+                }
+            }
+        }
+    }
+}
+
+fn for_each_child_statement(statement: &ast::StatementKind, callback: &mut dyn FnMut(&ast::StatementKind)) {
+    match statement {
+        ast::StatementKind::Block(scope) => {
+            for child in &scope.borrow().children {
+                callback(&child.inner);
+            }
+        }
+        ast::StatementKind::If(data) => {
+            callback(&data.consequent.inner);
+            if let Some(alternate) = &data.alternate {
+                callback(&alternate.inner);
+            }
+        }
+        ast::StatementKind::While(data) | ast::StatementKind::DoWhile(data) => {
+            callback(&data.body.inner);
+        }
+        ast::StatementKind::With(data) => callback(&data.body.inner),
+        ast::StatementKind::For(data) => {
+            if let Some(ast::ForInit::Declaration(declaration)) = &data.init {
+                callback(&declaration.inner);
+            }
+            callback(&data.body.inner);
+        }
+        ast::StatementKind::ForInOf(data) => {
+            if let ast::ForInOfLhs::Declaration(declaration) = &data.lhs {
+                callback(&declaration.inner);
+            }
+            callback(&data.body.inner);
+        }
+        ast::StatementKind::Switch(data) => {
+            for case in &data.cases {
+                for child in &case.scope.borrow().children {
+                    callback(&child.inner);
+                }
+            }
+        }
+        ast::StatementKind::Labelled(data) => callback(&data.item.inner),
+        ast::StatementKind::Try(data) => {
+            callback(&data.block.inner);
+            if let Some(catch) = &data.handler {
+                callback(&catch.body.inner);
+            }
+            if let Some(finalizer) = &data.finalizer {
+                callback(&finalizer.inner);
+            }
+        }
+        ast::StatementKind::Export(export_data) => {
+            if let Some(statement) = &export_data.statement {
+                callback(&statement.inner);
+            }
+        }
+        _ => {}
     }
 }
 
