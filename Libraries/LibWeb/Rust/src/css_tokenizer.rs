@@ -220,20 +220,17 @@ impl Token {
     }
 }
 
-pub(crate) struct TokenizationResult {
-    pub filtered_input: String,
-    pub tokens: Vec<Token>,
+pub fn tokenize<F>(filtered_input: &[u8], callback: F)
+where
+    F: FnMut(&Token, &str),
+{
+    let filtered_input =
+        std::str::from_utf8(filtered_input).expect("rust_css_tokenize received non-UTF-8 input after C++ decoding");
+    Tokenizer::new(filtered_input).tokenize(callback);
 }
 
-pub fn tokenize(filtered_input: &[u8]) -> TokenizationResult {
-    let filtered_input = std::str::from_utf8(filtered_input)
-        .expect("rust_css_tokenize received non-UTF-8 input after C++ decoding")
-        .to_owned();
-    Tokenizer::new(filtered_input).tokenize()
-}
-
-struct Tokenizer {
-    input: String,
+struct Tokenizer<'a> {
+    input: &'a str,
     code_points: Vec<(usize, u32)>,
     index: usize,
     prev_index: usize,
@@ -241,12 +238,14 @@ struct Tokenizer {
     prev_position: Position,
 }
 
-impl Tokenizer {
-    fn new(input: String) -> Self {
-        let code_points = input
-            .char_indices()
-            .map(|(offset, code_point)| (offset, code_point as u32))
-            .collect();
+impl<'a> Tokenizer<'a> {
+    fn new(input: &'a str) -> Self {
+        let mut code_points = Vec::with_capacity(input.len());
+        code_points.extend(
+            input
+                .char_indices()
+                .map(|(offset, code_point)| (offset, code_point as u32)),
+        );
 
         Self {
             input,
@@ -258,21 +257,19 @@ impl Tokenizer {
         }
     }
 
-    fn tokenize(mut self) -> TokenizationResult {
-        let mut tokens = Vec::new();
-
+    fn tokenize<F>(mut self, mut callback: F)
+    where
+        F: FnMut(&Token, &str),
+    {
         loop {
             let token_start = self.position;
             let mut token = self.consume_a_token();
             token.range = token_start..self.position;
             let is_eof = matches!(token.token_type, TokenType::EndOfFile);
-            tokens.push(token);
+            callback(&token, self.input);
 
             if is_eof {
-                return TokenizationResult {
-                    filtered_input: self.input,
-                    tokens,
-                };
+                return;
             }
         }
     }

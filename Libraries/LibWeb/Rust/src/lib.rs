@@ -61,11 +61,10 @@ pub unsafe extern "C" fn rust_css_tokenize(
                 return;
             };
 
-            let tokenization_result = css_tokenizer::tokenize(input);
-            for token in &tokenization_result.tokens {
-                let ffi_token = token.as_ffi(&tokenization_result.filtered_input);
+            css_tokenizer::tokenize(input, |token, filtered_input| {
+                let ffi_token = token.as_ffi(filtered_input);
                 callback(ctx, &raw const ffi_token);
-            }
+            });
         });
     }
 }
