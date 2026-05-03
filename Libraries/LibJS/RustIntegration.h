@@ -117,6 +117,14 @@ JS_API FFI::DecodedBytecodeCacheBlob* decode_bytecode_cache_blob(ReadonlyBytes, 
 // Free a decoded bytecode cache blob.
 JS_API void free_decoded_bytecode_cache_blob(FFI::DecodedBytecodeCacheBlob*);
 
+// Materialize a decoded script bytecode cache blob. Must be called on the main thread.
+// Consumes and frees the decoded blob.
+JS_API Optional<Result<ScriptResult, Vector<ParserError>>> materialize_bytecode_cache_script(FFI::DecodedBytecodeCacheBlob*, NonnullRefPtr<SourceCode const> source_code, Realm&);
+
+// Materialize a decoded module bytecode cache blob. Must be called on the main thread.
+// Consumes and frees the decoded blob.
+JS_API Optional<Result<ModuleResult, Vector<ParserError>>> materialize_bytecode_cache_module(FFI::DecodedBytecodeCacheBlob*, NonnullRefPtr<SourceCode const> source_code, Realm&);
+
 // Compile a previously parsed script. Must be called on the main thread.
 // Consumes and frees the Rust ParsedProgram.
 // Returns nullopt if Rust is not available.

@@ -963,6 +963,68 @@ pub unsafe extern "C" fn rust_free_decoded_bytecode_cache_blob(blob: *mut Decode
     }
 }
 
+/// Materialize a decoded script bytecode cache blob. Consumes and frees the blob.
+///
+/// # Safety
+/// - `blob` must be a valid pointer from `rust_decode_bytecode_cache_blob()`.
+/// - `vm_ptr` must be a valid `JS::VM*`.
+/// - `source_code_ptr` must be a valid `JS::SourceCode const*`.
+/// - `gdi_context` must be a valid pointer to a C++ ScriptGdiBuilder.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_materialize_bytecode_cache_script(
+    blob: *mut DecodedBytecodeCacheBlob,
+    vm_ptr: *mut c_void,
+    source_code_ptr: *const c_void,
+    source_len: usize,
+    gdi_context: *mut c_void,
+) -> *mut c_void {
+    unsafe {
+        abort_on_panic(|| {
+            if blob.is_null() {
+                return std::ptr::null_mut();
+            }
+            let blob = Box::from_raw(blob);
+            if !blob._blob.source_ranges_are_valid(source_len) {
+                return std::ptr::null_mut();
+            }
+            blob._blob.materialize_script(vm_ptr, source_code_ptr, gdi_context)
+        })
+    }
+}
+
+/// Materialize a decoded module bytecode cache blob. Consumes and frees the blob.
+///
+/// # Safety
+/// - `blob` must be a valid pointer from `rust_decode_bytecode_cache_blob()`.
+/// - `vm_ptr` must be a valid `JS::VM*`.
+/// - `source_code_ptr` must be a valid `JS::SourceCode const*`.
+/// - `module_context` must be a valid `ModuleBuilder*`.
+/// - `callbacks` must point to a valid `ModuleCallbacks`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_materialize_bytecode_cache_module(
+    blob: *mut DecodedBytecodeCacheBlob,
+    vm_ptr: *mut c_void,
+    source_code_ptr: *const c_void,
+    source_len: usize,
+    module_context: *mut c_void,
+    callbacks: *const ModuleCallbacks,
+    tla_executable_out: *mut *mut c_void,
+) -> *mut c_void {
+    unsafe {
+        abort_on_panic(|| {
+            if blob.is_null() {
+                return std::ptr::null_mut();
+            }
+            let blob = Box::from_raw(blob);
+            if !blob._blob.source_ranges_are_valid(source_len) {
+                return std::ptr::null_mut();
+            }
+            blob._blob
+                .materialize_module(vm_ptr, source_code_ptr, module_context, callbacks, tla_executable_out)
+        })
+    }
+}
+
 /// Get the AST dump string from a ParsedProgram.
 ///
 /// Generates the dump on first call and caches it. Writes the pointer
