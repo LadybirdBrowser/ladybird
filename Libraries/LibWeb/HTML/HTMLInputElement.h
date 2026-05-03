@@ -399,6 +399,7 @@ private:
     bool m_before_legacy_pre_activation_behavior_checked { false };
     bool m_before_legacy_pre_activation_behavior_indeterminate { false };
     GC::Ptr<HTMLInputElement> m_legacy_pre_activation_behavior_checked_element_in_group;
+    TypeAttributeState m_before_legacy_pre_activation_behavior_type;
 
     // https://html.spec.whatwg.org/multipage/input.html#concept-input-type-file-selected
     GC::Ptr<FileAPI::FileList> m_selected_files;

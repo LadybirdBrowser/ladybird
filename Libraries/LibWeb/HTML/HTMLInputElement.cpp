@@ -2188,6 +2188,7 @@ void HTMLInputElement::legacy_pre_activation_behavior()
 {
     m_before_legacy_pre_activation_behavior_checked = checked();
     m_before_legacy_pre_activation_behavior_indeterminate = indeterminate();
+    m_before_legacy_pre_activation_behavior_type = type_state();
 
     // 1. If this element's type attribute is in the Checkbox state, then set
     // this element's checkedness to its opposite value (i.e. true if it is
@@ -2221,27 +2222,21 @@ void HTMLInputElement::legacy_cancelled_activation_behavior()
     // 1. If the element's type attribute is in the Checkbox state, then set the
     // element's checkedness and the element's indeterminate IDL attribute back
     // to the values they had before the legacy-pre-activation behavior was run.
-    if (type_state() == TypeAttributeState::Checkbox) {
+    if (m_before_legacy_pre_activation_behavior_type == TypeAttributeState::Checkbox) {
         set_checked(m_before_legacy_pre_activation_behavior_checked);
         set_indeterminate(m_before_legacy_pre_activation_behavior_indeterminate);
     }
 
-    // 2. If this element's type attribute is in the Radio Button state, then
-    // if the element to which a reference was obtained in the
-    // legacy-pre-activation behavior, if any, is still in what is now this
-    // element' s radio button group, if it still has one, and if so, set
-    // that element 's checkedness to true; or else, if there was no such
-    // element, or that element is no longer in this element' s radio button
-    // group, or if this element no longer has a radio button group, set
-    // this element's checkedness to false.
-    if (type_state() == TypeAttributeState::RadioButton) {
+    // 2. If this element's type attribute was in the Radio Button state before
+    // the legacy-pre-activation behavior was run, uncheck this element, then
+    // restore the previously checked element in the group, if there was any.
+    if (m_before_legacy_pre_activation_behavior_type == TypeAttributeState::RadioButton) {
+        set_checked(false);
         bool did_reselect_previous_element = false;
         if (m_legacy_pre_activation_behavior_checked_element_in_group) {
             auto& element_in_group = *m_legacy_pre_activation_behavior_checked_element_in_group;
-            if (is_in_same_radio_button_group(*this, element_in_group)) {
-                element_in_group.set_checked_within_group();
-                did_reselect_previous_element = true;
-            }
+            element_in_group.set_checked_within_group();
+            did_reselect_previous_element = true;
 
             m_legacy_pre_activation_behavior_checked_element_in_group = nullptr;
         }
