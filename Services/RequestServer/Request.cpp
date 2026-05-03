@@ -1007,7 +1007,20 @@ void Request::handle_complete_state()
         auto timing_info = acquire_timing_info();
         transfer_headers_to_client_if_needed();
 
+        // Finalize the disk cache entry before notifying WebContent that the request is complete: WebContent may
+        // immediately fire off a JavaScript bytecode cache store against this entry, and that store needs the cache
+        // index row to already exist. If we notified first the store would race the index write and be rejected.
+        if (m_cache_entry_writer.has_value()) {
+            (void)m_cache_entry_writer->flush(m_request_headers, m_response_headers);
+            m_cache_entry_writer.clear();
+        }
+
         m_client.async_request_finished(m_request_id, m_bytes_transferred_to_client, timing_info, m_network_error);
+    }
+
+    if (m_cache_entry_writer.has_value()) {
+        (void)m_cache_entry_writer->flush(m_request_headers, m_response_headers);
+        m_cache_entry_writer.clear();
     }
 
     m_client.request_complete({}, *this);
