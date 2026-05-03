@@ -109,10 +109,10 @@ JS_API void free_parsed_program(FFI::ParsedProgram*);
 JS_API void free_compiled_program(FFI::CompiledProgram*);
 
 // Serialize a fully compiled program into a versioned bytecode cache blob.
-JS_API ByteBuffer serialize_compiled_program_for_bytecode_cache(FFI::CompiledProgram const&, ProgramType);
+JS_API ByteBuffer serialize_compiled_program_for_bytecode_cache(FFI::CompiledProgram const&, ProgramType, ReadonlyBytes source_hash);
 
 // Decode a bytecode cache blob into an owned parser-free cache handle.
-JS_API FFI::DecodedBytecodeCacheBlob* decode_bytecode_cache_blob(ReadonlyBytes, ProgramType);
+JS_API FFI::DecodedBytecodeCacheBlob* decode_bytecode_cache_blob(ReadonlyBytes, ProgramType, ReadonlyBytes source_hash);
 
 // Free a decoded bytecode cache blob.
 JS_API void free_decoded_bytecode_cache_blob(FFI::DecodedBytecodeCacheBlob*);

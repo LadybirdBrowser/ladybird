@@ -864,10 +864,12 @@ pub unsafe extern "C" fn rust_free_compiled_program(compiled: *mut CompiledProgr
 pub unsafe extern "C" fn rust_serialize_compiled_program_for_bytecode_cache(
     compiled: *const CompiledProgram,
     program_type: u8,
+    source_hash: *const u8,
+    source_hash_len: usize,
 ) -> BytecodeCacheBlob {
     unsafe {
         abort_on_panic(|| {
-            if compiled.is_null() {
+            if compiled.is_null() || source_hash.is_null() || source_hash_len != 32 {
                 return BytecodeCacheBlob {
                     data: std::ptr::null_mut(),
                     length: 0,
@@ -885,7 +887,10 @@ pub unsafe extern "C" fn rust_serialize_compiled_program_for_bytecode_cache(
                 }
             };
 
-            let bytes = bytecode_cache::serialize_compiled_program(&*compiled, program_type);
+            let source_hash = std::slice::from_raw_parts(source_hash, source_hash_len)
+                .try_into()
+                .expect("source hash length was checked");
+            let bytes = bytecode_cache::serialize_compiled_program(&*compiled, program_type, source_hash);
             let length = bytes.len();
             let mut bytes = bytes.into_boxed_slice();
             let data = bytes.as_mut_ptr();
@@ -919,10 +924,12 @@ pub unsafe extern "C" fn rust_decode_bytecode_cache_blob(
     data: *const u8,
     length: usize,
     expected_program_type: u8,
+    expected_source_hash: *const u8,
+    expected_source_hash_len: usize,
 ) -> *mut DecodedBytecodeCacheBlob {
     unsafe {
         abort_on_panic(|| {
-            if data.is_null() {
+            if data.is_null() || expected_source_hash.is_null() || expected_source_hash_len != 32 {
                 return std::ptr::null_mut();
             }
             let expected_program_type = match expected_program_type {
@@ -930,9 +937,14 @@ pub unsafe extern "C" fn rust_decode_bytecode_cache_blob(
                 1 => ast::ProgramType::Module,
                 _ => return std::ptr::null_mut(),
             };
-            let Some(blob) =
-                bytecode_cache::decode_blob(std::slice::from_raw_parts(data, length), expected_program_type)
-            else {
+            let expected_source_hash = std::slice::from_raw_parts(expected_source_hash, expected_source_hash_len)
+                .try_into()
+                .expect("source hash length was checked");
+            let Some(blob) = bytecode_cache::decode_blob(
+                std::slice::from_raw_parts(data, length),
+                expected_program_type,
+                expected_source_hash,
+            ) else {
                 return std::ptr::null_mut();
             };
             Box::into_raw(Box::new(DecodedBytecodeCacheBlob { _blob: blob }))

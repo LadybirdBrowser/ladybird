@@ -8,6 +8,7 @@
 
 #include <AK/Utf16String.h>
 #include <LibCore/EventLoop.h>
+#include <LibCrypto/Hash/SHA2.h>
 #include <LibGC/Function.h>
 #include <LibGC/Root.h>
 #include <LibJS/Bytecode/Executable.h>

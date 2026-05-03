@@ -13,6 +13,7 @@
 #include <LibCore/ArgsParser.h>
 #include <LibCore/ConfigFile.h>
 #include <LibCore/StandardPaths.h>
+#include <LibCrypto/Hash/SHA2.h>
 #include <LibJS/Bytecode/Debug.h>
 #include <LibJS/Console.h>
 #include <LibJS/Contrib/Test262/GlobalObject.h>

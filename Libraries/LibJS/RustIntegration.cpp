@@ -386,9 +386,9 @@ void free_compiled_program(CompiledProgram* compiled)
     rust_free_compiled_program(compiled);
 }
 
-ByteBuffer serialize_compiled_program_for_bytecode_cache(CompiledProgram const& compiled, ProgramType type)
+ByteBuffer serialize_compiled_program_for_bytecode_cache(CompiledProgram const& compiled, ProgramType type, ReadonlyBytes source_hash)
 {
-    auto blob = rust_serialize_compiled_program_for_bytecode_cache(&compiled, static_cast<u8>(type));
+    auto blob = rust_serialize_compiled_program_for_bytecode_cache(&compiled, static_cast<u8>(type), source_hash.data(), source_hash.size());
     if (!blob.data || blob.length == 0)
         return {};
 
@@ -397,9 +397,9 @@ ByteBuffer serialize_compiled_program_for_bytecode_cache(CompiledProgram const& 
     return bytes;
 }
 
-DecodedBytecodeCacheBlob* decode_bytecode_cache_blob(ReadonlyBytes bytes, ProgramType expected_type)
+DecodedBytecodeCacheBlob* decode_bytecode_cache_blob(ReadonlyBytes bytes, ProgramType expected_type, ReadonlyBytes source_hash)
 {
-    return rust_decode_bytecode_cache_blob(bytes.data(), bytes.size(), static_cast<u8>(expected_type));
+    return rust_decode_bytecode_cache_blob(bytes.data(), bytes.size(), static_cast<u8>(expected_type), source_hash.data(), source_hash.size());
 }
 
 void free_decoded_bytecode_cache_blob(DecodedBytecodeCacheBlob* blob)

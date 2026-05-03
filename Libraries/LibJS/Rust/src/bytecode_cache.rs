@@ -23,16 +23,30 @@ use crate::{CompiledProgram, CompiledProgramBytecode, ast, u32_from_usize};
 
 const MAGIC: &[u8; 8] = b"LBJSBC\0\0";
 const FORMAT_VERSION: u32 = 1;
+const SOURCE_HASH_SIZE: usize = 32;
 
-pub fn serialize_compiled_program(compiled: &CompiledProgram, program_type: ast::ProgramType) -> Vec<u8> {
+pub fn serialize_compiled_program(
+    compiled: &CompiledProgram,
+    program_type: ast::ProgramType,
+    source_hash: &[u8; SOURCE_HASH_SIZE],
+) -> Vec<u8> {
     let mut encoder = Encoder::new();
-    CacheBlob { compiled, program_type }.encode(&mut encoder);
+    CacheBlob {
+        compiled,
+        program_type,
+        source_hash,
+    }
+    .encode(&mut encoder);
     encoder.finish()
 }
 
-pub(crate) fn decode_blob(bytes: &[u8], expected_program_type: ast::ProgramType) -> Option<DecodedCacheBlob> {
+pub(crate) fn decode_blob(
+    bytes: &[u8],
+    expected_program_type: ast::ProgramType,
+    expected_source_hash: &[u8; SOURCE_HASH_SIZE],
+) -> Option<DecodedCacheBlob> {
     let mut decoder = Decoder::new(bytes);
-    let blob = CacheBlob::decode(&mut decoder, expected_program_type)?;
+    let blob = CacheBlob::decode(&mut decoder, expected_program_type, expected_source_hash)?;
     if !decoder.is_empty() {
         return None;
     }
@@ -281,6 +295,11 @@ impl Encode for Utf16<'_> {
 struct CacheBlob<'a> {
     compiled: &'a CompiledProgram,
     program_type: ast::ProgramType,
+    // Fingerprint of the decoded source text the blob was generated from. Cache writes happen asynchronously after the
+    // HTTP response has been served, so the entry on disk may have been replaced for the same (URL, vary key) by the
+    // time we go to attach the sidecar. Embedding the source hash makes a stale write harmless: a later read whose
+    // source no longer matches will reject the blob and fall through to source compilation.
+    source_hash: &'a [u8; SOURCE_HASH_SIZE],
 }
 
 impl Encode for CacheBlob<'_> {
@@ -288,6 +307,7 @@ impl Encode for CacheBlob<'_> {
         encoder.bytes(MAGIC);
         FORMAT_VERSION.encode(encoder);
         self.program_type.encode(encoder);
+        encoder.bytes(self.source_hash);
         self.compiled.parsed.has_top_level_await.encode(encoder);
         self.compiled.parsed.is_strict_mode.encode(encoder);
         DeclarationMetadataRecord {
@@ -300,11 +320,16 @@ impl Encode for CacheBlob<'_> {
 }
 
 impl CacheBlob<'_> {
-    fn decode(decoder: &mut Decoder<'_>, expected_program_type: ast::ProgramType) -> Option<DecodedCacheBlob> {
+    fn decode(
+        decoder: &mut Decoder<'_>,
+        expected_program_type: ast::ProgramType,
+        expected_source_hash: &[u8; SOURCE_HASH_SIZE],
+    ) -> Option<DecodedCacheBlob> {
         decoder.expect_bytes(MAGIC)?;
         (u32::decode(decoder)? == FORMAT_VERSION).then_some(())?;
         let program_type = ast::ProgramType::decode(decoder)?;
         (program_type == expected_program_type).then_some(())?;
+        (decoder.bytes(SOURCE_HASH_SIZE)? == expected_source_hash).then_some(())?;
         Some(DecodedCacheBlob {
             program_type,
             has_top_level_await: bool::decode(decoder)?,
@@ -2093,5 +2118,19 @@ mod tests {
 
         let mut decoder = Decoder::new(&bytes);
         assert!(decoder.sequence_values(u8::decode).is_none());
+    }
+
+    #[test]
+    fn decode_rejects_mismatched_source_hash_before_payload() {
+        let stored_source_hash = [1u8; SOURCE_HASH_SIZE];
+        let expected_source_hash = [2u8; SOURCE_HASH_SIZE];
+
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(MAGIC);
+        bytes.extend_from_slice(&FORMAT_VERSION.to_le_bytes());
+        bytes.push(ast::ProgramType::Script as u8);
+        bytes.extend_from_slice(&stored_source_hash);
+
+        assert!(decode_blob(&bytes, ast::ProgramType::Script, &expected_source_hash).is_none());
     }
 }
