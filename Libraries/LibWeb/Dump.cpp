@@ -146,14 +146,14 @@ void dump_tree(StringBuilder& builder, DOM::Node const& node)
     --indent;
 }
 
-void dump_tree(Layout::Node const& layout_node, bool show_cascaded_properties)
+void dump_tree(Layout::Node const& layout_node, bool show_computed_properties)
 {
     StringBuilder builder;
-    dump_tree(builder, layout_node, show_cascaded_properties, true);
+    dump_tree(builder, layout_node, show_computed_properties, true);
     dbgln("{}", builder.string_view());
 }
 
-void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool show_cascaded_properties, bool interactive)
+void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool show_computed_properties, bool interactive)
 {
     static size_t indent = 0;
     builder.append_repeated("  "sv, indent);
@@ -333,7 +333,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
                 builder.append("\n"sv);
                 if (auto const* nested_layout_root = document->layout_node()) {
                     ++indent;
-                    dump_tree(builder, *nested_layout_root, show_cascaded_properties, interactive);
+                    dump_tree(builder, *nested_layout_root, show_computed_properties, interactive);
                     --indent;
                 }
             }
@@ -357,7 +357,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
                         builder.append("  "sv);
                     builder.append("(SVG-as-image isolated context)\n"sv);
 
-                    dump_tree(builder, *svg_data.svg_document().unsafe_layout_node(), show_cascaded_properties, interactive);
+                    dump_tree(builder, *svg_data.svg_document().unsafe_layout_node(), show_computed_properties, interactive);
                     --indent;
                 }
             }
@@ -401,7 +401,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
         }
     }
 
-    if (show_cascaded_properties && layout_node.dom_node() && layout_node.dom_node()->is_element() && as<DOM::Element>(layout_node.dom_node())->computed_properties()) {
+    if (show_computed_properties && layout_node.dom_node() && layout_node.dom_node()->is_element() && as<DOM::Element>(layout_node.dom_node())->computed_properties()) {
         struct NameAndValue {
             FlyString name;
             String value;
@@ -420,7 +420,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
 
     ++indent;
     layout_node.for_each_child([&](auto& child) {
-        dump_tree(builder, child, show_cascaded_properties, interactive);
+        dump_tree(builder, child, show_computed_properties, interactive);
         return IterationDecision::Continue;
     });
     --indent;

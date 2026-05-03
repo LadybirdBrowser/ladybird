@@ -17,8 +17,8 @@ namespace Web {
 WEB_API void dump_tree(HTML::TraversableNavigable&);
 void dump_tree(StringBuilder&, DOM::Node const&);
 WEB_API void dump_tree(DOM::Node const&);
-WEB_API void dump_tree(StringBuilder&, Layout::Node const&, bool show_cascaded_properties = false, bool colorize = false);
-WEB_API void dump_tree(Layout::Node const&, bool show_cascaded_properties = false);
+WEB_API void dump_tree(StringBuilder&, Layout::Node const&, bool show_computed_properties = false, bool colorize = false);
+WEB_API void dump_tree(Layout::Node const&, bool show_computed_properties = false);
 WEB_API void dump_tree(StringBuilder&, Painting::Paintable const&, bool colorize = false, int indent = 0);
 WEB_API void dump_tree(Painting::Paintable const&);
 void dump_sheet(StringBuilder&, CSS::StyleSheet const&, int indent_levels = 0);
