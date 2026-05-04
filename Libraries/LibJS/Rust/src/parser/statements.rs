@@ -6,7 +6,7 @@
 
 //! Statement parsing: if, for, while, switch, try, etc.
 
-use std::collections::HashSet;
+use crate::fast_hash::HashSet;
 
 use crate::ast::*;
 use crate::parser::{Associativity, ForbiddenTokens, PRECEDENCE_COMMA, Parser, Position};
@@ -723,7 +723,7 @@ impl Parser<'_> {
                 // It is a Syntax Error if BoundNames of CatchParameter
                 // contains any duplicate elements.
                 {
-                    let mut seen: HashSet<&[u16]> = HashSet::new();
+                    let mut seen: HashSet<&[u16]> = HashSet::default();
                     for name in &names_to_check {
                         if !seen.insert(name.as_slice()) {
                             let name_str = String::from_utf16_lossy(name);

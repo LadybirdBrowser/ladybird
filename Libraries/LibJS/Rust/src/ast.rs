@@ -28,7 +28,7 @@ use std::ops::{Index, IndexMut};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicPtr, Ordering};
 
-use std::collections::HashMap;
+use crate::fast_hash::HashMap;
 
 use crate::u32_from_usize;
 
@@ -147,7 +147,7 @@ impl StringInterner {
     pub fn new() -> Self {
         Self {
             storage: Vec::new(),
-            lookup: HashMap::new(),
+            lookup: HashMap::default(),
         }
     }
 

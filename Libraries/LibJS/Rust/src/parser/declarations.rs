@@ -6,7 +6,7 @@
 
 //! Declaration parsing: variables, functions, classes, imports, exports.
 
-use std::collections::{HashMap, HashSet};
+use crate::fast_hash::{HashMap, HashSet};
 
 use crate::ast::*;
 use crate::lexer::ch;
@@ -197,7 +197,7 @@ impl Parser<'_> {
                 }
 
                 if kind != DeclarationKind::Var {
-                    let mut seen: HashSet<&[u16]> = HashSet::new();
+                    let mut seen: HashSet<&[u16]> = HashSet::default();
                     for name in &name_strs {
                         if !seen.insert(name.as_slice()) {
                             self.syntax_error("Duplicate parameter names in bindings");
@@ -682,9 +682,9 @@ impl Parser<'_> {
         self.consume_token(TokenType::CurlyOpen);
         let mut elements: Vec<Node<ClassElement>> = Vec::new();
         let mut constructor: Option<Expression> = None;
-        let mut found_private_names: HashMap<Utf16String, (Option<ClassMethodKind>, bool)> = HashMap::new();
+        let mut found_private_names: HashMap<Utf16String, (Option<ClassMethodKind>, bool)> = HashMap::default();
 
-        self.referenced_private_names_stack.push(HashSet::new());
+        self.referenced_private_names_stack.push(HashSet::default());
 
         let saved_class_has_super = self.class_has_super_class;
         self.class_has_super_class = super_class.is_some();
@@ -1379,7 +1379,7 @@ impl Parser<'_> {
 
         // Validate duplicates after parsing so we can use borrowed name slices
         // from `parameter_info` without cloning each entry into the HashSet.
-        let mut seen_parameter_names: HashSet<&[u16]> = HashSet::new();
+        let mut seen_parameter_names: HashSet<&[u16]> = HashSet::default();
         let mut has_seen_non_simple = false;
         for (start, end, parameter_is_non_simple) in parameter_info_ranges {
             for info in &parameter_info[start..end] {

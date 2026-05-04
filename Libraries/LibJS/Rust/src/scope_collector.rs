@@ -49,8 +49,7 @@
 //! - `IdentifierGroup` — a set of identifier references with the same
 //!   name within one scope (multiple `foo` refs are grouped together)
 
-use indexmap::IndexMap;
-use std::collections::HashMap;
+use crate::fast_hash::{HashMap, IndexMap};
 
 use crate::ast::{
     FunctionScopeData, IdentifierArena, IdentifierId, LocalBinding, LocalVarKind, LocalVariable, ScopeId, StringId,
@@ -220,8 +219,8 @@ impl ScopeRecord {
             scope_type,
             scope_level,
             scope_data,
-            variables: IndexMap::new(),
-            identifier_groups: IndexMap::new(),
+            variables: IndexMap::default(),
+            identifier_groups: IndexMap::default(),
             functions_to_hoist: Vec::new(),
             has_function_parameters: false,
             parameter_names: Vec::new(),
@@ -1272,8 +1271,8 @@ impl ScopeCollector {
         // position matches. Keys are SharedUtf16String so each insert is a cheap
         // Rc bump rather than a deep clone of the name.
         let mut functions_to_initialize: Vec<crate::ast::FunctionToInit> = Vec::new();
-        let mut last_position: HashMap<StringId, usize> = HashMap::new();
-        let mut last_position_by_slice: HashMap<Utf16String, usize> = HashMap::new();
+        let mut last_position: HashMap<StringId, usize> = HashMap::default();
+        let mut last_position_by_slice: HashMap<Utf16String, usize> = HashMap::default();
         {
             let sd = &scopes[scope_id];
             for (i, child) in sd.children.iter().enumerate() {

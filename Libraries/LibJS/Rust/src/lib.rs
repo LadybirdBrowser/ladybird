@@ -83,6 +83,7 @@ macro_rules! utf16 {
 pub mod ast;
 pub mod ast_dump;
 pub mod bytecode;
+pub mod fast_hash;
 pub mod lexer;
 pub mod parser;
 pub mod scope_collector;

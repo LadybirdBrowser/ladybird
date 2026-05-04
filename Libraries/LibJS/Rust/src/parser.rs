@@ -32,7 +32,7 @@
 //! save and restore the full parser state including lexer position, current
 //! token, error list, and all boolean flags.
 
-use std::collections::{HashMap, HashSet};
+use crate::fast_hash::{HashMap, HashSet};
 
 use crate::ast::{
     AstArena, BindingPattern, Expression, ExpressionKind, FunctionData, FunctionId, FunctionParameter, FunctionTable,
@@ -323,7 +323,7 @@ impl<'a> Parser<'a> {
             flags: ParserFlags::default(),
             initiated_by_eval: false,
             in_eval_function_context: false,
-            labels_in_scope: HashMap::new(),
+            labels_in_scope: HashMap::default(),
             last_inner_label_is_iteration: false,
             last_primary_was_parenthesized: false,
             last_function_name: Utf16String::default(),
@@ -340,11 +340,11 @@ impl<'a> Parser<'a> {
             for_loop_declaration_is_var: false,
             for_loop_declaration_is_pattern: false,
             scope_collector: ScopeCollector::new(),
-            exported_names: HashSet::new(),
+            exported_names: HashSet::default(),
             function_table: FunctionTable::new(),
             arena: AstArena::new(),
             function_context_stack: Vec::new(),
-            arrow_function_failed_positions: HashSet::new(),
+            arrow_function_failed_positions: HashSet::default(),
         }
     }
 
@@ -880,7 +880,7 @@ impl<'a> Parser<'a> {
     /// Check for duplicate parameter names in arrow functions.
     /// Arrow functions always reject duplicates, regardless of strict mode.
     pub(crate) fn check_arrow_duplicate_parameters(&mut self, parameter_info: &[ParamInfo]) {
-        let mut seen_names: HashSet<&[u16]> = HashSet::new();
+        let mut seen_names: HashSet<&[u16]> = HashSet::default();
         for pi in parameter_info {
             let name = &pi.name;
             if name.is_empty() {
@@ -903,7 +903,7 @@ impl<'a> Parser<'a> {
         force_strict: bool,
         _kind: FunctionKind,
     ) {
-        let mut seen_names: HashSet<&[u16]> = HashSet::new();
+        let mut seen_names: HashSet<&[u16]> = HashSet::default();
         for pi in parameter_info {
             let name = &pi.name;
             if name.is_empty() {
@@ -1124,7 +1124,7 @@ impl<'a> Parser<'a> {
         use crate::ast::*;
 
         // Collect all declared names at module level.
-        let mut declared_names: HashSet<Utf16String> = HashSet::new();
+        let mut declared_names: HashSet<Utf16String> = HashSet::default();
         for child in children {
             collect_module_declared_names(child, &mut declared_names, &self.arena);
         }
