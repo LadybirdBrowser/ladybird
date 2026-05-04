@@ -334,7 +334,7 @@ pub unsafe fn create_shared_function_data(
         let (name_ptr, name_len) = if let Some(name) = name_override {
             (name.as_ptr(), name.len())
         } else if let Some(name_ident) = function_data.name {
-            let name = &arena.identifiers[name_ident].name;
+            let name = arena.name_of(name_ident);
             (name.as_ptr(), name.len())
         } else {
             (std::ptr::null(), 0)
@@ -350,7 +350,7 @@ pub unsafe fn create_shared_function_data(
                 .iter()
                 .map(|p| {
                     if let FunctionParameterBinding::Identifier(id) = p.binding {
-                        FFIUtf16Slice::from(arena.identifiers[id].name.as_ref())
+                        FFIUtf16Slice::from(arena.name_slice(id))
                     } else {
                         unreachable!("has_simple_parameter_list guarantees all bindings are identifiers")
                     }

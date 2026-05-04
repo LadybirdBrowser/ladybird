@@ -36,8 +36,8 @@ use std::collections::{HashMap, HashSet};
 
 use crate::ast::{
     AstArena, BindingPattern, Expression, ExpressionKind, FunctionData, FunctionId, FunctionParameter, FunctionTable,
-    Identifier, IdentifierId, PrivateIdentifier, ProgramData, ScopeData, SharedUtf16String, SourceRange, Statement,
-    StatementKind, Utf16String,
+    Identifier, IdentifierId, PrivateIdentifier, ProgramData, ScopeData, SourceRange, Statement, StatementKind,
+    StringId, Utf16String,
 };
 use crate::lexer::{Lexer, ch};
 use crate::scope_collector::{ScopeCollector, ScopeCollectorState};
@@ -250,7 +250,7 @@ pub struct Parser<'a> {
     /// Caller drains this after calling parse_binding_pattern.
     /// Each entry is (name, identifier) — allows scope analysis to annotate
     /// binding pattern identifiers with local variable info.
-    pub(crate) pattern_bound_names: Vec<(SharedUtf16String, IdentifierId)>,
+    pub(crate) pattern_bound_names: Vec<(StringId, IdentifierId)>,
 
     /// Set during synthesize_binding_pattern to allow MemberExpressions as binding targets.
     allow_member_expressions: bool,
@@ -386,19 +386,31 @@ impl<'a> Parser<'a> {
         function_id
     }
 
-    pub(crate) fn make_identifier(&mut self, start: Position, name: impl Into<SharedUtf16String>) -> IdentifierId {
-        let identifier = Identifier::new(self.range_from(start), name.into());
+    pub(crate) fn make_identifier(&mut self, start: Position, name: StringId) -> IdentifierId {
+        let identifier = Identifier::new(self.range_from(start), name);
         self.arena.identifiers.insert(identifier)
     }
 
-    pub(crate) fn token_identifier_name(&self, token: &Token) -> SharedUtf16String {
-        if let Some(value) = &token.shared_identifier_value {
-            value.clone()
-        } else if let Some(value) = &token.identifier_value {
-            SharedUtf16String::from(value.clone())
-        } else {
-            SharedUtf16String::from(self.token_value(token))
+    pub(crate) fn make_identifier_from_slice(&mut self, start: Position, name: &[u16]) -> IdentifierId {
+        let id = self.arena.strings.intern(name);
+        self.make_identifier(start, id)
+    }
+
+    pub(crate) fn intern(&mut self, value: &[u16]) -> StringId {
+        self.arena.strings.intern(value)
+    }
+
+    pub(crate) fn token_identifier_name(&mut self, token: &Token) -> StringId {
+        if let Some(value) = &token.identifier_value {
+            // Cheap-clone via Vec slicing because intern needs a slice but
+            // self.arena is borrowed.
+            let owned = value.clone();
+            return self.arena.strings.intern_owned(owned);
         }
+        let start = token.value_start as usize;
+        let end = start + token.value_len as usize;
+        let slice = &self.source[start..end];
+        self.arena.strings.intern(slice)
     }
 
     pub(crate) fn register_function_parameters_with_scope(
@@ -422,11 +434,7 @@ impl<'a> Parser<'a> {
                         info_index += 1;
                         (pi.name.clone(), pi.is_rest, pi.is_from_pattern)
                     } else {
-                        (
-                            self.arena.identifiers[*id].name.to_utf16_string(),
-                            parameter.is_rest,
-                            false,
-                        )
+                        (self.arena.name_of(*id).clone(), parameter.is_rest, false)
                     };
                     entries.push(ParameterEntry {
                         name,
@@ -467,7 +475,12 @@ impl<'a> Parser<'a> {
         let Self {
             scope_collector, arena, ..
         } = self;
-        scope_collector.set_function_parameters(&entries, has_parameter_expressions, &mut arena.identifiers);
+        scope_collector.set_function_parameters(
+            &entries,
+            has_parameter_expressions,
+            &mut arena.identifiers,
+            &arena.strings,
+        );
     }
 
     // === Token access ===
@@ -897,9 +910,6 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn token_value<'b>(&'b self, token: &'b Token) -> &'b [u16] {
-        if let Some(ref value) = token.shared_identifier_value {
-            return value.as_slice();
-        }
         if let Some(ref value) = token.identifier_value {
             return value;
         }
@@ -1108,7 +1118,7 @@ impl<'a> Parser<'a> {
         // Collect all declared names at module level.
         let mut declared_names: HashSet<Utf16String> = HashSet::new();
         for child in children {
-            collect_module_declared_names(child, &mut declared_names, &self.arena.identifiers);
+            collect_module_declared_names(child, &mut declared_names, &self.arena);
         }
 
         // Check each export's local bindings.
@@ -1366,14 +1376,14 @@ fn is_use_strict(raw: &[u16]) -> bool {
 fn collect_binding_names(
     target: &crate::ast::VariableDeclaratorTarget,
     names: &mut HashSet<Utf16String>,
-    identifiers: &crate::ast::IdentifierArena,
+    arena: &crate::ast::AstArena,
 ) {
     match target {
         crate::ast::VariableDeclaratorTarget::Identifier(identifier) => {
-            names.insert(identifiers[*identifier].name.to_utf16_string());
+            names.insert(arena.name_of(*identifier).clone());
         }
         crate::ast::VariableDeclaratorTarget::BindingPattern(pattern) => {
-            collect_binding_pattern_names(pattern, names, identifiers);
+            collect_binding_pattern_names(pattern, names, arena);
         }
     }
 }
@@ -1382,21 +1392,21 @@ fn collect_binding_names(
 fn collect_binding_pattern_names(
     pattern: &crate::ast::BindingPattern,
     names: &mut HashSet<Utf16String>,
-    identifiers: &crate::ast::IdentifierArena,
+    arena: &crate::ast::AstArena,
 ) {
     for entry in &pattern.entries {
         if let Some(ref alias) = entry.alias {
             match alias {
                 crate::ast::BindingEntryAlias::Identifier(identifier) => {
-                    names.insert(identifiers[*identifier].name.to_utf16_string());
+                    names.insert(arena.name_of(*identifier).clone());
                 }
                 crate::ast::BindingEntryAlias::BindingPattern(nested) => {
-                    collect_binding_pattern_names(nested, names, identifiers);
+                    collect_binding_pattern_names(nested, names, arena);
                 }
                 crate::ast::BindingEntryAlias::MemberExpression(_) => {}
             }
         } else if let Some(crate::ast::BindingEntryName::Identifier(identifier)) = &entry.name {
-            names.insert(identifiers[*identifier].name.to_utf16_string());
+            names.insert(arena.name_of(*identifier).clone());
         }
     }
 }
@@ -1408,24 +1418,24 @@ fn collect_binding_pattern_names(
 fn collect_module_declared_names(
     statement: &crate::ast::Statement,
     names: &mut HashSet<Utf16String>,
-    identifiers: &crate::ast::IdentifierArena,
+    arena: &crate::ast::AstArena,
 ) {
     use crate::ast::*;
     match &statement.inner {
         StatementKind::VariableDeclaration(data) => {
             // All top-level declarations (var, let, const) are module-scoped.
             for decl in &data.declarations {
-                collect_binding_names(&decl.target, names, identifiers);
+                collect_binding_names(&decl.target, names, arena);
             }
         }
         StatementKind::FunctionDeclaration(data) => {
             if let Some(name) = data.name {
-                names.insert(identifiers[name].name.to_utf16_string());
+                names.insert(arena.name_of(name).clone());
             }
         }
         StatementKind::ClassDeclaration(data) => {
             if let Some(name) = data.name {
-                names.insert(identifiers[name].name.to_utf16_string());
+                names.insert(arena.name_of(name).clone());
             }
         }
         StatementKind::Import(data) => {
@@ -1435,12 +1445,12 @@ fn collect_module_declared_names(
         }
         StatementKind::Export(data) => {
             if let Some(ref stmt) = data.statement {
-                collect_module_declared_names(stmt, names, identifiers);
+                collect_module_declared_names(stmt, names, arena);
             }
         }
         // For any other statement, recurse to find hoisted var declarations.
         _ => {
-            collect_var_declared_names(statement, names, identifiers);
+            collect_var_declared_names(statement, names, arena);
         }
     }
 }
@@ -1452,62 +1462,62 @@ fn collect_module_declared_names(
 fn collect_var_declared_names(
     statement: &crate::ast::Statement,
     names: &mut HashSet<Utf16String>,
-    identifiers: &crate::ast::IdentifierArena,
+    arena: &crate::ast::AstArena,
 ) {
     use crate::ast::*;
     match &statement.inner {
         StatementKind::VariableDeclaration(data) if matches!(data.kind, DeclarationKind::Var) => {
             for decl in &data.declarations {
-                collect_binding_names(&decl.target, names, identifiers);
+                collect_binding_names(&decl.target, names, arena);
             }
         }
         StatementKind::Block(scope) => {
             for child in &scope.borrow().children {
-                collect_var_declared_names(child, names, identifiers);
+                collect_var_declared_names(child, names, arena);
             }
         }
         StatementKind::If(data) => {
-            collect_var_declared_names(&data.consequent, names, identifiers);
+            collect_var_declared_names(&data.consequent, names, arena);
             if let Some(ref alt) = data.alternate {
-                collect_var_declared_names(alt, names, identifiers);
+                collect_var_declared_names(alt, names, arena);
             }
         }
         StatementKind::While(data) | StatementKind::DoWhile(data) => {
-            collect_var_declared_names(&data.body, names, identifiers);
+            collect_var_declared_names(&data.body, names, arena);
         }
         StatementKind::With(data) => {
-            collect_var_declared_names(&data.body, names, identifiers);
+            collect_var_declared_names(&data.body, names, arena);
         }
         StatementKind::For(data) => {
             if let Some(ForInit::Declaration(ref decl)) = data.init {
-                collect_var_declared_names(decl, names, identifiers);
+                collect_var_declared_names(decl, names, arena);
             }
-            collect_var_declared_names(&data.body, names, identifiers);
+            collect_var_declared_names(&data.body, names, arena);
         }
         StatementKind::ForInOf(data) => {
             if let ForInOfLhs::Declaration(ref decl) = data.lhs {
-                collect_var_declared_names(decl, names, identifiers);
+                collect_var_declared_names(decl, names, arena);
             }
-            collect_var_declared_names(&data.body, names, identifiers);
+            collect_var_declared_names(&data.body, names, arena);
         }
         StatementKind::Switch(data) => {
             for case in &data.cases {
                 for child in &case.scope.borrow().children {
-                    collect_var_declared_names(child, names, identifiers);
+                    collect_var_declared_names(child, names, arena);
                 }
             }
         }
         StatementKind::Try(data) => {
-            collect_var_declared_names(&data.block, names, identifiers);
+            collect_var_declared_names(&data.block, names, arena);
             if let Some(ref handler) = data.handler {
-                collect_var_declared_names(&handler.body, names, identifiers);
+                collect_var_declared_names(&handler.body, names, arena);
             }
             if let Some(ref finalizer) = data.finalizer {
-                collect_var_declared_names(finalizer, names, identifiers);
+                collect_var_declared_names(finalizer, names, arena);
             }
         }
         StatementKind::Labelled(data) => {
-            collect_var_declared_names(&data.item, names, identifiers);
+            collect_var_declared_names(&data.item, names, arena);
         }
         // Don't recurse into functions (var doesn't hoist out of functions).
         // Don't recurse into let/const (they are block-scoped, not hoisted).

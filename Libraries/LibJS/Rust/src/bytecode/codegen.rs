@@ -329,7 +329,7 @@ fn generate_unary_expression(
             && !arena.identifiers[*ident].is_local()
         {
             let dst = choose_dst(generator, preferred_dst);
-            let id = generator.intern_identifier(&arena.identifiers[*ident].name);
+            let id = generator.intern_identifier_id(arena.identifiers[*ident].name);
             generator.emit(Instruction::TypeofBinding {
                 dst: dst.operand(),
                 identifier: id,
@@ -541,7 +541,7 @@ fn generate_function_expression(
 
         let name_id = data.name.expect("function declaration must have a name");
         let arena = generator.arena.clone();
-        let id = generator.intern_identifier(&arena.identifiers[name_id].name);
+        let id = generator.intern_identifier_id(arena.identifiers[name_id].name);
         generator.emit(Instruction::CreateVariable {
             identifier: id,
             mode: EnvironmentMode::Lexical as u32,
@@ -715,13 +715,7 @@ fn generate_member_expression(
             emit_get_by_value_with_this(generator, &dst, &super_base, &key, &this_value);
         } else if let ExpressionKind::Identifier(ident) = &property.inner {
             let arena = generator.arena.clone();
-            emit_get_by_id_with_this(
-                generator,
-                &dst,
-                &super_base,
-                &arena.identifiers[*ident].name,
-                &this_value,
-            );
+            emit_get_by_id_with_this(generator, &dst, &super_base, arena.name_slice(*ident), &this_value);
         }
         return Some(dst);
     }
@@ -738,7 +732,7 @@ fn generate_member_expression(
     let dst = choose_dst(generator, preferred_dst);
     if let ExpressionKind::Identifier(ident) = &property.inner {
         let arena = generator.arena.clone();
-        emit_get_by_id(generator, &dst, &obj, &arena.identifiers[*ident].name, base_id);
+        emit_get_by_id(generator, &dst, &obj, arena.name_slice(*ident), base_id);
     } else if let ExpressionKind::PrivateIdentifier(priv_ident) = &property.inner {
         let id = generator.intern_identifier(&priv_ident.name);
         generator.emit(Instruction::GetPrivateById {
@@ -998,7 +992,7 @@ pub fn generate_statement(
                 // to the var scope.
                 if let Some(name_ident) = fd.name {
                     let arena = generator.arena.clone();
-                    let id = generator.intern_identifier(&arena.identifiers[name_ident].name);
+                    let id = generator.intern_identifier_id(arena.identifiers[name_ident].name);
                     let value = generator.allocate_register();
                     generator.emit(Instruction::GetBinding {
                         dst: value.operand(),
@@ -1071,7 +1065,7 @@ pub fn generate_statement(
                     let local = generator.resolve_local(name_ident.local_index, name_ident.local_type.unwrap());
                     generator.emit_mov(&local, &value);
                 } else {
-                    let id = generator.intern_identifier(&name_ident.name);
+                    let id = generator.intern_identifier_id(name_ident.name);
                     generator.emit(Instruction::InitializeLexicalBinding {
                         identifier: id,
                         src: value.operand(),
@@ -1775,14 +1769,14 @@ fn generate_identifier(
 
     // OPTIMIZATION: Generate builtin constants (undefined, NaN, Infinity) directly.
     if ident.is_global
-        && let Some(constant) = maybe_generate_builtin_constant(generator, &ident.name)
+        && let Some(constant) = maybe_generate_builtin_constant(generator, arena.name_slice(id))
     {
         return constant;
     }
 
     let dst = choose_dst(generator, preferred_dst);
     if ident.is_global {
-        let id = generator.intern_identifier(&ident.name);
+        let id = generator.intern_identifier_id(ident.name);
         let cache = generator.next_global_variable_cache();
         generator.emit(Instruction::GetGlobal {
             dst: dst.operand(),
@@ -1790,14 +1784,14 @@ fn generate_identifier(
             cache: cache as u64,
         });
     } else if ident.declaration_kind == Some(DeclarationKind::Var) {
-        let id = generator.intern_identifier(&ident.name);
+        let id = generator.intern_identifier_id(ident.name);
         generator.emit(Instruction::GetInitializedBinding {
             dst: dst.operand(),
             identifier: id,
             cache: EnvironmentCoordinate::empty(),
         });
     } else {
-        let id = generator.intern_identifier(&ident.name);
+        let id = generator.intern_identifier_id(ident.name);
         generator.emit(Instruction::GetBinding {
             dst: dst.operand(),
             identifier: id,
@@ -2343,7 +2337,7 @@ fn generate_for_statement(
     {
         let mut non_local_names: Vec<(Utf16String, bool)> = Vec::new();
         for declaration in &vd.declarations {
-            collect_target_names(&declaration.target, &mut non_local_names, &generator.arena.identifiers);
+            collect_target_names(&declaration.target, &mut non_local_names, &generator.arena);
         }
         if !non_local_names.is_empty() {
             has_lexical_environment = true;
@@ -2603,7 +2597,7 @@ fn emit_lexical_declarations_for_block<'a>(
                 let is_constant = vd.kind == DeclarationKind::Const;
                 for declaration in &vd.declarations {
                     let mut names = Vec::new();
-                    collect_target_names(&declaration.target, &mut names, &generator.arena.identifiers);
+                    collect_target_names(&declaration.target, &mut names, &generator.arena);
                     for (name, _) in &names {
                         let id = generator.intern_identifier(name);
                         if is_constant {
@@ -2625,7 +2619,7 @@ fn emit_lexical_declarations_for_block<'a>(
             StatementKind::UsingDeclaration(declarations) => {
                 for declaration in declarations.iter() {
                     let mut names = Vec::new();
-                    collect_target_names(&declaration.target, &mut names, &generator.arena.identifiers);
+                    collect_target_names(&declaration.target, &mut names, &generator.arena);
                     for (name, _) in &names {
                         let id = generator.intern_identifier(name);
                         generator.emit(Instruction::CreateImmutableBinding {
@@ -2641,7 +2635,7 @@ fn emit_lexical_declarations_for_block<'a>(
                     let arena = generator.arena.clone();
                     let name_ident = &arena.identifiers[name_ident_id];
                     if !name_ident.is_local() {
-                        let id = generator.intern_identifier(&name_ident.name);
+                        let id = generator.intern_identifier_id(name_ident.name);
                         generator.emit(Instruction::CreateMutableBinding {
                             environment: environment.operand(),
                             identifier: id,
@@ -2656,7 +2650,7 @@ fn emit_lexical_declarations_for_block<'a>(
                 let name_ident = &arena.identifiers[name_ident_id];
                 // a. Create binding.
                 if !name_ident.is_local() {
-                    let id = generator.intern_identifier(&name_ident.name);
+                    let id = generator.intern_identifier_id(name_ident.name);
                     generator.emit(Instruction::CreateMutableBinding {
                         environment: environment.operand(),
                         identifier: id,
@@ -2679,7 +2673,7 @@ fn emit_lexical_declarations_for_block<'a>(
                     generator.emit_mov(&local, &fo);
                     generator.mark_local_initialized(local_index);
                 } else {
-                    let id = generator.intern_identifier(&name_ident.name);
+                    let id = generator.intern_identifier_id(name_ident.name);
                     generator.emit(Instruction::InitializeLexicalBinding {
                         identifier: id,
                         src: fo.operand(),
@@ -2693,7 +2687,7 @@ fn emit_lexical_declarations_for_block<'a>(
 }
 
 fn emit_block_declaration_instantiation(generator: &mut Generator, scope: &ScopeData) -> bool {
-    if !needs_block_declaration_instantiation(scope, &generator.arena.identifiers) {
+    if !needs_block_declaration_instantiation(scope, &generator.arena) {
         return false;
     }
 
@@ -2738,7 +2732,7 @@ fn generate_variable_declaration(
         // Set pending LHS name for function name inference.
         if let VariableDeclaratorTarget::Identifier(id) = &declaration.target {
             let ident = &arena.identifiers[*id];
-            generator.pending_lhs_name = Some(generator.intern_identifier(&ident.name));
+            generator.pending_lhs_name = Some(generator.intern_identifier_id(ident.name));
         }
         let init_value = declaration
             .init
@@ -2764,7 +2758,7 @@ fn generate_variable_declaration(
                     generator.emit_mov(&local, &value);
                     generator.mark_local_initialized(local_index);
                 } else {
-                    let id = generator.intern_identifier(&ident.name);
+                    let id = generator.intern_identifier_id(ident.name);
                     match kind {
                         DeclarationKind::Var => {
                             if ident.is_global {
@@ -2819,7 +2813,7 @@ fn try_generate_builtin_abstract_operation(
     }
     let arena = generator.arena.clone();
     let name = match &data.callee.inner {
-        ExpressionKind::Identifier(ident) => &arena.identifiers[*ident].name,
+        ExpressionKind::Identifier(ident) => arena.name_slice(*ident),
         _ => return None,
     };
     if data.arguments.iter().any(|a| a.is_spread) {
@@ -2946,7 +2940,7 @@ fn try_generate_builtin_abstract_operation(
             argument_holders.push(generator.copy_if_needed_to_preserve_evaluation_order(&val));
         }
         let arena_clone = generator.arena.clone();
-        let callee_name = expression_string_approximation(&data.arguments[0].value, &arena_clone.identifiers)
+        let callee_name = expression_string_approximation(&data.arguments[0].value, &arena_clone)
             .map(|s| generator.intern_string(&s));
         let arguments: Vec<Operand> = argument_holders.iter().map(|a| a.operand()).collect();
         generator.emit(Instruction::Call {
@@ -2972,7 +2966,7 @@ fn try_generate_builtin_abstract_operation(
         (utf16!("IteratorComplete"), AbstractOperationKind::IteratorComplete),
     ];
     for &(op_name, operation) in known_operations {
-        if *name == op_name {
+        if name == op_name {
             let callee = generator.add_constant_abstract_operation(operation);
             let undefined = generator.add_constant_undefined();
             let expression_string = generator.intern_string(name);
@@ -3046,15 +3040,15 @@ fn generate_call_expression(
     // Compute expression_string for error messages (e.g. "true is not a function (evaluated from 'a')").
     let arena = generator.arena.clone();
     let expression_string: Option<StringTableIndex> =
-        expression_string_approximation(&data.callee, &arena.identifiers).map(|s| generator.intern_string(&s));
+        expression_string_approximation(&data.callee, &arena).map(|s| generator.intern_string(&s));
 
     // Detect direct eval calls: bare identifier "eval" as callee.
     let is_direct_eval = !is_new
-        && matches!(&data.callee.inner, ExpressionKind::Identifier(ident) if arena.identifiers[*ident].name == utf16!("eval"));
+        && matches!(&data.callee.inner, ExpressionKind::Identifier(ident) if arena.name_slice(*ident) == utf16!("eval"));
 
     // Detect known builtins for member expression callees (e.g. Math.abs).
     let builtin: Option<u8> = if !is_new {
-        get_builtin(&data.callee, &generator.arena.identifiers)
+        get_builtin(&data.callee, &generator.arena)
     } else {
         None
     };
@@ -3083,13 +3077,7 @@ fn generate_call_expression(
                 if let Some(key) = computed_key {
                     emit_get_by_value_with_this(generator, &method, &super_base, &key, &this_value);
                 } else if let ExpressionKind::Identifier(ident) = &data.property.inner {
-                    emit_get_by_id_with_this(
-                        generator,
-                        &method,
-                        &super_base,
-                        &arena.identifiers[*ident].name,
-                        &this_value,
-                    );
+                    emit_get_by_id_with_this(generator, &method, &super_base, arena.name_slice(*ident), &this_value);
                 }
                 (method, Some(this_value))
             }
@@ -3101,7 +3089,7 @@ fn generate_call_expression(
                     let property = generate_expression_or_undefined(&data.property, generator, None);
                     emit_get_by_value(generator, &method, &obj, &property, None);
                 } else if let ExpressionKind::Identifier(ident) = &data.property.inner {
-                    emit_get_by_id(generator, &method, &obj, &arena.identifiers[*ident].name, base_id);
+                    emit_get_by_id(generator, &method, &obj, arena.name_slice(*ident), base_id);
                 } else if let ExpressionKind::PrivateIdentifier(priv_ident) = &data.property.inner {
                     let id = generator.intern_identifier(&priv_ident.name);
                     generator.emit(Instruction::GetPrivateById {
@@ -3133,7 +3121,7 @@ fn generate_call_expression(
                 // to properly handle with-statement bindings and eval.
                 let callee_reg = generator.allocate_register();
                 let this_reg = generator.allocate_register();
-                let id = generator.intern_identifier(&arena.identifiers[*ident].name);
+                let id = generator.intern_identifier_id(arena.identifiers[*ident].name);
                 generator.emit(Instruction::GetCalleeAndThisFromEnvironment {
                     callee: callee_reg.operand(),
                     this_value: this_reg.operand(),
@@ -3362,7 +3350,7 @@ fn generate_update_expression(
                     emit_get_by_value_with_this(generator, &value, &base, key, &this_value);
                 } else if let ExpressionKind::Identifier(ident) = &data.property.inner {
                     let arena = generator.arena.clone();
-                    emit_get_by_id_with_this(generator, &value, &base, &arena.identifiers[*ident].name, &this_value);
+                    emit_get_by_id_with_this(generator, &value, &base, arena.name_slice(*ident), &this_value);
                 }
                 let result = emit_update_op(generator, op, prefixed, &value);
                 emit_super_put(
@@ -3389,7 +3377,7 @@ fn generate_update_expression(
                 } else if let ExpressionKind::Identifier(property_ident) = &data.property.inner {
                     let value = generator.allocate_register();
                     let arena = generator.arena.clone();
-                    let property_name = &arena.identifiers[*property_ident].name;
+                    let property_name = arena.name_slice(*property_ident);
                     emit_get_by_id(generator, &value, &base, property_name, base_id);
                     let key = generator.intern_property_key(property_name);
                     let result = emit_update_op(generator, op, prefixed, &value);
@@ -3459,7 +3447,7 @@ fn generate_assignment_expression(
                 let arena = generator.arena.clone();
                 let ident = &arena.identifiers[id];
                 if op == AssignmentOp::Assignment {
-                    generator.pending_lhs_name = Some(generator.intern_identifier(&ident.name));
+                    generator.pending_lhs_name = Some(generator.intern_identifier_id(ident.name));
                     let rhs_val = generate_expression(rhs, generator, None)?;
                     generator.pending_lhs_name = None;
                     if ident.is_local() {
@@ -3500,7 +3488,7 @@ fn generate_assignment_expression(
                     }
                     // RHS block: evaluate RHS, assign, jump to end.
                     generator.switch_to_basic_block(rhs_block);
-                    generator.pending_lhs_name = Some(generator.intern_identifier(&arena.identifiers[id].name));
+                    generator.pending_lhs_name = Some(generator.intern_identifier_id(arena.identifiers[id].name));
                     let rhs_val = generate_expression(rhs, generator, None)?;
                     generator.pending_lhs_name = None;
                     // Allocate dst after RHS evaluation.
@@ -3578,13 +3566,7 @@ fn generate_assignment_expression(
                         emit_get_by_value_with_this(generator, &old_val, &base, key, &super_this);
                     } else if let ExpressionKind::Identifier(ident) = &member_data.property.inner {
                         let arena = generator.arena.clone();
-                        emit_get_by_id_with_this(
-                            generator,
-                            &old_val,
-                            &base,
-                            &arena.identifiers[*ident].name,
-                            &super_this,
-                        );
+                        emit_get_by_id_with_this(generator, &old_val, &base, arena.name_slice(*ident), &super_this);
                     }
                     let is_logical = matches!(
                         op,
@@ -3700,8 +3682,8 @@ fn generate_assignment_expression(
                 } else if let ExpressionKind::Identifier(ident) = &member_data.property.inner {
                     let old_val = generator.allocate_register();
                     let arena = generator.arena.clone();
-                    let property_name = arena.identifiers[*ident].name.clone();
-                    emit_get_by_id(generator, &old_val, &base, &property_name, base_id);
+                    let property_name = arena.name_slice(*ident);
+                    emit_get_by_id(generator, &old_val, &base, property_name, base_id);
                     if is_logical {
                         let rhs_block = generator.make_block();
                         let lhs_block = generator.make_block();
@@ -3711,7 +3693,7 @@ fn generate_assignment_expression(
                         let rhs_val = generate_expression(rhs, generator, None)?;
                         let dst = choose_dst(generator, preferred_dst);
                         generator.emit_mov(&dst, &rhs_val);
-                        let key = generator.intern_property_key(&property_name);
+                        let key = generator.intern_property_key(property_name);
                         let cache2 = generator.next_property_lookup_cache();
                         generator.emit(Instruction::PutById {
                             base: base.operand(),
@@ -3731,7 +3713,7 @@ fn generate_assignment_expression(
                     let rhs_val = generate_expression(rhs, generator, None)?;
                     let dst = choose_dst(generator, preferred_dst);
                     emit_compound_assignment(generator, op, &dst, &old_val, &rhs_val);
-                    let key = generator.intern_property_key(&property_name);
+                    let key = generator.intern_property_key(property_name);
                     let cache2 = generator.next_property_lookup_cache();
                     generator.emit(Instruction::PutById {
                         base: base.operand(),
@@ -3840,7 +3822,7 @@ fn emit_super_get(
         Some(property)
     } else if let ExpressionKind::Identifier(ident) = &property.inner {
         let arena = generator.arena.clone();
-        emit_get_by_id_with_this(generator, dst, base, &arena.identifiers[*ident].name, this_value);
+        emit_get_by_id_with_this(generator, dst, base, arena.name_slice(*ident), this_value);
         None
     } else {
         None
@@ -3868,7 +3850,7 @@ fn emit_super_put(
         emit_put_normal_by_value_with_this(generator, base, &property, this_value, value);
     } else if let ExpressionKind::Identifier(ident) = &property.inner {
         let arena = generator.arena.clone();
-        let key = generator.intern_property_key(&arena.identifiers[*ident].name);
+        let key = generator.intern_property_key_id(arena.identifiers[*ident].name);
         let cache = generator.next_property_lookup_cache();
         generator.emit(Instruction::PutByIdWithThis {
             base: base.operand(),
@@ -4243,7 +4225,7 @@ fn emit_set_variable(generator: &mut Generator, id: crate::ast::IdentifierId, va
             src: value.operand(),
         });
     } else if ident.is_global {
-        let id = generator.intern_identifier(&ident.name);
+        let id = generator.intern_identifier_id(ident.name);
         let cache = generator.next_global_variable_cache();
         generator.emit(Instruction::SetGlobal {
             identifier: id,
@@ -4253,7 +4235,7 @@ fn emit_set_variable(generator: &mut Generator, id: crate::ast::IdentifierId, va
     } else {
         // Non-local, non-global: use SetLexicalBinding which searches
         // the lexical environment chain (important for with-statement support).
-        let id = generator.intern_identifier(&ident.name);
+        let id = generator.intern_identifier_id(ident.name);
         generator.emit(Instruction::SetLexicalBinding {
             identifier: id,
             src: value.operand(),
@@ -4276,7 +4258,7 @@ fn emit_put_to_member(
         emit_put_normal_by_value(generator, base, &property, value, base_id);
     } else if let ExpressionKind::Identifier(ident) = &property.inner {
         let arena = generator.arena.clone();
-        let key = generator.intern_property_key(&arena.identifiers[*ident].name);
+        let key = generator.intern_property_key_id(arena.identifiers[*ident].name);
         let cache = generator.next_property_lookup_cache();
         generator.emit(Instruction::PutById {
             base: base.operand(),
@@ -4306,7 +4288,7 @@ fn emit_delete_reference(generator: &mut Generator, operand: &Expression) -> Sco
                 return generator.add_constant_boolean(false);
             }
             let dst = generator.allocate_register();
-            let id = generator.intern_identifier(&identifier.name);
+            let id = generator.intern_identifier_id(identifier.name);
             generator.emit(Instruction::DeleteVariable {
                 dst: dst.operand(),
                 identifier: id,
@@ -4355,7 +4337,7 @@ fn emit_delete_reference(generator: &mut Generator, operand: &Expression) -> Sco
                 });
             } else if let ExpressionKind::Identifier(property_ident) = &data.property.inner {
                 let arena = generator.arena.clone();
-                let key = generator.intern_property_key(&arena.identifiers[*property_ident].name);
+                let key = generator.intern_property_key_id(arena.identifiers[*property_ident].name);
                 generator.emit(Instruction::DeleteById {
                     dst: dst.operand(),
                     base: base.operand(),
@@ -4441,7 +4423,7 @@ fn emit_evaluate_member_reference(generator: &mut Generator, target: &Expression
                 }
             } else if let ExpressionKind::Identifier(ident) = &member_data.property.inner {
                 let arena = generator.arena.clone();
-                let key = generator.intern_property_key(&arena.identifiers[*ident].name);
+                let key = generator.intern_property_key_id(arena.identifiers[*ident].name);
                 let cache = generator.next_property_lookup_cache();
                 EvaluatedReference::SuperMemberId {
                     base,
@@ -4477,7 +4459,7 @@ fn emit_evaluate_member_reference(generator: &mut Generator, target: &Expression
                 }
             } else if let ExpressionKind::Identifier(ident) = &member_data.property.inner {
                 let arena = generator.arena.clone();
-                let key = generator.intern_property_key(&arena.identifiers[*ident].name);
+                let key = generator.intern_property_key_id(arena.identifiers[*ident].name);
                 let cache = generator.next_property_lookup_cache();
                 EvaluatedReference::MemberId {
                     base,
@@ -4786,13 +4768,7 @@ fn generate_tagged_template_literal(
             if let Some(key) = computed_key {
                 emit_get_by_value_with_this(generator, &method, &super_base, &key, &this_value);
             } else if let ExpressionKind::Identifier(ident) = &member_data.property.inner {
-                emit_get_by_id_with_this(
-                    generator,
-                    &method,
-                    &super_base,
-                    &arena.identifiers[*ident].name,
-                    &this_value,
-                );
+                emit_get_by_id_with_this(generator, &method, &super_base, arena.name_slice(*ident), &this_value);
             }
             (method, Some(this_value))
         }
@@ -4805,7 +4781,7 @@ fn generate_tagged_template_literal(
                 emit_get_by_value(generator, &method, &obj, &property, None);
             } else if let ExpressionKind::Identifier(ident) = &member_data.property.inner {
                 let base_id = intern_base_identifier(generator, &member_data.object);
-                emit_get_by_id(generator, &method, &obj, &arena.identifiers[*ident].name, base_id);
+                emit_get_by_id(generator, &method, &obj, arena.name_slice(*ident), base_id);
             } else if let ExpressionKind::PrivateIdentifier(priv_ident) = &member_data.property.inner {
                 let id = generator.intern_identifier(&priv_ident.name);
                 generator.emit(Instruction::GetPrivateById {
@@ -4828,7 +4804,7 @@ fn generate_tagged_template_literal(
             let callee_reg = generator.allocate_register();
             let this_reg = generator.allocate_register();
             let arena = generator.arena.clone();
-            let id = generator.intern_identifier(&arena.identifiers[*ident].name);
+            let id = generator.intern_identifier_id(arena.identifiers[*ident].name);
             generator.emit(Instruction::GetCalleeAndThisFromEnvironment {
                 callee: callee_reg.operand(),
                 this_value: this_reg.operand(),
@@ -4993,10 +4969,10 @@ fn generate_switch_statement(
                 && let Some(name_ident_id) = fd.name
                 && generator
                     .annexb_function_names
-                    .contains(generator.arena.identifiers[name_ident_id].name.as_slice())
+                    .contains(generator.arena.name_slice(name_ident_id))
             {
                 let arena = generator.arena.clone();
-                let id = generator.intern_identifier(&arena.identifiers[name_ident_id].name);
+                let id = generator.intern_identifier_id(arena.identifiers[name_ident_id].name);
                 let value = generator.allocate_register();
                 generator.emit(Instruction::GetBinding {
                     dst: value.operand(),
@@ -5065,7 +5041,7 @@ fn emit_switch_block_declaration_instantiation(generator: &mut Generator, data: 
         {
             vd.declarations.iter().any(|declaration| {
                 let mut names = Vec::new();
-                collect_target_names(&declaration.target, &mut names, &generator.arena.identifiers);
+                collect_target_names(&declaration.target, &mut names, &generator.arena);
                 !names.is_empty()
             })
         }
@@ -5174,7 +5150,7 @@ fn generate_object_expression(
         if !effectively_computed && property.property_type != ObjectPropertyType::ProtoSetter {
             let base_name: Option<Utf16String> = match &property.key.inner {
                 ExpressionKind::StringLiteral(s) => Some((**s).clone()),
-                ExpressionKind::Identifier(ident) => Some(generator.arena.identifiers[*ident].name.to_utf16_string()),
+                ExpressionKind::Identifier(ident) => Some(generator.arena.name_of(*ident).clone()),
                 _ => None,
             };
             if let Some(name) = base_name {
@@ -5238,7 +5214,7 @@ fn generate_object_expression(
                     let arena = generator.arena.clone();
                     let property_key = match &property.key.inner {
                         ExpressionKind::Identifier(ident) => {
-                            generator.intern_property_key(&arena.identifiers[*ident].name)
+                            generator.intern_property_key_id(arena.identifiers[*ident].name)
                         }
                         ExpressionKind::StringLiteral(s) => generator.intern_property_key(s),
                         _ => {
@@ -5328,7 +5304,7 @@ fn emit_object_property_set_by_key(
     match &key.inner {
         ExpressionKind::Identifier(ident) => {
             let arena = generator.arena.clone();
-            let property_key = generator.intern_property_key(&arena.identifiers[*ident].name);
+            let property_key = generator.intern_property_key_id(arena.identifiers[*ident].name);
             generator.emit(Instruction::InitObjectLiteralProperty {
                 object: object.operand(),
                 property: property_key,
@@ -5433,8 +5409,8 @@ fn emit_object_accessor_by_key(
     match &key.inner {
         ExpressionKind::Identifier(ident) => {
             let arena = generator.arena.clone();
-            let name = arena.identifiers[*ident].name.clone();
-            emit_by_id(generator, &name);
+            let name = arena.name_slice(*ident);
+            emit_by_id(generator, name);
         }
         ExpressionKind::StringLiteral(s) => emit_by_id(generator, s),
         _ => emit_by_value(generator, key),
@@ -5485,7 +5461,7 @@ fn generate_optional_chain_inner(
             } else if let ExpressionKind::Identifier(ident) = &member_data.property.inner {
                 let base_id = intern_base_identifier(generator, &member_data.object);
                 let arena = generator.arena.clone();
-                emit_get_by_id(generator, &val, &obj, &arena.identifiers[*ident].name, base_id);
+                emit_get_by_id(generator, &val, &obj, arena.name_slice(*ident), base_id);
                 generator.emit_mov(current_base, &obj);
             } else if let ExpressionKind::PrivateIdentifier(name) = &member_data.property.inner {
                 let id = generator.intern_identifier(&name.name);
@@ -5548,7 +5524,7 @@ fn generate_optional_chain_inner(
                     generator,
                     current_value,
                     current_value,
-                    &arena.identifiers[*identifier].name,
+                    arena.name_slice(*identifier),
                     None,
                 );
             }
@@ -5675,7 +5651,7 @@ fn generate_class_expression(
     // (skip this for anonymous classes with lhs_name).
     if data.name.is_some() || lhs_name.is_none() {
         let name = if let Some(name_ident_id) = data.name {
-            generator.arena.identifiers[name_ident_id].name.to_utf16_string()
+            generator.arena.name_of(name_ident_id).clone()
         } else {
             Utf16String::new()
         };
@@ -5858,7 +5834,7 @@ fn generate_class_expression(
                         // Determine field name for anonymous function naming.
                         let arena = generator.arena.clone();
                         let field_name = match &key.inner {
-                            ExpressionKind::Identifier(ident) => arena.identifiers[*ident].name.to_utf16_string(),
+                            ExpressionKind::Identifier(ident) => arena.name_of(*ident).clone(),
                             ExpressionKind::StringLiteral(s) => (**s).clone(),
                             ExpressionKind::PrivateIdentifier(p) => p.name.clone(),
                             ExpressionKind::NumericLiteral(n) => super::ffi::js_number_to_utf16(*n),
@@ -5908,7 +5884,7 @@ fn generate_class_expression(
                         let key_is_private = is_private_key(key);
                         let key_name: Utf16String = match &key.inner {
                             ExpressionKind::PrivateIdentifier(ident) => ident.name.clone(),
-                            ExpressionKind::Identifier(ident) => arena.identifiers[*ident].name.to_utf16_string(),
+                            ExpressionKind::Identifier(ident) => arena.name_of(*ident).clone(),
                             ExpressionKind::StringLiteral(s) => (**s).clone(),
                             ExpressionKind::NumericLiteral(n) => super::ffi::js_number_to_utf16(*n),
                             _ => Utf16String::new(),
@@ -5982,7 +5958,7 @@ fn generate_class_expression(
     let source_end = data.source_text_end as usize;
     let source_text_len = source_end - source_start;
 
-    let class_name = data.name.map(|n| generator.arena.identifiers[n].name.to_utf16_string());
+    let class_name = data.name.map(|n| generator.arena.name_of(n).clone());
     let blueprint_index = generator.register_class_blueprint(PendingClassBlueprint {
         name: class_name,
         source_text_offset: source_start,
@@ -6039,7 +6015,9 @@ fn emit_default_constructor(generator: &mut Generator, has_super: bool) -> u32 {
         parser.flags.allow_super_constructor_call = true;
     }
     let program = parser.parse_program(false);
-    parser.scope_collector.analyze(false, &mut parser.arena.identifiers);
+    parser
+        .scope_collector
+        .analyze(false, &mut parser.arena.identifiers, &parser.arena.strings);
 
     assert!(!parser.has_errors(), "default constructor parse failed");
 
@@ -6093,14 +6071,14 @@ fn get_private_identifier_name(key: &Expression) -> Option<Utf16String> {
 
 /// Check if a for-in/for-of LHS is a `let`/`const` declaration with non-local identifiers,
 /// meaning we need a per-iteration lexical environment.
-fn for_in_of_needs_lexical_env(lhs: &ForInOfLhs, identifiers: &crate::ast::IdentifierArena) -> bool {
+fn for_in_of_needs_lexical_env(lhs: &ForInOfLhs, arena: &crate::ast::AstArena) -> bool {
     if let ForInOfLhs::Declaration(statement) = lhs
         && let StatementKind::VariableDeclaration(vd) = &statement.inner
         && (vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const)
     {
         let mut names = Vec::new();
         for declaration in &vd.declarations {
-            collect_target_names(&declaration.target, &mut names, identifiers);
+            collect_target_names(&declaration.target, &mut names, arena);
         }
         return !names.is_empty();
     }
@@ -6111,17 +6089,17 @@ fn for_in_of_needs_lexical_env(lhs: &ForInOfLhs, identifiers: &crate::ast::Ident
 fn collect_target_names(
     target: &VariableDeclaratorTarget,
     names: &mut Vec<(Utf16String, bool)>,
-    identifiers: &crate::ast::IdentifierArena,
+    arena: &crate::ast::AstArena,
 ) {
     match target {
         VariableDeclaratorTarget::Identifier(id) => {
-            let ident = &identifiers[*id];
+            let ident = &arena.identifiers[*id];
             if !ident.is_local() {
-                names.push((ident.name.to_utf16_string(), false));
+                names.push((arena.strings[ident.name].clone(), false));
             }
         }
         VariableDeclaratorTarget::BindingPattern(pattern) => {
-            collect_pattern_binding_names(pattern, names, identifiers);
+            collect_pattern_binding_names(pattern, names, arena);
         }
     }
 }
@@ -6130,24 +6108,24 @@ fn collect_target_names(
 fn collect_pattern_binding_names(
     pattern: &BindingPattern,
     names: &mut Vec<(Utf16String, bool)>,
-    identifiers: &crate::ast::IdentifierArena,
+    arena: &crate::ast::AstArena,
 ) {
     for entry in &pattern.entries {
         match &entry.alias {
             Some(BindingEntryAlias::Identifier(id)) => {
-                let ident = &identifiers[*id];
+                let ident = &arena.identifiers[*id];
                 if !ident.is_local() {
-                    names.push((ident.name.to_utf16_string(), false));
+                    names.push((arena.strings[ident.name].clone(), false));
                 }
             }
             Some(BindingEntryAlias::BindingPattern(sub)) => {
-                collect_pattern_binding_names(sub, names, identifiers);
+                collect_pattern_binding_names(sub, names, arena);
             }
             None => {
                 if let Some(BindingEntryName::Identifier(id)) = &entry.name {
-                    let ident = &identifiers[*id];
+                    let ident = &arena.identifiers[*id];
                     if !ident.is_local() {
-                        names.push((ident.name.to_utf16_string(), false));
+                        names.push((arena.strings[ident.name].clone(), false));
                     }
                 }
             }
@@ -6169,7 +6147,7 @@ fn create_for_in_of_lexical_env(generator: &mut Generator, lhs: &ForInOfLhs) -> 
     {
         is_constant = vd.kind == DeclarationKind::Const;
         for declaration in &vd.declarations {
-            collect_target_names(&declaration.target, &mut binding_names, &generator.arena.identifiers);
+            collect_target_names(&declaration.target, &mut binding_names, &generator.arena);
         }
     }
 
@@ -6203,7 +6181,7 @@ fn enter_for_in_of_head_tdz(generator: &mut Generator, lhs: &ForInOfLhs) -> bool
     {
         let mut names = Vec::new();
         for declaration in &vd.declarations {
-            collect_target_names(&declaration.target, &mut names, &generator.arena.identifiers);
+            collect_target_names(&declaration.target, &mut names, &generator.arena);
         }
         if !names.is_empty() {
             generator.push_new_lexical_environment(0);
@@ -6265,7 +6243,7 @@ fn generate_for_in_statement(
         && let (VariableDeclaratorTarget::Identifier(ident_id), Some(init)) = (&declaration.target, &declaration.init)
     {
         let arena = generator.arena.clone();
-        generator.pending_lhs_name = Some(generator.intern_identifier(&arena.identifiers[*ident_id].name));
+        generator.pending_lhs_name = Some(generator.intern_identifier_id(arena.identifiers[*ident_id].name));
         let value = generate_expression_or_undefined(init, generator, None);
         generator.pending_lhs_name = None;
         emit_set_variable(generator, *ident_id, &value);
@@ -6275,7 +6253,7 @@ fn generate_for_in_statement(
     // continuation_block during head evaluation.
     let end_block = generator.make_block();
     let update_block = generator.make_block();
-    let needs_lexical_env = for_in_of_needs_lexical_env(lhs, &generator.arena.identifiers);
+    let needs_lexical_env = for_in_of_needs_lexical_env(lhs, &generator.arena);
 
     // B.3.5 Initializers in ForIn Statement Heads: evaluate initializer before RHS.
     // Create TDZ for lexical declarations before evaluating the RHS expression.
@@ -6453,7 +6431,7 @@ fn generate_for_of_statement_inner(
 
     // Create TDZ for lexical declarations before evaluating the RHS expression.
     let entered_tdz = enter_for_in_of_head_tdz(generator, lhs);
-    let needs_lexical_env = for_in_of_needs_lexical_env(lhs, &generator.arena.identifiers);
+    let needs_lexical_env = for_in_of_needs_lexical_env(lhs, &generator.arena);
     let old_handler = generator.current_unwind_handler;
 
     // Evaluate RHS into `object`, allocate iterator registers, and emit
@@ -6923,10 +6901,10 @@ enum BindingMode {
 fn set_pending_lhs_name_for_entry(generator: &mut Generator, entry: &BindingEntry) {
     let arena = generator.arena.clone();
     let name = match &entry.alias {
-        Some(BindingEntryAlias::Identifier(id)) => Some(arena.identifiers[*id].name.clone()),
+        Some(BindingEntryAlias::Identifier(id)) => Some(arena.identifiers[*id].name),
         None => {
             if let Some(BindingEntryName::Identifier(id)) = &entry.name {
-                Some(arena.identifiers[*id].name.clone())
+                Some(arena.identifiers[*id].name)
             } else {
                 None
             }
@@ -6934,7 +6912,7 @@ fn set_pending_lhs_name_for_entry(generator: &mut Generator, entry: &BindingEntr
         _ => None,
     };
     if let Some(name) = name {
-        generator.pending_lhs_name = Some(generator.intern_identifier(&name));
+        generator.pending_lhs_name = Some(generator.intern_identifier_id(name));
     }
 }
 
@@ -6966,7 +6944,7 @@ fn emit_set_variable_with_mode(
         let local = generator.resolve_local(ident.local_index, ident.local_type.unwrap());
         generator.emit_mov(&local, value);
     } else {
-        let id = generator.intern_identifier(&ident.name);
+        let id = generator.intern_identifier_id(ident.name);
         match mode {
             BindingMode::InitializeLexical => {
                 generator.emit(Instruction::InitializeLexicalBinding {
@@ -7224,10 +7202,10 @@ fn generate_object_binding_pattern(
         match &entry.name {
             Some(BindingEntryName::Identifier(ident)) => {
                 let arena = generator.arena.clone();
-                let name = arena.identifiers[*ident].name.clone();
-                emit_get_by_id(generator, &value, object, &name, None);
+                let name = arena.name_slice(*ident);
+                emit_get_by_id(generator, &value, object, name, None);
                 if has_rest {
-                    let name_val = generator.add_constant_string(name.to_utf16_string());
+                    let name_val = generator.add_constant_string(arena.name_of(*ident).clone());
                     excluded_names.push(name_val);
                 }
             }
@@ -7382,7 +7360,7 @@ fn generate_try_statement(
                         generator.start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
                         created_catch_scope = true;
 
-                        let id = generator.intern_identifier(&ident.name);
+                        let id = generator.intern_identifier_id(ident.name);
                         generator.emit(Instruction::CreateVariable {
                             identifier: id,
                             mode: EnvironmentMode::Lexical as u32,
@@ -7399,7 +7377,7 @@ fn generate_try_statement(
                 }
                 CatchBinding::BindingPattern(pattern) => {
                     let mut names: Vec<(Utf16String, bool)> = Vec::new();
-                    collect_pattern_binding_names(pattern, &mut names, &generator.arena.identifiers);
+                    collect_pattern_binding_names(pattern, &mut names, &generator.arena);
 
                     if !names.is_empty() {
                         generator.push_new_lexical_environment(0);
@@ -7739,7 +7717,7 @@ pub fn emit_function_declaration_instantiation(
         match &parameter.binding {
             FunctionParameterBinding::Identifier(ident_id) => {
                 let ident = &arena.identifiers[*ident_id];
-                let name = ident.name.to_utf16_string();
+                let name = arena.strings[ident.name].clone();
                 let is_local = ident.is_local();
                 if !seen_names.insert(name.clone()) {
                     has_duplicates = true;
@@ -7753,7 +7731,7 @@ pub fn emit_function_declaration_instantiation(
                     &mut parameter_names,
                     &mut seen_names,
                     &mut has_duplicates,
-                    &arena.identifiers,
+                    &arena,
                 );
             }
         }
@@ -7906,7 +7884,7 @@ pub fn emit_function_declaration_instantiation(
                         None => {}
                     }
                 } else {
-                    let id = generator.intern_identifier(&ident.name);
+                    let id = generator.intern_identifier_id(ident.name);
                     if has_duplicates {
                         generator.emit(Instruction::SetLexicalBinding {
                             identifier: id,
@@ -8062,7 +8040,7 @@ pub fn emit_function_declaration_instantiation(
     // --- Step 7: Lexical environment for non-local declarations ---
     // Note: this counts only let/const/class declarations (not function declarations,
     // which are var-hoisted in function bodies).
-    let lex_bindings_count = count_non_local_lexical_bindings(body_scope, &generator.arena.identifiers);
+    let lex_bindings_count = count_non_local_lexical_bindings(body_scope, &generator.arena);
 
     if !strict && lex_bindings_count > 0 {
         generator.push_new_lexical_environment(lex_bindings_count);
@@ -8078,7 +8056,7 @@ pub fn emit_function_declaration_instantiation(
                 let is_constant = vd.kind == DeclarationKind::Const;
                 for declaration in &vd.declarations {
                     let mut names = Vec::new();
-                    collect_target_names(&declaration.target, &mut names, &generator.arena.identifiers);
+                    collect_target_names(&declaration.target, &mut names, &generator.arena);
                     for (name, _) in names {
                         let id = generator.intern_identifier(&name);
                         generator.emit(Instruction::CreateVariable {
@@ -8097,7 +8075,7 @@ pub fn emit_function_declaration_instantiation(
                     let arena = generator.arena.clone();
                     let name_ident = &arena.identifiers[name_ident_id];
                     if !name_ident.is_local() {
-                        let id = generator.intern_identifier(&name_ident.name);
+                        let id = generator.intern_identifier_id(name_ident.name);
                         generator.emit(Instruction::CreateVariable {
                             identifier: id,
                             mode: EnvironmentMode::Lexical as u32,
@@ -8143,7 +8121,7 @@ pub fn emit_function_declaration_instantiation(
                             home_object: None,
                             lhs_name: None,
                         });
-                        let id = generator.intern_identifier(&name_ident.name);
+                        let id = generator.intern_identifier_id(name_ident.name);
                         generator.emit(Instruction::SetVariableBinding {
                             identifier: id,
                             src: function_reg.operand(),
@@ -8163,7 +8141,7 @@ fn is_for_loop(statement: &Statement) -> bool {
 
 /// Check if a block needs block declaration instantiation.
 /// True when the block has function declarations or non-local let/const/class.
-fn needs_block_declaration_instantiation(scope: &ScopeData, identifiers: &crate::ast::IdentifierArena) -> bool {
+fn needs_block_declaration_instantiation(scope: &ScopeData, arena: &crate::ast::AstArena) -> bool {
     for child in &scope.children {
         match &child.inner {
             StatementKind::FunctionDeclaration(_) => {
@@ -8174,7 +8152,7 @@ fn needs_block_declaration_instantiation(scope: &ScopeData, identifiers: &crate:
             {
                 for declaration in &vd.declarations {
                     let mut names = Vec::new();
-                    collect_target_names(&declaration.target, &mut names, identifiers);
+                    collect_target_names(&declaration.target, &mut names, arena);
                     if !names.is_empty() {
                         return true;
                     }
@@ -8182,7 +8160,7 @@ fn needs_block_declaration_instantiation(scope: &ScopeData, identifiers: &crate:
             }
             StatementKind::ClassDeclaration(class_data) => {
                 if let Some(name_ident) = class_data.name
-                    && !identifiers[name_ident].is_local()
+                    && !arena.identifiers[name_ident].is_local()
                 {
                     return true;
                 }
@@ -8190,7 +8168,7 @@ fn needs_block_declaration_instantiation(scope: &ScopeData, identifiers: &crate:
             StatementKind::UsingDeclaration(declarations) => {
                 for declaration in declarations.iter() {
                     let mut names = Vec::new();
-                    collect_target_names(&declaration.target, &mut names, identifiers);
+                    collect_target_names(&declaration.target, &mut names, arena);
                     if !names.is_empty() {
                         return true;
                     }
@@ -8203,7 +8181,7 @@ fn needs_block_declaration_instantiation(scope: &ScopeData, identifiers: &crate:
 }
 
 /// Count non-local lexical bindings in a function body scope.
-fn count_non_local_lexical_bindings(scope: &ScopeData, identifiers: &crate::ast::IdentifierArena) -> u32 {
+fn count_non_local_lexical_bindings(scope: &ScopeData, arena: &crate::ast::AstArena) -> u32 {
     let mut count = 0u32;
     for child in &scope.children {
         match &child.inner {
@@ -8212,12 +8190,12 @@ fn count_non_local_lexical_bindings(scope: &ScopeData, identifiers: &crate::ast:
             {
                 for declaration in &vd.declarations {
                     let mut names = Vec::new();
-                    collect_target_names(&declaration.target, &mut names, identifiers);
+                    collect_target_names(&declaration.target, &mut names, arena);
                     count += u32_from_usize(names.len());
                 }
             }
             StatementKind::ClassDeclaration(class_data)
-                if class_data.name.is_some_and(|n| !identifiers[n].is_local()) =>
+                if class_data.name.is_some_and(|n| !arena.identifiers[n].is_local()) =>
             {
                 count += 1;
             }
@@ -8238,14 +8216,14 @@ fn collect_binding_pattern_names(
     parameter_names: &mut Vec<FdiParameterName>,
     seen_names: &mut HashSet<Utf16String>,
     has_duplicates: &mut bool,
-    identifiers: &crate::ast::IdentifierArena,
+    arena: &crate::ast::AstArena,
 ) {
     for entry in &pattern.entries {
         // The bound name can be in the alias (for object patterns) or name (for array patterns).
         match &entry.alias {
             Some(BindingEntryAlias::Identifier(ident_id)) => {
-                let ident = &identifiers[*ident_id];
-                let name = ident.name.to_utf16_string();
+                let ident = &arena.identifiers[*ident_id];
+                let name = arena.strings[ident.name].clone();
                 let is_local = ident.is_local();
                 if !seen_names.insert(name.clone()) {
                     *has_duplicates = true;
@@ -8254,13 +8232,13 @@ fn collect_binding_pattern_names(
                 }
             }
             Some(BindingEntryAlias::BindingPattern(sub_pattern)) => {
-                collect_binding_pattern_names(sub_pattern, parameter_names, seen_names, has_duplicates, identifiers);
+                collect_binding_pattern_names(sub_pattern, parameter_names, seen_names, has_duplicates, arena);
             }
             None => {
                 // No alias — the name itself is the binding.
                 if let Some(BindingEntryName::Identifier(ident_id)) = &entry.name {
-                    let ident = &identifiers[*ident_id];
-                    let name = ident.name.to_utf16_string();
+                    let ident = &arena.identifiers[*ident_id];
+                    let name = arena.strings[ident.name].clone();
                     let is_local = ident.is_local();
                     if !seen_names.insert(name.clone()) {
                         *has_duplicates = true;
@@ -8308,7 +8286,7 @@ const BUILTIN_STRING_PROTOTYPE_CHAR_AT: u8 = 23;
 
 /// Detect known builtin methods from a callee expression (e.g. Math.abs).
 /// Returns the Builtin enum value as u8, matching Builtins.h ordering.
-fn get_builtin(callee: &Expression, identifiers: &crate::ast::IdentifierArena) -> Option<u8> {
+fn get_builtin(callee: &Expression, arena: &crate::ast::AstArena) -> Option<u8> {
     let ExpressionKind::Member(member_data) = &callee.inner else {
         return None;
     };
@@ -8318,7 +8296,7 @@ fn get_builtin(callee: &Expression, identifiers: &crate::ast::IdentifierArena) -
     let ExpressionKind::Identifier(property_ident) = &member_data.property.inner else {
         return None;
     };
-    let property_name = &identifiers[*property_ident].name;
+    let property_name = arena.name_slice(*property_ident);
     if property_name == utf16!("charAt") {
         return Some(BUILTIN_STRING_PROTOTYPE_CHAR_AT);
     }
@@ -8328,7 +8306,7 @@ fn get_builtin(callee: &Expression, identifiers: &crate::ast::IdentifierArena) -
     let ExpressionKind::Identifier(base_ident) = &member_data.object.inner else {
         return None;
     };
-    let base_name = &identifiers[*base_ident].name;
+    let base_name = arena.name_slice(*base_ident);
     // Must match JS_ENUMERATE_BUILTINS order in Builtins.h.
     static BUILTINS: &[(&[u16], &[u16], u8)] = &[
         (utf16!("Math"), utf16!("abs"), BUILTIN_MATH_ABS),
@@ -9217,14 +9195,14 @@ fn nanboxed_empty() -> u64 {
 /// "Cannot access property X on null object Y".
 fn intern_base_identifier(generator: &mut Generator, base: &Expression) -> Option<IdentifierTableIndex> {
     let arena = generator.arena.clone();
-    expression_identifier(base, &arena.identifiers).map(|s| generator.intern_identifier(&s))
+    expression_identifier(base, &arena).map(|s| generator.intern_identifier(&s))
 }
 
 /// Try to produce a human-readable name for an expression (for error messages).
 /// Returns None for expressions that have no meaningful name.
-fn expression_identifier(expression: &Expression, identifiers: &crate::ast::IdentifierArena) -> Option<Utf16String> {
+fn expression_identifier(expression: &Expression, arena: &crate::ast::AstArena) -> Option<Utf16String> {
     match &expression.inner {
-        ExpressionKind::Identifier(ident) => Some(identifiers[*ident].name.to_utf16_string()),
+        ExpressionKind::Identifier(ident) => Some(arena.name_of(*ident).clone()),
         ExpressionKind::StringLiteral(s) => {
             let mut result = Utf16String(utf16!("'").to_vec());
             result.0.extend_from_slice(s);
@@ -9235,10 +9213,10 @@ fn expression_identifier(expression: &Expression, identifiers: &crate::ast::Iden
         ExpressionKind::This => Some(Utf16String(utf16!("this").to_vec())),
         ExpressionKind::Member(data) => {
             let mut s = Utf16String::new();
-            if let Some(obj_id) = expression_identifier(&data.object, identifiers) {
+            if let Some(obj_id) = expression_identifier(&data.object, arena) {
                 s.0.extend_from_slice(&obj_id);
             }
-            if let Some(property_id) = expression_identifier(&data.property, identifiers) {
+            if let Some(property_id) = expression_identifier(&data.property, arena) {
                 if data.computed {
                     s.0.extend_from_slice(utf16!("["));
                     s.0.extend_from_slice(&property_id);
@@ -9257,23 +9235,20 @@ fn expression_identifier(expression: &Expression, identifiers: &crate::ast::Iden
 /// Produce a human-readable string for call expression error messages.
 /// Unlike expression_identifier, this always produces output for known types
 /// (using "<object>" for unrecognized sub-expressions).
-fn expression_string_approximation(
-    expression: &Expression,
-    identifiers: &crate::ast::IdentifierArena,
-) -> Option<Utf16String> {
+fn expression_string_approximation(expression: &Expression, arena: &crate::ast::AstArena) -> Option<Utf16String> {
     match &expression.inner {
-        ExpressionKind::Identifier(ident) => Some(identifiers[*ident].name.to_utf16_string()),
-        ExpressionKind::Member(_) => Some(member_to_string_approximation(expression, identifiers)),
+        ExpressionKind::Identifier(ident) => Some(arena.name_of(*ident).clone()),
+        ExpressionKind::Member(_) => Some(member_to_string_approximation(expression, arena)),
         _ => None,
     }
 }
 
-fn member_to_string_approximation(expression: &Expression, identifiers: &crate::ast::IdentifierArena) -> Utf16String {
+fn member_to_string_approximation(expression: &Expression, arena: &crate::ast::AstArena) -> Utf16String {
     match &expression.inner {
-        ExpressionKind::Identifier(ident) => identifiers[*ident].name.to_utf16_string(),
+        ExpressionKind::Identifier(ident) => arena.name_of(*ident).clone(),
         ExpressionKind::Member(data) => {
-            let mut s = member_to_string_approximation(&data.object, identifiers);
-            let property_str = member_to_string_approximation(&data.property, identifiers);
+            let mut s = member_to_string_approximation(&data.object, arena);
+            let property_str = member_to_string_approximation(&data.property, arena);
             if data.computed {
                 s.0.extend_from_slice(utf16!("["));
                 s.0.extend_from_slice(&property_str);

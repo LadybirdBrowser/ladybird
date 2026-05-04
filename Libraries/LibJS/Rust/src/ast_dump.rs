@@ -68,7 +68,7 @@ struct DumpState<'a> {
     use_color: bool,
     output: Option<&'a RefCell<String>>,
     function_table: &'a FunctionTable,
-    identifiers: &'a crate::ast::IdentifierArena,
+    arena: &'a crate::ast::AstArena,
 }
 
 impl DumpState<'_> {
@@ -76,7 +76,10 @@ impl DumpState<'_> {
         self.function_table
     }
     fn identifier(&self, id: crate::ast::IdentifierId) -> &crate::ast::Identifier {
-        &self.identifiers[id]
+        &self.arena.identifiers[id]
+    }
+    fn name_slice(&self, id: crate::ast::IdentifierId) -> &[u16] {
+        self.arena.name_slice(id)
     }
 }
 
@@ -122,7 +125,7 @@ fn child_state<'a>(state: &DumpState<'a>, is_last: bool) -> DumpState<'a> {
         use_color: state.use_color,
         output: state.output,
         function_table: state.function_table,
-        identifiers: state.identifiers,
+        arena: state.arena,
     }
 }
 
@@ -312,7 +315,7 @@ pub fn dump_program(
     program: &Statement,
     use_color: bool,
     function_table: &FunctionTable,
-    identifiers: &crate::ast::IdentifierArena,
+    arena: &crate::ast::AstArena,
 ) {
     let state = DumpState {
         prefix: String::new(),
@@ -321,7 +324,7 @@ pub fn dump_program(
         use_color,
         output: None,
         function_table,
-        identifiers,
+        arena,
     };
     dump_statement(program, &state);
     println!();
@@ -330,7 +333,7 @@ pub fn dump_program(
 pub fn dump_program_to_string(
     program: &Statement,
     function_table: &FunctionTable,
-    identifiers: &crate::ast::IdentifierArena,
+    arena: &crate::ast::AstArena,
 ) -> String {
     let output = RefCell::new(String::new());
     let state = DumpState {
@@ -340,7 +343,7 @@ pub fn dump_program_to_string(
         use_color: false,
         output: Some(&output),
         function_table,
-        identifiers,
+        arena,
     };
     dump_statement(program, &state);
     output.into_inner()
@@ -966,7 +969,10 @@ fn dump_identifier_id(id: crate::ast::IdentifierId, state: &DumpState) {
 
 fn dump_identifier(ident: &Identifier, range: &SourceRange, state: &DumpState) {
     let mut desc = color_node_name(state, "Identifier");
-    desc.push_str(&format!(" {}", color_string_utf16(state, &ident.name)));
+    desc.push_str(&format!(
+        " {}",
+        color_string_utf16(state, state.arena.strings[ident.name].as_slice())
+    ));
     if ident.is_local() {
         let kind = if ident.local_type == Some(LocalType::Argument) {
             "argument"
@@ -1013,7 +1019,7 @@ fn dump_function(function_data: &FunctionData, class_name: &str, range: &SourceR
         desc.push('*');
     }
     let name_str = match function_data.name {
-        Some(id) => utf16_to_string(&state.identifier(id).name),
+        Some(id) => utf16_to_string(state.name_slice(id)),
         None => String::new(),
     };
     desc.push_str(&format!(" {}", color_string(state, &name_str)));
@@ -1087,7 +1093,7 @@ fn dump_function(function_data: &FunctionData, class_name: &str, range: &SourceR
 
 fn dump_class(class_data: &ClassData, range: &SourceRange, state: &DumpState, root_state: &DumpState) {
     let name_str = match class_data.name {
-        Some(id) => utf16_to_string(&state.identifier(id).name),
+        Some(id) => utf16_to_string(state.name_slice(id)),
         None => String::new(),
     };
     print_node(

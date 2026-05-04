@@ -204,6 +204,14 @@ impl AstArena {
     pub fn new() -> Self {
         Self::default()
     }
+
+    pub fn name_of(&self, id: IdentifierId) -> &Utf16String {
+        &self.strings[self.identifiers[id].name]
+    }
+
+    pub fn name_slice(&self, id: IdentifierId) -> &[u16] {
+        self.strings[self.identifiers[id].name].as_slice()
+    }
 }
 
 // =============================================================================
@@ -737,75 +745,6 @@ impl Utf16String {
     }
 }
 
-#[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd, Default)]
-pub struct SharedUtf16String(pub Rc<Utf16String>);
-
-impl SharedUtf16String {
-    pub fn new(value: Utf16String) -> Self {
-        Self(Rc::new(value))
-    }
-
-    pub fn to_utf16_string(&self) -> Utf16String {
-        self.0.as_ref().clone()
-    }
-}
-
-impl From<Utf16String> for SharedUtf16String {
-    fn from(value: Utf16String) -> Self {
-        Self::new(value)
-    }
-}
-
-impl From<Vec<u16>> for SharedUtf16String {
-    fn from(value: Vec<u16>) -> Self {
-        Self::new(Utf16String::from(value))
-    }
-}
-
-impl From<&[u16]> for SharedUtf16String {
-    fn from(value: &[u16]) -> Self {
-        Self::new(Utf16String::from(value))
-    }
-}
-
-impl std::ops::Deref for SharedUtf16String {
-    type Target = Utf16String;
-
-    fn deref(&self) -> &Self::Target {
-        self.0.as_ref()
-    }
-}
-
-impl std::borrow::Borrow<[u16]> for SharedUtf16String {
-    fn borrow(&self) -> &[u16] {
-        self.0.as_slice()
-    }
-}
-
-impl AsRef<[u16]> for SharedUtf16String {
-    fn as_ref(&self) -> &[u16] {
-        self.0.as_slice()
-    }
-}
-
-impl PartialEq<[u16]> for SharedUtf16String {
-    fn eq(&self, other: &[u16]) -> bool {
-        self.0.as_slice() == other
-    }
-}
-
-impl PartialEq<&[u16]> for SharedUtf16String {
-    fn eq(&self, other: &&[u16]) -> bool {
-        self.0.as_slice() == *other
-    }
-}
-
-impl PartialEq<Utf16String> for SharedUtf16String {
-    fn eq(&self, other: &Utf16String) -> bool {
-        self.0.as_slice() == other.as_slice()
-    }
-}
-
 #[derive(Clone, Copy, Debug)]
 pub struct Position {
     pub line: u32,
@@ -983,7 +922,7 @@ pub enum LocalType {
 #[derive(Clone, Debug)]
 pub struct Identifier {
     pub range: SourceRange,
-    pub name: SharedUtf16String,
+    pub name: StringId,
     // Scope analysis results — set by scope collector after parsing.
     pub local_type: Option<LocalType>,
     pub local_index: u32,
@@ -993,7 +932,7 @@ pub struct Identifier {
 }
 
 impl Identifier {
-    pub fn new(range: SourceRange, name: SharedUtf16String) -> Self {
+    pub fn new(range: SourceRange, name: StringId) -> Self {
         Self {
             range,
             name,

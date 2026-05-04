@@ -34,7 +34,7 @@
 //! type, because escaped keywords have different semantics (they can be
 //! used as identifiers in some contexts).
 
-use crate::ast::{SharedUtf16String, Utf16String};
+use crate::ast::Utf16String;
 use crate::token::{Token, TokenType};
 use crate::u32_from_usize;
 
@@ -70,8 +70,6 @@ pub struct Lexer<'a> {
     allow_html_comments: bool,
     template_states: Vec<TemplateState>,
     saved_states: Vec<SavedLexerState>,
-    short_identifier_cache: [Option<SharedUtf16String>; 128],
-    recent_identifier_cache: [Option<SharedUtf16String>; 128],
 }
 
 // Unicode constants used by the lexical grammar.
@@ -410,8 +408,6 @@ impl<'a> Lexer<'a> {
             allow_html_comments: true,
             template_states: Vec::new(),
             saved_states: Vec::new(),
-            short_identifier_cache: std::array::from_fn(|_| None),
-            recent_identifier_cache: std::array::from_fn(|_| None),
         };
         lexer.consume();
         lexer
@@ -433,42 +429,9 @@ impl<'a> Lexer<'a> {
             allow_html_comments: true,
             template_states: Vec::new(),
             saved_states: Vec::new(),
-            short_identifier_cache: std::array::from_fn(|_| None),
-            recent_identifier_cache: std::array::from_fn(|_| None),
         };
         lexer.consume();
         lexer
-    }
-
-    fn shared_identifier_from_slice(&mut self, value: &[u16]) -> Option<SharedUtf16String> {
-        if value.is_empty() {
-            return None;
-        }
-
-        let first = value[0] as usize;
-        if value.len() == 1 && first < 128 {
-            if let Some(existing) = &self.short_identifier_cache[first] {
-                return Some(existing.clone());
-            }
-            let shared = SharedUtf16String::from(value);
-            self.short_identifier_cache[first] = Some(shared.clone());
-            return Some(shared);
-        }
-
-        let slot = first % 128;
-        if let Some(existing) = &self.recent_identifier_cache[slot]
-            && existing.as_slice() == value
-        {
-            return Some(existing.clone());
-        }
-
-        let shared = SharedUtf16String::from(value);
-        self.recent_identifier_cache[slot] = Some(shared.clone());
-        Some(shared)
-    }
-
-    fn shared_identifier_from_owned(&mut self, value: &Utf16String) -> Option<SharedUtf16String> {
-        self.shared_identifier_from_slice(value.as_slice())
     }
 
     fn current_template_state(&self) -> &TemplateState {
@@ -997,7 +960,6 @@ impl<'a> Lexer<'a> {
         let did_consume_whitespace_or_comments = trivia_start != value_start;
 
         let mut identifier_value: Option<Utf16String> = None;
-        let mut shared_identifier_value: Option<SharedUtf16String> = None;
 
         if self.current_token_type == TokenType::RegexLiteral
             && !self.is_eof()
@@ -1068,11 +1030,7 @@ impl<'a> Lexer<'a> {
                 let has_escape = self.scan_identifier_body(len);
                 if has_escape {
                     let decoded = self.build_identifier_value(value_start);
-                    shared_identifier_value = self.shared_identifier_from_owned(&decoded);
                     identifier_value = Some(decoded);
-                } else {
-                    let source_slice = &self.source[value_start - 1..self.position - 1];
-                    shared_identifier_value = self.shared_identifier_from_slice(source_slice);
                 }
                 token_type = TokenType::PrivateIdentifier;
             } else {
@@ -1088,7 +1046,6 @@ impl<'a> Lexer<'a> {
                 // It is a Syntax Error if the source text matched by this production
                 // is a ReservedWord after processing unicode escape sequences.
                 let decoded = self.build_identifier_value(value_start);
-                shared_identifier_value = self.shared_identifier_from_owned(&decoded);
                 if keyword_from_str(&decoded).is_some() {
                     token_type = TokenType::EscapedKeyword;
                 } else {
@@ -1101,7 +1058,6 @@ impl<'a> Lexer<'a> {
                     token_type = kw;
                 } else {
                     token_type = TokenType::Identifier;
-                    shared_identifier_value = self.shared_identifier_from_slice(source_slice);
                 }
             }
         } else if self.is_numeric_literal_start() {
@@ -1297,7 +1253,6 @@ impl<'a> Lexer<'a> {
             offset: u32_from_usize(value_start.saturating_sub(1)),
             trivia_has_line_terminator,
             identifier_value,
-            shared_identifier_value,
             message: token_message,
         }
     }
@@ -1388,7 +1343,6 @@ impl<'a> Lexer<'a> {
             offset: u32_from_usize(value_start.saturating_sub(1)),
             trivia_has_line_terminator: false,
             identifier_value: None,
-            shared_identifier_value: None,
             message: None,
         }
     }

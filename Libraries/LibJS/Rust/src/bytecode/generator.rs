@@ -642,6 +642,30 @@ impl Generator {
         property_key_table_index
     );
 
+    /// Convenience: look up a `StringId` in the AST interner and intern the
+    /// resulting slice into the bytecode identifier table.
+    pub fn intern_identifier_id(&mut self, id: crate::ast::StringId) -> IdentifierTableIndex {
+        let arena = self.arena.clone();
+        let slice = arena.strings[id].as_slice();
+        self.intern_identifier(slice)
+    }
+
+    /// Convenience: look up a `StringId` in the AST interner and intern the
+    /// resulting slice into the bytecode property key table.
+    pub fn intern_property_key_id(&mut self, id: crate::ast::StringId) -> PropertyKeyTableIndex {
+        let arena = self.arena.clone();
+        let slice = arena.strings[id].as_slice();
+        self.intern_property_key(slice)
+    }
+
+    /// Convenience: look up a `StringId` in the AST interner and intern the
+    /// resulting slice into the bytecode string table.
+    pub fn intern_string_id(&mut self, id: crate::ast::StringId) -> StringTableIndex {
+        let arena = self.arena.clone();
+        let slice = arena.strings[id].as_slice();
+        self.intern_string(slice)
+    }
+
     /// If `operand` is a constant string that is not an array index, intern it
     /// as a property key and return the index. Uses split borrows to avoid
     /// cloning the string when it is already interned (the common case).

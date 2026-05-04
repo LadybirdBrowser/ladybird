@@ -184,7 +184,7 @@ fn abort_on_panic<F: FnOnce() -> R, R>(f: F) -> R {
 unsafe fn write_ast_dump_output(
     program: &ast::Statement,
     function_table: &ast::FunctionTable,
-    identifiers: &ast::IdentifierArena,
+    arena: &ast::AstArena,
     output_ptr: *mut *mut u8,
     output_len: *mut usize,
 ) {
@@ -192,7 +192,7 @@ unsafe fn write_ast_dump_output(
         if output_ptr.is_null() || output_len.is_null() {
             return;
         }
-        let dump_string = ast_dump::dump_program_to_string(program, function_table, identifiers);
+        let dump_string = ast_dump::dump_program_to_string(program, function_table, arena);
         let mut boxed = dump_string.into_bytes().into_boxed_slice();
         *output_ptr = boxed.as_mut_ptr();
         *output_len = boxed.len();
@@ -435,7 +435,7 @@ pub unsafe extern "C" fn rust_compile_program(
 
             parser
                 .scope_collector
-                .analyze(initiated_by_eval, &mut parser.arena.identifiers);
+                .analyze(initiated_by_eval, &mut parser.arena.identifiers, &parser.arena.strings);
 
             let scope_ref = if let StatementKind::Program(ref data) = program.inner {
                 data.scope.clone()
@@ -502,12 +502,14 @@ pub unsafe extern "C" fn rust_parse_program(
             }
 
             if errors.is_empty() {
-                parser.scope_collector.analyze(false, &mut parser.arena.identifiers);
+                parser
+                    .scope_collector
+                    .analyze(false, &mut parser.arena.identifiers, &parser.arena.strings);
             }
 
             // Dump AST if requested (after scope analysis).
             if dump_ast && errors.is_empty() {
-                ast_dump::dump_program(&program, use_color, &parser.function_table, &parser.arena.identifiers);
+                ast_dump::dump_program(&program, use_color, &parser.function_table, &parser.arena);
             }
 
             let (scope_ref, is_strict, has_tla) = if errors.is_empty() {
@@ -660,8 +662,7 @@ pub unsafe extern "C" fn rust_parsed_program_ast_dump(
     unsafe {
         let parsed = &mut *parsed;
         let dump = parsed.ast_dump.get_or_insert_with(|| {
-            ast_dump::dump_program_to_string(&parsed.program, &parsed.function_table, &parsed.arena.identifiers)
-                .into_bytes()
+            ast_dump::dump_program_to_string(&parsed.program, &parsed.function_table, &parsed.arena).into_bytes()
         });
         *output_ptr = dump.as_ptr();
         *output_len = dump.len();
@@ -816,12 +817,14 @@ pub unsafe extern "C" fn rust_compile_eval(
                 return std::ptr::null_mut();
             }
 
-            parser.scope_collector.analyze(true, &mut parser.arena.identifiers);
+            parser
+                .scope_collector
+                .analyze(true, &mut parser.arena.identifiers, &parser.arena.strings);
 
             write_ast_dump_output(
                 &program,
                 &parser.function_table,
-                &parser.arena.identifiers,
+                &parser.arena,
                 ast_dump_output,
                 ast_dump_output_len,
             );
@@ -1002,7 +1005,7 @@ pub unsafe extern "C" fn rust_compile_dynamic_function(
             // as a FunctionExpression (no Program scope for globals to bind to).
             parser
                 .scope_collector
-                .analyze_as_dynamic_function(&mut parser.arena.identifiers);
+                .analyze_as_dynamic_function(&mut parser.arena.identifiers, &parser.arena.strings);
 
             if parser.scope_collector.has_errors() {
                 if let Some(cb) = error_callback {
@@ -1017,7 +1020,7 @@ pub unsafe extern "C" fn rust_compile_dynamic_function(
             write_ast_dump_output(
                 &program,
                 &parser.function_table,
-                &parser.arena.identifiers,
+                &parser.arena,
                 ast_dump_output,
                 ast_dump_output_len,
             );
@@ -1112,12 +1115,14 @@ pub unsafe extern "C" fn rust_compile_builtin_file(
                 panic!("Parse errors in builtin file: {}", errors.join("; "));
             }
 
-            parser.scope_collector.analyze(false, &mut parser.arena.identifiers);
+            parser
+                .scope_collector
+                .analyze(false, &mut parser.arena.identifiers, &parser.arena.strings);
 
             write_ast_dump_output(
                 &program,
                 &parser.function_table,
-                &parser.arena.identifiers,
+                &parser.arena,
                 ast_dump_output,
                 ast_dump_output_len,
             );
@@ -1145,7 +1150,7 @@ pub unsafe extern "C" fn rust_compile_builtin_file(
                     if !sfd_ptr.is_null()
                         && let Some(name_ident) = fd.name
                     {
-                        let name = &arena.identifiers[name_ident].name;
+                        let name = arena.name_of(name_ident);
                         push_function(ctx, sfd_ptr, name.as_ptr(), name.len());
                     }
                 }
@@ -1479,7 +1484,7 @@ pub unsafe extern "C" fn rust_compile_module(
             write_ast_dump_output(
                 &parsed_ref.program,
                 &parsed_ref.function_table,
-                &parsed_ref.arena.identifiers,
+                &parsed_ref.arena,
                 ast_dump_output,
                 ast_dump_output_len,
             );
@@ -1646,7 +1651,6 @@ unsafe fn extract_module_declarations(
     function_table: &mut ast::FunctionTable,
     arena: &std::sync::Arc<ast::AstArena>,
 ) {
-    let identifiers = &arena.identifiers;
     unsafe {
         use ast::StatementKind;
 
@@ -1654,7 +1658,7 @@ unsafe fn extract_module_declarations(
 
         // Var declared names (walk all nesting levels).
         for child in &scope.children {
-            collect_module_var_names(&child.inner, ctx, cb.push_var_name, identifiers);
+            collect_module_var_names(&child.inner, ctx, cb.push_var_name, arena);
         }
 
         // Lexical bindings and functions to initialize.
@@ -1673,7 +1677,10 @@ unsafe fn extract_module_declarations(
 
             match declaration {
                 StatementKind::FunctionDeclaration(fd) => {
-                    let is_default = is_exported && fd.name.is_some_and(|n| identifiers[n].name == default_name);
+                    let is_default = is_exported
+                        && fd
+                            .name
+                            .is_some_and(|n| arena.name_of(n).as_slice() == default_name.as_slice());
 
                     let function_data = function_table.take(fd.function_id);
                     let subtable = function_table.extract_reachable(&function_data);
@@ -1691,7 +1698,7 @@ unsafe fn extract_module_declarations(
 
                     // Get the binding name from the AST (e.g., "*default*" for anonymous defaults).
                     let binding_name = if let Some(name_ident) = fd.name {
-                        identifiers[name_ident].name.to_utf16_string()
+                        arena.name_of(name_ident).clone()
                     } else {
                         continue;
                     };
@@ -1715,21 +1722,21 @@ unsafe fn extract_module_declarations(
                 }
                 StatementKind::ClassDeclaration(class_data) => {
                     if let Some(name_ident) = class_data.name {
-                        let name = &identifiers[name_ident].name;
+                        let name = arena.name_of(name_ident);
                         (cb.push_lexical_binding)(ctx, name.as_ptr(), name.len(), false, -1);
                     }
                 }
                 StatementKind::VariableDeclaration(vd) if vd.kind != ast::DeclarationKind::Var => {
                     let is_constant = vd.kind == ast::DeclarationKind::Const;
                     for declaration in &vd.declarations {
-                        for_each_bound_name(&declaration.target, identifiers, &mut |name| {
+                        for_each_bound_name(&declaration.target, arena, &mut |name| {
                             (cb.push_lexical_binding)(ctx, name.as_ptr(), name.len(), is_constant, -1);
                         });
                     }
                 }
                 StatementKind::UsingDeclaration(declarations) => {
                     for declaration in declarations.iter() {
-                        for_each_bound_name(&declaration.target, identifiers, &mut |name| {
+                        for_each_bound_name(&declaration.target, arena, &mut |name| {
                             (cb.push_lexical_binding)(ctx, name.as_ptr(), name.len(), false, -1);
                         });
                     }
@@ -1745,25 +1752,25 @@ unsafe fn collect_module_var_names(
     statement: &ast::StatementKind,
     ctx: *mut c_void,
     push_var_name: ModuleNameCallback,
-    identifiers: &ast::IdentifierArena,
+    arena: &ast::AstArena,
 ) {
     unsafe {
         match statement {
             ast::StatementKind::VariableDeclaration(vd) if vd.kind == ast::DeclarationKind::Var => {
                 for declaration in &vd.declarations {
-                    for_each_bound_name(&declaration.target, identifiers, &mut |name| {
+                    for_each_bound_name(&declaration.target, arena, &mut |name| {
                         push_var_name(ctx, name.as_ptr(), name.len());
                     });
                 }
             }
             ast::StatementKind::Export(export_data) => {
                 if let Some(ref stmt) = export_data.statement {
-                    collect_module_var_names(&stmt.inner, ctx, push_var_name, identifiers);
+                    collect_module_var_names(&stmt.inner, ctx, push_var_name, arena);
                 }
             }
             _ => {
                 for_each_child_statement(statement, &mut |child| {
-                    collect_module_var_names(child, ctx, push_var_name, identifiers);
+                    collect_module_var_names(child, ctx, push_var_name, arena);
                 });
             }
         }
@@ -1910,18 +1917,18 @@ unsafe extern "C" {
 /// statements, excluding function/class bodies (which create new var scopes).
 fn collect_var_names_recursive(
     statement: &ast::StatementKind,
-    identifiers: &ast::IdentifierArena,
+    arena: &ast::AstArena,
     push_name: &mut dyn FnMut(&[u16]),
 ) {
     match statement {
         ast::StatementKind::VariableDeclaration(vd) if vd.kind == ast::DeclarationKind::Var => {
             for declaration in &vd.declarations {
-                for_each_bound_name(&declaration.target, identifiers, push_name);
+                for_each_bound_name(&declaration.target, arena, push_name);
             }
         }
         _ => {
             for_each_child_statement(statement, &mut |child| {
-                collect_var_names_recursive(child, identifiers, push_name);
+                collect_var_names_recursive(child, arena, push_name);
             });
         }
     }
@@ -1946,34 +1953,33 @@ fn extract_gdi_common(
     function_table: &mut ast::FunctionTable,
     arena: &std::sync::Arc<ast::AstArena>,
 ) {
-    let identifiers = &arena.identifiers;
     use ast::{DeclarationKind, StatementKind};
 
     // Var names (var declarations at any nesting level + top-level function declarations)
     for child in &scope.children {
-        collect_var_names_recursive(&child.inner, identifiers, push_var_name);
+        collect_var_names_recursive(&child.inner, arena, push_var_name);
         if let StatementKind::FunctionDeclaration(ref fd) = child.inner
             && let Some(name_ident) = fd.name
         {
-            push_var_name(&identifiers[name_ident].name);
+            push_var_name(arena.name_slice(name_ident));
         }
     }
 
     // Functions to initialize: keep the last declaration with each name
     // (ECMAScript hoisting semantics), but emit them in source order. Two
-    // forward passes; SharedUtf16String keys keep the inserts cheap.
-    let mut last_position: std::collections::HashMap<ast::SharedUtf16String, usize> = std::collections::HashMap::new();
+    // forward passes; StringId keys keep the inserts to a u32 compare.
+    let mut last_position: std::collections::HashMap<ast::StringId, usize> = std::collections::HashMap::new();
     for (i, child) in scope.children.iter().enumerate() {
         if let StatementKind::FunctionDeclaration(ref fd) = child.inner
             && let Some(name_ident) = fd.name
         {
-            last_position.insert(identifiers[name_ident].name.clone(), i);
+            last_position.insert(arena.identifiers[name_ident].name, i);
         }
     }
     for (i, child) in scope.children.iter().enumerate() {
         if let StatementKind::FunctionDeclaration(ref fd) = child.inner
             && let Some(name_ident) = fd.name
-            && last_position.get(&identifiers[name_ident].name).copied() == Some(i)
+            && last_position.get(&arena.identifiers[name_ident].name).copied() == Some(i)
         {
             let function_data = function_table.take(fd.function_id);
             let subtable = function_table.extract_reachable(&function_data);
@@ -1988,13 +1994,13 @@ fn extract_gdi_common(
                 )
             };
             assert!(!sfd_ptr.is_null(), "create_sfd_for_gdi returned null");
-            push_function(sfd_ptr, identifiers[name_ident].name.as_slice());
+            push_function(sfd_ptr, arena.name_slice(name_ident));
         }
     }
 
     // Var-scoped names (var VariableDeclaration names, excluding function declarations)
     for child in &scope.children {
-        collect_var_names_recursive(&child.inner, identifiers, push_var_scoped_name);
+        collect_var_names_recursive(&child.inner, arena, push_var_scoped_name);
     }
 
     for name in &scope.annexb_function_names {
@@ -2006,21 +2012,21 @@ fn extract_gdi_common(
             StatementKind::VariableDeclaration(vd) if vd.kind != DeclarationKind::Var => {
                 let is_constant = vd.kind == DeclarationKind::Const;
                 for declaration in &vd.declarations {
-                    for_each_bound_name(&declaration.target, identifiers, &mut |name| {
+                    for_each_bound_name(&declaration.target, arena, &mut |name| {
                         push_lexical_binding(name, is_constant);
                     });
                 }
             }
             StatementKind::UsingDeclaration(declarations) => {
                 for declaration in declarations.iter() {
-                    for_each_bound_name(&declaration.target, identifiers, &mut |name| {
+                    for_each_bound_name(&declaration.target, arena, &mut |name| {
                         push_lexical_binding(name, false);
                     });
                 }
             }
             StatementKind::ClassDeclaration(class_data) => {
                 if let Some(name) = class_data.name {
-                    push_lexical_binding(&identifiers[name].name, false);
+                    push_lexical_binding(arena.name_slice(name), false);
                 }
             }
             _ => {}
@@ -2076,7 +2082,6 @@ unsafe fn extract_script_gdi(
     function_table: &mut ast::FunctionTable,
     arena: &std::sync::Arc<ast::AstArena>,
 ) {
-    let identifiers = &arena.identifiers;
     unsafe {
         use ast::{DeclarationKind, StatementKind};
         use bytecode::ffi::{
@@ -2089,21 +2094,21 @@ unsafe fn extract_script_gdi(
             match &child.inner {
                 StatementKind::VariableDeclaration(vd) if vd.kind != DeclarationKind::Var => {
                     for declaration in &vd.declarations {
-                        for_each_bound_name(&declaration.target, identifiers, &mut |name| {
+                        for_each_bound_name(&declaration.target, arena, &mut |name| {
                             script_gdi_push_lexical_name(ctx, name.as_ptr(), name.len());
                         });
                     }
                 }
                 StatementKind::UsingDeclaration(declarations) => {
                     for declaration in declarations.iter() {
-                        for_each_bound_name(&declaration.target, identifiers, &mut |name| {
+                        for_each_bound_name(&declaration.target, arena, &mut |name| {
                             script_gdi_push_lexical_name(ctx, name.as_ptr(), name.len());
                         });
                     }
                 }
                 StatementKind::ClassDeclaration(class_data) => {
                     if let Some(name) = class_data.name {
-                        let n = &identifiers[name].name;
+                        let n = arena.name_of(name);
                         script_gdi_push_lexical_name(ctx, n.as_ptr(), n.len());
                     }
                 }
@@ -2191,34 +2196,26 @@ fn for_each_child_statement(statement: &ast::StatementKind, f: &mut dyn FnMut(&a
     }
 }
 
-fn for_each_bound_name(
-    target: &ast::VariableDeclaratorTarget,
-    identifiers: &ast::IdentifierArena,
-    f: &mut dyn FnMut(&[u16]),
-) {
+fn for_each_bound_name(target: &ast::VariableDeclaratorTarget, arena: &ast::AstArena, f: &mut dyn FnMut(&[u16])) {
     match target {
-        ast::VariableDeclaratorTarget::Identifier(id) => f(&identifiers[*id].name),
+        ast::VariableDeclaratorTarget::Identifier(id) => f(arena.name_slice(*id)),
         ast::VariableDeclaratorTarget::BindingPattern(pattern) => {
-            for_each_bound_name_in_pattern(pattern, identifiers, f);
+            for_each_bound_name_in_pattern(pattern, arena, f);
         }
     }
 }
 
-fn for_each_bound_name_in_pattern(
-    pattern: &ast::BindingPattern,
-    identifiers: &ast::IdentifierArena,
-    f: &mut dyn FnMut(&[u16]),
-) {
+fn for_each_bound_name_in_pattern(pattern: &ast::BindingPattern, arena: &ast::AstArena, f: &mut dyn FnMut(&[u16])) {
     for entry in &pattern.entries {
         match &entry.alias {
             None => {
                 if let Some(ast::BindingEntryName::Identifier(id)) = &entry.name {
-                    f(&identifiers[*id].name);
+                    f(arena.name_slice(*id));
                 }
             }
-            Some(ast::BindingEntryAlias::Identifier(id)) => f(&identifiers[*id].name),
+            Some(ast::BindingEntryAlias::Identifier(id)) => f(arena.name_slice(*id)),
             Some(ast::BindingEntryAlias::BindingPattern(inner)) => {
-                for_each_bound_name_in_pattern(inner, identifiers, f);
+                for_each_bound_name_in_pattern(inner, arena, f);
             }
             Some(ast::BindingEntryAlias::MemberExpression(_)) => {}
         }
@@ -2324,7 +2321,7 @@ fn compile_function_payload_to_bytecode(
 
     // Compute SFD metadata before codegen so the generator can optimize
     // direct `this` access when it does not need environment resolution.
-    let sfd_metadata = compute_sfd_metadata(&function_data, &arena.identifiers);
+    let sfd_metadata = compute_sfd_metadata(&function_data, &arena);
 
     let mut generator = bytecode::generator::Generator::new();
     generator.arena = arena;
@@ -2437,7 +2434,7 @@ struct BodyScopeInfo {
 /// constructor (ECMA-262 §10.2.11).
 fn compute_sfd_metadata(
     function_data: &ast::FunctionData,
-    identifiers: &ast::IdentifierArena,
+    arena: &ast::AstArena,
 ) -> bytecode::generator::FunctionSfdMetadata {
     let body_scope = match &function_data.body.inner {
         ast::StatementKind::FunctionBody { scope, .. } => Some(scope),
@@ -2500,14 +2497,14 @@ fn compute_sfd_metadata(
     for parameter in &function_data.parameters {
         match &parameter.binding {
             ast::FunctionParameterBinding::Identifier(id) => {
-                let ident = &identifiers[*id];
-                if parameter_names.insert(ident.name.to_utf16_string()) && !ident.is_local() {
+                let ident = &arena.identifiers[*id];
+                if parameter_names.insert(arena.strings[ident.name].clone()) && !ident.is_local() {
                     parameters_in_environment += 1;
                 }
             }
             ast::FunctionParameterBinding::BindingPattern(pattern) => {
-                for_each_binding_pattern_identifier(pattern, identifiers, &mut |ident| {
-                    if parameter_names.insert(ident.name.to_utf16_string()) && !ident.is_local() {
+                for_each_binding_pattern_identifier(pattern, arena, &mut |ident| {
+                    if parameter_names.insert(arena.strings[ident.name].clone()) && !ident.is_local() {
                         parameters_in_environment += 1;
                     }
                 });
@@ -2566,7 +2563,7 @@ fn compute_sfd_metadata(
             }
 
             // §10.2.11 step 30: lexical environment.
-            let non_local_lex_count = count_non_local_lex_declarations(body_scope, identifiers);
+            let non_local_lex_count = count_non_local_lex_declarations(body_scope, arena);
             if strict {
                 // Lex env == var env == function env.
                 function_environment_bindings_count += non_local_lex_count;
@@ -2588,7 +2585,7 @@ fn compute_sfd_metadata(
                 }
             }
 
-            let non_local_lex_count = count_non_local_lex_declarations(body_scope, identifiers);
+            let non_local_lex_count = count_non_local_lex_declarations(body_scope, arena);
             if strict {
                 // Lex env == var env.
                 var_environment_bindings_count += non_local_lex_count;
@@ -2641,7 +2638,7 @@ unsafe fn write_sfd_metadata(sfd_ptr: *mut c_void, metadata: &bytecode::generato
 /// Count non-local lexically-declared identifiers in a function body scope.
 /// Returns the count (used for environment sizing in the function_environment_needed
 /// computation).
-fn count_non_local_lex_declarations(scope: &Rc<RefCell<ast::ScopeData>>, identifiers: &ast::IdentifierArena) -> usize {
+fn count_non_local_lex_declarations(scope: &Rc<RefCell<ast::ScopeData>>, arena: &ast::AstArena) -> usize {
     let sd = scope.borrow();
     let mut count = 0;
     for child in &sd.children {
@@ -2650,18 +2647,18 @@ fn count_non_local_lex_declarations(scope: &Rc<RefCell<ast::ScopeData>>, identif
                 use parser::DeclarationKind;
                 if vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const {
                     for declaration in &vd.declarations {
-                        count_non_local_names_in_target(&declaration.target, &mut count, identifiers);
+                        count_non_local_names_in_target(&declaration.target, &mut count, arena);
                     }
                 }
             }
             ast::StatementKind::UsingDeclaration(declarations) => {
                 for declaration in declarations.iter() {
-                    count_non_local_names_in_target(&declaration.target, &mut count, identifiers);
+                    count_non_local_names_in_target(&declaration.target, &mut count, arena);
                 }
             }
             ast::StatementKind::ClassDeclaration(class_data) => {
                 if let Some(name_ident) = class_data.name
-                    && !identifiers[name_ident].is_local()
+                    && !arena.identifiers[name_ident].is_local()
                 {
                     count += 1;
                 }
@@ -2672,41 +2669,33 @@ fn count_non_local_lex_declarations(scope: &Rc<RefCell<ast::ScopeData>>, identif
     count
 }
 
-fn count_non_local_names_in_target(
-    target: &ast::VariableDeclaratorTarget,
-    count: &mut usize,
-    identifiers: &ast::IdentifierArena,
-) {
+fn count_non_local_names_in_target(target: &ast::VariableDeclaratorTarget, count: &mut usize, arena: &ast::AstArena) {
     match target {
         ast::VariableDeclaratorTarget::Identifier(id) => {
-            if !identifiers[*id].is_local() {
+            if !arena.identifiers[*id].is_local() {
                 *count += 1;
             }
         }
         ast::VariableDeclaratorTarget::BindingPattern(pattern) => {
-            count_non_local_names_in_binding_pattern(pattern, count, identifiers);
+            count_non_local_names_in_binding_pattern(pattern, count, arena);
         }
     }
 }
 
-fn count_non_local_names_in_binding_pattern(
-    pattern: &ast::BindingPattern,
-    count: &mut usize,
-    identifiers: &ast::IdentifierArena,
-) {
+fn count_non_local_names_in_binding_pattern(pattern: &ast::BindingPattern, count: &mut usize, arena: &ast::AstArena) {
     for entry in &pattern.entries {
         match &entry.alias {
             Some(ast::BindingEntryAlias::Identifier(id)) => {
-                if !identifiers[*id].is_local() {
+                if !arena.identifiers[*id].is_local() {
                     *count += 1;
                 }
             }
             Some(ast::BindingEntryAlias::BindingPattern(sub)) => {
-                count_non_local_names_in_binding_pattern(sub, count, identifiers);
+                count_non_local_names_in_binding_pattern(sub, count, arena);
             }
             None => {
                 if let Some(ast::BindingEntryName::Identifier(id)) = &entry.name
-                    && !identifiers[*id].is_local()
+                    && !arena.identifiers[*id].is_local()
                 {
                     *count += 1;
                 }
@@ -2718,18 +2707,18 @@ fn count_non_local_names_in_binding_pattern(
 
 fn for_each_binding_pattern_identifier(
     pattern: &ast::BindingPattern,
-    identifiers: &ast::IdentifierArena,
+    arena: &ast::AstArena,
     callback: &mut dyn FnMut(&ast::Identifier),
 ) {
     for entry in &pattern.entries {
         match &entry.alias {
-            Some(ast::BindingEntryAlias::Identifier(id)) => callback(&identifiers[*id]),
+            Some(ast::BindingEntryAlias::Identifier(id)) => callback(&arena.identifiers[*id]),
             Some(ast::BindingEntryAlias::BindingPattern(sub)) => {
-                for_each_binding_pattern_identifier(sub, identifiers, callback);
+                for_each_binding_pattern_identifier(sub, arena, callback);
             }
             None => {
                 if let Some(ast::BindingEntryName::Identifier(id)) = &entry.name {
-                    callback(&identifiers[*id]);
+                    callback(&arena.identifiers[*id]);
                 }
             }
             Some(ast::BindingEntryAlias::MemberExpression(_)) => {}
