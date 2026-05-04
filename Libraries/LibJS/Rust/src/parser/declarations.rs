@@ -6,7 +6,6 @@
 
 //! Declaration parsing: variables, functions, classes, imports, exports.
 
-use std::cell::Cell;
 use std::collections::{HashMap, HashSet};
 
 use crate::ast::*;
@@ -160,6 +159,7 @@ impl Parser<'_> {
                         Some(DeclarationKind::Var),
                         &mut arena.identifiers,
                         &arena.strings,
+                        &mut arena.scopes,
                     );
                 } else {
                     self.scope_collector.add_lexical_declaration(
@@ -170,7 +170,13 @@ impl Parser<'_> {
                     let Self {
                         scope_collector, arena, ..
                     } = self;
-                    scope_collector.register_identifier(id, Some(kind), &mut arena.identifiers, &arena.strings);
+                    scope_collector.register_identifier(
+                        id,
+                        Some(kind),
+                        &mut arena.identifiers,
+                        &arena.strings,
+                        &mut arena.scopes,
+                    );
                 }
 
                 VariableDeclaratorTarget::Identifier(id)
@@ -218,6 +224,7 @@ impl Parser<'_> {
                         None,
                         &mut arena.identifiers,
                         &arena.strings,
+                        &mut arena.scopes,
                     );
                 } else {
                     let refs: Vec<&[u16]> = name_strs.iter().map(|n| n.as_slice()).collect();
@@ -231,7 +238,13 @@ impl Parser<'_> {
                         scope_collector, arena, ..
                     } = self;
                     for (_name, id) in &bound_names {
-                        scope_collector.register_identifier(*id, None, &mut arena.identifiers, &arena.strings);
+                        scope_collector.register_identifier(
+                            *id,
+                            None,
+                            &mut arena.identifiers,
+                            &arena.strings,
+                            &mut arena.scopes,
+                        );
                     }
                 }
 
@@ -332,7 +345,7 @@ impl Parser<'_> {
             let Self {
                 scope_collector, arena, ..
             } = self;
-            scope_collector.register_identifier(id, None, &mut arena.identifiers, &arena.strings);
+            scope_collector.register_identifier(id, None, &mut arena.identifiers, &arena.strings, &mut arena.scopes);
 
             let init = if self.match_token(TokenType::Equals) {
                 self.consume();
@@ -425,6 +438,7 @@ impl Parser<'_> {
             declaration_column,
             &mut arena.identifiers,
             &arena.strings,
+            &mut arena.scopes,
         );
 
         let fn_name_for_scope = if fn_name.is_empty() {
@@ -453,7 +467,7 @@ impl Parser<'_> {
                 function_id,
                 name: decl_name,
                 kind: decl_kind,
-                is_hoisted: Cell::new(false),
+                is_hoisted: false,
             })),
         )
     }
@@ -496,7 +510,7 @@ impl Parser<'_> {
             let Self {
                 scope_collector, arena, ..
             } = self;
-            scope_collector.register_identifier(id, None, &mut arena.identifiers, &arena.strings);
+            scope_collector.register_identifier(id, None, &mut arena.identifiers, &arena.strings, &mut arena.scopes);
         }
 
         // Open function scope (function expression name is bound within its own scope).
@@ -754,7 +768,13 @@ impl Parser<'_> {
                     let Self {
                         scope_collector, arena, ..
                     } = self;
-                    scope_collector.register_identifier(name_ident, None, &mut arena.identifiers, &arena.strings);
+                    scope_collector.register_identifier(
+                        name_ident,
+                        None,
+                        &mut arena.identifiers,
+                        &arena.strings,
+                        &mut arena.scopes,
+                    );
                 }
                 self.statement(start, StatementKind::ClassDeclaration(data))
             }
@@ -794,10 +814,8 @@ impl Parser<'_> {
                 })),
             );
             let return_statement = self.statement(start, StatementKind::Return(Some(Box::new(super_call))));
-            let body = self.statement(
-                start,
-                StatementKind::Block(ScopeData::shared_with_children(vec![return_statement])),
-            );
+            let body_scope = self.make_scope(vec![return_statement]);
+            let body = self.statement(start, StatementKind::Block(body_scope));
 
             let arguments_binding = self
                 .arena
@@ -828,7 +846,8 @@ impl Parser<'_> {
             });
             self.expression(start, ExpressionKind::Function(function_id))
         } else {
-            let body = self.statement(start, StatementKind::Block(ScopeData::shared_with_children(Vec::new())));
+            let body_scope = self.make_scope(Vec::new());
+            let body = self.statement(start, StatementKind::Block(body_scope));
 
             let function_id = self.insert_function_data(FunctionData {
                 name: ctor_name,
@@ -887,8 +906,8 @@ impl Parser<'_> {
                     let children = self.parse_statement_list(false);
                     self.flags = saved_flags;
                     self.consume_token(TokenType::CurlyClose);
-                    let scope = ScopeData::shared_with_children(children);
-                    self.scope_collector.set_scope_node(scope.clone());
+                    let scope = self.make_scope(children);
+                    self.scope_collector.set_scope_node(scope);
                     self.scope_collector.close_scope();
                     // C++ uses rule_start (class start) for FunctionBody position.
                     let body = self.statement(
@@ -1194,8 +1213,8 @@ impl Parser<'_> {
 
         self.consume_token(TokenType::CurlyClose);
 
-        let scope = ScopeData::shared_with_children(children);
-        self.scope_collector.set_scope_node(scope.clone());
+        let scope = self.make_scope(children);
+        self.scope_collector.set_scope_node(scope);
 
         let body = self.statement(
             start,
@@ -1499,7 +1518,13 @@ impl Parser<'_> {
                             let Self {
                                 scope_collector, arena, ..
                             } = self;
-                            scope_collector.register_identifier(id, None, &mut arena.identifiers, &arena.strings);
+                            scope_collector.register_identifier(
+                                id,
+                                None,
+                                &mut arena.identifiers,
+                                &arena.strings,
+                                &mut arena.scopes,
+                            );
                             entry_name = Some(BindingEntryName::Identifier(id));
                         } else if self.match_token(TokenType::BigIntLiteral) {
                             let token = self.consume_property_key_token();
@@ -1513,7 +1538,13 @@ impl Parser<'_> {
                             let Self {
                                 scope_collector, arena, ..
                             } = self;
-                            scope_collector.register_identifier(id, None, &mut arena.identifiers, &arena.strings);
+                            scope_collector.register_identifier(
+                                id,
+                                None,
+                                &mut arena.identifiers,
+                                &arena.strings,
+                                &mut arena.scopes,
+                            );
                             entry_name = Some(BindingEntryName::Identifier(id));
                         } else {
                             let token = self.consume_property_key_token();
@@ -1523,7 +1554,13 @@ impl Parser<'_> {
                             let Self {
                                 scope_collector, arena, ..
                             } = self;
-                            scope_collector.register_identifier(id, None, &mut arena.identifiers, &arena.strings);
+                            scope_collector.register_identifier(
+                                id,
+                                None,
+                                &mut arena.identifiers,
+                                &arena.strings,
+                                &mut arena.scopes,
+                            );
                             entry_name = Some(BindingEntryName::Identifier(id));
                         }
                     } else if self.match_token(TokenType::BracketOpen) {

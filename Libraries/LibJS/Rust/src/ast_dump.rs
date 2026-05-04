@@ -369,7 +369,7 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
         }
 
         StatementKind::Block(scope) => {
-            let s = scope.borrow();
+            let s = &state.arena.scopes[*scope];
             // The parser wraps for-loops in a Block for scope. The C++
             // parser does not, so skip the wrapper and dump the child directly.
             if s.children.len() == 1 && matches!(s.children[0].inner, StatementKind::For(_) | StatementKind::ForInOf(_))
@@ -377,16 +377,16 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
                 dump_statement(&s.children[0], state);
                 return;
             }
-            dump_scope_node("BlockStatement", &s, &statement.range, state);
+            dump_scope_node("BlockStatement", s, &statement.range, state);
         }
 
         StatementKind::FunctionBody { scope, .. } => {
-            let s = scope.borrow();
-            dump_scope_node("FunctionBody", &s, &statement.range, state);
+            let s = &state.arena.scopes[*scope];
+            dump_scope_node("FunctionBody", s, &statement.range, state);
         }
 
         StatementKind::Program(data) => {
-            let scope = data.scope.borrow();
+            let scope = &state.arena.scopes[data.scope];
             let mut desc = color_node_name(state, "Program");
             let type_str = if data.program_type == ProgramType::Module {
                 "module"
@@ -1395,7 +1395,7 @@ fn dump_switch_case(case: &SwitchCase, state: &DumpState, root_state: &DumpState
     }
     print_node(&child_state(state, true), &color_label(root_state, "consequent"));
     let consequent_state = child_state(&child_state(state, true), true);
-    let scope = case.scope.borrow();
+    let scope = &state.arena.scopes[case.scope];
     let children = &scope.children;
     for (i, child) in children.iter().enumerate() {
         dump_statement(child, &child_state(&consequent_state, i == children.len() - 1));

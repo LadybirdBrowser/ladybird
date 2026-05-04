@@ -434,6 +434,7 @@ unsafe fn materialize_shared_function_data(
                 .subtable
                 .take()
                 .expect("pending shared function data subtable was already materialized");
+            let arena = pending.arena.clone().unwrap_or_else(|| generator.arena.clone());
             let sfd_ptr = create_shared_function_data(
                 function_data,
                 subtable,
@@ -441,7 +442,7 @@ unsafe fn materialize_shared_function_data(
                 source_code_ptr,
                 generator.strict,
                 pending.name_override.as_ref().map(|name| name.as_slice()),
-                generator.arena.clone(),
+                arena,
             );
             if let Some((name, is_private)) = &pending.class_field_initializer_name {
                 rust_sfd_set_class_field_initializer_name(sfd_ptr, name.as_ptr(), name.len(), *is_private);

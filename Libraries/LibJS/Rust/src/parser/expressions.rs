@@ -454,7 +454,13 @@ impl Parser<'_> {
                 let Self {
                     scope_collector, arena, ..
                 } = self;
-                scope_collector.register_identifier(id, None, &mut arena.identifiers, &arena.strings);
+                scope_collector.register_identifier(
+                    id,
+                    None,
+                    &mut arena.identifiers,
+                    &arena.strings,
+                    &mut arena.scopes,
+                );
                 (self.expression(start, ExpressionKind::Identifier(id)), true)
             }
 
@@ -594,7 +600,13 @@ impl Parser<'_> {
                     let Self {
                         scope_collector, arena, ..
                     } = self;
-                    scope_collector.register_identifier(id, None, &mut arena.identifiers, &arena.strings);
+                    scope_collector.register_identifier(
+                        id,
+                        None,
+                        &mut arena.identifiers,
+                        &arena.strings,
+                        &mut arena.scopes,
+                    );
                     (self.expression(start, ExpressionKind::Identifier(id)), true)
                 } else if self.match_token(TokenType::EscapedKeyword) {
                     self.syntax_error("Keyword must not contain escaped characters");
@@ -604,7 +616,13 @@ impl Parser<'_> {
                     let Self {
                         scope_collector, arena, ..
                     } = self;
-                    scope_collector.register_identifier(id, None, &mut arena.identifiers, &arena.strings);
+                    scope_collector.register_identifier(
+                        id,
+                        None,
+                        &mut arena.identifiers,
+                        &arena.strings,
+                        &mut arena.scopes,
+                    );
                     (self.expression(start, ExpressionKind::Identifier(id)), true)
                 } else {
                     self.expected("primary expression");
@@ -823,7 +841,13 @@ impl Parser<'_> {
                         scope_collector, arena, ..
                     } = self;
                     for (_name, id) in &bound_names {
-                        scope_collector.register_identifier(*id, None, &mut arena.identifiers, &arena.strings);
+                        scope_collector.register_identifier(
+                            *id,
+                            None,
+                            &mut arena.identifiers,
+                            &arena.strings,
+                            &mut arena.scopes,
+                        );
                     }
                     self.pattern_bound_names = saved_bound_names;
                     self.consume();
@@ -1628,7 +1652,13 @@ impl Parser<'_> {
                 let Self {
                     scope_collector, arena, ..
                 } = self;
-                scope_collector.register_identifier(id, None, &mut arena.identifiers, &arena.strings);
+                scope_collector.register_identifier(
+                    id,
+                    None,
+                    &mut arena.identifiers,
+                    &arena.strings,
+                    &mut arena.scopes,
+                );
             }
             let value = self.expression(obj_start, ExpressionKind::Identifier(id));
             self.consume(); // consume '='
@@ -1664,7 +1694,13 @@ impl Parser<'_> {
                 let Self {
                     scope_collector, arena, ..
                 } = self;
-                scope_collector.register_identifier(id, None, &mut arena.identifiers, &arena.strings);
+                scope_collector.register_identifier(
+                    id,
+                    None,
+                    &mut arena.identifiers,
+                    &arena.strings,
+                    &mut arena.scopes,
+                );
             }
             let value = self.expression(obj_start, ExpressionKind::Identifier(id));
             return ObjectProperty {
@@ -2368,8 +2404,8 @@ impl Parser<'_> {
                 self.range_from(start),
                 StatementKind::Return(Some(Box::new(expression))),
             );
-            let scope = ScopeData::shared_with_children(vec![return_statement]);
-            self.scope_collector.set_scope_node(scope.clone());
+            let scope = self.make_scope(vec![return_statement]);
+            self.scope_collector.set_scope_node(scope);
             let body = Statement::new(
                 self.range_from(start),
                 StatementKind::FunctionBody {

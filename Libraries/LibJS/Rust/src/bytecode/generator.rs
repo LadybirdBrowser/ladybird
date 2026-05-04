@@ -40,6 +40,7 @@ pub(crate) struct ScopedOperandInner {
 pub struct PendingSharedFunctionData {
     pub function_data: Option<Box<FunctionData>>,
     pub subtable: Option<FunctionTable>,
+    pub arena: Option<Arc<AstArena>>,
     pub name_override: Option<Utf16String>,
     pub class_field_initializer_name: Option<(Utf16String, bool)>,
     pub should_eager_compile: bool,

@@ -876,10 +876,16 @@ pub fn generate_statement(
         StatementKind::Expression(expression) => generate_expression(expression, generator, None),
 
         // === Block ===
-        StatementKind::Block(scope) => generate_block_statement(generator, &scope.borrow(), preferred_dst),
+        StatementKind::Block(scope) => {
+            let arena = generator.arena.clone();
+            generate_block_statement(generator, &arena.scopes[*scope], preferred_dst)
+        }
 
         // === FunctionBody ===
-        StatementKind::FunctionBody { scope, .. } => generate_scope_children(generator, &scope.borrow(), preferred_dst),
+        StatementKind::FunctionBody { scope, .. } => {
+            let arena = generator.arena.clone();
+            generate_scope_children(generator, &arena.scopes[*scope], preferred_dst)
+        }
 
         // === Program ===
         // Note: GlobalDeclarationInstantiation (GDI) runs before this bytecode
@@ -890,11 +896,12 @@ pub fn generate_statement(
             // GetBinding + SetVariableBinding for AnnexB-hoisted functions
             // (Annex B requires switch cases to copy the block-scoped binding
             // into the var-scoped binding on each case entry).
-            let scope = data.scope.borrow();
+            let arena = generator.arena.clone();
+            let scope = &arena.scopes[data.scope];
             for name in &scope.annexb_function_names {
                 generator.annexb_function_names.insert(name.clone());
             }
-            generate_scope_children(generator, &scope, preferred_dst)
+            generate_scope_children(generator, scope, preferred_dst)
         }
 
         // === If ===
@@ -987,7 +994,7 @@ pub fn generate_statement(
 
         // === FunctionDeclaration ===
         StatementKind::FunctionDeclaration(fd) => {
-            if fd.is_hoisted.get() {
+            if fd.is_hoisted {
                 // Annex B.3.3: Copy the function from the lexical (block) scope
                 // to the var scope.
                 if let Some(name_ident) = fd.name {
@@ -4960,7 +4967,8 @@ fn generate_switch_statement(
             generator.current_completion_register = Some(c.clone());
         }
 
-        let case_scope = case.scope.borrow();
+        let arena = generator.arena.clone();
+        let case_scope = &arena.scopes[case.scope];
         for child in &case_scope.children {
             // For function declarations in switch cases: emit AnnexB hoisting
             // only if the scope collector approved it (name is in annexb_function_names).
@@ -5029,8 +5037,12 @@ fn generate_switch_statement(
 /// share a single lexical environment.
 fn emit_switch_block_declaration_instantiation(generator: &mut Generator, data: &SwitchStatementData) -> bool {
     // Collect all statements across all cases.
-    let case_scopes: Vec<_> = data.cases.iter().map(|c| c.scope.borrow()).collect();
-    let all_children: Vec<&Statement> = case_scopes.iter().flat_map(|scope| scope.children.iter()).collect();
+    let arena = generator.arena.clone();
+    let all_children: Vec<&Statement> = data
+        .cases
+        .iter()
+        .flat_map(|c| arena.scopes[c.scope].children.iter())
+        .collect();
 
     // Check if we need a lexical environment.
     // Only needed if there are non-local lexical declarations.
@@ -5845,7 +5857,9 @@ fn generate_class_expression(
                             _ => Utf16String::new(),
                         };
 
-                        // Wrap the expression in a ClassFieldInitializer statement.
+                        // Use the ClassFieldInitializer statement directly as the
+                        // synthetic function's body. compile_function_payload tolerates
+                        // a non-Block body (body_scope = None for the wrapper).
                         let body_statement = Statement::new(
                             init_expression.range,
                             StatementKind::ClassFieldInitializer(Box::new(ClassFieldInitializerData {
@@ -5853,17 +5867,13 @@ fn generate_class_expression(
                                 field_name,
                             })),
                         );
-                        let wrapper_body = Statement::new(
-                            init_expression.range,
-                            StatementKind::Block(ScopeData::shared_with_children(vec![body_statement])),
-                        );
 
                         // Class bodies are always strict mode.
                         let function_data = Box::new(FunctionData {
                             name: None,
                             source_text_start: init_expression.range.start.offset,
                             source_text_end: init_expression.range.end.offset,
-                            body: Box::new(wrapper_body),
+                            body: Box::new(body_statement),
                             parameters: Vec::new(),
                             function_length: 0,
                             kind: FunctionKind::Normal,
@@ -6015,15 +6025,18 @@ fn emit_default_constructor(generator: &mut Generator, has_super: bool) -> u32 {
         parser.flags.allow_super_constructor_call = true;
     }
     let program = parser.parse_program(false);
-    parser
-        .scope_collector
-        .analyze(false, &mut parser.arena.identifiers, &parser.arena.strings);
+    parser.scope_collector.analyze(
+        false,
+        &mut parser.arena.identifiers,
+        &parser.arena.strings,
+        &mut parser.arena.scopes,
+    );
 
     assert!(!parser.has_errors(), "default constructor parse failed");
 
     // Extract FunctionData from the parsed program.
     let function_id = if let StatementKind::Program(ref data) = program.inner {
-        let scope = data.scope.borrow();
+        let scope = &parser.arena.scopes[data.scope];
         scope.children.iter().find_map(|child| {
             if let StatementKind::FunctionDeclaration(fd) = &child.inner {
                 Some(fd.function_id)
@@ -6043,10 +6056,14 @@ fn emit_default_constructor(generator: &mut Generator, has_super: bool) -> u32 {
     function_data.source_text_start = 0;
     function_data.source_text_end = 0;
 
-    let subtable = parser.function_table.extract_reachable(&function_data);
+    let subtable = parser
+        .function_table
+        .extract_reachable(&function_data, &parser.arena.scopes);
+    let arena = std::sync::Arc::new(std::mem::take(&mut parser.arena));
     generator.register_shared_function_data(PendingSharedFunctionData {
         function_data: Some(function_data),
         subtable: Some(subtable),
+        arena: Some(arena),
         name_override: None,
         class_field_initializer_name: None,
         should_eager_compile: false,
@@ -6371,14 +6388,11 @@ fn generate_labelled_statement(
     // begin_breakable_scope/begin_continuable_scope pick them up.
     // NB: The parser wraps for/for-in/for-of loops in a Block for scope
     // management, so we look through single-child Block wrappers.
-    let block_scope_borrow;
-    let effective_inner = if let StatementKind::Block(ref scope) = inner.inner {
-        block_scope_borrow = scope.borrow();
-        if block_scope_borrow.children.len() == 1 {
-            &block_scope_borrow.children[0]
-        } else {
-            inner
-        }
+    let block_arena;
+    let effective_inner = if let StatementKind::Block(scope) = inner.inner {
+        block_arena = generator.arena.clone();
+        let children = &block_arena.scopes[scope].children;
+        if children.len() == 1 { &children[0] } else { inner }
     } else {
         inner
     };
@@ -7668,10 +7682,12 @@ fn emit_new_function(generator: &mut Generator, data: Box<FunctionData>, name_ov
         generator.source_len
     );
 
-    let subtable = generator.function_table.extract_reachable(&data);
+    let arena_clone = generator.arena.clone();
+    let subtable = generator.function_table.extract_reachable(&data, &arena_clone.scopes);
     generator.register_shared_function_data(PendingSharedFunctionData {
         function_data: Some(data),
         subtable: Some(subtable),
+        arena: None,
         name_override: name_override.map(Utf16String::from),
         class_field_initializer_name: None,
         should_eager_compile: false,

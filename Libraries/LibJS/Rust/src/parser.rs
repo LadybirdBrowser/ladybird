@@ -36,8 +36,8 @@ use std::collections::{HashMap, HashSet};
 
 use crate::ast::{
     AstArena, BindingPattern, Expression, ExpressionKind, FunctionData, FunctionId, FunctionParameter, FunctionTable,
-    Identifier, IdentifierId, PrivateIdentifier, ProgramData, ScopeData, SourceRange, Statement, StatementKind,
-    StringId, Utf16String,
+    Identifier, IdentifierId, PrivateIdentifier, ProgramData, ScopeData, ScopeId, SourceRange, Statement,
+    StatementKind, StringId, Utf16String,
 };
 use crate::lexer::{Lexer, ch};
 use crate::scope_collector::{ScopeCollector, ScopeCollectorState};
@@ -396,8 +396,15 @@ impl<'a> Parser<'a> {
         self.make_identifier(start, id)
     }
 
-    pub(crate) fn intern(&mut self, value: &[u16]) -> StringId {
-        self.arena.strings.intern(value)
+    pub(crate) fn make_scope(&mut self, children: Vec<Statement>) -> ScopeId {
+        self.arena.scopes.insert(ScopeData {
+            children,
+            ..ScopeData::default()
+        })
+    }
+
+    pub(crate) fn make_empty_scope(&mut self) -> ScopeId {
+        self.arena.scopes.insert(ScopeData::default())
     }
 
     pub(crate) fn token_identifier_name(&mut self, token: &Token) -> StringId {
@@ -480,6 +487,7 @@ impl<'a> Parser<'a> {
             has_parameter_expressions,
             &mut arena.identifiers,
             &arena.strings,
+            &mut arena.scopes,
         );
     }
 
@@ -1010,10 +1018,10 @@ impl<'a> Parser<'a> {
 
         if self.program_type == ProgramType::Script {
             let (children, is_strict) = self.parse_script(starts_in_strict_mode);
-            let scope = ScopeData::shared_with_children(children);
+            let scope = self.make_scope(children);
             // Scope was opened in parse_script via open_program_scope.
             // Now close it after children are set.
-            self.scope_collector.set_scope_node(scope.clone());
+            self.scope_collector.set_scope_node(scope);
             self.scope_collector.close_scope();
             self.statement(
                 start,
@@ -1026,8 +1034,8 @@ impl<'a> Parser<'a> {
             )
         } else {
             let (children, has_top_level_await) = self.parse_module();
-            let scope = ScopeData::shared_with_children(children);
-            self.scope_collector.set_scope_node(scope.clone());
+            let scope = self.make_scope(children);
+            self.scope_collector.set_scope_node(scope);
             self.scope_collector.close_scope();
             self.statement(
                 start,
@@ -1472,7 +1480,7 @@ fn collect_var_declared_names(
             }
         }
         StatementKind::Block(scope) => {
-            for child in &scope.borrow().children {
+            for child in &arena.scopes[*scope].children {
                 collect_var_declared_names(child, names, arena);
             }
         }
@@ -1502,7 +1510,7 @@ fn collect_var_declared_names(
         }
         StatementKind::Switch(data) => {
             for case in &data.cases {
-                for child in &case.scope.borrow().children {
+                for child in &arena.scopes[case.scope].children {
                     collect_var_declared_names(child, names, arena);
                 }
             }

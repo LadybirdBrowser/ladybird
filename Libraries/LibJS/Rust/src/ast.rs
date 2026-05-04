@@ -14,18 +14,17 @@
 //! - `ExpressionKind` and `StatementKind` are flat enums — pattern matching
 //!   replaces virtual dispatch.
 //! - `Node<T>` wraps every AST node with source location info.
-//! - `Identifier` uses `Cell` fields for scope analysis results that are
-//!   written after parsing (by the scope collector).
+//! - `Identifier` carries scope analysis results as plain fields, written
+//!   by the scope collector through `&mut arena.identifiers[id]` after
+//!   parsing.
 //! - Operator enums use `#[repr(u8)]` with ABI-compatible values for
 //!   trivial FFI conversion.
 //! - `ScopeData` is carried by block-like constructs (Program,
 //!   BlockStatement, FunctionBody, etc.) and holds scope analysis results.
 
-use std::cell::{Cell, RefCell};
 use std::ffi::c_void;
 use std::fmt;
 use std::ops::{Index, IndexMut};
-use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicPtr, Ordering};
 
@@ -292,11 +291,11 @@ impl FunctionTable {
     /// Parser-created functions carry an explicit child list, so this is
     /// normally proportional to the number of nested functions instead of the
     /// size of the function body.
-    pub fn extract_reachable(&mut self, data: &FunctionData) -> FunctionTable {
+    pub fn extract_reachable(&mut self, data: &FunctionData, scopes: &ScopeArena) -> FunctionTable {
         let mut subtable = FunctionTable::new();
         if let Some(nested_function_ids) = &data.nested_function_ids {
             for id in nested_function_ids {
-                self.transfer(*id, &mut subtable);
+                self.transfer(*id, &mut subtable, scopes);
             }
         } else {
             // Synthetic function wrappers created during codegen (for example
@@ -304,157 +303,157 @@ impl FunctionTable {
             // context stack, so keep the structural scan for those rare cases.
             for param in &data.parameters {
                 if let Some(ref default) = param.default_value {
-                    self.collect_from_expression(default, &mut subtable);
+                    self.collect_from_expression(default, &mut subtable, scopes);
                 }
                 if let FunctionParameterBinding::BindingPattern(ref pat) = param.binding {
-                    self.collect_from_pattern(pat, &mut subtable);
+                    self.collect_from_pattern(pat, &mut subtable, scopes);
                 }
             }
-            self.collect_from_statement(&data.body, &mut subtable);
+            self.collect_from_statement(&data.body, &mut subtable, scopes);
         }
         subtable
     }
 
-    fn transfer(&mut self, id: FunctionId, result: &mut FunctionTable) {
+    fn transfer(&mut self, id: FunctionId, result: &mut FunctionTable, scopes: &ScopeArena) {
         if let Some(data) = self.try_take(id) {
             if let Some(nested_function_ids) = &data.nested_function_ids {
                 for id in nested_function_ids {
-                    self.transfer(*id, result);
+                    self.transfer(*id, result, scopes);
                 }
             } else {
                 for param in &data.parameters {
                     if let Some(ref default) = param.default_value {
-                        self.collect_from_expression(default, result);
+                        self.collect_from_expression(default, result, scopes);
                     }
                     if let FunctionParameterBinding::BindingPattern(ref pat) = param.binding {
-                        self.collect_from_pattern(pat, result);
+                        self.collect_from_pattern(pat, result, scopes);
                     }
                 }
-                self.collect_from_statement(&data.body, result);
+                self.collect_from_statement(&data.body, result, scopes);
             }
             result.insert_at(id, data);
         }
     }
 
-    fn collect_from_statement(&mut self, stmt: &Statement, result: &mut FunctionTable) {
+    fn collect_from_statement(&mut self, stmt: &Statement, result: &mut FunctionTable, scopes: &ScopeArena) {
         match &stmt.inner {
             StatementKind::FunctionDeclaration(data) => {
-                self.transfer(data.function_id, result);
+                self.transfer(data.function_id, result, scopes);
             }
-            StatementKind::Expression(expr) => self.collect_from_expression(expr, result),
+            StatementKind::Expression(expr) => self.collect_from_expression(expr, result, scopes),
             StatementKind::Block(scope) | StatementKind::FunctionBody { scope, .. } => {
-                for child in &scope.borrow().children {
-                    self.collect_from_statement(child, result);
+                for child in &scopes[*scope].children {
+                    self.collect_from_statement(child, result, scopes);
                 }
             }
             StatementKind::Program(data) => {
-                for child in &data.scope.borrow().children {
-                    self.collect_from_statement(child, result);
+                for child in &scopes[data.scope].children {
+                    self.collect_from_statement(child, result, scopes);
                 }
             }
             StatementKind::If(data) => {
-                self.collect_from_expression(&data.test, result);
-                self.collect_from_statement(&data.consequent, result);
+                self.collect_from_expression(&data.test, result, scopes);
+                self.collect_from_statement(&data.consequent, result, scopes);
                 if let Some(alt) = &data.alternate {
-                    self.collect_from_statement(alt, result);
+                    self.collect_from_statement(alt, result, scopes);
                 }
             }
             StatementKind::While(data) => {
-                self.collect_from_expression(&data.test, result);
-                self.collect_from_statement(&data.body, result);
+                self.collect_from_expression(&data.test, result, scopes);
+                self.collect_from_statement(&data.body, result, scopes);
             }
             StatementKind::DoWhile(data) => {
-                self.collect_from_statement(&data.body, result);
-                self.collect_from_expression(&data.test, result);
+                self.collect_from_statement(&data.body, result, scopes);
+                self.collect_from_expression(&data.test, result, scopes);
             }
             StatementKind::For(data) => {
                 if let Some(init) = &data.init {
                     match init {
-                        ForInit::Expression(expr) => self.collect_from_expression(expr, result),
-                        ForInit::Declaration(decl) => self.collect_from_statement(decl, result),
+                        ForInit::Expression(expr) => self.collect_from_expression(expr, result, scopes),
+                        ForInit::Declaration(decl) => self.collect_from_statement(decl, result, scopes),
                     }
                 }
                 if let Some(test) = &data.test {
-                    self.collect_from_expression(test, result);
+                    self.collect_from_expression(test, result, scopes);
                 }
                 if let Some(update) = &data.update {
-                    self.collect_from_expression(update, result);
+                    self.collect_from_expression(update, result, scopes);
                 }
-                self.collect_from_statement(&data.body, result);
+                self.collect_from_statement(&data.body, result, scopes);
             }
             StatementKind::ForInOf(data) => {
                 match &data.lhs {
-                    ForInOfLhs::Declaration(decl) => self.collect_from_statement(decl, result),
-                    ForInOfLhs::Expression(expr) => self.collect_from_expression(expr, result),
-                    ForInOfLhs::Pattern(pattern) => self.collect_from_pattern(pattern, result),
+                    ForInOfLhs::Declaration(decl) => self.collect_from_statement(decl, result, scopes),
+                    ForInOfLhs::Expression(expr) => self.collect_from_expression(expr, result, scopes),
+                    ForInOfLhs::Pattern(pattern) => self.collect_from_pattern(pattern, result, scopes),
                 }
-                self.collect_from_expression(&data.rhs, result);
-                self.collect_from_statement(&data.body, result);
+                self.collect_from_expression(&data.rhs, result, scopes);
+                self.collect_from_statement(&data.body, result, scopes);
             }
             StatementKind::Switch(data) => {
-                self.collect_from_expression(&data.discriminant, result);
+                self.collect_from_expression(&data.discriminant, result, scopes);
                 for case in &data.cases {
                     if let Some(ref test) = case.test {
-                        self.collect_from_expression(test, result);
+                        self.collect_from_expression(test, result, scopes);
                     }
-                    for child in &case.scope.borrow().children {
-                        self.collect_from_statement(child, result);
+                    for child in &scopes[case.scope].children {
+                        self.collect_from_statement(child, result, scopes);
                     }
                 }
             }
             StatementKind::With(data) => {
-                self.collect_from_expression(&data.object, result);
-                self.collect_from_statement(&data.body, result);
+                self.collect_from_expression(&data.object, result, scopes);
+                self.collect_from_statement(&data.body, result, scopes);
             }
             StatementKind::Labelled(data) => {
-                self.collect_from_statement(&data.item, result);
+                self.collect_from_statement(&data.item, result, scopes);
             }
             StatementKind::Return(arg) => {
                 if let Some(expr) = arg {
-                    self.collect_from_expression(expr, result);
+                    self.collect_from_expression(expr, result, scopes);
                 }
             }
             StatementKind::Throw(expr) => {
-                self.collect_from_expression(expr, result);
+                self.collect_from_expression(expr, result, scopes);
             }
             StatementKind::Try(data) => {
-                self.collect_from_statement(&data.block, result);
+                self.collect_from_statement(&data.block, result, scopes);
                 if let Some(ref handler) = data.handler {
                     if let Some(CatchBinding::BindingPattern(ref pat)) = handler.parameter {
-                        self.collect_from_pattern(pat, result);
+                        self.collect_from_pattern(pat, result, scopes);
                     }
-                    self.collect_from_statement(&handler.body, result);
+                    self.collect_from_statement(&handler.body, result, scopes);
                 }
                 if let Some(ref finalizer) = data.finalizer {
-                    self.collect_from_statement(finalizer, result);
+                    self.collect_from_statement(finalizer, result, scopes);
                 }
             }
             StatementKind::VariableDeclaration(data) => {
                 for decl in &data.declarations {
-                    self.collect_from_target(&decl.target, result);
+                    self.collect_from_target(&decl.target, result, scopes);
                     if let Some(ref init) = decl.init {
-                        self.collect_from_expression(init, result);
+                        self.collect_from_expression(init, result, scopes);
                     }
                 }
             }
             StatementKind::UsingDeclaration(declarations) => {
                 for decl in declarations.iter() {
-                    self.collect_from_target(&decl.target, result);
+                    self.collect_from_target(&decl.target, result, scopes);
                     if let Some(ref init) = decl.init {
-                        self.collect_from_expression(init, result);
+                        self.collect_from_expression(init, result, scopes);
                     }
                 }
             }
             StatementKind::ClassDeclaration(class_data) => {
-                self.collect_from_class(class_data, result);
+                self.collect_from_class(class_data, result, scopes);
             }
             StatementKind::Export(data) => {
                 if let Some(ref stmt) = data.statement {
-                    self.collect_from_statement(stmt, result);
+                    self.collect_from_statement(stmt, result, scopes);
                 }
             }
             StatementKind::ClassFieldInitializer(data) => {
-                self.collect_from_expression(&data.expression, result);
+                self.collect_from_expression(&data.expression, result, scopes);
             }
             StatementKind::Empty
             | StatementKind::Debugger
@@ -466,60 +465,60 @@ impl FunctionTable {
         }
     }
 
-    fn collect_from_expression(&mut self, expr: &Expression, result: &mut FunctionTable) {
+    fn collect_from_expression(&mut self, expr: &Expression, result: &mut FunctionTable, scopes: &ScopeArena) {
         match &expr.inner {
             ExpressionKind::Function(function_id) => {
-                self.transfer(*function_id, result);
+                self.transfer(*function_id, result, scopes);
             }
             ExpressionKind::Class(class_data) => {
-                self.collect_from_class(class_data, result);
+                self.collect_from_class(class_data, result, scopes);
             }
             ExpressionKind::Binary(data) => {
-                self.collect_from_expression(&data.lhs, result);
-                self.collect_from_expression(&data.rhs, result);
+                self.collect_from_expression(&data.lhs, result, scopes);
+                self.collect_from_expression(&data.rhs, result, scopes);
             }
             ExpressionKind::Logical(data) => {
-                self.collect_from_expression(&data.lhs, result);
-                self.collect_from_expression(&data.rhs, result);
+                self.collect_from_expression(&data.lhs, result, scopes);
+                self.collect_from_expression(&data.rhs, result, scopes);
             }
             ExpressionKind::Unary { operand, .. } => {
-                self.collect_from_expression(operand, result);
+                self.collect_from_expression(operand, result, scopes);
             }
             ExpressionKind::Update(data) => {
-                self.collect_from_expression(&data.argument, result);
+                self.collect_from_expression(&data.argument, result, scopes);
             }
             ExpressionKind::Assignment(data) => {
                 match &data.lhs {
-                    AssignmentLhs::Expression(expr) => self.collect_from_expression(expr, result),
-                    AssignmentLhs::Pattern(pat) => self.collect_from_pattern(pat, result),
+                    AssignmentLhs::Expression(expr) => self.collect_from_expression(expr, result, scopes),
+                    AssignmentLhs::Pattern(pat) => self.collect_from_pattern(pat, result, scopes),
                 }
-                self.collect_from_expression(&data.rhs, result);
+                self.collect_from_expression(&data.rhs, result, scopes);
             }
             ExpressionKind::Conditional(data) => {
-                self.collect_from_expression(&data.test, result);
-                self.collect_from_expression(&data.consequent, result);
-                self.collect_from_expression(&data.alternate, result);
+                self.collect_from_expression(&data.test, result, scopes);
+                self.collect_from_expression(&data.consequent, result, scopes);
+                self.collect_from_expression(&data.alternate, result, scopes);
             }
             ExpressionKind::Sequence(exprs) => {
                 for expr in exprs.iter() {
-                    self.collect_from_expression(expr, result);
+                    self.collect_from_expression(expr, result, scopes);
                 }
             }
             ExpressionKind::Member(data) => {
-                self.collect_from_expression(&data.object, result);
-                self.collect_from_expression(&data.property, result);
+                self.collect_from_expression(&data.object, result, scopes);
+                self.collect_from_expression(&data.property, result, scopes);
             }
             ExpressionKind::OptionalChain(data) => {
-                self.collect_from_expression(&data.base, result);
+                self.collect_from_expression(&data.base, result, scopes);
                 for reference in &data.references {
                     match reference {
                         OptionalChainReference::Call { arguments, .. } => {
                             for arg in arguments {
-                                self.collect_from_expression(&arg.value, result);
+                                self.collect_from_expression(&arg.value, result, scopes);
                             }
                         }
                         OptionalChainReference::ComputedReference { expression, .. } => {
-                            self.collect_from_expression(expression, result);
+                            self.collect_from_expression(expression, result, scopes);
                         }
                         OptionalChainReference::MemberReference { .. }
                         | OptionalChainReference::PrivateMemberReference { .. } => {}
@@ -527,50 +526,50 @@ impl FunctionTable {
                 }
             }
             ExpressionKind::Call(data) | ExpressionKind::New(data) => {
-                self.collect_from_expression(&data.callee, result);
+                self.collect_from_expression(&data.callee, result, scopes);
                 for arg in &data.arguments {
-                    self.collect_from_expression(&arg.value, result);
+                    self.collect_from_expression(&arg.value, result, scopes);
                 }
             }
             ExpressionKind::SuperCall(data) => {
                 for arg in &data.arguments {
-                    self.collect_from_expression(&arg.value, result);
+                    self.collect_from_expression(&arg.value, result, scopes);
                 }
             }
             ExpressionKind::Spread(expr) | ExpressionKind::Await(expr) => {
-                self.collect_from_expression(expr, result);
+                self.collect_from_expression(expr, result, scopes);
             }
             ExpressionKind::Array(elements) => {
                 for expr in elements.iter().flatten() {
-                    self.collect_from_expression(expr, result);
+                    self.collect_from_expression(expr, result, scopes);
                 }
             }
             ExpressionKind::Object(properties) => {
                 for prop in properties.iter() {
-                    self.collect_from_expression(&prop.key, result);
+                    self.collect_from_expression(&prop.key, result, scopes);
                     if let Some(ref val) = prop.value {
-                        self.collect_from_expression(val, result);
+                        self.collect_from_expression(val, result, scopes);
                     }
                 }
             }
             ExpressionKind::TemplateLiteral(data) => {
                 for expr in &data.expressions {
-                    self.collect_from_expression(expr, result);
+                    self.collect_from_expression(expr, result, scopes);
                 }
             }
             ExpressionKind::TaggedTemplateLiteral(data) => {
-                self.collect_from_expression(&data.tag, result);
-                self.collect_from_expression(&data.template_literal, result);
+                self.collect_from_expression(&data.tag, result, scopes);
+                self.collect_from_expression(&data.template_literal, result, scopes);
             }
             ExpressionKind::Yield(data) => {
                 if let Some(ref expr) = data.argument {
-                    self.collect_from_expression(expr, result);
+                    self.collect_from_expression(expr, result, scopes);
                 }
             }
             ExpressionKind::ImportCall(data) => {
-                self.collect_from_expression(&data.specifier, result);
+                self.collect_from_expression(&data.specifier, result, scopes);
                 if let Some(ref opts) = data.options {
-                    self.collect_from_expression(opts, result);
+                    self.collect_from_expression(opts, result, scopes);
                 }
             }
             ExpressionKind::NumericLiteral(_)
@@ -588,57 +587,62 @@ impl FunctionTable {
         }
     }
 
-    fn collect_from_class(&mut self, class_data: &ClassData, result: &mut FunctionTable) {
+    fn collect_from_class(&mut self, class_data: &ClassData, result: &mut FunctionTable, scopes: &ScopeArena) {
         if let Some(ref super_class) = class_data.super_class {
-            self.collect_from_expression(super_class, result);
+            self.collect_from_expression(super_class, result, scopes);
         }
         if let Some(ref constructor) = class_data.constructor {
-            self.collect_from_expression(constructor, result);
+            self.collect_from_expression(constructor, result, scopes);
         }
         for element in &class_data.elements {
             match &element.inner {
                 ClassElement::Method { key, function, .. } => {
-                    self.collect_from_expression(key, result);
-                    self.collect_from_expression(function, result);
+                    self.collect_from_expression(key, result, scopes);
+                    self.collect_from_expression(function, result, scopes);
                 }
                 ClassElement::Field { key, initializer, .. } => {
-                    self.collect_from_expression(key, result);
+                    self.collect_from_expression(key, result, scopes);
                     if let Some(init) = initializer {
-                        self.collect_from_expression(init, result);
+                        self.collect_from_expression(init, result, scopes);
                     }
                 }
                 ClassElement::StaticInitializer { body } => {
-                    self.collect_from_statement(body, result);
+                    self.collect_from_statement(body, result, scopes);
                 }
             }
         }
     }
 
-    fn collect_from_pattern(&mut self, pattern: &BindingPattern, result: &mut FunctionTable) {
+    fn collect_from_pattern(&mut self, pattern: &BindingPattern, result: &mut FunctionTable, scopes: &ScopeArena) {
         for entry in &pattern.entries {
             if let Some(BindingEntryName::Expression(expr)) = entry.name.as_ref() {
-                self.collect_from_expression(expr, result);
+                self.collect_from_expression(expr, result, scopes);
             }
             if let Some(ref alias) = entry.alias {
                 match alias {
                     BindingEntryAlias::BindingPattern(sub) => {
-                        self.collect_from_pattern(sub, result);
+                        self.collect_from_pattern(sub, result, scopes);
                     }
                     BindingEntryAlias::MemberExpression(expr) => {
-                        self.collect_from_expression(expr, result);
+                        self.collect_from_expression(expr, result, scopes);
                     }
                     BindingEntryAlias::Identifier(_) => {}
                 }
             }
             if let Some(ref init) = entry.initializer {
-                self.collect_from_expression(init, result);
+                self.collect_from_expression(init, result, scopes);
             }
         }
     }
 
-    fn collect_from_target(&mut self, target: &VariableDeclaratorTarget, result: &mut FunctionTable) {
+    fn collect_from_target(
+        &mut self,
+        target: &VariableDeclaratorTarget,
+        result: &mut FunctionTable,
+        scopes: &ScopeArena,
+    ) {
         if let VariableDeclaratorTarget::BindingPattern(pat) = target {
-            self.collect_from_pattern(pat, result);
+            self.collect_from_pattern(pat, result, scopes);
         }
     }
 }
@@ -1303,7 +1307,7 @@ pub enum CatchBinding {
 
 #[derive(Clone, Debug)]
 pub struct SwitchStatementData {
-    pub scope: Rc<RefCell<ScopeData>>,
+    pub scope: ScopeId,
     pub discriminant: Box<Expression>,
     pub cases: Vec<SwitchCase>,
 }
@@ -1311,7 +1315,7 @@ pub struct SwitchStatementData {
 #[derive(Clone, Debug)]
 pub struct SwitchCase {
     pub range: SourceRange,
-    pub scope: Rc<RefCell<ScopeData>>,
+    pub scope: ScopeId,
     pub test: Option<Expression>,
 }
 
@@ -1433,11 +1437,12 @@ pub struct LocalVariable {
 /// Data shared by all scope-bearing nodes (Program, BlockStatement,
 /// FunctionBody, SwitchStatement, SwitchCase).
 ///
-/// Wrapped in `Rc<RefCell<...>>` for interior mutability during the
-/// scope collector's analysis phase. Borrow safety: the scope
-/// collector's two-phase design (build tree during parsing, then
-/// analyze bottom-up) ensures borrows never overlap — the analysis
-/// phase only borrows one scope at a time in a bottom-up traversal.
+/// AST nodes refer to scopes via `ScopeId` indices into `ScopeArena`,
+/// so the AST itself is plain data — no `Rc`/`RefCell` and naturally
+/// `Send + Sync` once parsing is done. The scope collector's two-phase
+/// design (build tree during parse, analyze bottom-up afterwards)
+/// ensures only one mutable borrow of a given `ScopeData` is ever
+/// live at a time.
 #[derive(Clone, Debug, Default)]
 pub struct ScopeData {
     pub children: Vec<Statement>,
@@ -1453,19 +1458,6 @@ pub struct ScopeData {
     pub uses_this_from_environment: bool,
     pub contains_direct_call_to_eval: bool,
     pub contains_access_to_arguments_object: bool,
-}
-
-impl ScopeData {
-    pub fn new_shared() -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(Self::default()))
-    }
-
-    pub fn shared_with_children(children: Vec<Statement>) -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(Self {
-            children,
-            ..Default::default()
-        }))
-    }
 }
 
 /// Scope analysis data for function bodies, populated by the scope collector.
@@ -1700,7 +1692,7 @@ pub struct FunctionDeclarationData {
     pub function_id: FunctionId,
     pub name: Option<IdentifierId>,
     pub kind: FunctionKind,
-    pub is_hoisted: Cell<bool>,
+    pub is_hoisted: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -1722,11 +1714,8 @@ pub enum StatementKind {
     Debugger,
 
     // Blocks (carry ScopeData for scope analysis)
-    Block(Rc<RefCell<ScopeData>>),
-    FunctionBody {
-        scope: Rc<RefCell<ScopeData>>,
-        in_strict_mode: bool,
-    },
+    Block(ScopeId),
+    FunctionBody { scope: ScopeId, in_strict_mode: bool },
     Program(Box<ProgramData>),
 
     // Control flow
@@ -1740,12 +1729,8 @@ pub enum StatementKind {
     Labelled(Box<LabelledStatementData>),
 
     // Jumps
-    Break {
-        target_label: Option<Utf16String>,
-    },
-    Continue {
-        target_label: Option<Utf16String>,
-    },
+    Break { target_label: Option<Utf16String> },
+    Continue { target_label: Option<Utf16String> },
     Return(Option<Box<Expression>>),
     Throw(Box<Expression>),
     Try(Box<TryStatementData>),
@@ -1771,7 +1756,7 @@ pub enum StatementKind {
 
 #[derive(Clone, Debug)]
 pub struct ProgramData {
-    pub scope: Rc<RefCell<ScopeData>>,
+    pub scope: ScopeId,
     pub program_type: ProgramType,
     pub is_strict_mode: bool,
     pub has_top_level_await: bool,

@@ -89,8 +89,8 @@ impl Parser<'_> {
         }
 
         self.consume_token(TokenType::CurlyClose);
-        let scope = ScopeData::shared_with_children(children);
-        self.scope_collector.set_scope_node(scope.clone());
+        let scope = self.make_scope(children);
+        self.scope_collector.set_scope_node(scope);
         self.scope_collector.close_scope();
         self.statement(start, StatementKind::Block(scope))
     }
@@ -289,8 +289,8 @@ impl Parser<'_> {
         let start = if_start;
         self.scope_collector.open_block_scope(None);
         let declaration = self.parse_function_declaration();
-        let scope = ScopeData::shared_with_children(vec![declaration]);
-        self.scope_collector.set_scope_node(scope.clone());
+        let scope = self.make_scope(vec![declaration]);
+        self.scope_collector.set_scope_node(scope);
         self.scope_collector.close_scope();
         self.statement(start, StatementKind::Block(scope))
     }
@@ -524,8 +524,8 @@ impl Parser<'_> {
     /// Close the for-loop scope and wrap the for-loop statement in a Block
     /// with scope data.
     fn close_for_loop_scope(&mut self, start: Position, inner: Statement) -> Statement {
-        let scope = ScopeData::shared_with_children(vec![inner]);
-        self.scope_collector.set_scope_node(scope.clone());
+        let scope = self.make_scope(vec![inner]);
+        self.scope_collector.set_scope_node(scope);
         self.scope_collector.close_scope();
         self.statement(start, StatementKind::Block(scope))
     }
@@ -611,8 +611,8 @@ impl Parser<'_> {
 
         self.consume_token(TokenType::CurlyClose);
 
-        let scope = ScopeData::new_shared();
-        self.scope_collector.set_scope_node(scope.clone());
+        let scope = self.make_empty_scope();
+        self.scope_collector.set_scope_node(scope);
         self.scope_collector.close_scope();
 
         self.statement(
@@ -655,7 +655,7 @@ impl Parser<'_> {
 
         SwitchCase {
             range: self.range_from(start),
-            scope: ScopeData::shared_with_children(children),
+            scope: self.make_scope(children),
             test,
         }
     }
@@ -743,7 +743,13 @@ impl Parser<'_> {
                     scope_collector, arena, ..
                 } = self;
                 for id in pattern_bound_ids {
-                    scope_collector.register_identifier(id, None, &mut arena.identifiers, &arena.strings);
+                    scope_collector.register_identifier(
+                        id,
+                        None,
+                        &mut arena.identifiers,
+                        &arena.strings,
+                        &mut arena.scopes,
+                    );
                 }
                 Some(CatchBinding::BindingPattern(pattern))
             } else if self.match_identifier() {
@@ -759,7 +765,13 @@ impl Parser<'_> {
                 let Self {
                     scope_collector, arena, ..
                 } = self;
-                scope_collector.register_identifier(id, None, &mut arena.identifiers, &arena.strings);
+                scope_collector.register_identifier(
+                    id,
+                    None,
+                    &mut arena.identifiers,
+                    &arena.strings,
+                    &mut arena.scopes,
+                );
                 scope_collector.add_catch_parameter_identifier(&value, id);
                 Some(CatchBinding::Identifier(id))
             } else {
@@ -785,9 +797,9 @@ impl Parser<'_> {
         // It is a Syntax Error if any element of the BoundNames of
         // CatchParameter also occurs in the LexicallyDeclaredNames of Block.
         if !catch_names.is_empty()
-            && let StatementKind::Block(ref scope) = body.inner
+            && let StatementKind::Block(scope_id) = body.inner
         {
-            for child in &scope.borrow().children {
+            for child in &self.arena.scopes[scope_id].children.clone() {
                 match &child.inner {
                     StatementKind::VariableDeclaration(vd) if vd.kind != DeclarationKind::Var => {
                         for decl in &vd.declarations {
@@ -1008,7 +1020,13 @@ impl Parser<'_> {
                         scope_collector, arena, ..
                     } = self;
                     for (_name, id) in &bound_names {
-                        scope_collector.register_identifier(*id, None, &mut arena.identifiers, &arena.strings);
+                        scope_collector.register_identifier(
+                            *id,
+                            None,
+                            &mut arena.identifiers,
+                            &arena.strings,
+                            &mut arena.scopes,
+                        );
                     }
                     ForInOfLhs::Pattern(pattern)
                 } else {
