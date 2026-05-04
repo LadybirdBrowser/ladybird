@@ -198,7 +198,10 @@ void StackingContext::paint_descendants(DisplayListRecordingContext& context, Pa
                 paint_node(child, context, PaintPhase::Border);
                 paint_descendants(context, child, StackingContextPaintPhase::BackgroundAndBorders);
             }
-            paint_descendants(context, child, phase);
+            // https://drafts.csswg.org/css2/#elaborate-stacking-contexts
+            // inline-blocks and inline-tables should be treated as if they create a new stacking context
+            if (!child.layout_node().is_inline_block() && !child.layout_node().is_inline_table())
+                paint_descendants(context, child, phase);
             break;
         case StackingContextPaintPhase::BackgroundAndBordersForInlineLevelAndReplaced:
             if (child_is_inline_or_replaced) {
@@ -206,6 +209,7 @@ void StackingContext::paint_descendants(DisplayListRecordingContext& context, Pa
                 paint_node(child, context, PaintPhase::Border);
                 paint_node(child, context, PaintPhase::TableCollapsedBorder);
                 paint_descendants(context, child, StackingContextPaintPhase::BackgroundAndBorders);
+                paint_descendants(context, child, StackingContextPaintPhase::Floats);
             }
             paint_descendants(context, child, phase);
             break;
