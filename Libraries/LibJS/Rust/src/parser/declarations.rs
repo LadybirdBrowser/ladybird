@@ -161,7 +161,7 @@ impl Parser<'_> {
                         declaration_line,
                         declaration_column,
                         Some(DeclarationKind::Var),
-                        &arena.identifiers,
+                        &mut arena.identifiers,
                     );
                 } else {
                     self.scope_collector.add_lexical_declaration(
@@ -172,7 +172,7 @@ impl Parser<'_> {
                     let Self {
                         scope_collector, arena, ..
                     } = self;
-                    scope_collector.register_identifier(id, Some(kind), &arena.identifiers);
+                    scope_collector.register_identifier(id, Some(kind), &mut arena.identifiers);
                 }
 
                 VariableDeclaratorTarget::Identifier(id)
@@ -210,7 +210,7 @@ impl Parser<'_> {
                         declaration_line,
                         declaration_column,
                         None,
-                        &arena.identifiers,
+                        &mut arena.identifiers,
                     );
                 } else {
                     let refs: Vec<&[u16]> = bound_names.iter().map(|(n, _)| n.as_slice()).collect();
@@ -224,7 +224,7 @@ impl Parser<'_> {
                         scope_collector, arena, ..
                     } = self;
                     for (_name, id) in &bound_names {
-                        scope_collector.register_identifier(*id, None, &arena.identifiers);
+                        scope_collector.register_identifier(*id, None, &mut arena.identifiers);
                     }
                 }
 
@@ -323,7 +323,7 @@ impl Parser<'_> {
             let Self {
                 scope_collector, arena, ..
             } = self;
-            scope_collector.register_identifier(id, None, &arena.identifiers);
+            scope_collector.register_identifier(id, None, &mut arena.identifiers);
 
             let init = if self.match_token(TokenType::Equals) {
                 self.consume();
@@ -411,7 +411,7 @@ impl Parser<'_> {
             strict,
             declaration_line,
             declaration_column,
-            &arena.identifiers,
+            &mut arena.identifiers,
         );
 
         let fn_name_for_scope = if fn_name.is_empty() {
@@ -483,7 +483,7 @@ impl Parser<'_> {
             let Self {
                 scope_collector, arena, ..
             } = self;
-            scope_collector.register_identifier(id, None, &arena.identifiers);
+            scope_collector.register_identifier(id, None, &mut arena.identifiers);
         }
 
         // Open function scope (function expression name is bound within its own scope).
@@ -741,7 +741,7 @@ impl Parser<'_> {
                     let Self {
                         scope_collector, arena, ..
                     } = self;
-                    scope_collector.register_identifier(name_ident, None, &arena.identifiers);
+                    scope_collector.register_identifier(name_ident, None, &mut arena.identifiers);
                 }
                 self.statement(start, StatementKind::ClassDeclaration(data))
             }
@@ -1485,7 +1485,7 @@ impl Parser<'_> {
                             let Self {
                                 scope_collector, arena, ..
                             } = self;
-                            scope_collector.register_identifier(id, None, &arena.identifiers);
+                            scope_collector.register_identifier(id, None, &mut arena.identifiers);
                             entry_name = Some(BindingEntryName::Identifier(id));
                         } else if self.match_token(TokenType::BigIntLiteral) {
                             let token = self.consume_property_key_token();
@@ -1499,7 +1499,7 @@ impl Parser<'_> {
                             let Self {
                                 scope_collector, arena, ..
                             } = self;
-                            scope_collector.register_identifier(id, None, &arena.identifiers);
+                            scope_collector.register_identifier(id, None, &mut arena.identifiers);
                             entry_name = Some(BindingEntryName::Identifier(id));
                         } else {
                             let token = self.consume_property_key_token();
@@ -1509,7 +1509,7 @@ impl Parser<'_> {
                             let Self {
                                 scope_collector, arena, ..
                             } = self;
-                            scope_collector.register_identifier(id, None, &arena.identifiers);
+                            scope_collector.register_identifier(id, None, &mut arena.identifiers);
                             entry_name = Some(BindingEntryName::Identifier(id));
                         }
                     } else if self.match_token(TokenType::BracketOpen) {

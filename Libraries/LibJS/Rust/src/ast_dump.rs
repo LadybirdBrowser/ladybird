@@ -968,22 +968,22 @@ fn dump_identifier(ident: &Identifier, range: &SourceRange, state: &DumpState) {
     let mut desc = color_node_name(state, "Identifier");
     desc.push_str(&format!(" {}", color_string_utf16(state, &ident.name)));
     if ident.is_local() {
-        let kind = if ident.local_type.get() == Some(LocalType::Argument) {
+        let kind = if ident.local_type == Some(LocalType::Argument) {
             "argument"
         } else {
             "variable"
         };
-        desc.push_str(&format!(" {}", color_local(state, kind, ident.local_index.get())));
-    } else if ident.is_global.get() {
+        desc.push_str(&format!(" {}", color_local(state, kind, ident.local_index)));
+    } else if ident.is_global {
         desc.push_str(&format!(" {}", color_global(state)));
     }
-    if let Some(declaration_kind) = ident.declaration_kind.get() {
+    if let Some(declaration_kind) = ident.declaration_kind {
         desc.push_str(&format!(
             " {}",
             color_op(state, declaration_kind_to_string(declaration_kind))
         ));
     }
-    if ident.is_inside_scope_with_eval.get() {
+    if ident.is_inside_scope_with_eval {
         desc.push_str(&format!(" {}", color_flag(state, "in-eval-scope")));
     }
     desc.push_str(&format_position(state, range));

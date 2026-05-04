@@ -467,7 +467,7 @@ impl<'a> Parser<'a> {
         let Self {
             scope_collector, arena, ..
         } = self;
-        scope_collector.set_function_parameters(&entries, has_parameter_expressions, &arena.identifiers);
+        scope_collector.set_function_parameters(&entries, has_parameter_expressions, &mut arena.identifiers);
     }
 
     // === Token access ===

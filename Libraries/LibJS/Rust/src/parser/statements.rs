@@ -739,7 +739,7 @@ impl Parser<'_> {
                     scope_collector, arena, ..
                 } = self;
                 for id in pattern_bound_ids {
-                    scope_collector.register_identifier(id, None, &arena.identifiers);
+                    scope_collector.register_identifier(id, None, &mut arena.identifiers);
                 }
                 Some(CatchBinding::BindingPattern(pattern))
             } else if self.match_identifier() {
@@ -755,7 +755,7 @@ impl Parser<'_> {
                 let Self {
                     scope_collector, arena, ..
                 } = self;
-                scope_collector.register_identifier(id, None, &arena.identifiers);
+                scope_collector.register_identifier(id, None, &mut arena.identifiers);
                 scope_collector.add_catch_parameter_identifier(&value, id);
                 Some(CatchBinding::Identifier(id))
             } else {
@@ -1003,7 +1003,7 @@ impl Parser<'_> {
                         scope_collector, arena, ..
                     } = self;
                     for (_name, id) in &bound_names {
-                        scope_collector.register_identifier(*id, None, &arena.identifiers);
+                        scope_collector.register_identifier(*id, None, &mut arena.identifiers);
                     }
                     ForInOfLhs::Pattern(pattern)
                 } else {

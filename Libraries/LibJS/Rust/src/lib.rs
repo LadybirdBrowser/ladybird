@@ -435,7 +435,7 @@ pub unsafe extern "C" fn rust_compile_program(
 
             parser
                 .scope_collector
-                .analyze(initiated_by_eval, &parser.arena.identifiers);
+                .analyze(initiated_by_eval, &mut parser.arena.identifiers);
 
             let scope_ref = if let StatementKind::Program(ref data) = program.inner {
                 data.scope.clone()
@@ -502,7 +502,7 @@ pub unsafe extern "C" fn rust_parse_program(
             }
 
             if errors.is_empty() {
-                parser.scope_collector.analyze(false, &parser.arena.identifiers);
+                parser.scope_collector.analyze(false, &mut parser.arena.identifiers);
             }
 
             // Dump AST if requested (after scope analysis).
@@ -816,7 +816,7 @@ pub unsafe extern "C" fn rust_compile_eval(
                 return std::ptr::null_mut();
             }
 
-            parser.scope_collector.analyze(true, &parser.arena.identifiers);
+            parser.scope_collector.analyze(true, &mut parser.arena.identifiers);
 
             write_ast_dump_output(
                 &program,
@@ -1002,7 +1002,7 @@ pub unsafe extern "C" fn rust_compile_dynamic_function(
             // as a FunctionExpression (no Program scope for globals to bind to).
             parser
                 .scope_collector
-                .analyze_as_dynamic_function(&parser.arena.identifiers);
+                .analyze_as_dynamic_function(&mut parser.arena.identifiers);
 
             if parser.scope_collector.has_errors() {
                 if let Some(cb) = error_callback {
@@ -1112,7 +1112,7 @@ pub unsafe extern "C" fn rust_compile_builtin_file(
                 panic!("Parse errors in builtin file: {}", errors.join("; "));
             }
 
-            parser.scope_collector.analyze(false, &parser.arena.identifiers);
+            parser.scope_collector.analyze(false, &mut parser.arena.identifiers);
 
             write_ast_dump_output(
                 &program,

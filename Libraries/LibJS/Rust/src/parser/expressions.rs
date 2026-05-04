@@ -454,7 +454,7 @@ impl Parser<'_> {
                 let Self {
                     scope_collector, arena, ..
                 } = self;
-                scope_collector.register_identifier(id, None, &arena.identifiers);
+                scope_collector.register_identifier(id, None, &mut arena.identifiers);
                 (self.expression(start, ExpressionKind::Identifier(id)), true)
             }
 
@@ -594,7 +594,7 @@ impl Parser<'_> {
                     let Self {
                         scope_collector, arena, ..
                     } = self;
-                    scope_collector.register_identifier(id, None, &arena.identifiers);
+                    scope_collector.register_identifier(id, None, &mut arena.identifiers);
                     (self.expression(start, ExpressionKind::Identifier(id)), true)
                 } else if self.match_token(TokenType::EscapedKeyword) {
                     self.syntax_error("Keyword must not contain escaped characters");
@@ -604,7 +604,7 @@ impl Parser<'_> {
                     let Self {
                         scope_collector, arena, ..
                     } = self;
-                    scope_collector.register_identifier(id, None, &arena.identifiers);
+                    scope_collector.register_identifier(id, None, &mut arena.identifiers);
                     (self.expression(start, ExpressionKind::Identifier(id)), true)
                 } else {
                     self.expected("primary expression");
@@ -822,7 +822,7 @@ impl Parser<'_> {
                         scope_collector, arena, ..
                     } = self;
                     for (_name, id) in &bound_names {
-                        scope_collector.register_identifier(*id, None, &arena.identifiers);
+                        scope_collector.register_identifier(*id, None, &mut arena.identifiers);
                     }
                     self.pattern_bound_names = saved_bound_names;
                     self.consume();
@@ -1624,7 +1624,7 @@ impl Parser<'_> {
                 let Self {
                     scope_collector, arena, ..
                 } = self;
-                scope_collector.register_identifier(id, None, &arena.identifiers);
+                scope_collector.register_identifier(id, None, &mut arena.identifiers);
             }
             let value = self.expression(obj_start, ExpressionKind::Identifier(id));
             self.consume(); // consume '='
@@ -1660,7 +1660,7 @@ impl Parser<'_> {
                 let Self {
                     scope_collector, arena, ..
                 } = self;
-                scope_collector.register_identifier(id, None, &arena.identifiers);
+                scope_collector.register_identifier(id, None, &mut arena.identifiers);
             }
             let value = self.expression(obj_start, ExpressionKind::Identifier(id));
             return ObjectProperty {

@@ -529,7 +529,7 @@ impl ScopeCollector {
         declaration_line: u32,
         declaration_column: u32,
         declaration_kind: Option<DeclarationKind>,
-        identifiers: &IdentifierArena,
+        identifiers: &mut IdentifierArena,
     ) {
         let index = self.current.expect("no current scope");
 
@@ -572,7 +572,7 @@ impl ScopeCollector {
         strict_mode: bool,
         declaration_line: u32,
         declaration_column: u32,
-        identifiers: &IdentifierArena,
+        identifiers: &mut IdentifierArena,
     ) {
         let index = self.current.expect("no current scope");
         let scope_level = self.records[index].scope_level;
@@ -644,7 +644,7 @@ impl ScopeCollector {
         &mut self,
         id: IdentifierId,
         declaration_kind: Option<DeclarationKind>,
-        identifiers: &IdentifierArena,
+        identifiers: &mut IdentifierArena,
     ) {
         let index = self.current.expect("no current scope");
         let name = identifiers[id].name.clone();
@@ -671,7 +671,7 @@ impl ScopeCollector {
         &mut self,
         entries: &[ParameterEntry],
         has_parameter_expressions: bool,
-        identifiers: &IdentifierArena,
+        identifiers: &mut IdentifierArena,
     ) {
         let index = self.current.expect("no current scope");
         self.records[index].has_function_parameters = true;
@@ -859,7 +859,7 @@ impl ScopeCollector {
 
     // === Post-parse analysis ===
 
-    pub fn analyze(&mut self, initiated_by_eval: bool, identifiers: &IdentifierArena) {
+    pub fn analyze(&mut self, initiated_by_eval: bool, identifiers: &mut IdentifierArena) {
         self.analyze_inner(initiated_by_eval, false, identifiers);
     }
 
@@ -867,11 +867,11 @@ impl ScopeCollector {
     /// Used for dynamic functions (new Function(...)) where the source is
     /// parsed as a Script but identifiers must not use GetGlobal/SetGlobal,
     /// matching the C++ path which parses as a FunctionExpression.
-    pub fn analyze_as_dynamic_function(&mut self, identifiers: &IdentifierArena) {
+    pub fn analyze_as_dynamic_function(&mut self, identifiers: &mut IdentifierArena) {
         self.analyze_inner(false, true, identifiers);
     }
 
-    fn analyze_inner(&mut self, initiated_by_eval: bool, suppress_globals: bool, identifiers: &IdentifierArena) {
+    fn analyze_inner(&mut self, initiated_by_eval: bool, suppress_globals: bool, identifiers: &mut IdentifierArena) {
         if !self.records.is_empty() {
             self.analyze_recursive(0, initiated_by_eval, suppress_globals, identifiers);
         }
@@ -885,7 +885,7 @@ impl ScopeCollector {
         index: usize,
         initiated_by_eval: bool,
         suppress_globals: bool,
-        identifiers: &IdentifierArena,
+        identifiers: &mut IdentifierArena,
     ) {
         // Process children first (bottom-up traversal).
         let children = std::mem::take(&mut self.records[index].children);
@@ -962,7 +962,7 @@ impl ScopeCollector {
         index: usize,
         initiated_by_eval: bool,
         suppress_globals: bool,
-        identifiers: &IdentifierArena,
+        identifiers: &mut IdentifierArena,
     ) {
         // identifier_groups is an IndexMap, so iteration is in source order
         // of first reference. Local variable indices follow that order.
@@ -973,7 +973,7 @@ impl ScopeCollector {
             // so the bytecode generator knows how to handle TDZ checks, etc.
             if let Some(dk) = group.declaration_kind {
                 for id in &group.identifiers {
-                    identifiers[*id].declaration_kind.set(Some(dk));
+                    identifiers[*id].declaration_kind = Some(dk);
                 }
             }
 
@@ -1050,7 +1050,7 @@ impl ScopeCollector {
                 && var_flags.intersects(VarFlags::BOUND)
             {
                 for id in &group.identifiers {
-                    identifiers[*id].is_inside_scope_with_eval.set(true);
+                    identifiers[*id].is_inside_scope_with_eval = true;
                 }
             }
 
@@ -1078,9 +1078,9 @@ impl ScopeCollector {
                 let can_use_global = !(suppress_globals || group.used_inside_with_statement || initiated_by_eval);
                 if can_use_global {
                     for id in &group.identifiers {
-                        let identifier = &identifiers[*id];
-                        if !identifier.is_inside_scope_with_eval.get() {
-                            identifier.is_global.set(true);
+                        let identifier = &mut identifiers[*id];
+                        if !identifier.is_inside_scope_with_eval {
+                            identifier.is_global = true;
                         }
                     }
                 }
@@ -1133,9 +1133,9 @@ impl ScopeCollector {
                             let argument_index = records[ls].get_parameter_index(&name);
                             if let Some(ai) = argument_index {
                                 for id in &group.identifiers {
-                                    let identifier = &identifiers[*id];
-                                    identifier.local_index.set(ai);
-                                    identifier.local_type.set(Some(crate::ast::LocalType::Argument));
+                                    let identifier = &mut identifiers[*id];
+                                    identifier.local_index = ai;
+                                    identifier.local_type = Some(crate::ast::LocalType::Argument);
                                 }
                             } else {
                                 let lvi = u32_from_usize(sd.local_variables.len());
@@ -1144,9 +1144,9 @@ impl ScopeCollector {
                                     kind: LocalVarKind::Var,
                                 });
                                 for id in &group.identifiers {
-                                    let identifier = &identifiers[*id];
-                                    identifier.local_index.set(lvi);
-                                    identifier.local_type.set(Some(crate::ast::LocalType::Variable));
+                                    let identifier = &mut identifiers[*id];
+                                    identifier.local_index = lvi;
+                                    identifier.local_type = Some(crate::ast::LocalType::Variable);
                                 }
                             }
                         } else {
@@ -1157,9 +1157,9 @@ impl ScopeCollector {
                                 kind,
                             });
                             for id in &group.identifiers {
-                                let identifier = &identifiers[*id];
-                                identifier.local_index.set(lvi);
-                                identifier.local_type.set(Some(crate::ast::LocalType::Variable));
+                                let identifier = &mut identifiers[*id];
+                                identifier.local_index = lvi;
+                                identifier.local_type = Some(crate::ast::LocalType::Variable);
                             }
                         }
                     }
@@ -1178,7 +1178,7 @@ impl ScopeCollector {
 
                 if records[index].eval_in_current_function {
                     for id in &group.identifiers {
-                        identifiers[*id].is_inside_scope_with_eval.set(true);
+                        identifiers[*id].is_inside_scope_with_eval = true;
                     }
                 }
 
@@ -1208,7 +1208,7 @@ impl ScopeCollector {
     // - vars_to_initialize: var-declared names and their local variable indices
     // - functions_to_initialize: function declarations to instantiate (in reverse order)
     // - arguments object metadata (has_argument_parameter, has_function_named_arguments, etc.)
-    fn build_function_scope_data(records: &[ScopeRecord], index: usize, identifiers: &IdentifierArena) {
+    fn build_function_scope_data(records: &[ScopeRecord], index: usize, identifiers: &mut IdentifierArena) {
         let record = &records[index];
         let Some(ref scope_data) = record.scope_data else {
             return;
@@ -1267,8 +1267,8 @@ impl ScopeCollector {
                 let ident = &identifiers[ident_id];
                 if ident.is_local() {
                     Some(LocalBinding {
-                        local_type: ident.local_type.get().expect("is_local() implies local_type is Some"),
-                        index: ident.local_index.get(),
+                        local_type: ident.local_type.expect("is_local() implies local_type is Some"),
+                        index: ident.local_index,
                     })
                 } else {
                     None
@@ -1348,7 +1348,7 @@ impl ScopeCollector {
     /// The function propagates upward through block scopes until it reaches
     /// a function/program scope (top level) or is blocked by an existing
     /// lexical or function declaration with the same name.
-    fn hoist_functions(records: &mut [ScopeRecord], index: usize, identifiers: &IdentifierArena) {
+    fn hoist_functions(records: &mut [ScopeRecord], index: usize, identifiers: &mut IdentifierArena) {
         let functions = std::mem::take(&mut records[index].functions_to_hoist);
 
         for function in functions {

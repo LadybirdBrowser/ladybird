@@ -1068,8 +1068,7 @@ pub fn generate_statement(
                 let arena = generator.arena.clone();
                 let name_ident = &arena.identifiers[name_ident_id];
                 if name_ident.is_local() {
-                    let local =
-                        generator.resolve_local(name_ident.local_index.get(), name_ident.local_type.get().unwrap());
+                    let local = generator.resolve_local(name_ident.local_index, name_ident.local_type.unwrap());
                     generator.emit_mov(&local, &value);
                 } else {
                     let id = generator.intern_identifier(&name_ident.name);
@@ -1751,18 +1750,18 @@ fn generate_identifier(
     let arena = generator.arena.clone();
     let ident = &arena.identifiers[id];
     if ident.is_local() {
-        let local_index = ident.local_index.get();
-        let local = generator.resolve_local(local_index, ident.local_type.get().unwrap());
+        let local_index = ident.local_index;
+        let local = generator.resolve_local(local_index, ident.local_type.unwrap());
         // Check TDZ for uninitialized bindings.
         // Arguments may need TDZ during default parameter evaluation;
         // for variable-type locals, only lexically-declared (let/const) need TDZ.
-        let needs_tdz_check = if ident.local_type.get() == Some(LocalType::Argument) {
+        let needs_tdz_check = if ident.local_type == Some(LocalType::Argument) {
             !generator.is_argument_initialized(local_index)
         } else {
             generator.is_local_lexically_declared(local_index) && !generator.is_local_initialized(local_index)
         };
         if needs_tdz_check {
-            if ident.local_type.get() == Some(LocalType::Argument) {
+            if ident.local_type == Some(LocalType::Argument) {
                 // Arguments are initialized to undefined by default, so we
                 // need to replace the value with the empty sentinel to
                 // trigger the TDZ check.
@@ -1775,14 +1774,14 @@ fn generate_identifier(
     }
 
     // OPTIMIZATION: Generate builtin constants (undefined, NaN, Infinity) directly.
-    if ident.is_global.get()
+    if ident.is_global
         && let Some(constant) = maybe_generate_builtin_constant(generator, &ident.name)
     {
         return constant;
     }
 
     let dst = choose_dst(generator, preferred_dst);
-    if ident.is_global.get() {
+    if ident.is_global {
         let id = generator.intern_identifier(&ident.name);
         let cache = generator.next_global_variable_cache();
         generator.emit(Instruction::GetGlobal {
@@ -1790,7 +1789,7 @@ fn generate_identifier(
             identifier: id,
             cache: cache as u64,
         });
-    } else if ident.declaration_kind.get() == Some(DeclarationKind::Var) {
+    } else if ident.declaration_kind == Some(DeclarationKind::Var) {
         let id = generator.intern_identifier(&ident.name);
         generator.emit(Instruction::GetInitializedBinding {
             dst: dst.operand(),
@@ -2675,7 +2674,7 @@ fn emit_lexical_declarations_for_block<'a>(
                     lhs_name: None,
                 });
                 if name_ident.is_local() {
-                    let local_index = name_ident.local_index.get();
+                    let local_index = name_ident.local_index;
                     let local = generator.local(local_index);
                     generator.emit_mov(&local, &fo);
                     generator.mark_local_initialized(local_index);
@@ -2724,8 +2723,8 @@ fn generate_variable_declaration(
         let init_dst = if kind != DeclarationKind::Var {
             if let VariableDeclaratorTarget::Identifier(id) = &declaration.target {
                 let ident = &arena.identifiers[*id];
-                if ident.is_local() && ident.local_type.get() == Some(LocalType::Variable) {
-                    Some(generator.local(ident.local_index.get()))
+                if ident.is_local() && ident.local_type == Some(LocalType::Variable) {
+                    Some(generator.local(ident.local_index))
                 } else {
                     None
                 }
@@ -2754,21 +2753,21 @@ fn generate_variable_declaration(
                 // The FDI already handles initialization for var bindings.
                 if init_value.is_none() && kind == DeclarationKind::Var {
                     if ident.is_local() {
-                        generator.mark_local_initialized(ident.local_index.get());
+                        generator.mark_local_initialized(ident.local_index);
                     }
                     continue;
                 }
                 let value = init_value.unwrap_or_else(|| generator.add_constant_undefined());
                 if ident.is_local() {
-                    let local_index = ident.local_index.get();
-                    let local = generator.resolve_local(local_index, ident.local_type.get().unwrap());
+                    let local_index = ident.local_index;
+                    let local = generator.resolve_local(local_index, ident.local_type.unwrap());
                     generator.emit_mov(&local, &value);
                     generator.mark_local_initialized(local_index);
                 } else {
                     let id = generator.intern_identifier(&ident.name);
                     match kind {
                         DeclarationKind::Var => {
-                            if ident.is_global.get() {
+                            if ident.is_global {
                                 let cache = generator.next_global_variable_cache();
                                 generator.emit(Instruction::SetGlobal {
                                     identifier: id,
@@ -3117,19 +3116,19 @@ fn generate_call_expression(
                 let id_data = &arena.identifiers[*ident];
                 // Local identifier: use the local directly, with ThrowIfTDZ
                 // if not yet initialized.
-                let local = generator.resolve_local(id_data.local_index.get(), id_data.local_type.get().unwrap());
-                let needs_tdz = if id_data.local_type.get() == Some(LocalType::Argument) {
-                    !generator.is_argument_initialized(id_data.local_index.get())
+                let local = generator.resolve_local(id_data.local_index, id_data.local_type.unwrap());
+                let needs_tdz = if id_data.local_type == Some(LocalType::Argument) {
+                    !generator.is_argument_initialized(id_data.local_index)
                 } else {
-                    generator.is_local_lexically_declared(id_data.local_index.get())
-                        && !generator.is_local_initialized(id_data.local_index.get())
+                    generator.is_local_lexically_declared(id_data.local_index)
+                        && !generator.is_local_initialized(id_data.local_index)
                 };
                 if needs_tdz {
                     generator.emit(Instruction::ThrowIfTDZ { src: local.operand() });
                 }
                 (local, None)
             }
-            ExpressionKind::Identifier(ident) if !arena.identifiers[*ident].is_global.get() => {
+            ExpressionKind::Identifier(ident) if !arena.identifiers[*ident].is_global => {
                 // Non-local, non-global identifier: use GetCalleeAndThisFromEnvironment
                 // to properly handle with-statement bindings and eval.
                 let callee_reg = generator.allocate_register();
@@ -4202,15 +4201,15 @@ fn emit_tdz_check_if_needed(generator: &mut Generator, id: crate::ast::Identifie
     if !ident.is_local() {
         return;
     }
-    let local_index = ident.local_index.get();
-    let needs_tdz_check = if ident.local_type.get() == Some(LocalType::Argument) {
+    let local_index = ident.local_index;
+    let needs_tdz_check = if ident.local_type == Some(LocalType::Argument) {
         !generator.is_argument_initialized(local_index)
     } else {
         generator.is_local_lexically_declared(local_index) && !generator.is_local_initialized(local_index)
     };
     if needs_tdz_check {
-        let local = generator.resolve_local(local_index, ident.local_type.get().unwrap());
-        if ident.local_type.get() == Some(LocalType::Argument) {
+        let local = generator.resolve_local(local_index, ident.local_type.unwrap());
+        if ident.local_type == Some(LocalType::Argument) {
             let empty = generator.add_constant_empty();
             generator.emit_mov(&local, &empty);
         }
@@ -4222,16 +4221,16 @@ fn emit_set_variable(generator: &mut Generator, id: crate::ast::IdentifierId, va
     let arena = generator.arena.clone();
     let ident = &arena.identifiers[id];
     if ident.is_local() {
-        if ident.declaration_kind.get() == Some(DeclarationKind::Const) {
+        if ident.declaration_kind == Some(DeclarationKind::Const) {
             // The caller is responsible for emitting ThrowIfTDZ before calling
             // emit_set_variable().
             generator.emit(Instruction::ThrowConstAssignment {});
             return;
         }
-        let local_index = ident.local_index.get();
-        let local = generator.resolve_local(local_index, ident.local_type.get().unwrap());
+        let local_index = ident.local_index;
+        let local = generator.resolve_local(local_index, ident.local_type.unwrap());
         // Skip self-move entirely.
-        let is_variable_self_move = ident.local_type.get() == Some(LocalType::Variable)
+        let is_variable_self_move = ident.local_type == Some(LocalType::Variable)
             && value.operand().is_local()
             && value.operand().index() == local_index;
         if is_variable_self_move {
@@ -4243,7 +4242,7 @@ fn emit_set_variable(generator: &mut Generator, id: crate::ast::IdentifierId, va
             dst: local.operand(),
             src: value.operand(),
         });
-    } else if ident.is_global.get() {
+    } else if ident.is_global {
         let id = generator.intern_identifier(&ident.name);
         let cache = generator.next_global_variable_cache();
         generator.emit(Instruction::SetGlobal {
@@ -4818,8 +4817,7 @@ fn generate_tagged_template_literal(
             (method, Some(obj))
         }
         ExpressionKind::Identifier(ident)
-            if generator.arena.identifiers[*ident].is_local()
-                || generator.arena.identifiers[*ident].is_global.get() =>
+            if generator.arena.identifiers[*ident].is_local() || generator.arena.identifiers[*ident].is_global =>
         {
             let tag_val = generate_expression_or_undefined(tag, generator, None);
             (tag_val, None)
@@ -6041,7 +6039,7 @@ fn emit_default_constructor(generator: &mut Generator, has_super: bool) -> u32 {
         parser.flags.allow_super_constructor_call = true;
     }
     let program = parser.parse_program(false);
-    parser.scope_collector.analyze(false, &parser.arena.identifiers);
+    parser.scope_collector.analyze(false, &mut parser.arena.identifiers);
 
     assert!(!parser.has_errors(), "default constructor parse failed");
 
@@ -6965,7 +6963,7 @@ fn emit_set_variable_with_mode(
     let arena = generator.arena.clone();
     let ident = &arena.identifiers[id];
     if ident.is_local() {
-        let local = generator.resolve_local(ident.local_index.get(), ident.local_type.get().unwrap());
+        let local = generator.resolve_local(ident.local_index, ident.local_type.unwrap());
         generator.emit_mov(&local, value);
     } else {
         let id = generator.intern_identifier(&ident.name);
@@ -6978,7 +6976,7 @@ fn emit_set_variable_with_mode(
                 });
             }
             BindingMode::Set => {
-                if ident.is_global.get() {
+                if ident.is_global {
                     let cache = generator.next_global_variable_cache();
                     generator.emit(Instruction::SetGlobal {
                         identifier: id,
@@ -7376,9 +7374,9 @@ fn generate_try_statement(
                     let arena = generator.arena.clone();
                     let ident = &arena.identifiers[*ident_id];
                     if ident.is_local() {
-                        let local = generator.local(ident.local_index.get());
+                        let local = generator.local(ident.local_index);
                         generator.emit_mov(&local, &caught_value);
-                        generator.mark_local_initialized(ident.local_index.get());
+                        generator.mark_local_initialized(ident.local_index);
                     } else {
                         generator.push_new_lexical_environment(0);
                         generator.start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
@@ -7899,8 +7897,8 @@ pub fn emit_function_declaration_instantiation(
                 let arena = generator.arena.clone();
                 let ident = &arena.identifiers[*ident_id];
                 if ident.is_local() {
-                    let local_index = ident.local_index.get();
-                    match ident.local_type.get() {
+                    let local_index = ident.local_index;
+                    match ident.local_type {
                         Some(LocalType::Variable) => generator.mark_local_initialized(local_index),
                         Some(LocalType::Argument) => {
                             generator.mark_argument_initialized(local_index);
@@ -8128,7 +8126,7 @@ pub fn emit_function_declaration_instantiation(
                     let arena = generator.arena.clone();
                     let name_ident = &arena.identifiers[name_ident_id];
                     if name_ident.is_local() {
-                        let local_index = name_ident.local_index.get();
+                        let local_index = name_ident.local_index;
                         let local = generator.local(local_index);
                         generator.emit(Instruction::NewFunction {
                             dst: local.operand(),

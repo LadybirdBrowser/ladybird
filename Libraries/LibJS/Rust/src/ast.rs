@@ -977,18 +977,19 @@ pub enum LocalType {
 
 /// An identifier reference or binding name.
 ///
-/// Scope analysis results are stored in `Cell` fields because the scope
-/// collector writes them after parsing through shared references.
+/// Scope analysis writes the resolution fields via `&mut arena.identifiers[id]`
+/// during analyze(); after that the arena is logically frozen and these
+/// fields are read-only.
 #[derive(Clone, Debug)]
 pub struct Identifier {
     pub range: SourceRange,
     pub name: SharedUtf16String,
     // Scope analysis results — set by scope collector after parsing.
-    pub local_type: Cell<Option<LocalType>>,
-    pub local_index: Cell<u32>,
-    pub is_global: Cell<bool>,
-    pub is_inside_scope_with_eval: Cell<bool>,
-    pub declaration_kind: Cell<Option<DeclarationKind>>,
+    pub local_type: Option<LocalType>,
+    pub local_index: u32,
+    pub is_global: bool,
+    pub is_inside_scope_with_eval: bool,
+    pub declaration_kind: Option<DeclarationKind>,
 }
 
 impl Identifier {
@@ -996,16 +997,16 @@ impl Identifier {
         Self {
             range,
             name,
-            local_type: Cell::new(None),
-            local_index: Cell::new(0),
-            is_global: Cell::new(false),
-            is_inside_scope_with_eval: Cell::new(false),
-            declaration_kind: Cell::new(None),
+            local_type: None,
+            local_index: 0,
+            is_global: false,
+            is_inside_scope_with_eval: false,
+            declaration_kind: None,
         }
     }
 
     pub fn is_local(&self) -> bool {
-        self.local_type.get().is_some()
+        self.local_type.is_some()
     }
 }
 
