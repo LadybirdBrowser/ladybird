@@ -31,10 +31,10 @@ void AnimationTimeline::set_current_time(Optional<TimeValue> value)
 
     m_current_time = value;
 
-    update_associated_animations_and_dispatch_events();
+    update_associated_animations();
 }
 
-void AnimationTimeline::update_associated_animations_and_dispatch_events()
+void AnimationTimeline::update_associated_animations()
 {
     // https://drafts.csswg.org/web-animations-1/#animation-frame-loop
     // Note: Due to the hierarchical nature of the timing model, updating the current time of a timeline also involves:
@@ -42,14 +42,9 @@ void AnimationTimeline::update_associated_animations_and_dispatch_events()
     // - Running the update an animation's finished state procedure for any animations whose current time has been
     //   updated.
     // - Queueing animation events for any such animations.
+    // NB: Since we dispatch events for all animations regardless of whether they have a timeline we handle them all together in Document::update_animations_and_send_events()
     for (auto& animation : m_associated_animations)
         animation.update();
-
-    GC::RootVector<GC::Ref<Animations::Animation>> animations;
-    for (auto& animation : m_associated_animations)
-        animations.append(animation);
-    for (auto& animation : animations)
-        m_associated_document->dispatch_events_for_animation_if_necessary(animation);
 }
 
 // https://drafts.csswg.org/web-animations-2/#timeline-duration

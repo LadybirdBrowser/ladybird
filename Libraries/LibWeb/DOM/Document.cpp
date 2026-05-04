@@ -6519,6 +6519,14 @@ void Document::update_animations_and_send_events(double timestamp)
         for (auto const& timeline : timelines_to_update)
             timeline->update_current_time(timestamp);
 
+        // NB: We dispatch events for all animations regardless of whether they have a timeline
+        GC::RootVector<GC::Ref<Animations::Animation>> animations;
+        for (auto& animation : m_associated_animations)
+            animations.append(animation);
+
+        for (auto& animation : animations)
+            dispatch_events_for_animation_if_necessary(animation);
+
         // 2. Remove replaced animations for doc.
         remove_replaced_animations();
 
