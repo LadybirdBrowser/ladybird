@@ -1865,7 +1865,8 @@ void Document::update_style()
     // Fetch the viewport rect once, instead of repeatedly, during style computation.
     style_computer().set_viewport_rect({}, viewport_rect());
 
-    evaluate_media_rules();
+    if (m_needs_media_query_evaluation)
+        evaluate_media_rules();
 
     style_computer().reset_has_result_cache();
     style_computer().reset_ancestor_filter();
