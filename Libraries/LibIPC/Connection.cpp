@@ -7,6 +7,7 @@
  */
 
 #include <AK/Vector.h>
+#include <LibCore/EventLoop.h>
 #include <LibIPC/Connection.h>
 #include <LibIPC/Message.h>
 #include <LibIPC/Stub.h>
@@ -19,9 +20,13 @@ ConnectionBase::ConnectionBase(IPC::Stub& local_stub, NonnullOwnPtr<Transport> t
     , m_local_endpoint_magic(local_endpoint_magic)
 {
     m_transport->set_up_read_hook([this] {
-        NonnullRefPtr protect = *this;
-        drain_messages_from_peer();
-        handle_messages();
+        if (!try_ref())
+            return;
+        RefPtr<ConnectionBase> connection { RefPtr<ConnectionBase>::Adopt, *this };
+        Core::deferred_invoke([connection = connection.release_nonnull()] {
+            connection->drain_messages_from_peer();
+            connection->handle_messages();
+        });
     });
 }
 

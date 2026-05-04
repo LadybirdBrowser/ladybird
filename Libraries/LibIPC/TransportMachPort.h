@@ -82,6 +82,7 @@ private:
     void wake_io_thread();
     void notify_read_available();
     void mark_peer_eof();
+    void drop_malformed_received_message(mach_msg_header_t* header, StringView reason);
     void send_mach_message(PendingMessage&);
     void process_received_message(u8* buffer);
 

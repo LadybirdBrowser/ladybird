@@ -24,26 +24,11 @@ static void set_mach_port_queue_limit(mach_port_t port)
         reinterpret_cast<mach_port_info_t>(&limits), MACH_PORT_LIMITS_INFO_COUNT);
 }
 
-static Attachment attachment_from_descriptor(mach_msg_port_descriptor_t const& descriptor)
+void TransportMachPort::drop_malformed_received_message(mach_msg_header_t* header, StringView reason)
 {
-    VERIFY(descriptor.type == MACH_MSG_PORT_DESCRIPTOR);
-
-    switch (descriptor.disposition) {
-    case MACH_MSG_TYPE_MOVE_SEND:
-        return Attachment::from_mach_port(
-            Core::MachPort::adopt_right(descriptor.name, Core::MachPort::PortRight::Send),
-            Core::MachPort::MessageRight::MoveSend);
-    case MACH_MSG_TYPE_MOVE_RECEIVE:
-        return Attachment::from_mach_port(
-            Core::MachPort::adopt_right(descriptor.name, Core::MachPort::PortRight::Receive),
-            Core::MachPort::MessageRight::MoveReceive);
-    case MACH_MSG_TYPE_MOVE_SEND_ONCE:
-        return Attachment::from_mach_port(
-            Core::MachPort::adopt_right(descriptor.name, Core::MachPort::PortRight::SendOnce),
-            Core::MachPort::MessageRight::MoveSendOnce);
-    default:
-        VERIFY_NOT_REACHED();
-    }
+    dbgln("TransportMachPort: dropping malformed IPC: {}", reason);
+    mach_msg_destroy(header);
+    m_io_thread_state.store(IOThreadState::Stopped, AK::MemoryOrder::memory_order_release);
 }
 
 ErrorOr<TransportMachPort::Paired> TransportMachPort::create_paired()
@@ -285,18 +270,76 @@ void TransportMachPort::send_mach_message(PendingMessage& msg)
 void TransportMachPort::process_received_message(u8* buffer)
 {
     auto* header = reinterpret_cast<mach_msg_header_t*>(buffer);
-    VERIFY(header->msgh_bits & MACH_MSGH_BITS_COMPLEX);
+    if (!(header->msgh_bits & MACH_MSGH_BITS_COMPLEX)) {
+        drop_malformed_received_message(header, "message is not complex"sv);
+        return;
+    }
+
     auto* body = reinterpret_cast<mach_msg_body_t*>(header + 1);
-    VERIFY(body->msgh_descriptor_count > 0);
+    if (body->msgh_descriptor_count == 0) {
+        drop_malformed_received_message(header, "missing payload descriptor"sv);
+        return;
+    }
+
     auto attachment_count = body->msgh_descriptor_count - 1;
+    size_t const expected_message_size = sizeof(mach_msg_header_t)
+        + sizeof(mach_msg_body_t)
+        + (attachment_count * sizeof(mach_msg_port_descriptor_t))
+        + sizeof(mach_msg_ool_descriptor_t);
+    if (header->msgh_size < expected_message_size) {
+        drop_malformed_received_message(header, "descriptor list is truncated"sv);
+        return;
+    }
+
     auto* descriptors = reinterpret_cast<mach_msg_port_descriptor_t*>(body + 1);
     auto const* payload = reinterpret_cast<mach_msg_ool_descriptor_t const*>(&descriptors[attachment_count]);
+    if (payload->type != MACH_MSG_OOL_DESCRIPTOR || (payload->size > 0 && !payload->address)) {
+        drop_malformed_received_message(header, "missing out-of-line payload"sv);
+        return;
+    }
+
+    for (unsigned int i = 0; i < attachment_count; ++i) {
+        bool disposition_is_valid = false;
+        switch (descriptors[i].disposition) {
+        case MACH_MSG_TYPE_MOVE_SEND:
+        case MACH_MSG_TYPE_MOVE_RECEIVE:
+        case MACH_MSG_TYPE_MOVE_SEND_ONCE:
+            disposition_is_valid = true;
+            break;
+        default:
+            break;
+        }
+        if (descriptors[i].type == MACH_MSG_PORT_DESCRIPTOR && MACH_PORT_VALID(descriptors[i].name) && disposition_is_valid)
+            continue;
+        drop_malformed_received_message(header, "invalid attachment descriptor"sv);
+        return;
+    }
 
     auto message = make<Message>();
-    for (unsigned int i = 0; i < attachment_count; ++i)
-        message->attachments.enqueue(attachment_from_descriptor(descriptors[i]));
+    for (unsigned int i = 0; i < attachment_count; ++i) {
+        Core::MachPort::MessageRight message_right;
+        Core::MachPort::PortRight port_right;
+        switch (descriptors[i].disposition) {
+        case MACH_MSG_TYPE_MOVE_SEND:
+            message_right = Core::MachPort::MessageRight::MoveSend;
+            port_right = Core::MachPort::PortRight::Send;
+            break;
+        case MACH_MSG_TYPE_MOVE_RECEIVE:
+            message_right = Core::MachPort::MessageRight::MoveReceive;
+            port_right = Core::MachPort::PortRight::Receive;
+            break;
+        case MACH_MSG_TYPE_MOVE_SEND_ONCE:
+            message_right = Core::MachPort::MessageRight::MoveSendOnce;
+            port_right = Core::MachPort::PortRight::SendOnce;
+            break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+        message->attachments.enqueue(Attachment::from_mach_port(
+            Core::MachPort::adopt_right(descriptors[i].name, port_right),
+            message_right));
+    }
 
-    VERIFY(payload->type == MACH_MSG_OOL_DESCRIPTOR);
     if (payload->size > 0) {
         message->bytes.append(static_cast<u8 const*>(payload->address), payload->size);
         // The out-of-line payload arrives as a temporary mapping in this task. After copying it into our queue,
