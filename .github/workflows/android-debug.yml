@@ -40,6 +40,7 @@ jobs:
           os: 'Linux'
           arch: 'x86_64'
           toolchain: 'Clang'
+          llvm_version: '18'
 
       - name: Set Up Java
         uses: actions/setup-java@v5

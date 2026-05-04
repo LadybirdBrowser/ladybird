@@ -66,8 +66,30 @@ runs:
         LLVM_TOOLCHAIN="llvm-toolchain-${UBUNTU_RELEASE}-${{ inputs.llvm_version }}"
 
         if [ ! -f "${LLVM_LIST}" ] || ! grep -q "${LLVM_TOOLCHAIN}" "${LLVM_LIST}" ; then
-          curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm-snapshot.gpg
-          echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg] http://apt.llvm.org/${UBUNTU_RELEASE}/ ${LLVM_TOOLCHAIN} main" | sudo tee "${LLVM_LIST}"
+          # Refresh the apt cache (including the PPA we just added) so we can check
+          # whether the requested LLVM version is already available before reaching
+          # out to apt.llvm.org, which has historically been unreliable in CI.
+          sudo apt-get update -q || true
+
+          if ! apt-cache show "clang-${{ inputs.llvm_version }}" >/dev/null 2>&1 ; then
+            # Package is not yet available – add the apt.llvm.org repository.
+            # Retry up to 3 times to handle transient network failures.
+            for attempt in $(seq 1 3); do
+              if curl -fsSL --connect-timeout 30 --max-time 30 \
+                  https://apt.llvm.org/llvm-snapshot.gpg.key \
+                  | sudo gpg --dearmor -o /usr/share/keyrings/llvm-snapshot.gpg \
+                  && echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg] http://apt.llvm.org/${UBUNTU_RELEASE}/ ${LLVM_TOOLCHAIN} main" | sudo tee "${LLVM_LIST}"; then
+                break
+              fi
+              if [ "$attempt" -lt 3 ]; then
+                echo "Attempt $attempt to fetch LLVM GPG key failed, retrying in 30s..."
+                sleep 30
+              else
+                echo "::error::Failed to add LLVM apt repository after 3 attempts"
+                exit 1
+              fi
+            done
+          fi
         fi
 
         sudo apt-get update -y
