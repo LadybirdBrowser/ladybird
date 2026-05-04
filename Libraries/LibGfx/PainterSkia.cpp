@@ -43,11 +43,9 @@ struct PainterSkia::Impl {
     template<typename Callback>
     void with_canvas(Callback&& callback)
     {
-        painting_surface->lock_context();
         auto& canvas = painting_surface->canvas();
         callback(canvas);
         image_cache.prune();
-        painting_surface->unlock_context();
     }
 };
 

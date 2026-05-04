@@ -42,17 +42,11 @@ static bool command_is_clip(DisplayListCommand const& command)
 
 void DisplayListPlayer::execute(DisplayList& display_list, ScrollStateSnapshot const& scroll_state_snapshot, RefPtr<Gfx::PaintingSurface> surface)
 {
-    if (surface) {
-        surface->lock_context();
-    }
     m_surface = surface;
     execute_impl(display_list, scroll_state_snapshot);
     if (surface)
         flush();
     m_surface = nullptr;
-    if (surface) {
-        surface->unlock_context();
-    }
 }
 
 void DisplayListPlayer::execute_display_list_into_surface(DisplayList& display_list, Gfx::PaintingSurface& target_surface)

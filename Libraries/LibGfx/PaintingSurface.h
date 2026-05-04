@@ -71,9 +71,6 @@ public:
 
     ~PaintingSurface();
 
-    void lock_context() const;
-    void unlock_context() const;
-
 private:
     struct Impl;
 

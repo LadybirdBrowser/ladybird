@@ -67,11 +67,6 @@ static void release_vulkan_image(void* context)
 
 NonnullRefPtr<PaintingSurface> PaintingSurface::create_from_vkimage(NonnullRefPtr<SkiaBackendContext> context, NonnullRefPtr<VulkanImage> vulkan_image, Origin origin)
 {
-    context->lock();
-    ScopeGuard unlock_guard([&context] {
-        context->unlock();
-    });
-
     IntSize size(vulkan_image->info.extent.width, vulkan_image->info.extent.height);
     GrVkImageInfo info = {
         .fImage = vulkan_image->image,
@@ -103,9 +98,7 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::create_with_size(IntSize size, B
     auto image_info = SkImageInfo::Make(size.width(), size.height(), sk_color_type, sk_alpha_type, SkColorSpace::MakeSRGB());
 
     if (context) {
-        context->lock();
         auto surface = SkSurfaces::RenderTarget(context->sk_context(), skgpu::Budgeted::kNo, image_info);
-        context->unlock();
         if (surface)
             return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, nullptr)));
         dbgln("Unable to create GPU surface for size {}x{}, falling back to CPU", size.width(), size.height());
@@ -131,11 +124,6 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::wrap_bitmap(Bitmap& bitmap)
 #ifdef AK_OS_MACOS
 NonnullRefPtr<PaintingSurface> PaintingSurface::create_from_shared_image_buffer(SharedImageBuffer& shared_image_buffer, NonnullRefPtr<SkiaBackendContext> context, Origin origin)
 {
-    context->lock();
-    ScopeGuard unlock_guard([&context] {
-        context->unlock();
-    });
-
     auto const& iosurface_handle = shared_image_buffer.iosurface_handle();
     auto metal_texture = context->metal_context().create_texture_from_iosurface(iosurface_handle);
     IntSize const size { metal_texture->width(), metal_texture->height() };
@@ -155,31 +143,25 @@ PaintingSurface::PaintingSurface(NonnullOwnPtr<Impl>&& impl)
 
 PaintingSurface::~PaintingSurface()
 {
-    lock_context();
     m_impl->surface = nullptr;
-    unlock_context();
 }
 
 void PaintingSurface::read_into_bitmap(Bitmap& bitmap)
 {
-    lock_context();
     auto color_type = to_skia_color_type(bitmap.format());
     auto alpha_type = to_skia_alpha_type(bitmap.format(), bitmap.alpha_type());
     auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), color_type, alpha_type, SkColorSpace::MakeSRGB());
     SkPixmap const pixmap(image_info, bitmap.begin(), bitmap.pitch());
     m_impl->surface->readPixels(pixmap, 0, 0);
-    unlock_context();
 }
 
 void PaintingSurface::write_from_bitmap(Bitmap const& bitmap)
 {
-    lock_context();
     auto color_type = to_skia_color_type(bitmap.format());
     auto alpha_type = to_skia_alpha_type(bitmap.format(), bitmap.alpha_type());
     auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), color_type, alpha_type, SkColorSpace::MakeSRGB());
     SkPixmap const pixmap(image_info, bitmap.begin(), bitmap.pitch());
     m_impl->surface->writePixels(pixmap, 0, 0);
-    unlock_context();
 }
 
 IntSize PaintingSurface::size() const
@@ -204,9 +186,7 @@ SkSurface& PaintingSurface::sk_surface() const
 
 void PaintingSurface::notify_content_will_change()
 {
-    lock_context();
     m_impl->surface->notifyContentWillChange(SkSurface::kDiscard_ContentChangeMode);
-    unlock_context();
 }
 
 template<>
@@ -224,20 +204,6 @@ void PaintingSurface::flush()
 {
     if (on_flush)
         on_flush(*this);
-}
-
-void PaintingSurface::lock_context() const
-{
-    auto& context = m_impl->context;
-    if (context)
-        context->lock();
-}
-
-void PaintingSurface::unlock_context() const
-{
-    auto& context = m_impl->context;
-    if (context)
-        context->unlock();
 }
 
 }
