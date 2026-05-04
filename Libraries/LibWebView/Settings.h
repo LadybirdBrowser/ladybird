@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Badge.h>
+#include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <AK/JsonValue.h>
 #include <AK/Optional.h>
@@ -48,6 +49,7 @@ public:
     virtual void new_tab_page_url_changed() { }
     virtual void show_bookmarks_bar_changed() { }
     virtual void default_zoom_level_factor_changed() { }
+    virtual void zoom_per_host_changed(StringView host) { (void)host; }
     virtual void languages_changed() { }
     virtual void browsing_behavior_changed() { }
     virtual void search_engine_changed() { }
@@ -72,6 +74,9 @@ public:
 
     double default_zoom_level_factor() const { return m_default_zoom_level_factor; }
     void set_default_zoom_level_factor(double);
+
+    Optional<double> zoom_for_host(StringView host) const;
+    void set_zoom_for_host(StringView host, double zoom_level);
 
     static Vector<String> parse_json_languages(JsonValue const&);
     Vector<String> const& languages() const { return m_languages; }
@@ -123,6 +128,7 @@ private:
     URL::URL m_new_tab_page_url;
     bool m_show_bookmarks_bar { true };
     double m_default_zoom_level_factor { 0 };
+    HashMap<String, double> m_zoom_per_host;
     Vector<String> m_languages;
     BrowsingBehavior m_browsing_behavior;
     Optional<SearchEngine> m_search_engine;

@@ -292,6 +292,8 @@ protected:
     void set_url(URL::URL);
 
     virtual void update_zoom();
+    String current_host() const;
+    void apply_zoom_for_current_host();
 
     void handle_resize();
 
@@ -308,6 +310,7 @@ protected:
     void handle_web_content_process_crash(LoadErrorPage = LoadErrorPage::Yes);
 
     virtual void default_zoom_level_factor_changed() override;
+    virtual void zoom_per_host_changed(StringView host) override;
     virtual void languages_changed() override;
     virtual void browsing_behavior_changed() override;
     virtual void autoplay_settings_changed() override;

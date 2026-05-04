@@ -28,6 +28,8 @@ static constexpr auto DEFAULT_SHOW_BOOKMARKS_BAR = true;
 static constexpr auto DEFAULT_ZOOM_LEVEL_FACTOR_KEY = "defaultZoomLevelFactor"sv;
 static constexpr double INITIAL_ZOOM_LEVEL_FACTOR = 1.0;
 
+static constexpr auto ZOOM_PER_HOST_KEY = "zoomPerHost"sv;
+
 static constexpr auto LANGUAGES_KEY = "languages"sv;
 static auto DEFAULT_LANGUAGE = "en"_string;
 
@@ -79,6 +81,13 @@ Settings Settings::create(Badge<Application>)
 
     if (auto factor = settings_json.value().get_double_with_precision_loss(DEFAULT_ZOOM_LEVEL_FACTOR_KEY); factor.has_value())
         settings.m_default_zoom_level_factor = factor.release_value();
+
+    if (auto zoom_per_host = settings_json.value().get_object(ZOOM_PER_HOST_KEY); zoom_per_host.has_value()) {
+        zoom_per_host->for_each_member([&](auto const& host, JsonValue const& value) {
+            if (auto zoom_level = value.get_double_with_precision_loss(); zoom_level.has_value())
+                settings.m_zoom_per_host.set(host, *zoom_level);
+        });
+    }
 
     if (auto languages = settings_json.value().get(LANGUAGES_KEY); languages.has_value())
         settings.m_languages = parse_json_languages(*languages);
@@ -155,6 +164,13 @@ JsonValue Settings::serialize_json() const
     settings.set(NEW_TAB_PAGE_URL_KEY, m_new_tab_page_url.serialize());
     settings.set(SHOW_BOOKMARKS_BAR_KEY, m_show_bookmarks_bar);
     settings.set(DEFAULT_ZOOM_LEVEL_FACTOR_KEY, m_default_zoom_level_factor);
+
+    if (!m_zoom_per_host.is_empty()) {
+        JsonObject zoom_per_host;
+        for (auto const& [host, zoom_level] : m_zoom_per_host)
+            zoom_per_host.set(host, zoom_level);
+        settings.set(ZOOM_PER_HOST_KEY, move(zoom_per_host));
+    }
 
     JsonArray languages;
     languages.ensure_capacity(m_languages.size());
@@ -272,6 +288,34 @@ void Settings::set_default_zoom_level_factor(double zoom_level)
 
     for (auto& observer : m_observers)
         observer.default_zoom_level_factor_changed();
+}
+
+Optional<double> Settings::zoom_for_host(StringView host) const
+{
+    if (host.is_empty())
+        return {};
+    return m_zoom_per_host.get(host);
+}
+
+void Settings::set_zoom_for_host(StringView host, double zoom_level)
+{
+    if (host.is_empty())
+        return;
+
+    if (zoom_level == m_default_zoom_level_factor) {
+        if (!m_zoom_per_host.remove(host))
+            return;
+    } else {
+        auto existing = m_zoom_per_host.get(host);
+        if (existing.has_value() && *existing == zoom_level)
+            return;
+        m_zoom_per_host.set(String::from_utf8_without_validation(host.bytes()), zoom_level);
+    }
+
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.zoom_per_host_changed(host);
 }
 
 Vector<String> Settings::parse_json_languages(JsonValue const& languages)

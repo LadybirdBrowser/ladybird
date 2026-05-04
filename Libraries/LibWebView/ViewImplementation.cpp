@@ -100,8 +100,12 @@ void ViewImplementation::set_url(URL::URL url)
     if (m_url == url)
         return;
 
+    auto previous_host = current_host();
     m_url = move(url);
     update_bookmark_action();
+
+    if (current_host() != previous_host)
+        apply_zoom_for_current_host();
 }
 
 void ViewImplementation::set_favicon(Badge<WebContentClient>, Gfx::Bitmap const& favicon)
@@ -214,6 +218,7 @@ void ViewImplementation::zoom_in()
         return;
     m_zoom_level = round_to<int>((m_zoom_level + ZOOM_STEP) * 100) / 100.0;
     update_zoom();
+    Application::settings().set_zoom_for_host(current_host(), m_zoom_level);
 }
 
 void ViewImplementation::zoom_out()
@@ -222,6 +227,7 @@ void ViewImplementation::zoom_out()
         return;
     m_zoom_level = round_to<int>((m_zoom_level - ZOOM_STEP) * 100) / 100.0;
     update_zoom();
+    Application::settings().set_zoom_for_host(current_host(), m_zoom_level);
 }
 
 void ViewImplementation::set_zoom(double zoom_level)
@@ -235,6 +241,7 @@ void ViewImplementation::reset_zoom()
     m_zoom_level = 1.0;
     update_zoom();
     client().async_reset_zoom(m_client_state.page_index);
+    Application::settings().set_zoom_for_host(current_host(), m_zoom_level);
 }
 
 void ViewImplementation::enqueue_input_event(Web::InputEvent event)
@@ -628,6 +635,23 @@ void ViewImplementation::update_zoom()
     client().async_set_zoom_level(m_client_state.page_index, m_zoom_level);
 }
 
+String ViewImplementation::current_host() const
+{
+    if (!m_url.host().has_value())
+        return {};
+    return m_url.serialized_host();
+}
+
+void ViewImplementation::apply_zoom_for_current_host()
+{
+    auto& settings = Application::settings();
+    auto zoom_level = settings.zoom_for_host(current_host()).value_or(settings.default_zoom_level_factor());
+    if (zoom_level == m_zoom_level)
+        return;
+    m_zoom_level = zoom_level;
+    update_zoom();
+}
+
 void ViewImplementation::handle_resize()
 {
     client().async_set_viewport(page_id(), viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
@@ -716,8 +740,14 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
 
 void ViewImplementation::default_zoom_level_factor_changed()
 {
-    auto const default_zoom_level_factor = Application::settings().default_zoom_level_factor();
-    set_zoom(default_zoom_level_factor);
+    apply_zoom_for_current_host();
+}
+
+void ViewImplementation::zoom_per_host_changed(StringView host)
+{
+    if (current_host() != host)
+        return;
+    apply_zoom_for_current_host();
 }
 
 void ViewImplementation::languages_changed()
