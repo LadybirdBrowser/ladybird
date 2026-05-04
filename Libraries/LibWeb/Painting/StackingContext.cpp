@@ -167,6 +167,15 @@ void StackingContext::paint_descendants(DisplayListRecordingContext& context, Pa
             return IterationDecision::Continue;
         }
 
+        // https://drafts.csswg.org/css2/#elaborate-stacking-contexts
+        // inline-blocks and inline-tables should be treated as if they create a new stacking context
+        if ((child.layout_node().is_inline_block() || child.layout_node().is_inline_table())
+            && !child.is_positioned() && !z_index().has_value()) {
+            if (phase == StackingContextPaintPhase::Foreground)
+                paint_node_as_stacking_context(child, context);
+            return IterationDecision::Continue;
+        }
+
         // https://drafts.csswg.org/css2/#painting-order
         // All non-positioned floating descendants, in tree order. For each one of these, treat the
         // element as if it created a new stacking context, but any positioned descendants and
