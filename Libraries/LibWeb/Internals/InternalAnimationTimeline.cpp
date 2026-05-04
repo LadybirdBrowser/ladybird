@@ -17,7 +17,7 @@ GC_DEFINE_ALLOCATOR(InternalAnimationTimeline);
 
 void InternalAnimationTimeline::update_current_time(double)
 {
-    update_associated_animations_and_dispatch_events();
+    update_associated_animations();
 }
 
 void InternalAnimationTimeline::set_time(Optional<double> time)

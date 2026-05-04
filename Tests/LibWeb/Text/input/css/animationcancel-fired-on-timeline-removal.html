@@ -1,0 +1,40 @@
+<!doctype html>
+<style>
+    @keyframes fade {
+        from {
+            opacity: 1;
+        }
+
+        to {
+            opacity: 0;
+        }
+    }
+
+    #target.running {
+        animation: fade 10s linear;
+    }
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        let cancelEvents = 0;
+
+        target.addEventListener("animationcancel", () => {
+            ++cancelEvents;
+        });
+
+        target.addEventListener("animationstart", () => {
+            target.style.animationTimeline = "none";
+        });
+
+        await animationFrame();
+        target.classList.add("running");
+
+        await animationFrame();
+        await animationFrame();
+
+        println(`animationcancel events: ${cancelEvents}`);
+        done();
+    });
+</script>
