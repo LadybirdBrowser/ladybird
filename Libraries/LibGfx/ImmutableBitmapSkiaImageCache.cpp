@@ -4,11 +4,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/ColorSpace.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/ImmutableBitmapSkiaImageCache.h>
 #include <LibGfx/SkiaBackendContext.h>
+#include <LibGfx/SkiaUtils.h>
 
+#include <core/SkColorSpace.h>
 #include <core/SkImage.h>
+#include <gpu/ganesh/GrDirectContext.h>
+#include <gpu/ganesh/SkImageGanesh.h>
 
 namespace Gfx {
 
@@ -30,11 +35,17 @@ sk_sp<SkImage> ImmutableBitmapSkiaImageCache::image_for_bitmap(ImmutableBitmap c
         return it->value.image;
     }
 
-    auto context = m_skia_backend_context ? m_skia_backend_context : SkiaBackendContext::the();
-    if (context && !bitmap.ensure_sk_image(*context))
+    auto source_bitmap = bitmap.bitmap();
+    if (!source_bitmap)
         return nullptr;
 
-    auto image = sk_ref_sp(bitmap.sk_image());
+    auto image = sk_image_from_bitmap(*source_bitmap, bitmap.color_space());
+    if (auto* gr_context = m_skia_backend_context ? m_skia_backend_context->sk_context() : nullptr) {
+        auto gpu_image = SkImages::TextureFromImage(gr_context, image.get(), skgpu::Mipmapped::kNo, skgpu::Budgeted::kYes);
+        if (gpu_image)
+            image = move(gpu_image);
+    }
+
     if (!image)
         return nullptr;
 

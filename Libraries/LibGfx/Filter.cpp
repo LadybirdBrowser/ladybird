@@ -292,7 +292,12 @@ Filter Filter::image(Gfx::ImmutableBitmap const& bitmap, Gfx::IntRect const& src
     auto skia_dest_rect = to_skia_rect(dest_rect);
     auto sampling_options = to_skia_sampling_options(scaling_mode);
 
-    return Filter(Impl::create(SkImageFilters::Image(sk_ref_sp(bitmap.sk_image()), skia_src_rect, skia_dest_rect, sampling_options)));
+    auto source_bitmap = bitmap.bitmap();
+    if (!source_bitmap)
+        return Filter(Impl::create(nullptr));
+
+    auto image = sk_image_from_bitmap(*source_bitmap, bitmap.color_space());
+    return Filter(Impl::create(SkImageFilters::Image(move(image), skia_src_rect, skia_dest_rect, sampling_options)));
 }
 
 Filter Filter::merge(Vector<Optional<Filter>> const& inputs)

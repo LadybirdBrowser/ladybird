@@ -162,6 +162,12 @@ sk_sp<SkColorSpace>& ColorSpace::color_space()
     return m_color_space->color_space;
 }
 
+template<>
+sk_sp<SkColorSpace> const& ColorSpace::color_space() const
+{
+    return m_color_space->color_space;
+}
+
 }
 
 namespace IPC {

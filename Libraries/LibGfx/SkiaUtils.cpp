@@ -5,10 +5,15 @@
  */
 
 #include <AK/Assertions.h>
+#include <LibGfx/Bitmap.h>
+#include <LibGfx/ColorSpace.h>
 #include <LibGfx/Filter.h>
 #include <LibGfx/FilterImpl.h>
 #include <LibGfx/SkiaUtils.h>
+#include <core/SkBitmap.h>
 #include <core/SkBlender.h>
+#include <core/SkColorSpace.h>
+#include <core/SkImage.h>
 #include <core/SkImageFilter.h>
 #include <core/SkString.h>
 #include <effects/SkRuntimeEffect.h>
@@ -23,6 +28,15 @@ SkPath to_skia_path(Path const& path)
 sk_sp<SkImageFilter> to_skia_image_filter(Gfx::Filter const& filter)
 {
     return filter.impl().filter;
+}
+
+sk_sp<SkImage> sk_image_from_bitmap(Bitmap const& bitmap, ColorSpace const& color_space)
+{
+    auto info = SkImageInfo::Make(bitmap.width(), bitmap.height(), to_skia_color_type(bitmap.format()), to_skia_alpha_type(bitmap.format(), bitmap.alpha_type()), color_space.color_space<sk_sp<SkColorSpace>>());
+    SkBitmap sk_bitmap;
+    sk_bitmap.installPixels(info, const_cast<void*>(static_cast<void const*>(bitmap.scanline(0))), bitmap.pitch());
+    sk_bitmap.setImmutable();
+    return sk_bitmap.asImage();
 }
 
 sk_sp<SkBlender> to_skia_blender(Gfx::CompositingAndBlendingOperator compositing_and_blending_operator)

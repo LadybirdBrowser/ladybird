@@ -37,6 +37,8 @@ public:
     // and only provide a specialization for sk_sp<SkColorSpace>.
     template<typename T>
     T& color_space();
+    template<typename T>
+    T const& color_space() const;
 
 private:
     template<typename T>

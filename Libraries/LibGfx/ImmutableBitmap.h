@@ -17,8 +17,6 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/YUVData.h>
 
-class SkImage;
-
 namespace Gfx {
 
 struct ImmutableBitmapImpl;
@@ -56,30 +54,26 @@ public:
 
     ~ImmutableBitmap();
 
-    bool ensure_sk_image(SkiaBackendContext&) const;
-
     int width() const;
     int height() const;
     IntRect rect() const;
     IntSize size() const;
 
     AlphaType alpha_type() const;
+    YUVData const* yuv_data() const;
+    ColorSpace const& color_space() const;
 
-    SkImage const* sk_image() const;
     [[nodiscard]] ErrorOr<BitmapExportResult> export_to_byte_buffer(ExportFormat format, int flags, Optional<int> target_width, Optional<int> target_height) const;
 
     Color get_pixel(int x, int y) const;
 
-    // Returns nullptr for YUV-backed bitmaps
+    // May lazily convert YUV-backed bitmaps to CPU pixels.
     RefPtr<Bitmap const> bitmap() const;
 
 private:
     mutable NonnullOwnPtr<ImmutableBitmapImpl> m_impl;
 
     explicit ImmutableBitmap(NonnullOwnPtr<ImmutableBitmapImpl>&&);
-
-    void lock_context();
-    void unlock_context();
 };
 
 }
