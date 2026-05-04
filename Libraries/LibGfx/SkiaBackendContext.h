@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024-2026, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -40,6 +40,7 @@ public:
 #endif
 
     static void initialize_gpu_backend();
+    static RefPtr<SkiaBackendContext> create_independent_gpu_backend();
     static RefPtr<SkiaBackendContext> the();
 
     SkiaBackendContext() { }

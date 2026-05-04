@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024-2026, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -33,17 +33,26 @@ void SkiaBackendContext::initialize_gpu_backend()
 {
     VERIFY(!s_the);
 
+    s_the = create_independent_gpu_backend();
+}
+
+RefPtr<SkiaBackendContext> SkiaBackendContext::create_independent_gpu_backend()
+{
 #ifdef AK_OS_MACOS
     auto metal_context = get_metal_context();
-    s_the = create_metal_context(*metal_context);
+    if (!metal_context)
+        return {};
+    return create_metal_context(*metal_context);
 #elif USE_VULKAN
     auto maybe_vulkan_context = Gfx::create_vulkan_context();
     if (maybe_vulkan_context.is_error()) {
         dbgln("Vulkan context creation failed: {}", maybe_vulkan_context.error());
-        return;
+        return {};
     }
     auto vulkan_context = maybe_vulkan_context.release_value();
-    s_the = create_vulkan_context(vulkan_context);
+    return create_vulkan_context(vulkan_context);
+#else
+    return {};
 #endif
 }
 
@@ -65,7 +74,18 @@ public:
     {
     }
 
-    ~SkiaVulkanBackendContext() override { }
+    ~SkiaVulkanBackendContext() override
+    {
+        m_context.reset();
+#    ifdef USE_VULKAN_DMABUF_IMAGES
+        if (m_vulkan_context.command_pool != VK_NULL_HANDLE)
+            vkDestroyCommandPool(m_vulkan_context.logical_device, m_vulkan_context.command_pool, nullptr);
+#    endif
+        if (m_vulkan_context.logical_device != VK_NULL_HANDLE)
+            vkDestroyDevice(m_vulkan_context.logical_device, nullptr);
+        if (m_vulkan_context.instance != VK_NULL_HANDLE)
+            vkDestroyInstance(m_vulkan_context.instance, nullptr);
+    }
 
     void flush_and_submit(SkSurface* surface) override
     {
@@ -126,7 +146,10 @@ public:
     {
     }
 
-    ~SkiaMetalBackendContext() override { }
+    ~SkiaMetalBackendContext() override
+    {
+        m_context.reset();
+    }
 
     void flush_and_submit(SkSurface* surface) override
     {
