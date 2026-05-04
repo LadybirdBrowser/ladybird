@@ -3592,6 +3592,8 @@ void Document::dispatch_events_for_transition(GC::Ref<CSS::CSSTransition> transi
                                                                                   })
                                         .value_or({});
 
+        auto timeline = transition->timeline();
+
         append_pending_animation_event({
             .event = CSS::TransitionEvent::create(
                 transition->owning_element()->element().realm(),
@@ -3599,7 +3601,9 @@ void Document::dispatch_events_for_transition(GC::Ref<CSS::CSSTransition> transi
                 event_init),
             .animation = transition,
             .target = transition->owning_element()->element(),
-            .scheduled_event_time = HighResolutionTime::unsafe_shared_current_time(),
+            .scheduled_event_time = timeline && timeline->can_convert_a_timeline_time_to_an_origin_relative_time()
+                ? timeline->convert_a_timeline_time_to_an_origin_relative_time(timeline->current_time())
+                : Optional<double> {},
         });
     };
 
@@ -3696,6 +3700,8 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
                                                                     })
                                         .value_or({});
 
+        auto timeline = animation->timeline();
+
         append_pending_animation_event({
             .event = CSS::AnimationEvent::create(
                 owning_element->element().realm(),
@@ -3703,7 +3709,9 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
                 event_init),
             .animation = css_animation,
             .target = owning_element->element(),
-            .scheduled_event_time = HighResolutionTime::unsafe_shared_current_time(),
+            .scheduled_event_time = timeline && timeline->can_convert_a_timeline_time_to_an_origin_relative_time()
+                ? timeline->convert_a_timeline_time_to_an_origin_relative_time(timeline->current_time())
+                : Optional<double> {},
         });
     };
 

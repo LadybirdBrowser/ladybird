@@ -1,0 +1,580 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Tests for CSS animation event dispatch</title>
+<meta name="timeout" content="long">
+<link rel="help" href="https://drafts.csswg.org/css-animations-2/#event-dispatch"/>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="support/testcommon.js"></script>
+<style>
+@keyframes anim {
+  from { margin-left: 0px; }
+  to { margin-left: 100px; }
+}
+@keyframes anim2 {
+  from { margin-top: 100px; }
+  to { margin-top: 200px; }
+}
+@keyframes anim3 {
+  from { padding-left: 100px; }
+  to { padding-left: 200px; }
+}
+</style>
+<div id="log"></div>
+<script>
+'use strict';
+
+const setupAnimation = (t, animationStyle) => {
+  const div = addDiv(t, { style: 'animation: ' + animationStyle });
+  const animation = div.getAnimations()[0];
+  const timeoutPromise = armTimeoutWhenReady(animation, fastEventsTimeout);
+
+  const watcher = new EventWatcher(t, div, [ 'animationstart',
+                                             'animationiteration',
+                                             'animationend',
+                                             'animationcancel' ],
+                                   timeoutPromise);
+
+  return { animation, watcher, div };
+};
+
+promise_test(async t => {
+  // Add 1ms delay to ensure that the delay is not included in the elapsedTime.
+  const { animation, watcher } = setupAnimation(t, 'anim 100s 1ms');
+
+  const evt = await watcher.wait_for('animationstart');
+  assert_equals(evt.elapsedTime, 0.0);
+}, 'Idle -> Active');
+
+promise_test(async t => {
+  const { animation, watcher } = setupAnimation(t, 'anim 100s');
+
+  // Seek to After phase.
+  animation.finish();
+
+  const events = await watcher.wait_for(['animationstart', 'animationend'], {
+    record: 'all',
+  });
+  assert_equals(events[0].elapsedTime, 0.0);
+  assert_equals(events[1].elapsedTime, 100);
+}, 'Idle -> After');
+
+promise_test(async t => {
+  const { animation, watcher } = setupAnimation(t, 'anim 100s 100s paused');
+
+  await animation.ready;
+
+  // Seek to Active phase.
+  animation.currentTime = 100 * MS_PER_SEC;
+
+  const evt = await watcher.wait_for('animationstart');
+  assert_equals(evt.elapsedTime, 0.0);
+}, 'Before -> Active');
+
+promise_test(async t => {
+  const { animation, watcher } = setupAnimation(t, 'anim 100s 100s paused');
+  const allEvents = watcher.wait_for(['animationstart', 'animationend'], {
+    record: 'all',
+  });
+
+  await animation.ready;
+
+  // Seek to After phase.
+  animation.finish();
+
+  const events = await allEvents;
+  assert_equals(events[0].elapsedTime, 0.0);
+  assert_equals(events[1].elapsedTime, 100.0);
+}, 'Before -> After');
+
+promise_test(async t => {
+  const { animation, watcher, div } = setupAnimation(t, 'anim 100s paused');
+
+  await watcher.wait_for('animationstart');
+
+  // Make idle
+  div.style.display = 'none';
+
+  const evt = await watcher.wait_for('animationcancel');
+  assert_equals(evt.elapsedTime, 0.0);
+}, 'Active -> Idle, display: none');
+
+promise_test(async t => {
+  const { animation, watcher, div } = setupAnimation(t, 'anim 100s paused');
+
+  // Seek to After phase.
+  animation.finish();
+  await watcher.wait_for(['animationstart', 'animationend']);
+
+  div.style.display = 'none';
+
+  // Wait a couple of frames and check that no event was dispatched.
+  await waitForAnimationFrames(2);
+}, 'After -> Idle, display: none');
+
+promise_test(async t => {
+  const { animation, watcher } = setupAnimation(t, 'anim 100s');
+
+  await watcher.wait_for('animationstart');
+
+  animation.currentTime = 100.0;
+
+  // Make idle
+  animation.timeline = null;
+
+  const evt = await watcher.wait_for('animationcancel');
+  assert_time_equals_literal(evt.elapsedTime, 0.1);
+}, 'Active -> Idle, setting Animation.timeline = null');
+
+promise_test(async t => {
+  // We should NOT pause animation since calling cancel synchronously.
+  const { animation, watcher } = setupAnimation(t, 'anim 100s');
+
+  await watcher.wait_for('animationstart');
+
+  animation.currentTime = 50.0;
+  animation.cancel();
+
+  const evt = await watcher.wait_for('animationcancel');
+  assert_time_equals_literal(evt.elapsedTime, 0.05);
+}, 'Active -> Idle, calling Animation.cancel()');
+
+promise_test(async t => {
+  const { animation, watcher } = setupAnimation(t, 'anim 100s 100s paused');
+
+  // Seek to Active phase.
+  animation.currentTime = 100 * MS_PER_SEC;
+  await watcher.wait_for('animationstart');
+
+  // Seek to Before phase.
+  animation.currentTime = 0;
+
+  const evt = await watcher.wait_for('animationend');
+  assert_equals(evt.elapsedTime, 0.0);
+}, 'Active -> Before');
+
+promise_test(async t => {
+  const { animation, watcher } = setupAnimation(t, 'anim 100s paused');
+
+  await watcher.wait_for('animationstart');
+
+  // Seek to After phase.
+  animation.finish();
+
+  const evt = await watcher.wait_for('animationend');
+  assert_equals(evt.elapsedTime, 100.0);
+}, 'Active -> After');
+
+promise_test(async t => {
+  const { animation, watcher } = setupAnimation(t, 'anim 100s 100s paused');
+
+  // Seek to After phase.
+  animation.finish();
+  await watcher.wait_for([ 'animationstart', 'animationend' ]);
+
+  // Seek to Before phase.
+  animation.currentTime = 0;
+
+  const events = await watcher.wait_for(['animationstart', 'animationend'], {
+    record: 'all',
+  });
+  assert_equals(events[0].elapsedTime, 100.0);
+  assert_equals(events[1].elapsedTime, 0.0);
+}, 'After -> Before');
+
+promise_test(async t => {
+  const { animation, watcher } = setupAnimation(t, 'anim 100s 100s paused');
+
+  // Seek to After phase.
+  animation.finish();
+  await watcher.wait_for([ 'animationstart', 'animationend' ]);
+
+  // Seek to Active phase.
+  animation.currentTime = 100 * MS_PER_SEC;
+
+  const evt = await watcher.wait_for('animationstart');
+  assert_equals(evt.elapsedTime, 100.0);
+}, 'After -> Active');
+
+promise_test(async t => {
+  const { animation, watcher } = setupAnimation(t, 'anim 100s 100s 3 paused');
+
+  await animation.ready;
+
+  // Seek to iteration 0 (no animationiteration event should be dispatched)
+  animation.currentTime = 100 * MS_PER_SEC;
+  await watcher.wait_for('animationstart');
+
+  // Seek to iteration 2
+  animation.currentTime = 300 * MS_PER_SEC;
+  let evt = await watcher.wait_for('animationiteration');
+  assert_equals(evt.elapsedTime, 200);
+
+  // Seek to After phase (no animationiteration event should be dispatched)
+  animation.currentTime = 400 * MS_PER_SEC;
+  evt = await watcher.wait_for('animationend');
+  assert_equals(evt.elapsedTime, 300);
+}, 'Active -> Active (forwards)');
+
+promise_test(async t => {
+  const { animation, watcher } = setupAnimation(t, 'anim 100s 100s 3');
+
+  // Seek to After phase.
+  animation.finish();
+  await watcher.wait_for([ 'animationstart', 'animationend' ]);
+
+  // Seek to iteration 2 (no animationiteration event should be dispatched)
+  animation.pause();
+  animation.currentTime = 300 * MS_PER_SEC;
+  await watcher.wait_for('animationstart');
+
+  // Seek to mid of iteration 0 phase.
+  animation.currentTime = 200 * MS_PER_SEC;
+
+  const evt = await watcher.wait_for('animationiteration');
+  assert_equals(evt.elapsedTime, 200.0);
+
+  // Seek to before phase (no animationiteration event should be dispatched)
+  animation.currentTime = 0;
+  await watcher.wait_for('animationend');
+}, 'Active -> Active (backwards)');
+
+promise_test(async t => {
+  const { animation, watcher, div } = setupAnimation(t, 'anim 100s paused');
+
+  await watcher.wait_for('animationstart');
+
+  // Seek to Idle phase.
+  div.style.display = 'none';
+  flushComputedStyle(div);
+
+  await watcher.wait_for('animationcancel');
+
+  // Restart this animation.
+  div.style.display = '';
+  await watcher.wait_for('animationstart');
+}, 'Active -> Idle -> Active: animationstart is fired by restarting animation');
+
+promise_test(async t => {
+  const { animation, watcher } = setupAnimation(t, 'anim 100s 100s 2 paused');
+
+  // Make After.
+  animation.finish();
+
+  await watcher.wait_for([ 'animationstart', 'animationend' ]);
+  animation.playbackRate = -1;
+
+  let evt = await watcher.wait_for('animationstart');
+  assert_equals(evt.elapsedTime, 200);
+
+  // Seek to 1st iteration
+  animation.currentTime = 200 * MS_PER_SEC - 1;
+
+  evt = await watcher.wait_for('animationiteration');
+  assert_equals(evt.elapsedTime, 100);
+
+  // Seek to before
+  animation.currentTime = 100 * MS_PER_SEC - 1;
+
+  evt = await watcher.wait_for('animationend');
+  assert_equals(evt.elapsedTime, 0);
+  assert_equals(animation.playState, 'running'); // delay
+}, 'Negative playbackRate sanity test(Before -> Active -> Before)');
+
+promise_test(async t => {
+  const { animation, watcher } = setupAnimation(t, 'anim 100s 100s');
+
+  animation.currentTime = 150 * MS_PER_SEC;
+  animation.currentTime = 50 * MS_PER_SEC;
+
+  // Then wait a couple of frames and check that no event was dispatched.
+  await waitForAnimationFrames(2);
+}, 'Redundant change, before -> active, then back');
+
+promise_test(async t => {
+  const { animation, watcher } = setupAnimation(t, 'anim 100s 100s');
+
+  animation.currentTime = 250 * MS_PER_SEC;
+  animation.currentTime = 50 * MS_PER_SEC;
+
+  // Then wait a couple of frames and check that no event was dispatched.
+  await waitForAnimationFrames(2);
+}, 'Redundant change, before -> after, then back');
+
+promise_test(async t => {
+  const { animation, watcher } = setupAnimation(t, 'anim 100s 100s');
+
+  // Get us into the initial state:
+  animation.currentTime = 150 * MS_PER_SEC;
+
+  await watcher.wait_for('animationstart');
+
+  animation.currentTime = 50 * MS_PER_SEC;
+  animation.currentTime = 150 * MS_PER_SEC;
+
+  // Then wait a couple of frames and check that no event was dispatched.
+  await waitForAnimationFrames(2);
+}, 'Redundant change, active -> before, then back');
+
+promise_test(async t => {
+  const { animation, watcher } = setupAnimation(t, 'anim 100s 100s');
+
+  // Get us into the initial state:
+  animation.currentTime = 150 * MS_PER_SEC;
+
+  await watcher.wait_for('animationstart');
+
+  animation.currentTime = 250 * MS_PER_SEC;
+  animation.currentTime = 150 * MS_PER_SEC;
+
+  // Then wait a couple of frames and check that no event was dispatched.
+  await waitForAnimationFrames(2);
+}, 'Redundant change, active -> after, then back');
+
+promise_test(async t => {
+  const { animation, watcher } = setupAnimation(t, 'anim 100s 100s');
+
+  // Get us into the initial state:
+  animation.currentTime = 250 * MS_PER_SEC;
+
+  await watcher.wait_for(['animationstart', 'animationend']);
+
+  animation.currentTime = 50 * MS_PER_SEC;
+  animation.currentTime = 250 * MS_PER_SEC;
+
+  // Then wait a couple of frames and check that no event was dispatched.
+  await waitForAnimationFrames(2);
+}, 'Redundant change, after -> before, then back');
+
+promise_test(async t => {
+  const { animation, watcher } = setupAnimation(t, 'anim 100s 100s');
+
+  // Get us into the initial state:
+  animation.currentTime = 250 * MS_PER_SEC;
+
+  await watcher.wait_for(['animationstart', 'animationend']);
+
+  animation.currentTime = 150 * MS_PER_SEC;
+  animation.currentTime = 250 * MS_PER_SEC;
+
+  // Then wait a couple of frames and check that no event was dispatched.
+  await waitForAnimationFrames(2);
+}, 'Redundant change, after -> active, then back');
+
+promise_test(async t => {
+  const { animation, watcher } = setupAnimation(t, 'anim 100s');
+
+  await watcher.wait_for('animationstart');
+
+  // Make idle
+  animation.cancel();
+  await watcher.wait_for('animationcancel');
+
+  animation.cancel();
+  // Then wait a couple of frames and check that no event was dispatched.
+  await waitForAnimationFrames(2);
+}, 'Call Animation.cancel after canceling animation.');
+
+promise_test(async t => {
+  const { animation, watcher } = setupAnimation(t, 'anim 100s');
+
+  await watcher.wait_for('animationstart');
+
+  // Make idle
+  animation.cancel();
+  animation.play();
+  await watcher.wait_for([ 'animationcancel', 'animationstart' ]);
+}, 'Restart animation after canceling animation immediately.');
+
+promise_test(async t => {
+  const { animation, watcher } = setupAnimation(t, 'anim 100s');
+
+  await watcher.wait_for('animationstart');
+
+  // Make idle
+  animation.cancel();
+  animation.play();
+  animation.cancel();
+  await watcher.wait_for('animationcancel');
+
+  // Then wait a couple of frames and check that no event was dispatched.
+  await waitForAnimationFrames(2);
+}, 'Call Animation.cancel after restarting animation immediately.');
+
+promise_test(async t => {
+  const { animation, watcher } = setupAnimation(t, 'anim 100s');
+
+  await watcher.wait_for('animationstart');
+
+  // Make idle
+  animation.timeline = null;
+  await watcher.wait_for('animationcancel');
+
+  animation.timeline = document.timeline;
+  animation.play();
+  await watcher.wait_for('animationstart');
+}, 'Set timeline and play transition after clearing the timeline.');
+
+promise_test(async t => {
+  const { animation, watcher } = setupAnimation(t, 'anim 100s');
+
+  await watcher.wait_for('animationstart');
+
+  // Make idle
+  animation.cancel();
+  await watcher.wait_for('animationcancel');
+
+  animation.effect = null;
+  // Then wait a couple of frames and check that no event was dispatched.
+  await waitForAnimationFrames(2);
+}, 'Set null target effect after canceling the animation.');
+
+promise_test(async t => {
+  const { animation, watcher } = setupAnimation(t, 'anim 100s');
+
+  await watcher.wait_for('animationstart');
+
+  animation.effect = null;
+  await watcher.wait_for('animationend');
+
+  animation.cancel();
+  // Then wait a couple of frames and check that no event was dispatched.
+  await waitForAnimationFrames(2);
+}, 'Cancel the animation after clearing the target effect.');
+
+promise_test(async t => {
+  const { animation, watcher, div } = setupAnimation(t, 'anim 100s');
+
+  await watcher.wait_for('animationstart');
+
+  // Replace the running animation.
+  div.style.animation = 'anim2 100s';
+
+  // animationcancel event should be fired before animationstart because we
+  // expect to cancel the running animation first.
+  const events = await watcher.wait_for(
+    ['animationcancel', 'animationstart'],
+    { record: 'all' }
+  );
+  assert_equals(events[0].animationName, 'anim');
+  assert_equals(events[1].animationName, 'anim2');
+
+  // Then wait a couple of frames and check that no event was dispatched.
+  await waitForAnimationFrames(2);
+}, 'Replacing a running animation should get animationcancel earlier than ' +
+   'animationstart');
+
+promise_test(async t => {
+  const div = addDiv(t, { style: 'animation: anim 100s, anim2 100s' });
+  const animations = div.getAnimations();
+  const watcher = new EventWatcher(t, div, [ 'animationstart',
+                                             'animationcancel' ],
+    () => {
+      return Promise.all([animations[0].ready, animations[1].ready]).then(() => {
+        return fastEventsTimeout();
+      });
+    }
+  );
+
+  await watcher.wait_for(['animationstart', 'animationstart']);
+
+  // Replace the first animation
+  div.style.animation = 'anim3 100s, anim2 100s';
+
+  // animationcancel event should be fired before animationstart because we
+  // expect to cancel the running animation first.
+  const events = await watcher.wait_for(
+    ['animationcancel', 'animationstart'],
+    { record: 'all' }
+  );
+  assert_equals(events[0].animationName, 'anim');
+  assert_equals(events[1].animationName, 'anim3');
+
+  // Then wait a couple of frames and check that no event was dispatched.
+  await waitForAnimationFrames(2);
+}, 'The cancel event should be fired before the new start event if both have ' +
+   'the same position in the animation list');
+
+promise_test(async t => {
+  const div =
+    addDiv(t, { style: 'animation: anim 100s, anim2 100s, anim3 100s' });
+  const animations = div.getAnimations();
+  const watcher = new EventWatcher(t, div, [ 'animationstart',
+                                             'animationcancel' ],
+    () => {
+      return Promise.all([
+        animations[0].ready,
+        animations[1].ready,
+        animations[2].ready
+      ]).then(() => {
+        return fastEventsTimeout();
+      });
+    }
+  );
+
+  await watcher.wait_for(
+    ['animationstart', 'animationstart', 'animationstart']
+  );
+
+  // Cancel the first and the second animations.
+  div.style.animation = 'anim3 100s';
+
+  const events = await watcher.wait_for(
+    ['animationcancel', 'animationcancel'],
+    { record: 'all' }
+  );
+  // Per https://drafts.csswg.org/css-animations-2/#animation-composite-order,
+  // the cancel event with the earlier position should be fired earlier.
+  assert_equals(events[0].animationName, 'anim');
+  assert_equals(events[1].animationName, 'anim2');
+
+  // Then wait a couple of frames and check that no event was dispatched.
+  await waitForAnimationFrames(2);
+}, 'The cancel event with an earlier position in animation list should be ' +
+   'fired earlier');
+
+promise_test(async t => {
+  const div =
+    addDiv(t, { style: 'animation: anim 100s, anim2 100s, anim3 100s' });
+  const animations = div.getAnimations();
+  const watcher = new EventWatcher(t, div, [ 'animationstart',
+                                             'animationcancel' ],
+    () => {
+      return Promise.all([
+        animations[0].ready,
+        animations[1].ready,
+        animations[2].ready
+      ]).then(() => {
+        return fastEventsTimeout();
+      });
+    }
+  );
+
+  await watcher.wait_for(
+    ['animationstart', 'animationstart', 'animationstart']
+  );
+
+  // Change the order, i.e. swap the order of |anim| and |anim2|.
+  div.style.animation = 'anim2 100s, anim 100s, anim3 100s';
+  getComputedStyle(div).animation;
+
+  // Then we cancel the first and the second animations.
+  div.style.animation = 'anim3 100s';
+
+  const events = await watcher.wait_for(
+    ['animationcancel', 'animationcancel'],
+    { record: 'all' }
+  );
+  // Per https://drafts.csswg.org/css-animations-2/#animation-composite-order,
+  // the cancel event to |anim2| should be dispatched before the cancel event to
+  // |anim| since |anim2| appeared before |anim| in the animation-name at the
+  // point when they were cancelled.
+  assert_equals(events[0].animationName, 'anim2');
+  assert_equals(events[1].animationName, 'anim');
+
+  // Then wait a couple of frames and check that no event was dispatched.
+  await waitForAnimationFrames(2);
+}, 'The order of the cancel events follows the relative positions in the ' +
+   'animation list at the point when they were cancelled');
+
+</script>
