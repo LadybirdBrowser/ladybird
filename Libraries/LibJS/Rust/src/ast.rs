@@ -24,9 +24,185 @@
 use std::cell::{Cell, RefCell};
 use std::ffi::c_void;
 use std::fmt;
+use std::ops::{Index, IndexMut};
 use std::rc::Rc;
 
 use std::collections::HashMap;
+
+use crate::u32_from_usize;
+
+// =============================================================================
+// AST arena (contiguous storage for identifiers, scopes, and interned strings)
+// =============================================================================
+//
+// Bulk allocation replaces per-node `Rc::new` calls. AST nodes hold opaque
+// `Copy` indexes into the arena's `Vec`s; the actual data lives contiguously
+// for cache-friendly traversal during scope analysis and codegen. After parse
+// the arena is logically frozen and can be shared across threads via
+// `Arc<AstArena>` without atomic refcount churn on individual nodes.
+
+/// Opaque handle into `IdentifierArena`. `Copy` so AST nodes can hold one
+/// without cloning anything.
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+pub struct IdentifierId(u32);
+
+/// Opaque handle into `ScopeArena`.
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+pub struct ScopeId(u32);
+
+/// Opaque handle into `StringInterner`. Equal `StringId`s mean equal strings,
+/// so name comparisons are a single `u32` compare instead of slice equality.
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+pub struct StringId(u32);
+
+/// Contiguous backing store for `Identifier` nodes.
+#[derive(Debug, Default)]
+pub struct IdentifierArena {
+    storage: Vec<Identifier>,
+}
+
+impl IdentifierArena {
+    pub fn new() -> Self {
+        Self { storage: Vec::new() }
+    }
+
+    pub fn insert(&mut self, identifier: Identifier) -> IdentifierId {
+        let id = IdentifierId(u32_from_usize(self.storage.len()));
+        self.storage.push(identifier);
+        id
+    }
+
+    pub fn len(&self) -> usize {
+        self.storage.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.storage.is_empty()
+    }
+}
+
+impl Index<IdentifierId> for IdentifierArena {
+    type Output = Identifier;
+    fn index(&self, id: IdentifierId) -> &Identifier {
+        &self.storage[id.0 as usize]
+    }
+}
+
+impl IndexMut<IdentifierId> for IdentifierArena {
+    fn index_mut(&mut self, id: IdentifierId) -> &mut Identifier {
+        &mut self.storage[id.0 as usize]
+    }
+}
+
+/// Contiguous backing store for `ScopeData` nodes.
+#[derive(Debug, Default)]
+pub struct ScopeArena {
+    storage: Vec<ScopeData>,
+}
+
+impl ScopeArena {
+    pub fn new() -> Self {
+        Self { storage: Vec::new() }
+    }
+
+    pub fn insert(&mut self, scope: ScopeData) -> ScopeId {
+        let id = ScopeId(u32_from_usize(self.storage.len()));
+        self.storage.push(scope);
+        id
+    }
+
+    pub fn len(&self) -> usize {
+        self.storage.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.storage.is_empty()
+    }
+}
+
+impl Index<ScopeId> for ScopeArena {
+    type Output = ScopeData;
+    fn index(&self, id: ScopeId) -> &ScopeData {
+        &self.storage[id.0 as usize]
+    }
+}
+
+impl IndexMut<ScopeId> for ScopeArena {
+    fn index_mut(&mut self, id: ScopeId) -> &mut ScopeData {
+        &mut self.storage[id.0 as usize]
+    }
+}
+
+/// Deduplicating string table. Repeated identifier names from the source
+/// (`length`, `i`, `this`, ...) all map to the same `StringId`, so the
+/// per-identifier name no longer allocates after the first occurrence.
+#[derive(Debug, Default)]
+pub struct StringInterner {
+    storage: Vec<Utf16String>,
+    lookup: HashMap<Utf16String, StringId>,
+}
+
+impl StringInterner {
+    pub fn new() -> Self {
+        Self {
+            storage: Vec::new(),
+            lookup: HashMap::new(),
+        }
+    }
+
+    pub fn intern(&mut self, value: &[u16]) -> StringId {
+        if let Some(&id) = self.lookup.get(value) {
+            return id;
+        }
+        let id = StringId(u32_from_usize(self.storage.len()));
+        let owned = Utf16String::from(value);
+        self.storage.push(owned.clone());
+        self.lookup.insert(owned, id);
+        id
+    }
+
+    pub fn intern_owned(&mut self, value: Utf16String) -> StringId {
+        if let Some(&id) = self.lookup.get(value.as_slice()) {
+            return id;
+        }
+        let id = StringId(u32_from_usize(self.storage.len()));
+        self.storage.push(value.clone());
+        self.lookup.insert(value, id);
+        id
+    }
+
+    pub fn len(&self) -> usize {
+        self.storage.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.storage.is_empty()
+    }
+}
+
+impl Index<StringId> for StringInterner {
+    type Output = Utf16String;
+    fn index(&self, id: StringId) -> &Utf16String {
+        &self.storage[id.0 as usize]
+    }
+}
+
+/// Bundles the three arenas. Owned by the parser during parsing, then handed
+/// to `ParsedProgram`/`CompiledProgram`. Since every contained type is plain
+/// data (no `Cell`/`RefCell`/`Rc`) once the parser is done, this is naturally
+/// `Send + Sync` and can be wrapped in `Arc` for concurrent codegen.
+#[derive(Debug, Default)]
+pub struct AstArena {
+    pub identifiers: IdentifierArena,
+    pub scopes: ScopeArena,
+    pub strings: StringInterner,
+}
+
+impl AstArena {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
 
 // =============================================================================
 // Function table (side table for FunctionData)
