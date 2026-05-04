@@ -3627,7 +3627,7 @@ void Document::dispatch_events_for_transition(GC::Ref<CSS::CSSTransition> transi
 
     if (transition_phase == Phase::Idle) {
         if (previous_phase != Phase::Idle && previous_phase != Phase::After)
-            dispatch_event(HTML::EventNames::animationstart, Interval::ActiveTime);
+            dispatch_event(HTML::EventNames::transitioncancel, Interval::ActiveTime);
     }
 
     transition->set_previous_phase(transition_phase);
