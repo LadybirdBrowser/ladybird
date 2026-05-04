@@ -2,10 +2,10 @@ Harness status: OK
 
 Found 5 tests
 
-3 Pass
-2 Fail
+4 Pass
+1 Fail
 Pass	currentTime can be used to seek a CSS transition
-Fail	Skipping forwards through transition
+Pass	Skipping forwards through transition
 Pass	Skipping backwards through transition
 Pass	Setting currentTime to null on a CSS transition throws
 Fail	Transition reversing behavior respects currentTime and uses the transition's current position.
