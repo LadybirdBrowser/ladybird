@@ -33,6 +33,7 @@ public:
     virtual void restore() override;
     virtual void clip(Gfx::Path const&, Gfx::WindingRule) override;
     virtual void reset() override;
+    virtual void prune_caches() override;
 
 private:
     struct Impl;

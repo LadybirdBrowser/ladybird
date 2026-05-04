@@ -126,6 +126,7 @@ public:
     [[nodiscard]] Gfx::Painter* painter();
 
     void set_size(Gfx::IntSize const&);
+    void present();
 
     RefPtr<Gfx::PaintingSurface> surface() { return m_surface; }
     void allocate_painting_surface_if_needed();

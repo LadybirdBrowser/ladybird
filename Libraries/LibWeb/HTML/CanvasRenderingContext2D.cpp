@@ -235,6 +235,12 @@ void CanvasRenderingContext2D::set_size(Gfx::IntSize const& size)
     m_painter = nullptr;
 }
 
+void CanvasRenderingContext2D::present()
+{
+    if (m_painter)
+        m_painter->prune_caches();
+}
+
 void CanvasRenderingContext2D::allocate_painting_surface_if_needed()
 {
     if (m_surface || m_size.is_empty())

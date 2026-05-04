@@ -451,8 +451,8 @@ void HTMLCanvasElement::present()
     m_canvas_content_dirty = false;
 
     m_context.visit(
-        [](GC::Ref<CanvasRenderingContext2D>&) {
-            // Do nothing, CRC2D writes directly to the canvas bitmap.
+        [](GC::Ref<CanvasRenderingContext2D>& context) {
+            context->present();
         },
         [](GC::Ref<WebGL::WebGLRenderingContext>& context) {
             context->present();

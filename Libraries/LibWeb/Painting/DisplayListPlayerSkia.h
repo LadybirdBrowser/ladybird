@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibGfx/ImmutableBitmapSkiaImageCache.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
@@ -57,6 +58,8 @@ private:
     bool would_be_fully_clipped_by_painter(Gfx::IntRect) const override;
 
     SkPaint paint_style_to_skia_paint(SVGPaintServerPaintStyle const&, Gfx::FloatRect const& bounding_rect);
+
+    Gfx::ImmutableBitmapSkiaImageCache m_image_cache;
 };
 
 }
