@@ -15,6 +15,7 @@
 #include <core/SkTypeface.h>
 #if defined(AK_OS_ANDROID)
 #    include <ports/SkFontMgr_android.h>
+#    include <ports/SkFontScanner_FreeType.h>
 #elif defined(AK_OS_WINDOWS)
 #    include <ports/SkTypeface_win.h>
 #else
@@ -50,7 +51,7 @@ static SkFontMgr& font_manager()
         }
 #endif
 #if defined(AK_OS_ANDROID)
-        s_font_manager = SkFontMgr_New_Android(nullptr);
+        s_font_manager = SkFontMgr_New_Android(nullptr, SkFontScanner_Make_FreeType());
 #elif defined(AK_OS_WINDOWS)
         s_font_manager = SkFontMgr_New_DirectWrite();
 #else
