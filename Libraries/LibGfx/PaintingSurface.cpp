@@ -96,13 +96,12 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::create_from_vkimage(NonnullRefPt
 }
 #endif
 
-NonnullRefPtr<PaintingSurface> PaintingSurface::create_with_size(IntSize size, BitmapFormat color_type, AlphaType alpha_type)
+NonnullRefPtr<PaintingSurface> PaintingSurface::create_with_size(IntSize size, BitmapFormat color_type, AlphaType alpha_type, RefPtr<SkiaBackendContext> context)
 {
     auto sk_color_type = to_skia_color_type(color_type);
     auto sk_alpha_type = to_skia_alpha_type(color_type, alpha_type);
     auto image_info = SkImageInfo::Make(size.width(), size.height(), sk_color_type, sk_alpha_type, SkColorSpace::MakeSRGB());
 
-    auto context = SkiaBackendContext::the_main_thread_context();
     if (context) {
         context->lock();
         auto surface = SkSurfaces::RenderTarget(context->sk_context(), skgpu::Budgeted::kNo, image_info);
@@ -110,6 +109,7 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::create_with_size(IntSize size, B
         if (surface)
             return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, nullptr)));
         dbgln("Unable to create GPU surface for size {}x{}, falling back to CPU", size.width(), size.height());
+        context = nullptr;
     }
 
     auto bitmap = Bitmap::create(color_type, alpha_type, size).value();
