@@ -322,6 +322,7 @@ pub unsafe fn create_shared_function_data(
     source_code_ptr: *const c_void,
     is_strict: bool,
     name_override: Option<&[u16]>,
+    arena: std::sync::Arc<crate::ast::AstArena>,
 ) -> *mut c_void {
     unsafe {
         use crate::ast::FunctionParameterBinding;
@@ -332,8 +333,9 @@ pub unsafe fn create_shared_function_data(
 
         let (name_ptr, name_len) = if let Some(name) = name_override {
             (name.as_ptr(), name.len())
-        } else if let Some(ref name_ident) = function_data.name {
-            (name_ident.name.as_ptr(), name_ident.name.len())
+        } else if let Some(name_ident) = function_data.name {
+            let name = &arena.identifiers[name_ident].name;
+            (name.as_ptr(), name.len())
         } else {
             (std::ptr::null(), 0)
         };
@@ -347,8 +349,8 @@ pub unsafe fn create_shared_function_data(
                 .parameters
                 .iter()
                 .map(|p| {
-                    if let FunctionParameterBinding::Identifier(ref id) = p.binding {
-                        FFIUtf16Slice::from(id.name.as_ref())
+                    if let FunctionParameterBinding::Identifier(id) = p.binding {
+                        FFIUtf16Slice::from(arena.identifiers[id].name.as_ref())
                     } else {
                         unreachable!("has_simple_parameter_list guarantees all bindings are identifiers")
                     }
@@ -369,6 +371,7 @@ pub unsafe fn create_shared_function_data(
         let payload = Box::new(crate::ast::FunctionPayload {
             data: *function_data,
             function_table: subtable,
+            arena,
         });
         let rust_ast_ptr = Box::into_raw(payload) as *mut c_void;
 
@@ -410,8 +413,9 @@ pub unsafe fn create_sfd_for_gdi(
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
     is_strict: bool,
+    arena: std::sync::Arc<crate::ast::AstArena>,
 ) -> *mut c_void {
-    unsafe { create_shared_function_data(function_data, subtable, vm_ptr, source_code_ptr, is_strict, None) }
+    unsafe { create_shared_function_data(function_data, subtable, vm_ptr, source_code_ptr, is_strict, None, arena) }
 }
 
 unsafe fn materialize_shared_function_data(
@@ -437,6 +441,7 @@ unsafe fn materialize_shared_function_data(
                 source_code_ptr,
                 generator.strict,
                 pending.name_override.as_ref().map(|name| name.as_slice()),
+                generator.arena.clone(),
             );
             if let Some((name, is_private)) = &pending.class_field_initializer_name {
                 rust_sfd_set_class_field_initializer_name(sfd_ptr, name.as_ptr(), name.len(), *is_private);

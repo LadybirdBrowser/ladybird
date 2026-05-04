@@ -34,11 +34,10 @@
 
 use std::collections::{HashMap, HashSet};
 
-use std::rc::Rc;
-
 use crate::ast::{
-    BindingPattern, Expression, ExpressionKind, FunctionData, FunctionId, FunctionParameter, FunctionTable, Identifier,
-    PrivateIdentifier, ProgramData, ScopeData, SharedUtf16String, SourceRange, Statement, StatementKind, Utf16String,
+    AstArena, BindingPattern, Expression, ExpressionKind, FunctionData, FunctionId, FunctionParameter, FunctionTable,
+    Identifier, IdentifierId, PrivateIdentifier, ProgramData, ScopeData, SharedUtf16String, SourceRange, Statement,
+    StatementKind, Utf16String,
 };
 use crate::lexer::{Lexer, ch};
 use crate::scope_collector::{ScopeCollector, ScopeCollectorState};
@@ -74,7 +73,7 @@ pub struct ParamInfo {
     pub name: Utf16String,
     pub is_rest: bool,
     pub is_from_pattern: bool,
-    pub identifier: Option<Rc<Identifier>>,
+    pub identifier: Option<IdentifierId>,
 }
 
 /// Result of parsing a property key (object literal or class element).
@@ -251,7 +250,7 @@ pub struct Parser<'a> {
     /// Caller drains this after calling parse_binding_pattern.
     /// Each entry is (name, identifier) — allows scope analysis to annotate
     /// binding pattern identifiers with local variable info.
-    pub(crate) pattern_bound_names: Vec<(SharedUtf16String, Rc<Identifier>)>,
+    pub(crate) pattern_bound_names: Vec<(SharedUtf16String, IdentifierId)>,
 
     /// Set during synthesize_binding_pattern to allow MemberExpressions as binding targets.
     allow_member_expressions: bool,
@@ -284,6 +283,10 @@ pub struct Parser<'a> {
 
     /// Side table owning all FunctionData produced during parsing.
     pub function_table: FunctionTable,
+
+    /// Bulk storage for identifiers, scopes, and interned strings. Replaces
+    /// the old per-node `Rc<Identifier>` heap allocations.
+    pub arena: AstArena,
 
     /// Stack of nested function ids discovered while parsing each active function.
     ///
@@ -339,6 +342,7 @@ impl<'a> Parser<'a> {
             scope_collector: ScopeCollector::new(),
             exported_names: HashSet::new(),
             function_table: FunctionTable::new(),
+            arena: AstArena::new(),
             function_context_stack: Vec::new(),
             arrow_function_failed_positions: HashSet::new(),
         }
@@ -382,8 +386,9 @@ impl<'a> Parser<'a> {
         function_id
     }
 
-    pub(crate) fn make_identifier(&self, start: Position, name: impl Into<SharedUtf16String>) -> Rc<Identifier> {
-        Rc::new(Identifier::new(self.range_from(start), name.into()))
+    pub(crate) fn make_identifier(&mut self, start: Position, name: impl Into<SharedUtf16String>) -> IdentifierId {
+        let identifier = Identifier::new(self.range_from(start), name.into());
+        self.arena.identifiers.insert(identifier)
     }
 
     pub(crate) fn token_identifier_name(&self, token: &Token) -> SharedUtf16String {
@@ -417,11 +422,15 @@ impl<'a> Parser<'a> {
                         info_index += 1;
                         (pi.name.clone(), pi.is_rest, pi.is_from_pattern)
                     } else {
-                        (id.name.to_utf16_string(), parameter.is_rest, false)
+                        (
+                            self.arena.identifiers[*id].name.to_utf16_string(),
+                            parameter.is_rest,
+                            false,
+                        )
                     };
                     entries.push(ParameterEntry {
                         name,
-                        identifier: Some(id.clone()),
+                        identifier: Some(*id),
                         is_rest,
                         is_from_pattern,
                         is_first_from_pattern: false,
@@ -445,7 +454,7 @@ impl<'a> Parser<'a> {
                         let pi = &parameter_info[info_index];
                         entries.push(ParameterEntry {
                             name: pi.name.clone(),
-                            identifier: pi.identifier.clone(),
+                            identifier: pi.identifier,
                             is_rest: pi.is_rest,
                             is_from_pattern: true,
                             is_first_from_pattern: false,
@@ -455,8 +464,10 @@ impl<'a> Parser<'a> {
                 }
             }
         }
-        self.scope_collector
-            .set_function_parameters(&entries, has_parameter_expressions);
+        let Self {
+            scope_collector, arena, ..
+        } = self;
+        scope_collector.set_function_parameters(&entries, has_parameter_expressions, &arena.identifiers);
     }
 
     // === Token access ===
@@ -1097,7 +1108,7 @@ impl<'a> Parser<'a> {
         // Collect all declared names at module level.
         let mut declared_names: HashSet<Utf16String> = HashSet::new();
         for child in children {
-            collect_module_declared_names(child, &mut declared_names);
+            collect_module_declared_names(child, &mut declared_names, &self.arena.identifiers);
         }
 
         // Check each export's local bindings.
@@ -1352,32 +1363,40 @@ fn is_use_strict(raw: &[u16]) -> bool {
 }
 
 /// Collect all binding names introduced by a variable declarator target.
-fn collect_binding_names(target: &crate::ast::VariableDeclaratorTarget, names: &mut HashSet<Utf16String>) {
+fn collect_binding_names(
+    target: &crate::ast::VariableDeclaratorTarget,
+    names: &mut HashSet<Utf16String>,
+    identifiers: &crate::ast::IdentifierArena,
+) {
     match target {
         crate::ast::VariableDeclaratorTarget::Identifier(identifier) => {
-            names.insert(identifier.name.to_utf16_string());
+            names.insert(identifiers[*identifier].name.to_utf16_string());
         }
         crate::ast::VariableDeclaratorTarget::BindingPattern(pattern) => {
-            collect_binding_pattern_names(pattern, names);
+            collect_binding_pattern_names(pattern, names, identifiers);
         }
     }
 }
 
 /// Collect all binding names from a binding pattern (object or array destructuring).
-fn collect_binding_pattern_names(pattern: &crate::ast::BindingPattern, names: &mut HashSet<Utf16String>) {
+fn collect_binding_pattern_names(
+    pattern: &crate::ast::BindingPattern,
+    names: &mut HashSet<Utf16String>,
+    identifiers: &crate::ast::IdentifierArena,
+) {
     for entry in &pattern.entries {
         if let Some(ref alias) = entry.alias {
             match alias {
                 crate::ast::BindingEntryAlias::Identifier(identifier) => {
-                    names.insert(identifier.name.to_utf16_string());
+                    names.insert(identifiers[*identifier].name.to_utf16_string());
                 }
                 crate::ast::BindingEntryAlias::BindingPattern(nested) => {
-                    collect_binding_pattern_names(nested, names);
+                    collect_binding_pattern_names(nested, names, identifiers);
                 }
                 crate::ast::BindingEntryAlias::MemberExpression(_) => {}
             }
         } else if let Some(crate::ast::BindingEntryName::Identifier(identifier)) = &entry.name {
-            names.insert(identifier.name.to_utf16_string());
+            names.insert(identifiers[*identifier].name.to_utf16_string());
         }
     }
 }
@@ -1386,23 +1405,27 @@ fn collect_binding_pattern_names(pattern: &crate::ast::BindingPattern, names: &m
 /// This includes lexical declarations (let/const), function/class declarations, imports,
 /// and also `var` declarations which hoist to module scope even when nested inside
 /// blocks, loops, if/else, etc.
-fn collect_module_declared_names(statement: &crate::ast::Statement, names: &mut HashSet<Utf16String>) {
+fn collect_module_declared_names(
+    statement: &crate::ast::Statement,
+    names: &mut HashSet<Utf16String>,
+    identifiers: &crate::ast::IdentifierArena,
+) {
     use crate::ast::*;
     match &statement.inner {
         StatementKind::VariableDeclaration(data) => {
             // All top-level declarations (var, let, const) are module-scoped.
             for decl in &data.declarations {
-                collect_binding_names(&decl.target, names);
+                collect_binding_names(&decl.target, names, identifiers);
             }
         }
         StatementKind::FunctionDeclaration(data) => {
-            if let Some(ref name) = data.name {
-                names.insert(name.name.to_utf16_string());
+            if let Some(name) = data.name {
+                names.insert(identifiers[name].name.to_utf16_string());
             }
         }
         StatementKind::ClassDeclaration(data) => {
-            if let Some(ref name) = data.name {
-                names.insert(name.name.to_utf16_string());
+            if let Some(name) = data.name {
+                names.insert(identifiers[name].name.to_utf16_string());
             }
         }
         StatementKind::Import(data) => {
@@ -1412,12 +1435,12 @@ fn collect_module_declared_names(statement: &crate::ast::Statement, names: &mut 
         }
         StatementKind::Export(data) => {
             if let Some(ref stmt) = data.statement {
-                collect_module_declared_names(stmt, names);
+                collect_module_declared_names(stmt, names, identifiers);
             }
         }
         // For any other statement, recurse to find hoisted var declarations.
         _ => {
-            collect_var_declared_names(statement, names);
+            collect_var_declared_names(statement, names, identifiers);
         }
     }
 }
@@ -1426,61 +1449,65 @@ fn collect_module_declared_names(statement: &crate::ast::Statement, names: &mut 
 /// `var` declarations are hoisted to the enclosing function/module scope,
 /// so we must walk into blocks, loops, if/else, switch, try/catch, etc.
 /// We do NOT walk into function bodies since `var` does not hoist out of functions.
-fn collect_var_declared_names(statement: &crate::ast::Statement, names: &mut HashSet<Utf16String>) {
+fn collect_var_declared_names(
+    statement: &crate::ast::Statement,
+    names: &mut HashSet<Utf16String>,
+    identifiers: &crate::ast::IdentifierArena,
+) {
     use crate::ast::*;
     match &statement.inner {
         StatementKind::VariableDeclaration(data) if matches!(data.kind, DeclarationKind::Var) => {
             for decl in &data.declarations {
-                collect_binding_names(&decl.target, names);
+                collect_binding_names(&decl.target, names, identifiers);
             }
         }
         StatementKind::Block(scope) => {
             for child in &scope.borrow().children {
-                collect_var_declared_names(child, names);
+                collect_var_declared_names(child, names, identifiers);
             }
         }
         StatementKind::If(data) => {
-            collect_var_declared_names(&data.consequent, names);
+            collect_var_declared_names(&data.consequent, names, identifiers);
             if let Some(ref alt) = data.alternate {
-                collect_var_declared_names(alt, names);
+                collect_var_declared_names(alt, names, identifiers);
             }
         }
         StatementKind::While(data) | StatementKind::DoWhile(data) => {
-            collect_var_declared_names(&data.body, names);
+            collect_var_declared_names(&data.body, names, identifiers);
         }
         StatementKind::With(data) => {
-            collect_var_declared_names(&data.body, names);
+            collect_var_declared_names(&data.body, names, identifiers);
         }
         StatementKind::For(data) => {
             if let Some(ForInit::Declaration(ref decl)) = data.init {
-                collect_var_declared_names(decl, names);
+                collect_var_declared_names(decl, names, identifiers);
             }
-            collect_var_declared_names(&data.body, names);
+            collect_var_declared_names(&data.body, names, identifiers);
         }
         StatementKind::ForInOf(data) => {
             if let ForInOfLhs::Declaration(ref decl) = data.lhs {
-                collect_var_declared_names(decl, names);
+                collect_var_declared_names(decl, names, identifiers);
             }
-            collect_var_declared_names(&data.body, names);
+            collect_var_declared_names(&data.body, names, identifiers);
         }
         StatementKind::Switch(data) => {
             for case in &data.cases {
                 for child in &case.scope.borrow().children {
-                    collect_var_declared_names(child, names);
+                    collect_var_declared_names(child, names, identifiers);
                 }
             }
         }
         StatementKind::Try(data) => {
-            collect_var_declared_names(&data.block, names);
+            collect_var_declared_names(&data.block, names, identifiers);
             if let Some(ref handler) = data.handler {
-                collect_var_declared_names(&handler.body, names);
+                collect_var_declared_names(&handler.body, names, identifiers);
             }
             if let Some(ref finalizer) = data.finalizer {
-                collect_var_declared_names(finalizer, names);
+                collect_var_declared_names(finalizer, names, identifiers);
             }
         }
         StatementKind::Labelled(data) => {
-            collect_var_declared_names(&data.item, names);
+            collect_var_declared_names(&data.item, names, identifiers);
         }
         // Don't recurse into functions (var doesn't hoist out of functions).
         // Don't recurse into let/const (they are block-scoped, not hoisted).

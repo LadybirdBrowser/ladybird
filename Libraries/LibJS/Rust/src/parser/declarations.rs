@@ -8,7 +8,6 @@
 
 use std::cell::Cell;
 use std::collections::{HashMap, HashSet};
-use std::rc::Rc;
 
 use crate::ast::*;
 use crate::lexer::ch;
@@ -18,7 +17,7 @@ use crate::parser::{
 };
 use crate::token::TokenType;
 
-fn expression_into_identifier(expression: Expression) -> Rc<Identifier> {
+fn expression_into_identifier(expression: Expression) -> IdentifierId {
     match expression.inner {
         ExpressionKind::Identifier(id) => id,
         _ => unreachable!("expected Identifier expression"),
@@ -26,12 +25,12 @@ fn expression_into_identifier(expression: Expression) -> Rc<Identifier> {
 }
 
 /// Extract bound names from a declaration for export statements.
-fn get_declaration_export_names(statement: &Statement) -> Vec<Utf16String> {
+fn get_declaration_export_names(statement: &Statement, identifiers: &IdentifierArena) -> Vec<Utf16String> {
     match &statement.inner {
         StatementKind::VariableDeclaration(vd) => {
             let mut names = Vec::new();
             for declaration in &vd.declarations {
-                collect_declarator_names(&declaration.target, &mut names);
+                collect_declarator_names(&declaration.target, &mut names, identifiers);
             }
             names
         }
@@ -39,21 +38,21 @@ fn get_declaration_export_names(statement: &Statement) -> Vec<Utf16String> {
             let mut names = Vec::new();
             for declaration in declarations.iter() {
                 if let VariableDeclaratorTarget::Identifier(id) = &declaration.target {
-                    names.push(id.name.to_utf16_string());
+                    names.push(identifiers[*id].name.to_utf16_string());
                 }
             }
             names
         }
         StatementKind::FunctionDeclaration(fd) => {
-            if let Some(ref name) = fd.name {
-                vec![name.name.to_utf16_string()]
+            if let Some(name) = fd.name {
+                vec![identifiers[name].name.to_utf16_string()]
             } else {
                 Vec::new()
             }
         }
         StatementKind::ClassDeclaration(class) => {
-            if let Some(ref name) = class.name {
-                vec![name.name.to_utf16_string()]
+            if let Some(name) = class.name {
+                vec![identifiers[name].name.to_utf16_string()]
             } else {
                 Vec::new()
             }
@@ -62,24 +61,28 @@ fn get_declaration_export_names(statement: &Statement) -> Vec<Utf16String> {
     }
 }
 
-fn collect_declarator_names(target: &VariableDeclaratorTarget, names: &mut Vec<Utf16String>) {
+fn collect_declarator_names(
+    target: &VariableDeclaratorTarget,
+    names: &mut Vec<Utf16String>,
+    identifiers: &IdentifierArena,
+) {
     match target {
-        VariableDeclaratorTarget::Identifier(id) => names.push(id.name.to_utf16_string()),
-        VariableDeclaratorTarget::BindingPattern(pat) => collect_pattern_names(pat, names),
+        VariableDeclaratorTarget::Identifier(id) => names.push(identifiers[*id].name.to_utf16_string()),
+        VariableDeclaratorTarget::BindingPattern(pat) => collect_pattern_names(pat, names, identifiers),
     }
 }
 
-fn collect_pattern_names(pat: &BindingPattern, names: &mut Vec<Utf16String>) {
+fn collect_pattern_names(pat: &BindingPattern, names: &mut Vec<Utf16String>, identifiers: &IdentifierArena) {
     for entry in &pat.entries {
         match &entry.alias {
-            Some(BindingEntryAlias::Identifier(id)) => names.push(id.name.to_utf16_string()),
-            Some(BindingEntryAlias::BindingPattern(nested)) => collect_pattern_names(nested, names),
+            Some(BindingEntryAlias::Identifier(id)) => names.push(identifiers[*id].name.to_utf16_string()),
+            Some(BindingEntryAlias::BindingPattern(nested)) => collect_pattern_names(nested, names, identifiers),
             _ => {}
         }
         if entry.alias.is_none()
             && let Some(BindingEntryName::Identifier(id)) = &entry.name
         {
-            names.push(id.name.to_utf16_string());
+            names.push(identifiers[*id].name.to_utf16_string());
         }
     }
 }
@@ -150,11 +153,15 @@ impl Parser<'_> {
                 let id = self.make_identifier(declaration_start, name.clone());
 
                 if kind == DeclarationKind::Var {
-                    self.scope_collector.add_var_declaration(
-                        &[(name.as_slice(), Some(id.clone()))],
+                    let Self {
+                        scope_collector, arena, ..
+                    } = self;
+                    scope_collector.add_var_declaration(
+                        &[(name.as_slice(), Some(id))],
                         declaration_line,
                         declaration_column,
                         Some(DeclarationKind::Var),
+                        &arena.identifiers,
                     );
                 } else {
                     self.scope_collector.add_lexical_declaration(
@@ -162,7 +169,10 @@ impl Parser<'_> {
                         declaration_line,
                         declaration_column,
                     );
-                    self.scope_collector.register_identifier(id.clone(), Some(kind));
+                    let Self {
+                        scope_collector, arena, ..
+                    } = self;
+                    scope_collector.register_identifier(id, Some(kind), &arena.identifiers);
                 }
 
                 VariableDeclaratorTarget::Identifier(id)
@@ -188,14 +198,20 @@ impl Parser<'_> {
 
                 // Register bound names with scope collector.
                 if kind == DeclarationKind::Var {
-                    let entries: Vec<(&[u16], Option<Rc<Identifier>>)> = bound_names
-                        .iter()
-                        .map(|(n, id)| (n.as_slice(), Some(id.clone())))
-                        .collect();
+                    let entries: Vec<(&[u16], Option<IdentifierId>)> =
+                        bound_names.iter().map(|(n, id)| (n.as_slice(), Some(*id))).collect();
                     // NOTE: Binding pattern identifiers don't get declaration_kind,
                     // matching C++ behavior where only simple identifiers do.
-                    self.scope_collector
-                        .add_var_declaration(&entries, declaration_line, declaration_column, None);
+                    let Self {
+                        scope_collector, arena, ..
+                    } = self;
+                    scope_collector.add_var_declaration(
+                        &entries,
+                        declaration_line,
+                        declaration_column,
+                        None,
+                        &arena.identifiers,
+                    );
                 } else {
                     let refs: Vec<&[u16]> = bound_names.iter().map(|(n, _)| n.as_slice()).collect();
                     self.scope_collector
@@ -204,8 +220,11 @@ impl Parser<'_> {
                     // so they get is_local() annotations.
                     // NOTE: C++ does not pass declaration_kind for binding pattern identifiers,
                     // only for simple identifier declarations.
+                    let Self {
+                        scope_collector, arena, ..
+                    } = self;
                     for (_name, id) in &bound_names {
-                        self.scope_collector.register_identifier(id.clone(), None);
+                        scope_collector.register_identifier(*id, None, &arena.identifiers);
                     }
                 }
 
@@ -301,7 +320,10 @@ impl Parser<'_> {
                 .add_lexical_declaration(&[name.as_slice()], declaration_line, declaration_column);
             // C++ calls parse_lexical_binding() without declaration_kind for using,
             // so we pass None to match.
-            self.scope_collector.register_identifier(id.clone(), None);
+            let Self {
+                scope_collector, arena, ..
+            } = self;
+            scope_collector.register_identifier(id, None, &arena.identifiers);
 
             let init = if self.match_token(TokenType::Equals) {
                 self.consume();
@@ -378,13 +400,18 @@ impl Parser<'_> {
         self.last_function_kind = kind;
 
         // Register function declaration in parent scope (before opening function scope).
-        self.scope_collector.add_function_declaration(
+        let strict = self.flags.strict_mode;
+        let Self {
+            scope_collector, arena, ..
+        } = self;
+        scope_collector.add_function_declaration(
             &fn_name,
-            name.clone(),
+            name,
             kind,
-            self.flags.strict_mode,
+            strict,
             declaration_line,
             declaration_column,
+            &arena.identifiers,
         );
 
         let fn_name_for_scope = if fn_name.is_empty() {
@@ -404,7 +431,7 @@ impl Parser<'_> {
             start,
             saved_might_need_arguments,
         );
-        let decl_name = fd.name.clone();
+        let decl_name = fd.name;
         let decl_kind = fd.kind;
         let function_id = self.insert_function_data(fd);
         self.statement(
@@ -452,8 +479,11 @@ impl Parser<'_> {
         // This must happen before open_function_scope so that the identifier group
         // exists with declaration_kind=None, preventing later var declarations
         // with the same name from setting a spurious declaration_kind.
-        if let Some(ref id) = name {
-            self.scope_collector.register_identifier(id.clone(), None);
+        if let Some(id) = name {
+            let Self {
+                scope_collector, arena, ..
+            } = self;
+            scope_collector.register_identifier(id, None, &arena.identifiers);
         }
 
         // Open function scope (function expression name is bound within its own scope).
@@ -482,7 +512,7 @@ impl Parser<'_> {
     #[allow(clippy::too_many_arguments)]
     fn parse_function_common(
         &mut self,
-        name: Option<Rc<Identifier>>,
+        name: Option<IdentifierId>,
         fn_name: &[u16],
         kind: FunctionKind,
         is_async: bool,
@@ -704,13 +734,14 @@ impl Parser<'_> {
                 // The inner class scope (opened/closed inside parse_class_expression)
                 // binds the name for self-reference. The outer scope needs the name
                 // registered as a lexical declaration so it's visible to sibling code.
-                if let Some(ref name_ident) = data.name {
-                    self.scope_collector.add_lexical_declaration(
-                        &[&name_ident.name as &[u16]],
-                        start.line,
-                        start.column,
-                    );
-                    self.scope_collector.register_identifier(name_ident.clone(), None);
+                if let Some(name_ident) = data.name {
+                    let name_slice = self.arena.identifiers[name_ident].name.clone();
+                    self.scope_collector
+                        .add_lexical_declaration(&[name_slice.as_slice()], start.line, start.column);
+                    let Self {
+                        scope_collector, arena, ..
+                    } = self;
+                    scope_collector.register_identifier(name_ident, None, &arena.identifiers);
                 }
                 self.statement(start, StatementKind::ClassDeclaration(data))
             }
@@ -735,7 +766,10 @@ impl Parser<'_> {
         if has_super {
             let arguments_name = Utf16String::from(utf16!("args"));
 
-            let arguments_ref = Rc::new(Identifier::new(self.range_from(start), arguments_name.clone().into()));
+            let arguments_ref = self
+                .arena
+                .identifiers
+                .insert(Identifier::new(self.range_from(start), arguments_name.clone().into()));
             let arguments_expression = self.expression(start, ExpressionKind::Identifier(arguments_ref));
 
             let super_call = self.expression(
@@ -754,7 +788,10 @@ impl Parser<'_> {
                 StatementKind::Block(ScopeData::shared_with_children(vec![return_statement])),
             );
 
-            let arguments_binding = Rc::new(Identifier::new(self.range_from(start), arguments_name.into()));
+            let arguments_binding = self
+                .arena
+                .identifiers
+                .insert(Identifier::new(self.range_from(start), arguments_name.into()));
             let parameters = vec![FunctionParameter {
                 binding: FunctionParameterBinding::Identifier(arguments_binding),
                 default_value: None,
@@ -1238,15 +1275,16 @@ impl Parser<'_> {
                 if !is_arrow {
                     self.check_identifier_name_for_assignment_validity(&value, false);
                 }
-                let id = Rc::new(Identifier::new(
-                    self.range_from(formal_parameters_start),
-                    self.token_identifier_name(&token),
-                ));
+                let name = self.token_identifier_name(&token);
+                let id = self
+                    .arena
+                    .identifiers
+                    .insert(Identifier::new(self.range_from(formal_parameters_start), name));
                 parameter_info.push(ParamInfo {
                     name: value,
                     is_rest: rest,
                     is_from_pattern: false,
-                    identifier: Some(id.clone()),
+                    identifier: Some(id),
                 });
                 (FunctionParameterBinding::Identifier(id), false)
             } else if self.match_token(TokenType::CurlyOpen) || self.match_token(TokenType::BracketOpen) {
@@ -1263,7 +1301,7 @@ impl Parser<'_> {
             } else {
                 self.expected("parameter name");
                 self.consume();
-                let id = Rc::new(Identifier::new(
+                let id = self.arena.identifiers.insert(Identifier::new(
                     self.range_from(parameter_start),
                     Utf16String::default().into(),
                 ));
@@ -1444,7 +1482,10 @@ impl Parser<'_> {
                             let token = self.consume_property_key_token();
                             let (value, _has_octal) = self.parse_string_value(&token);
                             let id = self.make_identifier(entry_start, value);
-                            self.scope_collector.register_identifier(id.clone(), None);
+                            let Self {
+                                scope_collector, arena, ..
+                            } = self;
+                            scope_collector.register_identifier(id, None, &arena.identifiers);
                             entry_name = Some(BindingEntryName::Identifier(id));
                         } else if self.match_token(TokenType::BigIntLiteral) {
                             let token = self.consume_property_key_token();
@@ -1455,14 +1496,20 @@ impl Parser<'_> {
                                 value.to_vec()
                             };
                             let id = self.make_identifier(entry_start, name_value);
-                            self.scope_collector.register_identifier(id.clone(), None);
+                            let Self {
+                                scope_collector, arena, ..
+                            } = self;
+                            scope_collector.register_identifier(id, None, &arena.identifiers);
                             entry_name = Some(BindingEntryName::Identifier(id));
                         } else {
                             let token = self.consume_property_key_token();
                             let name = self.token_identifier_name(&token);
                             entry_name_value = name.clone();
                             let id = self.make_identifier(entry_start, name);
-                            self.scope_collector.register_identifier(id.clone(), None);
+                            let Self {
+                                scope_collector, arena, ..
+                            } = self;
+                            scope_collector.register_identifier(id, None, &arena.identifiers);
                             entry_name = Some(BindingEntryName::Identifier(id));
                         }
                     } else if self.match_token(TokenType::BracketOpen) {
@@ -1504,7 +1551,7 @@ impl Parser<'_> {
                             let token = self.consume();
                             let name = self.token_identifier_name(&token);
                             let id = self.make_identifier(alias_start, name.clone());
-                            self.pattern_bound_names.push((name, id.clone()));
+                            self.pattern_bound_names.push((name, id));
                             entry_alias = Some(BindingEntryAlias::Identifier(id));
                         } else {
                             self.expected("identifier or binding pattern");
@@ -1518,8 +1565,8 @@ impl Parser<'_> {
                         if entry_is_keyword {
                             self.syntax_error("Binding pattern target may not be a reserved word");
                         }
-                        if let Some(BindingEntryName::Identifier(ref id)) = entry_name {
-                            self.pattern_bound_names.push((entry_name_value, id.clone()));
+                        if let Some(BindingEntryName::Identifier(id)) = entry_name {
+                            self.pattern_bound_names.push((entry_name_value, id));
                         }
                     }
                 }
@@ -1537,7 +1584,8 @@ impl Parser<'_> {
                     entry_alias = Some(BindingEntryAlias::MemberExpression(Box::new(expression)));
                 } else if Self::is_identifier(&expression) {
                     let id = expression_into_identifier(expression);
-                    self.pattern_bound_names.push((id.name.clone(), id.clone()));
+                    let name = self.arena.identifiers[id].name.clone();
+                    self.pattern_bound_names.push((name, id));
                     entry_alias = Some(BindingEntryAlias::Identifier(id));
                 } else {
                     self.syntax_error("Invalid destructuring assignment target");
@@ -1551,7 +1599,7 @@ impl Parser<'_> {
                 let token = self.consume();
                 let name = self.token_identifier_name(&token);
                 let id = self.make_identifier(alias_start, name.clone());
-                self.pattern_bound_names.push((name, id.clone()));
+                self.pattern_bound_names.push((name, id));
                 entry_alias = Some(BindingEntryAlias::Identifier(id));
             } else {
                 self.expected("identifier or binding pattern");
@@ -1792,9 +1840,9 @@ impl Parser<'_> {
                 let declaration = self.parse_function_declaration_for_export(has_default_name);
                 if !has_default_name
                     && let StatementKind::FunctionDeclaration(ref fd) = declaration.inner
-                    && let Some(ref name_id) = fd.name
+                    && let Some(name_id) = fd.name
                 {
-                    local_name = Some(name_id.name.to_utf16_string());
+                    local_name = Some(self.arena.identifiers[name_id].name.to_utf16_string());
                 }
                 statement = Some(Box::new(declaration));
             } else if self.match_token(TokenType::Class) {
@@ -1802,9 +1850,9 @@ impl Parser<'_> {
                 if next.token_type != TokenType::CurlyOpen && next.token_type != TokenType::Extends {
                     let declaration = self.parse_class_declaration();
                     if let StatementKind::ClassDeclaration(ref class) = declaration.inner
-                        && let Some(ref name_id) = class.name
+                        && let Some(name_id) = class.name
                     {
-                        local_name = Some(name_id.name.to_utf16_string());
+                        local_name = Some(self.arena.identifiers[name_id].name.to_utf16_string());
                     }
                     statement = Some(Box::new(declaration));
                 } else {
@@ -1877,7 +1925,7 @@ impl Parser<'_> {
                 check_for_from = FromSpecifier::Required;
             } else if self.match_declaration() {
                 let declaration = self.parse_declaration();
-                let names = get_declaration_export_names(&declaration);
+                let names = get_declaration_export_names(&declaration, &self.arena.identifiers);
                 for name in &names {
                     entries.push(ExportEntry {
                         kind: ExportEntryKind::NamedExport,
@@ -1888,7 +1936,7 @@ impl Parser<'_> {
                 statement = Some(Box::new(declaration));
             } else if self.match_token(TokenType::Var) {
                 let var_declaration = self.parse_variable_declaration(false);
-                let names = get_declaration_export_names(&var_declaration);
+                let names = get_declaration_export_names(&var_declaration, &self.arena.identifiers);
                 for name in &names {
                     entries.push(ExportEntry {
                         kind: ExportEntryKind::NamedExport,

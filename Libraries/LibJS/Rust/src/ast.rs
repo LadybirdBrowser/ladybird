@@ -640,6 +640,10 @@ impl FunctionTable {
 pub struct FunctionPayload {
     pub data: FunctionData,
     pub function_table: FunctionTable,
+    /// Shared access to the program-wide identifier/scope/string tables.
+    /// Each lazy-compile SFD carries an Arc clone so it can resolve its
+    /// identifier IDs without depending on a parent generator.
+    pub arena: Arc<AstArena>,
 }
 
 // =============================================================================
@@ -1037,14 +1041,14 @@ pub struct FunctionParameter {
 
 #[derive(Clone, Debug)]
 pub enum FunctionParameterBinding {
-    Identifier(Rc<Identifier>),
+    Identifier(IdentifierId),
     BindingPattern(BindingPattern),
 }
 
 /// Shared data for FunctionDeclaration and FunctionExpression.
 #[derive(Debug)]
 pub struct FunctionData {
-    pub name: Option<Rc<Identifier>>,
+    pub name: Option<IdentifierId>,
     pub source_text_start: u32,
     pub source_text_end: u32,
     pub body: Box<Statement>,
@@ -1069,7 +1073,7 @@ pub struct FunctionData {
 /// Shared data for ClassDeclaration and ClassExpression.
 #[derive(Clone, Debug)]
 pub struct ClassData {
-    pub name: Option<Rc<Identifier>>,
+    pub name: Option<IdentifierId>,
     pub source_text_start: u32,
     pub source_text_end: u32,
     pub constructor: Option<Box<Expression>>,
@@ -1152,7 +1156,7 @@ pub struct BindingEntry {
 /// - `Expression`: computed property key (`{ [expression]: x }`)
 #[derive(Clone, Debug)]
 pub enum BindingEntryName {
-    Identifier(Rc<Identifier>),
+    Identifier(IdentifierId),
     Expression(Box<Expression>),
 }
 
@@ -1163,7 +1167,7 @@ pub enum BindingEntryName {
 /// - `MemberExpression`: assignment target (`{ x: obj.property }`)
 #[derive(Clone, Debug)]
 pub enum BindingEntryAlias {
-    Identifier(Rc<Identifier>),
+    Identifier(IdentifierId),
     BindingPattern(Box<BindingPattern>),
     MemberExpression(Box<Expression>),
 }
@@ -1181,7 +1185,7 @@ pub struct VariableDeclarator {
 
 #[derive(Clone, Debug)]
 pub enum VariableDeclaratorTarget {
-    Identifier(Rc<Identifier>),
+    Identifier(IdentifierId),
     BindingPattern(BindingPattern),
 }
 
@@ -1254,7 +1258,7 @@ pub enum OptionalChainReference {
         mode: OptionalChainMode,
     },
     MemberReference {
-        identifier: Rc<Identifier>,
+        identifier: IdentifierId,
         mode: OptionalChainMode,
     },
     PrivateMemberReference {
@@ -1349,7 +1353,7 @@ pub struct CatchClause {
 
 #[derive(Clone, Debug)]
 pub enum CatchBinding {
-    Identifier(Rc<Identifier>),
+    Identifier(IdentifierId),
     BindingPattern(BindingPattern),
 }
 
@@ -1646,7 +1650,7 @@ pub enum ExpressionKind {
     RegExpLiteral(Box<RegExpLiteralData>),
 
     // Identifiers
-    Identifier(Rc<Identifier>),
+    Identifier(IdentifierId),
     PrivateIdentifier(Box<PrivateIdentifier>),
 
     // Operators
@@ -1754,7 +1758,7 @@ pub struct VariableDeclarationData {
 #[derive(Clone, Debug)]
 pub struct FunctionDeclarationData {
     pub function_id: FunctionId,
-    pub name: Option<Rc<Identifier>>,
+    pub name: Option<IdentifierId>,
     pub kind: FunctionKind,
     pub is_hoisted: Cell<bool>,
 }

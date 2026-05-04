@@ -17,8 +17,9 @@ use super::basic_block::{BasicBlock, SourceMapEntry};
 use super::ffi::{AbstractOperationKind, WellKnownSymbolKind};
 use super::instruction::Instruction;
 use super::operand::*;
-use crate::ast::{FunctionData, FunctionId, FunctionTable, LocalType, Position, Utf16String};
+use crate::ast::{AstArena, FunctionData, FunctionId, FunctionTable, IdentifierId, LocalType, Position, Utf16String};
 use crate::u32_from_usize;
+use std::sync::Arc;
 
 /// Identifies an operand that auto-frees its register when the last
 /// clone is dropped.
@@ -300,6 +301,20 @@ pub struct Generator {
     // Side table owning all FunctionData from the parser. Codegen
     // takes ownership of individual entries via `take()`.
     pub function_table: crate::ast::FunctionTable,
+
+    // --- AST arena ---
+    // Shared (read-only post-parse) storage for identifiers, scopes, and
+    // interned strings. Cloning is a refcount bump — multiple generators
+    // (top-level + nested IIFE + lazy children) share the same arena.
+    pub arena: Arc<AstArena>,
+}
+
+impl Generator {
+    /// Convenience: look up an identifier by ID in this generator's arena.
+    #[inline]
+    pub fn identifier(&self, id: IdentifierId) -> &crate::ast::Identifier {
+        &self.arena.identifiers[id]
+    }
 }
 
 macro_rules! singleton_constant {
@@ -425,6 +440,7 @@ impl Generator {
             source_code_ptr: std::ptr::null(),
             source_len: 0,
             function_table: crate::ast::FunctionTable::new(),
+            arena: Arc::new(AstArena::new()),
             free_register_pool,
         }
     }
