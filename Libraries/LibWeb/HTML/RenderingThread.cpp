@@ -68,9 +68,9 @@ struct BackingStorePair {
 };
 
 #ifdef USE_VULKAN
-static NonnullRefPtr<Gfx::PaintingSurface> create_gpu_painting_surface_with_bitmap_flush(Gfx::IntSize size, Gfx::SharedImageBuffer& buffer)
+static NonnullRefPtr<Gfx::PaintingSurface> create_gpu_painting_surface_with_bitmap_flush(Gfx::IntSize size, Gfx::SharedImageBuffer& buffer, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
 {
-    auto surface = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
+    auto surface = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, skia_backend_context);
     auto bitmap = buffer.bitmap();
     surface->on_flush = [bitmap = move(bitmap)](auto& surface) {
         surface.read_into_bitmap(*bitmap);
@@ -92,8 +92,8 @@ static BackingStorePair create_shareable_bitmap_backing_stores([[maybe_unused]] 
 #    ifdef USE_VULKAN
     if (skia_backend_context) {
         return {
-            .front = create_gpu_painting_surface_with_bitmap_flush(size, front_buffer),
-            .back = create_gpu_painting_surface_with_bitmap_flush(size, back_buffer),
+            .front = create_gpu_painting_surface_with_bitmap_flush(size, front_buffer, skia_backend_context),
+            .back = create_gpu_painting_surface_with_bitmap_flush(size, back_buffer, skia_backend_context),
         };
     }
 #    else
@@ -143,13 +143,6 @@ public:
 
     ~ThreadData() = default;
 
-    void set_skia_player(OwnPtr<Painting::DisplayListPlayerSkia>&& player)
-    {
-        m_skia_player = move(player);
-    }
-
-    bool has_skia_player() const { return m_skia_player != nullptr; }
-
     void set_presentation_mode(RenderingThread::PresentationMode mode)
     {
         Threading::MutexLocker const locker { m_mutex };
@@ -196,8 +189,10 @@ public:
             m_frame_completed.wait();
     }
 
-    void compositor_loop()
+    void compositor_loop(DisplayListPlayerType display_list_player_type)
     {
+        initialize_skia_player(display_list_player_type);
+
         while (true) {
             {
                 Threading::MutexLocker const locker { m_mutex };
@@ -313,6 +308,18 @@ public:
     }
 
 private:
+    void initialize_skia_player(DisplayListPlayerType display_list_player_type)
+    {
+        switch (display_list_player_type) {
+        case DisplayListPlayerType::SkiaGPUIfAvailable:
+            m_skia_backend_context = Gfx::SkiaBackendContext::create_independent_gpu_backend();
+            break;
+        case DisplayListPlayerType::SkiaCPU:
+            break;
+        }
+        m_skia_player = make<Painting::DisplayListPlayerSkia>(m_skia_backend_context);
+    }
+
     void publish_backing_store_pair(UpdateBackingStoresCommand& cmd, Gfx::SharedImage front_shared_image, Gfx::SharedImage back_shared_image)
     {
         if (!cmd.allocation_callback)
@@ -324,11 +331,9 @@ private:
 
     void allocate_backing_stores(UpdateBackingStoresCommand& cmd)
     {
-        auto skia_backend_context = Gfx::SkiaBackendContext::the_main_thread_context();
-
 #ifdef USE_VULKAN_DMABUF_IMAGES
-        if (skia_backend_context && cmd.allocation_callback) {
-            auto backing_stores = create_linear_dmabuf_backing_stores(cmd.size, *skia_backend_context);
+        if (m_skia_backend_context && cmd.allocation_callback) {
+            auto backing_stores = create_linear_dmabuf_backing_stores(cmd.size, *m_skia_backend_context);
             if (!backing_stores.is_error()) {
                 auto backing_store_pair = backing_stores.release_value();
                 m_backing_stores.front_store = move(backing_store_pair.front);
@@ -343,7 +348,7 @@ private:
         auto back_buffer = Gfx::SharedImageBuffer::create(cmd.size);
         auto front_shared_image = front_buffer.export_shared_image();
         auto back_shared_image = back_buffer.export_shared_image();
-        auto backing_store_pair = create_shareable_bitmap_backing_stores(cmd.size, front_buffer, back_buffer, skia_backend_context);
+        auto backing_store_pair = create_shareable_bitmap_backing_stores(cmd.size, front_buffer, back_buffer, m_skia_backend_context);
         m_backing_stores.front_store = move(backing_store_pair.front);
         m_backing_stores.back_store = move(backing_store_pair.back);
         publish_backing_store_pair(cmd, move(front_shared_image), move(back_shared_image));
@@ -372,6 +377,7 @@ private:
     Queue<CompositorCommand> m_command_queue;
 
     OwnPtr<Painting::DisplayListPlayerSkia> m_skia_player;
+    RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     RefPtr<Painting::DisplayList> m_cached_display_list;
     Painting::ScrollStateSnapshot m_cached_scroll_state_snapshot;
     BackingStoreState m_backing_stores;
@@ -407,20 +413,14 @@ RenderingThread::~RenderingThread()
     m_thread_data->exit();
 }
 
-void RenderingThread::start(DisplayListPlayerType)
+void RenderingThread::start(DisplayListPlayerType display_list_player_type)
 {
-    VERIFY(m_thread_data->has_skia_player());
-    m_thread = Threading::Thread::construct("Renderer"sv, [thread_data = m_thread_data] {
-        thread_data->compositor_loop();
+    m_thread = Threading::Thread::construct("Renderer"sv, [thread_data = m_thread_data, display_list_player_type] {
+        thread_data->compositor_loop(display_list_player_type);
         return static_cast<intptr_t>(0);
     });
     m_thread->start();
     m_thread->detach();
-}
-
-void RenderingThread::set_skia_player(OwnPtr<Painting::DisplayListPlayerSkia>&& player)
-{
-    m_thread_data->set_skia_player(move(player));
 }
 
 void RenderingThread::set_presentation_mode(PresentationMode mode)

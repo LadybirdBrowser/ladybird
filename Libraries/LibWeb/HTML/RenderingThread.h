@@ -38,7 +38,6 @@ public:
     ~RenderingThread();
 
     void start(DisplayListPlayerType);
-    void set_skia_player(OwnPtr<Painting::DisplayListPlayerSkia>&& player);
     void set_presentation_mode(PresentationMode);
 
     void update_display_list(NonnullRefPtr<Painting::DisplayList>, Painting::ScrollStateSnapshot&&);

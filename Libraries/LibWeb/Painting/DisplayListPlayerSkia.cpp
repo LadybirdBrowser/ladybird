@@ -37,7 +37,13 @@
 namespace Web::Painting {
 
 DisplayListPlayerSkia::DisplayListPlayerSkia()
-    : m_image_cache(Gfx::SkiaBackendContext::the())
+    : DisplayListPlayerSkia(Gfx::SkiaBackendContext::the_main_thread_context())
+{
+}
+
+DisplayListPlayerSkia::DisplayListPlayerSkia(RefPtr<Gfx::SkiaBackendContext> skia_backend_context)
+    : m_skia_backend_context(move(skia_backend_context))
+    , m_image_cache(m_skia_backend_context)
 {
 }
 
@@ -94,7 +100,7 @@ static SkM44 to_skia_matrix4x4(Gfx::FloatMatrix4x4 const& matrix)
 
 void DisplayListPlayerSkia::flush()
 {
-    if (auto context = Gfx::SkiaBackendContext::the_main_thread_context())
+    if (auto context = surface().skia_backend_context())
         context->flush_and_submit(&surface().sk_surface());
     surface().flush();
     m_image_cache.prune();
@@ -489,7 +495,7 @@ SkPaint DisplayListPlayerSkia::paint_style_to_skia_paint(Painting::SVGPaintServe
         if (tile_size.is_empty())
             return {};
 
-        auto tile_surface = Gfx::PaintingSurface::create_with_size(tile_size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
+        auto tile_surface = Gfx::PaintingSurface::create_with_size(tile_size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_skia_backend_context);
 
         execute_display_list_into_surface(*pattern->tile_display_list(), *tile_surface);
 
