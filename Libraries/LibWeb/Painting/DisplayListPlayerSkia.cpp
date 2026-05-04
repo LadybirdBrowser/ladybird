@@ -37,6 +37,7 @@
 namespace Web::Painting {
 
 DisplayListPlayerSkia::DisplayListPlayerSkia()
+    : m_image_cache(Gfx::SkiaBackendContext::the())
 {
 }
 
