@@ -27,13 +27,13 @@
 
 namespace Gfx {
 
-static RefPtr<SkiaBackendContext> s_the;
+static RefPtr<SkiaBackendContext> s_main_thread_context;
 
 void SkiaBackendContext::initialize_gpu_backend()
 {
-    VERIFY(!s_the);
+    VERIFY(!s_main_thread_context);
 
-    s_the = create_independent_gpu_backend();
+    s_main_thread_context = create_independent_gpu_backend();
 }
 
 RefPtr<SkiaBackendContext> SkiaBackendContext::create_independent_gpu_backend()
@@ -56,9 +56,9 @@ RefPtr<SkiaBackendContext> SkiaBackendContext::create_independent_gpu_backend()
 #endif
 }
 
-RefPtr<SkiaBackendContext> SkiaBackendContext::the()
+RefPtr<SkiaBackendContext> SkiaBackendContext::the_main_thread_context()
 {
-    return s_the;
+    return s_main_thread_context;
 }
 
 #ifdef USE_VULKAN

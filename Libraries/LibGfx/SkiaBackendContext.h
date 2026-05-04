@@ -41,7 +41,7 @@ public:
 
     static void initialize_gpu_backend();
     static RefPtr<SkiaBackendContext> create_independent_gpu_backend();
-    static RefPtr<SkiaBackendContext> the();
+    static RefPtr<SkiaBackendContext> the_main_thread_context();
 
     SkiaBackendContext() { }
     virtual ~SkiaBackendContext() { }

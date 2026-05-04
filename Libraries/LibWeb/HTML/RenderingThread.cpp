@@ -324,7 +324,7 @@ private:
 
     void allocate_backing_stores(UpdateBackingStoresCommand& cmd)
     {
-        auto skia_backend_context = Gfx::SkiaBackendContext::the();
+        auto skia_backend_context = Gfx::SkiaBackendContext::the_main_thread_context();
 
 #ifdef USE_VULKAN_DMABUF_IMAGES
         if (skia_backend_context && cmd.allocation_callback) {

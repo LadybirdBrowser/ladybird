@@ -120,7 +120,7 @@ static SkColorType export_format_to_skia_color_type(ExportFormat format)
 
 ErrorOr<BitmapExportResult> ImmutableBitmap::export_to_byte_buffer(ExportFormat format, int flags, Optional<int> target_width, Optional<int> target_height) const
 {
-    if (SkiaBackendContext::the() && !ensure_sk_image(*SkiaBackendContext::the()))
+    if (SkiaBackendContext::the_main_thread_context() && !ensure_sk_image(*SkiaBackendContext::the_main_thread_context()))
         return Error::from_string_literal("Failed to create a Skia image for this ImmutableBitmap");
 
     int width = target_width.value_or(this->width());
@@ -205,7 +205,7 @@ ErrorOr<NonnullRefPtr<ImmutableBitmap>> ImmutableBitmap::create_from_yuv(Nonnull
 {
     auto color_space = TRY(ColorSpace::from_cicp(yuv_data->cicp()));
 
-    auto context = SkiaBackendContext::the();
+    auto context = SkiaBackendContext::the_main_thread_context();
     auto* gr_context = context ? context->sk_context() : nullptr;
 
     if (!gr_context) {
