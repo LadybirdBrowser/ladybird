@@ -3666,15 +3666,14 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
 
     auto& css_animation = as<CSS::CSSAnimation>(*animation);
 
-    GC::Ptr<Element> target = effect->target();
-    if (!target)
-        return;
-
     auto previous_phase = effect->previous_phase();
     auto current_phase = effect->phase();
     auto current_iteration = effect->current_iteration().value_or(0.0);
 
     auto owning_element = css_animation.owning_element();
+
+    if (!owning_element.has_value())
+        return;
 
     auto dispatch_event = [&](FlyString const& name, Animations::TimeValue elapsed_time) {
         double elapsed_time_output;
@@ -3703,7 +3702,7 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
                 name,
                 event_init),
             .animation = css_animation,
-            .target = *target,
+            .target = owning_element->element(),
             .scheduled_event_time = HighResolutionTime::unsafe_shared_current_time(),
         });
     };
