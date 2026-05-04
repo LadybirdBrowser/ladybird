@@ -168,16 +168,21 @@ ErrorOr<int> anon_create([[maybe_unused]] size_t size, [[maybe_unused]] int opti
     static size_t shared_memory_id = 0;
 
     auto name = ByteString::formatted("/shm-{}-{}", getpid(), shared_memory_id++);
-    fd = shm_open(name.characters(), O_RDWR | O_CREAT | options, 0600);
+    // NOTE: macOS Tahoe (26.x) does not support O_CLOEXEC in shm_open(),
+    //       so we open without it and set FD_CLOEXEC via fcntl() instead.
+    fd = shm_open(name.characters(), O_RDWR | O_CREAT, 0600);
+
+    if (fd < 0)
+        return Error::from_errno(errno);
+
+    if ((options & O_CLOEXEC) != 0)
+        TRY(fcntl(fd, F_SETFD, FD_CLOEXEC));
 
     if (shm_unlink(name.characters()) == -1) {
         auto saved_errno = errno;
         TRY(close(fd));
         return Error::from_errno(saved_errno);
     }
-
-    if (fd < 0)
-        return Error::from_errno(errno);
 
     if (::ftruncate(fd, size) < 0) {
         auto saved_errno = errno;
