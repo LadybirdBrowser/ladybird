@@ -26,6 +26,8 @@ use std::ffi::c_void;
 use std::fmt;
 use std::ops::{Index, IndexMut};
 use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicPtr, Ordering};
 
 use std::collections::HashMap;
 
@@ -1281,31 +1283,33 @@ unsafe extern "C" {
 
 /// Handle to a compiled regex from C++.
 ///
-/// Wrapped in `Rc` in `RegExpLiteralData` so that AST clones (e.g. for
+/// Wrapped in `Arc` in `RegExpLiteralData` so that AST clones (e.g. for
 /// class field initializers) share the handle cheaply. The first codegen
 /// path to call `take()` gets the handle; `Drop` frees it if untaken.
-pub struct CompiledRegex(Cell<*mut c_void>);
+/// Uses `AtomicPtr` so the regex can be safely shared across threads
+/// during background compile of sibling functions.
+pub struct CompiledRegex(AtomicPtr<c_void>);
 
 impl CompiledRegex {
     pub fn new(ptr: *mut c_void) -> Self {
-        Self(Cell::new(ptr))
+        Self(AtomicPtr::new(ptr))
     }
 
     /// Take ownership of the compiled regex handle, leaving null behind
     /// so the destructor won't free it.
     pub fn take(&self) -> *mut c_void {
-        self.0.replace(std::ptr::null_mut())
+        self.0.swap(std::ptr::null_mut(), Ordering::AcqRel)
     }
 
     /// Set the compiled regex handle (used by deferred compilation).
     pub fn set(&self, ptr: *mut c_void) {
-        self.0.set(ptr);
+        self.0.store(ptr, Ordering::Release);
     }
 }
 
 impl Drop for CompiledRegex {
     fn drop(&mut self) {
-        let ptr = self.0.get();
+        let ptr = *self.0.get_mut();
         if !ptr.is_null() {
             unsafe { rust_free_compiled_regex(ptr) };
         }
@@ -1314,7 +1318,7 @@ impl Drop for CompiledRegex {
 
 impl fmt::Debug for CompiledRegex {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "CompiledRegex({:p})", self.0.get())
+        write!(f, "CompiledRegex({:p})", self.0.load(Ordering::Acquire))
     }
 }
 
@@ -1322,7 +1326,7 @@ impl fmt::Debug for CompiledRegex {
 pub struct RegExpLiteralData {
     pub pattern: Utf16String,
     pub flags: Utf16String,
-    pub compiled_regex: Rc<CompiledRegex>,
+    pub compiled_regex: Arc<CompiledRegex>,
 }
 
 // =============================================================================

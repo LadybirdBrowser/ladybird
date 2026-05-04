@@ -8,6 +8,7 @@
 //! precedence climbing.
 
 use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::ast::*;
 use crate::lexer::ch;
@@ -615,10 +616,10 @@ impl Parser<'_> {
         };
         self.validate_regex_flags(&flags);
         let compiled_regex = match crate::bytecode::ffi::compile_regex(&pattern, &flags) {
-            Ok(handle) => Rc::new(CompiledRegex::new(handle)),
+            Ok(handle) => Arc::new(CompiledRegex::new(handle)),
             Err(msg) => {
                 self.syntax_error_at_position(&msg, start);
-                Rc::new(CompiledRegex::new(std::ptr::null_mut()))
+                Arc::new(CompiledRegex::new(std::ptr::null_mut()))
             }
         };
         self.expression(
