@@ -12,6 +12,7 @@ extern "C" {
 #include <GLES2/gl2ext_angle.h>
 }
 
+#include <LibGfx/BitmapExport.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/SkiaUtils.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
@@ -302,7 +303,17 @@ Optional<Gfx::BitmapExportResult> WebGLRenderingContextBase::read_and_pixel_conv
     if (m_unpack_premultiply_alpha)
         export_flags |= Gfx::ExportFlags::PremultiplyAlpha;
 
-    auto result = bitmap->export_to_byte_buffer(export_format.value(), export_flags, destination_width, destination_height);
+    auto source_bitmap = bitmap->bitmap();
+    if (!source_bitmap)
+        return OptionalNone {};
+
+    auto result = Gfx::export_bitmap_to_byte_buffer(
+        *source_bitmap,
+        bitmap->color_space(),
+        export_format.value(),
+        export_flags,
+        destination_width,
+        destination_height);
     if (result.is_error()) {
         dbgln("Could not export bitmap: {}", result.release_error());
         return OptionalNone {};

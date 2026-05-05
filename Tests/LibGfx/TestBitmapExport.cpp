@@ -6,11 +6,11 @@
 
 #include <AK/Try.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/BitmapExport.h>
 #include <LibGfx/Color.h>
-#include <LibGfx/ImmutableBitmap.h>
 #include <LibTest/TestCase.h>
 
-TEST_CASE(export_to_byte_buffer)
+TEST_CASE(export_bitmap_to_byte_buffer)
 {
     enum class Premultiplied : u8 {
         Yes,
@@ -229,8 +229,13 @@ TEST_CASE(export_to_byte_buffer)
                         bitmap->set_pixel(0, logical_y1, Color::from_bgra(subtest.source_pixels[2]));
                         bitmap->set_pixel(1, logical_y1, Color::from_bgra(subtest.source_pixels[3]));
 
-                        auto immutable_bitmap = Gfx::ImmutableBitmap::create(bitmap);
-                        auto result = MUST(immutable_bitmap->export_to_byte_buffer(subtest.export_format, export_flags, 2, 2));
+                        auto result = MUST(Gfx::export_bitmap_to_byte_buffer(
+                            *bitmap,
+                            {},
+                            subtest.export_format,
+                            export_flags,
+                            2,
+                            2));
 
                         EXPECT_EQ(result.width, 2);
                         EXPECT_EQ(result.height, 2);

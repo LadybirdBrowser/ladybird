@@ -2,10 +2,10 @@ include(skia)
 
 set(TEST_SOURCES
     BenchmarkJPEGLoader.cpp
+    TestBitmapExport.cpp
     TestColor.cpp
     TestImageDecoder.cpp
     TestImageWriter.cpp
-    TestImmutableBitmap.cpp
     TestQuad.cpp
     TestRect.cpp
     TestWOFF.cpp

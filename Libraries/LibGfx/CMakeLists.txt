@@ -4,6 +4,7 @@ include(vulkan)
 set(SOURCES
     AffineTransform.cpp
     Bitmap.cpp
+    BitmapExport.cpp
     BitmapSequence.cpp
     CMYKBitmap.cpp
     Color.cpp

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibGfx/BitmapExportResult.h>
+#include <LibGfx/BitmapExport.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/PlatformObject.h>
