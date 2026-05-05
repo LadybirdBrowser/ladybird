@@ -8,12 +8,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Base64.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <AK/LexicalPath.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibCore/File.h>
+#include <LibGfx/Color.h>
+#include <LibGfx/ImageFormats/PNGWriter.h>
 #if !defined(AK_OS_MACOS)
 #    include <LibCore/Socket.h>
 #else
@@ -67,8 +70,8 @@
 #include <LibWeb/WebDriver/InputState.h>
 #include <LibWeb/WebDriver/JSON.h>
 #include <LibWeb/WebDriver/Properties.h>
-#include <LibWeb/WebDriver/Screenshot.h>
 #include <LibWeb/WebDriver/UserPrompt.h>
+#include <WebContent/PageClient.h>
 #include <WebContent/WebDriverConnection.h>
 
 namespace WebContent {
@@ -102,6 +105,22 @@ static JsonValue serialize_cookie(HTTP::Cookie::Cookie const& cookie)
     serialized_cookie.set("sameSite"sv, HTTP::Cookie::same_site_to_string(cookie.same_site));
 
     return serialized_cookie;
+}
+
+static Web::WebDriver::Response encode_screenshot_bitmap(Gfx::Bitmap const& screenshot_bitmap)
+{
+    if (screenshot_bitmap.size().is_empty())
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnableToCaptureScreen, "Captured screenshot is empty"sv);
+
+    auto encoded_png = Gfx::PNGWriter::encode(screenshot_bitmap);
+    if (encoded_png.is_error())
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnableToCaptureScreen, "Failed to encode screenshot"sv);
+
+    auto encoded_string = encode_base64(encoded_png.value().bytes());
+    if (encoded_string.is_error())
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnableToCaptureScreen, "Failed to encode screenshot"sv);
+
+    return JsonValue { encoded_string.release_value() };
 }
 
 static JsonValue serialize_rect(Gfx::IntRect const& rect)
@@ -2550,20 +2569,10 @@ Messages::WebDriverClient::TakeScreenshotResponse WebDriverConnection::take_scre
         auto window = document->window();
 
         // 2. When the user agent is next to run the animation frame callbacks:
-        (void)window->animation_frame_callback_driver().add(GC::create_function(document->heap(), [this, document](double) mutable {
-            // a. Let root rect be session's current top-level browsing context's document element's rectangle.
-            auto root_rect = calculate_absolute_rect_of_element(*document->document_element());
-
-            // b. Let screenshot result be the result of trying to call draw a bounding box from the framebuffer, given root rect as an argument.
-            // c. Let canvas be a canvas element of screenshot result's data.
-            auto canvas = WEBDRIVER_TRY(Web::WebDriver::draw_bounding_box_from_the_framebuffer(*current_top_level_browsing_context(), *document->document_element(), root_rect));
-
-            // d. Let encoding result be the result of trying encoding a canvas as Base64 canvas.
-            // e. Let encoded string be encoding result's data.
-            auto encoded_string = Web::WebDriver::encode_canvas_element(canvas);
-
-            // 3. Return success with data encoded string.
-            async_driver_execution_complete(move(encoded_string));
+        (void)window->animation_frame_callback_driver().add(GC::create_function(document->heap(), [this](double) mutable {
+            static_cast<PageClient&>(current_top_level_browsing_context()->page().client()).queue_viewport_screenshot_task([this](Gfx::ShareableBitmap const& screenshot) {
+                complete_screenshot(screenshot);
+            });
         }));
         document->page().client().request_frame();
     });
@@ -2590,19 +2599,9 @@ Messages::WebDriverClient::TakeElementScreenshotResponse WebDriverConnection::ta
 
         // 5. When the user agent is next to run the animation frame callbacks:
         (void)window->animation_frame_callback_driver().add(GC::create_function(document->heap(), [this, element](double) {
-            // a. Let element rect be element's rectangle.
-            auto element_rect = calculate_absolute_rect_of_element(element);
-
-            // b. Let screenshot result be the result of trying to call draw a bounding box from the framebuffer, given element rect as an argument.
-            // c. Let canvas be a canvas element of screenshot result's data.
-            auto canvas = WEBDRIVER_TRY(Web::WebDriver::draw_bounding_box_from_the_framebuffer(current_browsing_context(), element, element_rect));
-
-            // d. Let encoding result be the result of trying encoding a canvas as Base64 canvas.
-            // e. Let encoded string be encoding result's data.
-            auto encoded_string = Web::WebDriver::encode_canvas_element(canvas);
-
-            // 6. Return success with data encoded string.
-            async_driver_execution_complete(move(encoded_string));
+            static_cast<PageClient&>(current_top_level_browsing_context()->page().client()).queue_screenshot_task(element->unique_id(), [this](Gfx::ShareableBitmap const& screenshot) {
+                complete_screenshot(screenshot);
+            });
         }));
         document->page().client().request_frame();
     });
@@ -2889,6 +2888,17 @@ void WebDriverConnection::page_did_open_dialog(Badge<PageClient>)
         m_current_script_execution_id.clear();
         async_driver_execution_complete(JsonValue {});
     }
+}
+
+void WebDriverConnection::complete_screenshot(Gfx::ShareableBitmap const& screenshot)
+{
+    auto bitmap = screenshot.bitmap();
+    if (!bitmap) {
+        async_driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnableToCaptureScreen, "Failed to capture screenshot"sv));
+        return;
+    }
+
+    async_driver_execution_complete(encode_screenshot_bitmap(*bitmap));
 }
 
 // https://w3c.github.io/webdriver/#dfn-maximize-the-window

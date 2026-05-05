@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
@@ -37,6 +38,7 @@ public:
 
     virtual bool is_paintable() const = 0;
     virtual void paint(DisplayListRecordingContext& context, DevicePixelRect const& dest_rect, ImageRendering) const = 0;
+    virtual RefPtr<Gfx::DecodedImageFrame> current_frame(DevicePixelRect const&) const { return nullptr; }
 
     virtual Optional<Gfx::Color> color_if_single_pixel_bitmap() const { return {}; }
 

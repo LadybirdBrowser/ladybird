@@ -8,6 +8,7 @@
 #include <LibGC/HeapHashTable.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGUseElement.h>
+#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/DOM/ElementFactory.h>
@@ -65,12 +66,7 @@ void SVGUseElement::attribute_changed(FlyString const& name, Optional<String> co
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
-    // https://svgwg.org/svg2-draft/struct.html#UseLayout
-    if (name == SVG::AttributeNames::x) {
-        m_x = AttributeParser::parse_coordinate(value.value_or(String {}));
-    } else if (name == SVG::AttributeNames::y) {
-        m_y = AttributeParser::parse_coordinate(value.value_or(String {}));
-    } else if (name == SVG::AttributeNames::href || name == "xlink:href"_fly_string) {
+    if (name == SVG::AttributeNames::href || name == "xlink:href"_fly_string) {
         // When the ‘href’ attribute is set (or, in the absence of an ‘href’ attribute, an ‘xlink:href’ attribute), the user agent must process the URL.
         process_the_url(value);
     }
@@ -102,9 +98,24 @@ bool SVGUseElement::is_referenced_element_same_document() const
 
 Gfx::AffineTransform SVGUseElement::element_transform() const
 {
+    auto node = unsafe_layout_node();
+    if (!node)
+        return Base::element_transform();
+
+    CSSPixels viewport_width = 0;
+    CSSPixels viewport_height = 0;
+    if (auto viewport = const_cast<SVGUseElement*>(this)->viewport_element()) {
+        if (auto viewport_node = viewport->unsafe_layout_node()) {
+            viewport_width = viewport_node->computed_values().width().to_px(*viewport_node, 0);
+            viewport_height = viewport_node->computed_values().height().to_px(*viewport_node, 0);
+        }
+    }
+
     // The x and y properties define an additional transformation (translate(x,y), where x and y represent the computed value of the corresponding property)
     // to be applied to the ‘use’ element, after any transformations specified with other properties
-    return Base::element_transform().translate(m_x.value_or(0), m_y.value_or(0));
+    return Base::element_transform().translate(
+        node->computed_values().x().to_px(*node, viewport_width).to_float(),
+        node->computed_values().y().to_px(*node, viewport_height).to_float());
 }
 
 void SVGUseElement::svg_element_changed(SVGElement& svg_element)
@@ -261,31 +272,23 @@ bool SVGUseElement::would_create_circular_reference_impl(
 // https://www.w3.org/TR/SVG11/shapes.html#RectElementXAttribute
 GC::Ref<SVGAnimatedLength> SVGUseElement::x() const
 {
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_x.value_or(0), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_x.value_or(0), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
+    return svg_animated_length_for_property(CSS::PropertyID::X);
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#RectElementYAttribute
 GC::Ref<SVGAnimatedLength> SVGUseElement::y() const
 {
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_y.value_or(0), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_y.value_or(0), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
+    return svg_animated_length_for_property(CSS::PropertyID::Y);
 }
 
 GC::Ref<SVGAnimatedLength> SVGUseElement::width() const
 {
-    return fake_animated_length_fixme();
+    return svg_animated_length_for_property(CSS::PropertyID::Width);
 }
 
 GC::Ref<SVGAnimatedLength> SVGUseElement::height() const
 {
-    return fake_animated_length_fixme();
+    return svg_animated_length_for_property(CSS::PropertyID::Height);
 }
 
 // https://svgwg.org/svg2-draft/struct.html#TermInstanceRoot

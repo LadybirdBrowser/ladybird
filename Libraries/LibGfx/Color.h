@@ -13,6 +13,7 @@
 #include <AK/Forward.h>
 #include <AK/Math.h>
 #include <AK/StdLibExtras.h>
+#include <LibGfx/BitmapInfo.h>
 #include <LibGfx/ColorConversion.h>
 #include <LibIPC/Forward.h>
 
@@ -21,21 +22,6 @@ namespace Gfx {
 // Named after in memory-order (little-endian)
 // e.g. 0xAARRGGBB
 using BGRA8888 = u32;
-
-enum class AlphaType {
-    Premultiplied,
-    Unpremultiplied,
-};
-
-inline bool is_valid_alpha_type(u32 alpha_type)
-{
-    switch (alpha_type) {
-    case (u32)AlphaType::Premultiplied:
-    case (u32)AlphaType::Unpremultiplied:
-        return true;
-    }
-    return false;
-}
 
 struct HSV {
     double hue { 0 };
@@ -219,20 +205,21 @@ public:
     constexpr u8 blue() const { return m_value & 0xff; }
     constexpr u8 alpha() const { return (m_value >> 24) & 0xff; }
 
-    constexpr void set_alpha(u8 value, AlphaType alpha_type = AlphaType::Unpremultiplied)
+    constexpr void set_alpha(u8 value, BitmapAlpha alpha_type = BitmapAlpha::Unpremultiplied)
     {
         switch (alpha_type) {
-        case AlphaType::Premultiplied:
+        case BitmapAlpha::Premultiplied:
             m_value = value << 24
                 | (red() * value / 255) << 16
                 | (green() * value / 255) << 8
                 | blue() * value / 255;
             break;
-        case AlphaType::Unpremultiplied:
+        case BitmapAlpha::Unpremultiplied:
             m_value = (m_value & 0x00ffffff) | value << 24;
             break;
-        default:
-            VERIFY_NOT_REACHED();
+        case BitmapAlpha::Opaque:
+            m_value = (m_value & 0x00ffffff) | 0xff000000;
+            break;
         }
     }
 
@@ -254,7 +241,7 @@ public:
         m_value |= value;
     }
 
-    constexpr Color with_alpha(u8 alpha, AlphaType alpha_type = AlphaType::Unpremultiplied) const
+    constexpr Color with_alpha(u8 alpha, BitmapAlpha alpha_type = BitmapAlpha::Unpremultiplied) const
     {
         Color color_with_alpha = Color(m_value);
         color_with_alpha.set_alpha(alpha, alpha_type);

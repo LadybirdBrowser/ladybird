@@ -14,6 +14,7 @@
 #include <LibGfx/Path.h>
 #include <LibGfx/TextLayout.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/Layout/BlockFormattingContext.h>
 #include <LibWeb/Layout/DominantBaseline.h>
 #include <LibWeb/Layout/SVGClipBox.h>
@@ -185,7 +186,7 @@ void SVGFormattingContext::run(AvailableSpace const& available_space)
     auto& svg_box_state = m_state.get_mutable(context_box());
 
     auto const& document = context_box().document();
-    if (document.document_element() == context_box().dom_node() && !document.is_decoded_svg()) {
+    if (document.document_element() == context_box().dom_node() && !document.is_decoded_svg() && (!document.navigable() || !document.navigable()->container())) {
         // Overwrite the content width/height with the styled node width/height (from <svg width height ...>)
 
         // NOTE: If a height had not been provided by the svg element, it was set to the height of the container

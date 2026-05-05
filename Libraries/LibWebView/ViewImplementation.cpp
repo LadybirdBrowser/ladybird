@@ -4,14 +4,24 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
+#include <AK/Debug.h>
 #include <AK/Error.h>
+#include <AK/NumericLimits.h>
+#include <AK/ScopeGuard.h>
 #include <AK/String.h>
+#include <AK/StringView.h>
 #include <AK/TemporaryChange.h>
 #include <AK/Time.h>
+#include <LibCore/AnonymousBuffer.h>
+#include <LibCore/EventLoop.h>
+#include <LibCore/Export.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/Timer.h>
+#include <LibGfx/Bitmap.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
-#include <LibGfx/SharedImageBuffer.h>
+#include <LibGfx/SharedImage.h>
+#include <LibPaintServer/BrokerOfPaintServer.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/Infra/Strings.h>
@@ -24,7 +34,6 @@
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
 #include <LibWebView/ViewImplementation.h>
-
 namespace WebView {
 
 static HashMap<u64, ViewImplementation*> s_all_views;
@@ -45,9 +54,14 @@ Optional<ViewImplementation&> ViewImplementation::find_view_by_id(u64 id)
     return {};
 }
 
+void ViewImplementation::notify_paint_server_reset(u64)
+{
+}
+
 ViewImplementation::ViewImplementation()
     : m_document_cookie_version_buffer(Core::create_shared_version_buffer())
     , m_view_id(s_view_count++)
+    , m_shared_image_store(*this)
 {
     s_all_views.set(m_view_id, this);
 
@@ -139,24 +153,10 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
         on_web_content_process_change_for_cross_site_navigation();
 
     // Don't keep a stale backup bitmap around.
-    m_backup_shared_image_buffer = nullptr;
+    m_shared_image_store.reset();
     handle_resize();
 
     load(url);
-}
-
-void ViewImplementation::server_did_paint(Badge<WebContentClient>, i32 bitmap_id, Gfx::IntSize size)
-{
-    if (m_client_state.back_bitmap.id == bitmap_id) {
-        m_client_state.has_usable_bitmap = true;
-        m_client_state.back_bitmap.last_painted_size = size.to_type<Web::DevicePixels>();
-        swap(m_client_state.back_bitmap, m_client_state.front_bitmap);
-        m_backup_shared_image_buffer = nullptr;
-        if (on_ready_to_paint)
-            on_ready_to_paint();
-    }
-
-    client().async_ready_to_paint(page_id());
 }
 
 void ViewImplementation::set_window_position(Gfx::IntPoint position)
@@ -609,18 +609,39 @@ void ViewImplementation::did_update_navigation_buttons_state(Badge<WebContentCli
     m_navigate_forward_action->set_enabled(forward_enabled);
 }
 
-void ViewImplementation::did_allocate_backing_stores(Badge<WebContentClient>, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store)
+void ViewImplementation::did_update_submit_to_ack_window_max_ms(Badge<WebContentClient>, Optional<double> max_ms)
 {
-    if (m_client_state.has_usable_bitmap) {
-        // NOTE: We keep the outgoing front bitmap as a backup so we have something to paint until we get a new one.
-        m_backup_shared_image_buffer = move(m_client_state.front_bitmap.shared_image_buffer);
-        m_backup_bitmap_size = m_client_state.front_bitmap.last_painted_size;
-    }
-    m_client_state.has_usable_bitmap = false;
-    m_client_state.front_bitmap.id = front_bitmap_id;
-    m_client_state.back_bitmap.id = back_bitmap_id;
-    m_client_state.front_bitmap.shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::import_from_shared_image(move(front_backing_store)));
-    m_client_state.back_bitmap.shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::import_from_shared_image(move(back_backing_store)));
+    m_submit_to_ack_window_max_ms = max_ms;
+}
+
+Optional<ViewImplementation::PresentableFrame> ViewImplementation::presentable_frame() const
+{
+    return m_shared_image_store.presentable_frame();
+}
+
+void ViewImplementation::did_receive_presentation_frame(u64 present_id, u64 image_id, Gfx::IntSize frame_size)
+{
+    m_shared_image_store.did_receive_presentation_frame(present_id, image_id, frame_size);
+}
+
+void ViewImplementation::configure_presentation_surface(Gfx::IntSize size)
+{
+    m_shared_image_store.configure_presentation_surface(size);
+}
+
+Optional<ViewImplementation::LinuxDmaBufPresentationBuffer> ViewImplementation::clone_linux_dmabuf_presentation_buffer(u64 image_id) const
+{
+    return m_shared_image_store.clone_linux_dmabuf_presentation_buffer(image_id);
+}
+
+RefPtr<Gfx::Bitmap const> ViewImplementation::bitmap_for_presentation_image(u64 image_id) const
+{
+    return m_shared_image_store.bitmap_for_presentation_image(image_id);
+}
+
+void ViewImplementation::did_present_frame(u64 present_id)
+{
+    m_shared_image_store.did_present_frame(present_id);
 }
 
 void ViewImplementation::update_zoom()
@@ -654,7 +675,10 @@ void ViewImplementation::apply_zoom_for_current_host()
 
 void ViewImplementation::handle_resize()
 {
-    client().async_set_viewport(page_id(), viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
+    client().async_set_viewport(page_id(), this->viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
+
+    auto size = viewport_size();
+    configure_presentation_surface({ size.width().value(), size.height().value() });
 }
 
 void ViewImplementation::initialize_client(CreateNewClient create_new_client)
@@ -672,12 +696,17 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
     client().async_set_window_handle(m_client_state.page_index, m_client_state.client_handle);
     client().async_set_zoom_level(m_client_state.page_index, m_zoom_level);
     client().async_set_viewport(m_client_state.page_index, viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
+    u64 const surface_id = view_id();
+    client().async_set_surface_id(m_client_state.page_index, surface_id);
     client().async_set_maximum_frames_per_second(m_client_state.page_index, m_maximum_frames_per_second);
     client().async_set_system_visibility_state(m_client_state.page_index, m_system_visibility_state);
     client().async_set_document_cookie_version_buffer(m_client_state.page_index, m_document_cookie_version_buffer);
 
     if (auto webdriver_endpoint = Application::browser_options().webdriver_endpoint; webdriver_endpoint.has_value())
         client().async_connect_to_webdriver(m_client_state.page_index, *webdriver_endpoint);
+
+    auto size = viewport_size();
+    configure_presentation_surface({ size.width().value(), size.height().value() });
 
     Application::the().apply_view_options({}, *this);
 
@@ -723,7 +752,7 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
     VERIFY(m_client_state.client);
 
     // Don't keep a stale backup bitmap around.
-    m_backup_shared_image_buffer = nullptr;
+    m_shared_image_store.reset();
 
     handle_resize();
 
@@ -810,40 +839,61 @@ static ErrorOr<LexicalPath> save_screenshot(Gfx::Bitmap const* bitmap)
     return path;
 }
 
-NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_screenshot(ScreenshotType type)
+NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> ViewImplementation::take_screenshot_bitmap(ScreenshotType type)
 {
-    auto promise = Core::Promise<LexicalPath>::construct();
-
-    if (m_pending_screenshot) {
-        // For simplicity, only allow taking one screenshot at a time for now. Revisit if we need
-        // to allow spamming screenshot requests for some reason.
+    auto promise = Core::Promise<RefPtr<Gfx::Bitmap const>>::construct();
+    if (m_pending_screenshot_request) {
         promise->reject(Error::from_string_literal("A screenshot request is already in progress"));
         return promise;
     }
 
-    switch (type) {
-    case ScreenshotType::Visible: {
-        Gfx::Bitmap const* visible_bitmap = nullptr;
-        if (m_client_state.has_usable_bitmap) {
-            VERIFY(m_client_state.front_bitmap.shared_image_buffer);
-            visible_bitmap = m_client_state.front_bitmap.shared_image_buffer->bitmap().ptr();
-        } else if (m_backup_shared_image_buffer) {
-            visible_bitmap = m_backup_shared_image_buffer->bitmap().ptr();
-        }
-        if (visible_bitmap) {
-            if (auto result = save_screenshot(visible_bitmap); result.is_error())
+    m_pending_screenshot_request = promise;
+    if (type == ScreenshotType::Visible)
+        client().async_take_viewport_screenshot(page_id());
+    else
+        client().async_take_document_screenshot(page_id());
+    return promise;
+}
+
+NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> ViewImplementation::take_dom_node_screenshot_bitmap(Web::UniqueNodeID node_id)
+{
+    auto promise = Core::Promise<RefPtr<Gfx::Bitmap const>>::construct();
+    if (m_pending_screenshot_request) {
+        promise->reject(Error::from_string_literal("A screenshot request is already in progress"));
+        return promise;
+    }
+
+    m_pending_screenshot_request = promise;
+    client().async_take_dom_node_screenshot(page_id(), node_id);
+    return promise;
+}
+
+void ViewImplementation::clear_pending_screenshot_requests()
+{
+    if (!m_pending_screenshot_request)
+        return;
+
+    auto pending_screenshot_request = m_pending_screenshot_request;
+    m_pending_screenshot_request = nullptr;
+    Core::deferred_invoke([pending_screenshot_request = move(pending_screenshot_request)]() mutable {
+        pending_screenshot_request->reject(Error::from_string_literal("Screenshot request canceled"));
+    });
+}
+
+NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_screenshot(ScreenshotType type)
+{
+    auto promise = Core::Promise<LexicalPath>::construct();
+
+    take_screenshot_bitmap(type)
+        ->when_resolved([promise](RefPtr<Gfx::Bitmap const> const& bitmap) mutable {
+            if (auto result = save_screenshot(bitmap.ptr()); result.is_error())
                 promise->reject(result.release_error());
             else
                 promise->resolve(result.release_value());
-        }
-        break;
-    }
-
-    case ScreenshotType::Full:
-        m_pending_screenshot = promise;
-        client().async_take_document_screenshot(page_id());
-        break;
-    }
+        })
+        .when_rejected([promise](Error& error) mutable {
+            promise->reject(move(error));
+        });
 
     return promise;
 }
@@ -852,29 +902,35 @@ NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_dom_node_scre
 {
     auto promise = Core::Promise<LexicalPath>::construct();
 
-    if (m_pending_screenshot) {
-        // For simplicity, only allow taking one screenshot at a time for now. Revisit if we need
-        // to allow spamming screenshot requests for some reason.
-        promise->reject(Error::from_string_literal("A screenshot request is already in progress"));
-        return promise;
-    }
-
-    m_pending_screenshot = promise;
-    client().async_take_dom_node_screenshot(page_id(), node_id);
+    take_dom_node_screenshot_bitmap(node_id)
+        ->when_resolved([promise](RefPtr<Gfx::Bitmap const> const& bitmap) mutable {
+            if (auto result = save_screenshot(bitmap.ptr()); result.is_error())
+                promise->reject(result.release_error());
+            else
+                promise->resolve(result.release_value());
+        })
+        .when_rejected([promise](Error& error) mutable {
+            promise->reject(move(error));
+        });
 
     return promise;
 }
 
 void ViewImplementation::did_receive_screenshot(Badge<WebContentClient>, Gfx::ShareableBitmap const& screenshot)
 {
-    VERIFY(m_pending_screenshot);
+    if (!m_pending_screenshot_request)
+        return;
 
-    if (auto result = save_screenshot(screenshot.bitmap()); result.is_error())
-        m_pending_screenshot->reject(result.release_error());
-    else
-        m_pending_screenshot->resolve(result.release_value());
+    auto pending_screenshot_request = m_pending_screenshot_request;
+    m_pending_screenshot_request = nullptr;
+    RefPtr<Gfx::Bitmap const> bitmap = screenshot.bitmap();
 
-    m_pending_screenshot = nullptr;
+    Core::deferred_invoke([pending_screenshot_request = move(pending_screenshot_request), bitmap = move(bitmap)]() mutable {
+        if (!bitmap)
+            pending_screenshot_request->reject(Error::from_string_literal("Failed to receive screenshot bitmap"));
+        else
+            pending_screenshot_request->resolve(bitmap.release_nonnull());
+    });
 }
 
 NonnullRefPtr<Core::Promise<String>> ViewImplementation::request_internal_page_info(PageInfoType type)

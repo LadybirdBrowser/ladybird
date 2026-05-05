@@ -16,8 +16,7 @@
 #include <LibWeb/Painting/BackgroundPainting.h>
 #include <LibWeb/Painting/BoxModelMetrics.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
-#include <LibWeb/Painting/DisplayList.h>
-#include <LibWeb/Painting/DisplayListCommand.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableFragment.h>
 #include <LibWeb/Painting/ResolvedCSSFilter.h>
@@ -159,6 +158,7 @@ public:
     virtual bool handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned buttons, unsigned modifiers, int wheel_delta_x, int wheel_delta_y) override;
 
     struct ScrollbarData {
+        CSSPixelRect scrollbar_rect;
         CSSPixelRect gutter_rect;
         CSSPixelRect thumb_rect;
         CSSPixelFraction thumb_travel_to_scroll_ratio { 0 };
@@ -283,12 +283,12 @@ public:
         return m_cached_phase_commands[to_underlying(phase)].has_value();
     }
 
-    Vector<DisplayListCommand> const& cached_commands(PaintPhase phase) const
+    CachedDisplayListCommands const& cached_commands(PaintPhase phase) const
     {
         return m_cached_phase_commands[to_underlying(phase)].value();
     }
 
-    void set_cached_commands(PaintPhase phase, Vector<DisplayListCommand> commands) const
+    void set_cached_commands(PaintPhase phase, CachedDisplayListCommands commands) const
     {
         m_cached_phase_commands[to_underlying(phase)] = move(commands);
     }
@@ -358,7 +358,7 @@ private:
 
     BoxModelMetrics m_box_model;
 
-    mutable Array<Optional<Vector<DisplayListCommand>>, paint_phase_count> m_cached_phase_commands;
+    mutable Array<Optional<CachedDisplayListCommands>, paint_phase_count> m_cached_phase_commands;
 };
 
 }

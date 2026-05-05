@@ -8,6 +8,7 @@
 
 #include <AK/Assertions.h>
 #include <AK/ByteBuffer.h>
+#include <AK/Debug.h>
 #include <AK/Format.h>
 #include <AK/LexicalPath.h>
 #include <AK/NonnullOwnPtr.h>
@@ -27,12 +28,16 @@
 #include <LibWebView/WebContentClient.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/StringUtils.h>
+#if defined(AK_OS_LINUX) && defined(USE_VULKAN) && defined(USE_VULKAN_DMABUF_IMAGES)
+#    include <UI/Qt/WaylandDmaBufPresenter.h>
+#endif
 #include <UI/Qt/WebContentView.h>
 
 #include <QApplication>
 #include <QCursor>
 #include <QGuiApplication>
 #include <QIcon>
+#include <QMetaObject>
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QPaintEvent>
@@ -374,6 +379,15 @@ static Web::UIEvents::KeyCode get_keycode_from_qt_key_event(QKeyEvent const& eve
 
 void WebContentView::keyPressEvent(QKeyEvent* event)
 {
+    Qt::KeyboardModifiers const modifiers = event->modifiers();
+    if (event->key() == Qt::Key_L
+        && (modifiers & (Qt::ControlModifier | Qt::ShiftModifier)) == (Qt::ControlModifier | Qt::ShiftModifier)
+        && (modifiers & ~(Qt::ControlModifier | Qt::ShiftModifier)) == 0) {
+        debug_request("log-next-gpu-frame"sv);
+        event->accept();
+        return;
+    }
+
     enqueue_native_event(Web::KeyEvent::Type::KeyDown, *event);
 }
 
@@ -506,30 +520,96 @@ void WebContentView::paintEvent(QPaintEvent*)
     QPainter painter(this);
     painter.scale(1 / m_device_pixel_ratio, 1 / m_device_pixel_ratio);
 
-    Gfx::Bitmap const* bitmap = nullptr;
-    Gfx::IntSize bitmap_size;
-
-    if (m_client_state.has_usable_bitmap) {
-        VERIFY(m_client_state.front_bitmap.shared_image_buffer);
-        bitmap = m_client_state.front_bitmap.shared_image_buffer->bitmap().ptr();
-        bitmap_size = m_client_state.front_bitmap.last_painted_size.to_type<int>();
-    } else if (m_backup_shared_image_buffer) {
-        bitmap = m_backup_shared_image_buffer->bitmap().ptr();
-        bitmap_size = m_backup_bitmap_size.to_type<int>();
+    auto frame = presentable_frame();
+    if (!frame.has_value()) {
+        painter.fillRect(rect(), palette().base());
+        return;
     }
 
-    if (bitmap) {
-        QImage q_image(bitmap->scanline_u8(0), bitmap->width(), bitmap->height(), bitmap->pitch(), QImage::Format_RGB32);
+    // The presentable frame is the source of truth: it decides GPU vs CPU painting.
+    if (frame->bitmap) {
+        auto const& bitmap = *frame->bitmap;
+        auto const& bitmap_size = frame->bitmap_size;
+
+        QImage q_image(bitmap.scanline_u8(0), bitmap.width(), bitmap.height(), bitmap.pitch(), QImage::Format_RGB32);
         painter.drawImage(QPoint(0, 0), q_image, QRect(0, 0, bitmap_size.width(), bitmap_size.height()));
 
-        if (bitmap_size.width() < width()) {
-            painter.fillRect(bitmap_size.width(), 0, width() - bitmap_size.width(), bitmap->height(), palette().base());
-        }
-        if (bitmap_size.height() < height()) {
+        if (bitmap_size.width() < width())
+            painter.fillRect(bitmap_size.width(), 0, width() - bitmap_size.width(), bitmap.height(), palette().base());
+        if (bitmap_size.height() < height())
             painter.fillRect(0, bitmap_size.height(), width(), height() - bitmap_size.height(), palette().base());
-        }
 
         return;
+    }
+
+    bool is_gpu_frame = frame->source == WebView::ViewImplementation::PresentableFrame::Source::PresentationSurface
+        && frame->present_id.has_value();
+
+    if (is_gpu_frame) {
+#if defined(AK_OS_LINUX) && defined(USE_VULKAN) && defined(USE_VULKAN_DMABUF_IMAGES) && defined(LADYBIRD_HAVE_WAYLAND_DMABUF)
+        if (!frame->image_id.has_value()) {
+            warnln("WebContentView: GPU frame missing shared image id (present_id={})", frame->present_id.value());
+            did_present_frame(frame->present_id.value());
+        } else if (!QGuiApplication::platformName().startsWith("wayland")) {
+            auto platform_name = QGuiApplication::platformName().toUtf8();
+            warnln("WebContentView: GPU frame cannot be presented on non-wayland platform '{}' (present_id={})", platform_name.constData(), frame->present_id.value());
+            did_present_frame(frame->present_id.value());
+        } else {
+            if (!m_wayland_dmabuf_presenter) {
+                m_wayland_dmabuf_presenter = make<WaylandDmaBufPresenter>(
+                    [this]() { update(); },
+                    [this](u64 present_id) { did_present_frame(present_id); });
+            }
+
+            u64 image_id = frame->image_id.value();
+            u64 present_id = frame->present_id.value();
+            Gfx::IntSize frame_size = frame->bitmap_size;
+
+            if (m_wayland_dmabuf_presenter->has_buffer(image_id)) {
+                auto result = m_wayland_dmabuf_presenter->present_existing(*this, image_id, present_id, frame_size);
+                if (result == WaylandDmaBufPresenter::PresentResult::Presented) {
+                    did_submit_presentation_frame(present_id);
+                    return;
+                }
+                if (result == WaylandDmaBufPresenter::PresentResult::Busy)
+                    return;
+
+                warnln("WebContentView: present_existing failed (image_id={}, present_id={})", image_id, present_id);
+                did_present_frame(present_id);
+                return;
+            }
+
+            auto presentation_buffer = clone_linux_dmabuf_presentation_buffer(image_id);
+            if (!presentation_buffer.has_value()) {
+                warnln("WebContentView: clone_linux_dmabuf_presentation_buffer failed (image_id={}, present_id={})", image_id, present_id);
+                did_present_frame(present_id);
+                return;
+            }
+            auto view_buffer = presentation_buffer.release_value();
+            DmaBufPresentationBuffer buffer {
+                .drm_format = view_buffer.drm_format,
+                .stride = view_buffer.stride,
+                .offset = view_buffer.offset,
+                .fd = AK::move(view_buffer.fd),
+                .width = static_cast<u32>(view_buffer.size.width()),
+                .height = static_cast<u32>(view_buffer.size.height()),
+            };
+
+            auto result = m_wayland_dmabuf_presenter->present(*this, image_id, present_id, frame_size, AK::move(buffer));
+            if (result == WaylandDmaBufPresenter::PresentResult::Presented) {
+                did_submit_presentation_frame(present_id);
+                return;
+            }
+            if (result == WaylandDmaBufPresenter::PresentResult::Busy)
+                return;
+
+            warnln("WebContentView: present failed (image_id={}, present_id={})", image_id, present_id);
+            did_present_frame(present_id);
+        }
+#else
+        warnln("WebContentView: GPU frame cannot be presented (dmabuf presentation not built) (present_id={})", frame->present_id.value());
+        did_present_frame(frame->present_id.value());
+#endif
     }
 
     painter.fillRect(rect(), palette().base());
@@ -538,6 +618,7 @@ void WebContentView::paintEvent(QPaintEvent*)
 void WebContentView::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
+
     update_viewport_size();
     handle_resize();
 }
@@ -593,6 +674,11 @@ void WebContentView::hideEvent(QHideEvent* event)
 {
     QWidget::hideEvent(event);
     set_system_visibility_state(Web::HTML::VisibilityState::Hidden);
+
+#if defined(AK_OS_LINUX) && defined(USE_VULKAN) && defined(USE_VULKAN_DMABUF_IMAGES)
+    if (m_wayland_dmabuf_presenter)
+        m_wayland_dmabuf_presenter->reset();
+#endif
 }
 
 static Core::AnonymousBuffer make_system_theme_from_qt_palette(QWidget& widget, WebContentView::PaletteMode mode)
@@ -656,6 +742,13 @@ void WebContentView::update_screen_rects()
 void WebContentView::initialize_client(WebView::ViewImplementation::CreateNewClient create_new_client)
 {
     ViewImplementation::initialize_client(create_new_client);
+
+#if defined(AK_OS_LINUX) && defined(USE_VULKAN) && defined(USE_VULKAN_DMABUF_IMAGES)
+    bool should_enable_gpu_painting = QGuiApplication::platformName().startsWith("wayland");
+
+    if (!should_enable_gpu_painting)
+        client().async_set_surface_id(m_client_state.page_index, 0);
+#endif
 
     update_palette();
     update_screen_rects();

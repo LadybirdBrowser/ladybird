@@ -32,6 +32,10 @@ public:
     static ErrorOr<ColorSpace> from_cicp(Media::CodingIndependentCodePoints);
     static ErrorOr<ColorSpace> load_from_icc_bytes(ReadonlyBytes);
 
+    bool is_valid() const;
+    bool is_srgb() const;
+    bool is_linear() const;
+
     // In order to keep this file free of Skia types, this function can't return
     // a sk_sp<ColorSpace>. To work around that issue, we define a template here
     // and only provide a specialization for sk_sp<SkColorSpace>.

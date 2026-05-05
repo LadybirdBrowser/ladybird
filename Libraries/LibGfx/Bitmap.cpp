@@ -25,6 +25,26 @@
 
 namespace Gfx {
 
+static bool bitmap_backing_format_is_supported(BitmapFormat format)
+{
+    switch (format) {
+    case BitmapFormat::BGRA8888:
+    case BitmapFormat::BGRx8888:
+    case BitmapFormat::RGBA8888:
+    case BitmapFormat::RGBx8888:
+        return true;
+    case BitmapFormat::RGBAF16:
+    case BitmapFormat::Gray8:
+    case BitmapFormat::Alpha8:
+    case BitmapFormat::RGB565:
+    case BitmapFormat::RGBA5551:
+    case BitmapFormat::RGBA4444:
+    case BitmapFormat::RGB888:
+        return false;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 struct BackingStore {
     void* data { nullptr };
     size_t pitch { 0 };
@@ -34,11 +54,28 @@ struct BackingStore {
 StringView bitmap_format_name(BitmapFormat format)
 {
     switch (format) {
-#define ENUMERATE_BITMAP_FORMAT(format) \
-    case BitmapFormat::format:          \
-        return #format##sv;
-        ENUMERATE_BITMAP_FORMATS(ENUMERATE_BITMAP_FORMAT)
-#undef ENUMERATE_BITMAP_FORMAT
+    case BitmapFormat::BGRA8888:
+        return "BGRA8888"sv;
+    case BitmapFormat::BGRx8888:
+        return "BGRx8888"sv;
+    case BitmapFormat::RGBA8888:
+        return "RGBA8888"sv;
+    case BitmapFormat::RGBx8888:
+        return "RGBx8888"sv;
+    case BitmapFormat::RGBAF16:
+        return "RGBAF16"sv;
+    case BitmapFormat::Gray8:
+        return "Gray8"sv;
+    case BitmapFormat::Alpha8:
+        return "Alpha8"sv;
+    case BitmapFormat::RGB565:
+        return "RGB565"sv;
+    case BitmapFormat::RGBA5551:
+        return "RGBA5551"sv;
+    case BitmapFormat::RGBA4444:
+        return "RGBA4444"sv;
+    case BitmapFormat::RGB888:
+        return "RGB888"sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -53,8 +90,21 @@ size_t Bitmap::minimum_pitch(size_t width, BitmapFormat format)
     case BitmapFormat::RGBA8888:
         element_size = 4;
         break;
-    default:
-        VERIFY_NOT_REACHED();
+    case BitmapFormat::RGBAF16:
+        element_size = 8;
+        break;
+    case BitmapFormat::Gray8:
+    case BitmapFormat::Alpha8:
+        element_size = 1;
+        break;
+    case BitmapFormat::RGB565:
+    case BitmapFormat::RGBA5551:
+    case BitmapFormat::RGBA4444:
+        element_size = 2;
+        break;
+    case BitmapFormat::RGB888:
+        element_size = 3;
+        break;
     }
 
     return width * element_size;
@@ -75,17 +125,23 @@ static bool size_would_overflow(BitmapFormat format, IntSize size)
 ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create(BitmapFormat format, IntSize size)
 {
     // For backwards compatibility, premultiplied alpha is assumed
-    return create(format, AlphaType::Premultiplied, size);
+    return create(format, BitmapAlpha::Premultiplied, size);
 }
 
-ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create(BitmapFormat format, AlphaType alpha_type, IntSize size)
+ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create(BitmapFormat format, BitmapAlpha alpha_type, IntSize size)
 {
+    if (!bitmap_backing_format_is_supported(format))
+        return Error::from_string_literal("Gfx::Bitmap::create unsupported format");
+
     auto backing_store = TRY(Bitmap::allocate_backing_store(format, size));
     return AK::adopt_nonnull_ref_or_enomem(new (nothrow) Bitmap(format, alpha_type, size, backing_store));
 }
 
-ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_shareable(BitmapFormat format, AlphaType alpha_type, IntSize size)
+ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_shareable(BitmapFormat format, BitmapAlpha alpha_type, IntSize size)
 {
+    if (!bitmap_backing_format_is_supported(format))
+        return Error::from_string_literal("Gfx::Bitmap::create_shareable unsupported format");
+
     if (size_would_overflow(format, size))
         return Error::from_string_literal("Gfx::Bitmap::create_shareable size overflow");
 
@@ -97,7 +153,7 @@ ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_shareable(BitmapFormat format, Alp
     return bitmap;
 }
 
-Bitmap::Bitmap(BitmapFormat format, AlphaType alpha_type, IntSize size, BackingStore const& backing_store)
+Bitmap::Bitmap(BitmapFormat format, BitmapAlpha alpha_type, IntSize size, BackingStore const& backing_store)
     : m_size(size)
     , m_data(backing_store.data)
     , m_pitch(backing_store.pitch)
@@ -113,14 +169,17 @@ Bitmap::Bitmap(BitmapFormat format, AlphaType alpha_type, IntSize size, BackingS
     };
 }
 
-ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_wrapper(BitmapFormat format, AlphaType alpha_type, IntSize size, size_t pitch, void* data, Function<void()>&& destruction_callback)
+ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_wrapper(BitmapFormat format, BitmapAlpha alpha_type, IntSize size, size_t pitch, void* data, Function<void()>&& destruction_callback)
 {
+    if (!bitmap_backing_format_is_supported(format))
+        return Error::from_string_literal("Gfx::Bitmap::create_wrapper unsupported format");
+
     if (size_would_overflow(format, size))
         return Error::from_string_literal("Gfx::Bitmap::create_wrapper size overflow");
     return adopt_ref(*new Bitmap(format, alpha_type, size, pitch, data, move(destruction_callback)));
 }
 
-Bitmap::Bitmap(BitmapFormat format, AlphaType alpha_type, IntSize size, size_t pitch, void* data, Function<void()>&& destruction_callback)
+Bitmap::Bitmap(BitmapFormat format, BitmapAlpha alpha_type, IntSize size, size_t pitch, void* data, Function<void()>&& destruction_callback)
     : m_size(size)
     , m_data(data)
     , m_pitch(pitch)
@@ -133,16 +192,22 @@ Bitmap::Bitmap(BitmapFormat format, AlphaType alpha_type, IntSize size, size_t p
     // FIXME: assert that `data` is actually long enough!
 }
 
-ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_with_anonymous_buffer(BitmapFormat format, AlphaType alpha_type, Core::AnonymousBuffer buffer, IntSize size)
+ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_with_anonymous_buffer(BitmapFormat format, BitmapAlpha alpha_type, Core::AnonymousBuffer buffer, IntSize size)
 {
+    if (!bitmap_backing_format_is_supported(format))
+        return Error::from_string_literal("Gfx::Bitmap::create_with_anonymous_buffer unsupported format");
+
     if (size_would_overflow(format, size))
         return Error::from_string_literal("Gfx::Bitmap::create_with_anonymous_buffer size overflow");
 
     return adopt_nonnull_ref_or_enomem(new (nothrow) Bitmap(format, alpha_type, move(buffer), size));
 }
 
-ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_with_raw_data(BitmapFormat format, AlphaType alpha_type, ReadonlyBytes raw_data, IntSize size)
+ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_with_raw_data(BitmapFormat format, BitmapAlpha alpha_type, ReadonlyBytes raw_data, IntSize size)
 {
+    if (!bitmap_backing_format_is_supported(format))
+        return Error::from_string_literal("Gfx::Bitmap::create_with_raw_data unsupported format");
+
     if (size_would_overflow(format, size))
         return Error::from_string_literal("Gfx::Bitmap::create_with_raw_data size overflow");
 
@@ -151,7 +216,7 @@ ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_with_raw_data(BitmapFormat format,
     return AK::adopt_nonnull_ref_or_enomem(new (nothrow) Bitmap(format, alpha_type, size, backing_store));
 }
 
-Bitmap::Bitmap(BitmapFormat format, AlphaType alpha_type, Core::AnonymousBuffer buffer, IntSize size)
+Bitmap::Bitmap(BitmapFormat format, BitmapAlpha alpha_type, Core::AnonymousBuffer buffer, IntSize size)
     : m_size(size)
     , m_data(buffer.data<void>())
     , m_pitch(minimum_pitch(size.width(), format))
@@ -311,7 +376,7 @@ Bitmap::DiffResult Bitmap::diff(Bitmap const& other) const
     return result;
 }
 
-void Bitmap::set_alpha_type_destructive(AlphaType alpha_type)
+void Bitmap::set_alpha_type_destructive(BitmapAlpha alpha_type)
 {
     if (alpha_type == m_alpha_type)
         return;
@@ -324,7 +389,7 @@ void Bitmap::set_alpha_type_destructive(AlphaType alpha_type)
 #ifdef AK_OS_MACOS
     vImage_Buffer buf { .data = m_data, .height = vImagePixelCount(height()), .width = vImagePixelCount(width()), .rowBytes = pitch() };
     vImage_Error err;
-    if (m_alpha_type == AlphaType::Unpremultiplied) {
+    if (m_alpha_type == BitmapAlpha::Unpremultiplied) {
         switch (m_format) {
         case BitmapFormat::BGRA8888:
             err = vImagePremultiplyData_BGRA8888(&buf, &buf, kvImageNoFlags);
@@ -332,6 +397,9 @@ void Bitmap::set_alpha_type_destructive(AlphaType alpha_type)
         case BitmapFormat::RGBA8888:
             err = vImagePremultiplyData_RGBA8888(&buf, &buf, kvImageNoFlags);
             break;
+        case BitmapFormat::BGRx8888:
+        case BitmapFormat::RGBx8888:
+        case BitmapFormat::RGBAF16:
         default:
             VERIFY_NOT_REACHED();
         }
@@ -343,6 +411,9 @@ void Bitmap::set_alpha_type_destructive(AlphaType alpha_type)
         case BitmapFormat::RGBA8888:
             err = vImageUnpremultiplyData_RGBA8888(&buf, &buf, kvImageNoFlags);
             break;
+        case BitmapFormat::BGRx8888:
+        case BitmapFormat::RGBx8888:
+        case BitmapFormat::RGBAF16:
         default:
             VERIFY_NOT_REACHED();
         }

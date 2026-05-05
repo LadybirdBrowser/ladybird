@@ -42,6 +42,7 @@ public:
     virtual void resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const override;
     virtual bool is_paintable() const override;
     virtual void paint(DisplayListRecordingContext&, DevicePixelRect const&, ImageRendering) const override;
+    virtual RefPtr<Gfx::DecodedImageFrame> current_frame(DevicePixelRect const&) const override;
     virtual Optional<Gfx::Color> color_if_single_pixel_bitmap() const override;
 
     AbstractImageStyleValue const* selected_image() const { return m_selected_image; }

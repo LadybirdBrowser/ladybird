@@ -223,9 +223,13 @@ void LocationEdit::focusOutEvent(QFocusEvent* event)
 {
     QLineEdit::focusOutEvent(event);
 
-    reset_autocomplete_state();
-    m_autocomplete->cancel_pending_query();
-    m_autocomplete->close();
+    bool const is_popup_focus_change = event->reason() == Qt::PopupFocusReason;
+
+    if (!is_popup_focus_change) {
+        reset_autocomplete_state();
+        m_autocomplete->cancel_pending_query();
+        m_autocomplete->close();
+    }
 
     if (m_url_is_hidden) {
         m_url_is_hidden = false;
@@ -233,7 +237,7 @@ void LocationEdit::focusOutEvent(QFocusEvent* event)
             setText(qstring_from_ak_string(m_url->serialize()));
     }
 
-    if (event->reason() != Qt::PopupFocusReason) {
+    if (!is_popup_focus_change) {
         setCursorPosition(0);
         highlight_location();
     }

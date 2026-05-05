@@ -66,7 +66,7 @@ void WebUIConnection::send_message(String name, JsonValue data)
 
     auto serialized_detail = Web::WebDriver::json_deserialize(*m_document->browsing_context(), detail);
     if (serialized_detail.is_error()) {
-        warnln("Unable to serialize JSON data from browser: {}", serialized_detail.error());
+        dbgln("Unable to serialize JSON data from browser: {}", serialized_detail.error());
         return;
     }
 
@@ -83,7 +83,7 @@ void WebUIConnection::received_message_from_web_ui(String const& name, JS::Value
 
     auto deserialized_data = Web::WebDriver::json_clone(*m_document->browsing_context(), data);
     if (deserialized_data.is_error()) {
-        warnln("Unable to deserialize JS data from WebUI: {}", deserialized_data.error());
+        dbgln("Unable to deserialize JS data from WebUI: {}", deserialized_data.error());
         return;
     }
 

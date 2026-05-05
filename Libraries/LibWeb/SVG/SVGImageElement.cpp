@@ -9,6 +9,7 @@
 #include <LibGC/Heap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/Bindings/SVGImageElement.h>
+#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/DOM/Event.h>
@@ -43,10 +44,6 @@ void SVGImageElement::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     image_provider_visit_edges(visitor);
     SVGURIReferenceMixin::visit_edges(visitor);
-    visitor.visit(m_x);
-    visitor.visit(m_y);
-    visitor.visit(m_width);
-    visitor.visit(m_height);
     visitor.visit(m_resource_request);
 }
 
@@ -54,19 +51,7 @@ void SVGImageElement::attribute_changed(FlyString const& name, Optional<String> 
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
-    if (name == SVG::AttributeNames::x) {
-        auto parsed_value = AttributeParser::parse_coordinate(value.value_or(String {}));
-        MUST(x()->base_val()->set_value(parsed_value.value_or(0)));
-    } else if (name == SVG::AttributeNames::y) {
-        auto parsed_value = AttributeParser::parse_coordinate(value.value_or(String {}));
-        MUST(y()->base_val()->set_value(parsed_value.value_or(0)));
-    } else if (name == SVG::AttributeNames::width) {
-        auto parsed_value = AttributeParser::parse_coordinate(value.value_or(String {}));
-        MUST(width()->base_val()->set_value(parsed_value.value_or(0)));
-    } else if (name == SVG::AttributeNames::height) {
-        auto parsed_value = AttributeParser::parse_coordinate(value.value_or(String {}));
-        MUST(height()->base_val()->set_value(parsed_value.value_or(0)));
-    } else if (name == SVG::AttributeNames::href) {
+    if (name == SVG::AttributeNames::href) {
         // https://svgwg.org/svg2-draft/linking.html#XLinkRefAttrs
         // For backwards compatibility, elements with an ‘href’ attribute also recognize an ‘href’ attribute in the
         // XLink namespace. If the element is in the XLink namespace, it does not recognize an ‘href’ attribute in the
@@ -86,58 +71,49 @@ void SVGImageElement::attribute_changed(FlyString const& name, Optional<String> 
 // https://svgwg.org/svg2-draft/embedded.html#__svg__SVGImageElement__x
 GC::Ref<SVG::SVGAnimatedLength> SVGImageElement::x()
 {
-    if (!m_x)
-        m_x = fake_animated_length_fixme();
-
-    return *m_x;
+    return svg_animated_length_for_property(CSS::PropertyID::X);
 }
 
 // https://svgwg.org/svg2-draft/embedded.html#__svg__SVGImageElement__y
 GC::Ref<SVG::SVGAnimatedLength> SVGImageElement::y()
 {
-    if (!m_y)
-        m_y = fake_animated_length_fixme();
-
-    return *m_y;
+    return svg_animated_length_for_property(CSS::PropertyID::Y);
 }
 
 // https://svgwg.org/svg2-draft/embedded.html#__svg__SVGImageElement__width
 GC::Ref<SVG::SVGAnimatedLength> SVGImageElement::width()
 {
-    if (!m_width) {
-        auto& realm = this->realm();
-        m_width = SVGAnimatedLength::create(
-            realm,
-            SVGLength::create(realm, 0, intrinsic_width().value_or(0).to_double(), SVGLength::ReadOnly::No),
-            SVGLength::create(realm, 0, 0, SVGLength::ReadOnly::Yes));
-    }
-
-    return *m_width;
+    return svg_animated_length_for_property(CSS::PropertyID::Width);
 }
 
 // https://svgwg.org/svg2-draft/embedded.html#__svg__SVGImageElement__height
 GC::Ref<SVG::SVGAnimatedLength> SVGImageElement::height()
 {
-    if (!m_height) {
-        auto& realm = this->realm();
-        m_height = SVGAnimatedLength::create(
-            realm,
-            SVGLength::create(realm, 0, intrinsic_height().value_or(0).to_double(), SVGLength::ReadOnly::No),
-            SVGLength::create(realm, 0, 0, SVGLength::ReadOnly::Yes));
-    }
-
-    return *m_height;
+    return svg_animated_length_for_property(CSS::PropertyID::Height);
 }
 
 Gfx::FloatRect SVGImageElement::bounding_box() const
 {
+    auto node = unsafe_layout_node();
+    if (!node)
+        return {};
+
+    CSSPixels viewport_width = 0;
+    CSSPixels viewport_height = 0;
+    if (auto viewport = const_cast<SVGImageElement*>(this)->viewport_element()) {
+        if (auto viewport_node = viewport->unsafe_layout_node()) {
+            viewport_width = viewport_node->computed_values().width().to_px(*viewport_node, 0);
+            viewport_height = viewport_node->computed_values().height().to_px(*viewport_node, 0);
+        }
+    }
+
     Optional<float> width;
-    if (attribute(HTML::AttributeNames::width).has_value())
-        width = m_width->base_val()->value();
+    if (!node->computed_values().width().is_auto())
+        width = node->computed_values().width().to_px(*node, viewport_width).to_float();
 
     Optional<float> height;
-    if (attribute(HTML::AttributeNames::height).has_value())
-        height = m_height->base_val()->value();
+    if (!node->computed_values().height().is_auto())
+        height = node->computed_values().height().to_px(*node, viewport_height).to_float();
 
     if (!height.has_value() && width.has_value() && intrinsic_aspect_ratio().has_value())
         height = width.value() / intrinsic_aspect_ratio().value().to_float();
@@ -152,8 +128,8 @@ Gfx::FloatRect SVGImageElement::bounding_box() const
         height = intrinsic_height()->to_float();
 
     return {
-        m_x ? m_x->base_val()->value() : 0.0f,
-        m_y ? m_y->base_val()->value() : 0.0f,
+        node->computed_values().x().to_px(*node, viewport_width).to_float(),
+        node->computed_values().y().to_px(*node, viewport_height).to_float(),
         width.value_or(0.0f),
         height.value_or(0.0f),
     };

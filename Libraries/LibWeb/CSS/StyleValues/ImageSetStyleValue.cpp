@@ -218,6 +218,13 @@ void ImageSetStyleValue::paint(DisplayListRecordingContext& context, DevicePixel
         m_selected_image->paint(context, dest_rect, image_rendering);
 }
 
+RefPtr<Gfx::DecodedImageFrame> ImageSetStyleValue::current_frame(DevicePixelRect const& dest_rect) const
+{
+    if (m_selected_image)
+        return m_selected_image->current_frame(dest_rect);
+    return nullptr;
+}
+
 Optional<Gfx::Color> ImageSetStyleValue::color_if_single_pixel_bitmap() const
 {
     if (m_selected_image)

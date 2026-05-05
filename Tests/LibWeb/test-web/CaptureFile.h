@@ -19,7 +19,7 @@ public:
     explicit CaptureFile(ByteString);
 
     void write(StringView);
-    ErrorOr<bool> transfer_to_output_file();
+    ErrorOr<void> transfer_to_output_file();
 
 private:
     ByteString m_destination_path;

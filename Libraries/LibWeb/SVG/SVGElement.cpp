@@ -342,6 +342,13 @@ GC::Ref<SVGAnimatedLength> SVGElement::svg_animated_length_for_property(CSS::Pro
 {
     // FIXME: Create a proper animated value when animations are supported.
     auto make_length = [&](SVGLength::ReadOnly read_only) {
+        auto const property_name = CSS::string_from_property_id(property);
+        if (auto attribute_value = attribute(property_name); attribute_value.has_value()) {
+            CSS::Parser::ParsingParams parsing_context { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
+            if (auto style_value = parse_css_value(parsing_context, attribute_value.release_value(), property); style_value && !style_value->has_auto())
+                return SVGLength::from_length_percentage(realm(), CSS::LengthPercentage::from_style_value(*style_value), read_only);
+        }
+
         if (auto const computed_properties = this->computed_properties()) {
             auto const& style_value = computed_properties->property(property);
 

@@ -39,7 +39,7 @@ ErrorOr<NonnullOwnPtr<ResourceSubstitutionMap>> ResourceSubstitutionMap::load_fr
 
     for (auto const& entry : substitutions_value->as_array().values()) {
         if (!entry.is_object()) {
-            warnln("Skipping non-object entry in resource substitution map");
+            dbgln("Skipping non-object entry in resource substitution map");
             continue;
         }
 
@@ -49,12 +49,12 @@ ErrorOr<NonnullOwnPtr<ResourceSubstitutionMap>> ResourceSubstitutionMap::load_fr
         auto file_value = obj.get("file"sv);
 
         if (!url_value.has_value() || !url_value->is_string()) {
-            warnln("Skipping entry without valid 'url' string");
+            dbgln("Skipping entry without valid 'url' string");
             continue;
         }
 
         if (!file_value.has_value() || !file_value->is_string()) {
-            warnln("Skipping entry without valid 'file' string");
+            dbgln("Skipping entry without valid 'file' string");
             continue;
         }
 
@@ -69,7 +69,7 @@ ErrorOr<NonnullOwnPtr<ResourceSubstitutionMap>> ResourceSubstitutionMap::load_fr
 
         auto url = URL::Parser::basic_parse(url_value->as_string());
         if (!url.has_value()) {
-            warnln("Skipping entry with invalid URL '{}'", url_value->as_string());
+            dbgln("Skipping entry with invalid URL '{}'", url_value->as_string());
             continue;
         }
 

@@ -6,17 +6,14 @@
 
 #include "CursorStyleValue.h"
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Painter.h>
-#include <LibGfx/PaintingSurface.h>
 #include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/Node.h>
-#include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/DisplayListPlayerSkia.h>
-#include <LibWeb/Painting/DisplayListRecorder.h>
 
 namespace Web::CSS {
 
@@ -89,7 +86,7 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
         // We don't multiply by the pixel ratio, because we want to use the image's actual pixel size.
         DevicePixelSize cursor_device_size { cursor_css_size.to_type<double>().to_rounded<int>() };
 
-        auto maybe_bitmap = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, cursor_device_size.to_type<int>());
+        auto maybe_bitmap = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::BitmapAlpha::Premultiplied, cursor_device_size.to_type<int>());
         if (maybe_bitmap.is_error()) {
             dbgln("Failed to create cursor bitmap: {}", maybe_bitmap.error());
             return {};
@@ -100,30 +97,21 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
 
     // Repaint the bitmap if necessary
     if (m_cache_key != cache_key) {
+        auto& bitmap = *m_cached_bitmap->bitmap();
+
+        image.resolve_for_size(layout_node, CSSPixelSize { bitmap.size() });
+        auto source_frame = image.current_frame(DevicePixelRect { bitmap.rect() });
+        if (!source_frame)
+            return {};
+
         m_cache_key = move(cache_key);
 
         // Clear whatever was in the bitmap before.
-        auto& bitmap = *m_cached_bitmap->bitmap();
         auto painter = Gfx::Painter::create(bitmap);
         painter->clear_rect(bitmap.rect().to_type<float>(), Color::Transparent);
 
-        // Paint the cursor into a bitmap.
-        auto display_list = Painting::DisplayList::create(Painting::AccumulatedVisualContextTree::create());
-        Painting::DisplayListRecorder display_list_recorder(display_list);
-        DisplayListRecordingContext paint_context { display_list_recorder, document.page().palette(), document.page().client().device_pixels_per_css_pixel(), document.page().chrome_metrics() };
-
-        image.resolve_for_size(layout_node, CSSPixelSize { bitmap.size() });
-        image.paint(paint_context, DevicePixelRect { bitmap.rect() }, ImageRendering::Auto);
-
-        switch (document.page().client().display_list_player_type()) {
-        case DisplayListPlayerType::SkiaGPUIfAvailable:
-        case DisplayListPlayerType::SkiaCPU: {
-            auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(bitmap);
-            Painting::DisplayListPlayerSkia display_list_player;
-            display_list_player.execute(*display_list, {}, painting_surface);
-            break;
-        }
-        }
+        auto scaling_mode = to_gfx_scaling_mode(ImageRendering::Auto, source_frame->size(), bitmap.size());
+        painter->draw_bitmap(bitmap.rect().to_type<float>(), *source_frame, source_frame->rect(), scaling_mode, {}, 1.0f, Gfx::CompositingAndBlendingOperator::SourceOver);
     }
 
     // "If the values are unspecified, then the natural hotspot defined inside the image resource itself is used.

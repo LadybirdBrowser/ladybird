@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/Types.h>
+
 namespace Gfx {
 
 class Bitmap;
@@ -26,11 +28,13 @@ class Palette;
 class YUVData;
 class PaletteImpl;
 class Path;
+struct LinuxDmaBufPayload;
+class SharedImagePayload;
 class SharedImage;
-class SharedImageBuffer;
 class ShareableBitmap;
 class SkiaBackendContext;
 struct SystemTheme;
+struct BitmapInfo;
 
 template<typename T>
 class Triangle;
@@ -58,8 +62,10 @@ using FloatSize = Size<float>;
 
 using FloatQuad = Quad<float>;
 
-enum class BitmapFormat;
+enum class BitmapFormat : u8;
 enum class ColorRole;
+enum class BitmapColorSpace : u8;
+enum class BitmapOrigin : u8;
 enum class TextAlignment;
 
 enum class MaskKind {

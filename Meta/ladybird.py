@@ -291,9 +291,11 @@ def configure_build_env(platform: Platform, preset: str, jobs: Optional[str] = N
 
     known_presets = {
         "Debug": build_root_dir / "debug",
+        "Debug_VcpkgWayland": build_root_dir / "debug-vcpkg-wayland",
         "All_Debug": build_root_dir / "alldebug",
         "Distribution": build_root_dir / "distribution",
         "Release": build_root_dir / "release",
+        "Release_VcpkgWayland": build_root_dir / "release-vcpkg-wayland",
         "Sanitizer": build_root_dir / "sanitizers",
         "Host_Tools": build_root_dir / "host-tools-build",
     }

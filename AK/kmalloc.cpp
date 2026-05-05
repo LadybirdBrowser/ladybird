@@ -73,9 +73,12 @@ nothrow_t const nothrow;
 #    include <cstddef>
 #    include <cstring>
 
-#    if __has_feature(address_sanitizer) || defined(__SANITIZE_ADDRESS__)
+#    if __has_feature(address_sanitizer) || defined(__SANITIZE_ADDRESS__) || !defined(NDEBUG)
 // LeakSanitizer does not reliably trace references stored in mimalloc-managed
 // AK containers, so sanitizer builds fall back to the system allocator.
+// We disable it in debug builds because mimalloc's vcpkg debug profile causes
+// severe multi-minute hangs during GenerateWindowOrWorkerInterface and locks up
+// entirely on some pages (like news.google.com)
 #        define AK_USE_SYSTEM_ALLOCATOR_INSTRUMENTED 1
 #    else
 #        include <mimalloc.h>

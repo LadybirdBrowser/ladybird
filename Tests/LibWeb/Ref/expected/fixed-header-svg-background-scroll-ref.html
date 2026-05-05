@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+        min-height: 260vh;
+        background: linear-gradient(#f4f7fb, #d9e2ef 50%, #b7c8dd);
+        font: 16px/1.2 sans-serif;
+    }
+
+    .header {
+        position: fixed;
+        top: 24px;
+        left: 24px;
+        width: 360px;
+        padding: 16px;
+        border: 4px solid #13263a;
+        background: #274762;
+        box-sizing: border-box;
+    }
+
+    .badge {
+        position: relative;
+        width: 240px;
+        height: 88px;
+        border: 3px solid white;
+        background: #10263b;
+        box-sizing: border-box;
+        overflow: hidden;
+    }
+
+    .art {
+        position: absolute;
+        top: 18px;
+        left: 18px;
+        width: 132px;
+        height: 48px;
+        background: #0f2940;
+    }
+
+    .top-left {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 86px;
+        height: 16px;
+        background: #4fb4ff;
+    }
+
+    .top-right {
+        position: absolute;
+        top: 0;
+        left: 94px;
+        width: 38px;
+        height: 16px;
+        background: #f7fbff;
+    }
+
+    .bottom {
+        position: absolute;
+        top: 24px;
+        left: 0;
+        width: 132px;
+        height: 24px;
+        background: #ffb11a;
+    }
+
+    .middle {
+        position: absolute;
+        top: 18px;
+        left: 18px;
+        width: 52px;
+        height: 12px;
+        background: #e8563f;
+    }
+
+    .spacer {
+        height: 240vh;
+    }
+</style>
+<div class="header">
+    <div class="badge">
+        <div class="art">
+            <div class="top-left"></div>
+            <div class="top-right"></div>
+            <div class="bottom"></div>
+            <div class="middle"></div>
+        </div>
+    </div>
+</div>
+<div class="spacer"></div>
+<script>
+    window.onload = () => window.scrollTo(0, 720);
+</script>

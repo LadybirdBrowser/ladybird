@@ -92,7 +92,7 @@ static void decode_image_to_bitmaps_and_durations_with_decoder(Gfx::ImageDecoder
             durations.unchecked_append(0);
         } else {
             auto frame = frame_or_error.release_value();
-            frame.image->set_alpha_type_destructive(Gfx::AlphaType::Premultiplied);
+            frame.image->set_alpha_type_destructive(Gfx::BitmapAlpha::Premultiplied);
             bitmaps.unchecked_append(frame.image);
             durations.unchecked_append(frame.duration);
         }
@@ -152,7 +152,7 @@ static ErrorOr<ConnectionFromClient::DecodeResult> decode_image_to_details(Core:
                 bitmaps.unchecked_append({});
             } else {
                 auto frame = frame_or_error.release_value();
-                frame.image->set_alpha_type_destructive(Gfx::AlphaType::Premultiplied);
+                frame.image->set_alpha_type_destructive(Gfx::BitmapAlpha::Premultiplied);
                 bitmaps.unchecked_append(frame.image);
                 // If frame_duration() returned 0, use the actual decoded duration.
                 if (result.durations[i] == 0)
@@ -249,7 +249,7 @@ void ConnectionFromClient::request_animation_frames(i64 session_id, u32 start_fr
             frames.ensure_capacity(end_index - start_frame_index);
             for (u32 i = start_frame_index; i < end_index; ++i) {
                 auto frame = TRY(decoder->frame(i));
-                frame.image->set_alpha_type_destructive(Gfx::AlphaType::Premultiplied);
+                frame.image->set_alpha_type_destructive(Gfx::BitmapAlpha::Premultiplied);
                 frames.unchecked_append(move(frame));
             }
             return frames;

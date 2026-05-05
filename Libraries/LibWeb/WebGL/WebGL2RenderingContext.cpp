@@ -6,7 +6,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGfx/SkiaBackendContext.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -29,30 +28,13 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGL2RenderingContext);
 
-JS::ThrowCompletionOr<GC::Ptr<WebGL2RenderingContext>> WebGL2RenderingContext::create(JS::Realm& realm, HTML::HTMLCanvasElement& canvas_element, JS::Value options)
+JS::ThrowCompletionOr<GC::Ptr<WebGL2RenderingContext>> WebGL2RenderingContext::create(JS::Realm&, HTML::HTMLCanvasElement& canvas_element, JS::Value options)
 {
     // We should be coming here from getContext being called on a wrapped <canvas> element.
-    auto context_attributes = TRY(convert_value_to_context_attributes_dictionary(canvas_element.vm(), options));
+    [[maybe_unused]] auto context_attributes = TRY(convert_value_to_context_attributes_dictionary(canvas_element.vm(), options));
 
-    auto skia_backend_context = Gfx::SkiaBackendContext::the_main_thread_context();
-    if (!skia_backend_context) {
-        fire_webgl_context_creation_error(canvas_element);
-        return GC::Ptr<WebGL2RenderingContext> { nullptr };
-    }
-    OpenGLContext::DrawingBufferOptions context_options {
-        .depth = context_attributes.depth,
-        .stencil = context_attributes.stencil,
-        .antialias = context_attributes.antialias,
-    };
-    auto context = OpenGLContext::create(*skia_backend_context, OpenGLContext::WebGLVersion::WebGL2, context_options);
-    if (!context) {
-        fire_webgl_context_creation_error(canvas_element);
-        return GC::Ptr<WebGL2RenderingContext> { nullptr };
-    }
-
-    context->set_size(canvas_element.bitmap_size_for_canvas(1, 1));
-
-    return realm.create<WebGL2RenderingContext>(realm, canvas_element, context.release_nonnull(), context_attributes, context_attributes);
+    fire_webgl_context_creation_error(canvas_element);
+    return GC::Ptr<WebGL2RenderingContext> { nullptr };
 }
 
 WebGL2RenderingContext::WebGL2RenderingContext(JS::Realm& realm, HTML::HTMLCanvasElement& canvas_element, NonnullOwnPtr<OpenGLContext> context, WebGLContextAttributes context_creation_parameters, WebGLContextAttributes actual_context_parameters)

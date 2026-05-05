@@ -23,14 +23,13 @@ Layout::SVGBox const& SVGPaintable::layout_box() const
     return static_cast<Layout::SVGBox const&>(layout_node());
 }
 
-// https://drafts.csswg.org/css-masking-1/#ClipPathElement
+// https://drafts.fxtf.org/css-masking-1/#ClipPathElement
 bool SVGPaintable::contributes_to_clip_path() const
 {
     // If a child element is made invisible by display or visibility it does not contribute to the clipping path.
     return computed_values().visibility() == CSS::Visibility::Visible && !display().is_none();
 }
 
-// https://drafts.csswg.org/css-masking-1/#ClipPathElement
 Optional<CSSPixelRect> SVGPaintable::clip_path_geometry_bounds(Gfx::AffineTransform const& additional_transform) const
 {
     if (!contributes_to_clip_path())
@@ -50,8 +49,8 @@ Optional<CSSPixelRect> SVGPaintable::clip_path_geometry_bounds(Gfx::AffineTransf
         if (!child_bounds.has_value())
             return IterationDecision::Continue;
 
-        bounding_box.add_point(child_bounds->left(), child_bounds->top());
-        bounding_box.add_point(child_bounds->right(), child_bounds->bottom());
+        bounding_box.add_point(child_bounds->location());
+        bounding_box.add_point(child_bounds->location().translated(child_bounds->width(), child_bounds->height()));
         return IterationDecision::Continue;
     });
 

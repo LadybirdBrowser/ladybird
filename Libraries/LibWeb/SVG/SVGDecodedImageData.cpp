@@ -4,8 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/EventLoop.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
+#include <LibGfx/SharedImage.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/DOM/Document.h>
@@ -13,13 +15,15 @@
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/NavigationParams.h>
+#include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/DisplayListPlayerSkia.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
+#include <LibWeb/Painting/ExternalContentSource.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/XML/XMLDocumentBuilder.h>
@@ -30,7 +34,13 @@ namespace Web::SVG {
 GC_DEFINE_ALLOCATOR(SVGDecodedImageData);
 GC_DEFINE_ALLOCATOR(SVGDecodedImageData::SVGPageClient);
 
-ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& realm, GC::Ref<Page> host_page, URL::URL const& url, ReadonlyBytes data)
+struct SVGDecodedImageData::CachedOffscreenRender {
+    RefPtr<Gfx::DecodedImageFrame> frame;
+    RefPtr<Painting::ExternalContentSource> source;
+    bool pending { false };
+};
+
+ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& realm, GC::Ref<Page> host_page, URL::URL const& url, ReadonlyBytes encoded_svg)
 {
     auto page_client = SVGPageClient::create(Bindings::main_thread_vm(), host_page);
     auto page = Page::create(Bindings::main_thread_vm(), *page_client);
@@ -64,7 +74,7 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& rea
     auto& window = as<HTML::Window>(HTML::relevant_global_object(document));
     document->browsing_context()->window_proxy()->set_window(window);
 
-    XML::Parser parser(data, { .resolve_named_html_entity = resolve_named_html_entity });
+    XML::Parser parser(encoded_svg, { .resolve_named_html_entity = resolve_named_html_entity });
     XMLDocumentBuilder builder { document, XMLScriptingSupport::Disabled };
     auto result = parser.parse_with_listener(builder);
     if (result.is_error())
@@ -102,46 +112,69 @@ void SVGDecodedImageData::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_root_element);
 }
 
-RefPtr<Painting::DisplayList> SVGDecodedImageData::record_display_list(Gfx::IntSize size) const
-{
-    m_document->navigable()->set_viewport_size(size.to_type<CSSPixels>());
-    m_document->update_layout(DOM::UpdateLayoutReason::SVGDecodedImageDataRender);
-    return m_document->record_display_list({});
-}
-
-RefPtr<Gfx::PaintingSurface> SVGDecodedImageData::render_to_surface(Gfx::IntSize size) const
+SVGDecodedImageData::CachedOffscreenRender const* SVGDecodedImageData::ensure_offscreen_render(Gfx::IntSize size) const
 {
     VERIFY(m_document->navigable());
 
     if (size.is_empty())
         return nullptr;
 
-    if (auto it = m_cached_rendered_surfaces.find(size); it != m_cached_rendered_surfaces.end())
-        return it->value;
+    if (auto it = m_cached_offscreen_renders.find(size); it != m_cached_offscreen_renders.end())
+        return &it->value;
 
     // Prevent the cache from growing too big.
     // FIXME: Evict least used entries.
-    if (m_cached_rendered_surfaces.size() > 10)
-        m_cached_rendered_surfaces.remove(m_cached_rendered_surfaces.begin());
+    if (m_cached_offscreen_renders.size() > 10)
+        m_cached_offscreen_renders.remove(m_cached_offscreen_renders.begin());
 
-    auto surface = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
-    auto display_list = record_display_list(size);
-    if (!display_list)
+    m_document->navigable()->set_viewport_size(size.to_type<CSSPixels>());
+    m_document->update_layout(DOM::UpdateLayoutReason::SVGDecodedImageDataRender);
+
+    PaintServer::OffscreenRenderTarget target {
+        .kind = PaintServer::OffscreenTargetKind::ContentImage,
+        .backend_preference = PaintServer::OffscreenBackendPreference::PreferGPU,
+    };
+    HTML::PaintConfig paint_config {};
+
+    auto source = Painting::ExternalContentSource::create();
+    source->set_pending_content();
+    m_cached_offscreen_renders.set(size, CachedOffscreenRender {
+                                             .frame = nullptr,
+                                             .source = source,
+                                             .pending = true,
+                                         });
+    auto request_id = m_page_client->m_host_page->client().request_offscreen_render(PageClient::OffscreenPaintRequest {
+        .document = *m_document,
+        .paint_config = paint_config,
+        .target = target,
+        .readiness = Painting::OffscreenPaintSync::SubmitImmediately,
+        .callback = [self = GC::make_root(this), source, size](PageClient::OffscreenRenderResult result) mutable {
+            if (!result.content_image.has_value() || result.image_id == 0) {
+                source->clear();
+                self->m_cached_offscreen_renders.remove(size);
+                return;
+            }
+
+            auto shared_image = make<Gfx::SharedImage>(Gfx::SharedImage::import_from_payload(result.content_image.release_value()));
+            source->set_content_image(result.image_id, shared_image->export_payload());
+            auto frame = Gfx::DecodedImageFrame::create(*shared_image->bitmap(), shared_image->color_space());
+            self->m_cached_offscreen_renders.set(size, CachedOffscreenRender {
+                                                           .frame = frame,
+                                                           .source = move(source),
+                                                           .pending = false,
+                                                       });
+            self->m_page_client->m_host_page->client().request_frame();
+        },
+    });
+    if (!request_id.has_value()) {
+        source->clear();
+        m_cached_offscreen_renders.remove(size);
         return nullptr;
-
-    switch (m_page_client->display_list_player_type()) {
-    case DisplayListPlayerType::SkiaGPUIfAvailable:
-    case DisplayListPlayerType::SkiaCPU: {
-        Painting::DisplayListPlayerSkia display_list_player;
-        display_list_player.execute(*display_list, {}, surface);
-        break;
-    }
-    default:
-        VERIFY_NOT_REACHED();
     }
 
-    m_cached_rendered_surfaces.set(size, *surface);
-    return surface;
+    if (auto it = m_cached_offscreen_renders.find(size); it != m_cached_offscreen_renders.end())
+        return &it->value;
+    return nullptr;
 }
 
 RefPtr<Gfx::DecodedImageFrame> SVGDecodedImageData::frame(size_t, Gfx::IntSize size) const
@@ -149,17 +182,33 @@ RefPtr<Gfx::DecodedImageFrame> SVGDecodedImageData::frame(size_t, Gfx::IntSize s
     if (size.is_empty())
         return nullptr;
 
-    if (auto it = m_cached_rendered_frames.find(size); it != m_cached_rendered_frames.end())
-        return it->value;
+    auto const* cached_render = ensure_offscreen_render(size);
+    if (!cached_render || cached_render->pending)
+        return nullptr;
+    return cached_render->frame;
+}
 
-    // Prevent the cache from growing too big.
-    // FIXME: Evict least used entries.
-    if (m_cached_rendered_frames.size() > 10)
-        m_cached_rendered_frames.remove(m_cached_rendered_frames.begin());
+RefPtr<Painting::ExternalContentSource> SVGDecodedImageData::external_content_source(size_t, Gfx::IntSize size) const
+{
+    if (size.is_empty())
+        return nullptr;
 
-    auto decoded_frame = Gfx::DecodedImageFrame::create(*render_to_surface(size)->snapshot_bitmap());
-    m_cached_rendered_frames.set(size, decoded_frame);
-    return decoded_frame;
+    auto const* cached_render = ensure_offscreen_render(size);
+    if (!cached_render)
+        return nullptr;
+    return cached_render->source;
+}
+
+void SVGDecodedImageData::when_frame_available(Gfx::IntSize size, ESCAPING GC::Root<GC::Function<void()>> callback) const
+{
+    auto const* cached_render = ensure_offscreen_render(size);
+    if (!cached_render || !cached_render->source || !cached_render->pending) {
+        Core::deferred_invoke([callback = move(callback)]() mutable {
+            callback->function()();
+        });
+        return;
+    }
+    cached_render->source->when_content_is_finalized(move(callback));
 }
 
 Optional<CSSPixels> SVGDecodedImageData::intrinsic_width() const
@@ -221,20 +270,15 @@ Optional<Gfx::IntRect> SVGDecodedImageData::frame_rect(size_t) const
     return {};
 }
 
-RefPtr<Gfx::PaintingSurface> SVGDecodedImageData::surface(size_t, Gfx::IntSize size) const
+void SVGDecodedImageData::paint(DisplayListRecordingContext& context, size_t, Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, Gfx::ScalingMode scaling_mode) const
 {
-    return render_to_surface(size);
-}
-
-void SVGDecodedImageData::paint(DisplayListRecordingContext& context, size_t, Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, Gfx::ScalingMode) const
-{
-    auto display_list = record_display_list(dst_rect.size());
-    if (!display_list)
+    auto const* cached_render = ensure_offscreen_render(dst_rect.size());
+    if (!cached_render || !cached_render->source)
         return;
 
     context.display_list_recorder().save();
     context.display_list_recorder().add_clip_rect(clip_rect);
-    context.display_list_recorder().paint_nested_display_list(display_list, dst_rect);
+    context.display_list_recorder().draw_external_content(dst_rect, NonnullRefPtr<Painting::ExternalContentSource> { *cached_render->source }, scaling_mode);
     context.display_list_recorder().restore();
 }
 

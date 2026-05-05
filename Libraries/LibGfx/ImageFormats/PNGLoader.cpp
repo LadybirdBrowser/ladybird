@@ -64,7 +64,7 @@ ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> PNGImageDecoderPlugin::create(Readonl
         // NOTE: If we didn't fail in initialize(), that means we have size information.
         //       We can create a single-frame bitmap with that size and return it.
         //       This is weird, but kinda matches the behavior of other browsers.
-        auto bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Premultiplied, decoder->m_context->size));
+        auto bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, BitmapAlpha::Premultiplied, decoder->m_context->size));
         decoder->m_context->frame_descriptors.append({ move(bitmap), 0 });
         decoder->m_context->frame_count = 1;
         return decoder;
@@ -257,7 +257,7 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
 {
     Vector<u8*> row_pointers;
     auto decode_frame = [&](IntSize frame_size) -> ErrorOr<NonnullRefPtr<Bitmap>> {
-        auto frame_bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, frame_size));
+        auto frame_bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, BitmapAlpha::Unpremultiplied, frame_size));
 
         row_pointers.resize_and_keep_capacity(frame_size.height());
         for (auto i = 0; i < frame_size.height(); ++i)
@@ -272,7 +272,7 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
         png_set_acTL(png_ptr, info_ptr, frame_count, loop_count);
 
         // Conceptually, at the beginning of each play the output buffer must be completely initialized to a fully transparent black rectangle, with width and height dimensions from the `IHDR` chunk.
-        auto output_buffer = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, size));
+        auto output_buffer = TRY(Bitmap::create(BitmapFormat::BGRA8888, BitmapAlpha::Unpremultiplied, size));
         auto painter = Painter::create(output_buffer);
         size_t animation_frame_count = 0;
 

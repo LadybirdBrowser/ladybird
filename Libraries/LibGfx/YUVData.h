@@ -45,6 +45,7 @@ public:
     Bytes v_data();
 
     ErrorOr<NonnullRefPtr<Bitmap>> to_bitmap() const;
+    void expand_samples_to_full_16_bit_range();
 
     SkYUVAPixmaps make_pixmaps() const;
 

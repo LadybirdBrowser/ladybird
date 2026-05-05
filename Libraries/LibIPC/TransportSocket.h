@@ -72,6 +72,7 @@ public:
     ShouldShutdown read_as_many_messages_as_possible_without_blocking(Function<void(Message&&)>&&);
 
     ErrorOr<TransportHandle> release_for_transfer();
+    ErrorOr<pid_t> peer_pid() const { return m_socket->peer_pid(); }
 
 private:
     enum class TransferState {

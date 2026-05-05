@@ -175,6 +175,13 @@ RefPtr<Gfx::DecodedImageFrame> ImageStyleValue::current_frame(DevicePixelRect co
     return frame(m_current_frame_index, dest_rect.size().to_type<int>());
 }
 
+RefPtr<Painting::ExternalContentSource> ImageStyleValue::current_frame_external_content_source(DevicePixelRect const& dest_rect) const
+{
+    if (auto image_data = this->image_data())
+        return image_data->external_content_source(m_current_frame_index, dest_rect.size().to_type<int>());
+    return nullptr;
+}
+
 GC::Ptr<HTML::DecodedImageData> ImageStyleValue::image_data() const
 {
     if (!m_resource_request)

@@ -134,7 +134,7 @@ private:
         m_size = { info.xsize, info.ysize };
 
         m_animated = static_cast<bool>(info.have_animation);
-        m_alpha_premultiplied = info.alpha_premultiplied ? Gfx::AlphaType::Premultiplied : Gfx::AlphaType::Unpremultiplied;
+        m_alpha_premultiplied = info.alpha_premultiplied ? Gfx::BitmapAlpha::Premultiplied : Gfx::BitmapAlpha::Unpremultiplied;
 
         if (m_animated)
             m_loop_count = info.animation.num_loops;
@@ -183,7 +183,7 @@ private:
     Vector<ImageFrameDescriptor> m_frame_descriptors;
 
     bool m_animated { false };
-    Gfx::AlphaType m_alpha_premultiplied { Gfx::AlphaType::Premultiplied };
+    Gfx::BitmapAlpha m_alpha_premultiplied { Gfx::BitmapAlpha::Premultiplied };
     u32 m_loop_count { 0 };
     u32 m_frame_count { 0 };
 };

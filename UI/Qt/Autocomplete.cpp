@@ -28,6 +28,7 @@
 #include <QPoint>
 #include <QStyledItemDelegate>
 #include <QVBoxLayout>
+#include <QWindow>
 
 namespace Ladybird {
 
@@ -41,6 +42,7 @@ static constexpr int SECTION_HEADER_HORIZONTAL_PADDING = 10;
 static constexpr int SECTION_HEADER_VERTICAL_PADDING = 4;
 static constexpr int MINIMUM_POPUP_WIDTH = 100;
 static constexpr size_t MAXIMUM_VISIBLE_AUTOCOMPLETE_SUGGESTIONS = 8;
+static constexpr Qt::WindowFlags AUTOCOMPLETE_POPUP_FLAGS = Qt::Popup | Qt::FramelessWindowHint | Qt::WindowDoesNotAcceptFocus;
 
 enum AutocompleteRole {
     RowKindRole = Qt::UserRole + 1,
@@ -96,6 +98,61 @@ static QIcon search_icon()
 {
     static QIcon icon = create_tvg_icon_with_theme_colors("search", QApplication::palette());
     return icon;
+}
+
+static void update_popup_transient_parent(QWidget& popup, QWidget const& anchor)
+{
+    auto* top_window = anchor.window();
+    if (!top_window)
+        return;
+
+    popup.winId();
+    auto* popup_window = popup.windowHandle();
+    auto* parent_window = top_window->windowHandle();
+    if (!popup_window || !parent_window)
+        return;
+
+    popup_window->setTransientParent(parent_window);
+}
+
+static bool event_target_is_popup(QObject* target, QWidget const& popup)
+{
+    auto* widget = qobject_cast<QWidget*>(target);
+    if (!widget)
+        return false;
+    return widget == &popup || popup.isAncestorOf(widget);
+}
+
+static void forward_key_event_to_anchor(QLineEdit& anchor, QKeyEvent const& event)
+{
+    QKeyEvent forwarded_event(
+        event.type(),
+        event.key(),
+        event.modifiers(),
+        event.text(),
+        event.isAutoRepeat(),
+        event.count());
+    QCoreApplication::sendEvent(&anchor, &forwarded_event);
+}
+
+static void forward_mouse_event_to_widget(QWidget& widget, QMouseEvent const& event, QPoint const& global_position)
+{
+    QPointF const local_position = widget.mapFromGlobal(global_position);
+    QMouseEvent forwarded_event(
+        event.type(),
+        local_position,
+        global_position,
+        event.button(),
+        event.buttons(),
+        event.modifiers(),
+        event.pointingDevice());
+    QCoreApplication::sendEvent(&widget, &forwarded_event);
+}
+
+static void forward_leave_event_to_widget(QWidget& widget)
+{
+    QEvent leave_event(QEvent::Leave);
+    QCoreApplication::sendEvent(&widget, &leave_event);
 }
 
 class AutocompleteModel final : public QAbstractListModel {
@@ -352,15 +409,17 @@ Autocomplete::Autocomplete(QLineEdit* anchor)
     , m_anchor(anchor)
     , m_autocomplete(make<WebView::Autocomplete>())
 {
-    // The popup is parented to the anchor's top-level window in
-    // position_popup() rather than made its own window, so that showing
-    // it never causes the address bar to lose keyboard focus.
-    m_popup = new QFrame();
+    // Keep this as a real window so it gets its own native surface.
+    // These flags keep it above the browser window without stealing focus.
+    m_popup = new QFrame(nullptr, AUTOCOMPLETE_POPUP_FLAGS);
+    m_popup->setAttribute(Qt::WA_ShowWithoutActivating);
+    m_popup->setAttribute(Qt::WA_NativeWindow);
     m_popup->setFocusPolicy(Qt::NoFocus);
     m_popup->setFrameShape(QFrame::StyledPanel);
     m_popup->setFrameShadow(QFrame::Raised);
     m_popup->setAutoFillBackground(true);
     m_popup->hide();
+    update_popup_transient_parent(*m_popup, *m_anchor);
 
     m_list_view = new QListView(m_popup);
     m_list_view->setFocusPolicy(Qt::NoFocus);
@@ -427,8 +486,10 @@ void Autocomplete::show_with_suggestions(Vector<WebView::AutocompleteSuggestion>
     }
 
     position_popup();
-    if (!m_popup->isVisible())
+    if (!m_popup->isVisible()) {
         m_popup->show();
+        m_popup->raise();
+    }
 
     int table_row = m_model->table_row_for_suggestion_index(selected_suggestion_index);
     if (table_row == -1)
@@ -442,7 +503,6 @@ bool Autocomplete::close()
     if (!m_popup->isVisible())
         return false;
     m_popup->hide();
-    emit did_close();
     return true;
 }
 
@@ -477,6 +537,7 @@ bool Autocomplete::select_next_suggestion()
     if (!m_popup->isVisible()) {
         position_popup();
         m_popup->show();
+        m_popup->raise();
         int row = step_to_selectable_row(-1, 1);
         if (row != -1)
             select_row(row);
@@ -499,6 +560,7 @@ bool Autocomplete::select_previous_suggestion()
     if (!m_popup->isVisible()) {
         position_popup();
         m_popup->show();
+        m_popup->raise();
         int row = step_to_selectable_row(0, -1);
         if (row != -1)
             select_row(row);
@@ -513,15 +575,102 @@ bool Autocomplete::select_previous_suggestion()
     return true;
 }
 
+QWidget* Autocomplete::replay_target_at(QPoint const& global_position) const
+{
+    auto* target = QApplication::widgetAt(global_position);
+    if (!target || event_target_is_popup(target, *m_popup))
+        return nullptr;
+    return target;
+}
+
+void Autocomplete::update_hover_replay_target(QWidget* target)
+{
+    if (m_hover_replay_target == target)
+        return;
+
+    if (m_hover_replay_target) {
+        forward_leave_event_to_widget(*m_hover_replay_target);
+    }
+    m_hover_replay_target = target;
+}
+
+bool Autocomplete::replay_outside_mouse_event(QMouseEvent const& event)
+{
+    QPoint const global_position = event.globalPosition().toPoint();
+    QRect const popup_global = QRect(m_popup->mapToGlobal(QPoint(0, 0)), m_popup->size());
+    if (popup_global.contains(global_position))
+        return false;
+
+    QWidget* target = nullptr;
+    if (event.type() == QEvent::MouseButtonRelease && m_pressed_replay_target)
+        target = m_pressed_replay_target;
+    else
+        target = replay_target_at(global_position);
+
+    if (event.type() == QEvent::MouseMove) {
+        update_hover_replay_target(target);
+        if (target)
+            forward_mouse_event_to_widget(*target, event, global_position);
+        return true;
+    }
+    if (event.type() == QEvent::MouseButtonPress) {
+        m_pressed_replay_target = target;
+        if (target)
+            forward_mouse_event_to_widget(*target, event, global_position);
+        return true;
+    }
+    if (event.type() == QEvent::MouseButtonRelease) {
+        if (target)
+            forward_mouse_event_to_widget(*target, event, global_position);
+        m_pressed_replay_target = nullptr;
+        close();
+        return true;
+    }
+    if (event.type() == QEvent::MouseButtonDblClick) {
+        m_pressed_replay_target = target;
+        if (target)
+            forward_mouse_event_to_widget(*target, event, global_position);
+        return true;
+    }
+    return false;
+}
+
 bool Autocomplete::eventFilter(QObject* watched, QEvent* event)
 {
-    if (event->type() == QEvent::MouseButtonPress && is_visible()) {
-        auto* mouse_event = static_cast<QMouseEvent*>(event);
-        auto global = mouse_event->globalPosition().toPoint();
-        auto popup_global = QRect(m_popup->mapToGlobal(QPoint(0, 0)), m_popup->size());
-        auto anchor_global = QRect(m_anchor->mapToGlobal(QPoint(0, 0)), m_anchor->size());
-        if (!popup_global.contains(global) && !anchor_global.contains(global))
+    auto* top_window = m_anchor->window();
+
+    if (watched == m_popup && event->type() == QEvent::Hide) {
+        update_hover_replay_target(nullptr);
+        m_pressed_replay_target = nullptr;
+        emit did_close();
+    }
+    if (is_visible() && (watched == m_anchor || watched == top_window)) {
+        if (event->type() == QEvent::Move || event->type() == QEvent::Resize) {
+            position_popup();
+        } else if (event->type() == QEvent::Hide || event->type() == QEvent::Close) {
             close();
+        }
+    }
+    if (is_visible() && event_target_is_popup(watched, *m_popup)) {
+        if (event->type() == QEvent::MouseMove
+            || event->type() == QEvent::MouseButtonPress
+            || event->type() == QEvent::MouseButtonRelease
+            || event->type() == QEvent::MouseButtonDblClick) {
+            auto* mouse_event = static_cast<QMouseEvent*>(event);
+            if (replay_outside_mouse_event(*mouse_event))
+                return true;
+        }
+        if (event->type() == QEvent::ShortcutOverride) {
+            auto* key_event = static_cast<QKeyEvent*>(event);
+            forward_key_event_to_anchor(*m_anchor, *key_event);
+            event->accept();
+            return true;
+        }
+        if (event->type() == QEvent::KeyPress || event->type() == QEvent::KeyRelease) {
+            auto* key_event = static_cast<QKeyEvent*>(event);
+            forward_key_event_to_anchor(*m_anchor, *key_event);
+            return true;
+        }
     }
     return QObject::eventFilter(watched, event);
 }
@@ -551,8 +700,8 @@ void Autocomplete::position_popup()
     auto* top_window = m_anchor->window();
     if (!top_window)
         return;
-    if (m_popup->parentWidget() != top_window)
-        m_popup->setParent(top_window);
+
+    update_popup_transient_parent(*m_popup, *m_anchor);
 
     int width = std::max(m_anchor->width(), MINIMUM_POPUP_WIDTH);
     int frame_overhead = m_popup->frameWidth() * 2;
@@ -561,9 +710,10 @@ void Autocomplete::position_popup()
     m_list_view->setFixedHeight(total_height);
     m_popup->setFixedSize(width, popup_height);
 
-    auto pos_in_window = m_anchor->mapTo(top_window, QPoint(0, m_anchor->height()));
-    m_popup->move(pos_in_window);
-    m_popup->raise();
+    auto global_pos = m_anchor->mapToGlobal(QPoint(0, m_anchor->height()));
+    m_popup->move(global_pos);
+    if (m_popup->isVisible())
+        m_popup->raise();
 }
 
 bool Autocomplete::is_selectable_row(int row) const

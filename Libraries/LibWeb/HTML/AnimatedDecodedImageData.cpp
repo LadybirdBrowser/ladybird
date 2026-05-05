@@ -4,8 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
+#include <AK/Debug.h>
+#include <AK/StdLibExtras.h>
 #include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/HTML/AnimatedDecodedImageData.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
@@ -13,6 +17,28 @@
 #include <LibWeb/Platform/ImageCodecPlugin.h>
 
 namespace Web::HTML {
+
+struct DecodedFrame {
+    NonnullRefPtr<Gfx::DecodedImageFrame> frame;
+};
+
+static u32 allocate_animated_image_owner_id()
+{
+    static Atomic<u32> s_next_owner_id { 1 };
+    u32 owner_id = s_next_owner_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed);
+    VERIFY(owner_id != 0);
+    return owner_id;
+}
+
+static DecodedFrame make_decoded_frame(NonnullRefPtr<Gfx::Bitmap> bitmap, Gfx::ColorSpace const& color_space, Optional<u64> stable_image_id)
+{
+    (void)stable_image_id;
+    auto frame = Gfx::DecodedImageFrame::create(NonnullRefPtr<Gfx::Bitmap const> { *bitmap }, color_space);
+
+    return {
+        .frame = move(frame),
+    };
+}
 
 GC_DEFINE_ALLOCATOR(AnimatedDecodedImageData);
 
@@ -58,16 +84,19 @@ GC::Ref<AnimatedDecodedImageData> AnimatedDecodedImageData::create(
     Gfx::IntSize size,
     Gfx::ColorSpace color_space,
     Vector<u32> durations,
-    Vector<NonnullRefPtr<Gfx::Bitmap>> initial_bitmaps)
+    Vector<NonnullRefPtr<Gfx::Bitmap>> initial_bitmaps,
+    bool use_gpu_backed_bitmap_resources)
 {
     auto data = realm.create<AnimatedDecodedImageData>(
-        session_id, frame_count, loop_count, size, move(color_space), move(durations));
+        session_id, frame_count, loop_count, size, move(color_space), move(durations), use_gpu_backed_bitmap_resources);
 
     // Place initial bitmaps into the buffer pool.
     for (u32 i = 0; i < initial_bitmaps.size(); ++i) {
+        auto decoded_frame = make_decoded_frame(*initial_bitmaps[i], data->m_color_space, data->stable_image_id_for_frame(i));
+
         auto& slot = data->m_buffer_slots[i % BUFFER_POOL_SIZE];
         slot.frame_index = i;
-        slot.frame = Gfx::DecodedImageFrame::create(*initial_bitmaps[i], data->m_color_space);
+        slot.frame = move(decoded_frame.frame);
         slot.generation = ++data->m_write_generation;
     }
 
@@ -78,6 +107,7 @@ GC::Ref<AnimatedDecodedImageData> AnimatedDecodedImageData::create(
 
     install_frame_delivery_callback();
     session_registry().set(session_id, data.ptr());
+    data->maybe_request_more_frames(data->m_current_frame_index);
 
     return data;
 }
@@ -88,13 +118,16 @@ AnimatedDecodedImageData::AnimatedDecodedImageData(
     u32 loop_count,
     Gfx::IntSize size,
     Gfx::ColorSpace color_space,
-    Vector<u32> durations)
+    Vector<u32> durations,
+    bool use_gpu_backed_bitmap_resources)
     : m_session_id(session_id)
+    , m_image_owner_id(use_gpu_backed_bitmap_resources ? allocate_animated_image_owner_id() : 0)
     , m_frame_count(frame_count)
     , m_loop_count(loop_count)
     , m_size(size)
     , m_color_space(move(color_space))
     , m_durations(move(durations))
+    , m_use_gpu_backed_bitmap_resources(use_gpu_backed_bitmap_resources)
 {
 }
 
@@ -116,14 +149,37 @@ AnimatedDecodedImageData::BufferSlot const* AnimatedDecodedImageData::find_slot(
     return nullptr;
 }
 
+Optional<u64> AnimatedDecodedImageData::stable_image_id_for_frame(u32 frame_index) const
+{
+    if (!m_use_gpu_backed_bitmap_resources || m_image_owner_id == 0)
+        return {};
+    return (static_cast<u64>(m_image_owner_id) << 32) | frame_index;
+}
+
 AnimatedDecodedImageData::BufferSlot& AnimatedDecodedImageData::evict_oldest_slot()
 {
-    BufferSlot* oldest = &m_buffer_slots[0];
+    BufferSlot* oldest = m_buffer_slots.data();
     for (auto& slot : m_buffer_slots) {
         if (slot.generation < oldest->generation)
             oldest = &slot;
     }
     return *oldest;
+}
+
+u32 AnimatedDecodedImageData::count_contiguous_frames_ahead(size_t current_frame_index) const
+{
+    if (m_frame_count <= 1)
+        return 0;
+
+    u32 frame_count = min(static_cast<u32>(m_frame_count - 1), BUFFER_POOL_SIZE - 1);
+    u32 frames_ahead = 0;
+    for (u32 offset = 1; offset <= frame_count; ++offset) {
+        u32 future_index = (static_cast<u32>(current_frame_index) + offset) % m_frame_count;
+        if (!find_slot(future_index))
+            break;
+        ++frames_ahead;
+    }
+    return frames_ahead;
 }
 
 RefPtr<Gfx::DecodedImageFrame> AnimatedDecodedImageData::frame(size_t frame_index, Gfx::IntSize) const
@@ -144,7 +200,7 @@ int AnimatedDecodedImageData::frame_duration(size_t frame_index) const
 {
     if (frame_index >= m_durations.size())
         return 0;
-    return m_durations[frame_index];
+    return static_cast<int>(m_durations[frame_index]);
 }
 
 Optional<CSSPixels> AnimatedDecodedImageData::intrinsic_width() const
@@ -188,11 +244,15 @@ void AnimatedDecodedImageData::receive_frames(Vector<NonnullRefPtr<Gfx::Bitmap>>
         if (find_slot(frame_index))
             continue;
 
+        auto decoded_frame = make_decoded_frame(*bitmaps[i], m_color_space, stable_image_id_for_frame(frame_index));
+
         auto& slot = evict_oldest_slot();
         slot.frame_index = frame_index;
-        slot.frame = Gfx::DecodedImageFrame::create(*bitmaps[i], m_color_space);
+        slot.frame = move(decoded_frame.frame);
         slot.generation = ++m_write_generation;
     }
+
+    maybe_request_more_frames(m_current_frame_index);
 }
 
 size_t AnimatedDecodedImageData::notify_frame_advanced(size_t caller_frame_index)
@@ -200,36 +260,34 @@ size_t AnimatedDecodedImageData::notify_frame_advanced(size_t caller_frame_index
     // We own the frame progression. Only advance when a caller reports
     // the expected next frame (this deduplicates multiple callers per tick).
     size_t expected_next = (m_current_frame_index + 1) % m_frame_count;
-    if (caller_frame_index == expected_next) {
-        m_current_frame_index = expected_next;
-        maybe_request_more_frames(m_current_frame_index);
-    }
+    if (caller_frame_index != expected_next)
+        return m_current_frame_index;
+
+    maybe_request_more_frames(m_current_frame_index);
+
+    if (!find_slot(expected_next))
+        return m_current_frame_index;
+
+    m_current_frame_index = expected_next;
+    maybe_request_more_frames(m_current_frame_index);
     return m_current_frame_index;
 }
 
 void AnimatedDecodedImageData::maybe_request_more_frames(size_t current_frame_index)
 {
-    if (m_request_in_flight)
+    if (m_request_in_flight || m_frame_count <= 1)
         return;
 
-    // Count how many frames ahead of current are in the pool.
-    u32 frames_ahead = 0;
-    for (u32 offset = 1; offset <= BUFFER_POOL_SIZE; ++offset) {
-        u32 future_index = (current_frame_index + offset) % m_frame_count;
-        if (find_slot(future_index))
-            ++frames_ahead;
-        else
-            break;
-    }
-
-    // Request more when buffer is less than half full, giving the decoder
-    // time to respond while we still have frames to display.
-    if (frames_ahead >= REQUEST_BATCH_SIZE)
+    u32 target_frames_ahead = min(static_cast<u32>(m_frame_count - 1), BUFFER_POOL_SIZE - 1);
+    if (target_frames_ahead == 0)
         return;
 
-    // Determine which frame to request from.
-    u32 request_start = (current_frame_index + frames_ahead + 1) % m_frame_count;
-    u32 request_count = REQUEST_BATCH_SIZE;
+    u32 frames_ahead = count_contiguous_frames_ahead(current_frame_index);
+    if (frames_ahead >= target_frames_ahead)
+        return;
+
+    u32 request_start = (static_cast<u32>(current_frame_index) + frames_ahead + 1) % m_frame_count;
+    u32 request_count = min(REQUEST_BATCH_SIZE, target_frames_ahead - frames_ahead);
 
     m_request_in_flight = true;
     m_last_requested_start_frame = request_start;

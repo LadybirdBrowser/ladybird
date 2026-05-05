@@ -13,7 +13,8 @@ static_assert(false, "This file must only be used for macOS");
 #include <AK/Forward.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
-#include <LibCore/IOSurface.h>
+#include <LibGfx/Bitmap.h>
+#include <LibGfx/Size.h>
 
 namespace Gfx {
 
@@ -31,7 +32,7 @@ public:
     virtual void const* device() const = 0;
     virtual void const* queue() const = 0;
 
-    virtual OwnPtr<MetalTexture> create_texture_from_iosurface(Core::IOSurfaceHandle const&) = 0;
+    virtual OwnPtr<MetalTexture> create_texture_from_iosurface(void* platform_surface_handle, IntSize size, BitmapFormat) = 0;
 
     virtual ~MetalContext() { }
 };

@@ -99,12 +99,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     auto ipv4_address = IPv4Address::from_string(listen_address);
     if (!ipv4_address.has_value()) {
-        warnln("Invalid listen address: {}", listen_address);
+        dbgln("Invalid listen address: {}", listen_address);
         return 1;
     }
 
     if ((u16)port != port) {
-        warnln("Invalid port number: {}", port);
+        dbgln("Invalid port number: {}", port);
         return 1;
     }
 
@@ -124,13 +124,13 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     server->on_ready_to_accept = [&] {
         auto maybe_client_socket = server->accept();
         if (maybe_client_socket.is_error()) {
-            warnln("Failed to accept the client: {}", maybe_client_socket.error());
+            dbgln("Failed to accept the client: {}", maybe_client_socket.error());
             return;
         }
 
         auto maybe_buffered_socket = Core::BufferedTCPSocket::create(maybe_client_socket.release_value());
         if (maybe_buffered_socket.is_error()) {
-            warnln("Could not obtain a buffered socket for the client: {}", maybe_buffered_socket.error());
+            dbgln("Could not obtain a buffered socket for the client: {}", maybe_buffered_socket.error());
             return;
         }
 
@@ -141,7 +141,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
         auto maybe_client = WebDriver::Client::try_create(maybe_buffered_socket.release_value(), move(launch_browser_callback));
         if (maybe_client.is_error()) {
-            warnln("Could not create a WebDriver client: {}", maybe_client.error());
+            dbgln("Could not create a WebDriver client: {}", maybe_client.error());
             return;
         }
 

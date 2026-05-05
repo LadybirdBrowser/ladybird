@@ -12,6 +12,7 @@
 #include <AK/String.h>
 #include <LibGC/RootVector.h>
 #include <LibGfx/Rect.h>
+#include <LibGfx/ShareableBitmap.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibIPC/Transport.h>
 #include <LibJS/Forward.h>
@@ -132,6 +133,7 @@ private:
     void iconify_the_window(GC::Ref<GC::Function<void()>>);
     void restore_the_window(GC::Ref<GC::Function<void()>>);
     void wait_for_visibility_state(GC::Ref<GC::Function<void()>>, Web::HTML::VisibilityState);
+    void complete_screenshot(Gfx::ShareableBitmap const&);
 
     using OnNavigationComplete = GC::Ref<GC::Function<void(Web::WebDriver::Response)>>;
     void wait_for_navigation_to_complete(OnNavigationComplete);

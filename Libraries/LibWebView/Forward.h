@@ -16,6 +16,7 @@ class Action;
 class Application;
 class Autocomplete;
 class BookmarkStore;
+class BrokerOfPaintServer;
 class CookieJar;
 class HistoryStore;
 class Menu;
@@ -23,6 +24,7 @@ class OutOfProcessWebView;
 class ProcessManager;
 class Settings;
 class ViewImplementation;
+class ViewSharedImageStore;
 class WebContentClient;
 class WebUI;
 

@@ -27,6 +27,8 @@ class QSinglePointEvent;
 
 namespace Ladybird {
 
+class WaylandDmaBufPresenter;
+
 struct WebContentViewInitialState {
     double maximum_frames_per_second { 60.0 };
 };
@@ -114,6 +116,10 @@ private:
     int m_click_count { 0 };
 
     QMenu* m_select_dropdown { nullptr };
+
+#if defined(AK_OS_LINUX) && defined(USE_VULKAN) && defined(USE_VULKAN_DMABUF_IMAGES)
+    OwnPtr<WaylandDmaBufPresenter> m_wayland_dmabuf_presenter;
+#endif
 };
 
 }

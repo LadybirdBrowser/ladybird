@@ -1,0 +1,19 @@
+{
+  "resources": [
+    {
+      "route": "/resources/testharnessreport.js",
+      "destination": "Text/input/wpt-import/resources/testharnessreport.js",
+      "content_type": "text/javascript;charset=utf8"
+    },
+    {
+      "route": "/resources/testdriver-vendor.js",
+      "destination": "Text/input/wpt-import/resources/testdriver-vendor.js",
+      "content_type": "text/javascript;charset=utf8"
+    },
+    {
+      "route": "/fonts/ahem.css",
+      "destination": "Text/input/wpt-import/fonts/ahem.css",
+      "content_type": "text/css;charset=utf8"
+    }
+  ]
+}

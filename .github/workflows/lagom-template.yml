@@ -73,6 +73,10 @@ jobs:
         run: |
           CMAKE_OPTIONS="-DENABLE_CI_BASELINE_CPU=ON"
           if ${{ inputs.os_name == 'Linux' }} ; then
+            # Ensure reproducible Wayland dma-buf build support in CI.
+            # This opts into building Wayland client libs and protocols via vcpkg.
+            CMAKE_OPTIONS="$CMAKE_OPTIONS -DLADYBIRD_VCPKG_WAYLAND=ON -DVCPKG_MANIFEST_FEATURES=vcpkg-wayland"
+
             # FIXME: https://github.com/WebAssembly/wabt/issues/2533
             #        wabt doesn't have binary releases for arm64 Linux
             if ${{ inputs.arch == 'arm64' }} ; then

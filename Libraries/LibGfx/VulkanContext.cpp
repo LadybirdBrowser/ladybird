@@ -6,6 +6,7 @@
 
 #include <AK/Debug.h>
 #include <AK/Format.h>
+#include <AK/ScopeGuard.h>
 #include <AK/Vector.h>
 #include <LibGfx/VulkanContext.h>
 

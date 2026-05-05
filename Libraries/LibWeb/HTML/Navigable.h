@@ -22,7 +22,6 @@
 #include <LibWeb/HTML/NavigationObserver.h>
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/POSTResource.h>
-#include <LibWeb/HTML/RenderingThread.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/SourceSnapshotParams.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
@@ -30,7 +29,7 @@
 #include <LibWeb/HTML/WindowType.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Page/EventHandler.h>
-#include <LibWeb/Painting/BackingStoreManager.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/XHR/FormDataEntry.h>
 
@@ -197,8 +196,6 @@ public:
     void perform_scroll_of_viewport_scrolling_box(CSSPixelPoint position);
     void clamp_viewport_scroll_offset();
 
-    Painting::BackingStoreManager& backing_store_manager() { return *m_backing_store_manager; }
-
     // https://html.spec.whatwg.org/multipage/webappapis.html#rendering-opportunity
     [[nodiscard]] bool has_a_rendering_opportunity() const;
 
@@ -227,19 +224,12 @@ public:
     bool has_pending_navigations() const { return !m_pending_navigations.is_empty(); }
     void clear_pending_navigations() { m_pending_navigations.clear(); }
 
-    void ready_to_paint();
-    void record_display_list_and_scroll_state(PaintConfig);
     void paint_next_frame();
-    void render_screenshot(Gfx::PaintingSurface&, PaintConfig, Function<void()>&& callback);
 
     bool needs_repaint() const { return m_needs_repaint; }
     void set_needs_repaint() { m_needs_repaint = true; }
 
     [[nodiscard]] bool has_inclusive_ancestor_with_visibility_hidden() const;
-
-    RenderingThread& rendering_thread() { return m_rendering_thread; }
-
-    NonnullRefPtr<Painting::ExternalContentSource> external_content_source() const;
 
     void set_pending_set_browser_zoom_request(bool value) { m_pending_set_browser_zoom_request = value; }
     bool pending_set_browser_zoom_request() const { return m_pending_set_browser_zoom_request; }
@@ -322,9 +312,6 @@ private:
     bool m_needs_repaint { true };
     bool m_pending_set_browser_zoom_request { false };
     bool m_should_show_line_box_borders { false };
-    GC::Ref<Painting::BackingStoreManager> m_backing_store_manager;
-    RenderingThread m_rendering_thread;
-    RefPtr<Painting::ExternalContentSource> m_external_content_source;
 };
 
 struct PopulateSessionHistoryEntryDocumentOutput final : public JS::Cell {
@@ -349,6 +336,7 @@ private:
 };
 
 WEB_API HashTable<GC::RawRef<Navigable>>& all_navigables();
+WEB_API void shutdown_all_navigables();
 
 bool navigation_must_be_a_replace(URL::URL const& url, DOM::Document const& document);
 void finalize_a_cross_document_navigation(GC::Ref<Navigable>, HistoryHandlingBehavior, UserNavigationInvolvement, NonnullRefPtr<SessionHistoryEntry>, GC::Ptr<DOM::Document> pending_document, GC::Ref<OnApplyHistoryStepComplete> on_complete);

@@ -7,22 +7,26 @@
 
 #pragma once
 
+#include <AK/ByteBuffer.h>
 #include <AK/Forward.h>
 #include <AK/Function.h>
 #include <AK/JsonObject.h>
 #include <AK/LexicalPath.h>
+#include <AK/NonnullOwnPtr.h>
 #include <AK/OwnPtr.h>
 #include <AK/Queue.h>
 #include <AK/String.h>
 #include <AK/Utf16String.h>
+#include <AK/Vector.h>
 #include <LibCore/Forward.h>
 #include <LibCore/Promise.h>
 #include <LibCore/SharedVersion.h>
 #include <LibGfx/Cursor.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/SharedImage.h>
-#include <LibGfx/SharedImageBuffer.h>
+#include <LibGfx/SharedImagePayload.h>
 #include <LibHTTP/Header.h>
+#include <LibPaintServer/Presentation.h>
 #include <LibRequests/Forward.h>
 #include <LibRequests/NetworkError.h>
 #include <LibWeb/Forward.h>
@@ -39,6 +43,7 @@
 #include <LibWebView/Forward.h>
 #include <LibWebView/PageInfo.h>
 #include <LibWebView/Settings.h>
+#include <LibWebView/ViewSharedImageStore.h>
 #include <LibWebView/WebContentClient.h>
 
 namespace WebView {
@@ -47,12 +52,14 @@ class WEBVIEW_API ViewImplementation
     : public SettingsObserver
     , public BookmarkStoreObserver {
     friend class WebContentClient;
+    friend class ViewSharedImageStore;
 
 public:
     virtual ~ViewImplementation();
 
     static void for_each_view(Function<IterationDecision(ViewImplementation&)>);
     static Optional<ViewImplementation&> find_view_by_id(u64);
+    static void notify_paint_server_reset(u64 server_epoch);
 
     u64 view_id() const { return m_view_id; }
 
@@ -68,8 +75,6 @@ public:
     String const& handle() const { return m_client_state.client_handle; }
 
     void create_new_process_for_cross_site_navigation(URL::URL const&);
-
-    void server_did_paint(Badge<WebContentClient>, i32 bitmap_id, Gfx::IntSize size);
 
     void set_window_position(Gfx::IntPoint);
     void set_window_size(Gfx::IntSize);
@@ -167,8 +172,18 @@ public:
     Web::HTML::AudioPlayState audio_play_state() const { return m_audio_play_state; }
 
     void did_update_navigation_buttons_state(Badge<WebContentClient>, bool back_enabled, bool forward_enabled) const;
+    void did_update_submit_to_ack_window_max_ms(Badge<WebContentClient>, Optional<double> max_ms);
+    Optional<double> submit_to_ack_window_max_ms() const { return m_submit_to_ack_window_max_ms; }
+    using PresentableFrame = ViewSharedImageStore::PresentableFrame;
+    Optional<PresentableFrame> presentable_frame() const;
+    using LinuxDmaBufPresentationBuffer = WebView::LinuxDmaBufPresentationBuffer;
 
-    void did_allocate_backing_stores(Badge<WebContentClient>, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store);
+    Optional<LinuxDmaBufPresentationBuffer> clone_linux_dmabuf_presentation_buffer(u64 image_id) const;
+    RefPtr<Gfx::Bitmap const> bitmap_for_presentation_image(u64 image_id) const;
+
+    void did_receive_presentation_frame(u64 present_id, u64 image_id, Gfx::IntSize frame_size);
+    void did_submit_presentation_frame(u64 present_id) { m_shared_image_store.did_submit_presentation_frame(present_id); }
+    void did_present_frame(u64 present_id);
 
     enum class ScreenshotType {
         Visible,
@@ -296,6 +311,10 @@ protected:
     void apply_zoom_for_current_host();
 
     void handle_resize();
+    void configure_presentation_surface(Gfx::IntSize size);
+    NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> take_screenshot_bitmap(ScreenshotType);
+    void clear_pending_screenshot_requests();
+    NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> take_dom_node_screenshot_bitmap(Web::UniqueNodeID);
 
     enum class CreateNewClient {
         No,
@@ -321,19 +340,10 @@ protected:
 
     void initialize_context_menus();
 
-    struct SharedBitmap {
-        i32 id { -1 };
-        Web::DevicePixelSize last_painted_size;
-        OwnPtr<Gfx::SharedImageBuffer> shared_image_buffer;
-    };
-
     struct ClientState {
         RefPtr<WebContentClient> client;
         String client_handle;
-        SharedBitmap front_bitmap;
-        SharedBitmap back_bitmap;
         u64 page_index { 0 };
-        bool has_usable_bitmap { false };
     } m_client_state;
 
     URL::URL m_url;
@@ -387,14 +397,11 @@ protected:
 
     RefPtr<Core::Timer> m_backing_store_shrink_timer;
 
-    OwnPtr<Gfx::SharedImageBuffer> m_backup_shared_image_buffer;
-    Web::DevicePixelSize m_backup_bitmap_size;
-
     size_t m_crash_count = 0;
     RefPtr<Core::Timer> m_repeated_crash_timer;
 
-    RefPtr<Core::Promise<LexicalPath>> m_pending_screenshot;
     RefPtr<Core::Promise<String>> m_pending_info_request;
+    RefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> m_pending_screenshot_request;
 
     Web::HTML::VisibilityState m_system_visibility_state { Web::HTML::VisibilityState::Hidden };
 
@@ -411,9 +418,11 @@ protected:
     // FIXME: Reconcile this ID with `page_id`. The latter is only unique per WebContent connection, whereas the view ID
     //        is required to be globally unique for Firefox DevTools.
     u64 m_view_id { 0 };
+    ViewSharedImageStore m_shared_image_store;
 
     HashMap<u64, NavigationListener> m_navigation_listeners;
     u64 m_next_navigation_listener_id { 1 };
+    Optional<double> m_submit_to_ack_window_max_ms;
 
     bool m_devtools_connected { false };
 };

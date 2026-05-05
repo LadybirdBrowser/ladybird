@@ -29,6 +29,26 @@ namespace Gfx {
 
 static RefPtr<SkiaBackendContext> s_main_thread_context;
 
+class SkiaRasterBackendContext final : public SkiaBackendContext {
+    AK_MAKE_NONCOPYABLE(SkiaRasterBackendContext);
+    AK_MAKE_NONMOVABLE(SkiaRasterBackendContext);
+
+public:
+    SkiaRasterBackendContext() = default;
+    ~SkiaRasterBackendContext() override = default;
+
+    GrDirectContext* sk_context() const override { return nullptr; }
+
+    VulkanContext const& vulkan_context() override { VERIFY_NOT_REACHED(); }
+
+    MetalContext& metal_context() override { VERIFY_NOT_REACHED(); }
+};
+
+RefPtr<SkiaBackendContext> SkiaBackendContext::create_raster_context()
+{
+    return adopt_ref(*new SkiaRasterBackendContext());
+}
+
 void SkiaBackendContext::initialize_gpu_backend()
 {
     VERIFY(!s_main_thread_context);
@@ -76,6 +96,8 @@ public:
 
     ~SkiaVulkanBackendContext() override
     {
+        if (m_context)
+            m_context->releaseResourcesAndAbandonContext();
         m_context.reset();
 #    ifdef USE_VULKAN_DMABUF_IMAGES
         if (m_vulkan_context.command_pool != VK_NULL_HANDLE)
@@ -148,6 +170,8 @@ public:
 
     ~SkiaMetalBackendContext() override
     {
+        if (m_context)
+            m_context->releaseResourcesAndAbandonContext();
         m_context.reset();
     }
 

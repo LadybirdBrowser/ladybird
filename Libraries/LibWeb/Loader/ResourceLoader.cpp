@@ -190,7 +190,8 @@ static bool should_block_request(LoadRequest const& request)
     }
 
     if (ContentFilter::the().is_filtered(url)) {
-        log_filtered_request(request);
+        if (false)
+            log_filtered_request(request);
         return true;
     }
 

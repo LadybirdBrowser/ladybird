@@ -35,29 +35,14 @@ pid_t TestWebView::web_content_pid() const
     return client().pid();
 }
 
-NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> TestWebView::take_screenshot()
+NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> TestWebView::take_screenshot(WebView::ViewImplementation::ScreenshotType type)
 {
-    VERIFY(!m_pending_screenshot);
-
-    m_pending_screenshot = Core::Promise<RefPtr<Gfx::Bitmap const>>::construct();
-    client().async_take_document_screenshot(0);
-
-    return *m_pending_screenshot;
-}
-
-void TestWebView::did_receive_screenshot(Badge<WebView::WebContentClient>, Gfx::ShareableBitmap const& screenshot)
-{
-    // NOTE: The screenshot may arrive after a timeout already completed the test and cleared m_pending_screenshot.
-    if (!m_pending_screenshot)
-        return;
-
-    auto pending_screenshot = move(m_pending_screenshot);
-    pending_screenshot->resolve(screenshot.bitmap());
+    return take_screenshot_bitmap(type);
 }
 
 void TestWebView::on_test_complete(TestCompletion completion)
 {
-    m_pending_screenshot.clear();
+    clear_pending_screenshot_requests();
     m_pending_dialog = Web::Page::PendingDialog::None;
     m_pending_prompt_text.clear();
     m_is_fullscreen = Web::ViewportIsFullscreen::No;

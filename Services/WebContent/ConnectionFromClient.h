@@ -12,8 +12,10 @@
 #include <AK/Queue.h>
 #include <AK/SourceLocation.h>
 #include <LibGC/Root.h>
+#include <LibGfx/ShareableBitmap.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibJS/Forward.h>
+#include <LibPaintServer/Types.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/PreferredContrast.h>
 #include <LibWeb/CSS/PreferredMotion.h>
@@ -30,6 +32,12 @@
 #include <WebContent/WebContentClientEndpoint.h>
 #include <WebContent/WebContentConsoleClient.h>
 #include <WebContent/WebContentServerEndpoint.h>
+
+namespace PaintServer {
+
+class RenderClientOfPaintServer;
+
+}
 
 namespace WebContent {
 
@@ -50,6 +58,8 @@ public:
     Function<void(IPC::TransportHandle const&)> on_request_server_connection;
     Function<void(IPC::TransportHandle const&)> on_image_decoder_connection;
 
+    PaintServer::RenderClientOfPaintServer* paint_server_render_client() const { return m_gpu_render_client.ptr(); }
+
     Queue<Web::QueuedInputEvent>& input_event_queue() { return m_input_event_queue; }
 
 private:
@@ -66,6 +76,9 @@ private:
     virtual void connect_to_web_ui(u64 page_id, IPC::TransportHandle handle) override;
     virtual void connect_to_request_server(IPC::TransportHandle handle) override;
     virtual void connect_to_image_decoder(IPC::TransportHandle handle) override;
+
+    virtual void connect_to_paint_server_render_client(IPC::TransportHandle handle) override;
+    virtual void set_surface_id(u64 page_id, u64 surface_id) override;
     virtual void update_system_theme(u64 page_id, Core::AnonymousBuffer) override;
     virtual void update_screen_rects(u64 page_id, Vector<Web::DevicePixelRect>, u32) override;
     virtual void load_url(u64 page_id, URL::URL) override;
@@ -77,7 +90,6 @@ private:
     virtual void mouse_event(u64 page_id, Web::MouseEvent) override;
     virtual void drag_event(u64 page_id, Web::DragEvent) override;
     virtual void pinch_event(u64 page_id, Web::PinchEvent) override;
-    virtual void ready_to_paint(u64 page_id) override;
     virtual void debug_request(u64 page_id, ByteString, ByteString) override;
     virtual void get_source(u64 page_id) override;
     virtual void inspect_dom_tree(u64 page_id) override;
@@ -149,6 +161,7 @@ private:
 
     virtual void set_user_style(u64 page_id, String) override;
 
+    virtual void take_viewport_screenshot(u64 page_id) override;
     virtual void take_document_screenshot(u64 page_id) override;
     virtual void take_dom_node_screenshot(u64 page_id, Web::UniqueNodeID node_id) override;
 
@@ -182,6 +195,9 @@ private:
     void enqueue_input_event(Web::QueuedInputEvent);
 
     Queue<Web::QueuedInputEvent> m_input_event_queue;
+
+    RefPtr<PaintServer::RenderClientOfPaintServer> m_gpu_render_client;
+    HashMap<PaintServer::SurfaceID, u64> m_page_id_by_gpu_surface_id;
 };
 
 }

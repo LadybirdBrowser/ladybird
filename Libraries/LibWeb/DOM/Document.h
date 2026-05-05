@@ -968,8 +968,8 @@ public:
         set_needs_repaint(should_invalidate_display_list);
     }
 
-    RefPtr<Painting::DisplayList> cached_display_list() const;
-    RefPtr<Painting::DisplayList> record_display_list(HTML::PaintConfig);
+    RefPtr<Painting::DisplayList> retained_display_list() const;
+    RefPtr<Painting::DisplayList> update_display_list(HTML::PaintConfig);
 
     void invalidate_display_list();
 
@@ -1497,8 +1497,8 @@ private:
     Optional<Core::SharedVersionIndex> m_cookie_version_index;
     String m_cookie;
 
-    Optional<HTML::PaintConfig> m_cached_display_list_paint_config;
-    RefPtr<Painting::DisplayList> m_cached_display_list;
+    Optional<HTML::PaintConfig> m_retained_display_list_paint_config;
+    RefPtr<Painting::DisplayList> m_retained_display_list;
 
     mutable OwnPtr<Unicode::Segmenter> m_grapheme_segmenter;
     mutable OwnPtr<Unicode::Segmenter> m_line_segmenter;

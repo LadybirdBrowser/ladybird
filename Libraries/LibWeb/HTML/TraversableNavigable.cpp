@@ -26,7 +26,6 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/Timer.h>
 
@@ -1801,50 +1800,6 @@ void TraversableNavigable::set_emulated_position_data(Geolocation::EmulatedPosit
 {
     VERIFY(is_top_level_traversable());
     m_emulated_position_data = data;
-}
-
-void TraversableNavigable::process_screenshot_requests()
-{
-    auto& client = page().client();
-    while (!m_screenshot_tasks.is_empty()) {
-        auto task = m_screenshot_tasks.dequeue();
-        if (task.node_id.has_value()) {
-            auto* dom_node = DOM::Node::from_unique_id(*task.node_id);
-            if (dom_node)
-                dom_node->document().update_layout(DOM::UpdateLayoutReason::ProcessScreenshot);
-            if (!dom_node || !dom_node->paintable_box()) {
-                client.page_did_take_screenshot({});
-                continue;
-            }
-            auto rect = page().enclosing_device_rect(dom_node->paintable_box()->absolute_border_box_rect());
-            auto bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>());
-            if (bitmap_or_error.is_error()) {
-                client.page_did_take_screenshot({});
-                continue;
-            }
-            auto bitmap = bitmap_or_error.release_value();
-            auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
-            PaintConfig paint_config { .canvas_fill_rect = rect.to_type<int>() };
-            render_screenshot(painting_surface, paint_config, [bitmap, &client] {
-                client.page_did_take_screenshot(bitmap->to_shareable_bitmap());
-            });
-        } else {
-            active_document()->update_layout(DOM::UpdateLayoutReason::ProcessScreenshot);
-            auto scrollable_overflow_rect = active_document()->layout_node()->paintable_box()->scrollable_overflow_rect();
-            auto rect = page().enclosing_device_rect(scrollable_overflow_rect.value());
-            auto bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>());
-            if (bitmap_or_error.is_error()) {
-                client.page_did_take_screenshot({});
-                continue;
-            }
-            auto bitmap = bitmap_or_error.release_value();
-            auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
-            PaintConfig paint_config { .paint_overlay = true, .canvas_fill_rect = rect.to_type<int>() };
-            render_screenshot(painting_surface, paint_config, [bitmap, &client] {
-                client.page_did_take_screenshot(bitmap->to_shareable_bitmap());
-            });
-        }
-    }
 }
 
 }

@@ -8,6 +8,7 @@
 #include <AK/StringView.h>
 #include <AK/Vector.h>
 #include <LibMain/Main.h>
+#include <LibThreading/Thread.h>
 #include <string.h>
 #include <time.h>
 #if defined(AK_OS_WINDOWS)
@@ -33,6 +34,7 @@ void set_return_code_for_errors(int code)
 int main(int argc, char** argv)
 {
     tzset();
+    Threading::set_main_thread();
 
 #if defined(AK_OS_WINDOWS)
     windows_init();

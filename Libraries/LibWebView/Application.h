@@ -19,6 +19,7 @@
 #include <LibImageDecoderClient/Client.h>
 #include <LibMain/Main.h>
 #include <LibRequests/Forward.h>
+#include <LibThreading/Mutex.h>
 #include <LibURL/URL.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/PreferredContrast.h>
@@ -33,6 +34,10 @@
 #include <LibWebView/ProcessManager.h>
 #include <LibWebView/Settings.h>
 #include <LibWebView/StorageJar.h>
+
+#if defined(AK_OS_MACH)
+#    include <LibCore/MachPort.h>
+#endif
 
 #if defined(AK_OS_MACOS)
 #    include <LibIPC/TransportBootstrapMach.h>
@@ -61,6 +66,7 @@ public:
 
     static Requests::RequestClient& request_server_client() { return *the().m_request_server_client; }
     static ImageDecoderClient::Client& image_decoder_client() { return *the().m_image_decoder_client; }
+    static BrokerOfPaintServer* paint_server_broker_client() { return the().m_painter.ptr(); }
 
     static BookmarkStore& bookmark_store() { return the().m_bookmark_store; }
     static HistoryStore& history_store() { return *the().m_history_store; }
@@ -204,6 +210,7 @@ private:
     ErrorOr<void> launch_services();
     void launch_spare_web_content_process();
     ErrorOr<void> launch_request_server();
+    ErrorOr<void> launch_paint_server();
     ErrorOr<void> launch_image_decoder_server();
     ErrorOr<void> launch_devtools_server();
 
@@ -270,6 +277,8 @@ private:
     WebContentOptions m_web_content_options;
 
     RefPtr<Requests::RequestClient> m_request_server_client;
+    RefPtr<BrokerOfPaintServer> m_painter;
+    u64 m_server_epoch { 0 };
     RefPtr<ImageDecoderClient::Client> m_image_decoder_client;
 
     RefPtr<WebContentClient> m_spare_web_content_process;
@@ -282,6 +291,7 @@ private:
 
     OwnPtr<Core::TimeZoneWatcher> m_time_zone_watcher;
 
+    bool m_is_shutting_down { false };
     OwnPtr<Core::EventLoop> m_event_loop;
     OwnPtr<ProcessManager> m_process_manager;
 

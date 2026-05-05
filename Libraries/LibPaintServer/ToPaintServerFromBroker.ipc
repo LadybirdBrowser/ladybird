@@ -1,0 +1,26 @@
+#include <LibPaintServer/Types.h>
+#include <LibGfx/SharedImagePayload.h>
+#include <LibGfx/Size.h>
+#include <LibIPC/TransportHandle.h>
+
+endpoint ToPaintServerFromBroker
+{
+    hello(PaintServer::RequestID request_id, PaintServer::ClientKind client_kind, int client_pid) =|
+
+    create_presentation_surface(PaintServer::SurfaceID surface_id, Gfx::IntSize size) =|
+    resize_presentation_surface(PaintServer::SurfaceID surface_id, Gfx::IntSize size) =|
+    set_surface_visible(PaintServer::SurfaceID surface_id, bool visible) =|
+    destroy_presentation_surface(PaintServer::SurfaceID surface_id) =|
+
+    register_presentation_buffers(
+        PaintServer::SurfaceID surface_id,
+        Vector<PaintServer::ImageID> image_ids,
+        Vector<Gfx::SharedImagePayload> image_payloads,
+        Gfx::IntSize size
+    ) =|
+
+    attach_render_client(IPC::TransportHandle handle) =|
+
+    did_present_or_released(PaintServer::SurfaceID surface_id, PaintServer::FrameID present_id) =|
+
+}

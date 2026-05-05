@@ -52,7 +52,9 @@
 #include <LibWeb/MediaSourceExtensions/MediaSource.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/ExternalContentSource.h>
 #include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Painting/VideoFrameSource.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/Promise.h>
 

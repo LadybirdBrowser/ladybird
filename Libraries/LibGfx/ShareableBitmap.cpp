@@ -44,11 +44,11 @@ ErrorOr<void> encode(Encoder& encoder, Gfx::ShareableBitmap const& shareable_bit
     if (!shareable_bitmap.is_valid())
         return {};
 
-    auto& bitmap = *shareable_bitmap.bitmap();
+    auto const& bitmap = *shareable_bitmap.bitmap();
     TRY(encoder.encode(TRY(IPC::File::clone_fd(bitmap.anonymous_buffer().fd()))));
     TRY(encoder.encode(bitmap.size()));
-    TRY(encoder.encode(static_cast<u32>(bitmap.format())));
-    TRY(encoder.encode(static_cast<u32>(bitmap.alpha_type())));
+    TRY(encoder.encode(bitmap.format()));
+    TRY(encoder.encode(bitmap.alpha_type()));
     return {};
 }
 
@@ -61,15 +61,8 @@ ErrorOr<Gfx::ShareableBitmap> decode(Decoder& decoder)
     auto anon_file = TRY(decoder.decode<IPC::File>());
     auto size = TRY(decoder.decode<Gfx::IntSize>());
 
-    auto raw_bitmap_format = TRY(decoder.decode<u32>());
-    if (!Gfx::is_valid_bitmap_format(raw_bitmap_format))
-        return Error::from_string_literal("IPC: Invalid Gfx::ShareableBitmap format");
-    auto bitmap_format = static_cast<Gfx::BitmapFormat>(raw_bitmap_format);
-
-    auto raw_alpha_type = TRY(decoder.decode<u32>());
-    if (!Gfx::is_valid_alpha_type(raw_alpha_type))
-        return Error::from_string_literal("IPC: Invalid Gfx::ShareableBitmap alpha type");
-    auto alpha_type = static_cast<Gfx::AlphaType>(raw_alpha_type);
+    auto bitmap_format = TRY(decoder.decode<Gfx::BitmapFormat>());
+    auto alpha_type = TRY(decoder.decode<Gfx::BitmapAlpha>());
 
     auto buffer = TRY(Core::AnonymousBuffer::create_from_anon_fd(anon_file.take_fd(), Gfx::Bitmap::size_in_bytes(Gfx::Bitmap::minimum_pitch(size.width(), bitmap_format), size.height())));
     auto bitmap = TRY(Gfx::Bitmap::create_with_anonymous_buffer(bitmap_format, alpha_type, move(buffer), size));

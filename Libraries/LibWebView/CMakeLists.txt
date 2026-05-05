@@ -27,6 +27,7 @@ set(SOURCES
     UserAgent.cpp
     Utilities.cpp
     ViewImplementation.cpp
+    ViewSharedImageStore.cpp
     WebContentClient.cpp
     WebUI.cpp
     WebUI/BookmarksUI.cpp
@@ -56,6 +57,10 @@ set(GENERATED_SOURCES
     ${GENERATED_SOURCES}
     ../../Services/RequestServer/RequestClientEndpoint.h
     ../../Services/RequestServer/RequestServerEndpoint.h
+    ../LibPaintServer/ToPaintServerFromBrokerEndpoint.h
+    ../LibPaintServer/ToBrokerFromPaintServerEndpoint.h
+    ../LibPaintServer/ToPaintServerFromRenderClientEndpoint.h
+    ../LibPaintServer/ToRenderClientFromPaintServerEndpoint.h
     ../../Services/WebContent/WebContentClientEndpoint.h
     ../../Services/WebContent/WebContentServerEndpoint.h
     ../../Services/WebContent/WebDriverClientEndpoint.h
@@ -75,7 +80,8 @@ compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebUIClient.ipc ${CMAKE_B
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebUIServer.ipc ${CMAKE_BINARY_DIR}/Services/WebContent/WebUIServerEndpoint.h)
 
 ladybird_lib(LibWebView webview EXPLICIT_SYMBOL_EXPORT)
-target_link_libraries(LibWebView PRIVATE LibCore LibDatabase LibDevTools LibFileSystem LibGfx LibHTTP LibImageDecoderClient LibIPC LibRequests LibJS LibWeb LibUnicode LibURL LibSyntax LibTextCodec)
+target_link_libraries(LibWebView PRIVATE LibCore LibDatabase LibDevTools LibFileSystem LibGfx LibHTTP LibImageDecoderClient LibIPC LibRequests LibJS LibThreading LibWeb LibUnicode LibURL LibSyntax LibTextCodec)
+target_link_libraries(LibWebView PRIVATE LibPaintServer)
 
 # Third-party
 if (HAS_FONTCONFIG)

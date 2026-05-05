@@ -10,6 +10,7 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/Function.h>
 #include <LibCore/AnonymousBuffer.h>
+#include <LibGfx/BitmapInfo.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
@@ -20,45 +21,18 @@ namespace Gfx {
 // A pixel value that does not express any information about its component order
 using RawPixel = u32;
 
-#define ENUMERATE_BITMAP_FORMATS(X) \
-    X(Invalid)                      \
-    X(BGRx8888)                     \
-    X(BGRA8888)                     \
-    X(RGBx8888)                     \
-    X(RGBA8888)
-
-enum class BitmapFormat {
-#define ENUMERATE_BITMAP_FORMAT(format) format,
-    ENUMERATE_BITMAP_FORMATS(ENUMERATE_BITMAP_FORMAT)
-#undef ENUMERATE_BITMAP_FORMAT
-};
-
 [[nodiscard]] StringView bitmap_format_name(BitmapFormat);
-
-inline bool is_valid_bitmap_format(u32 const format)
-{
-    switch (format) {
-    case static_cast<u32>(BitmapFormat::Invalid):
-    case static_cast<u32>(BitmapFormat::BGRx8888):
-    case static_cast<u32>(BitmapFormat::RGBx8888):
-    case static_cast<u32>(BitmapFormat::BGRA8888):
-    case static_cast<u32>(BitmapFormat::RGBA8888):
-        return true;
-    default:
-        return false;
-    }
-}
 
 struct BackingStore;
 
 class Bitmap : public AtomicRefCounted<Bitmap> {
 public:
     [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create(BitmapFormat, IntSize);
-    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create(BitmapFormat, AlphaType, IntSize);
-    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_shareable(BitmapFormat, AlphaType, IntSize);
-    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_wrapper(BitmapFormat, AlphaType, IntSize, size_t pitch, void*, Function<void()>&& destruction_callback = {});
-    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_with_raw_data(BitmapFormat, AlphaType, ReadonlyBytes, IntSize);
-    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_with_anonymous_buffer(BitmapFormat, AlphaType, Core::AnonymousBuffer, IntSize);
+    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create(BitmapFormat, BitmapAlpha, IntSize);
+    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_shareable(BitmapFormat, BitmapAlpha, IntSize);
+    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_wrapper(BitmapFormat, BitmapAlpha, IntSize, size_t pitch, void*, Function<void()>&& destruction_callback = {});
+    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_with_raw_data(BitmapFormat, BitmapAlpha, ReadonlyBytes, IntSize);
+    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_with_anonymous_buffer(BitmapFormat, BitmapAlpha, Core::AnonymousBuffer, IntSize);
 
     ErrorOr<NonnullRefPtr<Gfx::Bitmap>> clone() const;
 
@@ -134,13 +108,13 @@ public:
 
     [[nodiscard]] DiffResult diff(Bitmap const&) const;
 
-    [[nodiscard]] AlphaType alpha_type() const { return m_alpha_type; }
-    void set_alpha_type_destructive(AlphaType);
+    [[nodiscard]] BitmapAlpha alpha_type() const { return m_alpha_type; }
+    void set_alpha_type_destructive(BitmapAlpha);
 
 private:
-    Bitmap(BitmapFormat, AlphaType, IntSize, BackingStore const&);
-    Bitmap(BitmapFormat, AlphaType, IntSize, size_t pitch, void*, Function<void()>&& destruction_callback);
-    Bitmap(BitmapFormat, AlphaType, Core::AnonymousBuffer, IntSize);
+    Bitmap(BitmapFormat, BitmapAlpha, IntSize, BackingStore const&);
+    Bitmap(BitmapFormat, BitmapAlpha, IntSize, size_t pitch, void*, Function<void()>&& destruction_callback);
+    Bitmap(BitmapFormat, BitmapAlpha, Core::AnonymousBuffer, IntSize);
 
     enum class InitializeBackingStore {
         No,
@@ -151,8 +125,8 @@ private:
     IntSize m_size;
     void* m_data { nullptr };
     size_t m_pitch { 0 };
-    BitmapFormat m_format { BitmapFormat::Invalid };
-    AlphaType m_alpha_type { AlphaType::Premultiplied };
+    BitmapFormat m_format;
+    BitmapAlpha m_alpha_type { BitmapAlpha::Premultiplied };
     Core::AnonymousBuffer m_buffer;
     Function<void()> m_destruction_callback;
 };
@@ -240,7 +214,13 @@ ALWAYS_INLINE Color Bitmap::get_pixel(int x, int y) const
         return Color::from_rgba(pixel);
     case BitmapFormat::RGBx8888:
         return Color::from_rgbx(pixel);
-    case BitmapFormat::Invalid:
+    case BitmapFormat::RGBAF16:
+    case BitmapFormat::Gray8:
+    case BitmapFormat::Alpha8:
+    case BitmapFormat::RGB565:
+    case BitmapFormat::RGBA5551:
+    case BitmapFormat::RGBA4444:
+    case BitmapFormat::RGB888:
         VERIFY_NOT_REACHED();
     }
     VERIFY_NOT_REACHED();
@@ -261,7 +241,13 @@ ALWAYS_INLINE void Bitmap::set_pixel(int x, int y, Color color)
     case BitmapFormat::RGBx8888:
         scanline(y)[x] = (0xFF << 24) | (color.blue() << 16) | (color.green() << 8) | color.red();
         return;
-    case BitmapFormat::Invalid:
+    case BitmapFormat::RGBAF16:
+    case BitmapFormat::Gray8:
+    case BitmapFormat::Alpha8:
+    case BitmapFormat::RGB565:
+    case BitmapFormat::RGBA5551:
+    case BitmapFormat::RGBA4444:
+    case BitmapFormat::RGB888:
         VERIFY_NOT_REACHED();
     }
     VERIFY_NOT_REACHED();

@@ -143,12 +143,17 @@ void WebContentView::paint(GtkSnapshot* snapshot)
     Gfx::Bitmap const* bitmap = nullptr;
     Gfx::IntSize bitmap_size;
 
-    if (m_client_state.has_usable_bitmap) {
-        VERIFY(m_client_state.front_bitmap.shared_image_buffer);
-        bitmap = m_client_state.front_bitmap.shared_image_buffer->bitmap().ptr();
+    if (auto frame = presentable_frame(); frame.has_value() && frame->bitmap) {
+        bitmap = frame->bitmap;
+        bitmap_size = frame->bitmap_size;
+    }
+
+    if (!bitmap && m_client_state.has_usable_bitmap) {
+        VERIFY(m_client_state.front_bitmap.shared_image);
+        bitmap = m_client_state.front_bitmap.shared_image->bitmap().ptr();
         bitmap_size = m_client_state.front_bitmap.last_painted_size.to_type<int>();
-    } else if (m_backup_shared_image_buffer) {
-        bitmap = m_backup_shared_image_buffer->bitmap().ptr();
+    } else if (!bitmap && m_backup_shared_image) {
+        bitmap = m_backup_shared_image->bitmap().ptr();
         bitmap_size = m_backup_bitmap_size.to_type<int>();
     }
 

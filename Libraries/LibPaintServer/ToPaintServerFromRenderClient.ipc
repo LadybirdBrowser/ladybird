@@ -1,0 +1,23 @@
+#include <LibPaintServer/Types.h>
+#include <LibGfx/Resource/Resource.h>
+
+endpoint ToPaintServerFromRenderClient
+{
+    hello(PaintServer::RequestID request_id, PaintServer::ClientKind client_kind, int client_pid, bool is_headless) =|
+
+    register_arena(PaintServer::ArenaID arena_id, IPC::File arena_handle, size_t arena_size) =|
+    unregister_arena(PaintServer::ArenaID arena_id) =|
+
+    submit_arena_packet(PaintServer::SurfaceID surface_id, PaintServer::ArenaID arena_id, size_t offset, size_t size, PaintServer::SyncToken wait_sync_token, PaintServer::ReleaseToken release_token) =|
+
+    register_resource_from_shared_blob(PaintServer::SurfaceID surface_id, Gfx::ResourceInfo descriptor, IPC::File blob_handle, size_t blob_size, PaintServer::ReleaseToken release_token) =|
+    register_bitmap_resource_from_shared_image(PaintServer::SurfaceID surface_id, Gfx::ResourceInfo descriptor, Gfx::SharedImagePayload image_payload, PaintServer::ReleaseToken release_token) =|
+
+    unregister_resource(PaintServer::SurfaceID surface_id, PaintServer::ResourceID resource_id) =|
+
+    create_content_image(PaintServer::RequestID request_id, PaintServer::GPUEpoch server_epoch, PaintServer::ImageID image_id, Gfx::IntSize size, Gfx::BitmapFormat format) =|
+    import_content_image(PaintServer::RequestID request_id, PaintServer::GPUEpoch server_epoch, PaintServer::ImageID image_id, Gfx::SharedImagePayload content_image) =|
+    complete_content_upload(PaintServer::GPUEpoch server_epoch, PaintServer::ImageID image_id, bool success) =|
+    destroy_content_image(PaintServer::GPUEpoch server_epoch, PaintServer::ImageID image_id, PaintServer::SyncToken wait_sync_token) =|
+    arm_next_frame_logging() =|
+}

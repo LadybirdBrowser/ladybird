@@ -653,7 +653,6 @@ set(SOURCES
     HTML/PreloadEntry.cpp
     HTML/PromiseRejectionEvent.cpp
     HTML/RadioNodeList.cpp
-    HTML/RenderingThread.cpp
     HTML/SandboxingFlagSet.cpp
     HTML/Scripting/Agent.cpp
     HTML/Scripting/ClassicScript.cpp
@@ -846,7 +845,6 @@ set(SOURCES
     Page/Page.cpp
     Painting/AccumulatedVisualContext.cpp
     Painting/BackgroundPainting.cpp
-    Painting/BackingStoreManager.cpp
     Painting/Blending.cpp
     Painting/BorderPainting.cpp
     Painting/BorderRadiiData.cpp
@@ -855,17 +853,17 @@ set(SOURCES
     Painting/BoxModelMetrics.cpp
     Painting/CanvasPaintable.cpp
     Painting/CheckBoxPaintable.cpp
-    Painting/DisplayList.cpp
-    Painting/DisplayListCommand.cpp
-    Painting/DisplayListPlayerSkia.cpp
     Painting/DisplayListRecorder.cpp
     Painting/DisplayListRecordingContext.cpp
+    Painting/DisplayListSubmitter.cpp
+    Painting/DocumentFramePainter.cpp
     Painting/ExternalContentSource.cpp
     Painting/FieldSetPaintable.cpp
     Painting/GradientPainting.cpp
     Painting/ImagePaintable.cpp
     Painting/MarkerPaintable.cpp
     Painting/NavigableContainerViewportPaintable.cpp
+    Painting/OffscreenPaintRequest.cpp
     Painting/Paintable.cpp
     Painting/PaintableBox.cpp
     Painting/PaintStyle.cpp
@@ -1120,7 +1118,6 @@ set(SOURCES
     WebDriver/JSON.cpp
     WebDriver/Proxy.cpp
     WebDriver/Response.cpp
-    WebDriver/Screenshot.cpp
     WebDriver/TimeoutsConfiguration.cpp
     WebDriver/UserPrompt.cpp
     WebGL/EventNames.cpp
@@ -1246,7 +1243,7 @@ set(GENERATED_SOURCES
 
 ladybird_lib(LibWeb web EXPLICIT_SYMBOL_EXPORT)
 
-target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia ${ANGLE_TARGETS} SDL3::SDL3 LibXml2::LibXml2)
+target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibPaintServer LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia ${ANGLE_TARGETS} SDL3::SDL3 LibXml2::LibXml2)
 
 import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libweb_rust FFI_HEADER RustFFI.h)
 target_link_libraries(LibWeb PRIVATE libweb_rust)

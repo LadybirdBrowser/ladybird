@@ -35,6 +35,7 @@ if (ENABLE_GUI_TARGETS)
     add_subdirectory(LibImageDecoderClient)
     add_subdirectory(LibMedia)
     add_subdirectory(LibWeb)
+    add_subdirectory(LibPaintServer)
     add_subdirectory(LibWebView)
 endif()
 

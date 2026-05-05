@@ -10,6 +10,8 @@
 #include <LibWeb/Painting/SVGPathPaintable.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
 
+#include <math.h>
+
 namespace Web::Painting {
 
 GC_DEFINE_ALLOCATOR(SVGPathPaintable);
@@ -32,17 +34,25 @@ void SVGPathPaintable::reset_for_relayout()
 
 Optional<CSSPixelRect> SVGPathPaintable::clip_path_geometry_bounds(Gfx::AffineTransform const& additional_transform) const
 {
-    if (!contributes_to_clip_path() || !computed_path().has_value())
+    // https://drafts.fxtf.org/css-masking-1/#ClipPathElement
+    // The raw geometry of each child element exclusive of rendering properties such as fill, stroke, stroke-width
+    // within a clipPath conceptually defines a 1-bit mask (with the possible exception of anti-aliasing along
+    // the edge of the geometry) which represents the silhouette of the graphics associated with that element.
+    if (!computed_path().has_value() || !contributes_to_clip_path())
         return {};
 
     auto const* svg_node = layout_box().first_ancestor_of_type<Layout::SVGSVGBox>();
     if (!svg_node || !svg_node->paintable_box())
         return {};
 
-    auto path = computed_path()->copy_transformed(computed_transforms().svg_to_css_pixels_transform(additional_transform));
-    path.offset(svg_node->paintable_box()->absolute_rect().location().to_type<float>());
-
-    return path.bounding_box().to_type<CSSPixels>();
+    auto transformed_bounding_box = computed_transforms().svg_to_css_pixels_transform(additional_transform).map_to_quad(computed_path()->bounding_box()).bounding_rect();
+    CSSPixels const left = CSSPixels::floored_value_for(transformed_bounding_box.left());
+    CSSPixels const top = CSSPixels::floored_value_for(transformed_bounding_box.top());
+    CSSPixels const right = CSSPixels(ceilf(transformed_bounding_box.right()));
+    CSSPixels const bottom = CSSPixels(ceilf(transformed_bounding_box.bottom()));
+    CSSPixelRect css_bounding_box { left, top, right - left, bottom - top };
+    css_bounding_box.translate_by(svg_node->paintable_box()->absolute_rect().location());
+    return css_bounding_box;
 }
 
 TraversalDecision SVGPathPaintable::hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
@@ -86,7 +96,7 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
     if (phase != PaintPhase::Foreground)
         return;
 
-    auto& graphics_element = dom_node();
+    auto const& graphics_element = dom_node();
 
     auto const* svg_node = layout_box().first_ancestor_of_type<Layout::SVGSVGBox>();
     auto svg_element_rect = svg_node->paintable_box()->absolute_rect();

@@ -11,8 +11,9 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
-#include <LibWeb/Painting/ExternalContentSource.h>
 #include <LibWeb/Painting/NavigableContainerViewportPaintable.h>
+#include <LibWeb/Painting/ReplacedElementCommon.h>
+#include <LibWeb/SVG/SVGSVGElement.h>
 
 namespace Web::Painting {
 
@@ -51,12 +52,31 @@ void NavigableContainerViewportPaintable::paint(DisplayListRecordingContext& con
         auto content_navigable = navigable_container.content_navigable();
         VERIFY(content_navigable);
 
+        CSSPixelRect nested_content_rect = absolute_rect;
+        if (auto* root = as_if<SVG::SVGSVGElement>(hosted_document->document_element())) {
+            // https://drafts.csswg.org/css-images-3/#the-object-fit
+            // The object-fit property specifies how the contents of a replaced element should be fitted to the box established by its used height and width.
+            // SVG uses the given size as the size of the SVG Viewport and then uses the values of several attributes on the root svg element to determine how to draw itself.
+            nested_content_rect = get_replaced_content_rect(*this, SVG::SVGSVGElement::negotiate_natural_metrics(*root));
+        }
+
+        // The hosted document's layout may have been invalidated during the parent
+        // document's layout. Ensure it is up to date before recording its list.
+        hosted_document->update_layout(DOM::UpdateLayoutReason::HostedDocumentBeforePaint);
+
+        auto const* hosted_paint_tree = hosted_document->paintable();
+        if (!hosted_paint_tree)
+            return;
+
         context.display_list_recorder().save();
         context.display_list_recorder().add_clip_rect(clip_rect.to_type<int>());
-        context.display_list_recorder().draw_external_content(
-            context.enclosing_device_rect(absolute_rect).to_type<int>(),
-            content_navigable->external_content_source(),
-            Gfx::ScalingMode::NearestNeighbor);
+
+        HTML::PaintConfig paint_config;
+        paint_config.paint_overlay = context.should_paint_overlay();
+        paint_config.should_show_line_box_borders = context.should_show_line_box_borders();
+        auto display_list = hosted_document->update_display_list(paint_config);
+        context.display_list_recorder().paint_nested_display_list(display_list, context.rounded_device_rect(nested_content_rect).to_type<int>());
+
         context.display_list_recorder().restore();
 
         if constexpr (HIGHLIGHT_FOCUSED_FRAME_DEBUG) {

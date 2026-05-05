@@ -8,13 +8,16 @@
 
 #pragma once
 
+#include <AK/Function.h>
+#include <AK/HashMap.h>
+#include <AK/OwnPtr.h>
 #include <LibGfx/Rect.h>
-#include <LibGfx/SharedImage.h>
+#include <LibGfx/ShareableBitmap.h>
+#include <LibGfx/SharedImagePayload.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/FileFilter.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/BackingStoreManager.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWebView/Forward.h>
@@ -23,9 +26,13 @@
 
 namespace WebContent {
 
+class PageClientOfPaintServer;
+
 class PageClient final : public Web::PageClient {
     GC_CELL(PageClient, Web::PageClient);
     GC_DECLARE_ALLOCATOR(PageClient);
+
+    friend class PageClientOfPaintServer;
 
 public:
     static GC::Ref<PageClient> create(JS::VM& vm, PageHost& page_host, u64 id);
@@ -41,6 +48,7 @@ public:
     static void set_use_skia_painter(UseSkiaPainter);
 
     virtual bool is_headless() const override;
+    static bool is_headless_for_process();
     static void set_is_headless(bool);
 
     virtual Web::Page& page() override { return *m_page; }
@@ -85,8 +93,7 @@ public:
     void did_disconnect_devtools_client();
     bool has_devtools_client() const { return m_devtools_client_count > 0; }
 
-    void ready_to_paint();
-
+    PageClientOfPaintServer& gpu_adapter();
     void initialize_js_console(Web::DOM::Document& document);
     void js_console_input(StringView js_source);
     void did_execute_js_console_input(JsonValue const&);
@@ -102,7 +109,10 @@ public:
 
     virtual Web::DisplayListPlayerType display_list_player_type() const override;
 
-    void queue_screenshot_task(Optional<Web::UniqueNodeID> node_id);
+    using ScreenshotCallback = Function<void(Gfx::ShareableBitmap const&)>;
+    void queue_screenshot_task(Optional<Web::UniqueNodeID> node_id, ScreenshotCallback);
+    void queue_viewport_screenshot_task(ScreenshotCallback);
+    void did_complete_offscreen_render(PaintServer::RequestID, PaintServer::ImageID, Optional<Gfx::SharedImagePayload>, Optional<Gfx::ShareableBitmap>);
 
 private:
     PageClient(PageHost&, u64 id);
@@ -189,11 +199,11 @@ private:
     virtual void page_did_insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation const&, StringView presentation_style) override;
     virtual void page_did_request_clipboard_entries(u64 request_id) override;
     virtual void page_did_change_audio_play_state(Web::HTML::AudioPlayState) override;
-    virtual void page_did_allocate_backing_stores(i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store) override;
     virtual WorkerAgentResponse request_worker_agent(Web::Bindings::AgentType) override;
     virtual void page_did_mutate_dom(FlyString const& type, Web::DOM::Node const& target, Web::DOM::NodeList& added_nodes, Web::DOM::NodeList& removed_nodes, GC::Ptr<Web::DOM::Node> previous_sibling, GC::Ptr<Web::DOM::Node> next_sibling, Optional<String> const& attribute_name) override;
-    virtual void page_did_paint(Gfx::IntRect const& content_rect, i32 bitmap_id) override;
-    virtual void page_did_take_screenshot(Gfx::ShareableBitmap const& screenshot) override;
+    virtual void page_did_submit_paint_frame(PaintServer::ReleaseToken) override;
+    virtual void process_screenshot_requests() override;
+    virtual Optional<PaintServer::RequestID> request_offscreen_render(OffscreenPaintRequest) override;
     virtual void received_message_from_web_ui(String const& name, JS::Value data) override;
     virtual void page_did_start_network_request(u64 request_id, URL::URL const&, ByteString const&, Vector<HTTP::Header> const&, ReadonlyBytes, Optional<String>) override;
     virtual void page_did_receive_network_response_headers(u64 request_id, u32 status_code, Optional<String>, Vector<HTTP::Header> const&) override;
@@ -216,11 +226,30 @@ private:
     u64 m_id { 0 };
     bool m_has_focus { false };
 
+    OwnPtr<PageClientOfPaintServer> m_painter;
+
     Web::CSS::PreferredColorScheme m_preferred_color_scheme { Web::CSS::PreferredColorScheme::Auto };
     Web::CSS::PreferredContrast m_preferred_contrast { Web::CSS::PreferredContrast::NoPreference };
     Web::CSS::PreferredMotion m_preferred_motion { Web::CSS::PreferredMotion::NoPreference };
 
     Core::AnonymousBuffer m_document_cookie_version_buffer;
+    struct ScreenshotTask {
+        enum class Kind : u8 {
+            Viewport,
+            Document,
+            Node,
+        };
+
+        Kind kind;
+        Optional<Web::UniqueNodeID> node_id;
+        ScreenshotCallback callback;
+    };
+    void complete_screenshot_task(Gfx::ShareableBitmap const&);
+    Queue<ScreenshotTask> m_screenshot_tasks;
+    Optional<ScreenshotTask> m_pending_screenshot_task;
+    bool m_screenshot_task_in_flight { false };
+    HashMap<PaintServer::RequestID, Function<void(OffscreenRenderResult)>> m_pending_offscreen_render_callbacks;
+    PaintServer::RequestID m_next_offscreen_render_request_id { 1 };
 
     RefPtr<WebDriverConnection> m_webdriver;
     RefPtr<WebUIConnection> m_web_ui;

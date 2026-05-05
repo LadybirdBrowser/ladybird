@@ -11,6 +11,12 @@ if (NOT WIN32)
     endif()
 endif()
 
+# vcpkg's Wayland ports on Linux are intentionally empty unless explicitly forced.
+# This is an opt-in knob: presets can set LADYBIRD_VCPKG_WAYLAND=ON to build the full ports.
+if (LADYBIRD_VCPKG_WAYLAND)
+    string(APPEND EXTRA_VCPKG_VARIABLES "set(X_VCPKG_FORCE_VCPKG_WAYLAND_LIBRARIES ON)\n")
+endif()
+
 # Workaround for bad patchelf interaction with binutils 2.43.50
 # https://github.com/LadybirdBrowser/ladybird/issues/2149
 # https://github.com/microsoft/vcpkg/issues/41576

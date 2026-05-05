@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<head>
+  <meta name="fuzzy" content="maxDifference=0-5;totalPixels=0-1000">
+  <style>
+    html,
+    body {
+      margin: 0;
+      background: white;
+    }
+
+    .row {
+      display: flex;
+      gap: 20px;
+      padding: 20px;
+    }
+
+    object {
+      display: block;
+      width: 120px;
+      height: 120px;
+      border: 4px solid #222;
+      background: #d9d9d9;
+      object-fit: contain;
+    }
+
+    #top-left {
+      object-position: left top;
+    }
+
+    #center {
+      object-position: center;
+    }
+
+    #bottom-right {
+      object-position: right bottom;
+    }
+  </style>
+</head>
+<script>
+    let pendingObjects = 3;
+
+    function objectLoaded() {
+        pendingObjects--;
+        if (pendingObjects === 0)
+            document.documentElement.classList.remove("reftest-wait");
+    }
+</script>
+<div class="row">
+  <object
+    id="top-left"
+    type="image/svg+xml"
+    onload="objectLoaded()"
+    data="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='40' viewBox='0 0 80 40'%3E%3Crect width='80' height='40' fill='%23ffb703'/%3E%3Crect x='0' y='0' width='16' height='40' fill='%23023e8a'/%3E%3Cpath d='M0 40 L80 0 L80 40 Z' fill='%23222222'/%3E%3C/svg%3E"></object>
+  <object
+    id="center"
+    type="image/svg+xml"
+    onload="objectLoaded()"
+    data="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='40' viewBox='0 0 80 40'%3E%3Crect width='80' height='40' fill='%23ffb703'/%3E%3Crect x='0' y='0' width='16' height='40' fill='%23023e8a'/%3E%3Cpath d='M0 40 L80 0 L80 40 Z' fill='%23222222'/%3E%3C/svg%3E"></object>
+  <object
+    id="bottom-right"
+    type="image/svg+xml"
+    onload="objectLoaded()"
+    data="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='40' viewBox='0 0 80 40'%3E%3Crect width='80' height='40' fill='%23ffb703'/%3E%3Crect x='0' y='0' width='16' height='40' fill='%23023e8a'/%3E%3Cpath d='M0 40 L80 0 L80 40 Z' fill='%23222222'/%3E%3C/svg%3E"></object>
+</div>

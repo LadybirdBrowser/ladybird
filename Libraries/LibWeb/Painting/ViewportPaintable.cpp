@@ -44,6 +44,7 @@ void ViewportPaintable::reset_for_relayout()
     m_scroll_state.clear();
     m_scroll_state_snapshot = {};
     m_needs_to_refresh_scroll_state = true;
+    m_has_pending_scroll_state_update = false;
     m_paintable_boxes_with_auto_content_visibility.clear();
     m_visual_context_tree = nullptr;
     m_visual_viewport_context_index = {};
@@ -84,9 +85,12 @@ void ViewportPaintable::build_stacking_context_tree()
 void ViewportPaintable::paint_all_phases(DisplayListRecordingContext& context)
 {
     build_stacking_context_tree_if_needed();
-    context.display_list_recorder().save_layer();
+    bool const wrap_in_root_layer = true;
+    if (wrap_in_root_layer)
+        context.display_list_recorder().save_layer();
     stacking_context()->paint(context);
-    context.display_list_recorder().restore();
+    if (wrap_in_root_layer)
+        context.display_list_recorder().restore();
 }
 
 void ViewportPaintable::assign_scroll_frames()

@@ -39,13 +39,6 @@ public:
     void enqueue_input_event(Web::DragEvent);
     void enqueue_input_event(Web::KeyEvent);
     void enqueue_input_event(Web::PinchEvent);
-
-    struct Paintable {
-        Gfx::SharedImageBuffer const* shared_image_buffer { nullptr };
-        Gfx::IntSize bitmap_size;
-    };
-    Optional<Paintable> paintable();
-
     Function<void()> on_zoom_level_changed;
 
     auto& pinch_state() { return m_pinch_state; }

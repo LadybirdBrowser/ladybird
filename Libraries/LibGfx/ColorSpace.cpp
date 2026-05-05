@@ -49,6 +49,21 @@ ColorSpace::ColorSpace(NonnullOwnPtr<Details::ColorSpaceImpl>&& color_space)
 {
 }
 
+bool ColorSpace::is_valid() const
+{
+    return m_color_space->color_space != nullptr;
+}
+
+bool ColorSpace::is_srgb() const
+{
+    return m_color_space->color_space && m_color_space->color_space->isSRGB();
+}
+
+bool ColorSpace::is_linear() const
+{
+    return m_color_space->color_space && m_color_space->color_space->gammaIsLinear();
+}
+
 ErrorOr<ColorSpace> ColorSpace::from_cicp(Media::CodingIndependentCodePoints cicp)
 {
     auto gamut = TRY([&] -> ErrorOr<skcms_Matrix3x3> {

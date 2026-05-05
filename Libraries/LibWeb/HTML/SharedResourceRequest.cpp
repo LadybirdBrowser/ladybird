@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Debug.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
@@ -24,6 +25,24 @@
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 
 namespace Web::HTML {
+
+static bool should_use_gpu_backed_bitmap_resources(Page const& page)
+{
+    return page.client().display_list_player_type() == DisplayListPlayerType::PaintServer;
+}
+
+struct DecodedFrame {
+    NonnullRefPtr<Gfx::DecodedImageFrame> frame;
+};
+
+static DecodedFrame make_decoded_frame(NonnullRefPtr<Gfx::Bitmap> bitmap, Gfx::ColorSpace const& color_space)
+{
+    auto frame = Gfx::DecodedImageFrame::create(NonnullRefPtr<Gfx::Bitmap const> { *bitmap }, color_space);
+
+    return {
+        .frame = move(frame),
+    };
+}
 
 GC_DEFINE_ALLOCATOR(SharedResourceRequest);
 
@@ -80,7 +99,7 @@ GC::Ptr<Fetch::Infrastructure::FetchController> SharedResourceRequest::fetch_con
 
 void SharedResourceRequest::set_fetch_controller(GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller)
 {
-    m_fetch_controller = move(fetch_controller);
+    m_fetch_controller = fetch_controller;
 }
 
 void SharedResourceRequest::fetch_resource(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Request> request)
@@ -140,7 +159,7 @@ void SharedResourceRequest::add_callbacks(Function<void()> on_finish, Function<v
     if (on_fail)
         callbacks.on_fail = GC::create_function(vm().heap(), move(on_fail));
 
-    m_callbacks.append(move(callbacks));
+    m_callbacks.append(callbacks);
 }
 
 void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, StringView mime_type, ByteBuffer data)
@@ -163,6 +182,8 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
     }
 
     auto handle_successful_bitmap_decode = [strong_this = GC::Root(*this)](Web::Platform::DecodedImage& result) -> ErrorOr<void> {
+        bool const use_gpu_backed_bitmap_resources = should_use_gpu_backed_bitmap_resources(*strong_this->m_page);
+
         if (result.session_id != 0) {
             // Streaming animated decode: create AnimatedDecodedImageData.
             Vector<NonnullRefPtr<Gfx::Bitmap>> initial_bitmaps;
@@ -179,19 +200,22 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
                 result.frame_count,
                 result.loop_count,
                 size,
-                move(result.color_space),
+                result.color_space,
                 move(result.all_durations),
-                move(initial_bitmaps));
+                move(initial_bitmaps),
+                use_gpu_backed_bitmap_resources);
         } else {
             // Single-shot decode: create BitmapDecodedImageData as before.
             Vector<BitmapDecodedImageData::Frame> frames;
             for (auto& frame : result.frames) {
+                auto decoded_frame = make_decoded_frame(*frame.bitmap, result.color_space);
+
                 frames.append(BitmapDecodedImageData::Frame {
-                    .frame = Gfx::DecodedImageFrame::create(*frame.bitmap, result.color_space),
+                    .frame = move(decoded_frame.frame),
                     .duration = static_cast<int>(frame.duration),
                 });
             }
-            strong_this->m_image_data = BitmapDecodedImageData::create(strong_this->m_document->realm(), move(frames), result.loop_count, result.is_animated).release_value_but_fixme_should_propagate_errors();
+            strong_this->m_image_data = TRY(BitmapDecodedImageData::create(strong_this->m_document->realm(), move(frames), result.loop_count, result.is_animated));
         }
         strong_this->handle_successful_resource_load();
         return {};

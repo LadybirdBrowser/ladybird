@@ -7,7 +7,6 @@
 #include <AK/Base64.h>
 #include <AK/Checked.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/HTMLCanvasElement.h>
 #include <LibWeb/CSS/ComputedProperties.h>
@@ -26,11 +25,18 @@
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/Layout/CanvasBox.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/DisplayListSubmitter.h>
+#include <LibWeb/Painting/ExternalContentSource.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/WebGL/WebGL2RenderingContext.h>
+#include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
+
+#include <core/SkCanvas.h>
+#include <core/SkColor.h>
+#include <core/SkImage.h>
 
 namespace Web::HTML {
 
@@ -151,8 +157,12 @@ Painting::ExternalContentSource& HTMLCanvasElement::ensure_external_content_sour
 
 void HTMLCanvasElement::reset_context_to_default_state()
 {
-    if (m_external_content_source)
-        m_external_content_source->clear();
+    if (m_context.has<Empty>()) {
+        if (m_external_content_source)
+            m_external_content_source->clear();
+        return;
+    }
+
     m_context.visit(
         [](GC::Ref<CanvasRenderingContext2D>& context) {
             context->reset_to_default_state();
@@ -225,8 +235,6 @@ void HTMLCanvasElement::set_width(unsigned value)
         value = 300;
 
     set_attribute_value(HTML::AttributeNames::width, String::number(value));
-    notify_context_about_canvas_size_change();
-    reset_context_to_default_state();
 }
 
 void HTMLCanvasElement::set_height(WebIDL::UnsignedLong value)
@@ -235,8 +243,6 @@ void HTMLCanvasElement::set_height(WebIDL::UnsignedLong value)
         value = 150;
 
     set_attribute_value(HTML::AttributeNames::height, String::number(value));
-    notify_context_about_canvas_size_change();
-    reset_context_to_default_state();
 }
 
 void HTMLCanvasElement::attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
@@ -350,7 +356,7 @@ String HTMLCanvasElement::to_data_url(StringView type, JS::Value js_quality)
     auto size = bitmap_size_for_canvas();
     if (!surface && !size.is_empty()) {
         // If the context is not initialized yet, we need to allocate transparent surface for serialization
-        surface = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
+        surface = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::BitmapAlpha::Premultiplied);
     }
 
     // FIXME: 1. If this canvas element's bitmap's origin-clean flag is set to false, then throw a "SecurityError" DOMException.
@@ -361,7 +367,8 @@ String HTMLCanvasElement::to_data_url(StringView type, JS::Value js_quality)
         return "data:,"_string;
 
     // 3. Let file be a serialization of this canvas element's bitmap as a file, passing type and quality if given.
-    auto bitmap = surface->snapshot_bitmap();
+    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::BitmapAlpha::Premultiplied, surface->size()));
+    surface->read_into_bitmap(*bitmap);
     Optional<double> quality = js_quality.is_number() ? js_quality.as_double() : Optional<double>();
     auto file = serialize_bitmap(bitmap, type, quality);
 
@@ -421,25 +428,89 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackTyp
 
 RefPtr<Gfx::Bitmap> HTMLCanvasElement::get_bitmap_from_surface()
 {
+    auto surface = paint_server_surface_for_2d_context_readback();
+
     // It is possible the canvas doesn't have an associated bitmap so create one
-    allocate_painting_surface_if_needed();
-    auto surface = this->surface();
+    if (!surface) {
+        allocate_painting_surface_if_needed();
+        surface = this->surface();
+    }
     if (auto const size = bitmap_size_for_canvas(); !surface && !size.is_empty()) {
         // If the context is not initialized yet, we need to allocate transparent surface for serialization
-        surface = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
+        surface = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::BitmapAlpha::Premultiplied);
     }
 
     RefPtr<Gfx::Bitmap> bitmap;
     if (surface) {
-        bitmap = surface->snapshot_bitmap();
+        bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::BitmapAlpha::Premultiplied, surface->size()));
+        surface->read_into_bitmap(*bitmap);
     }
 
     return bitmap;
 }
 
+RefPtr<Gfx::PaintingSurface> HTMLCanvasElement::paint_server_surface_for_2d_context_readback()
+{
+    RefPtr<Gfx::PaintingSurface> readback_surface;
+    m_context.visit(
+        [&](GC::Ref<CanvasRenderingContext2D>& context) {
+            if (context->size().is_empty())
+                return;
+
+            auto& source = ensure_external_content_source();
+            if (context->has_recorded_draw_commands())
+                present();
+
+            if (context->has_recorded_draw_commands()) {
+                schedule_paint_server_canvas_present_when_ready(source);
+                return;
+            }
+
+            if (!source.current_image_id().has_value())
+                return;
+
+            if (!source.has_finalized_content()) {
+                source.when_content_is_finalized(GC::create_function(heap(), [this] {
+                    set_needs_repaint();
+                }));
+                return;
+            }
+            readback_surface = source.painting_surface_for_size(context->size(), Gfx::BitmapFormat::BGRA8888);
+        },
+        [](GC::Ref<WebGL::WebGLRenderingContext>&) {},
+        [](GC::Ref<WebGL::WebGL2RenderingContext>&) {},
+        [](Empty) {});
+    return readback_surface;
+}
+
 void HTMLCanvasElement::set_canvas_content_dirty()
 {
     m_canvas_content_dirty = true;
+}
+
+void HTMLCanvasElement::schedule_paint_server_canvas_present()
+{
+    if (m_paint_server_canvas_present_scheduled)
+        return;
+
+    m_paint_server_canvas_present_scheduled = true;
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this] {
+        m_paint_server_canvas_present_scheduled = false;
+        present();
+    }));
+}
+
+void HTMLCanvasElement::schedule_paint_server_canvas_present_when_ready(Painting::ExternalContentSource& source)
+{
+    if (m_paint_server_canvas_present_waiting_for_content)
+        return;
+
+    m_paint_server_canvas_present_waiting_for_content = true;
+    source.when_content_is_finalized(GC::create_function(heap(), [this] {
+        m_paint_server_canvas_present_waiting_for_content = false;
+        schedule_paint_server_canvas_present();
+        set_needs_repaint();
+    }));
 }
 
 void HTMLCanvasElement::present()
@@ -462,10 +533,106 @@ void HTMLCanvasElement::present()
             // Do nothing.
         });
 
+    bool handled_2d_canvas = false;
+    m_context.visit(
+        [&](GC::Ref<CanvasRenderingContext2D>& context) {
+            handled_2d_canvas = true;
+            if (!context->has_recorded_draw_commands())
+                return;
+
+            Gfx::IntSize size = context->size();
+            if (size.is_empty())
+                return;
+
+            auto& source = ensure_external_content_source();
+            auto image_id = source.ensure_canvas_render_target(size, Gfx::BitmapFormat::BGRA8888);
+            if (!image_id.has_value()) {
+                m_canvas_content_dirty = true;
+                schedule_paint_server_canvas_present_when_ready(source);
+                return;
+            }
+
+            auto draw_list = context->take_recorded_draw_commands();
+            if (draw_list.is_empty())
+                return;
+
+            auto sink_page_id = document().page().client().painting_sink_id();
+            if (!sink_page_id.has_value()) {
+                source.did_complete_canvas_render(false);
+                return;
+            }
+
+            RefPtr<Painting::ExternalContentSource> protected_source { source };
+            source.did_submit_canvas_render();
+            auto release_token = Painting::DisplayListSubmitter::submit_canvas_draw_list(
+                sink_page_id.value(),
+                image_id.value(),
+                size,
+                Gfx::BitmapFormat::BGRA8888,
+                draw_list.bytes(),
+                [protected_source = move(protected_source)](bool success) {
+                    protected_source->did_complete_canvas_render(success);
+                });
+            if (!release_token.has_value()) {
+                source.did_complete_canvas_render(false);
+                return;
+            }
+            document().page().client().page_did_submit_paint_frame(release_token.value());
+        },
+        [](GC::Ref<WebGL::WebGLRenderingContext>&) {
+            // Do nothing.
+        },
+        [](GC::Ref<WebGL::WebGL2RenderingContext>&) {
+            // Do nothing.
+        },
+        [](Empty) {
+            // Do nothing.
+        });
+    if (handled_2d_canvas)
+        return;
+
     if (auto surface = this->surface()) {
         surface->flush();
-        auto snapshot = Gfx::DecodedImageFrame::create(*surface->snapshot_bitmap());
-        ensure_external_content_source().update(snapshot);
+        auto& source = ensure_external_content_source();
+
+        auto content_image_payload = m_context.visit(
+            [](GC::Ref<CanvasRenderingContext2D>&) -> Optional<Gfx::SharedImagePayload> {
+                return {};
+            },
+            [](GC::Ref<WebGL::WebGLRenderingContext>& context) {
+                return context->context().content_image_payload();
+            },
+            [](GC::Ref<WebGL::WebGL2RenderingContext>& context) {
+                return context->context().content_image_payload();
+            },
+            [](Empty) -> Optional<Gfx::SharedImagePayload> {
+                return {};
+            });
+        if (content_image_payload.has_value() && source.import_content_image(content_image_payload.release_value())) {
+            if (!source.current_image_id().has_value()) {
+                m_canvas_content_dirty = true;
+                schedule_paint_server_canvas_present_when_ready(source);
+            }
+            return;
+        }
+
+        auto content_surface = source.painting_surface_for_size(surface->size(), Gfx::BitmapFormat::BGRA8888);
+        if (!content_surface) {
+            m_canvas_content_dirty = true;
+            schedule_paint_server_canvas_present_when_ready(source);
+            return;
+        }
+
+        auto image = surface->sk_image_snapshot<sk_sp<SkImage>>();
+        if (!image)
+            return;
+
+        content_surface->lock_context();
+        auto& canvas = content_surface->canvas();
+        canvas.clear(SK_ColorTRANSPARENT);
+        canvas.drawImage(image, 0.0f, 0.0f);
+        content_surface->unlock_context();
+        source.did_update_painting_surface_content();
     }
 }
 

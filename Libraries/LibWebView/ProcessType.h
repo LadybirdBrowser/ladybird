@@ -14,6 +14,7 @@ enum class ProcessType : u8 {
     Browser,
     WebContent,
     WebWorker,
+    PaintServer,
     RequestServer,
     ImageDecoder,
 };

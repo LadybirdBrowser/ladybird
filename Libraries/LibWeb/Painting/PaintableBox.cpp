@@ -589,7 +589,12 @@ Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(Scrol
     CSSPixels min_thumb_length = min(usable_scrollbar_length, metrics.scroll_thumb_min_length);
     CSSPixels thumb_length = max(usable_scrollbar_length * (scrollport_size / scrollable_overflow_length), min_thumb_length);
 
-    ScrollbarData scrollbar_data = { .gutter_rect = {}, .thumb_rect = scrollbar_rect.value(), .thumb_travel_to_scroll_ratio = 0 };
+    ScrollbarData scrollbar_data = {
+        .scrollbar_rect = scrollbar_rect.value(),
+        .gutter_rect = {},
+        .thumb_rect = scrollbar_rect.value(),
+        .thumb_travel_to_scroll_ratio = 0,
+    };
 
     scrollbar_data.thumb_rect.set_primary_size_for_orientation(orientation, thumb_length);
     scrollbar_data.thumb_rect.set_secondary_size_for_orientation(orientation, thumb_thickness);
@@ -676,6 +681,7 @@ void PaintableBox::paint(DisplayListRecordingContext& context, PaintPhase phase)
                     continue;
                 context.display_list_recorder().paint_scrollbar(
                     m_own_scroll_frame_index,
+                    context.rounded_device_rect(scrollbar_data->scrollbar_rect).to_type<int>(),
                     context.rounded_device_rect(scrollbar_data->gutter_rect).to_type<int>(),
                     context.rounded_device_rect(scrollbar_data->thumb_rect).to_type<int>(),
                     scrollbar_data->thumb_travel_to_scroll_ratio.to_double(),
