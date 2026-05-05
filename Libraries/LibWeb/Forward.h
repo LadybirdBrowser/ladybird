@@ -47,6 +47,7 @@ class DisplayList;
 class DisplayListPlayerSkia;
 class DisplayListRecorder;
 class ExternalContentSource;
+class VideoFrameSource;
 class SVGGradientPaintStyle;
 class SVGPaintServerPaintStyle;
 class SVGPatternPaintStyle;

@@ -878,6 +878,7 @@ set(SOURCES
     Painting/RadioButtonPaintable.cpp
     Painting/ReplacedElementCommon.cpp
     Painting/ResolvedCSSFilter.cpp
+    Painting/VideoFrameSource.cpp
     Painting/ResizeHandle.cpp
     Painting/Scrollbar.cpp
     Painting/ScrollFrame.cpp

@@ -7,7 +7,7 @@
 
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ImmutableBitmap.h>
-#include <LibMedia/Sinks/DisplayingVideoSink.h>
+#include <LibMedia/VideoFrame.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
@@ -63,12 +63,12 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
     };
 
     auto paint_video_frame = [&]() {
-        auto& source = const_cast<HTML::HTMLVideoElement&>(video_element).ensure_external_content_source();
-        auto current = source.current_bitmap();
+        auto& source = const_cast<HTML::HTMLVideoElement&>(video_element).ensure_video_frame_source();
+        auto current = source.current_frame();
 
         Gfx::IntSize src_size;
         if (current)
-            src_size = current->size();
+            src_size = current->size().to_type<int>();
         else if (video_element.natural_media_size().has_value())
             src_size = video_element.natural_media_size()->to_type<int>();
         else
@@ -78,7 +78,7 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
         if (dst_rect.is_empty())
             return;
         auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), src_size, dst_rect.size());
-        context.display_list_recorder().draw_external_content(dst_rect, source, scaling_mode);
+        context.display_list_recorder().draw_video_frame_source(dst_rect, source, scaling_mode);
     };
 
     auto paint_transparent_black = [&]() {

@@ -30,6 +30,7 @@
 #include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/Painting/ScrollState.h>
 #include <LibWeb/Painting/ShouldAntiAlias.h>
+#include <LibWeb/Painting/VideoFrameSource.h>
 
 namespace Web::Painting {
 
@@ -93,6 +94,17 @@ struct DrawExternalContent {
 
     Gfx::IntRect dst_rect;
     NonnullRefPtr<ExternalContentSource> source;
+    Gfx::ScalingMode scaling_mode;
+
+    [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }
+    void dump(StringBuilder&) const;
+};
+
+struct DrawVideoFrameSource {
+    static constexpr StringView command_name = "DrawVideoFrameSource"sv;
+
+    Gfx::IntRect dst_rect;
+    NonnullRefPtr<VideoFrameSource> source;
     Gfx::ScalingMode scaling_mode;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }
@@ -380,6 +392,7 @@ using DisplayListCommand = Variant<
     DrawScaledImmutableBitmap,
     DrawRepeatedImmutableBitmap,
     DrawExternalContent,
+    DrawVideoFrameSource,
     Save,
     SaveLayer,
     Restore,

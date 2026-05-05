@@ -11,28 +11,36 @@
 #include <core/SkBlurTypes.h>
 #include <core/SkCanvas.h>
 #include <core/SkColorFilter.h>
+#include <core/SkColorSpace.h>
 #include <core/SkFont.h>
 #include <core/SkMaskFilter.h>
 #include <core/SkPath.h>
 #include <core/SkPathEffect.h>
 #include <core/SkRRect.h>
 #include <core/SkSurface.h>
+#include <core/SkYUVAPixmaps.h>
 #include <effects/SkDashPathEffect.h>
 #include <effects/SkGradientShader.h>
 #include <effects/SkImageFilters.h>
 #include <effects/SkLumaColorFilter.h>
 #include <gpu/ganesh/GrDirectContext.h>
+#include <gpu/ganesh/SkImageGanesh.h>
 #include <gpu/ganesh/SkSurfaceGanesh.h>
 #include <pathops/SkPathOps.h>
 
+#include <LibGfx/Bitmap.h>
 #include <LibGfx/Font/Font.h>
+#include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/PathSkia.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibGfx/SkiaUtils.h>
+#include <LibGfx/YUVData.h>
+#include <LibMedia/VideoFrame.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/PaintStyle.h>
+#include <LibWeb/Painting/VideoFrameSource.h>
 
 namespace Web::Painting {
 
@@ -150,6 +158,49 @@ void DisplayListPlayerSkia::draw_external_content(DrawExternalContent const& com
     auto image = m_image_cache.image_for_bitmap(*bitmap);
     if (!image)
         return;
+    auto dst_rect = to_skia_rect(command.dst_rect);
+    SkRect src_rect = SkRect::MakeIWH(image->width(), image->height());
+    auto& canvas = surface().canvas();
+    SkPaint paint;
+    paint.setAntiAlias(true);
+    canvas.drawImageRect(image.get(), src_rect, dst_rect, to_skia_sampling_options(command.scaling_mode), &paint, SkCanvas::kStrict_SrcRectConstraint);
+}
+
+void DisplayListPlayerSkia::draw_video_frame_source(DrawVideoFrameSource const& command)
+{
+    auto frame = command.source->current_frame();
+    if (!frame)
+        return;
+
+    sk_sp<SkImage> image;
+    auto* gr_context = m_skia_backend_context ? m_skia_backend_context->sk_context() : nullptr;
+    if (gr_context) {
+        image = SkImages::TextureFromYUVAPixmaps(
+            gr_context,
+            frame->yuv_data().make_pixmaps(),
+            skgpu::Mipmapped::kNo,
+            false,
+            frame->color_space().color_space<sk_sp<SkColorSpace>>());
+    }
+
+    RefPtr<Gfx::Bitmap> converted_bitmap;
+    if (!image) {
+        auto bitmap_or_error = frame->yuv_data().to_bitmap();
+        if (bitmap_or_error.is_error()) {
+            dbgln("Could not convert video frame to bitmap: {}", bitmap_or_error.release_error());
+            return;
+        }
+        converted_bitmap = bitmap_or_error.release_value();
+        auto raster_image = Gfx::sk_image_from_bitmap(*converted_bitmap, frame->color_space());
+        if (gr_context) {
+            image = SkImages::TextureFromImage(gr_context, raster_image.get(), skgpu::Mipmapped::kNo, skgpu::Budgeted::kYes);
+            if (!image)
+                image = move(raster_image);
+        } else {
+            image = move(raster_image);
+        }
+    }
+
     auto dst_rect = to_skia_rect(command.dst_rect);
     SkRect src_rect = SkRect::MakeIWH(image->width(), image->height());
     auto& canvas = surface().canvas();

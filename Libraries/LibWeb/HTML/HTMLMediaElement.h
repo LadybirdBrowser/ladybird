@@ -21,7 +21,7 @@
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/MediaControls.h>
-#include <LibWeb/Painting/ExternalContentSource.h>
+#include <LibWeb/Painting/VideoFrameSource.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
@@ -169,7 +169,7 @@ public:
 
     RefPtr<Media::DisplayingVideoSink> const& selected_video_track_sink() const { return m_selected_video_track_sink; }
 
-    Painting::ExternalContentSource& ensure_external_content_source();
+    Painting::VideoFrameSource& ensure_video_frame_source();
 
     virtual void update_intrinsic_video_dimensions() { }
     virtual void update_natural_dimensions() { }
@@ -376,7 +376,7 @@ private:
     bool m_has_enabled_preferred_audio_track { false };
     bool m_has_selected_preferred_video_track { false };
 
-    RefPtr<Painting::ExternalContentSource> m_external_content_source;
+    RefPtr<Painting::VideoFrameSource> m_video_frame_source;
 };
 
 }

@@ -50,6 +50,11 @@ void DrawExternalContent::dump(StringBuilder& builder) const
     builder.appendff(" dst_rect={}", dst_rect);
 }
 
+void DrawVideoFrameSource::dump(StringBuilder& builder) const
+{
+    builder.appendff(" dst_rect={}", dst_rect);
+}
+
 void Save::dump(StringBuilder&) const
 {
 }

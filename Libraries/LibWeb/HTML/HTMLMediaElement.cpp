@@ -6,7 +6,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGfx/ImmutableBitmap.h>
 #include <LibJS/Runtime/Promise.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/PlaybackManager.h>
@@ -1532,11 +1531,11 @@ void HTMLMediaElement::set_audio_track_enabled(Badge<AudioTrack>, GC::Ptr<HTML::
         m_playback_manager->disable_an_audio_track(audio_track->track_in_playback_manager());
 }
 
-Painting::ExternalContentSource& HTMLMediaElement::ensure_external_content_source()
+Painting::VideoFrameSource& HTMLMediaElement::ensure_video_frame_source()
 {
-    if (!m_external_content_source)
-        m_external_content_source = Painting::ExternalContentSource::create();
-    return *m_external_content_source;
+    if (!m_video_frame_source)
+        m_video_frame_source = Painting::VideoFrameSource::create();
+    return *m_video_frame_source;
 }
 
 void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML::VideoTrack> video_track)
@@ -1546,8 +1545,8 @@ void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML:
     if (video_track && !m_playback_manager->video_tracks().contains_slow(video_track->track_in_playback_manager()))
         return;
 
-    if (m_external_content_source)
-        m_external_content_source->clear();
+    if (m_video_frame_source)
+        m_video_frame_source->clear();
 
     auto previous_track = m_selected_video_track;
 
@@ -1556,13 +1555,10 @@ void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML:
         m_selected_video_track_sink = m_playback_manager->get_or_create_the_displaying_video_sink_for_track(video_track->track_in_playback_manager());
         auto sink_update_result = m_selected_video_track_sink->update();
         if (sink_update_result == Media::DisplayingVideoSinkUpdateResult::NewFrameAvailable) {
-            if (auto current_frame = m_selected_video_track_sink->current_frame()) {
-                auto bitmap_or_error = current_frame->to_immutable_bitmap();
-                if (bitmap_or_error.is_error())
-                    dbgln("Could not convert video frame to bitmap: {}", bitmap_or_error.release_error());
-                else
-                    ensure_external_content_source().update(bitmap_or_error.release_value());
-            }
+            if (auto current_frame = m_selected_video_track_sink->current_frame())
+                ensure_video_frame_source().update(move(current_frame));
+            else if (m_video_frame_source)
+                m_video_frame_source->clear();
             update_intrinsic_video_dimensions();
             set_needs_repaint();
         } else if (auto* video_element = as_if<HTMLVideoElement>(this)) {
@@ -1585,13 +1581,10 @@ void HTMLMediaElement::update_video_frame_and_timeline()
     if (m_selected_video_track_sink) {
         auto sink_update_result = m_selected_video_track_sink->update();
         if (sink_update_result == Media::DisplayingVideoSinkUpdateResult::NewFrameAvailable) {
-            if (auto current_frame = m_selected_video_track_sink->current_frame()) {
-                auto bitmap_or_error = current_frame->to_immutable_bitmap();
-                if (bitmap_or_error.is_error())
-                    dbgln("Could not convert video frame to bitmap: {}", bitmap_or_error.release_error());
-                else
-                    ensure_external_content_source().update(bitmap_or_error.release_value());
-            }
+            if (auto current_frame = m_selected_video_track_sink->current_frame())
+                ensure_video_frame_source().update(move(current_frame));
+            else if (m_video_frame_source)
+                m_video_frame_source->clear();
             update_intrinsic_video_dimensions();
             set_needs_repaint();
         }

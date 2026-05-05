@@ -239,6 +239,13 @@ void DisplayListRecorder::draw_external_content(Gfx::IntRect const& dst_rect, No
     APPEND(DrawExternalContent { .dst_rect = dst_rect, .source = move(source), .scaling_mode = scaling_mode });
 }
 
+void DisplayListRecorder::draw_video_frame_source(Gfx::IntRect const& dst_rect, NonnullRefPtr<VideoFrameSource> source, Gfx::ScalingMode scaling_mode)
+{
+    if (dst_rect.is_empty())
+        return;
+    APPEND(DrawVideoFrameSource { .dst_rect = dst_rect, .source = move(source), .scaling_mode = scaling_mode });
+}
+
 void DisplayListRecorder::draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_rect, Gfx::IntRect const& clip_rect, Gfx::ImmutableBitmap const& bitmap, Gfx::ScalingMode scaling_mode)
 {
     if (dst_rect.is_empty())
