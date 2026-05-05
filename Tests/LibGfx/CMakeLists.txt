@@ -1,5 +1,3 @@
-include(skia)
-
 set(TEST_SOURCES
     BenchmarkJPEGLoader.cpp
     TestBitmapExport.cpp
