@@ -7,7 +7,7 @@ jobs:
     runs-on: blacksmith-2vcpu-ubuntu-2404
     if: github.repository == 'LadybirdBrowser/ladybird'
     container:
-      image: ghcr.io/ladybirdbrowser/ladybird-ci:2026.05.3
+      image: ghcr.io/ladybirdbrowser/ladybird-ci:2026.05.4
 
     steps:
       - uses: actions/checkout@v6.0.2

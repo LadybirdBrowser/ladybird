@@ -30,7 +30,7 @@ jobs:
         toolchain: ['Clang']
         package_type: ['Linux-x86_64']
         runner_labels: ['["blacksmith-8vcpu-ubuntu-2404"]']
-        container: [&ci_container '{"image":"ghcr.io/ladybirdbrowser/ladybird-ci:2026.05.3"}']
+        container: [&ci_container '{"image":"ghcr.io/ladybirdbrowser/ladybird-ci:2026.05.4"}']
 
         include:
           - os_name: 'macOS'
