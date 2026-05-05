@@ -313,6 +313,7 @@ class Display;
 class DisplayStyleValue;
 class EasingStyleValue;
 class EdgeStyleValue;
+class EmptyOptionalStyleValue;
 class ExplicitGridTrack;
 class FilterValueListStyleValue;
 class Flex;

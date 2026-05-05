@@ -59,15 +59,22 @@ void StyleValueList::serialize(StringBuilder& builder, SerializationMode mode) c
     }
 
     auto first_value = m_properties.values.first();
-    if (all_of(m_properties.values, [&](auto const& property) { return property == first_value; }) && m_properties.separator != Separator::Comma && m_properties.collapsible == Collapsible::Yes) {
+    if (all_of(m_properties.values, [&](auto const& property) { return property == first_value; }) && m_properties.separator != Separator::Comma && m_properties.collapsible == Collapsible::Yes && !first_value->is_empty_optional()) {
         first_value->serialize(builder, mode);
         return;
     }
 
+    bool first = true;
+
     for (size_t i = 0; i < m_properties.values.size(); ++i) {
-        m_properties.values[i]->serialize(builder, mode);
-        if (i != m_properties.values.size() - 1)
+        if (m_properties.values[i]->is_empty_optional())
+            continue;
+
+        if (!first)
             builder.append(separator);
+
+        first = false;
+        m_properties.values[i]->serialize(builder, mode);
     }
 }
 
@@ -83,6 +90,8 @@ Vector<Parser::ComponentValue> StyleValueList::tokenize() const
     Vector<Parser::ComponentValue> component_values;
     bool first = true;
     for (auto const& value : m_properties.values) {
+        if (value->is_empty_optional())
+            continue;
         if (first) {
             first = false;
         } else {
