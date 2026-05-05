@@ -38,6 +38,10 @@
 
 namespace GC {
 
+static constexpr size_t GC_MIN_BYTES_THRESHOLD { 8 * 1024 * 1024 };
+static constexpr size_t GC_HEAP_GROWTH_FACTOR_NUMERATOR { 7 };
+static constexpr size_t GC_HEAP_GROWTH_FACTOR_DENOMINATOR { 4 };
+
 static Heap* s_the;
 
 Heap& Heap::the()
@@ -49,6 +53,7 @@ Heap::Heap(AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> gather_embedder_roo
     : m_gather_embedder_roots(move(gather_embedder_roots))
 {
     s_the = this;
+    m_gc_bytes_threshold = GC_MIN_BYTES_THRESHOLD;
     static_assert(HeapBlock::min_possible_cell_size <= 32, "Heap Cell tracking uses too much data!");
     m_size_based_cell_allocators.append(make<CellAllocator>(64));
     m_size_based_cell_allocators.append(make<CellAllocator>(96));
@@ -779,7 +784,8 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
         });
     }
 
-    m_gc_bytes_threshold = live_cell_bytes > GC_MIN_BYTES_THRESHOLD ? live_cell_bytes : GC_MIN_BYTES_THRESHOLD;
+    auto next_gc_bytes_threshold = live_cell_bytes * GC_HEAP_GROWTH_FACTOR_NUMERATOR / GC_HEAP_GROWTH_FACTOR_DENOMINATOR;
+    m_gc_bytes_threshold = max(next_gc_bytes_threshold, GC_MIN_BYTES_THRESHOLD);
 
     if (print_report) {
         AK::Duration const time_spent = measurement_timer.elapsed_time();
