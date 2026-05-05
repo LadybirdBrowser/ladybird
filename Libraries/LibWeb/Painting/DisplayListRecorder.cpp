@@ -246,24 +246,24 @@ void DisplayListRecorder::draw_video_frame_source(Gfx::IntRect const& dst_rect, 
     APPEND(DrawVideoFrameSource { .dst_rect = dst_rect, .source = move(source), .scaling_mode = scaling_mode });
 }
 
-void DisplayListRecorder::draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_rect, Gfx::IntRect const& clip_rect, Gfx::ImmutableBitmap const& bitmap, Gfx::ScalingMode scaling_mode)
+void DisplayListRecorder::draw_scaled_decoded_image_frame(Gfx::IntRect const& dst_rect, Gfx::IntRect const& clip_rect, Gfx::DecodedImageFrame const& frame, Gfx::ScalingMode scaling_mode)
 {
     if (dst_rect.is_empty())
         return;
-    APPEND(DrawScaledImmutableBitmap {
+    APPEND(DrawScaledDecodedImageFrame {
         .dst_rect = dst_rect,
         .clip_rect = clip_rect,
-        .bitmap = bitmap,
+        .frame = frame,
         .scaling_mode = scaling_mode,
     });
 }
 
-void DisplayListRecorder::draw_repeated_immutable_bitmap(Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, NonnullRefPtr<Gfx::ImmutableBitmap const> bitmap, Gfx::ScalingMode scaling_mode, bool repeat_x, bool repeat_y)
+void DisplayListRecorder::draw_repeated_decoded_image_frame(Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, NonnullRefPtr<Gfx::DecodedImageFrame const> frame, Gfx::ScalingMode scaling_mode, bool repeat_x, bool repeat_y)
 {
-    APPEND(DrawRepeatedImmutableBitmap {
+    APPEND(DrawRepeatedDecodedImageFrame {
         .dst_rect = dst_rect,
         .clip_rect = clip_rect,
-        .bitmap = move(bitmap),
+        .frame = move(frame),
         .scaling_mode = scaling_mode,
         .repeat = { repeat_x, repeat_y },
     });

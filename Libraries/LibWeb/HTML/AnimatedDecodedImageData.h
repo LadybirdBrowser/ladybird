@@ -10,6 +10,7 @@
 #include <AK/HashMap.h>
 #include <LibGC/Ptr.h>
 #include <LibGfx/ColorSpace.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 
@@ -35,7 +36,7 @@ public:
     virtual ~AnimatedDecodedImageData() override;
     virtual void finalize() override;
 
-    virtual RefPtr<Gfx::ImmutableBitmap> bitmap(size_t frame_index, Gfx::IntSize = {}) const override;
+    virtual RefPtr<Gfx::DecodedImageFrame> frame(size_t frame_index, Gfx::IntSize = {}) const override;
     virtual int frame_duration(size_t frame_index) const override;
 
     virtual size_t frame_count() const override { return m_frame_count; }
@@ -66,7 +67,7 @@ private:
 
     struct BufferSlot {
         Optional<u32> frame_index;
-        RefPtr<Gfx::ImmutableBitmap> bitmap;
+        RefPtr<Gfx::DecodedImageFrame> frame;
         u64 generation { 0 };
     };
 
@@ -90,7 +91,7 @@ private:
     Vector<u32> m_durations;
 
     Array<BufferSlot, BUFFER_POOL_SIZE> m_buffer_slots;
-    mutable RefPtr<Gfx::ImmutableBitmap> m_last_displayed_bitmap;
+    mutable RefPtr<Gfx::DecodedImageFrame> m_last_displayed_frame;
     u64 m_write_generation { 0 };
     bool m_request_in_flight { false };
     u32 m_current_frame_index { 0 };

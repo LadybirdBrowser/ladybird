@@ -354,4 +354,15 @@ RefPtr<Gfx::ImmutableBitmap> HTMLVideoElement::bitmap() const
     return bitmap_or_error.release_value();
 }
 
+Gfx::ColorSpace const* HTMLVideoElement::current_frame_color_space() const
+{
+    auto const& sink = selected_video_track_sink();
+    if (sink == nullptr)
+        return nullptr;
+    auto current_frame = sink->current_frame();
+    if (!current_frame)
+        return nullptr;
+    return &current_frame->color_space();
+}
+
 }

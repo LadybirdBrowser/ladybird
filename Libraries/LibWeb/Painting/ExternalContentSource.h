@@ -9,6 +9,7 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/RefPtr.h>
 #include <LibGfx/Forward.h>
+#include <LibGfx/ImmutableBitmap.h>
 #include <LibThreading/Mutex.h>
 
 namespace Web::Painting {

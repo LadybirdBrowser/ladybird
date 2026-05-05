@@ -29,6 +29,8 @@
 #include <pathops/SkPathOps.h>
 
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/ColorSpace.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/PainterSkia.h>
@@ -155,7 +157,11 @@ void DisplayListPlayerSkia::draw_external_content(DrawExternalContent const& com
     auto bitmap = command.source->current_bitmap();
     if (!bitmap)
         return;
-    auto image = m_image_cache.image_for_bitmap(*bitmap);
+    auto source_bitmap = bitmap->bitmap();
+    if (!source_bitmap)
+        return;
+    auto frame = Gfx::DecodedImageFrame::create(*source_bitmap);
+    auto image = m_image_cache.image_for_frame(*frame);
     if (!image)
         return;
     auto dst_rect = to_skia_rect(command.dst_rect);
@@ -209,9 +215,9 @@ void DisplayListPlayerSkia::draw_video_frame_source(DrawVideoFrameSource const& 
     canvas.drawImageRect(image.get(), src_rect, dst_rect, to_skia_sampling_options(command.scaling_mode), &paint, SkCanvas::kStrict_SrcRectConstraint);
 }
 
-void DisplayListPlayerSkia::draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const& command)
+void DisplayListPlayerSkia::draw_scaled_decoded_image_frame(DrawScaledDecodedImageFrame const& command)
 {
-    auto image = m_image_cache.image_for_bitmap(*command.bitmap);
+    auto image = m_image_cache.image_for_frame(*command.frame);
     if (!image)
         return;
 
@@ -226,15 +232,15 @@ void DisplayListPlayerSkia::draw_scaled_immutable_bitmap(DrawScaledImmutableBitm
     canvas.restore();
 }
 
-void DisplayListPlayerSkia::draw_repeated_immutable_bitmap(DrawRepeatedImmutableBitmap const& command)
+void DisplayListPlayerSkia::draw_repeated_decoded_image_frame(DrawRepeatedDecodedImageFrame const& command)
 {
-    auto image = m_image_cache.image_for_bitmap(*command.bitmap);
+    auto image = m_image_cache.image_for_frame(*command.frame);
     if (!image)
         return;
 
     SkMatrix matrix;
     auto dst_rect = command.dst_rect.to_type<float>();
-    auto src_size = command.bitmap->size().to_type<float>();
+    auto src_size = command.frame->size().to_type<float>();
     matrix.setScale(dst_rect.width() / src_size.width(), dst_rect.height() / src_size.height());
     matrix.postTranslate(dst_rect.x(), dst_rect.y());
     auto sampling_options = to_skia_sampling_options(command.scaling_mode);

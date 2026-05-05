@@ -4,13 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGfx/ColorSpace.h>
-#include <LibGfx/ImmutableBitmap.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/ImmutableBitmapSkiaImageCache.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibGfx/SkiaUtils.h>
 
-#include <core/SkColorSpace.h>
 #include <core/SkImage.h>
 #include <gpu/ganesh/GrDirectContext.h>
 #include <gpu/ganesh/SkImageGanesh.h>
@@ -28,18 +26,14 @@ ImmutableBitmapSkiaImageCache::ImmutableBitmapSkiaImageCache(RefPtr<SkiaBackendC
 
 ImmutableBitmapSkiaImageCache::~ImmutableBitmapSkiaImageCache() = default;
 
-sk_sp<SkImage> ImmutableBitmapSkiaImageCache::image_for_bitmap(ImmutableBitmap const& bitmap)
+sk_sp<SkImage> ImmutableBitmapSkiaImageCache::image_for_frame(DecodedImageFrame const& frame)
 {
-    if (auto it = m_images.find(&bitmap); it != m_images.end()) {
+    if (auto it = m_images.find(&frame); it != m_images.end()) {
         it->value.last_used_generation = m_generation;
         return it->value.image;
     }
 
-    auto source_bitmap = bitmap.bitmap();
-    if (!source_bitmap)
-        return nullptr;
-
-    auto raster_image = sk_image_from_bitmap(*source_bitmap, bitmap.color_space());
+    auto raster_image = sk_image_from_bitmap(frame.bitmap(), frame.color_space());
     sk_sp<SkImage> image;
     auto* gr_context = m_skia_backend_context ? m_skia_backend_context->sk_context() : nullptr;
     if (gr_context) {
@@ -54,11 +48,11 @@ sk_sp<SkImage> ImmutableBitmapSkiaImageCache::image_for_bitmap(ImmutableBitmap c
         return nullptr;
 
     CachedImage cached_image {
-        .bitmap = &bitmap,
+        .frame = &frame,
         .image = image,
         .last_used_generation = m_generation,
     };
-    m_images.set(&bitmap, move(cached_image));
+    m_images.set(&frame, move(cached_image));
     return image;
 }
 

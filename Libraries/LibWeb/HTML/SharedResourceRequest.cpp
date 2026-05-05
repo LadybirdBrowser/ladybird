@@ -5,7 +5,7 @@
  */
 
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/ImmutableBitmap.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
@@ -179,7 +179,7 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
                 result.frame_count,
                 result.loop_count,
                 size,
-                result.color_space,
+                move(result.color_space),
                 move(result.all_durations),
                 move(initial_bitmaps));
         } else {
@@ -187,7 +187,7 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
             Vector<BitmapDecodedImageData::Frame> frames;
             for (auto& frame : result.frames) {
                 frames.append(BitmapDecodedImageData::Frame {
-                    .bitmap = Gfx::ImmutableBitmap::create(*frame.bitmap, result.color_space),
+                    .frame = Gfx::DecodedImageFrame::create(*frame.bitmap, result.color_space),
                     .duration = static_cast<int>(frame.duration),
                 });
             }

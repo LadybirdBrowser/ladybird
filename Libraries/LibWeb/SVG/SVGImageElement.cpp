@@ -247,8 +247,10 @@ RefPtr<Gfx::ImmutableBitmap> SVGImageElement::default_image_bitmap_sized(Gfx::In
 {
     if (!m_resource_request)
         return {};
-    if (auto data = m_resource_request->image_data())
-        return data->bitmap(0, size);
+    if (auto data = m_resource_request->image_data()) {
+        if (auto frame = data->frame(0, size))
+            return Gfx::ImmutableBitmap::create(frame->bitmap_ref());
+    }
     return {};
 }
 
@@ -256,8 +258,10 @@ RefPtr<Gfx::ImmutableBitmap> SVGImageElement::current_image_bitmap_sized(Gfx::In
 {
     if (!m_resource_request)
         return {};
-    if (auto data = m_resource_request->image_data())
-        return data->bitmap(m_current_frame_index, size);
+    if (auto data = m_resource_request->image_data()) {
+        if (auto frame = data->frame(m_current_frame_index, size))
+            return Gfx::ImmutableBitmap::create(frame->bitmap_ref());
+    }
     return {};
 }
 

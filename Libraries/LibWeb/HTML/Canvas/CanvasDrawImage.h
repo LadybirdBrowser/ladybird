@@ -23,7 +23,7 @@ namespace Web::HTML {
 using CanvasImageSource = Variant<GC::Root<HTMLImageElement>, GC::Root<SVG::SVGImageElement>, GC::Root<HTMLCanvasElement>, GC::Root<ImageBitmap>, GC::Root<OffscreenCanvas>, GC::Root<HTMLVideoElement>>;
 
 Gfx::IntSize canvas_image_source_dimensions(CanvasImageSource const&);
-RefPtr<Gfx::ImmutableBitmap> canvas_image_source_bitmap(CanvasImageSource const&);
+RefPtr<Gfx::DecodedImageFrame> canvas_image_source_frame(CanvasImageSource const&);
 
 // https://html.spec.whatwg.org/multipage/canvas.html#canvasdrawimage
 class CanvasDrawImage {

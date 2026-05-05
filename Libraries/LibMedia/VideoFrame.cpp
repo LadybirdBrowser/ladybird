@@ -33,7 +33,7 @@ VideoFrame::~VideoFrame() = default;
 ErrorOr<NonnullRefPtr<Gfx::ImmutableBitmap>> VideoFrame::to_immutable_bitmap() const
 {
     auto bitmap = TRY(m_yuv_data->to_bitmap());
-    return Gfx::ImmutableBitmap::create(bitmap, m_color_space);
+    return Gfx::ImmutableBitmap::create(bitmap);
 }
 
 }

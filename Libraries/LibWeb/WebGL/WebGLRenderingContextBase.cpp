@@ -13,8 +13,10 @@ extern "C" {
 }
 
 #include <LibGfx/BitmapExport.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/SkiaUtils.h>
+#include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
@@ -264,29 +266,46 @@ Optional<Gfx::BitmapExportResult> WebGLRenderingContextBase::read_and_pixel_conv
     //        ImageBitmap or OffscreenCanvas whose bitmap's origin-clean flag is set to false,
     //        a SECURITY_ERR exception must be thrown. See Origin Restrictions.
     // FIXME: If source is null then an INVALID_VALUE error is generated.
-    auto bitmap = source.visit(
-        [](GC::Root<HTML::HTMLImageElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            return source->immutable_bitmap();
+    auto frame = source.visit(
+        [](GC::Root<HTML::HTMLImageElement> const& source) -> RefPtr<Gfx::DecodedImageFrame> {
+            auto bitmap = source->immutable_bitmap();
+            if (!bitmap)
+                return {};
+            if (auto image_data = source->decoded_image_data())
+                return image_data->frame(source->current_frame_index(), bitmap->size());
+            auto source_bitmap = bitmap->bitmap();
+            if (!source_bitmap)
+                return {};
+            return Gfx::DecodedImageFrame::create(*source_bitmap);
         },
-        [](GC::Root<HTML::HTMLCanvasElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
+        [](GC::Root<HTML::HTMLCanvasElement> const& source) -> RefPtr<Gfx::DecodedImageFrame> {
             auto surface = source->surface();
             if (!surface)
-                return Gfx::ImmutableBitmap::create(*source->get_bitmap_from_surface());
-            return Gfx::ImmutableBitmap::create(surface->snapshot_bitmap());
+                return Gfx::DecodedImageFrame::create(*source->get_bitmap_from_surface());
+            return Gfx::DecodedImageFrame::create(*surface->snapshot_bitmap());
         },
-        [](GC::Root<HTML::OffscreenCanvas> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            return Gfx::ImmutableBitmap::create(*source->bitmap());
+        [](GC::Root<HTML::OffscreenCanvas> const& source) -> RefPtr<Gfx::DecodedImageFrame> {
+            return Gfx::DecodedImageFrame::create(*source->bitmap());
         },
-        [](GC::Root<HTML::HTMLVideoElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            return source->bitmap();
+        [](GC::Root<HTML::HTMLVideoElement> const& source) -> RefPtr<Gfx::DecodedImageFrame> {
+            Gfx::ColorSpace color_space;
+            if (auto* frame_color_space = source->current_frame_color_space())
+                color_space = *frame_color_space;
+            auto immutable_bitmap = source->bitmap();
+            if (!immutable_bitmap)
+                return {};
+            auto bitmap = immutable_bitmap->bitmap();
+            if (!bitmap)
+                return {};
+            return Gfx::DecodedImageFrame::create(*bitmap, move(color_space));
         },
-        [](GC::Root<HTML::ImageBitmap> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            return Gfx::ImmutableBitmap::create(*source->bitmap());
+        [](GC::Root<HTML::ImageBitmap> const& source) -> RefPtr<Gfx::DecodedImageFrame> {
+            return Gfx::DecodedImageFrame::create(*source->bitmap());
         },
-        [](GC::Root<HTML::ImageData> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            return Gfx::ImmutableBitmap::create(source->bitmap());
+        [](GC::Root<HTML::ImageData> const& source) -> RefPtr<Gfx::DecodedImageFrame> {
+            return Gfx::DecodedImageFrame::create(source->bitmap());
         });
-    if (!bitmap)
+    if (!frame)
         return OptionalNone {};
 
     auto export_format = determine_export_format(format, type);
@@ -303,13 +322,9 @@ Optional<Gfx::BitmapExportResult> WebGLRenderingContextBase::read_and_pixel_conv
     if (m_unpack_premultiply_alpha)
         export_flags |= Gfx::ExportFlags::PremultiplyAlpha;
 
-    auto source_bitmap = bitmap->bitmap();
-    if (!source_bitmap)
-        return OptionalNone {};
-
     auto result = Gfx::export_bitmap_to_byte_buffer(
-        *source_bitmap,
-        bitmap->color_space(),
+        frame->bitmap(),
+        frame->color_space(),
         export_format.value(),
         export_flags,
         destination_width,

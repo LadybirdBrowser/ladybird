@@ -61,6 +61,7 @@ public:
 
     // FIXME: This is a hack for images used as CanvasImageSource. Do something more elegant.
     RefPtr<Gfx::ImmutableBitmap> bitmap() const;
+    Gfx::ColorSpace const* current_frame_color_space() const;
 
 private:
     HTMLVideoElement(DOM::Document&, DOM::QualifiedName);

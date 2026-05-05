@@ -11,7 +11,6 @@
 #include <AK/Forward.h>
 #include <AK/NonnullRefPtr.h>
 #include <LibGfx/Color.h>
-#include <LibGfx/ColorSpace.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
 
@@ -19,8 +18,8 @@ namespace Gfx {
 
 class ImmutableBitmap final : public AtomicRefCounted<ImmutableBitmap> {
 public:
-    static NonnullRefPtr<ImmutableBitmap> create(NonnullRefPtr<Bitmap const> const& bitmap, ColorSpace color_space = {});
-    static NonnullRefPtr<ImmutableBitmap> create(NonnullRefPtr<Bitmap const> const& bitmap, AlphaType, ColorSpace color_space = {});
+    static NonnullRefPtr<ImmutableBitmap> create(NonnullRefPtr<Bitmap const> const& bitmap);
+    static NonnullRefPtr<ImmutableBitmap> create(NonnullRefPtr<Bitmap const> const& bitmap, AlphaType);
 
     ~ImmutableBitmap();
 
@@ -30,7 +29,6 @@ public:
     IntSize size() const;
 
     AlphaType alpha_type() const;
-    ColorSpace const& color_space() const;
 
     Color get_pixel(int x, int y) const;
 
@@ -38,9 +36,8 @@ public:
 
 private:
     NonnullRefPtr<Bitmap const> m_bitmap;
-    ColorSpace m_color_space;
 
-    ImmutableBitmap(NonnullRefPtr<Bitmap const>, ColorSpace);
+    explicit ImmutableBitmap(NonnullRefPtr<Bitmap const>);
 };
 
 }

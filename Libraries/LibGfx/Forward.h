@@ -11,6 +11,7 @@ namespace Gfx {
 class Bitmap;
 class CMYKBitmap;
 class ColorSpace;
+class DecodedImageFrame;
 class ImmutableBitmap;
 class Color;
 

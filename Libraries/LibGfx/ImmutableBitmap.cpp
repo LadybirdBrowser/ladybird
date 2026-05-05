@@ -35,11 +35,6 @@ AlphaType ImmutableBitmap::alpha_type() const
     return m_bitmap->alpha_type();
 }
 
-ColorSpace const& ImmutableBitmap::color_space() const
-{
-    return m_color_space;
-}
-
 RefPtr<Gfx::Bitmap const> ImmutableBitmap::bitmap() const
 {
     return m_bitmap;
@@ -50,12 +45,12 @@ Color ImmutableBitmap::get_pixel(int x, int y) const
     return m_bitmap->get_pixel(x, y);
 }
 
-NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create(NonnullRefPtr<Bitmap const> const& bitmap, ColorSpace color_space)
+NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create(NonnullRefPtr<Bitmap const> const& bitmap)
 {
-    return adopt_ref(*new ImmutableBitmap(bitmap, move(color_space)));
+    return adopt_ref(*new ImmutableBitmap(bitmap));
 }
 
-NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create(NonnullRefPtr<Bitmap const> const& bitmap, AlphaType alpha_type, ColorSpace color_space)
+NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create(NonnullRefPtr<Bitmap const> const& bitmap, AlphaType alpha_type)
 {
     // Convert the source bitmap to the right alpha type on a mismatch. We want to do this when converting from a
     // Bitmap to an ImmutableBitmap, since at that point we usually know the right alpha type to use in context.
@@ -67,12 +62,11 @@ NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create(NonnullRefPtr<Bitmap cons
         return new_bitmap;
     }();
 
-    return create(converted_bitmap, move(color_space));
+    return create(converted_bitmap);
 }
 
-ImmutableBitmap::ImmutableBitmap(NonnullRefPtr<Bitmap const> bitmap, ColorSpace color_space)
+ImmutableBitmap::ImmutableBitmap(NonnullRefPtr<Bitmap const> bitmap)
     : m_bitmap(move(bitmap))
-    , m_color_space(move(color_space))
 {
 }
 

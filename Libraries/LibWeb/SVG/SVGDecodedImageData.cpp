@@ -5,6 +5,7 @@
  */
 
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/DOM/Document.h>
@@ -143,22 +144,22 @@ RefPtr<Gfx::PaintingSurface> SVGDecodedImageData::render_to_surface(Gfx::IntSize
     return surface;
 }
 
-RefPtr<Gfx::ImmutableBitmap> SVGDecodedImageData::bitmap(size_t, Gfx::IntSize size) const
+RefPtr<Gfx::DecodedImageFrame> SVGDecodedImageData::frame(size_t, Gfx::IntSize size) const
 {
     if (size.is_empty())
         return nullptr;
 
-    if (auto it = m_cached_rendered_bitmaps.find(size); it != m_cached_rendered_bitmaps.end())
+    if (auto it = m_cached_rendered_frames.find(size); it != m_cached_rendered_frames.end())
         return it->value;
 
     // Prevent the cache from growing too big.
     // FIXME: Evict least used entries.
-    if (m_cached_rendered_bitmaps.size() > 10)
-        m_cached_rendered_bitmaps.remove(m_cached_rendered_bitmaps.begin());
+    if (m_cached_rendered_frames.size() > 10)
+        m_cached_rendered_frames.remove(m_cached_rendered_frames.begin());
 
-    auto immutable_bitmap = Gfx::ImmutableBitmap::create(render_to_surface(size)->snapshot_bitmap());
-    m_cached_rendered_bitmaps.set(size, immutable_bitmap);
-    return immutable_bitmap;
+    auto decoded_frame = Gfx::DecodedImageFrame::create(*render_to_surface(size)->snapshot_bitmap());
+    m_cached_rendered_frames.set(size, decoded_frame);
+    return decoded_frame;
 }
 
 Optional<CSSPixels> SVGDecodedImageData::intrinsic_width() const

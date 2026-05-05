@@ -184,8 +184,8 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
         // clang-format off
         HANDLE_COMMAND(DrawGlyphRun, draw_glyph_run)
         else HANDLE_COMMAND(FillRect, fill_rect)
-        else HANDLE_COMMAND(DrawScaledImmutableBitmap, draw_scaled_immutable_bitmap)
-        else HANDLE_COMMAND(DrawRepeatedImmutableBitmap, draw_repeated_immutable_bitmap)
+        else HANDLE_COMMAND(DrawScaledDecodedImageFrame, draw_scaled_decoded_image_frame)
+        else HANDLE_COMMAND(DrawRepeatedDecodedImageFrame, draw_repeated_decoded_image_frame)
         else HANDLE_COMMAND(DrawExternalContent, draw_external_content)
         else HANDLE_COMMAND(DrawVideoFrameSource, draw_video_frame_source)
         else HANDLE_COMMAND(AddClipRect, add_clip_rect)

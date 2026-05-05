@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Filter.h>
 #include <LibGfx/FilterImpl.h>
-#include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/SkiaUtils.h>
 #include <core/SkBlendMode.h>
 #include <core/SkColorFilter.h>
@@ -286,17 +286,13 @@ Filter Filter::hue_rotate(float angle_degrees, Optional<Filter const&> input)
     return Filter(Impl::create(SkImageFilters::ColorFilter(color_filter, input_skia)));
 }
 
-Filter Filter::image(Gfx::ImmutableBitmap const& bitmap, Gfx::IntRect const& src_rect, Gfx::IntRect const& dest_rect, Gfx::ScalingMode scaling_mode)
+Filter Filter::image(Gfx::DecodedImageFrame const& frame, Gfx::IntRect const& src_rect, Gfx::IntRect const& dest_rect, Gfx::ScalingMode scaling_mode)
 {
     auto skia_src_rect = to_skia_rect(src_rect);
     auto skia_dest_rect = to_skia_rect(dest_rect);
     auto sampling_options = to_skia_sampling_options(scaling_mode);
 
-    auto source_bitmap = bitmap.bitmap();
-    if (!source_bitmap)
-        return Filter(Impl::create(nullptr));
-
-    auto image = sk_image_from_bitmap(*source_bitmap, bitmap.color_space());
+    auto image = sk_image_from_bitmap(frame.bitmap(), frame.color_space());
     return Filter(Impl::create(SkImageFilters::Image(move(image), skia_src_rect, skia_dest_rect, sampling_options)));
 }
 

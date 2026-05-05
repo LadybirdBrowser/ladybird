@@ -10,6 +10,7 @@
 #pragma once
 
 #include <LibGC/Weak.h>
+#include <LibGfx/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/URL.h>
@@ -57,7 +58,8 @@ public:
     void paint(DisplayListRecordingContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering) const override;
 
     virtual Optional<Gfx::Color> color_if_single_pixel_bitmap() const override;
-    Gfx::ImmutableBitmap const* current_frame_bitmap(DevicePixelRect const& dest_rect) const;
+    RefPtr<Gfx::DecodedImageFrame> current_frame(DevicePixelRect const& dest_rect) const;
+    RefPtr<Gfx::ImmutableBitmap> current_frame_bitmap(DevicePixelRect const& dest_rect) const;
 
     mutable Function<void()> on_animate;
 
@@ -75,7 +77,8 @@ private:
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     void animate();
-    Gfx::ImmutableBitmap const* bitmap(size_t frame_index, Gfx::IntSize = {}) const;
+    RefPtr<Gfx::DecodedImageFrame> frame(size_t frame_index, Gfx::IntSize = {}) const;
+    RefPtr<Gfx::ImmutableBitmap> bitmap(size_t frame_index, Gfx::IntSize = {}) const;
 
     GC::Ptr<HTML::SharedResourceRequest> m_resource_request;
     GC::Ptr<CSSStyleSheet> m_style_sheet;

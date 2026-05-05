@@ -22,18 +22,18 @@ public:
     explicit ImmutableBitmapSkiaImageCache(RefPtr<SkiaBackendContext>);
     ~ImmutableBitmapSkiaImageCache();
 
-    sk_sp<SkImage> image_for_bitmap(ImmutableBitmap const&);
+    sk_sp<SkImage> image_for_frame(DecodedImageFrame const&);
     void prune();
 
 private:
     struct CachedImage {
-        RefPtr<ImmutableBitmap const> bitmap;
+        RefPtr<DecodedImageFrame const> frame;
         sk_sp<SkImage> image;
         u64 last_used_generation { 0 };
     };
 
     RefPtr<SkiaBackendContext> m_skia_backend_context;
-    HashMap<ImmutableBitmap const*, CachedImage> m_images;
+    HashMap<DecodedImageFrame const*, CachedImage> m_images;
     u64 m_generation { 0 };
 };
 

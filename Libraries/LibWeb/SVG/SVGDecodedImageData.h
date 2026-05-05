@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/Page/Page.h>
 
@@ -20,7 +21,7 @@ public:
     static ErrorOr<GC::Ref<SVGDecodedImageData>> create(JS::Realm&, GC::Ref<Page>, URL::URL const&, ReadonlyBytes encoded_svg);
     virtual ~SVGDecodedImageData() override;
 
-    virtual RefPtr<Gfx::ImmutableBitmap> bitmap(size_t frame_index, Gfx::IntSize) const override;
+    virtual RefPtr<Gfx::DecodedImageFrame> frame(size_t frame_index, Gfx::IntSize) const override;
 
     virtual Optional<CSSPixels> intrinsic_width() const override;
     virtual Optional<CSSPixels> intrinsic_height() const override;
@@ -47,7 +48,7 @@ private:
     RefPtr<Painting::DisplayList> record_display_list(Gfx::IntSize) const;
 
     // FIXME: Remove this once everything is using surfaces instead.
-    mutable HashMap<Gfx::IntSize, NonnullRefPtr<Gfx::ImmutableBitmap>> m_cached_rendered_bitmaps;
+    mutable HashMap<Gfx::IntSize, NonnullRefPtr<Gfx::DecodedImageFrame>> m_cached_rendered_frames;
 
     mutable HashMap<Gfx::IntSize, NonnullRefPtr<Gfx::PaintingSurface>> m_cached_rendered_surfaces;
 

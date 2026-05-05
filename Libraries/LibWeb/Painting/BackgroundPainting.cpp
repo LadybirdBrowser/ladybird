@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/Layout/Node.h>
@@ -304,9 +305,11 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
             if (dest_rect.height() == 0)
                 dest_rect.set_height(1);
 
-            auto const* bitmap = static_cast<CSS::ImageStyleValue const&>(image).current_frame_bitmap(dest_rect);
-            auto scaling_mode = to_gfx_scaling_mode(image_rendering, bitmap->size(), dest_rect.size().to_type<int>());
-            context.display_list_recorder().draw_repeated_immutable_bitmap(dest_rect.to_type<int>(), clip_rect.to_type<int>(), *bitmap, scaling_mode, repeat_x, repeat_y);
+            auto frame = static_cast<CSS::ImageStyleValue const&>(image).current_frame(dest_rect);
+            if (!frame)
+                return;
+            auto scaling_mode = to_gfx_scaling_mode(image_rendering, frame->size(), dest_rect.size().to_type<int>());
+            context.display_list_recorder().draw_repeated_decoded_image_frame(dest_rect.to_type<int>(), clip_rect.to_type<int>(), *frame, scaling_mode, repeat_x, repeat_y);
         } else {
             for_each_image_device_rect([&](auto const& image_device_rect) {
                 image.paint(context, image_device_rect, image_rendering);
