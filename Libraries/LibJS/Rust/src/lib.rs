@@ -132,6 +132,10 @@ pub struct CompiledProgram {
     bytecode: CompiledProgramBytecode,
 }
 
+pub struct CompiledFunction {
+    precompiled: Box<bytecode::generator::PrecompiledFunction>,
+}
+
 enum CompiledProgramBytecode {
     Program(CompiledBytecode),
     AsyncModule(CompiledBytecode),
@@ -146,6 +150,10 @@ struct CompiledBytecode {
 // raw VM pointers; it is created on the parse-worker thread and consumed (or
 // freed) on the main thread, never accessed concurrently.
 unsafe impl Send for CompiledProgram {}
+
+// SAFETY: `CompiledFunction` owns GC-free codegen state and is transferred
+// from a compile worker back to the main thread for materialization.
+unsafe impl Send for CompiledFunction {}
 
 // =============================================================================
 // Internal helpers
@@ -360,6 +368,41 @@ fn precompile_eager_functions(generator: &mut bytecode::generator::Generator) {
         // immediately cleared after the precompiled executable is attached.
         pending.subtable = Some(ast::FunctionTable::new());
         pending.precompiled_function = Some(precompiled);
+    }
+}
+
+fn precompile_all_functions(generator: &mut bytecode::generator::Generator) {
+    for pending in &mut generator.shared_function_data {
+        if pending.precompiled_function.is_none() {
+            let function_data = pending
+                .function_data
+                .take()
+                .expect("pending function data was already materialized");
+            let subtable = pending
+                .subtable
+                .take()
+                .expect("pending function subtable was already materialized");
+            let arena = pending.arena.clone().unwrap_or_else(|| generator.arena.clone());
+            let payload = ast::FunctionPayload {
+                data: *function_data,
+                function_table: subtable,
+                arena: arena.clone(),
+            };
+            let (function_data, precompiled) = compile_function_payload_to_bytecode(
+                payload,
+                generator.source_len,
+                generator.builtin_abstract_operations_enabled,
+                arena,
+            );
+
+            pending.function_data = Some(function_data);
+            pending.subtable = Some(ast::FunctionTable::new());
+            pending.precompiled_function = Some(precompiled);
+        }
+
+        if let Some(precompiled) = pending.precompiled_function.as_mut() {
+            precompile_all_functions(&mut precompiled.generator);
+        }
     }
 }
 
@@ -2270,6 +2313,26 @@ pub unsafe extern "C" fn rust_free_function_ast(ast: *mut c_void) {
     }
 }
 
+/// Clone a lazy function compilation payload.
+///
+/// The clone lets background compilation race with synchronous lazy
+/// compilation. Each path owns and eventually frees its own AST payload.
+///
+/// # Safety
+/// `ast` must be null or a valid pointer returned by `Box::into_raw(Box<FunctionPayload>)`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_clone_function_ast(ast: *const c_void) -> *mut c_void {
+    unsafe {
+        abort_on_panic(|| {
+            if ast.is_null() {
+                return std::ptr::null_mut();
+            }
+            let payload = &*(ast as *const ast::FunctionPayload);
+            Box::into_raw(Box::new(payload.clone())) as *mut c_void
+        })
+    }
+}
+
 /// Free a string allocated by Rust (e.g. AST dump output).
 ///
 /// # Safety
@@ -2328,6 +2391,95 @@ pub unsafe extern "C" fn rust_compile_function(
                 source_code_ptr,
             )
         })
+    }
+}
+
+/// Compile a function payload to a GC-free bytecode artifact.
+///
+/// Takes ownership of the cloned `Box<FunctionPayload>`. The result must be
+/// materialized on the main thread or freed with `rust_free_compiled_function`.
+///
+/// # Safety
+/// `rust_function_ast` must be a valid `Box<FunctionPayload>` pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_compile_function_off_thread(
+    rust_function_ast: *mut c_void,
+    source_len: usize,
+    builtin_abstract_operations_enabled: bool,
+) -> *mut CompiledFunction {
+    unsafe {
+        abort_on_panic(|| {
+            if rust_function_ast.is_null() {
+                return std::ptr::null_mut();
+            }
+            let payload = Box::from_raw(rust_function_ast as *mut ast::FunctionPayload);
+            let arena = payload.arena.clone();
+            let (_function_data, mut precompiled) =
+                compile_function_payload_to_bytecode(*payload, source_len, builtin_abstract_operations_enabled, arena);
+            precompile_all_functions(&mut precompiled.generator);
+            Box::into_raw(Box::new(CompiledFunction { precompiled }))
+        })
+    }
+}
+
+/// Materialize a GC-free compiled function onto an existing SFD.
+///
+/// Consumes and frees the compiled function.
+///
+/// # Safety
+/// - `compiled` must be a valid pointer returned by `rust_compile_function_off_thread`.
+/// - `vm_ptr`, `source_code_ptr`, and `sfd_ptr` must be valid main-thread pointers.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_materialize_compiled_function(
+    compiled: *mut CompiledFunction,
+    vm_ptr: *mut c_void,
+    source_code_ptr: *const c_void,
+    sfd_ptr: *mut c_void,
+) {
+    unsafe {
+        abort_on_panic(|| {
+            if compiled.is_null() {
+                return;
+            }
+            let mut compiled = Box::from_raw(compiled);
+            compiled.precompiled.generator.vm_ptr = vm_ptr;
+            compiled.precompiled.generator.source_code_ptr = source_code_ptr;
+            let executable_ptr = bytecode::ffi::create_executable(
+                &mut compiled.precompiled.generator,
+                &compiled.precompiled.assembled,
+                vm_ptr,
+                source_code_ptr,
+            );
+            assert!(
+                !executable_ptr.is_null(),
+                "rust_materialize_compiled_function: executable materialization failed"
+            );
+            bytecode::ffi::rust_sfd_set_precompiled_executable(
+                sfd_ptr,
+                executable_ptr,
+                compiled.precompiled.metadata.uses_this,
+                compiled.precompiled.metadata.this_value_needs_environment_resolution,
+                compiled.precompiled.metadata.function_environment_needed,
+                compiled.precompiled.metadata.function_environment_bindings_count,
+                compiled.precompiled.metadata.might_need_arguments,
+                compiled.precompiled.metadata.contains_eval,
+            );
+        });
+    }
+}
+
+/// Free a GC-free compiled function without materializing it.
+///
+/// # Safety
+/// `compiled` must be null or a valid pointer returned by `rust_compile_function_off_thread`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_free_compiled_function(compiled: *mut CompiledFunction) {
+    unsafe {
+        abort_on_panic(|| {
+            if !compiled.is_null() {
+                drop(Box::from_raw(compiled));
+            }
+        });
     }
 }
 

@@ -26,6 +26,7 @@ namespace JS::FFI {
 
 struct ParsedProgram;
 struct CompiledProgram;
+struct CompiledFunction;
 
 }
 
@@ -146,6 +147,11 @@ Optional<Vector<GC::Root<SharedFunctionInstanceData>>> compile_builtin_file(
 // Compile a function body for lazy compilation.
 // Returns nullptr if Rust is not available or the SFD doesn't use Rust compilation.
 GC::Ptr<Bytecode::Executable> compile_function(VM& vm, SharedFunctionInstanceData& shared_data, bool builtin_abstract_operations_enabled);
+
+JS_API void* clone_function_ast(void const*);
+JS_API FFI::CompiledFunction* compile_function_off_thread(void* function_ast, size_t length_in_code_units, bool builtin_abstract_operations_enabled);
+JS_API void materialize_compiled_function(FFI::CompiledFunction*, VM&, SourceCode const&, SharedFunctionInstanceData&);
+JS_API void free_compiled_function(FFI::CompiledFunction*);
 
 // Free a Rust function AST pointer. No-op if Rust is not available.
 void free_function_ast(void* ast);

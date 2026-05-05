@@ -236,6 +236,15 @@ pub struct FunctionTable {
     next_id: u32,
 }
 
+impl Clone for FunctionTable {
+    fn clone(&self) -> Self {
+        Self {
+            functions: self.functions.iter().map(|(id, data)| (*id, data.clone())).collect(),
+            next_id: self.next_id,
+        }
+    }
+}
+
 impl Default for FunctionTable {
     fn default() -> Self {
         Self::new()
@@ -649,6 +658,7 @@ impl FunctionTable {
 
 /// Bundles a `FunctionData` with a subtable of all nested functions
 /// reachable from its body. Stored as the raw pointer in C++ SFDs.
+#[derive(Clone)]
 pub struct FunctionPayload {
     pub data: FunctionData,
     pub function_table: FunctionTable,
@@ -990,7 +1000,7 @@ pub enum FunctionParameterBinding {
 }
 
 /// Shared data for FunctionDeclaration and FunctionExpression.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct FunctionData {
     pub name: Option<IdentifierId>,
     pub source_text_start: u32,

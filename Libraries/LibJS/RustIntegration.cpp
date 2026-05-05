@@ -682,6 +682,27 @@ GC::Ptr<Bytecode::Executable> compile_function(VM& vm, SharedFunctionInstanceDat
     return exec;
 }
 
+void* clone_function_ast(void const* ast)
+{
+    return rust_clone_function_ast(ast);
+}
+
+CompiledFunction* compile_function_off_thread(void* function_ast, size_t length_in_code_units, bool builtin_abstract_operations_enabled)
+{
+    return rust_compile_function_off_thread(function_ast, length_in_code_units, builtin_abstract_operations_enabled);
+}
+
+void materialize_compiled_function(CompiledFunction* compiled, VM& vm, SourceCode const& source_code, SharedFunctionInstanceData& shared_data)
+{
+    GC::DeferGC defer_gc(vm.heap());
+    rust_materialize_compiled_function(compiled, &vm, &source_code, &shared_data);
+}
+
+void free_compiled_function(CompiledFunction* compiled)
+{
+    rust_free_compiled_function(compiled);
+}
+
 void free_function_ast(void* ast)
 {
     if (ast)
