@@ -17,6 +17,28 @@ GC_DEFINE_ALLOCATOR(PrototypeChainValidity);
 
 Shape::~Shape() = default;
 
+template<typename Map>
+static size_t ordered_hash_map_external_memory_size(Map const& map)
+{
+    return map.capacity() * (sizeof(typename Map::KeyType) + sizeof(typename Map::ValueType));
+}
+
+size_t Shape::external_memory_size() const
+{
+    size_t size = 0;
+    if (m_property_table)
+        size += ordered_hash_map_external_memory_size(*m_property_table);
+    if (m_forward_transitions)
+        size += ordered_hash_map_external_memory_size(*m_forward_transitions);
+    if (m_prototype_transitions)
+        size += ordered_hash_map_external_memory_size(*m_prototype_transitions);
+    if (m_delete_transitions)
+        size += ordered_hash_map_external_memory_size(*m_delete_transitions);
+    if (m_child_prototype_shapes)
+        size += m_child_prototype_shapes->capacity() * sizeof(GC::Weak<Shape>);
+    return size;
+}
+
 GC::Ref<Shape> Shape::create_dictionary_transition()
 {
     auto new_shape = heap().allocate<Shape>(m_realm);

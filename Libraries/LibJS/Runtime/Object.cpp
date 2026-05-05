@@ -62,6 +62,13 @@ static u32 heap_named_storage_capacity(Value* storage)
     return *reinterpret_cast<u32*>(reinterpret_cast<u8*>(storage) - HEAP_STORAGE_HEADER_SIZE);
 }
 
+size_t Object::named_storage_external_memory_size() const
+{
+    if (named_storage_is_inline())
+        return 0;
+    return HEAP_STORAGE_HEADER_SIZE + heap_named_storage_capacity(m_named_properties) * sizeof(Value);
+}
+
 void Object::ensure_named_storage_capacity(u32 needed)
 {
     bool is_inline = named_storage_is_inline();
@@ -1660,6 +1667,15 @@ void Object::visit_edges(Cell::Visitor& visitor)
     }
 }
 
+size_t Object::external_memory_size() const
+{
+    size_t size = named_storage_external_memory_size();
+    size += indexed_storage_external_memory_size();
+    if (m_private_elements)
+        size += m_private_elements->capacity() * sizeof(PrivateElement);
+    return size;
+}
+
 // 7.1.1.1 OrdinaryToPrimitive ( O, hint ), https://tc39.es/ecma262/#sec-ordinarytoprimitive
 ThrowCompletionOr<Value> Object::ordinary_to_primitive(Value::PreferredType preferred_type) const
 {
@@ -1720,6 +1736,20 @@ u32 Object::indexed_elements_capacity() const
     VERIFY(m_indexed_storage_kind == IndexedStorageKind::Packed || m_indexed_storage_kind == IndexedStorageKind::Holey);
     // Capacity is stored as a u32 at (m_indexed_elements - sizeof(u64))
     return *reinterpret_cast<u32 const*>(reinterpret_cast<u8 const*>(m_indexed_elements) - sizeof(u64));
+}
+
+size_t Object::indexed_storage_external_memory_size() const
+{
+    switch (m_indexed_storage_kind) {
+    case IndexedStorageKind::None:
+        return 0;
+    case IndexedStorageKind::Packed:
+    case IndexedStorageKind::Holey:
+        return sizeof(u64) + indexed_elements_capacity() * sizeof(Value);
+    case IndexedStorageKind::Dictionary:
+        return sizeof(GenericIndexedPropertyStorage) + indexed_dictionary()->external_memory_size();
+    }
+    VERIFY_NOT_REACHED();
 }
 
 static Value* allocate_indexed_elements(u32 capacity)
