@@ -12,6 +12,7 @@
 #include <LibJS/Bytecode/Op.h>
 #include <LibJS/Bytecode/RegexTable.h>
 #include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/SharedFunctionInstanceData.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/SourceCode.h>
@@ -50,6 +51,13 @@ void ObjectPropertyIteratorCacheData::visit_edges(Visitor& visitor)
     visitor.visit(m_property_values.span());
     for (auto& key : m_properties)
         key.visit_edges(visitor);
+}
+
+size_t ObjectPropertyIteratorCacheData::external_memory_size() const
+{
+    auto size = vector_external_memory_size(m_properties);
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(m_property_values));
+    return size;
 }
 
 Executable::Executable(
@@ -291,6 +299,33 @@ void Executable::visit_edges(Visitor& visitor)
         }
     }
     property_key_table->visit_edges(visitor);
+}
+
+size_t Executable::external_memory_size() const
+{
+    size_t size = vector_external_memory_size(bytecode);
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(property_lookup_caches));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(global_variable_caches));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(template_object_caches));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(object_shape_caches));
+    for (auto const& cache : object_shape_caches)
+        size = saturating_add_external_memory_size(size, vector_external_memory_size(cache.property_offsets));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(object_property_iterator_caches));
+    size = saturating_add_external_memory_size(size, string_table->external_memory_size());
+    size = saturating_add_external_memory_size(size, identifier_table->external_memory_size());
+    size = saturating_add_external_memory_size(size, property_key_table->external_memory_size());
+    size = saturating_add_external_memory_size(size, regex_table->external_memory_size());
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(constants));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(shared_function_data));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(class_blueprints));
+    for (auto const& blueprint : class_blueprints)
+        size = saturating_add_external_memory_size(size, vector_external_memory_size(blueprint.elements));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(exception_handlers));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(basic_block_start_offsets));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(source_map));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(local_variable_names));
+    size = saturating_add_external_memory_size(size, hash_map_external_memory_size(m_source_range_cache));
+    return size;
 }
 
 static Vector<PropertyLookupCache*>& static_property_lookup_caches()

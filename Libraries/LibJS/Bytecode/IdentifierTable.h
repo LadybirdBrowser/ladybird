@@ -9,6 +9,7 @@
 #include <AK/DistinctNumeric.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Vector.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 
 namespace JS::Bytecode {
 
@@ -29,6 +30,7 @@ public:
     Utf16FlyString const& get(IdentifierTableIndex) const;
     void dump() const;
     bool is_empty() const { return m_identifiers.is_empty(); }
+    size_t external_memory_size() const { return vector_external_memory_size(m_identifiers); }
 
     ReadonlySpan<Utf16FlyString const> identifiers() const { return m_identifiers; }
 

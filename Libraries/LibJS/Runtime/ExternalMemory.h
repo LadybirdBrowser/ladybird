@@ -47,7 +47,7 @@ size_t vector_external_memory_size(Vector<T, inline_capacity, fast_last_access> 
 }
 
 template<typename Map>
-size_t ordered_hash_map_external_memory_size(Map const& map)
+size_t hash_map_external_memory_size(Map const& map)
 {
     return map.capacity() * (sizeof(typename Map::KeyType) + sizeof(typename Map::ValueType));
 }

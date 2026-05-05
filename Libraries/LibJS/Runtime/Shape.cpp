@@ -22,13 +22,13 @@ size_t Shape::external_memory_size() const
 {
     size_t size = 0;
     if (m_property_table)
-        size += ordered_hash_map_external_memory_size(*m_property_table);
+        size += hash_map_external_memory_size(*m_property_table);
     if (m_forward_transitions)
-        size += ordered_hash_map_external_memory_size(*m_forward_transitions);
+        size += hash_map_external_memory_size(*m_forward_transitions);
     if (m_prototype_transitions)
-        size += ordered_hash_map_external_memory_size(*m_prototype_transitions);
+        size += hash_map_external_memory_size(*m_prototype_transitions);
     if (m_delete_transitions)
-        size += ordered_hash_map_external_memory_size(*m_delete_transitions);
+        size += hash_map_external_memory_size(*m_delete_transitions);
     if (m_child_prototype_shapes)
         size += vector_external_memory_size(*m_child_prototype_shapes);
     return size;

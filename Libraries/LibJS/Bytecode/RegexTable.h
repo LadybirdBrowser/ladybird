@@ -20,6 +20,7 @@ public:
     RegexTable() = default;
 
     bool is_empty() const { return true; }
+    size_t external_memory_size() const { return 0; }
 };
 
 }

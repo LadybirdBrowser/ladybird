@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/SharedFunctionInstanceData.h>
 #include <LibJS/RustIntegration.h>
 
@@ -50,6 +51,19 @@ void SharedFunctionInstanceData::visit_edges(Visitor& visitor)
     for (auto& function : m_functions_to_initialize)
         visitor.visit(function.shared_data);
     m_class_field_initializer_name.visit([&](PropertyKey const& key) { key.visit_edges(visitor); }, [](auto&) {});
+}
+
+size_t SharedFunctionInstanceData::external_memory_size() const
+{
+    size_t size = utf16_string_external_memory_size(m_source_text_owner);
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(m_local_variables_names));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(m_parameter_names_for_mapped_arguments));
+    size = saturating_add_external_memory_size(size, hash_map_external_memory_size(m_parameter_names));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(m_functions_to_initialize));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(m_var_names_to_initialize_binding));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(m_function_names_to_initialize_binding));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(m_lexical_bindings));
+    return size;
 }
 
 SharedFunctionInstanceData::~SharedFunctionInstanceData() = default;
