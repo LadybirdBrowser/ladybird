@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+    #editor {
+        width: 100px;
+        height: 100px;
+    }
+
+    #editor > div {
+        width: 100px;
+        height: 100px;
+    }
+
+    #second {
+        margin-top: -100px;
+    }
+</style>
+<script src="../include.js"></script>
+<div id="editor" contenteditable>
+    <div id="first"></div>
+    <div id="second"></div>
+</div>
+<script>
+    test(() => {
+        const rect = editor.getBoundingClientRect();
+        internals.click(rect.left + rect.width / 2, rect.top + rect.height / 2);
+        printElement(document.getSelection().focusNode);
+    });
+</script>
