@@ -1267,6 +1267,14 @@ if(NOT BUILD_SHARED_LIBS)
         COMMENT "Merging Rust archive into LibWeb"
     )
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/rust_merge_tmp)
+
+    # POST_BUILD steps don't track inputs, so when libweb_rust.a changes
+    # ninja leaves liblagom-web.a alone and the merged archive ends up with
+    # stale Rust objects. Force the C++ FFI bridge file to depend on the
+    # Rust archive: when it changes, RustTokenizer.cpp recompiles, LibWeb
+    # re-archives, and POST_BUILD re-merges the fresh Rust objects.
+    get_target_property(_libweb_rust_lib libweb_rust IMPORTED_LOCATION)
+    set_property(SOURCE CSS/Parser/RustTokenizer.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
 endif()
 
 if (HAS_FONTCONFIG)

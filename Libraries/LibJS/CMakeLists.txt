@@ -311,6 +311,14 @@ if(NOT BUILD_SHARED_LIBS)
         COMMENT "Merging Rust archive into LibJS"
     )
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/rust_merge_tmp)
+
+    # POST_BUILD steps don't track inputs, so when libjs_rust.a changes ninja
+    # leaves liblagom-js.a alone and the merged archive ends up with stale
+    # Rust objects. Force the C++ FFI bridge file to depend on the Rust
+    # archive: when it changes, RustIntegration.cpp recompiles, LibJS gets
+    # re-archived, and POST_BUILD re-merges the fresh Rust objects.
+    get_target_property(_libjs_rust_lib libjs_rust IMPORTED_LOCATION)
+    set_property(SOURCE RustIntegration.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libjs_rust_lib})
 endif()
 
 # AsmInterpreter: generate platform-specific assembly from DSL
