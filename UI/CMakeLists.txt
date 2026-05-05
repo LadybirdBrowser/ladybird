@@ -59,6 +59,8 @@ else()
     set(LADYBIRD_TARGET ladybird PRIVATE)
 endif()
 
+configure_file(UI.h.in UI.h @ONLY)
+
 set(LADYBIRD_LIBS AK LibCore LibFileSystem LibGfx LibImageDecoderClient LibIPC LibJS LibMain LibWeb LibWebView LibRequests LibSync LibURL)
 target_link_libraries(${LADYBIRD_TARGET} PRIVATE ${LADYBIRD_LIBS})
 target_link_libraries(${LADYBIRD_TARGET} PRIVATE OpenSSL::Crypto OpenSSL::SSL)

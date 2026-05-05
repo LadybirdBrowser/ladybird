@@ -1,0 +1,11 @@
+/*
+ * Copyright (c) 2026, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#ifndef LADYBIRD_GUI_FRAMEWORK
+#    cmakedefine LADYBIRD_GUI_FRAMEWORK "@LADYBIRD_GUI_FRAMEWORK@"
+#endif

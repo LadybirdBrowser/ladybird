@@ -135,6 +135,10 @@
                     <div id="platform-name" class="detail-value"></div>
                 </div>
                 <div class="detail-row">
+                    <div class="detail-label">GUI Framework</div>
+                    <div id="gui-framework" class="detail-value"></div>
+                </div>
+                <div class="detail-row">
                     <div class="detail-label">User Agent</div>
                     <div id="user-agent" class="detail-value"></div>
                 </div>
@@ -162,6 +166,7 @@
             const userAgent = document.querySelector("#user-agent");
             const commandLine = document.querySelector("#command-line");
             const executablePath = document.querySelector("#executable-path");
+            const guiFramework = document.querySelector("#gui-framework");
 
             function renderVersionInfo(versionInfo) {
                 document.title = `About ${versionInfo?.browserName}`;
@@ -173,6 +178,7 @@
                 userAgent.innerText = navigator.userAgent;
                 commandLine.innerText = versionInfo?.commandLine;
                 executablePath.innerText = versionInfo?.executablePath;
+                guiFramework.innerText = versionInfo?.guiFramework;
             }
 
             document.addEventListener("WebUILoaded", () => {

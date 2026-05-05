@@ -10,6 +10,7 @@
 #include <LibWeb/Loader/UserAgent.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/WebUI/VersionUI.h>
+#include <UI/UI.h>
 
 namespace WebView {
 
@@ -28,6 +29,7 @@ void VersionUI::load_version_info()
     static auto& platform_name = *new String(String::from_utf8_without_validation({ OS_STRING, __builtin_strlen(OS_STRING) }));
     static auto& command_line = *new String(MUST(String::join(' ', Application::the().command_line_arguments().strings)));
     static auto& executable_path = *new String(MUST(String::from_byte_string(MUST(Core::System::current_executable_path()))));
+     static auto& gui_framework = *new String(String::from_utf8_without_validation({ LADYBIRD_GUI_FRAMEWORK, __builtin_strlen(LADYBIRD_GUI_FRAMEWORK) }));
 
     JsonObject version_info;
     version_info.set("browserName"_string, browser_name);
@@ -36,6 +38,7 @@ void VersionUI::load_version_info()
     version_info.set("platformName"_string, platform_name);
     version_info.set("commandLine"_string, command_line);
     version_info.set("executablePath"_string, executable_path);
+    version_info.set("guiFramework"_string, gui_framework);
 
     async_send_message("renderVersionInfo"sv, version_info);
 }
