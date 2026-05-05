@@ -1624,12 +1624,12 @@ FormattingContext::SpaceUsedByFloats BlockFormattingContext::intrusion_by_floats
 
     CSSPixels left_intrusion = 0;
     if (space_and_containing_margin.matching_left_float_box) {
-        left_intrusion = space_and_containing_margin.left_used_space;
+        left_intrusion = max(CSSPixels(0), space_and_containing_margin.left_float_margin_edge_right_in_root - box_in_root_rect.x());
     }
 
     CSSPixels right_intrusion = 0;
     if (space_and_containing_margin.matching_right_float_box) {
-        right_intrusion = space_and_containing_margin.right_used_space;
+        right_intrusion = max(CSSPixels(0), box_in_root_rect.right() - space_and_containing_margin.right_float_margin_edge_left_in_root);
     }
 
     return { left_intrusion, right_intrusion };
