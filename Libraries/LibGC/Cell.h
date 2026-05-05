@@ -204,6 +204,8 @@ public:
     // This will be called on unmarked objects by the garbage collector in a separate pass before destruction.
     MUST_UPCALL virtual void finalize() { }
 
+    virtual size_t external_memory_size() const { return 0; }
+
     // This allows cells to survive GC by choice, even if nothing points to them.
     // It's used to implement special rules in the web platform.
     // NOTE: Cell types must have OVERRIDES_MUST_SURVIVE_GARBAGE_COLLECTION set for this to be called.
