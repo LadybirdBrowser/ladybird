@@ -93,15 +93,15 @@ sudo dnf install autoconf-archive automake ccache cmake curl git libdrm-devel li
 ### openSUSE:
 
 ```
-sudo zypper install autoconf-archive automake ccache cmake curl gcc14 gcc14-c++ git liberation-fonts libglvnd-devel libtool nasm ninja qt6-base-devel qt6-tools-devel qt6-wayland-devel tar unzip zip
+sudo zypper install autoconf-archive automake cargo cargo-c ccache cmake curl gcc14 gcc14-c++ git liberation-fonts libglvnd-devel libtool nasm ninja qt6-base-devel qt6-tools-devel qt6-wayland-devel tar unzip zip
 ```
 
 If one or more of the base repository packages are flagged as having an out-of-date version during the build process, you may need add the `devel:tools:building` repository. For example, on Leap 15.6, the `autoconf` package might be version 2.69, whereas the `gperf` package requires 2.70 to build.
 
-For Leap 15.6, run the following command to add this repo (you will need to adjust the URL for other openSUSE versions):
+For Leap 16.0, run the following command to add this repo (you will need to adjust the URL for other openSUSE versions):
 
 ```
-sudo zypper addrepo https://download.opensuse.org/repositories/devel:tools:building/15.6/devel:tools:building.repo
+sudo zypper addrepo https://download.opensuse.org/repositories/devel:/tools:/building/16.0/devel:tools:building.repo
 sudo zypper refresh
 ```
 
