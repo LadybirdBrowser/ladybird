@@ -7,7 +7,9 @@
  */
 
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/ImmutableBitmap.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
+#include <LibMedia/VideoFrame.h>
 #include <LibWeb/Bindings/HTMLVideoElement.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/ComputedProperties.h>
@@ -146,7 +148,7 @@ void HTMLVideoElement::update_intrinsic_video_dimensions()
     if (current_frame == nullptr)
         return;
 
-    auto current_frame_size = current_frame->size().to_type<u32>();
+    auto current_frame_size = current_frame->size();
     if (current_frame_size == m_intrinsic_video_dimensions)
         return;
     set_intrinsic_video_dimensions(current_frame_size);
@@ -341,7 +343,10 @@ RefPtr<Gfx::ImmutableBitmap> HTMLVideoElement::bitmap() const
     auto const& sink = selected_video_track_sink();
     if (sink == nullptr)
         return nullptr;
-    return sink->current_frame();
+    auto current_frame = sink->current_frame();
+    if (!current_frame)
+        return nullptr;
+    return current_frame->immutable_bitmap();
 }
 
 }

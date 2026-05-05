@@ -6,11 +6,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/ImmutableBitmap.h>
 #include <LibJS/Runtime/Promise.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/PlaybackManager.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibMedia/Track.h>
+#include <LibMedia/VideoFrame.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Bindings/HTMLMediaElement.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -1554,7 +1556,8 @@ void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML:
         m_selected_video_track_sink = m_playback_manager->get_or_create_the_displaying_video_sink_for_track(video_track->track_in_playback_manager());
         auto sink_update_result = m_selected_video_track_sink->update();
         if (sink_update_result == Media::DisplayingVideoSinkUpdateResult::NewFrameAvailable) {
-            ensure_external_content_source().update(m_selected_video_track_sink->current_frame());
+            if (auto current_frame = m_selected_video_track_sink->current_frame())
+                ensure_external_content_source().update(current_frame->immutable_bitmap());
             update_intrinsic_video_dimensions();
             set_needs_repaint();
         } else if (auto* video_element = as_if<HTMLVideoElement>(this)) {
@@ -1577,7 +1580,8 @@ void HTMLMediaElement::update_video_frame_and_timeline()
     if (m_selected_video_track_sink) {
         auto sink_update_result = m_selected_video_track_sink->update();
         if (sink_update_result == Media::DisplayingVideoSinkUpdateResult::NewFrameAvailable) {
-            ensure_external_content_source().update(m_selected_video_track_sink->current_frame());
+            if (auto current_frame = m_selected_video_track_sink->current_frame())
+                ensure_external_content_source().update(current_frame->immutable_bitmap());
             update_intrinsic_video_dimensions();
             set_needs_repaint();
         }

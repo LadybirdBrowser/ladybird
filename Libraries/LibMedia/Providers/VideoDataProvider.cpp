@@ -82,11 +82,11 @@ void VideoDataProvider::set_frames_queue_is_full_handler(FramesQueueIsFullHandle
     m_thread_data->set_frames_queue_is_full_handler(move(handler));
 }
 
-TimedImage VideoDataProvider::retrieve_frame()
+RefPtr<VideoFrame> VideoDataProvider::retrieve_frame()
 {
     auto locker = m_thread_data->take_lock();
     if (m_thread_data->queue().is_empty())
-        return TimedImage();
+        return nullptr;
     auto result = m_thread_data->take_frame();
     m_thread_data->wake();
     return result;
@@ -173,12 +173,12 @@ void VideoDataProvider::ThreadData::exit()
     wake();
 }
 
-VideoDataProvider::ImageQueue& VideoDataProvider::ThreadData::queue()
+VideoDataProvider::FrameQueue& VideoDataProvider::ThreadData::queue()
 {
     return m_queue;
 }
 
-TimedImage VideoDataProvider::ThreadData::take_frame()
+NonnullRefPtr<VideoFrame> VideoDataProvider::ThreadData::take_frame()
 {
     return m_queue.dequeue();
 }
@@ -283,7 +283,7 @@ void VideoDataProvider::ThreadData::dispatch_frame_end_time(CodedFrame const& fr
 
 void VideoDataProvider::ThreadData::queue_frame(NonnullRefPtr<VideoFrame> const& frame)
 {
-    m_queue.enqueue(TimedImage(frame->timestamp(), frame->immutable_bitmap()));
+    m_queue.enqueue(frame);
 }
 
 void VideoDataProvider::ThreadData::dispatch_error(DecoderError&& error)

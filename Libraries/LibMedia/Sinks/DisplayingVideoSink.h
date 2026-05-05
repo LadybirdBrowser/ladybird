@@ -8,11 +8,9 @@
 
 #include <AK/NonnullRefPtr.h>
 #include <AK/Time.h>
-#include <LibGfx/ImmutableBitmap.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/Sinks/VideoSink.h>
-#include <LibMedia/TimedImage.h>
 #include <LibMedia/Track.h>
 
 namespace Media {
@@ -39,7 +37,7 @@ public:
     // Note that push_frame may block until update() is called, so do not call them from the same thread.
     DisplayingVideoSinkUpdateResult update();
     void prepare_current_frame_for_next_update();
-    RefPtr<Gfx::ImmutableBitmap> current_frame();
+    RefPtr<VideoFrame> current_frame();
 
     void pause_updates();
     void resume_updates();
@@ -55,8 +53,8 @@ private:
     RefPtr<VideoDataProvider> m_provider;
     Optional<Track> m_track;
 
-    TimedImage m_next_frame;
-    RefPtr<Gfx::ImmutableBitmap> m_current_frame;
+    RefPtr<VideoFrame> m_next_frame;
+    RefPtr<VideoFrame> m_current_frame;
     bool m_pause_updates { false };
     bool m_has_new_current_frame { false };
 };

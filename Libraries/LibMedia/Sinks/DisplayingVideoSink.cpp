@@ -7,6 +7,7 @@
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/Providers/MediaTimeProvider.h>
 #include <LibMedia/Providers/VideoDataProvider.h>
+#include <LibMedia/VideoFrame.h>
 
 #include "DisplayingVideoSink.h"
 
@@ -67,17 +68,17 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update()
     }
 
     while (true) {
-        if (!m_next_frame.is_valid()) {
+        if (!m_next_frame) {
             m_next_frame = m_provider->retrieve_frame();
-            if (!m_next_frame.is_valid()) {
+            if (!m_next_frame) {
                 if (m_provider->is_blocked() && m_on_start_buffering)
                     m_on_start_buffering();
                 break;
             }
         }
-        if (m_next_frame.timestamp() > current_time)
+        if (m_next_frame->timestamp() > current_time)
             break;
-        m_current_frame = m_next_frame.release_image();
+        m_current_frame = m_next_frame.release_nonnull();
         result = DisplayingVideoSinkUpdateResult::NewFrameAvailable;
     }
     return result;
@@ -90,7 +91,7 @@ void DisplayingVideoSink::prepare_current_frame_for_next_update()
         m_has_new_current_frame = true;
 }
 
-RefPtr<Gfx::ImmutableBitmap> DisplayingVideoSink::current_frame()
+RefPtr<VideoFrame> DisplayingVideoSink::current_frame()
 {
     return m_current_frame;
 }
@@ -102,7 +103,7 @@ void DisplayingVideoSink::pause_updates()
 
 void DisplayingVideoSink::resume_updates()
 {
-    m_next_frame.clear();
+    m_next_frame = nullptr;
     m_current_frame = nullptr;
     m_pause_updates = false;
     m_has_new_current_frame = true;

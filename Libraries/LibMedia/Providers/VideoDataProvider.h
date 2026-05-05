@@ -19,7 +19,6 @@
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/SeekMode.h>
 #include <LibMedia/TimeRanges.h>
-#include <LibMedia/TimedImage.h>
 #include <LibMedia/Track.h>
 #include <LibThreading/ConditionVariable.h>
 #include <LibThreading/Mutex.h>
@@ -32,7 +31,7 @@ class MEDIA_API VideoDataProvider final : public AtomicRefCounted<VideoDataProvi
 
 public:
     static constexpr size_t QUEUE_CAPACITY = 8;
-    using ImageQueue = Queue<TimedImage, QUEUE_CAPACITY>;
+    using FrameQueue = Queue<NonnullRefPtr<VideoFrame>, QUEUE_CAPACITY>;
 
     using ErrorHandler = Function<void(DecoderError&&)>;
     using FrameEndTimeHandler = Function<void(AK::Duration)>;
@@ -52,7 +51,7 @@ public:
     void suspend();
     void resume();
 
-    TimedImage retrieve_frame();
+    RefPtr<VideoFrame> retrieve_frame();
 
     void seek(AK::Duration timestamp, SeekMode, SeekCompletionHandler&& = nullptr);
 
@@ -76,8 +75,8 @@ private:
         void resume();
         void exit();
 
-        ImageQueue& queue();
-        TimedImage take_frame();
+        FrameQueue& queue();
+        NonnullRefPtr<VideoFrame> take_frame();
 
         void seek(AK::Duration timestamp, SeekMode, SeekCompletionHandler&&);
 
@@ -127,7 +126,7 @@ private:
         RefPtr<MediaTimeProvider> m_time_provider;
 
         size_t m_queue_max_size { 4 };
-        ImageQueue m_queue;
+        FrameQueue m_queue;
         FrameEndTimeHandler m_duration_change_handler;
         ErrorHandler m_error_handler;
         bool m_is_in_error_state { false };
