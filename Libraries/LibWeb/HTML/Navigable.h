@@ -244,7 +244,7 @@ public:
     void set_pending_set_browser_zoom_request(bool value) { m_pending_set_browser_zoom_request = value; }
     bool pending_set_browser_zoom_request() const { return m_pending_set_browser_zoom_request; }
 
-    void set_should_show_line_box_borders(bool value) { m_should_show_line_box_borders = value; }
+    void set_should_show_line_box_borders(bool);
 
     bool is_svg_page() const { return m_is_svg_page; }
 

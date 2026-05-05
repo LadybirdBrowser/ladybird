@@ -419,6 +419,8 @@ void Navigable::initialize_navigable(NonnullRefPtr<DocumentState> document_state
 
     // 5. Set navigable's parent to parent.
     m_parent = parent;
+    if (parent)
+        m_should_show_line_box_borders = parent->m_should_show_line_box_borders;
     if (parent && !m_is_svg_page) {
         m_external_content_source = Painting::ExternalContentSource::create();
         m_rendering_thread.set_presentation_mode(RenderingThread::PublishToExternalContent { external_content_source() });
@@ -3092,6 +3094,15 @@ NonnullRefPtr<Painting::ExternalContentSource> Navigable::external_content_sourc
 {
     VERIFY(m_external_content_source);
     return *m_external_content_source;
+}
+
+void Navigable::set_should_show_line_box_borders(bool value)
+{
+    m_should_show_line_box_borders = value;
+    set_needs_repaint();
+
+    for (auto const& child_navigable : child_navigables())
+        child_navigable->set_should_show_line_box_borders(value);
 }
 
 void Navigable::record_display_list_and_scroll_state(PaintConfig paint_config)
