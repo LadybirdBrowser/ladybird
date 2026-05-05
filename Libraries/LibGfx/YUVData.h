@@ -48,8 +48,6 @@ public:
 
     SkYUVAPixmaps make_pixmaps() const;
 
-    void expand_samples_to_full_16_bit_range();
-
 private:
     explicit YUVData(NonnullOwnPtr<Details::YUVDataImpl>);
 

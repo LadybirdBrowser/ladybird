@@ -211,9 +211,6 @@ ErrorOr<NonnullRefPtr<ImmutableBitmap>> ImmutableBitmap::create_from_yuv(Nonnull
 {
     auto color_space = TRY(ColorSpace::from_cicp(yuv_data->cicp()));
 
-    if (yuv_data->bit_depth() > 8)
-        yuv_data->expand_samples_to_full_16_bit_range();
-
     ImmutableBitmapImpl impl {
         .bitmap = nullptr,
         .yuv_data = move(yuv_data),

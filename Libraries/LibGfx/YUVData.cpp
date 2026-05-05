@@ -225,21 +225,6 @@ ErrorOr<NonnullRefPtr<Bitmap>> YUVData::to_bitmap() const
     return bitmap;
 }
 
-void YUVData::expand_samples_to_full_16_bit_range()
-{
-    auto const shift = 16 - m_impl->bit_depth;
-    auto const inverse_shift = m_impl->bit_depth - shift;
-
-    for (auto buffer : { m_impl->y_buffer.span(), m_impl->u_buffer.span(), m_impl->v_buffer.span() }) {
-        auto* samples = reinterpret_cast<u16*>(buffer.data());
-        auto sample_count = buffer.size() / sizeof(u16);
-        for (size_t i = 0; i < sample_count; i++)
-            samples[i] = static_cast<u16>((samples[i] << shift) | (samples[i] >> inverse_shift));
-    }
-
-    m_impl->bit_depth = 16;
-}
-
 static SkYUVColorSpace skia_yuv_color_space(Media::CodingIndependentCodePoints cicp)
 {
     bool full_range = cicp.video_full_range_flag() == Media::VideoFullRangeFlag::Full;
@@ -280,6 +265,31 @@ static SkYUVAInfo::Subsampling skia_subsampling(Media::Subsampling subsampling)
     return SkYUVAInfo::Subsampling::k420;
 }
 
+static u16 expand_sample_to_full_16_bit_range(u16 sample, u8 bit_depth)
+{
+    if (bit_depth >= 16)
+        return sample;
+
+    auto const shift = 16 - bit_depth;
+    auto const inverse_shift = bit_depth - shift;
+    return static_cast<u16>((sample << shift) | (sample >> inverse_shift));
+}
+
+static void copy_plane_expanded_to_full_16_bit_range(FixedArray<u8> const& source_buffer, SkPixmap const& destination, IntSize plane_size, u8 bit_depth)
+{
+    VERIFY(bit_depth > 8);
+
+    auto const* source = reinterpret_cast<u16 const*>(source_buffer.data());
+    auto source_stride = static_cast<size_t>(plane_size.width());
+
+    for (int row = 0; row < plane_size.height(); row++) {
+        auto const* source_row = source + (static_cast<size_t>(row) * source_stride);
+        auto* destination_row = destination.writable_addr16(0, row);
+        for (int column = 0; column < plane_size.width(); column++)
+            destination_row[column] = expand_sample_to_full_16_bit_range(source_row[column], bit_depth);
+    }
+}
+
 SkYUVAPixmaps YUVData::make_pixmaps() const
 {
     auto skia_size = SkISize::Make(m_impl->size.width(), m_impl->size.height());
@@ -298,9 +308,18 @@ SkYUVAPixmaps YUVData::make_pixmaps() const
         data_type = SkYUVAPixmapInfo::DataType::kUnorm8;
         component_size = 1;
     } else {
-        color_type = kA16_unorm_SkColorType;
-        data_type = SkYUVAPixmapInfo::DataType::kUnorm16;
-        component_size = 2;
+        SkYUVAPixmapInfo pixmap_info(yuva_info, SkYUVAPixmapInfo::DataType::kUnorm16, nullptr);
+        auto pixmaps = SkYUVAPixmaps::Allocate(pixmap_info);
+        if (!pixmaps.isValid())
+            return pixmaps;
+
+        copy_plane_expanded_to_full_16_bit_range(m_impl->y_buffer, pixmaps.plane(0), m_impl->size, m_impl->bit_depth);
+
+        auto uv_size = m_impl->subsampling.subsampled_size(m_impl->size);
+        copy_plane_expanded_to_full_16_bit_range(m_impl->u_buffer, pixmaps.plane(1), uv_size, m_impl->bit_depth);
+        copy_plane_expanded_to_full_16_bit_range(m_impl->v_buffer, pixmaps.plane(2), uv_size, m_impl->bit_depth);
+
+        return pixmaps;
     }
 
     auto y_row_bytes = static_cast<size_t>(m_impl->size.width()) * component_size;
