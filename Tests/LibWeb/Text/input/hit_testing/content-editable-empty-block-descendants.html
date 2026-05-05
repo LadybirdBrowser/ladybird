@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<style>
+    body {
+        border: 1px solid red;
+    }
+
+    p {
+        border: 1px solid green;
+    }
+</style>
+<script src="../include.js"></script>
+<body contenteditable>
+    <p id="first"></p>
+    <p id="second"></p>
+    <script>
+        function clickBodyAtY(y) {
+            const bodyRect = document.body.getBoundingClientRect();
+            internals.click(bodyRect.left + 10, y);
+        }
+
+        test(() => {
+            const bodyRect = document.body.getBoundingClientRect();
+            const firstRect = first.getBoundingClientRect();
+            const secondRect = second.getBoundingClientRect();
+
+            clickBodyAtY(bodyRect.top + 10);
+            printElement(document.getSelection().focusNode);
+
+            clickBodyAtY((firstRect.bottom + secondRect.top) / 2);
+            printElement(document.getSelection().focusNode);
+
+            clickBodyAtY((secondRect.bottom + bodyRect.bottom) / 2);
+            printElement(document.getSelection().focusNode);
+
+            internals.sendText(document.body, "hello");
+            println(second.textContent);
+
+            clickBodyAtY((secondRect.bottom + bodyRect.bottom) / 2);
+            printElement(document.getSelection().focusNode);
+        });
+    </script>
+</body>
