@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    iframe {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        width: 120px;
+        height: 120px;
+        border: none;
+    }
+</style>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        window.childMouseOutCount = 0;
+
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = `
+            <!DOCTYPE html>
+            <style>
+                body { margin: 0; }
+                #target {
+                    width: 80px;
+                    height: 80px;
+                    background: lightblue;
+                }
+            </style>
+            <div id="target"></div>
+            <script>
+                document.addEventListener("mouseout", () => {
+                    parent.childMouseOutCount++;
+                }, { once: true });
+            <\/script>
+        `;
+        document.body.appendChild(iframe);
+
+        await new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        await animationFrame();
+
+        const rect = iframe.getBoundingClientRect();
+        internals.mouseMove(rect.left + 40, rect.top + 40);
+        await animationFrame();
+        internals.mouseMove(rect.right + 20, rect.bottom + 20);
+        await animationFrame();
+
+        println(`child mouseout count: ${window.childMouseOutCount}`);
+        done();
+    });
+</script>
