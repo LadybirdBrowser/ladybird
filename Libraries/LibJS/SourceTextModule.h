@@ -53,6 +53,9 @@ public:
         i32 function_index { -1 }; // index into m_functions_to_initialize, -1 if not a function
     };
 
+    Bytecode::Executable* cached_executable() const { return m_executable; }
+    SharedFunctionInstanceData* top_level_await_shared_data() const { return m_tla_shared_data; }
+
 protected:
     virtual ThrowCompletionOr<void> initialize_environment(VM& vm) override;
     virtual ThrowCompletionOr<void> execute_module(VM& vm, GC::Ptr<PromiseCapability> capability) override;

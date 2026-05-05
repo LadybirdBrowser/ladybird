@@ -10,7 +10,9 @@
 #include <LibCore/EventLoop.h>
 #include <LibGC/Function.h>
 #include <LibGC/Root.h>
+#include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Runtime/ModuleRequest.h>
+#include <LibJS/Runtime/SharedFunctionInstanceData.h>
 #include <LibJS/RustIntegration.h>
 #include <LibJS/SourceCode.h>
 #include <LibTextCodec/Decoder.h>
@@ -43,6 +45,87 @@ struct OffThreadCompiledProgram {
     JS::FFI::ParsedProgram* parsed { nullptr };
     JS::FFI::CompiledProgram* compiled { nullptr };
 };
+
+static void compile_remaining_functions_off_thread(JS::Bytecode::Executable& executable, NonnullRefPtr<JS::SourceCode const> source_code)
+{
+    Vector<GC::Root<JS::SharedFunctionInstanceData>> shared_data_roots;
+    Vector<void*> function_asts;
+
+    for (auto& shared_data : executable.shared_function_data) {
+        if (!shared_data || shared_data->m_executable || !shared_data->m_rust_function_ast)
+            continue;
+
+        auto* cloned_ast = JS::RustIntegration::clone_function_ast(shared_data->m_rust_function_ast);
+        if (!cloned_ast)
+            continue;
+
+        shared_data_roots.append(GC::make_root(*shared_data));
+        function_asts.append(cloned_ast);
+    }
+
+    if (function_asts.is_empty())
+        return;
+
+    auto length = source_code->length_in_code_units();
+    auto* callback = new Function<void(Vector<JS::FFI::CompiledFunction*>)>(
+        [shared_data_roots = move(shared_data_roots), source_code = move(source_code)](Vector<JS::FFI::CompiledFunction*> compiled_functions) mutable {
+            VERIFY(compiled_functions.size() == shared_data_roots.size());
+            auto& vm = Bindings::main_thread_vm();
+            for (size_t i = 0; i < compiled_functions.size(); ++i) {
+                auto* compiled_function = compiled_functions[i];
+                if (!compiled_function)
+                    continue;
+
+                auto& shared_data = *shared_data_roots[i];
+                if (shared_data.m_executable) {
+                    compile_remaining_functions_off_thread(*shared_data.m_executable, source_code);
+                    JS::RustIntegration::free_compiled_function(compiled_function);
+                    continue;
+                }
+
+                JS::RustIntegration::materialize_compiled_function(compiled_function, vm, *source_code, shared_data);
+            }
+        });
+
+    auto event_loop_weak = Core::EventLoop::current_weak();
+
+    Threading::ThreadPool::the().submit([function_asts = move(function_asts), length,
+                                            callback,
+                                            event_loop_weak = move(event_loop_weak)]() mutable {
+        Vector<JS::FFI::CompiledFunction*> compiled_functions;
+        compiled_functions.ensure_capacity(function_asts.size());
+        for (auto* function_ast : function_asts)
+            compiled_functions.append(JS::RustIntegration::compile_function_off_thread(function_ast, length, false));
+
+        auto origin = event_loop_weak->take();
+        if (!origin)
+            return;
+        origin->deferred_invoke([compiled_functions = move(compiled_functions), callback]() mutable {
+            (*callback)(move(compiled_functions));
+            delete callback;
+        });
+    });
+}
+
+static void compile_remaining_module_functions_off_thread(ModuleScript& module_script, NonnullRefPtr<JS::SourceCode const> source_code)
+{
+    module_script.record().visit(
+        [](Empty) {},
+        [](GC::Ref<JS::SyntheticModule>) {},
+        [](GC::Ref<WebAssembly::WebAssemblyModule>) {},
+        [source_code = move(source_code)](GC::Ref<JS::SourceTextModule> module) mutable {
+            if (auto* executable = module->cached_executable()) {
+                compile_remaining_functions_off_thread(*executable, source_code);
+                return;
+            }
+
+            auto* top_level_await_shared_data = module->top_level_await_shared_data();
+            if (!top_level_await_shared_data || !top_level_await_shared_data->m_executable)
+                return;
+
+            compile_remaining_functions_off_thread(*top_level_await_shared_data->m_executable, source_code);
+        });
+}
 
 // Submit parsing and top-level bytecode generation to the thread pool, then bounce back to the main thread via
 // deferred_invoke once the worker is done. Syntax errors still come back as a ParsedProgram so the main thread can
@@ -448,9 +531,14 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
                 [response_url = move(response_url), response_url_string = move(response_url_string),
                     muted_errors, on_complete_root = move(on_complete_root),
                     settings_root = move(settings_root)](auto result, auto source_code) mutable {
+                    auto source_code_for_background_compile = source_code;
                     auto script = result.compiled
                         ? ClassicScript::create_from_pre_compiled(move(response_url_string), move(source_code), *settings_root, move(response_url), result.compiled, muted_errors)
                         : ClassicScript::create_from_pre_parsed(move(response_url_string), move(source_code), *settings_root, move(response_url), result.parsed, muted_errors);
+                    if (auto* script_record = script->script_record()) {
+                        if (auto* executable = script_record->cached_executable())
+                            compile_remaining_functions_off_thread(*executable, move(source_code_for_background_compile));
+                    }
                     on_complete_root->function()(script);
                 });
         } else {
@@ -811,9 +899,12 @@ void fetch_single_module_script(JS::Realm& realm,
                             module_type_string = move(module_type_string),
                             on_complete_root = move(on_complete_root),
                             settings_root = move(settings_root)](auto result, auto source_code) mutable {
+                            auto source_code_for_background_compile = source_code;
                             auto module_script = result.compiled
                                 ? ModuleScript::create_from_pre_compiled(url_string, move(source_code), *settings_root, move(response_url), result.compiled).release_value_but_fixme_should_propagate_errors()
                                 : ModuleScript::create_from_pre_parsed(url_string, move(source_code), *settings_root, move(response_url), result.parsed).release_value_but_fixme_should_propagate_errors();
+                            if (module_script)
+                                compile_remaining_module_functions_off_thread(*module_script, move(source_code_for_background_compile));
                             settings_root->module_map().set(url, module_type_string, { ModuleMap::EntryType::ModuleScript, module_script });
                             on_complete_root->function()(module_script);
                         });
