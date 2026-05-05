@@ -6,6 +6,7 @@
 
 #include "Fixture.h"
 #include "Application.h"
+#include "WebPlatformTest.h"
 
 #include <AK/ByteBuffer.h>
 #include <AK/LexicalPath.h>
@@ -14,8 +15,6 @@
 #include <LibCore/System.h>
 
 namespace TestWeb {
-
-static ByteString s_fixtures_path;
 
 // Key function for Fixture
 Fixture::~Fixture() = default;
@@ -63,8 +62,8 @@ void HttpEchoServerFixture::teardown_impl()
 
 ErrorOr<void> HttpEchoServerFixture::setup(WebView::WebContentOptions& web_content_options)
 {
-    auto const script_path = LexicalPath::join(s_fixtures_path, m_script_path);
-    auto const arguments = Vector { script_path.string(), "--directory", Application::the().test_root_path };
+    auto const script_path = LexicalPath::join(Application::the().test_root_path, "Fixtures"sv, m_script_path).string();
+    Vector<ByteString> arguments { script_path, "--directory"sv, Application::the().test_root_path };
 
     // FIXME: Pick a more reasonable log path that is more observable
     auto const log_path = LexicalPath::join(Core::StandardPaths::tempfile_directory(), "http-test-server.log"sv).string();
@@ -103,8 +102,6 @@ void HttpEchoServerFixture::teardown_impl()
 {
     VERIFY(m_process.has_value());
 
-    auto script_path = LexicalPath::join(s_fixtures_path, m_script_path);
-
     if (auto kill_or_error = Core::System::kill(m_process->pid(), SIGINT); kill_or_error.is_error()) {
         if (kill_or_error.error().code() != ESRCH) {
             warnln("Failed to kill HTTP echo server, error: {}", kill_or_error.error());
@@ -120,10 +117,12 @@ void HttpEchoServerFixture::teardown_impl()
 
 void Fixture::initialize_fixtures()
 {
-    s_fixtures_path = LexicalPath::join(Application::the().test_root_path, "Fixtures"sv).string();
-
     auto& registry = all();
-    registry.append(make<HttpEchoServerFixture>());
+
+    if (Application::the().should_collect_regular_tests())
+        registry.append(make<HttpEchoServerFixture>());
+    if (Application::the().wpt_filters.size() > 0)
+        registry.append(create_web_platform_test_fixture());
 }
 
 }

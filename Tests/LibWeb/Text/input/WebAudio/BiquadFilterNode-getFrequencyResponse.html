@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="../include.js"></script>
+  <script>
+    'use strict';
+
+    function assert(condition, message) {
+      if (!condition)
+        throw new Error(message);
+    }
+
+    function assertTrue(condition, message) {
+      assert(!!condition, message);
+    }
+
+    function assertThrowsInvalidAccessError(fn, message) {
+      let threw = false;
+      try {
+        fn();
+      } catch (e) {
+        threw = true;
+        assert(e && e.name === 'InvalidAccessError', `${message} (wrong exception: ${e && e.name})`);
+      }
+      assert(threw, `${message} (did not throw)`);
+    }
+
+    function testGetFrequencyResponse() {
+      const context = new OfflineAudioContext(1, 1, 48000);
+      const biquad = context.createBiquadFilter();
+
+      biquad.type = 'lowpass';
+      biquad.frequency.value = 1000;
+      biquad.detune.value = 0;
+      biquad.Q.value = 1;
+      biquad.gain.value = 0;
+
+      assertThrowsInvalidAccessError(() => {
+        biquad.getFrequencyResponse(new Float64Array([0]), new Float32Array([0]), new Float32Array([0]));
+      }, 'Float64Array frequency throws');
+
+      assertThrowsInvalidAccessError(() => {
+        biquad.getFrequencyResponse(new Float32Array([0, 1]), new Float32Array([0]), new Float32Array([0, 0]));
+      }, 'length mismatch throws');
+
+      const frequencies = new Float32Array([
+        0,
+        1000,
+        context.sampleRate / 2,
+        (context.sampleRate / 2) + 1,
+        -1,
+        NaN,
+      ]);
+
+      const magResponse = new Float32Array(frequencies.length);
+      const phaseResponse = new Float32Array(frequencies.length);
+
+      biquad.getFrequencyResponse(frequencies, magResponse, phaseResponse);
+
+      assertTrue(Number.isFinite(magResponse[0]), '0Hz magnitude finite');
+      assertTrue(Number.isFinite(phaseResponse[0]), '0Hz phase finite');
+      assertTrue(Math.abs(magResponse[0] - 1.0) < 0.01, '0Hz magnitude near 1 for lowpass');
+
+      assertTrue(Number.isFinite(magResponse[1]), '1000Hz magnitude finite');
+      assertTrue(Number.isFinite(phaseResponse[1]), '1000Hz phase finite');
+
+      assertTrue(Number.isFinite(magResponse[2]), 'Nyquist magnitude finite');
+      assertTrue(Number.isFinite(phaseResponse[2]), 'Nyquist phase finite');
+
+      assertTrue(Number.isNaN(magResponse[3]), 'above Nyquist magnitude NaN');
+      assertTrue(Number.isNaN(phaseResponse[3]), 'above Nyquist phase NaN');
+
+      assertTrue(Number.isNaN(magResponse[4]), 'negative magnitude NaN');
+      assertTrue(Number.isNaN(phaseResponse[4]), 'negative phase NaN');
+
+      assertTrue(Number.isNaN(magResponse[5]), 'NaN magnitude NaN');
+      assertTrue(Number.isNaN(phaseResponse[5]), 'NaN phase NaN');
+    }
+
+    test(() => {
+      testGetFrequencyResponse();
+      println('passed');
+    });
+  </script>
+</head>
+</body>
+</html>

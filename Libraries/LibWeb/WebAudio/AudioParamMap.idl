@@ -1,0 +1,10 @@
+// https://webaudio.github.io/web-audio-api/#audioparammap
+[Exposed=Window]
+interface AudioParamMap {
+    readonly attribute unsigned long size;
+
+    AudioParam? get(DOMString key);
+    boolean has(DOMString key);
+
+    iterable<DOMString, AudioParam>;
+};

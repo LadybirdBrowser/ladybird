@@ -5,8 +5,8 @@
  */
 
 #include <AK/Debug.h>
+#include <LibAudioServer/SampleSpecification.h>
 #include <LibCore/EventLoop.h>
-#include <LibMedia/Audio/SampleSpecification.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/FFmpeg/FFmpegAudioConverter.h>
 #include <LibMedia/FFmpeg/FFmpegAudioDecoder.h>
@@ -148,6 +148,7 @@ void AudioDataProvider::ThreadData::set_queue_is_full_handler(QueueIsFullHandler
 
 void AudioDataProvider::ThreadData::set_output_sample_specification(Audio::SampleSpecification sample_specification)
 {
+    Threading::MutexLocker locker { m_converter_mutex };
     m_converter->set_output_sample_specification(sample_specification).release_value_but_fixme_should_propagate_errors();
 }
 
@@ -334,6 +335,7 @@ DecoderErrorOr<void> AudioDataProvider::ThreadData::retrieve_next_block(AudioBlo
 {
     TRY(m_decoder->write_next_block(block));
 
+    Threading::MutexLocker locker { m_converter_mutex };
     auto convert_result = m_converter->convert(block);
     if (convert_result.is_error())
         return DecoderError::format(DecoderErrorCategory::NotImplemented, "Sample specification conversion failed: {}", convert_result.error().string_literal());

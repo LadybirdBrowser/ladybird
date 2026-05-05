@@ -4,16 +4,19 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Try.h>
 #include <LibGC/CellAllocator.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebAudio/AudioListener.h>
+#include <LibWeb/WebAudio/BaseAudioContext.h>
 
 namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(AudioListener);
 
-AudioListener::AudioListener(JS::Realm& realm, GC::Ref<BaseAudioContext> context)
+AudioListener::AudioListener(JS::Realm& realm, GC::Ref<BaseAudioContext> context, NodeID node_id)
     : Bindings::PlatformObject(realm)
+    , m_node_id(node_id)
     , m_forward_x(AudioParam::create(realm, context, 0.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
     , m_forward_y(AudioParam::create(realm, context, 0.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
     , m_forward_z(AudioParam::create(realm, context, -1.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
@@ -28,7 +31,7 @@ AudioListener::AudioListener(JS::Realm& realm, GC::Ref<BaseAudioContext> context
 
 GC::Ref<AudioListener> AudioListener::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context)
 {
-    return realm.create<AudioListener>(realm, context);
+    return realm.create<AudioListener>(realm, context, context->next_node_id());
 }
 
 AudioListener::~AudioListener() = default;
@@ -43,9 +46,9 @@ WebIDL::ExceptionOr<void> AudioListener::set_position(float x, float y, float z)
     //        AudioListener have an automation curve set using setValueCurveAtTime() at the time this
     //        method is called, a NotSupportedError MUST be thrown.
 
-    m_position_x->set_value(x);
-    m_position_y->set_value(y);
-    m_position_z->set_value(z);
+    TRY(m_position_x->set_value(x));
+    TRY(m_position_y->set_value(y));
+    TRY(m_position_z->set_value(z));
 
     return {};
 }
@@ -61,12 +64,12 @@ WebIDL::ExceptionOr<void> AudioListener::set_orientation(float x, float y, float
     //        AudioParams have an automation curve set using setValueCurveAtTime() at the time this
     //        method is called, a NotSupportedError MUST be thrown.
 
-    m_forward_x->set_value(x);
-    m_forward_y->set_value(y);
-    m_forward_z->set_value(z);
-    m_up_x->set_value(x_up);
-    m_up_y->set_value(y_up);
-    m_up_z->set_value(z_up);
+    TRY(m_forward_x->set_value(x));
+    TRY(m_forward_y->set_value(y));
+    TRY(m_forward_z->set_value(z));
+    TRY(m_up_x->set_value(x_up));
+    TRY(m_up_y->set_value(y_up));
+    TRY(m_up_z->set_value(z_up));
 
     return {};
 }

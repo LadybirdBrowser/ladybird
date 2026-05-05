@@ -945,7 +945,11 @@ static void generate_buffer_source_to_cpp(SourceGenerator& scoped_generator, IDL
     else
         scoped_generator.set("parameter.type.buffer_cpp", "WebIDL::BufferSource");
 
-    if (optional || type.is_nullable()) {
+    if (!optional && type.is_nullable() && is_exact_javascript_buffer_source_type) {
+        scoped_generator.append(R"~~~(
+    GC::Ptr<@parameter.type.buffer_cpp@> @cpp_name@;
+)~~~");
+    } else if (optional || type.is_nullable()) {
         scoped_generator.append(R"~~~(
     Optional<GC::Root<@parameter.type.buffer_cpp@>> @cpp_name@;
 )~~~");
@@ -1024,7 +1028,7 @@ static void generate_buffer_source_to_cpp(SourceGenerator& scoped_generator, IDL
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
         }
 
-        @cpp_name@ = GC::make_root(*@cpp_name@_builtin_buffer);
+        @cpp_name@ = @cpp_name@_builtin_buffer;
     }
 )~~~");
         } else {

@@ -1,0 +1,15 @@
+#include <AK/ByteString.h>
+#include <LibIPC/TransportHandle.h>
+
+endpoint ToWebAudioWorkerFromBroker
+{
+    init_transport(int peer_pid) => (int peer_pid)
+
+    connect_to_audio_server(IPC::TransportHandle handle, ByteString grant_id) =|
+
+    // Create a new IPC connection for WebAudio rendering/control.
+    connect_new_webaudio_client() => (IPC::TransportHandle handle)
+
+    // Legacy: create more WebAudioWorkerServer connections.
+    connect_new_clients(size_t count) => (Vector<IPC::TransportHandle> handles)
+}

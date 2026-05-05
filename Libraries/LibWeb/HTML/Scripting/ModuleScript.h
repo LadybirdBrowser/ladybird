@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/ByteString.h>
 #include <LibJS/SourceTextModule.h>
 #include <LibJS/SyntheticModule.h>
 #include <LibWeb/Export.h>
@@ -48,6 +49,9 @@ public:
 
     ModuleScriptRecord record() const { return m_record; }
 
+    // Best-effort source retention for mirroring modules into other VMs.
+    ByteString const& source_text() const { return m_source_text; }
+
 protected:
     ModuleScript(Optional<URL::URL> base_url, ByteString filename, EnvironmentSettingsObject&);
 
@@ -56,6 +60,8 @@ private:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
     ModuleScriptRecord m_record;
+
+    ByteString m_source_text;
 
     size_t m_fetch_internal_request_count { 0 };
     size_t m_completed_fetch_internal_request_count { 0 };

@@ -6,28 +6,24 @@
 
 #pragma once
 
-#include <AK/ByteString.h>
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/Vector.h>
+#include <LibAudioServer/SessionClientOfAudioServer.h>
 #include <LibMedia/Export.h>
 
 namespace Media {
 
-struct AudioDeviceInfo {
-    ByteString dom_device_id;
-    ByteString label;
-    ByteString group_id;
-    u32 sample_rate_hz { 0 };
-    u32 channel_count { 0 };
-    bool is_default { false };
-};
+using AudioDeviceHandle = Audio::DeviceHandle;
+using AudioDeviceInfo = Audio::DeviceInfo;
 
 class MEDIA_API AudioDevices {
 public:
     static AudioDevices& the();
 
+    void attach_to_audio_server_client(NonnullRefPtr<Audio::SessionClientOfAudioServer>);
     void refresh();
+
     Vector<AudioDeviceInfo> input_devices() const;
     Vector<AudioDeviceInfo> output_devices() const;
 
@@ -38,6 +34,7 @@ public:
 private:
     void notify_listeners();
 
+    RefPtr<Audio::SessionClientOfAudioServer> m_audio_server_client;
     Vector<AudioDeviceInfo> m_cached_input_devices;
     Vector<AudioDeviceInfo> m_cached_output_devices;
 

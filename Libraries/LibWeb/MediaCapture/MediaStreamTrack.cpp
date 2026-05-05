@@ -66,6 +66,26 @@ GC::Ref<MediaStreamTrack> MediaStreamTrack::create(JS::Realm& realm, Bindings::M
     return track;
 }
 
+GC::Ref<MediaStreamTrack> MediaStreamTrack::create_audio_input_track(JS::Realm& realm, Media::AudioDeviceInfo const& device_info, Optional<String> label)
+{
+    auto track = MediaStreamTrack::create(realm, audio_track_kind, move(label), false);
+    track->m_device_info = device_info;
+    track->m_settings.device_id = String::from_utf8_with_replacement_character(device_info.dom_device_id.view());
+    track->m_settings.sample_rate = device_info.sample_rate_hz;
+    track->m_settings.channel_count = device_info.channel_count;
+    return track;
+}
+
+GC::Ref<MediaStreamTrack> MediaStreamTrack::create_audio_output_track(JS::Realm& realm, Media::AudioDeviceInfo const& device_info, Optional<String> label)
+{
+    auto track = MediaStreamTrack::create(realm, audio_track_kind, move(label), false);
+    track->m_device_info = device_info;
+    track->m_settings.device_id = String::from_utf8_with_replacement_character(device_info.dom_device_id.view());
+    track->m_settings.sample_rate = device_info.sample_rate_hz;
+    track->m_settings.channel_count = device_info.channel_count;
+    return track;
+}
+
 void MediaStreamTrack::set_settings(MediaTrackSettings settings)
 {
     m_settings = move(settings);
@@ -117,6 +137,7 @@ GC::Ref<MediaStreamTrack> MediaStreamTrack::clone() const
     track_clone->m_settings = m_settings;
 
     // Initialize the remaining internal slots to match the source track.
+    track_clone->m_device_info = m_device_info;
     track_clone->m_enabled = m_enabled;
     track_clone->m_provider_id = s_next_provider_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed);
 
@@ -138,20 +159,42 @@ bool MediaStreamTrack::is_video() const
 
 Optional<String> MediaStreamTrack::device_id() const
 {
-    return m_settings.device_id;
+    if (m_settings.device_id.has_value())
+        return m_settings.device_id;
+
+    if (m_device_info.has_value())
+        return String::from_utf8_with_replacement_character(m_device_info->dom_device_id.view());
+
+    return {};
+}
+
+Optional<Audio::DeviceHandle> MediaStreamTrack::device_handle() const
+{
+    if (m_device_info.has_value())
+        return m_device_info->device_handle;
+
+    return {};
 }
 
 u32 MediaStreamTrack::sample_rate_hz() const
 {
+    if (m_device_info.has_value())
+        return m_device_info->sample_rate_hz;
+
     if (m_settings.sample_rate.has_value())
         return *m_settings.sample_rate;
+
     return 0;
 }
 
 u32 MediaStreamTrack::channel_count() const
 {
+    if (m_device_info.has_value())
+        return m_device_info->channel_count;
+
     if (m_settings.channel_count.has_value())
         return *m_settings.channel_count;
+
     return 0;
 }
 

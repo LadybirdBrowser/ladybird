@@ -1,0 +1,6 @@
+options.description: foo
+options.payload: 0,1,2,3
+reply: pong
+default.keys.length: 2
+default.numberOfInputs: 1
+default.numberOfOutputs: 1

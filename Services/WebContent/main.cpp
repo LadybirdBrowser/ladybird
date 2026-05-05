@@ -5,6 +5,7 @@
  */
 
 #include <AK/LexicalPath.h>
+#include <LibAudioServer/SessionClientOfAudioServer.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/LocalServer.h>
@@ -18,6 +19,7 @@
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibMain/Main.h>
+#include <LibMedia/Audio/AudioDevices.h>
 #include <LibRequests/RequestClient.h>
 #include <LibUnicode/TimeZone.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
@@ -33,6 +35,7 @@
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/FontPlugin.h>
+#include <LibWeb/WebAudio/AudioContextRegistry.h>
 #include <LibWeb/WebIDL/Tracing.h>
 #include <LibWebView/Plugins/ImageCodecPlugin.h>
 #include <LibWebView/SiteIsolation.h>
@@ -105,6 +108,11 @@ static ErrorOr<void> load_content_filters(StringView config_path);
 static ErrorOr<void> connect_to_resource_loader(GC::Heap& heap, IPC::TransportHandle const& handle);
 static ErrorOr<void> connect_to_image_decoder(IPC::TransportHandle const& handle);
 
+static ErrorOr<void> setup_audio_server(IPC::TransportHandle const& handle, ByteString const& grant_id, bool init_transport);
+
+static WebContent::ConnectionFromClient* s_connection_from_browser { nullptr };
+static void install_webaudio_transport_provider();
+
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
@@ -152,6 +160,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     StringView default_time_zone {};
     StringView style_invalidation_counter_dump_interval {};
     bool file_origins_are_tuple_origins = false;
+    ByteString audio_grant_id { "*"sv };
 
     Core::ArgsParser args_parser;
     args_parser.add_option(config_path, "Ladybird configuration path", "config-path", 0, "config_path");
@@ -228,7 +237,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     }
 
     OPENSSL_TRY(OSSL_set_max_threads(nullptr, Core::System::hardware_concurrency()));
-
     Web::HTML::Window::set_enable_test_mode(enable_test_mode);
     Web::HTML::Window::set_internals_object_exposed(expose_internals_object);
     Web::HTML::UniversalGlobalScopeMixin::set_experimental_interfaces_exposed(expose_experimental_interfaces);
@@ -261,6 +269,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto webcontent_client = TRY(IPC::take_over_accepted_client_from_system_server<WebContent::ConnectionFromClient>(mach_server_name));
 #endif
 
+    s_connection_from_browser = webcontent_client.ptr();
+
+    install_webaudio_transport_provider();
+
     auto& heap = Web::Bindings::main_thread_vm().heap();
     webcontent_client->on_request_server_connection = [&heap](auto const& handle) {
         if (auto result = connect_to_resource_loader(heap, handle); result.is_error())
@@ -269,6 +281,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     webcontent_client->on_image_decoder_connection = [](auto const& handle) {
         if (auto result = connect_to_image_decoder(handle); result.is_error())
             dbgln("Failed to connect to image decoder: {}", result.error());
+    };
+    webcontent_client->on_audio_server_connection = [&](auto const& handle, auto const& grant_id) {
+        if (auto result = setup_audio_server(handle, grant_id, false); result.is_error())
+            dbgln("Failed to reinitialize audio server: {}", result.error());
     };
 
     return event_loop.exec();
@@ -326,4 +342,37 @@ ErrorOr<void> connect_to_image_decoder(IPC::TransportHandle const& handle)
     else
         Web::Platform::ImageCodecPlugin::install(*new WebView::ImageCodecPlugin(move(new_client)));
     return {};
+}
+
+static ErrorOr<void> setup_audio_server(IPC::TransportHandle const& handle, ByteString const& grant_id, bool init_transport)
+{
+    auto transport = TRY(handle.create_transport());
+    auto new_client = TRY(try_make_ref_counted<Audio::SessionClientOfAudioServer>(move(transport)));
+    if (init_transport) {
+#ifdef AK_OS_WINDOWS
+        auto response = new_client->send_sync<Messages::ToAudioServerFromSessionClient::InitTransport>(Core::System::getpid());
+        new_client->transport().set_peer_pid(response->peer_pid());
+#endif
+    }
+    NonnullRefPtr<Audio::SessionClientOfAudioServer> client = *new_client;
+    if (!grant_id.is_empty())
+        client->set_grant_id(grant_id);
+    client->on_devices_changed = [] { }; // FIXME: notify navigator.mediaDevices
+    Media::AudioDevices::the().attach_to_audio_server_client(client);
+    Audio::SessionClientOfAudioServer::set_default_client(client);
+    return {};
+}
+
+static void install_webaudio_transport_provider()
+{
+    Web::WebAudio::Render::AudioContextRegistry::set_webaudio_transport_provider([](u64 page_id) -> ErrorOr<IPC::TransportHandle> {
+        if (!s_connection_from_browser)
+            return Error::from_string_literal("WebAudio: browser connection unavailable for RequestWebaudioClient");
+
+        auto response = s_connection_from_browser->send_sync_but_allow_failure<Messages::WebContentClient::RequestWebaudioClient>(page_id);
+        if (!response)
+            return Error::from_string_literal("WebAudio: browser disconnected during RequestWebaudioClient");
+
+        return response->take_handle();
+    });
 }

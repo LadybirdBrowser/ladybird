@@ -148,6 +148,7 @@ void MediaStream::remove_track(GC::Ref<MediaStreamTrack> track)
 GC::Ref<MediaStream> MediaStream::clone() const
 {
     // 1. Let streamClone be a newly constructed MediaStream object.
+    // 2. Initialize streamClone.MediaStream.id to a newly generated value.
     auto stream_clone = create(realm());
 
     // 3. Clone each track in this MediaStream object and add the result to streamClone's track set.

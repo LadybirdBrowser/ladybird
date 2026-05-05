@@ -67,6 +67,8 @@ TestRunCapture::TestRunCapture()
 
 TestRunCapture::~TestRunCapture()
 {
+    m_helper_output_captures.clear();
+    m_test_output_captures.clear();
     restore_stderr();
     WebView::Application::process_manager().on_process_added = {};
     WebView::Application::process_manager().on_process_exited = move(m_previous_on_process_exited);

@@ -112,6 +112,9 @@
             margin-bottom: 24px;
         }
 
+        .accent-red { color: var(--accent-red) !important; }
+        .accent-orange { color: var(--accent-orange) !important; }
+
         .stat-card {
             background: var(--bg-secondary);
             border: 1px solid var(--border-primary);
@@ -157,6 +160,10 @@
         .stat-card.timeout .stat-value { color: var(--accent-orange); }
         .stat-card.crashed .stat-value { color: var(--accent-purple); }
         .stat-card.skipped .stat-value { color: var(--text-muted); }
+        .subtests { 
+            color: var(--text-secondary);
+            border-color: var(--text-secondary);
+        }
 
         .stat-label {
             font-size: 12px;
@@ -241,8 +248,8 @@
             font-weight: 600;
             padding: 4px 8px;
             border-radius: 4px;
-            background: var(--bg-tertiary);
             color: var(--text-secondary);
+            background: var(--bg-tertiary);
             border: 1px solid var(--border-primary);
         }
 
@@ -251,6 +258,10 @@
             font-size: 13px;
             color: var(--text-primary);
             word-break: break-all;
+        }
+
+        .wpt {
+            color: var(--text-secondary);
         }
 
         .copy-btn {
@@ -686,6 +697,10 @@
                         <div class="stat-value">${data.summary.skipped}</div>
                         <div class="stat-label">Skipped</div>
                     </div>
+                    ${data.summary.wptSubtestCount > 0 ? `<div class="stat-card subtests">
+                        <div class="stat-value">${data.summary.wptSubtestsPassed}/${data.summary.wptSubtestCount}</div>
+                        <div class="stat-label">Subtests</div>
+                    </div>` : ''}
                 </div>
                 <div class="test-list" id="testList">
             `;
@@ -703,13 +718,12 @@
         function renderResultItem(item) {
             const testId = item.name.replace(/[^a-zA-Z0-9]/g, '-');
             const tabs = item.inlineFileResult ? null : buildTabs(item);
-
             let html = `
                 <div class="test-item" data-name="${item.name.toLowerCase()}" id="test-${testId}">
                     <div class="test-header" onclick="toggleTest('${testId}')">
                         ${item.result ? `<span class="result-badge ${item.result}">${item.result}</span>` : ''}
-                        ${item.mode ? `<span class="mode-badge">${item.mode}</span>` : ''}
-                        <span class="test-name">${item.name}</span>
+                        ${modeHtml(item)}
+                        <span class="${item.isWptTest ? 'test-name wpt' : 'test-name'}">${item.name}</span>
                         ${item.result ? `<button class="copy-btn" onclick="copyText(event, this, '${item.name}')" title="Copy test path">${copySvg}</button>` : ''}
                         <span class="expand-icon">&#9654;</span>
                     </div>
@@ -726,15 +740,26 @@
             return html;
         }
 
+        function modeHtml(test) {
+            if (!test.mode) return '';
+            if (test.subtestCount) {
+                const colorClass = test.subtestsPassed === 0 ? 'accent-red' : 'accent-orange';
+                return `<span class="mode-badge ${colorClass}">${test.subtestsPassed}/${test.subtestCount}</span>`;
+            }
+            return `<span class="mode-badge">${test.mode}</span>`;
+        }
+
         function buildTabs(test) {
             let tabs = [];
 
-            if (test.mode === 'Layout' || test.mode === 'Text') {
+            if (test.mode === 'Layout' || (test.mode === 'Text' && !test.isWptTest)) {
                 tabs.push({ id: 'diff', label: 'Diff', file: `${test.name}.diff.html`, type: 'diff' });
                 tabs.push({ id: 'expected', label: 'Expected', file: `${test.name}.expected.txt`, type: 'text' });
                 tabs.push({ id: 'actual', label: 'Actual', file: `${test.name}.actual.txt`, type: 'text' });
             } else if (test.mode === 'Ref' || test.mode === 'Screenshot') {
                 tabs.push({ id: 'compare', label: 'Compare', expected: `${test.name}.expected.png`, actual: `${test.name}.actual.png`, diff: `${test.name}.diff.png`, pixelErrors: test.pixelErrors, maxChannelDiff: test.maxChannelDiff, type: 'imageDiff' });
+            } else if (test.mode === 'Text' && test.isWptTest && test.hasWptResult) {
+                tabs.push({ id: 'wpt', label: 'WPT', file: `${test.name}.wpt.html`, type: 'text' });
             }
 
             if (test.hasLogs) tabs.push({ id: 'std-logs', label: 'std logs', file: `${test.name}.logs.html`, type: 'text' });

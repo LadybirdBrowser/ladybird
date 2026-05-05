@@ -22,6 +22,7 @@ endforeach()
 
 lagom_utility(css-tokenizer SOURCES css-tokenizer.cpp LIBS LibFileSystem LibMain LibWeb)
 
+target_link_libraries(TestControlMessageQueue PRIVATE LibWebAudio)
 target_link_libraries(TestContentFilter PRIVATE LibURL)
 target_link_libraries(TestFetchURL PRIVATE LibURL)
 target_link_libraries(TestSourceHighlighter PRIVATE LibURL LibWebView)
@@ -37,4 +38,5 @@ if (NOT WIN32)
     set_tests_properties(test-css-tokenizer PROPERTIES ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
 endif()
 
+add_subdirectory("webaudio-units")
 add_subdirectory("test-web")

@@ -1,0 +1,4 @@
+sample0: 0.25
+sample1: 0.25
+sample2: 0.25
+

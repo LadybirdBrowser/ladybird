@@ -5,8 +5,10 @@
  */
 
 #include <AK/Debug.h>
+#include <LibCore/System.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibIPC/TransportHandle.h>
+#include <LibWebAudio/BrokerOfWebAudioWorker.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/HelperProcess.h>
@@ -19,6 +21,13 @@
 namespace WebView {
 
 HashTable<WebContentClient*> WebContentClient::s_clients;
+
+static IPC::TransportHandle create_disconnected_transport()
+{
+    auto paired = MUST(IPC::Transport::create_paired());
+    paired.local->close();
+    return move(paired.remote_handle);
+}
 
 static Optional<String> history_title(Utf16String const& title, URL::URL const& url)
 {
@@ -52,7 +61,7 @@ WebContentClient::~WebContentClient()
 
 void WebContentClient::die()
 {
-    // Intentionally empty. Restart is handled at another level.
+    m_webaudio_workers.clear();
 }
 
 void WebContentClient::assign_view(Badge<Application>, ViewImplementation& view)
@@ -70,6 +79,7 @@ void WebContentClient::register_view(u64 page_id, ViewImplementation& view)
 
 void WebContentClient::unregister_view(u64 page_id)
 {
+    m_webaudio_workers.remove(page_id);
     m_views.remove(page_id);
     m_history_recorded_urls_for_current_load.remove(page_id);
     if (m_views.is_empty())
@@ -103,6 +113,18 @@ void WebContentClient::notify_all_views_of_crash()
     }
 }
 
+Optional<pid_t> WebContentClient::webaudio_worker_pid_for_page_id(u64 page_id) const
+{
+    auto worker = m_webaudio_workers.get(page_id);
+    if (!worker.has_value() || !worker.value())
+        return {};
+
+    pid_t worker_pid = worker.value()->pid();
+    if (worker_pid <= 0)
+        return {};
+    return worker_pid;
+}
+
 void WebContentClient::did_paint(u64 page_id, Gfx::IntRect rect, i32 bitmap_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
@@ -132,6 +154,22 @@ void WebContentClient::maybe_record_history_visit_for_current_load(u64 page_id, 
     // do not wait for did_finish_loading() on pages that never reach it.
     Application::history_store().record_visit(url, move(title));
     m_history_recorded_urls_for_current_load.set(page_id, normalized_url.release_value());
+}
+
+void WebContentClient::set_webaudio_worker(u64 page_id, RefPtr<::Web::WebAudio::BrokerOfWebAudioWorker> const& worker)
+{
+    VERIFY(worker);
+    auto* expected_worker = worker.ptr();
+    worker->on_death = [this, page_id, expected_worker]() {
+        clear_webaudio_worker_if_current(page_id, *expected_worker);
+    };
+    m_webaudio_workers.set(page_id, worker);
+}
+
+void WebContentClient::clear_webaudio_worker_if_current(u64 page_id, ::Web::WebAudio::BrokerOfWebAudioWorker const& worker)
+{
+    if (auto current_worker = m_webaudio_workers.get(page_id); current_worker.has_value() && current_worker.value() == &worker)
+        m_webaudio_workers.remove(page_id);
 }
 
 void WebContentClient::did_start_loading(u64 page_id, URL::URL url, bool is_redirect)
@@ -702,6 +740,8 @@ void WebContentClient::did_request_activate_tab(u64 page_id)
 
 void WebContentClient::did_close_browsing_context(u64 page_id)
 {
+    m_webaudio_workers.remove(page_id);
+
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_close)
             view->on_close();
@@ -863,6 +903,52 @@ Messages::WebContentClient::RequestWorkerAgentResponse WebContentClient::request
     }
 
     return { IPC::TransportHandle {}, IPC::TransportHandle {}, IPC::TransportHandle {} };
+}
+
+Messages::WebContentClient::RequestWebaudioClientResponse WebContentClient::request_webaudio_client(u64 page_id)
+{
+    auto ensure_worker = [&]() -> ErrorOr<NonnullRefPtr<::Web::WebAudio::BrokerOfWebAudioWorker>> {
+        if (auto existing_worker = m_webaudio_workers.get(page_id); existing_worker.has_value() && existing_worker.value() && existing_worker.value()->is_open())
+            return NonnullRefPtr { *existing_worker.value() };
+
+        auto worker_or_error = WebView::launch_webaudio_renderer_process();
+        if (worker_or_error.is_error())
+            return worker_or_error.release_error();
+
+        auto worker = worker_or_error.release_value();
+        set_webaudio_worker(page_id, worker);
+        return worker;
+    };
+
+    auto worker_or_error = ensure_worker();
+    if (worker_or_error.is_error()) {
+        dbgln("WebContentClient: failed to launch WebAudioWorker: {}", worker_or_error.error());
+        return create_disconnected_transport();
+    }
+
+    auto worker = worker_or_error.release_value();
+    auto handle_or_error = worker->connect_new_webaudio_client();
+    if (!handle_or_error.is_error())
+        return handle_or_error.release_value();
+
+    dbgln("WebContentClient: request_webaudio_client failed: {}", handle_or_error.error());
+    clear_webaudio_worker_if_current(page_id, *worker);
+
+    worker_or_error = ensure_worker();
+    if (worker_or_error.is_error()) {
+        dbgln("WebContentClient: failed to relaunch WebAudioWorker: {}", worker_or_error.error());
+        return create_disconnected_transport();
+    }
+
+    worker = worker_or_error.release_value();
+    handle_or_error = worker->connect_new_webaudio_client();
+    if (handle_or_error.is_error()) {
+        dbgln("WebContentClient: request_webaudio_client retry failed: {}", handle_or_error.error());
+        clear_webaudio_worker_if_current(page_id, *worker);
+        return create_disconnected_transport();
+    }
+
+    return handle_or_error.release_value();
 }
 
 Optional<ViewImplementation&> WebContentClient::view_for_page_id(u64 page_id, SourceLocation location)

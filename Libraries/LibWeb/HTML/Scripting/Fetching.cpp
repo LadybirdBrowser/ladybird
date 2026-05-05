@@ -371,6 +371,9 @@ ScriptFetchOptions get_descendant_script_fetch_options(ScriptFetchOptions const&
 // https://html.spec.whatwg.org/multipage/webappapis.html#resolving-a-module-integrity-metadata
 String resolve_a_module_integrity_metadata(URL::URL const& url, EnvironmentSettingsObject& settings_object)
 {
+    if (!as_if<UniversalGlobalScopeMixin>(&settings_object.global_object()))
+        return {};
+
     // 1. Let map be settingsObject's global object's import map.
     auto map = settings_object.universal_global_scope().import_map();
 
@@ -648,7 +651,6 @@ WebIDL::ExceptionOr<void> fetch_worklet_module_worker_script_graph(URL::URL cons
     auto on_single_fetch_complete = create_on_fetch_script_complete(vm.heap(), [&realm, &fetch_client, destination, perform_fetch = perform_fetch, on_complete = move(on_complete)](auto result) mutable {
         // 1. If result is null, run onComplete with null, and abort these steps.
         if (!result) {
-            dbgln("on single fetch complete with nool");
             on_complete->function()(nullptr);
             return;
         }
@@ -794,7 +796,7 @@ void fetch_single_module_script(JS::Realm& realm,
             //    the result of creating a JavaScript module script given sourceText, moduleMapRealm, response's URL,
             //    and options.
             // FIXME: Pass options.
-            if (mime_type.has_value() && mime_type->is_javascript() && module_type == "javascript-or-wasm") {
+            if ((mime_type.has_value() && mime_type->is_javascript() && module_type == "javascript-or-wasm")) {
                 // If the Rust pipeline is available, parse off the main thread.
                 if (JS::RustIntegration::rust_pipeline_available()) {
                     auto on_complete_root = GC::make_root(on_complete);

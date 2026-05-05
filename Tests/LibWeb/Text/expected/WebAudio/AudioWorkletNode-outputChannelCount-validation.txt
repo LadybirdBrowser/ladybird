@@ -1,0 +1,3 @@
+PASS: length mismatch threw IndexSizeError
+PASS: invalid channel count threw NotSupportedError
+PASS: constructed with extra options: true

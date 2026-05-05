@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/Variant.h>
-#include <LibWeb/WebAudio/Types.h>
+#include <LibWebAudio/LibWebAudio.h>
 
 namespace Web::WebAudio {
 
@@ -21,9 +21,18 @@ struct StopSource {
     double when { 0.0 };
 };
 
-// FIXME: add more message types
+struct SuspendContext {
+    u64 generation { 0 };
+};
+
+struct ResumeContext {
+    u64 generation { 0 };
+};
+
+struct CloseContext {
+};
 
 // https://webaudio.github.io/web-audio-api/#control-message
-using ControlMessage = Variant<StartSource, StopSource>;
+using ControlMessage = Variant<StartSource, StopSource, SuspendContext, ResumeContext, CloseContext>;
 
 }

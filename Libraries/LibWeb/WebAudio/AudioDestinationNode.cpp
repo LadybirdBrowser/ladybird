@@ -27,7 +27,13 @@ AudioDestinationNode::~AudioDestinationNode() = default;
 // https://webaudio.github.io/web-audio-api/#dom-audiodestinationnode-maxchannelcount
 WebIDL::UnsignedLong AudioDestinationNode::max_channel_count()
 {
-    dbgln("FIXME: Implement Audio::DestinationNode::max_channel_count()");
+    // OfflineAudioContext has a fixed channel count and does not model physical output hardware.
+    // For this case, maxChannelCount is effectively the configured channelCount.
+    if (is<OfflineAudioContext>(*context()))
+        return channel_count();
+
+    // For AudioContext, this should reflect the platform output capabilities.
+    // Until we have that wired up, assume stereo.
     return 2;
 }
 

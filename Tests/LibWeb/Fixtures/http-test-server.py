@@ -61,6 +61,20 @@ echo_store: Dict[str, Echo] = {}
 recorded_request_headers: Dict[str, Dict[str, list]] = {}
 
 
+def echo_definition(echo: Echo):
+    headers = echo.headers or {}
+    return (
+        echo.method,
+        echo.path,
+        echo.status,
+        echo.body,
+        echo.delay_ms,
+        tuple(sorted(headers.items())),
+        echo.reason_phrase,
+        echo.reflect_headers_in_body,
+    )
+
+
 class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     static_directory: str
     wpt_directory: str

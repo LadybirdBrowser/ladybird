@@ -17,7 +17,7 @@ namespace Web::HTML {
 // this is a workaround to temporarily push an execution context.
 class [[nodiscard]] WEB_API TemporaryExecutionContext {
 public:
-    enum class CallbacksEnabled {
+    enum class CallbacksEnabled : u8 {
         No,
         Yes,
     };

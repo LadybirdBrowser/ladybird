@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/TypedArray.h>
@@ -42,6 +43,16 @@ WebIDL::ExceptionOr<GC::Ref<AudioBuffer>> AudioBuffer::construct_impl(JS::Realm&
 }
 
 AudioBuffer::~AudioBuffer() = default;
+
+Render::ResourceID AudioBuffer::render_resource_id() const
+{
+    if (m_render_resource_id != Render::ResourceID {})
+        return m_render_resource_id;
+
+    static Atomic<u64> s_next_render_resource_id { 1 };
+    m_render_resource_id = Render::ResourceID { s_next_render_resource_id.fetch_add(1, AK::MemoryOrder::memory_order_acq_rel) };
+    return m_render_resource_id;
+}
 
 // https://webaudio.github.io/web-audio-api/#dom-audiobuffer-samplerate
 float AudioBuffer::sample_rate() const

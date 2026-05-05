@@ -22,6 +22,37 @@ AudioScheduledSourceNode::AudioScheduledSourceNode(JS::Realm& realm, GC::Ref<Bas
 
 AudioScheduledSourceNode::~AudioScheduledSourceNode() = default;
 
+void AudioScheduledSourceNode::latch_start_time_for_rendering(f64 requested_when)
+{
+    m_effective_start_when = effective_time_for_control_thread_scheduling(requested_when);
+}
+
+void AudioScheduledSourceNode::clear_stop_time_for_rendering()
+{
+    m_effective_stop_when = {};
+}
+
+void AudioScheduledSourceNode::latch_stop_time_for_rendering(f64 requested_when)
+{
+    double const effective_stop_when = effective_time_for_control_thread_scheduling(requested_when);
+    if (!m_effective_stop_when.has_value() || effective_stop_when < m_effective_stop_when.value())
+        m_effective_stop_when = effective_stop_when;
+}
+
+f64 AudioScheduledSourceNode::effective_time_for_control_thread_scheduling(f64 requested_when) const
+{
+    double const current_time = context()->current_time();
+
+    // https://webaudio.github.io/web-audio-api/#dom-audioscheduledsourcenode-start
+    // https://webaudio.github.io/web-audio-api/#dom-audioscheduledsourcenode-stop
+    // The when parameter describes at what time the source should start or stop playing.
+    // If 0 is passed in for this value or if the value is less than currentTime, then the sound will start or stop immediately.
+    if (requested_when == 0.0 || requested_when < current_time)
+        return current_time;
+
+    return requested_when;
+}
+
 // https://webaudio.github.io/web-audio-api/#dom-audioscheduledsourcenode-onended
 GC::Ptr<WebIDL::CallbackType> AudioScheduledSourceNode::onended()
 {
@@ -50,11 +81,17 @@ WebIDL::ExceptionOr<void> AudioScheduledSourceNode::start(double when)
     // 3. Set the internal slot [[source started]] on this AudioScheduledSourceNode to true.
     set_source_started(true);
 
+    m_start_when = when;
+    m_stop_when = {};
+    latch_start_time_for_rendering(when);
+    clear_stop_time_for_rendering();
+
     // 4. Queue a control message to start the AudioScheduledSourceNode, including the parameter values in the message.
     context()->queue_control_message(StartSource { .node_id = node_id(), .when = when });
 
-    // FIXME: 5. Send a control message to the associated AudioContext to start running its rendering thread only when all the following conditions are met:
+    context()->notify_audio_graph_changed();
 
+    // FIXME: 5. Send a control message to the associated AudioContext to start running its rendering thread only when all the following conditions are met:
     return {};
 }
 
@@ -72,6 +109,16 @@ WebIDL::ExceptionOr<void> AudioScheduledSourceNode::stop(double when)
 
     // 3. Queue a control message to stop the AudioScheduledSourceNode, including the parameter values in the message.
     context()->queue_control_message(StopSource { .node_id = node_id(), .when = when });
+
+    if (!m_stop_when.has_value() || when < m_stop_when.value())
+        m_stop_when = when;
+
+    latch_stop_time_for_rendering(when);
+
+    context()->notify_audio_graph_changed();
+
+    double const effective_stop_when = m_effective_stop_when.value();
+    context()->schedule_source_end(*this, effective_stop_when);
 
     return {};
 }

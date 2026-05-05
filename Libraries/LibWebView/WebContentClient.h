@@ -30,6 +30,12 @@
 #include <WebContent/WebContentClientEndpoint.h>
 #include <WebContent/WebContentServerEndpoint.h>
 
+namespace Web::WebAudio {
+
+class BrokerOfWebAudioWorker;
+
+}
+
 namespace WebView {
 
 class ViewImplementation;
@@ -62,8 +68,12 @@ public:
     pid_t pid() const { return m_process_handle.pid; }
     void set_pid(pid_t pid) { m_process_handle.pid = pid; }
 
+    Optional<pid_t> webaudio_worker_pid_for_page_id(u64 page_id) const;
+
 private:
     void maybe_record_history_visit_for_current_load(u64 page_id, URL::URL const&, Optional<String> title, StringView reason);
+    void set_webaudio_worker(u64 page_id, RefPtr<::Web::WebAudio::BrokerOfWebAudioWorker> const&);
+    void clear_webaudio_worker_if_current(u64 page_id, ::Web::WebAudio::BrokerOfWebAudioWorker const&);
 
     virtual void die() override;
 
@@ -155,11 +165,13 @@ private:
     virtual void did_update_navigation_buttons_state(u64 page_id, bool back_enabled, bool forward_enabled) override;
     virtual void did_allocate_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store) override;
     virtual Messages::WebContentClient::RequestWorkerAgentResponse request_worker_agent(u64 page_id, Web::Bindings::AgentType worker_type) override;
+    virtual Messages::WebContentClient::RequestWebaudioClientResponse request_webaudio_client(u64 page_id) override;
 
     Optional<ViewImplementation&> view_for_page_id(u64, SourceLocation = SourceLocation::current());
 
     HashMap<u64, NonnullRawPtr<ViewImplementation>> m_views;
     HashMap<u64, String> m_history_recorded_urls_for_current_load;
+    HashMap<u64, RefPtr<::Web::WebAudio::BrokerOfWebAudioWorker>> m_webaudio_workers;
 
     ProcessHandle m_process_handle;
 

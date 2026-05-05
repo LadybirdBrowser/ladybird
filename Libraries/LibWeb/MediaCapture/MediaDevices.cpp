@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/RefCounted.h>
+#include <LibAudioServer/SessionClientOfAudioServer.h>
 #include <LibGC/Root.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/NativeFunction.h>
@@ -303,15 +305,8 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
         media_devices->m_devices_accessible_map.set(granted_device_id, true);
 
         // 11.9.5 Let track be the result of creating a MediaStreamTrack with grantedDevice and mediaDevices. The source of the MediaStreamTrack MUST NOT change.
-        GC::Ref<MediaStreamTrack> track = MediaStreamTrack::create(realm,
-            Bindings::MediaStreamTrackKind::Audio,
+        GC::Ref<MediaStreamTrack> track = MediaStreamTrack::create_audio_input_track(realm, granted_device,
             String::from_utf8_with_replacement_character(granted_device.label.view()));
-
-        MediaTrackSettings settings = track->get_settings();
-        settings.device_id = granted_device_id;
-        settings.sample_rate = granted_device.sample_rate_hz;
-        settings.channel_count = granted_device.channel_count;
-        track->set_settings(move(settings));
 
         // 11.9.6 Add track to stream's track set.
         stream->add_track(track);

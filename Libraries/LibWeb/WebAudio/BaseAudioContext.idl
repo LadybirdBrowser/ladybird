@@ -14,8 +14,8 @@ interface BaseAudioContext : EventTarget {
     readonly attribute AudioListener listener;
     readonly attribute AudioContextState state;
     readonly attribute unsigned long renderQuantumSize;
-    // FIXME: [SameObject, SecureContext]
-    [FIXME] readonly attribute AudioWorklet audioWorklet;
+    // FIXME: SecureContext
+    [SameObject] readonly attribute AudioWorklet audioWorklet;
     attribute EventHandler onstatechange;
 
     AnalyserNode createAnalyser ();
@@ -25,17 +25,17 @@ interface BaseAudioContext : EventTarget {
     ChannelMergerNode createChannelMerger (optional unsigned long numberOfInputs = 6);
     ChannelSplitterNode createChannelSplitter (optional unsigned long numberOfOutputs = 6);
     ConstantSourceNode createConstantSource ();
-    [FIXME] ConvolverNode createConvolver ();
+    ConvolverNode createConvolver ();
     DelayNode createDelay (optional double maxDelayTime = 1.0);
     DynamicsCompressorNode createDynamicsCompressor();
     GainNode createGain();
-    [FIXME] IIRFilterNode createIIRFilter (sequence<double> feedforward, sequence<double> feedback);
+    IIRFilterNode createIIRFilter (sequence<double> feedforward, sequence<double> feedback);
     OscillatorNode createOscillator();
     PannerNode createPanner();
     PeriodicWave createPeriodicWave (sequence<float> real, sequence<float> imag, optional PeriodicWaveConstraints constraints = {});
     ScriptProcessorNode createScriptProcessor(optional unsigned long bufferSize = 0, optional unsigned long numberOfInputChannels = 2, optional unsigned long numberOfOutputChannels = 2);
     StereoPannerNode createStereoPanner ();
-    [FIXME] WaveShaperNode createWaveShaper ();
+    WaveShaperNode createWaveShaper ();
 
     Promise<AudioBuffer> decodeAudioData (ArrayBuffer audioData, optional DecodeSuccessCallback? successCallback, optional DecodeErrorCallback? errorCallback);
 };

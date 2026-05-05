@@ -17,6 +17,8 @@
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/EventLoop/Task.h>
+#include <LibWeb/HTML/StructuredSerialize.h>
 
 namespace Web::HTML {
 
@@ -68,6 +70,8 @@ public:
 
     void set_worker_event_target(GC::Ref<DOM::EventTarget>);
 
+    void set_task_source(Task::Source source) { m_task_source = source; }
+
     WebIDL::ExceptionOr<void> message_port_post_message_steps(GC::Ptr<MessagePort> target_port, JS::Value message, StructuredSerializeOptions const& options);
 
 private:
@@ -101,6 +105,7 @@ private:
     Vector<SerializedTransferRecord> m_pending_incoming_messages;
     Vector<SerializedTransferRecord> m_pending_outgoing_messages;
     bool m_should_shutdown_on_enable { false };
+    Task::Source m_task_source { Task::Source::PostedMessage };
     bool m_enabled { false };
 };
 
