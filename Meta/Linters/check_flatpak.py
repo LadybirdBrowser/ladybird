@@ -183,10 +183,10 @@ def check_vcpkg_vs_flatpak_versioning():
                         mismatch_found |= match_and_update(name, tag)
 
                         break
-                    elif "branch" in source:
+                    elif "branch" in source or "x-branch" in source:
                         # Get the branch
                         # Strip '_' postfix, replace '/' with '_': chromium/7258_13 vs chromium_7258
-                        branch = str(source["branch"]).split("_")[0].replace("/", "_")
+                        branch = str(source.get("branch", source.get("x-branch"))).split("_")[0].replace("/", "_")
                         mismatch_found |= match_and_update(name, branch)
 
                         break

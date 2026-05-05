@@ -133,7 +133,7 @@
           "type": "git",
           "url": "https://chromium.googlesource.com/angle/angle",
           "commit": "79ac1a8cd767a32cce6401203e20c4bd4ca4d539",
-          "branch": "chromium/7258_13",
+          "x-branch": "chromium/7258_13",
           "dest": "angle",
           "disable-submodules": true
         },
@@ -494,7 +494,7 @@
           "type": "git",
           "url": "https://skia.googlesource.com/skia.git",
           "commit": "cd0c5f445516ea4e90e02b5f634cbc5ca23b5a44",
-          "branch": "chrome/m144"
+          "x-branch": "chrome/m144"
         },
         {
           "type": "file",
