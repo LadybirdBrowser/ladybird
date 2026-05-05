@@ -281,7 +281,7 @@ void VideoDataProvider::ThreadData::dispatch_frame_end_time(CodedFrame const& fr
     });
 }
 
-void VideoDataProvider::ThreadData::queue_frame(NonnullOwnPtr<VideoFrame> const& frame)
+void VideoDataProvider::ThreadData::queue_frame(NonnullRefPtr<VideoFrame> const& frame)
 {
     m_queue.enqueue(TimedImage(frame->timestamp(), frame->immutable_bitmap()));
 }
@@ -391,7 +391,7 @@ bool VideoDataProvider::ThreadData::handle_seek()
 
         auto new_seek_id = m_seek_id.load();
         auto found_desired_keyframe = false;
-        OwnPtr<VideoFrame> last_frame;
+        RefPtr<VideoFrame> last_frame;
 
         while (new_seek_id == seek_id) {
             auto coded_frame_result = m_demuxer->get_next_sample_for_track(m_track);

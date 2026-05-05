@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/AtomicRefCounted.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Time.h>
 #include <LibGfx/Forward.h>
@@ -15,7 +16,7 @@
 
 namespace Media {
 
-class MEDIA_API VideoFrame final {
+class MEDIA_API VideoFrame final : public AtomicRefCounted<VideoFrame> {
 
 public:
     VideoFrame(

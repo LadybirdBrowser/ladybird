@@ -90,7 +90,7 @@ private:
         template<typename Invokee>
         void invoke_on_main_thread(Invokee);
         void dispatch_frame_end_time(CodedFrame const&);
-        void queue_frame(NonnullOwnPtr<VideoFrame> const&);
+        void queue_frame(NonnullRefPtr<VideoFrame> const&);
         void dispatch_error(DecoderError&&);
         bool handle_seek();
         template<typename Callback>
