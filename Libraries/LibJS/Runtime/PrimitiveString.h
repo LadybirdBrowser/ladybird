@@ -91,6 +91,7 @@ private:
     friend class Substring;
 
     virtual void finalize() override;
+    virtual size_t external_memory_size() const override;
 
     explicit PrimitiveString(Utf16String);
     explicit PrimitiveString(String);

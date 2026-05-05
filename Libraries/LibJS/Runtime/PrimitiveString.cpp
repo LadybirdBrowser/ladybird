@@ -8,6 +8,7 @@
 #include <AK/Array.h>
 #include <AK/CharacterTypes.h>
 #include <AK/FlyString.h>
+#include <AK/NumericLimits.h>
 #include <AK/StringBuilder.h>
 #include <AK/UnicodeUtils.h>
 #include <AK/Utf16FlyString.h>
@@ -228,6 +229,38 @@ PrimitiveString::PrimitiveString(String string)
 }
 
 PrimitiveString::~PrimitiveString() = default;
+
+static size_t string_external_memory_size(String const& string)
+{
+    if (string.is_short_string())
+        return 0;
+    return string.byte_count();
+}
+
+static size_t utf16_string_external_memory_size(Utf16String const& string)
+{
+    if (!string.has_long_storage())
+        return 0;
+
+    auto code_unit_size = string.has_ascii_storage() ? sizeof(char) : sizeof(char16_t);
+    if (string.length_in_code_units() > NumericLimits<size_t>::max() / code_unit_size)
+        return NumericLimits<size_t>::max();
+    return string.length_in_code_units() * code_unit_size;
+}
+
+size_t PrimitiveString::external_memory_size() const
+{
+    size_t size = 0;
+    if (m_utf8_string.has_value())
+        size += string_external_memory_size(*m_utf8_string);
+    if (m_utf16_string.has_value()) {
+        auto utf16_size = utf16_string_external_memory_size(*m_utf16_string);
+        size = utf16_size > NumericLimits<size_t>::max() - size
+            ? NumericLimits<size_t>::max()
+            : size + utf16_size;
+    }
+    return size;
+}
 
 void PrimitiveString::finalize()
 {
