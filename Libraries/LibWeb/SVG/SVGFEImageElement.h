@@ -24,7 +24,7 @@ public:
     virtual ~SVGFEImageElement() override = default;
 
     GC::Ptr<HTML::DecodedImageData> image_data() const;
-    RefPtr<Gfx::ImmutableBitmap> current_image_bitmap(Gfx::IntSize = {}) const;
+    RefPtr<Gfx::DecodedImageFrame> current_image_frame(Gfx::IntSize = {}) const;
     Optional<Gfx::IntRect> content_rect() const;
 
 private:

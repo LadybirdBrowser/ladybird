@@ -5,7 +5,7 @@
  */
 
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibGfx/ImmutableBitmapSkiaImageCache.h>
+#include <LibGfx/DecodedImageFrameSkiaImageCache.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibGfx/SkiaUtils.h>
 
@@ -17,16 +17,16 @@ namespace Gfx {
 
 static constexpr u64 image_cache_max_unused_generations = 120;
 
-ImmutableBitmapSkiaImageCache::ImmutableBitmapSkiaImageCache() = default;
+DecodedImageFrameSkiaImageCache::DecodedImageFrameSkiaImageCache() = default;
 
-ImmutableBitmapSkiaImageCache::ImmutableBitmapSkiaImageCache(RefPtr<SkiaBackendContext> skia_backend_context)
+DecodedImageFrameSkiaImageCache::DecodedImageFrameSkiaImageCache(RefPtr<SkiaBackendContext> skia_backend_context)
     : m_skia_backend_context(move(skia_backend_context))
 {
 }
 
-ImmutableBitmapSkiaImageCache::~ImmutableBitmapSkiaImageCache() = default;
+DecodedImageFrameSkiaImageCache::~DecodedImageFrameSkiaImageCache() = default;
 
-sk_sp<SkImage> ImmutableBitmapSkiaImageCache::image_for_frame(DecodedImageFrame const& frame)
+sk_sp<SkImage> DecodedImageFrameSkiaImageCache::image_for_frame(DecodedImageFrame const& frame)
 {
     if (auto it = m_images.find(&frame); it != m_images.end()) {
         it->value.last_used_generation = m_generation;
@@ -56,7 +56,7 @@ sk_sp<SkImage> ImmutableBitmapSkiaImageCache::image_for_frame(DecodedImageFrame 
     return image;
 }
 
-void ImmutableBitmapSkiaImageCache::prune()
+void DecodedImageFrameSkiaImageCache::prune()
 {
     m_images.remove_all_matching([this](auto const&, auto const& cached_image) {
         return m_generation - cached_image.last_used_generation > image_cache_max_unused_generations;

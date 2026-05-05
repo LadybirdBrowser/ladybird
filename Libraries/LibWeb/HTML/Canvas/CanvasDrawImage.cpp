@@ -7,7 +7,6 @@
 
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibGfx/ImmutableBitmap.h>
 #include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/ImageBitmap.h>
@@ -18,15 +17,15 @@ Gfx::IntSize canvas_image_source_dimensions(CanvasImageSource const& image)
 {
     return image.visit(
         [](GC::Root<HTMLImageElement> const& source) -> Gfx::IntSize {
-            if (auto immutable_bitmap = source->immutable_bitmap())
-                return immutable_bitmap->size();
+            if (auto frame = source->current_image_frame())
+                return frame->size();
 
             // FIXME: This is very janky and not correct.
             return { source->width(), source->height() };
         },
         [](GC::Root<SVG::SVGImageElement> const& source) -> Gfx::IntSize {
-            if (auto immutable_bitmap = source->current_image_bitmap())
-                return immutable_bitmap->size();
+            if (auto decoded_image_frame = source->current_image_frame())
+                return decoded_image_frame->size();
 
             // FIXME: This is very janky and not correct.
             return { source->width()->anim_val()->value(), source->height()->anim_val()->value() };
@@ -81,16 +80,7 @@ RefPtr<Gfx::DecodedImageFrame> canvas_image_source_frame(CanvasImageSource const
             return Gfx::DecodedImageFrame::create(*bitmap);
         },
         [](GC::Root<HTMLVideoElement> const& source) -> RefPtr<Gfx::DecodedImageFrame> {
-            Gfx::ColorSpace color_space;
-            if (auto* frame_color_space = source->current_frame_color_space())
-                color_space = *frame_color_space;
-            auto immutable_bitmap = source->bitmap();
-            if (!immutable_bitmap)
-                return {};
-            auto bitmap = immutable_bitmap->bitmap();
-            if (!bitmap)
-                return {};
-            return Gfx::DecodedImageFrame::create(*bitmap, move(color_space));
+            return source->current_decoded_image_frame();
         });
 }
 

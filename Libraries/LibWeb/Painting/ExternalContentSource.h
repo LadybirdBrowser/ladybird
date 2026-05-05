@@ -8,8 +8,8 @@
 
 #include <AK/AtomicRefCounted.h>
 #include <AK/RefPtr.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
-#include <LibGfx/ImmutableBitmap.h>
 #include <LibThreading/Mutex.h>
 
 namespace Web::Painting {
@@ -18,15 +18,15 @@ class ExternalContentSource final : public AtomicRefCounted<ExternalContentSourc
 public:
     static NonnullRefPtr<ExternalContentSource> create();
 
-    void update(RefPtr<Gfx::ImmutableBitmap>);
+    void update(RefPtr<Gfx::DecodedImageFrame>);
     void clear();
-    RefPtr<Gfx::ImmutableBitmap> current_bitmap() const;
+    RefPtr<Gfx::DecodedImageFrame> current_frame() const;
 
 private:
     ExternalContentSource() = default;
 
     mutable Threading::Mutex m_mutex;
-    RefPtr<Gfx::ImmutableBitmap> m_bitmap;
+    RefPtr<Gfx::DecodedImageFrame> m_frame;
 };
 
 }

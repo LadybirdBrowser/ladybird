@@ -49,8 +49,7 @@ public:
 
     String alt() const { return get_attribute_value(HTML::AttributeNames::alt); }
 
-    RefPtr<Gfx::ImmutableBitmap> immutable_bitmap() const;
-    virtual RefPtr<Gfx::ImmutableBitmap> default_image_bitmap_sized(Gfx::IntSize) const override;
+    virtual RefPtr<Gfx::DecodedImageFrame> default_image_frame_sized(Gfx::IntSize) const override;
 
     WebIDL::UnsignedLong width() const;
     void set_width(WebIDL::UnsignedLong);
@@ -112,7 +111,7 @@ public:
     virtual Optional<CSSPixels> intrinsic_width() const override;
     virtual Optional<CSSPixels> intrinsic_height() const override;
     virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const override;
-    virtual RefPtr<Gfx::ImmutableBitmap> current_image_bitmap_sized(Gfx::IntSize) const override;
+    virtual RefPtr<Gfx::DecodedImageFrame> current_image_frame_sized(Gfx::IntSize) const override;
     virtual void set_visible_in_viewport(bool) override;
     virtual GC::Ptr<DOM::Element const> to_html_element() const override { return *this; }
     virtual GC::Ptr<DecodedImageData> decoded_image_data() const override;

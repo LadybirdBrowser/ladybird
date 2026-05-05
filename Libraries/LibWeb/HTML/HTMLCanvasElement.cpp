@@ -7,7 +7,7 @@
 #include <AK/Base64.h>
 #include <AK/Checked.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/ImmutableBitmap.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/HTMLCanvasElement.h>
 #include <LibWeb/CSS/ComputedProperties.h>
@@ -464,7 +464,7 @@ void HTMLCanvasElement::present()
 
     if (auto surface = this->surface()) {
         surface->flush();
-        auto snapshot = Gfx::ImmutableBitmap::create(surface->snapshot_bitmap());
+        auto snapshot = Gfx::DecodedImageFrame::create(*surface->snapshot_bitmap());
         ensure_external_content_source().update(snapshot);
     }
 }

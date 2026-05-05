@@ -7,9 +7,7 @@
 #pragma once
 
 #include <AK/AtomicRefCounted.h>
-#include <AK/Error.h>
 #include <AK/NonnullOwnPtr.h>
-#include <AK/NonnullRefPtr.h>
 #include <AK/Time.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/Forward.h>
@@ -41,8 +39,6 @@ public:
 
     Gfx::ColorSpace const& color_space() const { return m_color_space; }
     Gfx::YUVData const& yuv_data() const { return *m_yuv_data; }
-
-    ErrorOr<NonnullRefPtr<Gfx::ImmutableBitmap>> to_immutable_bitmap() const;
 
 private:
     AK::Duration m_timestamp;

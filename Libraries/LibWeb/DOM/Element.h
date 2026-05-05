@@ -586,7 +586,7 @@ public:
     Optional<FlyString> document_scoped_view_transition_name();
 
     // https://drafts.csswg.org/css-view-transitions-1/#capture-the-image
-    RefPtr<Gfx::ImmutableBitmap> capture_the_image();
+    RefPtr<Gfx::DecodedImageFrame> capture_the_image();
 
     void set_pointer_capture(WebIDL::Long pointer_id);
     void release_pointer_capture(WebIDL::Long pointer_id);

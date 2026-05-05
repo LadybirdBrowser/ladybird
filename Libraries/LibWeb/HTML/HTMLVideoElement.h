@@ -59,9 +59,7 @@ public:
     };
     Representation current_representation() const;
 
-    // FIXME: This is a hack for images used as CanvasImageSource. Do something more elegant.
-    RefPtr<Gfx::ImmutableBitmap> bitmap() const;
-    Gfx::ColorSpace const* current_frame_color_space() const;
+    RefPtr<Gfx::DecodedImageFrame> current_decoded_image_frame() const;
 
 private:
     HTMLVideoElement(DOM::Document&, DOM::QualifiedName);

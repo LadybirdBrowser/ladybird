@@ -32,7 +32,6 @@
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Font/Font.h>
-#include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/PathSkia.h>
 #include <LibGfx/SkiaBackendContext.h>
@@ -154,13 +153,9 @@ void DisplayListPlayerSkia::fill_rect(FillRect const& command)
 
 void DisplayListPlayerSkia::draw_external_content(DrawExternalContent const& command)
 {
-    auto bitmap = command.source->current_bitmap();
-    if (!bitmap)
+    auto frame = command.source->current_frame();
+    if (!frame)
         return;
-    auto source_bitmap = bitmap->bitmap();
-    if (!source_bitmap)
-        return;
-    auto frame = Gfx::DecodedImageFrame::create(*source_bitmap);
     auto image = m_image_cache.image_for_frame(*frame);
     if (!image)
         return;

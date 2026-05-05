@@ -7,7 +7,8 @@
  */
 
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/ImmutableBitmap.h>
+#include <LibGfx/DecodedImageFrame.h>
+#include <LibGfx/YUVData.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibMedia/VideoFrame.h>
 #include <LibWeb/Bindings/HTMLVideoElement.h>
@@ -338,7 +339,7 @@ HTMLVideoElement::Representation HTMLVideoElement::current_representation() cons
     return Representation::VideoFrame;
 }
 
-RefPtr<Gfx::ImmutableBitmap> HTMLVideoElement::bitmap() const
+RefPtr<Gfx::DecodedImageFrame> HTMLVideoElement::current_decoded_image_frame() const
 {
     auto const& sink = selected_video_track_sink();
     if (sink == nullptr)
@@ -346,23 +347,13 @@ RefPtr<Gfx::ImmutableBitmap> HTMLVideoElement::bitmap() const
     auto current_frame = sink->current_frame();
     if (!current_frame)
         return nullptr;
-    auto bitmap_or_error = current_frame->to_immutable_bitmap();
+    auto bitmap_or_error = current_frame->yuv_data().to_bitmap();
     if (bitmap_or_error.is_error()) {
         dbgln("Could not convert video frame to bitmap: {}", bitmap_or_error.release_error());
         return nullptr;
     }
-    return bitmap_or_error.release_value();
-}
-
-Gfx::ColorSpace const* HTMLVideoElement::current_frame_color_space() const
-{
-    auto const& sink = selected_video_track_sink();
-    if (sink == nullptr)
-        return nullptr;
-    auto current_frame = sink->current_frame();
-    if (!current_frame)
-        return nullptr;
-    return &current_frame->color_space();
+    auto bitmap = bitmap_or_error.release_value();
+    return Gfx::DecodedImageFrame::create(NonnullRefPtr<Gfx::Bitmap const> { *bitmap }, current_frame->color_space());
 }
 
 }

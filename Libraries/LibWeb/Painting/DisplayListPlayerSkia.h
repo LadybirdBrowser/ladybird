@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibGfx/ImmutableBitmapSkiaImageCache.h>
+#include <LibGfx/DecodedImageFrameSkiaImageCache.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
@@ -62,7 +62,7 @@ private:
     SkPaint paint_style_to_skia_paint(SVGPaintServerPaintStyle const&, Gfx::FloatRect const& bounding_rect);
 
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
-    Gfx::ImmutableBitmapSkiaImageCache m_image_cache;
+    Gfx::DecodedImageFrameSkiaImageCache m_image_cache;
 };
 
 }

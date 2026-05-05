@@ -13,7 +13,7 @@
  */
 
 #include <AK/Debug.h>
-#include <LibGfx/ImmutableBitmap.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
 #include <LibWeb/CSS/CSSFunctionDeclarations.h>
@@ -2058,7 +2058,7 @@ NonnullRefPtr<StyleValue const> Parser::parse_as_sizes_attribute(DOM::Element co
         // 3. If size is auto, and img is not null, and img is being rendered, and img allows auto-sizes,
         //    then set size to the concrete object size width of img, in CSS pixels.
         // FIXME: "img is being rendered" - we just see if it has a bitmap for now
-        if (size->has_auto() && img && img->immutable_bitmap() && img->allows_auto_sizes()) {
+        if (size->has_auto() && img && img->current_image_frame() && img->allows_auto_sizes()) {
             // FIXME: The spec doesn't seem to tell us how to determine the concrete size of an <img>, so use the default sizing algorithm.
             //        Should this use some of the methods from FormattingContext?
             auto concrete_size = run_default_sizing_algorithm(

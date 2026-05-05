@@ -7,7 +7,7 @@
 #include "SVGImageElement.h"
 #include <LibCore/Timer.h>
 #include <LibGC/Heap.h>
-#include <LibGfx/ImmutableBitmap.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/Bindings/SVGImageElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentObserver.h>
@@ -243,25 +243,21 @@ Optional<CSSPixelFraction> SVGImageElement::intrinsic_aspect_ratio() const
     return {};
 }
 
-RefPtr<Gfx::ImmutableBitmap> SVGImageElement::default_image_bitmap_sized(Gfx::IntSize size) const
+RefPtr<Gfx::DecodedImageFrame> SVGImageElement::default_image_frame_sized(Gfx::IntSize size) const
 {
     if (!m_resource_request)
         return {};
-    if (auto data = m_resource_request->image_data()) {
-        if (auto frame = data->frame(0, size))
-            return Gfx::ImmutableBitmap::create(frame->bitmap_ref());
-    }
+    if (auto data = m_resource_request->image_data())
+        return data->frame(0, size);
     return {};
 }
 
-RefPtr<Gfx::ImmutableBitmap> SVGImageElement::current_image_bitmap_sized(Gfx::IntSize size) const
+RefPtr<Gfx::DecodedImageFrame> SVGImageElement::current_image_frame_sized(Gfx::IntSize size) const
 {
     if (!m_resource_request)
         return {};
-    if (auto data = m_resource_request->image_data()) {
-        if (auto frame = data->frame(m_current_frame_index, size))
-            return Gfx::ImmutableBitmap::create(frame->bitmap_ref());
-    }
+    if (auto data = m_resource_request->image_data())
+        return data->frame(m_current_frame_index, size);
     return {};
 }
 

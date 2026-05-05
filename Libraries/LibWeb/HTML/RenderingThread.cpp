@@ -5,7 +5,7 @@
  */
 
 #include <LibCore/EventLoop.h>
-#include <LibGfx/ImmutableBitmap.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SharedImage.h>
 #include <LibGfx/SharedImageBuffer.h>
@@ -296,7 +296,7 @@ public:
                             });
                         },
                         [this](RenderingThread::PublishToExternalContent const& mode) {
-                            auto snapshot = Gfx::ImmutableBitmap::create(m_backing_stores.front_store->snapshot_bitmap());
+                            auto snapshot = Gfx::DecodedImageFrame::create(*m_backing_stores.front_store->snapshot_bitmap());
                             mode.source->update(move(snapshot));
                         });
                 }

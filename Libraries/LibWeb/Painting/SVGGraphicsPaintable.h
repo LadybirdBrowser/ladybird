@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibGfx/ImmutableBitmap.h>
 #include <LibWeb/Layout/SVGGraphicsBox.h>
 #include <LibWeb/Painting/SVGMaskable.h>
 #include <LibWeb/Painting/SVGPaintable.h>

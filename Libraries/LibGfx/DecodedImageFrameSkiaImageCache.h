@@ -16,11 +16,11 @@ class SkImage;
 
 namespace Gfx {
 
-class ImmutableBitmapSkiaImageCache final {
+class DecodedImageFrameSkiaImageCache final {
 public:
-    ImmutableBitmapSkiaImageCache();
-    explicit ImmutableBitmapSkiaImageCache(RefPtr<SkiaBackendContext>);
-    ~ImmutableBitmapSkiaImageCache();
+    DecodedImageFrameSkiaImageCache();
+    explicit DecodedImageFrameSkiaImageCache(RefPtr<SkiaBackendContext>);
+    ~DecodedImageFrameSkiaImageCache();
 
     sk_sp<SkImage> image_for_frame(DecodedImageFrame const&);
     void prune();

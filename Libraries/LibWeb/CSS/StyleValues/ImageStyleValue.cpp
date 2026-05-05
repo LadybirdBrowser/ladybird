@@ -8,7 +8,6 @@
  */
 
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibGfx/ImmutableBitmap.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Fetch.h>
@@ -126,13 +125,6 @@ RefPtr<Gfx::DecodedImageFrame> ImageStyleValue::frame(size_t frame_index, Gfx::I
     return nullptr;
 }
 
-RefPtr<Gfx::ImmutableBitmap> ImageStyleValue::bitmap(size_t frame_index, Gfx::IntSize size) const
-{
-    if (auto decoded_frame = frame(frame_index, size))
-        return Gfx::ImmutableBitmap::create(decoded_frame->bitmap_ref());
-    return nullptr;
-}
-
 void ImageStyleValue::serialize(StringBuilder& builder, SerializationMode) const
 {
     builder.append(m_url.to_string());
@@ -181,11 +173,6 @@ void ImageStyleValue::paint(DisplayListRecordingContext& context, DevicePixelRec
 RefPtr<Gfx::DecodedImageFrame> ImageStyleValue::current_frame(DevicePixelRect const& dest_rect) const
 {
     return frame(m_current_frame_index, dest_rect.size().to_type<int>());
-}
-
-RefPtr<Gfx::ImmutableBitmap> ImageStyleValue::current_frame_bitmap(DevicePixelRect const& dest_rect) const
-{
-    return bitmap(m_current_frame_index, dest_rect.size().to_type<int>());
 }
 
 GC::Ptr<HTML::DecodedImageData> ImageStyleValue::image_data() const

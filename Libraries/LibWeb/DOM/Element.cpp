@@ -15,7 +15,7 @@
 #include <AK/NumericLimits.h>
 #include <AK/StringBuilder.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/ImmutableBitmap.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibURL/Parser.h>
@@ -4572,10 +4572,11 @@ Optional<FlyString> Element::document_scoped_view_transition_name()
 
 // https://drafts.csswg.org/css-view-transitions-1/#capture-the-image
 // To capture the image given an element element, perform the following steps. They return an image.
-RefPtr<Gfx::ImmutableBitmap> Element::capture_the_image()
+RefPtr<Gfx::DecodedImageFrame> Element::capture_the_image()
 {
     // FIXME: Actually implement this.
-    return Gfx::ImmutableBitmap::create(MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, Gfx::IntSize(1, 1))));
+    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, Gfx::IntSize(1, 1)));
+    return Gfx::DecodedImageFrame::create(*bitmap);
 }
 
 void Element::set_pointer_capture(WebIDL::Long pointer_id)

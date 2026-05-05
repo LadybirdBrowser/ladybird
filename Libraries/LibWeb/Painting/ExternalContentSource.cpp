@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGfx/ImmutableBitmap.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/Painting/ExternalContentSource.h>
 
 namespace Web::Painting {
@@ -14,29 +14,29 @@ NonnullRefPtr<ExternalContentSource> ExternalContentSource::create()
     return adopt_ref(*new ExternalContentSource());
 }
 
-void ExternalContentSource::update(RefPtr<Gfx::ImmutableBitmap> bitmap)
+void ExternalContentSource::update(RefPtr<Gfx::DecodedImageFrame> frame)
 {
-    RefPtr<Gfx::ImmutableBitmap> old;
+    RefPtr<Gfx::DecodedImageFrame> old;
     {
         Threading::MutexLocker const locker { m_mutex };
-        old = move(m_bitmap);
-        m_bitmap = move(bitmap);
+        old = move(m_frame);
+        m_frame = move(frame);
     }
 }
 
 void ExternalContentSource::clear()
 {
-    RefPtr<Gfx::ImmutableBitmap> old;
+    RefPtr<Gfx::DecodedImageFrame> old;
     {
         Threading::MutexLocker const locker { m_mutex };
-        old = move(m_bitmap);
+        old = move(m_frame);
     }
 }
 
-RefPtr<Gfx::ImmutableBitmap> ExternalContentSource::current_bitmap() const
+RefPtr<Gfx::DecodedImageFrame> ExternalContentSource::current_frame() const
 {
     Threading::MutexLocker const locker { m_mutex };
-    return m_bitmap;
+    return m_frame;
 }
 
 }

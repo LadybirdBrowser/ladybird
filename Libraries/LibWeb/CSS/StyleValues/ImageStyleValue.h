@@ -59,7 +59,6 @@ public:
 
     virtual Optional<Gfx::Color> color_if_single_pixel_bitmap() const override;
     RefPtr<Gfx::DecodedImageFrame> current_frame(DevicePixelRect const& dest_rect) const;
-    RefPtr<Gfx::ImmutableBitmap> current_frame_bitmap(DevicePixelRect const& dest_rect) const;
 
     mutable Function<void()> on_animate;
 
@@ -78,7 +77,6 @@ private:
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     void animate();
     RefPtr<Gfx::DecodedImageFrame> frame(size_t frame_index, Gfx::IntSize = {}) const;
-    RefPtr<Gfx::ImmutableBitmap> bitmap(size_t frame_index, Gfx::IntSize = {}) const;
 
     GC::Ptr<HTML::SharedResourceRequest> m_resource_request;
     GC::Ptr<CSSStyleSheet> m_style_sheet;

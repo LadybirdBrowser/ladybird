@@ -5,7 +5,6 @@
  */
 
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibGfx/ImmutableBitmap.h>
 #include <LibWeb/Bindings/HTMLObjectElement.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Invalidation/EmbeddedContentInvalidator.h>
@@ -607,12 +606,10 @@ Optional<CSSPixelFraction> HTMLObjectElement::intrinsic_aspect_ratio() const
     return {};
 }
 
-RefPtr<Gfx::ImmutableBitmap> HTMLObjectElement::current_image_bitmap_sized(Gfx::IntSize size) const
+RefPtr<Gfx::DecodedImageFrame> HTMLObjectElement::current_image_frame_sized(Gfx::IntSize size) const
 {
-    if (auto image_data = this->image_data()) {
-        if (auto frame = image_data->frame(0, size))
-            return Gfx::ImmutableBitmap::create(frame->bitmap_ref());
-    }
+    if (auto image_data = this->image_data())
+        return image_data->frame(0, size);
     return nullptr;
 }
 

@@ -13,7 +13,6 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/Rect.h>
 #include <LibJS/Runtime/TypedArray.h>
@@ -556,7 +555,7 @@ WebIDL::ExceptionOr<GC::Ptr<ImageData>> CanvasRenderingContext2D::get_image_data
     auto surface = canvas_element().surface();
     if (!surface)
         return image_data;
-    auto const snapshot = Gfx::ImmutableBitmap::create(surface->snapshot_bitmap());
+    auto const snapshot = Gfx::DecodedImageFrame::create(*surface->snapshot_bitmap());
 
     // 5. Let the source rectangle be the rectangle whose corners are the four points (sx, sy), (sx+sw, sy), (sx+sw, sy+sh), (sx, sy+sh).
     auto source_rect = Gfx::Rect { x, y, abs_width, abs_height };
@@ -573,12 +572,11 @@ WebIDL::ExceptionOr<GC::Ptr<ImageData>> CanvasRenderingContext2D::get_image_data
     // NOTE: Internally we must use premultiplied alpha, but ImageData should hold unpremultiplied alpha. This conversion
     //       might result in a loss of precision, but is according to spec.
     //       See: https://html.spec.whatwg.org/multipage/canvas.html#premultiplied-alpha-and-the-2d-rendering-context
-    VERIFY(snapshot->alpha_type() == Gfx::AlphaType::Premultiplied);
+    VERIFY(snapshot->bitmap().alpha_type() == Gfx::AlphaType::Premultiplied);
     VERIFY(image_data->bitmap().alpha_type() == Gfx::AlphaType::Unpremultiplied);
 
     auto painter = Gfx::Painter::create(image_data->bitmap());
-    auto snapshot_frame = Gfx::DecodedImageFrame::create(snapshot->bitmap().release_nonnull());
-    painter->draw_bitmap(image_data->bitmap().rect().to_type<float>(), *snapshot_frame, source_rect_intersected, Gfx::ScalingMode::NearestNeighbor, {}, 1, Gfx::CompositingAndBlendingOperator::SourceOver);
+    painter->draw_bitmap(image_data->bitmap().rect().to_type<float>(), *snapshot, source_rect_intersected, Gfx::ScalingMode::NearestNeighbor, {}, 1, Gfx::CompositingAndBlendingOperator::SourceOver);
 
     // 7. Set the pixels values of imageData for areas of the source rectangle that are outside of the output bitmap to transparent black.
     // NOTE: No-op, already done during creation.
@@ -897,11 +895,11 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
                 return WebIDL::InvalidStateError::create(image_element->realm(), "Image element state is broken"_utf16);
 
             // If image is not fully decodable, then return bad.
-            if (!image_element->immutable_bitmap())
+            if (!image_element->current_image_frame())
                 return { CanvasImageSourceUsability::Bad };
 
             // If image has an intrinsic width or intrinsic height (or both) equal to zero, then return bad.
-            if (image_element->immutable_bitmap()->width() == 0 || image_element->immutable_bitmap()->height() == 0)
+            if (image_element->current_image_frame()->width() == 0 || image_element->current_image_frame()->height() == 0)
                 return { CanvasImageSourceUsability::Bad };
             return Optional<CanvasImageSourceUsability> {};
         },
@@ -910,11 +908,11 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
             // FIXME: If image's current request's state is broken, then throw an "InvalidStateError" DOMException.
 
             // If image is not fully decodable, then return bad.
-            if (!image_element->current_image_bitmap())
+            if (!image_element->current_image_frame())
                 return { CanvasImageSourceUsability::Bad };
 
             // If image has an intrinsic width or intrinsic height (or both) equal to zero, then return bad.
-            if (image_element->current_image_bitmap()->width() == 0 || image_element->current_image_bitmap()->height() == 0)
+            if (image_element->current_image_frame()->width() == 0 || image_element->current_image_frame()->height() == 0)
                 return { CanvasImageSourceUsability::Bad };
             return Optional<CanvasImageSourceUsability> {};
         },

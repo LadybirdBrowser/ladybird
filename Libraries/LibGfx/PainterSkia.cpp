@@ -15,8 +15,8 @@
 #include <AK/String.h>
 #include <AK/TypeCasts.h>
 #include <LibGfx/DecodedImageFrame.h>
+#include <LibGfx/DecodedImageFrameSkiaImageCache.h>
 #include <LibGfx/Filter.h>
-#include <LibGfx/ImmutableBitmapSkiaImageCache.h>
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/PathSkia.h>
 #include <LibGfx/SkiaUtils.h>
@@ -32,7 +32,7 @@ namespace Gfx {
 
 struct PainterSkia::Impl {
     RefPtr<Gfx::PaintingSurface> painting_surface;
-    ImmutableBitmapSkiaImageCache image_cache;
+    DecodedImageFrameSkiaImageCache image_cache;
 
     Impl(Gfx::PaintingSurface& surface)
         : painting_surface(surface)
@@ -41,7 +41,7 @@ struct PainterSkia::Impl {
     }
 };
 
-static void apply_paint_style(SkPaint& paint, PaintStyle const& style, ImmutableBitmapSkiaImageCache& image_cache)
+static void apply_paint_style(SkPaint& paint, PaintStyle const& style, DecodedImageFrameSkiaImageCache& image_cache)
 {
     if (auto const& solid_color = as_if<SolidColorPaintStyle>(style)) {
         paint.setColor(to_skia_color(solid_color->color()));
@@ -123,7 +123,7 @@ static void apply_filter(SkPaint& paint, Gfx::Filter const& filter)
     paint.setImageFilter(to_skia_image_filter(filter));
 }
 
-static SkPaint to_skia_paint(Gfx::PaintStyle const& style, Optional<Gfx::Filter const&> filter, ImmutableBitmapSkiaImageCache& image_cache)
+static SkPaint to_skia_paint(Gfx::PaintStyle const& style, Optional<Gfx::Filter const&> filter, DecodedImageFrameSkiaImageCache& image_cache)
 {
     SkPaint paint;
 

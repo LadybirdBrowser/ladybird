@@ -7,7 +7,6 @@
 #include "SVGFEImageElement.h"
 #include <LibCore/Timer.h>
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibGfx/ImmutableBitmap.h>
 #include <LibWeb/Bindings/SVGFEImageElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/DecodedImageData.h>
@@ -88,18 +87,16 @@ GC::Ptr<HTML::DecodedImageData> SVGFEImageElement::image_data() const
     return m_resource_request->image_data();
 }
 
-RefPtr<Gfx::ImmutableBitmap> SVGFEImageElement::current_image_bitmap(Gfx::IntSize size) const
+RefPtr<Gfx::DecodedImageFrame> SVGFEImageElement::current_image_frame(Gfx::IntSize size) const
 {
-    if (auto data = image_data()) {
-        if (auto frame = data->frame(0, size))
-            return Gfx::ImmutableBitmap::create(frame->bitmap_ref());
-    }
+    if (auto data = image_data())
+        return data->frame(0, size);
     return {};
 }
 
 Optional<Gfx::IntRect> SVGFEImageElement::content_rect() const
 {
-    auto bitmap = current_image_bitmap();
+    auto bitmap = current_image_frame();
     if (!bitmap)
         return {};
     // NB: Called during painting.

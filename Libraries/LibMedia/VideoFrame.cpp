@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGfx/Bitmap.h>
-#include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/YUVData.h>
 
 #include "VideoFrame.h"
@@ -29,11 +27,5 @@ VideoFrame::VideoFrame(
 }
 
 VideoFrame::~VideoFrame() = default;
-
-ErrorOr<NonnullRefPtr<Gfx::ImmutableBitmap>> VideoFrame::to_immutable_bitmap() const
-{
-    auto bitmap = TRY(m_yuv_data->to_bitmap());
-    return Gfx::ImmutableBitmap::create(bitmap);
-}
 
 }

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGfx/ImmutableBitmap.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
@@ -34,7 +34,7 @@ NamedViewTransitionPseudoElement::NamedViewTransitionPseudoElement(CSS::PseudoEl
 {
 }
 
-ReplacedNamedViewTransitionPseudoElement::ReplacedNamedViewTransitionPseudoElement(CSS::PseudoElement type, FlyString view_transition_name, RefPtr<Gfx::ImmutableBitmap> content = {})
+ReplacedNamedViewTransitionPseudoElement::ReplacedNamedViewTransitionPseudoElement(CSS::PseudoElement type, FlyString view_transition_name, RefPtr<Gfx::DecodedImageFrame> content = {})
     : NamedViewTransitionPseudoElement(type, view_transition_name)
 {
     m_content = content;

@@ -14,7 +14,6 @@ extern "C" {
 
 #include <LibGfx/BitmapExport.h>
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/SkiaUtils.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
@@ -268,15 +267,7 @@ Optional<Gfx::BitmapExportResult> WebGLRenderingContextBase::read_and_pixel_conv
     // FIXME: If source is null then an INVALID_VALUE error is generated.
     auto frame = source.visit(
         [](GC::Root<HTML::HTMLImageElement> const& source) -> RefPtr<Gfx::DecodedImageFrame> {
-            auto bitmap = source->immutable_bitmap();
-            if (!bitmap)
-                return {};
-            if (auto image_data = source->decoded_image_data())
-                return image_data->frame(source->current_frame_index(), bitmap->size());
-            auto source_bitmap = bitmap->bitmap();
-            if (!source_bitmap)
-                return {};
-            return Gfx::DecodedImageFrame::create(*source_bitmap);
+            return source->current_image_frame();
         },
         [](GC::Root<HTML::HTMLCanvasElement> const& source) -> RefPtr<Gfx::DecodedImageFrame> {
             auto surface = source->surface();
@@ -288,16 +279,7 @@ Optional<Gfx::BitmapExportResult> WebGLRenderingContextBase::read_and_pixel_conv
             return Gfx::DecodedImageFrame::create(*source->bitmap());
         },
         [](GC::Root<HTML::HTMLVideoElement> const& source) -> RefPtr<Gfx::DecodedImageFrame> {
-            Gfx::ColorSpace color_space;
-            if (auto* frame_color_space = source->current_frame_color_space())
-                color_space = *frame_color_space;
-            auto immutable_bitmap = source->bitmap();
-            if (!immutable_bitmap)
-                return {};
-            auto bitmap = immutable_bitmap->bitmap();
-            if (!bitmap)
-                return {};
-            return Gfx::DecodedImageFrame::create(*bitmap, move(color_space));
+            return source->current_decoded_image_frame();
         },
         [](GC::Root<HTML::ImageBitmap> const& source) -> RefPtr<Gfx::DecodedImageFrame> {
             return Gfx::DecodedImageFrame::create(*source->bitmap());

@@ -5,7 +5,6 @@
  */
 
 #include <LibCore/EventLoop.h>
-#include <LibGfx/ImmutableBitmap.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/FFmpeg/FFmpegVideoDecoder.h>
 #include <LibMedia/Providers/MediaTimeProvider.h>
