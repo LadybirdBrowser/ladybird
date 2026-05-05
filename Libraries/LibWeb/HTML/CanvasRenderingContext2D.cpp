@@ -9,12 +9,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Checked.h>
+#include <AK/NumericLimits.h>
 #include <AK/OwnPtr.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/Rect.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibUnicode/Segmenter.h>
@@ -72,6 +75,24 @@ void CanvasRenderingContext2D::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     CanvasState::visit_edges(visitor);
     visitor.visit(m_element);
+}
+
+size_t CanvasRenderingContext2D::external_memory_size() const
+{
+    auto size = Base::external_memory_size();
+    if (!m_surface)
+        return size;
+
+    auto surface_size = m_surface->size();
+    if (surface_size.is_empty())
+        return size;
+
+    Checked<size_t> pixel_size = static_cast<size_t>(surface_size.width());
+    pixel_size *= static_cast<size_t>(surface_size.height());
+    pixel_size *= sizeof(u32);
+    if (pixel_size.has_overflow())
+        return NumericLimits<size_t>::max();
+    return JS::saturating_add_external_memory_size(size, pixel_size.value());
 }
 
 HTMLCanvasElement& CanvasRenderingContext2D::canvas_element()

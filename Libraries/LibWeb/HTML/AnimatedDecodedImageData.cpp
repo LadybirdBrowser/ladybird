@@ -6,6 +6,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/HTML/AnimatedDecodedImageData.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
@@ -99,6 +100,16 @@ AnimatedDecodedImageData::AnimatedDecodedImageData(
 }
 
 AnimatedDecodedImageData::~AnimatedDecodedImageData() = default;
+
+size_t AnimatedDecodedImageData::external_memory_size() const
+{
+    size_t size = JS::vector_external_memory_size(m_durations);
+    for (auto const& slot : m_buffer_slots) {
+        if (slot.frame)
+            size = JS::saturating_add_external_memory_size(size, slot.frame->bitmap().data_size());
+    }
+    return size;
+}
 
 void AnimatedDecodedImageData::finalize()
 {

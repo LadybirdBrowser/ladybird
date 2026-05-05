@@ -65,6 +65,7 @@ private:
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual size_t external_memory_size() const override;
 
     WebIDL::UnsignedLong m_width = 0;
     WebIDL::UnsignedLong m_height = 0;

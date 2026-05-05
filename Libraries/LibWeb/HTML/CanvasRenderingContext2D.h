@@ -138,6 +138,7 @@ private:
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual size_t external_memory_size() const override;
 
     virtual Gfx::Painter* painter_for_canvas_state() override { return painter(); }
     virtual Gfx::Path& path_for_canvas_state() override { return path(); }

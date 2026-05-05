@@ -48,6 +48,8 @@ protected:
     virtual void initialize(JS::Realm&) override;
 
 private:
+    virtual size_t external_memory_size() const override;
+
     Utf16String m_data;
 
     mutable OwnPtr<Unicode::Segmenter> m_grapheme_segmenter;

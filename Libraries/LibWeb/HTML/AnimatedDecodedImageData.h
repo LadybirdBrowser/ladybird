@@ -79,6 +79,8 @@ private:
         Gfx::ColorSpace,
         Vector<u32> durations);
 
+    virtual size_t external_memory_size() const override;
+
     BufferSlot const* find_slot(u32 frame_index) const;
     BufferSlot& evict_oldest_slot();
     void maybe_request_more_frames(size_t current_frame_index);

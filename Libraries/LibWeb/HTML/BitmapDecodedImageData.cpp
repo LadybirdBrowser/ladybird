@@ -5,6 +5,8 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibGfx/Bitmap.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/HTML/BitmapDecodedImageData.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
@@ -27,6 +29,16 @@ BitmapDecodedImageData::BitmapDecodedImageData(Vector<Frame>&& frames, size_t lo
 }
 
 BitmapDecodedImageData::~BitmapDecodedImageData() = default;
+
+size_t BitmapDecodedImageData::external_memory_size() const
+{
+    size_t size = JS::vector_external_memory_size(m_frames);
+    for (auto const& frame : m_frames) {
+        if (frame.frame)
+            size = JS::saturating_add_external_memory_size(size, frame.frame->bitmap().data_size());
+    }
+    return size;
+}
 
 RefPtr<Gfx::DecodedImageFrame> BitmapDecodedImageData::frame(size_t frame_index, Gfx::IntSize) const
 {

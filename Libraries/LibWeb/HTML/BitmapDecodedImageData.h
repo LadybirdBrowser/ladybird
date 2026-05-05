@@ -42,6 +42,8 @@ public:
 private:
     BitmapDecodedImageData(Vector<Frame>&&, size_t loop_count, bool animated);
 
+    virtual size_t external_memory_size() const override;
+
     Vector<Frame> m_frames;
     size_t m_loop_count { 0 };
     bool m_animated { false };
