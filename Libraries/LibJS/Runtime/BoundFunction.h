@@ -37,6 +37,7 @@ private:
 
     void get_stack_frame_info(size_t& registers_and_locals_count, ReadonlySpan<Value>& constants, size_t& argument_count) override;
     virtual void visit_edges(Visitor&) override;
+    virtual size_t external_memory_size() const override;
 
     virtual bool is_bound_function() const final { return true; }
 

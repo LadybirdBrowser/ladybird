@@ -7,6 +7,7 @@
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/AggregateError.h>
 #include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/PromiseResolvingElementFunctions.h>
@@ -25,6 +26,11 @@ void PromiseValueList::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_values);
+}
+
+size_t PromiseValueList::external_memory_size() const
+{
+    return vector_external_memory_size(m_values);
 }
 
 PromiseResolvingElementFunction::PromiseResolvingElementFunction(size_t index, PromiseValueList& values, GC::Ref<PromiseCapability const> capability, RemainingElements& remaining_elements, Object& prototype)

@@ -30,6 +30,8 @@ public:
     Optional<Utf16String> key() const;
 
 private:
+    virtual size_t external_memory_size() const override;
+
     Symbol(Optional<Utf16String>, bool);
 
     Optional<Utf16String> m_description;
