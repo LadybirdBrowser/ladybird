@@ -10,6 +10,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/System.h>
 #include <LibWebView/ProcessManager.h>
+#include <LibWebView/ProcessMonitor.h>
 
 namespace WebView {
 
@@ -25,6 +26,8 @@ ProcessType process_type_from_name(StringView name)
         return ProcessType::RequestServer;
     if (name == "ImageDecoder"sv)
         return ProcessType::ImageDecoder;
+    if (name == "AudioServer"sv)
+        return ProcessType::AudioServer;
 
     dbgln("Unknown process type: '{}'", name);
     VERIFY_NOT_REACHED();
@@ -43,6 +46,8 @@ StringView process_name_from_type(ProcessType type)
         return "RequestServer"sv;
     case ProcessType::ImageDecoder:
         return "ImageDecoder"sv;
+    case ProcessType::AudioServer:
+        return "AudioServer"sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -71,6 +76,12 @@ Optional<Process&> ProcessManager::find_process(pid_t pid)
     return m_processes.get(pid);
 }
 
+ProcessPolicyRouter const& ProcessManager::policy_router() const
+{
+    static ProcessPolicyRouter s_router;
+    return s_router;
+}
+
 void ProcessManager::add_process(WebView::Process&& process)
 {
     verify_event_loop();
@@ -79,7 +90,6 @@ void ProcessManager::add_process(WebView::Process&& process)
     auto result = m_processes.set(pid, move(process));
     VERIFY(result == AK::HashSetResult::InsertedNewEntry);
     m_statistics.processes.append(make<Core::Platform::ProcessInfo>(pid));
-    m_process_monitor.add_process(pid);
 }
 
 void ProcessManager::for_each_process(Function<void(Process&)> callback)

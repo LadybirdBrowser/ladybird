@@ -139,45 +139,45 @@ private:
 constexpr StringView audio_channel_to_string(Channel channel)
 {
     switch (channel) {
-    case Audio::Channel::Unknown:
-        return "None"sv;
-    case Audio::Channel::FrontLeft:
+    case Channel::Unknown:
+        return "Unknown"sv;
+    case Channel::FrontLeft:
         return "FrontLeft"sv;
-    case Audio::Channel::FrontRight:
+    case Channel::FrontRight:
         return "FrontRight"sv;
-    case Audio::Channel::FrontCenter:
+    case Channel::FrontCenter:
         return "FrontCenter"sv;
-    case Audio::Channel::LowFrequency:
+    case Channel::LowFrequency:
         return "LowFrequency"sv;
-    case Audio::Channel::BackLeft:
+    case Channel::BackLeft:
         return "BackLeft"sv;
-    case Audio::Channel::BackRight:
+    case Channel::BackRight:
         return "BackRight"sv;
-    case Audio::Channel::FrontLeftOfCenter:
+    case Channel::FrontLeftOfCenter:
         return "FrontLeftOfCenter"sv;
-    case Audio::Channel::FrontRightOfCenter:
+    case Channel::FrontRightOfCenter:
         return "FrontRightOfCenter"sv;
-    case Audio::Channel::BackCenter:
+    case Channel::BackCenter:
         return "BackCenter"sv;
-    case Audio::Channel::SideLeft:
+    case Channel::SideLeft:
         return "SideLeft"sv;
-    case Audio::Channel::SideRight:
+    case Channel::SideRight:
         return "SideRight"sv;
-    case Audio::Channel::TopCenter:
+    case Channel::TopCenter:
         return "TopCenter"sv;
-    case Audio::Channel::TopFrontLeft:
+    case Channel::TopFrontLeft:
         return "TopFrontLeft"sv;
-    case Audio::Channel::TopFrontCenter:
+    case Channel::TopFrontCenter:
         return "TopFrontCenter"sv;
-    case Audio::Channel::TopFrontRight:
+    case Channel::TopFrontRight:
         return "TopFrontRight"sv;
-    case Audio::Channel::TopBackLeft:
+    case Channel::TopBackLeft:
         return "TopBackLeft"sv;
-    case Audio::Channel::TopBackCenter:
+    case Channel::TopBackCenter:
         return "TopBackCenter"sv;
-    case Audio::Channel::TopBackRight:
+    case Channel::TopBackRight:
         return "TopBackRight"sv;
-    case Audio::Channel::Count:
+    case Channel::Count:
         break;
     }
     VERIFY_NOT_REACHED();

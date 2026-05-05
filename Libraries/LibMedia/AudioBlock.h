@@ -10,7 +10,7 @@
 #include <AK/Math.h>
 #include <AK/SaturatingMath.h>
 #include <AK/Time.h>
-#include <LibMedia/Audio/SampleSpecification.h>
+#include <LibAudioServer/SampleSpecification.h>
 
 namespace Media {
 

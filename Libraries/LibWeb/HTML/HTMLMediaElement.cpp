@@ -107,6 +107,11 @@ void HTMLMediaElement::initialize(JS::Realm& realm)
         }
     });
 
+    m_document_observer->set_document_will_unload([this]() {
+        cancel_the_fetching_process();
+        forget_media_resource_specific_tracks();
+    });
+
     m_document_observer->set_document_became_active([this]() {
         // AD-HOC: Restart the fetch from where the stream last received data so that playback can continue.
         if (m_remote_fetch_data) {

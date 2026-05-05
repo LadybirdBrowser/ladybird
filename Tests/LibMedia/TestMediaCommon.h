@@ -8,9 +8,9 @@
 
 #include <AK/Function.h>
 #include <AK/Optional.h>
+#include <LibAudioServer/ChannelMap.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
-#include <LibMedia/Audio/ChannelMap.h>
 #include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
 #include <LibMedia/Containers/Matroska/Reader.h>
 #include <LibMedia/Demuxer.h>
