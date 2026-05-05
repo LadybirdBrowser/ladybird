@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div contenteditable style="font: 16px SerenitySans; width: 100px; height: 20px">foo bar</div>
+<script>
+    test(() => {
+        const div = document.querySelector("div");
+        const text = div.firstChild;
+        const selection = getSelection();
+
+        div.focus();
+        selection.collapse(text, 0);
+        const before = internals.dumpDisplayList();
+
+        selection.collapse(text, text.length);
+        const after = internals.dumpDisplayList();
+
+        const caretLine = displayList => displayList.split("\n").find(line => line.includes("FillRect"));
+        println(`Before: ${caretLine(before)}`);
+        println(`After: ${caretLine(after)}`);
+    });
+</script>

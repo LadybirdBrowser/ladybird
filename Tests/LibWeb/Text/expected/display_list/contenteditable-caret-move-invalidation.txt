@@ -1,0 +1,2 @@
+Before:   FillRect@1 rect=[8,8 1x18] color=rgb(0, 0, 0)
+After:   FillRect@1 rect=[71,8 1x18] color=rgb(0, 0, 0)

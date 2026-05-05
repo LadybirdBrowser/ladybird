@@ -557,6 +557,14 @@ void Selection::set_range(GC::Ptr<DOM::Range> range)
     if (old_range == range)
         return;
 
+    auto repaint_range_endpoints = [](GC::Ptr<DOM::Range> range) {
+        if (!range)
+            return;
+        range->start_container()->set_needs_repaint();
+        if (range->end_container() != range->start_container())
+            range->end_container()->set_needs_repaint();
+    };
+
     if (old_range)
         old_range->set_associated_selection({}, nullptr);
 
@@ -564,6 +572,9 @@ void Selection::set_range(GC::Ptr<DOM::Range> range)
 
     if (range)
         range->set_associated_selection({}, this);
+
+    repaint_range_endpoints(old_range);
+    repaint_range_endpoints(range);
 
     // https://w3c.github.io/editing/docs/execCommand/#state-override
     // Whenever the number of ranges in the selection changes to something different, and whenever a boundary point of
