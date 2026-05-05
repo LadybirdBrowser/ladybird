@@ -59,6 +59,7 @@ public:
     void set_to(SignedBigInteger const& other);
 
     [[nodiscard]] size_t byte_length() const;
+    [[nodiscard]] size_t external_memory_size() const { return m_mp.alloc * sizeof(mp_digit); }
 
     [[nodiscard]] SignedBigInteger plus(SignedBigInteger const& other) const;
     [[nodiscard]] SignedBigInteger minus(SignedBigInteger const& other) const;

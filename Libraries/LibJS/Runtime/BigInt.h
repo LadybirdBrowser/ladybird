@@ -31,6 +31,8 @@ public:
     Utf16String to_utf16_string() const;
 
 private:
+    virtual size_t external_memory_size() const override;
+
     explicit BigInt(Crypto::SignedBigInteger);
 
     Crypto::SignedBigInteger m_big_integer;
