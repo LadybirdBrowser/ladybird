@@ -45,8 +45,6 @@ Gfx::IntSize canvas_image_source_dimensions(CanvasImageSource const& image)
             return {};
         },
         [](GC::Root<HTMLVideoElement> const& source) -> Gfx::IntSize {
-            if (auto bitmap = source->bitmap())
-                return bitmap->size();
             return { source->video_width(), source->video_height() };
         });
 }

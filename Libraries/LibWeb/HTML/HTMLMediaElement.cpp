@@ -1556,8 +1556,13 @@ void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML:
         m_selected_video_track_sink = m_playback_manager->get_or_create_the_displaying_video_sink_for_track(video_track->track_in_playback_manager());
         auto sink_update_result = m_selected_video_track_sink->update();
         if (sink_update_result == Media::DisplayingVideoSinkUpdateResult::NewFrameAvailable) {
-            if (auto current_frame = m_selected_video_track_sink->current_frame())
-                ensure_external_content_source().update(current_frame->immutable_bitmap());
+            if (auto current_frame = m_selected_video_track_sink->current_frame()) {
+                auto bitmap_or_error = current_frame->to_immutable_bitmap();
+                if (bitmap_or_error.is_error())
+                    dbgln("Could not convert video frame to bitmap: {}", bitmap_or_error.release_error());
+                else
+                    ensure_external_content_source().update(bitmap_or_error.release_value());
+            }
             update_intrinsic_video_dimensions();
             set_needs_repaint();
         } else if (auto* video_element = as_if<HTMLVideoElement>(this)) {
@@ -1580,8 +1585,13 @@ void HTMLMediaElement::update_video_frame_and_timeline()
     if (m_selected_video_track_sink) {
         auto sink_update_result = m_selected_video_track_sink->update();
         if (sink_update_result == Media::DisplayingVideoSinkUpdateResult::NewFrameAvailable) {
-            if (auto current_frame = m_selected_video_track_sink->current_frame())
-                ensure_external_content_source().update(current_frame->immutable_bitmap());
+            if (auto current_frame = m_selected_video_track_sink->current_frame()) {
+                auto bitmap_or_error = current_frame->to_immutable_bitmap();
+                if (bitmap_or_error.is_error())
+                    dbgln("Could not convert video frame to bitmap: {}", bitmap_or_error.release_error());
+                else
+                    ensure_external_content_source().update(bitmap_or_error.release_value());
+            }
             update_intrinsic_video_dimensions();
             set_needs_repaint();
         }

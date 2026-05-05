@@ -9,11 +9,9 @@
 #include <LibGfx/ImmutableBitmapSkiaImageCache.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibGfx/SkiaUtils.h>
-#include <LibGfx/YUVData.h>
 
 #include <core/SkColorSpace.h>
 #include <core/SkImage.h>
-#include <core/SkYUVAPixmaps.h>
 #include <gpu/ganesh/GrDirectContext.h>
 #include <gpu/ganesh/SkImageGanesh.h>
 
@@ -37,31 +35,19 @@ sk_sp<SkImage> ImmutableBitmapSkiaImageCache::image_for_bitmap(ImmutableBitmap c
         return it->value.image;
     }
 
+    auto source_bitmap = bitmap.bitmap();
+    if (!source_bitmap)
+        return nullptr;
+
+    auto raster_image = sk_image_from_bitmap(*source_bitmap, bitmap.color_space());
     sk_sp<SkImage> image;
     auto* gr_context = m_skia_backend_context ? m_skia_backend_context->sk_context() : nullptr;
-    if (gr_context && bitmap.yuv_data()) {
-        auto const* yuv_data = bitmap.yuv_data();
-        image = SkImages::TextureFromYUVAPixmaps(
-            gr_context,
-            yuv_data->make_pixmaps(),
-            skgpu::Mipmapped::kNo,
-            false,
-            bitmap.color_space().color_space<sk_sp<SkColorSpace>>());
-    }
-
-    if (!image) {
-        auto source_bitmap = bitmap.bitmap();
-        if (!source_bitmap)
-            return nullptr;
-
-        auto raster_image = sk_image_from_bitmap(*source_bitmap, bitmap.color_space());
-        if (gr_context) {
-            image = SkImages::TextureFromImage(gr_context, raster_image.get(), skgpu::Mipmapped::kNo, skgpu::Budgeted::kYes);
-            if (!image)
-                image = move(raster_image);
-        } else {
+    if (gr_context) {
+        image = SkImages::TextureFromImage(gr_context, raster_image.get(), skgpu::Mipmapped::kNo, skgpu::Budgeted::kYes);
+        if (!image)
             image = move(raster_image);
-        }
+    } else {
+        image = move(raster_image);
     }
 
     if (!image)

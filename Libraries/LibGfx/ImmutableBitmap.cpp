@@ -10,7 +10,6 @@
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SkiaUtils.h>
-#include <LibGfx/YUVData.h>
 
 #include <core/SkCanvas.h>
 #include <core/SkColorSpace.h>
@@ -33,24 +32,17 @@ StringView export_format_name(ExportFormat format)
 
 struct ImmutableBitmapImpl {
     RefPtr<Gfx::Bitmap const> bitmap;
-    OwnPtr<YUVData> yuv_data;
     ColorSpace color_space;
 };
 
 int ImmutableBitmap::width() const
 {
-    if (m_impl->bitmap)
-        return m_impl->bitmap->width();
-    VERIFY(m_impl->yuv_data);
-    return m_impl->yuv_data->size().width();
+    return m_impl->bitmap->width();
 }
 
 int ImmutableBitmap::height() const
 {
-    if (m_impl->bitmap)
-        return m_impl->bitmap->height();
-    VERIFY(m_impl->yuv_data);
-    return m_impl->yuv_data->size().height();
+    return m_impl->bitmap->height();
 }
 
 IntRect ImmutableBitmap::rect() const
@@ -65,15 +57,7 @@ IntSize ImmutableBitmap::size() const
 
 AlphaType ImmutableBitmap::alpha_type() const
 {
-    if (m_impl->bitmap)
-        return m_impl->bitmap->alpha_type();
-
-    return AlphaType::Premultiplied;
-}
-
-YUVData const* ImmutableBitmap::yuv_data() const
-{
-    return m_impl->yuv_data.ptr();
+    return m_impl->bitmap->alpha_type();
 }
 
 ColorSpace const& ImmutableBitmap::color_space() const
@@ -198,25 +182,7 @@ ErrorOr<BitmapExportResult> ImmutableBitmap::export_to_byte_buffer(ExportFormat 
 
 RefPtr<Gfx::Bitmap const> ImmutableBitmap::bitmap() const
 {
-    if (!m_impl->bitmap && m_impl->yuv_data) {
-        auto bitmap_or_error = m_impl->yuv_data->to_bitmap();
-        if (bitmap_or_error.is_error())
-            return nullptr;
-        m_impl->bitmap = bitmap_or_error.release_value();
-    }
     return m_impl->bitmap;
-}
-
-ErrorOr<NonnullRefPtr<ImmutableBitmap>> ImmutableBitmap::create_from_yuv(NonnullOwnPtr<YUVData> yuv_data)
-{
-    auto color_space = TRY(ColorSpace::from_cicp(yuv_data->cicp()));
-
-    ImmutableBitmapImpl impl {
-        .bitmap = nullptr,
-        .yuv_data = move(yuv_data),
-        .color_space = move(color_space),
-    };
-    return adopt_ref(*new ImmutableBitmap(make<ImmutableBitmapImpl>(move(impl))));
 }
 
 Color ImmutableBitmap::get_pixel(int x, int y) const
@@ -230,7 +196,6 @@ NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create(NonnullRefPtr<Bitmap cons
 {
     ImmutableBitmapImpl impl {
         .bitmap = bitmap,
-        .yuv_data = nullptr,
         .color_space = move(color_space),
     };
     return adopt_ref(*new ImmutableBitmap(make<ImmutableBitmapImpl>(move(impl))));

@@ -15,7 +15,6 @@
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
-#include <LibGfx/YUVData.h>
 
 namespace Gfx {
 
@@ -50,7 +49,6 @@ public:
     static NonnullRefPtr<ImmutableBitmap> create(NonnullRefPtr<Bitmap const> const& bitmap, ColorSpace color_space = {});
     static NonnullRefPtr<ImmutableBitmap> create(NonnullRefPtr<Bitmap const> const& bitmap, AlphaType, ColorSpace color_space = {});
     static NonnullRefPtr<ImmutableBitmap> create_snapshot_from_painting_surface(NonnullRefPtr<PaintingSurface> const&);
-    static ErrorOr<NonnullRefPtr<ImmutableBitmap>> create_from_yuv(NonnullOwnPtr<YUVData>);
 
     ~ImmutableBitmap();
 
@@ -60,14 +58,12 @@ public:
     IntSize size() const;
 
     AlphaType alpha_type() const;
-    YUVData const* yuv_data() const;
     ColorSpace const& color_space() const;
 
     [[nodiscard]] ErrorOr<BitmapExportResult> export_to_byte_buffer(ExportFormat format, int flags, Optional<int> target_width, Optional<int> target_height) const;
 
     Color get_pixel(int x, int y) const;
 
-    // May lazily convert YUV-backed bitmaps to CPU pixels.
     RefPtr<Bitmap const> bitmap() const;
 
 private:

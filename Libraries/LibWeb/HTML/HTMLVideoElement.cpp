@@ -346,7 +346,12 @@ RefPtr<Gfx::ImmutableBitmap> HTMLVideoElement::bitmap() const
     auto current_frame = sink->current_frame();
     if (!current_frame)
         return nullptr;
-    return current_frame->immutable_bitmap();
+    auto bitmap_or_error = current_frame->to_immutable_bitmap();
+    if (bitmap_or_error.is_error()) {
+        dbgln("Could not convert video frame to bitmap: {}", bitmap_or_error.release_error());
+        return nullptr;
+    }
+    return bitmap_or_error.release_value();
 }
 
 }

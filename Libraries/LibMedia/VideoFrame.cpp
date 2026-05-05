@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/Bitmap.h>
 #include <LibGfx/ImmutableBitmap.h>
+#include <LibGfx/YUVData.h>
 
 #include "VideoFrame.h"
 
@@ -14,22 +16,24 @@ VideoFrame::VideoFrame(
     AK::Duration timestamp,
     AK::Duration duration,
     Gfx::Size<u32> size,
-    u8 bit_depth, CodingIndependentCodePoints cicp,
-    NonnullRefPtr<Gfx::ImmutableBitmap> bitmap)
+    u8 bit_depth,
+    Gfx::ColorSpace color_space,
+    NonnullOwnPtr<Gfx::YUVData> yuv_data)
     : m_timestamp(timestamp)
     , m_duration(duration)
     , m_size(size)
     , m_bit_depth(bit_depth)
-    , m_cicp(cicp)
-    , m_bitmap(move(bitmap))
+    , m_color_space(move(color_space))
+    , m_yuv_data(move(yuv_data))
 {
 }
 
 VideoFrame::~VideoFrame() = default;
 
-NonnullRefPtr<Gfx::ImmutableBitmap> VideoFrame::immutable_bitmap() const
+ErrorOr<NonnullRefPtr<Gfx::ImmutableBitmap>> VideoFrame::to_immutable_bitmap() const
 {
-    return m_bitmap;
+    auto bitmap = TRY(m_yuv_data->to_bitmap());
+    return Gfx::ImmutableBitmap::create(bitmap, m_color_space);
 }
 
 }

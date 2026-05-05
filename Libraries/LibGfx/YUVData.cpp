@@ -6,7 +6,6 @@
 
 #include <AK/Time.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibGfx/YUVData.h>
 #include <RustFFI.h>

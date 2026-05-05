@@ -27,7 +27,7 @@ struct YUVDataImpl;
 
 // Holds planar YUV data with metadata needed for GPU conversion.
 // Uses FixedArray for deterministic buffer sizing.
-// Not ref-counted - owned directly by ImmutableBitmap via NonnullOwnPtr.
+// Not ref-counted - owned directly by decoded video frame objects via NonnullOwnPtr.
 class YUVData final {
 public:
     static ErrorOr<NonnullOwnPtr<YUVData>> create(IntSize size, u8 bit_depth, Media::Subsampling, Media::CodingIndependentCodePoints);
