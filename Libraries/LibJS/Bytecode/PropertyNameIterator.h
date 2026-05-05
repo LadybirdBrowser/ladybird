@@ -43,6 +43,7 @@ private:
     void disable_fast_path();
 
     virtual void visit_edges(Visitor&) override;
+    virtual size_t external_memory_size() const override;
 
     GC::Ptr<Object> m_object;
     Vector<PropertyKey> m_owned_properties;

@@ -38,6 +38,7 @@ private:
     ModuleNamespaceObject(Realm&, Module* module, Vector<Utf16FlyString> exports);
 
     virtual void visit_edges(Visitor&) override;
+    virtual size_t external_memory_size() const override;
 
     GC::Ptr<Module> m_module;         // [[Module]]
     Vector<Utf16FlyString> m_exports; // [[Exports]]

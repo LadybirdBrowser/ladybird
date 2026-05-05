@@ -37,6 +37,7 @@ private:
     void delete_from_parameter_map(PropertyKey const&);
 
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual size_t external_memory_size() const override;
 
     GC::Ref<Environment> m_environment;
     Vector<Utf16FlyString> m_mapped_names;

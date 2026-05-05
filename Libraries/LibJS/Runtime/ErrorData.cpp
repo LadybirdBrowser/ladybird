@@ -8,6 +8,7 @@
 #include <AK/StringBuilder.h>
 #include <LibJS/Runtime/ErrorData.h>
 #include <LibJS/Runtime/ExecutionContext.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/VM.h>
@@ -31,6 +32,14 @@ ErrorData::ErrorData(VM& vm)
 void ErrorData::visit_edges(Cell::Visitor& visitor)
 {
     visitor.visit(m_cached_string);
+}
+
+size_t ErrorData::external_memory_size() const
+{
+    size_t size = vector_external_memory_size(m_traceback);
+    for (auto const& frame : m_traceback)
+        size = saturating_add_external_memory_size(size, utf16_string_external_memory_size(frame.function_name));
+    return size;
 }
 
 void ErrorData::populate_stack(VM& vm)

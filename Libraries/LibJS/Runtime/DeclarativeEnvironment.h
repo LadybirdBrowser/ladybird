@@ -81,6 +81,7 @@ protected:
     DeclarativeEnvironment(Environment* parent_environment, ReadonlySpan<Binding> bindings);
 
     virtual void visit_edges(Visitor&) override;
+    virtual size_t external_memory_size() const override;
 
     class BindingAndIndex {
     public:

@@ -47,6 +47,11 @@ void Error::visit_edges(Visitor& visitor)
     ErrorData::visit_edges(visitor);
 }
 
+size_t Error::external_memory_size() const
+{
+    return Object::external_memory_size() + ErrorData::external_memory_size();
+}
+
 // 20.5.8.1 InstallErrorCause ( O, options ), https://tc39.es/ecma262/#sec-installerrorcause
 ThrowCompletionOr<void> Error::install_error_cause(Value options)
 {

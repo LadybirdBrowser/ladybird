@@ -44,6 +44,7 @@ private:
     explicit PrivateEnvironment(PrivateEnvironment* parent);
 
     virtual void visit_edges(Visitor&) override;
+    virtual size_t external_memory_size() const override;
 
     auto find_private_name(Utf16FlyString const& description) const
     {

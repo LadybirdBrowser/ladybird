@@ -42,6 +42,7 @@ public:
 
 protected:
     void visit_edges(Cell::Visitor&);
+    size_t external_memory_size() const;
 
 private:
     void populate_stack(VM&);

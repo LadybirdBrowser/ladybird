@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/IteratorHelper.h>
@@ -32,6 +33,11 @@ void IteratorHelper::visit_edges(Visitor& visitor)
     visitor.visit(m_underlying_iterators);
     visitor.visit(m_closure);
     visitor.visit(m_abrupt_closure);
+}
+
+size_t IteratorHelper::external_memory_size() const
+{
+    return GeneratorObject::external_memory_size() + vector_external_memory_size(m_underlying_iterators);
 }
 
 ThrowCompletionOr<IteratorHelper::IterationResult> IteratorHelper::execute(VM& vm, JS::Completion const& completion)

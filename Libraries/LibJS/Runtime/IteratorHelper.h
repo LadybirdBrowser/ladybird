@@ -33,6 +33,7 @@ private:
     IteratorHelper(Realm&, Object& prototype, ReadonlySpan<GC::Ref<IteratorRecord>>, GC::Ref<Closure>, GC::Ptr<AbruptClosure>);
 
     virtual void visit_edges(Visitor&) override;
+    virtual size_t external_memory_size() const override;
     virtual ThrowCompletionOr<IterationResult> execute(VM&, JS::Completion const& completion) override;
 
     Vector<GC::Ref<IteratorRecord>> m_underlying_iterators; // [[UnderlyingIterators]]

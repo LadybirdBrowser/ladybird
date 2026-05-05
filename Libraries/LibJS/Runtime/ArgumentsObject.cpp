@@ -6,6 +6,7 @@
 
 #include <LibJS/Runtime/ArgumentsObject.h>
 #include <LibJS/Runtime/Completion.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/GlobalObject.h>
 
 namespace JS {
@@ -27,6 +28,11 @@ void ArgumentsObject::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_environment);
+}
+
+size_t ArgumentsObject::external_memory_size() const
+{
+    return Object::external_memory_size() + vector_external_memory_size(m_mapped_names);
 }
 
 bool ArgumentsObject::parameter_map_has(PropertyKey const& key) const
