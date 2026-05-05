@@ -45,3 +45,11 @@ class GroupGrammarNode(GrammarNode):
 
     def dump(self, indent: int = 0) -> str:
         return f"{'': >{indent}}Group:\n" + self.child.dump(indent + 2)
+
+
+@dataclass(frozen=True)
+class OptionalGrammarNode(GrammarNode):
+    child: GrammarNode
+
+    def dump(self, indent: int = 0) -> str:
+        return f"{'': >{indent}}Optional:\n" + self.child.dump(indent + 2)

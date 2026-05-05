@@ -10,6 +10,7 @@ class TokenType(Enum):
     SINGLE_BAR = "single-bar"
     OPEN_SQUARE_BRACKET = "open-square-bracket"
     CLOSE_SQUARE_BRACKET = "close-square-bracket"
+    QUESTION_MARK = "question-mark"
     COMPONENT_VALUE = "component-value"
 
 

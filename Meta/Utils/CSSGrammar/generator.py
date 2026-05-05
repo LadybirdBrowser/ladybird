@@ -9,6 +9,7 @@ from Utils.CSSGrammar.Parser.grammar_node import CombinatorType
 from Utils.CSSGrammar.Parser.grammar_node import ComponentValueGrammarNode
 from Utils.CSSGrammar.Parser.grammar_node import GrammarNode
 from Utils.CSSGrammar.Parser.grammar_node import GroupGrammarNode
+from Utils.CSSGrammar.Parser.grammar_node import OptionalGrammarNode
 from Utils.CSSGrammar.Parser.parser import parse_value_definition_grammar
 from Utils.utils import snake_casify
 from Utils.utils import title_casify
@@ -101,12 +102,28 @@ def generate_css_parser_expression_for_group_grammar_node(
     generate_css_parser_expression_for_grammar_node(out, cpp_name, grammar_node.child)
 
 
+def generate_css_parser_expression_for_optional_grammar_node(
+    out: TextIO, cpp_name: str, grammar_node: OptionalGrammarNode
+) -> None:
+    out.write(f"""RefPtr<StyleValue const> {cpp_name} = EmptyOptionalStyleValue::create();
+""")
+
+    generate_css_parser_expression_for_grammar_node(out, f"maybe_{cpp_name}", grammar_node.child)
+
+    out.write(f"""if (maybe_{cpp_name})
+        {cpp_name} = maybe_{cpp_name};
+""")
+
+
 def generate_css_parser_expression_for_grammar_node(out: TextIO, cpp_name: str, grammar_node: GrammarNode) -> None:
     if isinstance(grammar_node, ComponentValueGrammarNode):
         generate_css_parser_expression_for_component_value_grammar_node(out, cpp_name, grammar_node)
         return
     if isinstance(grammar_node, GroupGrammarNode):
         generate_css_parser_expression_for_group_grammar_node(out, cpp_name, grammar_node)
+        return
+    if isinstance(grammar_node, OptionalGrammarNode):
+        generate_css_parser_expression_for_optional_grammar_node(out, cpp_name, grammar_node)
         return
     if isinstance(grammar_node, CombinatorGrammarNode):
         generate_css_parser_expression_for_combinator_grammar_node(out, cpp_name, grammar_node)

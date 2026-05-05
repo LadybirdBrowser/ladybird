@@ -157,6 +157,30 @@ class TestCSSGrammarParser(unittest.TestCase):
 """,
         )
 
+    def test_parse_optional_type_reference(self) -> None:
+        syntax = parse_value_definition_grammar("<foo>?")
+        self.assertEqual(
+            syntax.dump(),
+            """Optional:
+  ComponentValue
+    Type: foo
+""",
+        )
+
+    def test_parse_optional_group(self) -> None:
+        syntax = parse_value_definition_grammar("[ auto | none ]?")
+        self.assertEqual(
+            syntax.dump(),
+            """Optional:
+  Group:
+    Combinator(Alternatives):
+      ComponentValue
+        Keyword: auto
+      ComponentValue
+        Keyword: none
+""",
+        )
+
     def test_parse_ignores_whitespace_around_tokens(self) -> None:
         syntax = parse_value_definition_grammar("  <foo>\t|\n<bar>  ")
         self.assertEqual(
@@ -180,6 +204,16 @@ class TestCSSGrammarParser(unittest.TestCase):
     def test_reject_trailing_bar(self) -> None:
         with self.assertRaises(SyntaxError):
             parse_value_definition_grammar("<foo> |")
+
+    def test_reject_invalid_optional(self) -> None:
+        for value in (
+            "?",
+            "<foo>??",
+            "[ <foo> ]??",
+        ):
+            with self.subTest(value=value):
+                with self.assertRaises(SyntaxError):
+                    parse_value_definition_grammar(value)
 
     def test_reject_invalid_group(self) -> None:
         for value in (
