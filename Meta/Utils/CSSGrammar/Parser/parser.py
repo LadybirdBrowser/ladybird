@@ -2,6 +2,7 @@ from Utils.CSSGrammar.Parser.grammar_node import CombinatorGrammarNode
 from Utils.CSSGrammar.Parser.grammar_node import CombinatorType
 from Utils.CSSGrammar.Parser.grammar_node import ComponentValueGrammarNode
 from Utils.CSSGrammar.Parser.grammar_node import GrammarNode
+from Utils.CSSGrammar.Parser.grammar_node import GroupGrammarNode
 from Utils.CSSGrammar.Parser.token import Token
 from Utils.CSSGrammar.Parser.token import TokenType
 from Utils.CSSGrammar.Parser.tokenizer import Tokenizer
@@ -38,6 +39,17 @@ class Parser:
     def parse_component_value(self) -> GrammarNode:
         # https://drafts.csswg.org/css-values-4/#component-multipliers
         # FIXME: Support component multipliers
+
+        if self.peek().is_token_type(TokenType.OPEN_SQUARE_BRACKET):
+            self.consume()
+            group = self.parse_alternatives()
+
+            if not self.peek().is_token_type(TokenType.CLOSE_SQUARE_BRACKET):
+                raise SyntaxError("CSSGrammar::Parser: Expected ']'")
+
+            # FIXME: Support required groups (e.g. [ <foo>? ]!)
+            self.consume()
+            return GroupGrammarNode(group)
 
         if not self.peek().is_token_type(TokenType.COMPONENT_VALUE):
             raise SyntaxError("CSSGrammar::Parser: Expected a component value")

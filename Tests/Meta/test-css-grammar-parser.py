@@ -116,6 +116,47 @@ class TestCSSGrammarParser(unittest.TestCase):
 """,
         )
 
+    def test_parse_group(self) -> None:
+        syntax = parse_value_definition_grammar("[ <length> ]")
+        self.assertEqual(
+            syntax.dump(),
+            """Group:
+  ComponentValue
+    Type: length [-∞,∞]
+""",
+        )
+
+    def test_parse_grouped_alternatives(self) -> None:
+        syntax = parse_value_definition_grammar("[ auto | none | <length> ]")
+        self.assertEqual(
+            syntax.dump(),
+            """Group:
+  Combinator(Alternatives):
+    ComponentValue
+      Keyword: auto
+    ComponentValue
+      Keyword: none
+    ComponentValue
+      Type: length [-∞,∞]
+""",
+        )
+
+    def test_parse_groups_as_alternative(self) -> None:
+        syntax = parse_value_definition_grammar("[ auto | none ] | <length>")
+        self.assertEqual(
+            syntax.dump(),
+            """Combinator(Alternatives):
+  Group:
+    Combinator(Alternatives):
+      ComponentValue
+        Keyword: auto
+      ComponentValue
+        Keyword: none
+  ComponentValue
+    Type: length [-∞,∞]
+""",
+        )
+
     def test_parse_ignores_whitespace_around_tokens(self) -> None:
         syntax = parse_value_definition_grammar("  <foo>\t|\n<bar>  ")
         self.assertEqual(
@@ -139,6 +180,17 @@ class TestCSSGrammarParser(unittest.TestCase):
     def test_reject_trailing_bar(self) -> None:
         with self.assertRaises(SyntaxError):
             parse_value_definition_grammar("<foo> |")
+
+    def test_reject_invalid_group(self) -> None:
+        for value in (
+            "[]",
+            "[ <foo>",
+            "<foo> ]",
+            "[ <foo> | ]",
+        ):
+            with self.subTest(value=value):
+                with self.assertRaises(SyntaxError):
+                    parse_value_definition_grammar(value)
 
     def test_reject_invalid_type_reference(self) -> None:
         for value in (

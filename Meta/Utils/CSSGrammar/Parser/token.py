@@ -8,6 +8,8 @@ from Utils.CSSGrammar.Parser.component_values import ComponentValue
 class TokenType(Enum):
     END_OF_FILE = "end-of-file"
     SINGLE_BAR = "single-bar"
+    OPEN_SQUARE_BRACKET = "open-square-bracket"
+    CLOSE_SQUARE_BRACKET = "close-square-bracket"
     COMPONENT_VALUE = "component-value"
 
 

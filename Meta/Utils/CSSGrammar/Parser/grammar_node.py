@@ -37,3 +37,11 @@ class CombinatorGrammarNode(GrammarNode):
             output += child.dump(indent + 2)
 
         return output
+
+
+@dataclass(frozen=True)
+class GroupGrammarNode(GrammarNode):
+    child: GrammarNode
+
+    def dump(self, indent: int = 0) -> str:
+        return f"{'': >{indent}}Group:\n" + self.child.dump(indent + 2)
