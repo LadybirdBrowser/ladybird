@@ -7,6 +7,7 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibRequests/Request.h>
+#include <LibWeb/Fetch/Fetching/PendingResponse.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
@@ -32,6 +33,7 @@ void FetchController::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_report_timing_steps);
     visitor.visit(m_next_manual_redirect_steps);
     visitor.visit(m_fetch_params);
+    visitor.visit(m_pending_preloaded_response);
 }
 
 void FetchController::set_pending_request(RefPtr<Requests::Request> const& request)

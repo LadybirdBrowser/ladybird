@@ -21,6 +21,12 @@
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
 
+namespace Web::Fetch::Fetching {
+
+class PendingResponse;
+
+}
+
 namespace Web::Fetch::Infrastructure {
 
 // https://fetch.spec.whatwg.org/#fetch-controller
@@ -52,6 +58,8 @@ public:
     void terminate();
 
     void set_fetch_params(Badge<FetchParams>, GC::Ref<FetchParams> fetch_params) { m_fetch_params = fetch_params; }
+    [[nodiscard]] GC::Ptr<Fetching::PendingResponse> pending_preloaded_response() const { return m_pending_preloaded_response; }
+    void set_pending_preloaded_response(GC::Ptr<Fetching::PendingResponse> pending_preloaded_response) { m_pending_preloaded_response = pending_preloaded_response; }
 
     void set_pending_request(RefPtr<Requests::Request> const&);
     void set_inner_fetch_controller(GC::Ref<FetchController>);
@@ -94,6 +102,9 @@ private:
     GC::Ptr<GC::Function<void()>> m_next_manual_redirect_steps;
 
     GC::Ptr<FetchParams> m_fetch_params;
+    // NB: Assumes one waiting consumer for a pending preloaded response.
+    // Widen this if preload handoff ever supports multiple consumers.
+    GC::Ptr<Fetching::PendingResponse> m_pending_preloaded_response;
 
     WeakPtr<Requests::Request> m_pending_request;
 

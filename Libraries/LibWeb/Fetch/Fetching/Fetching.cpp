@@ -229,6 +229,14 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
         //    response: set fetchParams’s preloaded response candidate to response.
         auto on_preloaded_response_available = GC::create_function(realm.heap(), [fetch_params](GC::Ref<Infrastructure::Response> response) {
             fetch_params->set_preloaded_response_candidate(response);
+
+            // NB: main fetch may already be parked on this preload result.
+            // Resolve that waiter here instead of spinning the event loop.
+            auto controller = fetch_params->controller();
+            if (auto pending_preloaded_response = controller->pending_preloaded_response()) {
+                controller->set_pending_preloaded_response(nullptr);
+                pending_preloaded_response->resolve(response);
+            }
         });
 
         // 3. Let foundPreloadedResource be the result of invoking consume a preloaded resource for request’s
@@ -456,10 +464,22 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
 
         // -> fetchParams’s preloaded response candidate is not null
         if (!fetch_params.preloaded_response_candidate().has<Empty>()) {
-            // 1. Wait until fetchParams’s preloaded response candidate is not "pending".
-            HTML::main_thread_event_loop().spin_until(GC::create_function(vm.heap(), [&] {
-                return !fetch_params.preloaded_response_candidate().has<Infrastructure::FetchParams::PreloadedResponseCandidatePendingTag>();
-            }));
+            // 1. Wait until fetchParams's preloaded response candidate is not "pending".
+            if (fetch_params.preloaded_response_candidate().has<Infrastructure::FetchParams::PreloadedResponseCandidatePendingTag>()) {
+                // NB: The spec says to wait here. Spinning the main-thread event
+                // loop strands the queued preload callback behind nested work,
+                // so we park a PendingResponse and let that callback resolve it.
+                auto controller = fetch_params.controller();
+
+                // NB: Reuse the parked response if this branch is re-entered
+                // before the preload callback runs.
+                if (auto pending_preloaded_response = controller->pending_preloaded_response())
+                    return *pending_preloaded_response;
+
+                auto pending_preloaded_response = PendingResponse::create(vm, request);
+                controller->set_pending_preloaded_response(pending_preloaded_response);
+                return pending_preloaded_response;
+            }
 
             // 2. Assert: fetchParams’s preloaded response candidate is a response.
             VERIFY(fetch_params.preloaded_response_candidate().has<GC::Ref<Infrastructure::Response>>());
