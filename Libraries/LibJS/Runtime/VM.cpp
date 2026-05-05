@@ -14,6 +14,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/Time.h>
 #include <LibFileSystem/FileSystem.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
@@ -192,8 +193,10 @@ VM::VM(ErrorMessages error_messages)
 
         // The default implementation of HostResizeArrayBuffer is to return NormalCompletion(unhandled).
 
+        auto old_external_memory_size = buffer.external_memory_size();
         if (auto result = buffer.buffer().try_resize(new_byte_length, ByteBuffer::ZeroFillNewElements::Yes); result.is_error())
             return throw_completion<RangeError>(ErrorType::NotEnoughMemoryToAllocate, new_byte_length);
+        buffer.did_change_data_block_capacity(old_external_memory_size);
 
         return HandledByHost::Handled;
     };

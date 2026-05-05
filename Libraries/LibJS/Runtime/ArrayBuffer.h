@@ -80,6 +80,14 @@ struct DataBlock {
             [](UnownedFixedLengthByteBuffer const& value) { return value.size; });
     }
 
+    size_t external_memory_size() const
+    {
+        return byte_buffer.visit(
+            [](Empty) -> size_t { return 0; },
+            [](ByteBuffer const& buffer) { return buffer.is_inline() ? 0 : buffer.capacity(); },
+            [](UnownedFixedLengthByteBuffer const&) -> size_t { return 0; });
+    }
+
     Variant<Empty, ByteBuffer, UnownedFixedLengthByteBuffer> byte_buffer;
     Shared is_shared = { Shared::No };
 };
@@ -96,6 +104,7 @@ public:
     virtual ~ArrayBuffer() override = default;
 
     size_t byte_length() const { return m_data_block.size(); }
+    virtual size_t external_memory_size() const override { return m_data_block.external_memory_size(); }
 
     // [[ArrayBufferData]]
     ByteBuffer& buffer() { return m_data_block.buffer(); }
@@ -111,7 +120,8 @@ public:
     void set_max_byte_length(size_t max_byte_length) { m_max_byte_length = max_byte_length; }
 
     // Used by allocate_array_buffer() to attach the data block after construction
-    void set_data_block(DataBlock block) { m_data_block = move(block); }
+    void set_data_block(DataBlock);
+    void did_change_data_block_capacity(size_t old_external_memory_size);
 
     Value detach_key() const { return m_detach_key; }
     void set_detach_key(Value detach_key) { m_detach_key = detach_key; }
@@ -179,6 +189,8 @@ private:
     virtual bool is_array_buffer() const final { return true; }
 
     virtual void visit_edges(Visitor&) override;
+
+    void account_external_memory_change(size_t old_external_memory_size, size_t new_external_memory_size);
 
     DataBlock m_data_block;
     Optional<size_t> m_max_byte_length;
