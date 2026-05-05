@@ -1,0 +1,1 @@
+  FillRect@1 rect=[35,35 1x18] color=rgb(0, 0, 0)
