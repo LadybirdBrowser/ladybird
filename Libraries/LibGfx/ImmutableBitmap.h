@@ -9,7 +9,7 @@
 
 #include <AK/AtomicRefCounted.h>
 #include <AK/Forward.h>
-#include <AK/NonnullOwnPtr.h>
+#include <AK/NonnullRefPtr.h>
 #include <LibGfx/BitmapExportResult.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/ColorSpace.h>
@@ -17,8 +17,6 @@
 #include <LibGfx/Rect.h>
 
 namespace Gfx {
-
-struct ImmutableBitmapImpl;
 
 #define ENUMERATE_EXPORT_FORMATS(X) \
     X(Gray8)                        \
@@ -67,9 +65,10 @@ public:
     RefPtr<Bitmap const> bitmap() const;
 
 private:
-    mutable NonnullOwnPtr<ImmutableBitmapImpl> m_impl;
+    NonnullRefPtr<Bitmap const> m_bitmap;
+    ColorSpace m_color_space;
 
-    explicit ImmutableBitmap(NonnullOwnPtr<ImmutableBitmapImpl>&&);
+    ImmutableBitmap(NonnullRefPtr<Bitmap const>, ColorSpace);
 };
 
 }

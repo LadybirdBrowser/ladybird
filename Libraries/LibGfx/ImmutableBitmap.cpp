@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/OwnPtr.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/PaintingSurface.h>
@@ -30,19 +29,14 @@ StringView export_format_name(ExportFormat format)
     VERIFY_NOT_REACHED();
 }
 
-struct ImmutableBitmapImpl {
-    RefPtr<Gfx::Bitmap const> bitmap;
-    ColorSpace color_space;
-};
-
 int ImmutableBitmap::width() const
 {
-    return m_impl->bitmap->width();
+    return m_bitmap->width();
 }
 
 int ImmutableBitmap::height() const
 {
-    return m_impl->bitmap->height();
+    return m_bitmap->height();
 }
 
 IntRect ImmutableBitmap::rect() const
@@ -57,12 +51,12 @@ IntSize ImmutableBitmap::size() const
 
 AlphaType ImmutableBitmap::alpha_type() const
 {
-    return m_impl->bitmap->alpha_type();
+    return m_bitmap->alpha_type();
 }
 
 ColorSpace const& ImmutableBitmap::color_space() const
 {
-    return m_impl->color_space;
+    return m_color_space;
 }
 
 static int bytes_per_pixel_for_export_format(ExportFormat format)
@@ -145,11 +139,7 @@ ErrorOr<BitmapExportResult> ImmutableBitmap::export_to_byte_buffer(ExportFormat 
                 }
             }
         } else {
-            auto bitmap = this->bitmap();
-            if (!bitmap)
-                return Error::from_string_literal("Failed to create a Bitmap for this ImmutableBitmap");
-
-            auto image = sk_image_from_bitmap(*bitmap, m_impl->color_space);
+            auto image = sk_image_from_bitmap(*m_bitmap, m_color_space);
             if (!image)
                 return Error::from_string_literal("Failed to create a Skia image for this ImmutableBitmap");
 
@@ -182,23 +172,17 @@ ErrorOr<BitmapExportResult> ImmutableBitmap::export_to_byte_buffer(ExportFormat 
 
 RefPtr<Gfx::Bitmap const> ImmutableBitmap::bitmap() const
 {
-    return m_impl->bitmap;
+    return m_bitmap;
 }
 
 Color ImmutableBitmap::get_pixel(int x, int y) const
 {
-    auto bitmap = this->bitmap();
-    VERIFY(bitmap);
-    return bitmap->get_pixel(x, y);
+    return m_bitmap->get_pixel(x, y);
 }
 
 NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create(NonnullRefPtr<Bitmap const> const& bitmap, ColorSpace color_space)
 {
-    ImmutableBitmapImpl impl {
-        .bitmap = bitmap,
-        .color_space = move(color_space),
-    };
-    return adopt_ref(*new ImmutableBitmap(make<ImmutableBitmapImpl>(move(impl))));
+    return adopt_ref(*new ImmutableBitmap(bitmap, move(color_space)));
 }
 
 NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create(NonnullRefPtr<Bitmap const> const& bitmap, AlphaType alpha_type, ColorSpace color_space)
@@ -223,13 +207,12 @@ NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create_snapshot_from_painting_su
     return create(bitmap);
 }
 
-ImmutableBitmap::ImmutableBitmap(NonnullOwnPtr<ImmutableBitmapImpl>&& impl)
-    : m_impl(move(impl))
+ImmutableBitmap::ImmutableBitmap(NonnullRefPtr<Bitmap const> bitmap, ColorSpace color_space)
+    : m_bitmap(move(bitmap))
+    , m_color_space(move(color_space))
 {
 }
 
-ImmutableBitmap::~ImmutableBitmap()
-{
-}
+ImmutableBitmap::~ImmutableBitmap() = default;
 
 }
