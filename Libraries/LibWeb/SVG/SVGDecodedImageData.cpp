@@ -156,7 +156,7 @@ RefPtr<Gfx::ImmutableBitmap> SVGDecodedImageData::bitmap(size_t, Gfx::IntSize si
     if (m_cached_rendered_bitmaps.size() > 10)
         m_cached_rendered_bitmaps.remove(m_cached_rendered_bitmaps.begin());
 
-    auto immutable_bitmap = Gfx::ImmutableBitmap::create_snapshot_from_painting_surface(*render_to_surface(size));
+    auto immutable_bitmap = Gfx::ImmutableBitmap::create(render_to_surface(size)->snapshot_bitmap());
     m_cached_rendered_bitmaps.set(size, immutable_bitmap);
     return immutable_bitmap;
 }

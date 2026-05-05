@@ -51,7 +51,9 @@ public:
     static NonnullRefPtr<PaintingSurface> create_from_vkimage(NonnullRefPtr<SkiaBackendContext> context, NonnullRefPtr<VulkanImage> vulkan_image, Origin origin);
 #endif
 
-    void read_into_bitmap(Bitmap&);
+    NonnullRefPtr<Bitmap> snapshot_bitmap() const;
+
+    void read_into_bitmap(Bitmap&) const;
     void write_from_bitmap(Bitmap const&);
 
     void notify_content_will_change();

@@ -146,7 +146,14 @@ PaintingSurface::~PaintingSurface()
     m_impl->surface = nullptr;
 }
 
-void PaintingSurface::read_into_bitmap(Bitmap& bitmap)
+NonnullRefPtr<Bitmap> PaintingSurface::snapshot_bitmap() const
+{
+    auto bitmap = MUST(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Premultiplied, size()));
+    read_into_bitmap(*bitmap);
+    return bitmap;
+}
+
+void PaintingSurface::read_into_bitmap(Bitmap& bitmap) const
 {
     auto color_type = to_skia_color_type(bitmap.format());
     auto alpha_type = to_skia_alpha_type(bitmap.format(), bitmap.alpha_type());

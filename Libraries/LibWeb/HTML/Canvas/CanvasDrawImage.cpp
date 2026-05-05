@@ -60,7 +60,7 @@ RefPtr<Gfx::ImmutableBitmap> canvas_image_source_bitmap(CanvasImageSource const&
             auto surface = canvas->surface();
             if (!surface)
                 return Gfx::ImmutableBitmap::create(*canvas->get_bitmap_from_surface());
-            return Gfx::ImmutableBitmap::create_snapshot_from_painting_surface(*surface);
+            return Gfx::ImmutableBitmap::create(surface->snapshot_bitmap());
         },
         [](OneOf<GC::Root<ImageBitmap>, GC::Root<OffscreenCanvas>> auto const& source) -> RefPtr<Gfx::ImmutableBitmap> {
             auto bitmap = source->bitmap();

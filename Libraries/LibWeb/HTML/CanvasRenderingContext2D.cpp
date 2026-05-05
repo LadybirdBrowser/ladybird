@@ -551,9 +551,10 @@ WebIDL::ExceptionOr<GC::Ptr<ImageData>> CanvasRenderingContext2D::get_image_data
     auto image_data = TRY(ImageData::create(realm(), abs_width, abs_height, settings));
 
     // NOTE: We don't attempt to create the underlying bitmap here; if it doesn't exist, it's like copying only transparent black pixels (which is a no-op).
-    if (!canvas_element().surface())
+    auto surface = canvas_element().surface();
+    if (!surface)
         return image_data;
-    auto const snapshot = Gfx::ImmutableBitmap::create_snapshot_from_painting_surface(*canvas_element().surface());
+    auto const snapshot = Gfx::ImmutableBitmap::create(surface->snapshot_bitmap());
 
     // 5. Let the source rectangle be the rectangle whose corners are the four points (sx, sy), (sx+sw, sy), (sx+sw, sy+sh), (sx, sy+sh).
     auto source_rect = Gfx::Rect { x, y, abs_width, abs_height };

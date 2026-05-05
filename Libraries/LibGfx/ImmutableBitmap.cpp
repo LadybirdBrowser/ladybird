@@ -7,7 +7,6 @@
 
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ImmutableBitmap.h>
-#include <LibGfx/PaintingSurface.h>
 
 namespace Gfx {
 
@@ -69,13 +68,6 @@ NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create(NonnullRefPtr<Bitmap cons
     }();
 
     return create(converted_bitmap, move(color_space));
-}
-
-NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create_snapshot_from_painting_surface(NonnullRefPtr<PaintingSurface> const& painting_surface)
-{
-    auto bitmap = MUST(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Premultiplied, painting_surface->size()));
-    painting_surface->read_into_bitmap(*bitmap);
-    return create(bitmap);
 }
 
 ImmutableBitmap::ImmutableBitmap(NonnullRefPtr<Bitmap const> bitmap, ColorSpace color_space)

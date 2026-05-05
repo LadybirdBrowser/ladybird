@@ -272,7 +272,7 @@ Optional<Gfx::BitmapExportResult> WebGLRenderingContextBase::read_and_pixel_conv
             auto surface = source->surface();
             if (!surface)
                 return Gfx::ImmutableBitmap::create(*source->get_bitmap_from_surface());
-            return Gfx::ImmutableBitmap::create_snapshot_from_painting_surface(*surface);
+            return Gfx::ImmutableBitmap::create(surface->snapshot_bitmap());
         },
         [](GC::Root<HTML::OffscreenCanvas> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
             return Gfx::ImmutableBitmap::create(*source->bitmap());

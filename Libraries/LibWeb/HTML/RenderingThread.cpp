@@ -296,7 +296,7 @@ public:
                             });
                         },
                         [this](RenderingThread::PublishToExternalContent const& mode) {
-                            auto snapshot = Gfx::ImmutableBitmap::create_snapshot_from_painting_surface(*m_backing_stores.front_store);
+                            auto snapshot = Gfx::ImmutableBitmap::create(m_backing_stores.front_store->snapshot_bitmap());
                             mode.source->update(move(snapshot));
                         });
                 }
