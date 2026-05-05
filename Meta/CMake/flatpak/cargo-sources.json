@@ -183,9 +183,9 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/icu_calendar/icu_calendar-2.2.0.crate",
-        "sha256": "baf11bd83ebd0cd319e23a9a9c9a25b564a1fadc3bbc93069b8abc9d8df812bf",
-        "dest": "cargo/vendor/icu_calendar-2.2.0"
+        "url": "https://static.crates.io/crates/icu_calendar/icu_calendar-2.2.1.crate",
+        "sha256": "a2b2acc6263f494f1df50685b53ff8e57869e47d5c6fe39c23d518ae9a4f3e45",
+        "dest": "cargo/vendor/icu_calendar-2.2.1"
     },
     {
         "type": "archive",
@@ -733,7 +733,7 @@
             "echo '{\"files\": {}, \"package\": \"9229cfe53dfd69f0609a49f65461bd93001ea1ef889cd5529dd176593f5338a1\"}' > cargo/vendor/hashbrown-0.15.5/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100\"}' > cargo/vendor/hashbrown-0.16.1/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea\"}' > cargo/vendor/heck-0.5.0/.cargo-checksum.json",
-            "echo '{\"files\": {}, \"package\": \"baf11bd83ebd0cd319e23a9a9c9a25b564a1fadc3bbc93069b8abc9d8df812bf\"}' > cargo/vendor/icu_calendar-2.2.0/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"a2b2acc6263f494f1df50685b53ff8e57869e47d5c6fe39c23d518ae9a4f3e45\"}' > cargo/vendor/icu_calendar-2.2.1/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"118577bcf3a0fa7c6ac0a7d6e951814da84ee56b9b1f68fb4d8d10b08cefaf4d\"}' > cargo/vendor/icu_calendar_data-2.2.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"2984d1cd16c883d7935b9e07e44071dca8d917fd52ecc02c04d5fa0b5a3f191c\"}' > cargo/vendor/icu_collections-2.2.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"d5a396343c7208121dc86e35623d3dfe19814a7613cfd14964994cdc9c9a2e26\"}' > cargo/vendor/icu_locale-2.2.0/.cargo-checksum.json",
