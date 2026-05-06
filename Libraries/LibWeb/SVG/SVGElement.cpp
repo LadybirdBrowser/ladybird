@@ -195,14 +195,14 @@ Optional<ARIA::Role> SVGElement::default_role() const
 void SVGElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    HTMLOrSVGElement::visit_edges(visitor);
+    HTMLOrSVGOrMathMLElement::visit_edges(visitor);
     visitor.visit(m_class_name_animated_string);
 }
 
 void SVGElement::attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(local_name, old_value, value, namespace_);
-    HTMLOrSVGElement::attribute_changed(local_name, old_value, value, namespace_);
+    HTMLOrSVGOrMathMLElement::attribute_changed(local_name, old_value, value, namespace_);
 
     update_use_elements_that_reference_this();
 }
@@ -210,14 +210,14 @@ void SVGElement::attribute_changed(FlyString const& local_name, Optional<String>
 WebIDL::ExceptionOr<void> SVGElement::cloned(DOM::Node& copy, bool clone_children) const
 {
     TRY(Base::cloned(copy, clone_children));
-    TRY(HTMLOrSVGElement::cloned(copy, clone_children));
+    TRY(HTMLOrSVGOrMathMLElement::cloned(copy, clone_children));
     return {};
 }
 
 void SVGElement::inserted()
 {
     Base::inserted();
-    HTMLOrSVGElement::inserted();
+    HTMLOrSVGOrMathMLElement::inserted();
 
     update_use_elements_that_reference_this();
 }

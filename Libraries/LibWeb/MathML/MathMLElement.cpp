@@ -31,20 +31,20 @@ MathMLElement::MathMLElement(DOM::Document& document, DOM::QualifiedName qualifi
 void MathMLElement::attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(local_name, old_value, value, namespace_);
-    HTMLOrSVGElement::attribute_changed(local_name, old_value, value, namespace_);
+    HTMLOrSVGOrMathMLElement::attribute_changed(local_name, old_value, value, namespace_);
 }
 
 WebIDL::ExceptionOr<void> MathMLElement::cloned(DOM::Node& node, bool clone_children) const
 {
     TRY(Base::cloned(node, clone_children));
-    TRY(HTMLOrSVGElement::cloned(node, clone_children));
+    TRY(HTMLOrSVGOrMathMLElement::cloned(node, clone_children));
     return {};
 }
 
 void MathMLElement::inserted()
 {
     Base::inserted();
-    HTMLOrSVGElement::inserted();
+    HTMLOrSVGOrMathMLElement::inserted();
 }
 
 void MathMLElement::initialize(JS::Realm& realm)
@@ -64,7 +64,7 @@ Optional<ARIA::Role> MathMLElement::default_role() const
 void MathMLElement::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    HTMLOrSVGElement::visit_edges(visitor);
+    HTMLOrSVGOrMathMLElement::visit_edges(visitor);
 }
 
 bool MathMLElement::is_presentational_hint(FlyString const& name) const

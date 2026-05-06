@@ -9,5 +9,5 @@ interface SVGElement : Element {
 };
 
 SVGElement includes GlobalEventHandlers;
-SVGElement includes HTMLOrSVGElement;
+SVGElement includes HTMLOrSVGOrMathMLElement;
 SVGElement includes ElementCSSInlineStyle;

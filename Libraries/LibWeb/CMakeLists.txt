@@ -572,7 +572,7 @@ set(SOURCES
     HTML/HTMLOptGroupElement.cpp
     HTML/HTMLOptionElement.cpp
     HTML/HTMLOptionsCollection.cpp
-    HTML/HTMLOrSVGElement.cpp
+    HTML/HTMLOrSVGOrMathMLElement.cpp
     HTML/HTMLOutputElement.cpp
     HTML/HTMLParagraphElement.cpp
     HTML/HTMLParamElement.cpp

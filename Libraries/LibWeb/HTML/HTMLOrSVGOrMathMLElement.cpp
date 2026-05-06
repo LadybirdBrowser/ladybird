@@ -8,7 +8,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/HTMLElement.h>
-#include <LibWeb/HTML/HTMLOrSVGElement.h>
+#include <LibWeb/HTML/HTMLOrSVGOrMathMLElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
@@ -20,7 +20,7 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-dataset-dev
 template<typename ElementBase>
-GC::Ref<DOMStringMap> HTMLOrSVGElement<ElementBase>::dataset()
+GC::Ref<DOMStringMap> HTMLOrSVGOrMathMLElement<ElementBase>::dataset()
 {
     if (!m_dataset)
         m_dataset = DOMStringMap::create(*static_cast<ElementBase*>(this));
@@ -29,7 +29,7 @@ GC::Ref<DOMStringMap> HTMLOrSVGElement<ElementBase>::dataset()
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-focus
 template<typename ElementBase>
-void HTMLOrSVGElement<ElementBase>::focus()
+void HTMLOrSVGOrMathMLElement<ElementBase>::focus()
 {
     // 1. If the allow focus steps given this's node document return false, then return.
     if (!static_cast<ElementBase*>(this)->document().allow_focus())
@@ -45,7 +45,7 @@ void HTMLOrSVGElement<ElementBase>::focus()
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-blur
 template<typename ElementBase>
-void HTMLOrSVGElement<ElementBase>::blur()
+void HTMLOrSVGOrMathMLElement<ElementBase>::blur()
 {
     // 1. The user agent should run the unfocusing steps given this.
     //    User agents may instead selectively or uniformly do nothing, for usability reasons.
@@ -54,9 +54,9 @@ void HTMLOrSVGElement<ElementBase>::blur()
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#dom-noncedelement-nonce
 template<typename ElementBase>
-void HTMLOrSVGElement<ElementBase>::attribute_changed(FlyString const& local_name, Optional<String> const&, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void HTMLOrSVGOrMathMLElement<ElementBase>::attribute_changed(FlyString const& local_name, Optional<String> const&, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
-    // 1. If element does not include HTMLOrSVGElement, then return.
+    // 1. If element does not include HTMLOrSVGOrMathMLElement, then return.
     // 2. If localName is not nonce or namespace is not null, then return.
     if (local_name != HTML::AttributeNames::nonce || namespace_.has_value())
         return;
@@ -74,9 +74,9 @@ void HTMLOrSVGElement<ElementBase>::attribute_changed(FlyString const& local_nam
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#dom-noncedelement-nonce
 template<typename ElementBase>
-WebIDL::ExceptionOr<void> HTMLOrSVGElement<ElementBase>::cloned(DOM::Node& copy, bool) const
+WebIDL::ExceptionOr<void> HTMLOrSVGOrMathMLElement<ElementBase>::cloned(DOM::Node& copy, bool) const
 {
-    // The cloning steps for elements that include HTMLOrSVGElement given node, copy, and subtree
+    // The cloning steps for elements that include HTMLOrSVGOrMathMLElement given node, copy, and subtree
     // are to set copy's [[CryptographicNonce]] to node's [[CryptographicNonce]].
     static_cast<ElementBase&>(copy).m_cryptographic_nonce = m_cryptographic_nonce;
     return {};
@@ -84,9 +84,9 @@ WebIDL::ExceptionOr<void> HTMLOrSVGElement<ElementBase>::cloned(DOM::Node& copy,
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#dom-noncedelement-nonce
 template<typename ElementBase>
-void HTMLOrSVGElement<ElementBase>::inserted()
+void HTMLOrSVGOrMathMLElement<ElementBase>::inserted()
 {
-    // Whenever an element including HTMLOrSVGElement becomes browsing-context connected, the user
+    // Whenever an element including HTMLOrSVGOrMathMLElement becomes browsing-context connected, the user
     // agent must execute the following steps on the element:
     DOM::Element& element = *static_cast<ElementBase*>(this);
 
@@ -149,13 +149,13 @@ void HTMLOrSVGElement<ElementBase>::inserted()
 }
 
 template<typename ElementBase>
-void HTMLOrSVGElement<ElementBase>::visit_edges(JS::Cell::Visitor& visitor)
+void HTMLOrSVGOrMathMLElement<ElementBase>::visit_edges(JS::Cell::Visitor& visitor)
 {
     visitor.visit(m_dataset);
 }
 
-template class HTMLOrSVGElement<HTMLElement>;
-template class HTMLOrSVGElement<MathML::MathMLElement>;
-template class HTMLOrSVGElement<SVG::SVGElement>;
+template class HTMLOrSVGOrMathMLElement<HTMLElement>;
+template class HTMLOrSVGOrMathMLElement<MathML::MathMLElement>;
+template class HTMLOrSVGOrMathMLElement<SVG::SVGElement>;
 
 }

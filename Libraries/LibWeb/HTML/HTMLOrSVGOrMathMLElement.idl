@@ -1,5 +1,5 @@
 // https://html.spec.whatwg.org/multipage/dom.html#htmlorsvgelement
-interface mixin HTMLOrSVGElement {
+interface mixin HTMLOrSVGOrMathMLElement {
     [SameObject] readonly attribute DOMStringMap dataset;
     attribute DOMString nonce; // intentionally no [CEReactions]
 

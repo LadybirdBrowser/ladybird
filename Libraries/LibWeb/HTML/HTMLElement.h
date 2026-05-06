@@ -12,7 +12,7 @@
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/GlobalEventHandlers.h>
-#include <LibWeb/HTML/HTMLOrSVGElement.h>
+#include <LibWeb/HTML/HTMLOrSVGOrMathMLElement.h>
 #include <LibWeb/HTML/ToggleTaskTracker.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
 
@@ -75,7 +75,7 @@ enum class IsPopover {
 class WEB_API HTMLElement
     : public DOM::Element
     , public HTML::GlobalEventHandlers
-    , public HTML::HTMLOrSVGElement<HTMLElement>
+    , public HTML::HTMLOrSVGOrMathMLElement<HTMLElement>
     , public FormAssociatedElement {
     WEB_PLATFORM_OBJECT(HTMLElement, DOM::Element);
     GC_DECLARE_ALLOCATOR(HTMLElement);

@@ -9,7 +9,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/GlobalEventHandlers.h>
-#include <LibWeb/HTML/HTMLOrSVGElement.h>
+#include <LibWeb/HTML/HTMLOrSVGOrMathMLElement.h>
 #include <LibWeb/SVG/SVGAnimatedString.h>
 
 namespace Web::SVG {
@@ -17,7 +17,7 @@ namespace Web::SVG {
 class WEB_API SVGElement
     : public DOM::Element
     , public HTML::GlobalEventHandlers
-    , public HTML::HTMLOrSVGElement<SVGElement> {
+    , public HTML::HTMLOrSVGOrMathMLElement<SVGElement> {
     WEB_PLATFORM_OBJECT(SVGElement, DOM::Element);
     GC_DECLARE_ALLOCATOR(SVGElement);
 

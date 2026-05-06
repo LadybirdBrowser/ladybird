@@ -8,13 +8,13 @@
 
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/GlobalEventHandlers.h>
-#include <LibWeb/HTML/HTMLOrSVGElement.h>
+#include <LibWeb/HTML/HTMLOrSVGOrMathMLElement.h>
 
 namespace Web::MathML {
 
 class MathMLElement : public DOM::Element
     , public HTML::GlobalEventHandlers
-    , public HTML::HTMLOrSVGElement<MathMLElement> {
+    , public HTML::HTMLOrSVGOrMathMLElement<MathMLElement> {
     WEB_PLATFORM_OBJECT(MathMLElement, DOM::Element);
     GC_DECLARE_ALLOCATOR(MathMLElement);
 

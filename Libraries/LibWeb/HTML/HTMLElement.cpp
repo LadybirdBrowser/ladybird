@@ -73,7 +73,7 @@ void HTMLElement::initialize(JS::Realm& realm)
 void HTMLElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    HTMLOrSVGElement::visit_edges(visitor);
+    HTMLOrSVGOrMathMLElement::visit_edges(visitor);
     FormAssociatedElement::visit_edges(visitor);
     visitor.visit(m_labels);
     visitor.visit(m_attached_internals);
@@ -710,7 +710,7 @@ int HTMLElement::offset_height() const
 void HTMLElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
-    HTMLOrSVGElement::attribute_changed(name, old_value, value, namespace_);
+    HTMLOrSVGOrMathMLElement::attribute_changed(name, old_value, value, namespace_);
 
     if (name == HTML::AttributeNames::contenteditable) {
         if (!value.has_value()) {
@@ -793,14 +793,14 @@ void HTMLElement::set_subtree_inertness(bool is_inert)
 WebIDL::ExceptionOr<void> HTMLElement::cloned(Web::DOM::Node& copy, bool clone_children) const
 {
     TRY(Base::cloned(copy, clone_children));
-    TRY(HTMLOrSVGElement::cloned(copy, clone_children));
+    TRY(HTMLOrSVGOrMathMLElement::cloned(copy, clone_children));
     return {};
 }
 
 void HTMLElement::inserted()
 {
     Base::inserted();
-    HTMLOrSVGElement::inserted();
+    HTMLOrSVGOrMathMLElement::inserted();
 
     if (auto* parent_html_element = first_ancestor_of_type<HTMLElement>(); parent_html_element && parent_html_element->is_inert() && !has_attribute(HTML::AttributeNames::inert))
         set_subtree_inertness(true);

@@ -13,7 +13,7 @@
 namespace Web::HTML {
 
 template<typename ElementBase>
-class HTMLOrSVGElement {
+class HTMLOrSVGOrMathMLElement {
 public:
     [[nodiscard]] GC::Ref<DOMStringMap> dataset();
 
