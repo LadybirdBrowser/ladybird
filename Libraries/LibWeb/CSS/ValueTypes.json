@@ -3,6 +3,11 @@
         "spec": "https://drafts.csswg.org/css-fonts-4/#font-weight-absolute-values",
         "grammar": "[ normal | bold | <number [1,1000]> ]"
     },
+    "<paint>": {
+        "spec": "https://svgwg.org/svg2-draft/painting.html#SpecifyingPaint",
+        "grammar": "none | <color> | <url> [none | <color>]?",
+        "__comment": "FIXME: Support context-fill and context-stroke values here"
+    },
     "<symbol>": {
         "spec": "https://drafts.csswg.org/css-counter-styles-3/#typedef-symbol",
         "grammar": "<string> | <custom-ident>",

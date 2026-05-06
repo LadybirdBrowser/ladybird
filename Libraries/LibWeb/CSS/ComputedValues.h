@@ -319,8 +319,10 @@ public:
         if (style_value->is_value_list()) {
             auto const& values = style_value->as_value_list().values();
 
-            if (values.size() == 1)
-                return { values[0]->as_url().url(), {} };
+            VERIFY(values.size() == 2);
+
+            if (values[1]->is_empty_optional())
+                return values[0]->as_url().url();
 
             return { values[0]->as_url().url(), values[1]->to_color(color_resolution_context) };
         }

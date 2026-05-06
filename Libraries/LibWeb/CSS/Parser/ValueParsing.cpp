@@ -2783,56 +2783,6 @@ RefPtr<AbstractImageStyleValue const> Parser::parse_image_value(TokenStream<Comp
     return nullptr;
 }
 
-// https://svgwg.org/svg2-draft/painting.html#SpecifyingPaint
-RefPtr<StyleValue const> Parser::parse_paint_value(TokenStream<ComponentValue>& tokens)
-{
-    // `<paint> = none | <color> | <url> [none | <color>]? | context-fill | context-stroke`
-
-    auto parse_color_or_none = [&]() -> Optional<RefPtr<StyleValue const>> {
-        if (auto color = parse_color_value(tokens))
-            return color;
-
-        // NOTE: <color> also accepts identifiers, so we do this identifier check last.
-        if (tokens.next_token().is(Token::Type::Ident)) {
-            auto maybe_keyword = keyword_from_string(tokens.next_token().token().ident());
-            if (maybe_keyword.has_value()) {
-                // FIXME: Accept `context-fill` and `context-stroke`
-                switch (*maybe_keyword) {
-                case Keyword::None:
-                    tokens.discard_a_token();
-                    return KeywordStyleValue::create(*maybe_keyword);
-                default:
-                    return nullptr;
-                }
-            }
-        }
-
-        return OptionalNone {};
-    };
-
-    // FIXME: Allow context-fill/context-stroke here
-    if (auto color_or_none = parse_color_or_none(); color_or_none.has_value())
-        return *color_or_none;
-
-    if (auto url = parse_url_value(tokens)) {
-        tokens.discard_whitespace();
-
-        StyleValueVector values;
-        values.ensure_capacity(2);
-        values.unchecked_append(url.release_nonnull());
-
-        if (auto color_or_none = parse_color_or_none(); color_or_none == nullptr) {
-            // Fail to parse if the fallback is invalid, but otherwise ignore it.
-            return nullptr;
-        } else if (color_or_none.has_value() && *color_or_none && (*color_or_none)->has_color()) {
-            values.unchecked_append(color_or_none->release_nonnull());
-        }
-        return StyleValueList::create(move(values), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
-    }
-
-    return nullptr;
-}
-
 // https://www.w3.org/TR/css-values-4/#position
 RefPtr<PositionStyleValue const> Parser::parse_position_value(TokenStream<ComponentValue>& tokens, PositionParsingMode position_parsing_mode)
 {

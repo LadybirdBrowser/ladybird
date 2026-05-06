@@ -96,6 +96,8 @@ def generate_implementation_file(out: TextIO, value_type_data: dict[str, Any]) -
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EmptyOptionalStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 
 namespace Web::CSS::Parser {
 
