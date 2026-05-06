@@ -6,6 +6,7 @@
 
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Completion.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/JSONObject.h>
 #include <LibJS/Runtime/ModuleEnvironment.h>
@@ -29,6 +30,11 @@ void SyntheticModule::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_evaluation_steps);
+}
+
+size_t SyntheticModule::external_memory_size() const
+{
+    return saturating_add_external_memory_size(Base::external_memory_size(), vector_external_memory_size(m_export_names));
 }
 
 // 16.2.1.8.1 CreateDefaultExportSyntheticModule ( defaultExport ), https://tc39.es/ecma262/#sec-create-default-export-synthetic-module

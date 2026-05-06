@@ -34,6 +34,7 @@ private:
     SyntheticModule(Realm& realm, Vector<Utf16FlyString> export_names, EvaluationFunction evaluation_steps, ByteString filename);
 
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual size_t external_memory_size() const override;
 
     Vector<Utf16FlyString> m_export_names; // [[ExportNames]]
     EvaluationFunction m_evaluation_steps; // [[EvaluationSteps]]

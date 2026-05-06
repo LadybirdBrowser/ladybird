@@ -8,6 +8,7 @@
 #include <AK/Debug.h>
 #include <AK/TypeCasts.h>
 #include <LibJS/CyclicModule.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/ModuleRequest.h>
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/PromiseConstructor.h>
@@ -16,6 +17,34 @@
 namespace JS {
 
 GC_DEFINE_ALLOCATOR(CyclicModule);
+
+static size_t import_attributes_external_memory_size(Vector<ImportAttribute> const& attributes)
+{
+    size_t size = JS::vector_external_memory_size(attributes);
+    for (auto const& attribute : attributes) {
+        size = JS::saturating_add_external_memory_size(size, JS::utf16_string_external_memory_size(attribute.key));
+        size = JS::saturating_add_external_memory_size(size, JS::utf16_string_external_memory_size(attribute.value));
+    }
+    return size;
+}
+
+static size_t loaded_module_requests_external_memory_size(Vector<LoadedModuleRequest> const& requests)
+{
+    size_t size = JS::vector_external_memory_size(requests);
+    for (auto const& request : requests) {
+        size = JS::saturating_add_external_memory_size(size, JS::utf16_string_external_memory_size(request.specifier));
+        size = JS::saturating_add_external_memory_size(size, import_attributes_external_memory_size(request.attributes));
+    }
+    return size;
+}
+
+static size_t module_requests_external_memory_size(Vector<ModuleRequest> const& requests)
+{
+    size_t size = JS::vector_external_memory_size(requests);
+    for (auto const& request : requests)
+        size = JS::saturating_add_external_memory_size(size, import_attributes_external_memory_size(request.attributes));
+    return size;
+}
 
 CyclicModule::CyclicModule(Realm& realm, StringView filename, bool has_top_level_await, Vector<ModuleRequest> requested_modules, Script::HostDefined* host_defined)
     : Module(realm, filename, host_defined)
@@ -38,12 +67,26 @@ void CyclicModule::visit_edges(Cell::Visitor& visitor)
         visitor.visit(m_evaluation_error.error_value());
 }
 
+size_t CyclicModule::external_memory_size() const
+{
+    size_t size = Base::external_memory_size();
+    size = JS::saturating_add_external_memory_size(size, module_requests_external_memory_size(m_requested_modules));
+    size = JS::saturating_add_external_memory_size(size, loaded_module_requests_external_memory_size(m_loaded_modules));
+    size = JS::saturating_add_external_memory_size(size, JS::vector_external_memory_size(m_async_parent_modules));
+    return size;
+}
+
 void GraphLoadingState::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(promise_capability);
     visitor.visit(host_defined);
     visitor.visit(visited);
+}
+
+size_t GraphLoadingState::external_memory_size() const
+{
+    return JS::hash_table_external_memory_size(visited);
 }
 
 // 16.2.1.5.1 LoadRequestedModules ( [ hostDefined ] ), https://tc39.es/ecma262/#sec-LoadRequestedModules

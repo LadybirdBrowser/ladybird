@@ -10,6 +10,7 @@
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Runtime/AsyncFunctionDriverWrapper.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/ModuleEnvironment.h>
 #include <LibJS/Runtime/PromiseCapability.h>
@@ -23,6 +24,39 @@
 namespace JS {
 
 GC_DEFINE_ALLOCATOR(SourceTextModule);
+
+static size_t import_attributes_external_memory_size(Vector<ImportAttribute> const& attributes)
+{
+    size_t size = vector_external_memory_size(attributes);
+    for (auto const& attribute : attributes) {
+        size = saturating_add_external_memory_size(size, utf16_string_external_memory_size(attribute.key));
+        size = saturating_add_external_memory_size(size, utf16_string_external_memory_size(attribute.value));
+    }
+    return size;
+}
+
+static size_t module_request_external_memory_size(Optional<ModuleRequest> const& request)
+{
+    if (!request.has_value())
+        return 0;
+    return import_attributes_external_memory_size(request->attributes);
+}
+
+static size_t import_entries_external_memory_size(Vector<ImportEntry> const& entries)
+{
+    size_t size = vector_external_memory_size(entries);
+    for (auto const& entry : entries)
+        size = saturating_add_external_memory_size(size, module_request_external_memory_size(entry.m_module_request));
+    return size;
+}
+
+static size_t export_entries_external_memory_size(Vector<ExportEntry> const& entries)
+{
+    size_t size = vector_external_memory_size(entries);
+    for (auto const& entry : entries)
+        size = saturating_add_external_memory_size(size, module_request_external_memory_size(entry.m_module_request));
+    return size;
+}
 
 SourceTextModule::SourceTextModule(Realm& realm, StringView filename, Script::HostDefined* host_defined, bool has_top_level_await,
     Vector<ModuleRequest> requested_modules, Vector<ImportEntry> import_entries,
@@ -58,6 +92,19 @@ void SourceTextModule::visit_edges(Cell::Visitor& visitor)
         visitor.visit(function.shared_data);
     visitor.visit(m_executable);
     visitor.visit(m_tla_shared_data);
+}
+
+size_t SourceTextModule::external_memory_size() const
+{
+    size_t size = Base::external_memory_size();
+    size = saturating_add_external_memory_size(size, import_entries_external_memory_size(m_import_entries));
+    size = saturating_add_external_memory_size(size, export_entries_external_memory_size(m_local_export_entries));
+    size = saturating_add_external_memory_size(size, export_entries_external_memory_size(m_indirect_export_entries));
+    size = saturating_add_external_memory_size(size, export_entries_external_memory_size(m_star_export_entries));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(m_var_declared_names));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(m_lexical_bindings));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(m_functions_to_initialize));
+    return size;
 }
 
 Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_from_pre_parsed(FFI::ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm, Script::HostDefined* host_defined)

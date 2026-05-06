@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/ByteString.h>
+#include <AK/HashTable.h>
 #include <AK/NumericLimits.h>
 #include <AK/String.h>
 #include <AK/Utf16String.h>
@@ -25,6 +27,13 @@ inline size_t string_external_memory_size(String const& string)
     if (string.is_short_string())
         return 0;
     return string.byte_count();
+}
+
+inline size_t byte_string_external_memory_size(ByteString const& string)
+{
+    if (string.is_empty())
+        return 0;
+    return AK::allocation_size_for_stringimpl(string.length());
 }
 
 inline size_t utf16_string_external_memory_size(Utf16String const& string)
@@ -50,6 +59,12 @@ template<typename Map>
 size_t hash_map_external_memory_size(Map const& map)
 {
     return map.capacity() * (sizeof(typename Map::KeyType) + sizeof(typename Map::ValueType));
+}
+
+template<typename T, typename TraitsForT, bool is_ordered>
+size_t hash_table_external_memory_size(HashTable<T, TraitsForT, is_ordered> const& table)
+{
+    return table.capacity() * sizeof(T);
 }
 
 }
