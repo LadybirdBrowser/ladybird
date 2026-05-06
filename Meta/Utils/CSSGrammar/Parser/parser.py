@@ -26,16 +26,27 @@ class Parser:
         return value
 
     def parse_alternatives(self) -> GrammarNode:
-        children = [self.parse_component_value()]
+        children = [self.parse_juxtaposition()]
 
         while self.peek().is_token_type(TokenType.SINGLE_BAR):
             self.consume()
-            children.append(self.parse_component_value())
+            children.append(self.parse_juxtaposition())
 
         if len(children) == 1:
             return children[0]
 
         return CombinatorGrammarNode(CombinatorType.ALTERNATIVES, children)
+
+    def parse_juxtaposition(self) -> GrammarNode:
+        children = [self.parse_component_value()]
+
+        while self.next_token_starts_component_value():
+            children.append(self.parse_component_value())
+
+        if len(children) == 1:
+            return children[0]
+
+        return CombinatorGrammarNode(CombinatorType.JUXTAPOSITION, children)
 
     def parse_component_value(self) -> GrammarNode:
         # https://drafts.csswg.org/css-values-4/#component-multipliers
@@ -66,6 +77,12 @@ class Parser:
             component_value = OptionalGrammarNode(component_value)
 
         return component_value
+
+    def next_token_starts_component_value(self) -> bool:
+        return self.peek().token_type in (
+            TokenType.OPEN_SQUARE_BRACKET,
+            TokenType.COMPONENT_VALUE,
+        )
 
     def peek(self, offset: int = 0) -> Token:
         index = min(self.index + offset, len(self.tokens) - 1)

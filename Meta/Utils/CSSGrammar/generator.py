@@ -86,9 +86,38 @@ auto {cpp_name} = parse_{cpp_name}_alternatives();
 """)
 
 
+def generate_css_parser_expression_for_juxtaposition(out: TextIO, cpp_name: str, children: list[GrammarNode]) -> None:
+    out.write(f"""auto const parse_{cpp_name}_juxtaposition = [&]() -> RefPtr<StyleValue const> {{
+auto {cpp_name}_transaction = tokens.begin_transaction();
+StyleValueVector {cpp_name}_values;
+{cpp_name}_values.ensure_capacity({len(children)});
+
+""")
+
+    for i, component in enumerate(children):
+        component_name = f"{cpp_name}_component_{i}"
+        generate_css_parser_expression_for_grammar_node(out, component_name, component)
+        out.write(f"""if (!{component_name})
+    return nullptr;
+
+{cpp_name}_values.append({component_name}.release_nonnull());
+""")
+
+    out.write(f"""{cpp_name}_transaction.commit();
+return StyleValueList::create(move({cpp_name}_values), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
+}};
+
+auto {cpp_name} = parse_{cpp_name}_juxtaposition();
+""")
+
+
 def generate_css_parser_expression_for_combinator_grammar_node(
     out: TextIO, cpp_name: str, grammar_node: CombinatorGrammarNode
 ) -> None:
+    if grammar_node.combinator_type == CombinatorType.JUXTAPOSITION:
+        generate_css_parser_expression_for_juxtaposition(out, cpp_name, grammar_node.children)
+        return
+
     if grammar_node.combinator_type == CombinatorType.ALTERNATIVES:
         generate_css_parser_expression_for_alternatives(out, cpp_name, grammar_node.children)
         return

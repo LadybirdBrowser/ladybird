@@ -116,6 +116,51 @@ class TestCSSGrammarParser(unittest.TestCase):
 """,
         )
 
+    def test_parse_juxtaposition(self) -> None:
+        syntax = parse_value_definition_grammar("<foo> <bar> baz")
+        self.assertEqual(
+            syntax.dump(),
+            """Combinator(Juxtaposition):
+  ComponentValue
+    Type: foo
+  ComponentValue
+    Type: bar
+  ComponentValue
+    Keyword: baz
+""",
+        )
+
+    def test_parse_juxtaposition_has_higher_precedence_than_alternatives(self) -> None:
+        syntax = parse_value_definition_grammar("<foo> <bar> | <baz>")
+        self.assertEqual(
+            syntax.dump(),
+            """Combinator(Alternatives):
+  Combinator(Juxtaposition):
+    ComponentValue
+      Type: foo
+    ComponentValue
+      Type: bar
+  ComponentValue
+    Type: baz
+""",
+        )
+
+    def test_parse_grouped_alternatives_in_juxtaposition(self) -> None:
+        syntax = parse_value_definition_grammar("[ <foo> | <bar> ] <baz>")
+        self.assertEqual(
+            syntax.dump(),
+            """Combinator(Juxtaposition):
+  Group:
+    Combinator(Alternatives):
+      ComponentValue
+        Type: foo
+      ComponentValue
+        Type: bar
+  ComponentValue
+    Type: baz
+""",
+        )
+
     def test_parse_group(self) -> None:
         syntax = parse_value_definition_grammar("[ <length> ]")
         self.assertEqual(

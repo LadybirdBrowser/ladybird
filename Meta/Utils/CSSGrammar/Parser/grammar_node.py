@@ -19,6 +19,10 @@ class ComponentValueGrammarNode(GrammarNode):
 
 
 class CombinatorType(Enum):
+    # https://drafts.csswg.org/css-values-4/#component-combinators
+    # Juxtaposing components means that all of them must occur, in the given order.
+    JUXTAPOSITION = "Juxtaposition"
+
     # https://drafts.csswg.org/css-values-4/#comb-one
     # A bar (|) separates two or more alternatives: exactly one of them must occur.
     ALTERNATIVES = "Alternatives"
