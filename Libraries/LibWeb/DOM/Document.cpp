@@ -1353,6 +1353,26 @@ void Document::respond_to_base_url_changes(URL::URL const& old_document_url, URL
     // FIXME: Update those UI elements.
 
     // 2. Ensure that the CSS :link/:visited/etc. pseudo-classes are updated appropriately.
+    // FIXME: When we track which links have been visited, then :link and :visited will also depend on the new URL and
+    //        and this early return will need to be replaced with something that identifies which links will be
+    //        affected by the URL change.
+    auto any_scope_has_local_link = style_scope().have_local_link_selectors();
+    if (!any_scope_has_local_link) {
+        for_each_shadow_including_descendant([&](Node& node) {
+            auto* element = as_if<Element>(node);
+            if (!element)
+                return TraversalDecision::Continue;
+            auto shadow_root = element->shadow_root();
+            if (shadow_root && shadow_root->style_scope().have_local_link_selectors()) {
+                any_scope_has_local_link = true;
+                return TraversalDecision::Break;
+            }
+            return TraversalDecision::Continue;
+        });
+    }
+    if (!any_scope_has_local_link)
+        return;
+
     auto const& new_document_url = m_url;
     auto new_base_url = base_url();
     bool const base_url_unchanged = (old_base_url == new_base_url);

@@ -78,6 +78,7 @@ struct RuleCaches {
 struct SelectorInsights {
     bool has_has_selectors { false };
     bool has_has_selectors_with_relative_selector_that_has_sibling_combinator { false };
+    bool has_local_link_selectors { false };
 };
 
 struct StyleCache : public RefCounted<StyleCache> {
@@ -139,6 +140,7 @@ public:
     [[nodiscard]] bool have_has_selectors() const;
     [[nodiscard]] bool may_have_has_selectors_with_relative_selector_that_has_sibling_combinator() const;
     [[nodiscard]] bool have_has_selectors_with_relative_selector_that_has_sibling_combinator() const;
+    [[nodiscard]] bool have_local_link_selectors() const;
 
     void for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&)> const& callback) const;
 
