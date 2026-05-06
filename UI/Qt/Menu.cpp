@@ -134,6 +134,10 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
         qaction.setIcon(load_icon_from_uri("resource://icons/16x16/edit-copy.png"sv));
         qaction.setShortcut(QKeySequence::StandardKey::Copy);
         break;
+    case WebView::ActionID::CutSelection:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/edit-cut.png"sv));
+        qaction.setShortcut(QKeySequence::StandardKey::Cut);
+        break;
     case WebView::ActionID::Paste:
         qaction.setIcon(load_icon_from_uri("resource://icons/16x16/paste.png"sv));
         qaction.setShortcut(QKeySequence::StandardKey::Paste);

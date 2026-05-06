@@ -911,6 +911,12 @@ void Application::initialize_actions()
                 insert_clipboard_entry({ move(text), "text/plain"_string });
         }
     });
+    m_cut_selection_action = Action::create("Cut"sv, ActionID::CutSelection, [this]() {
+        if (auto view = active_web_view(); view.has_value()) {
+            if (auto text = view->cut_selected_text(); !text.is_empty())
+                insert_clipboard_entry({ move(text), "text/plain"_string });
+        }
+    });
     m_paste_action = Action::create("Paste"sv, ActionID::Paste, [this]() {
         if (auto view = active_web_view(); view.has_value())
             view->paste_text_from_clipboard();

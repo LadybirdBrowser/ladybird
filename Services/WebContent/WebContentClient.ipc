@@ -50,7 +50,7 @@ endpoint WebContentClient
     did_unhover_link(u64 page_id) =|
     did_click_link(u64 page_id, URL::URL url, ByteString target, unsigned modifiers) =|
     did_middle_click_link(u64 page_id, URL::URL url, ByteString target, unsigned modifiers) =|
-    did_request_context_menu(u64 page_id, Gfx::IntPoint content_position) =|
+    did_request_context_menu(u64 page_id, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target) =|
     did_request_link_context_menu(u64 page_id, Gfx::IntPoint content_position, URL::URL url, ByteString target, unsigned modifiers) =|
     did_request_image_context_menu(u64 page_id, Gfx::IntPoint content_position, URL::URL url, ByteString target, unsigned modifiers, Optional<Gfx::ShareableBitmap> bitmap) =|
     did_request_media_context_menu(u64 page_id, Gfx::IntPoint content_position, ByteString target, unsigned modifiers, Web::Page::MediaContextMenu menu) =|

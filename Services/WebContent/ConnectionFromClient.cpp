@@ -1087,6 +1087,13 @@ Messages::WebContentServer::GetSelectedTextResponse ConnectionFromClient::get_se
     return ByteString {};
 }
 
+Messages::WebContentServer::CutSelectedTextResponse ConnectionFromClient::cut_selected_text(u64 page_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        return page->page().focused_navigable().cut_selected_text().to_byte_string();
+    return ByteString {};
+}
+
 void ConnectionFromClient::select_all(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value())

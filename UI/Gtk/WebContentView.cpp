@@ -121,6 +121,9 @@ void WebContentView::finish_handling_key_event(Web::KeyEvent const& event)
     case Web::UIEvents::Key_C:
         app.copy_selection_action().activate();
         break;
+    case Web::UIEvents::Key_X:
+        app.cut_selection_action().activate();
+        break;
     case Web::UIEvents::Key_V:
         app.paste_action().activate();
         break;

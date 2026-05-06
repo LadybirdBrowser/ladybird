@@ -29,6 +29,7 @@ enum class ActionID {
     Reload,
 
     CopySelection,
+    CutSelection,
     Paste,
     SelectAll,
 

@@ -5,8 +5,8 @@
  */
 
 #include <AK/Error.h>
+#include <AK/ScopeGuard.h>
 #include <AK/String.h>
-#include <AK/TemporaryChange.h>
 #include <AK/Time.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/Timer.h>
@@ -346,6 +346,11 @@ Optional<Core::SharedVersion> ViewImplementation::document_cookie_version(URL::U
 ByteString ViewImplementation::selected_text()
 {
     return client().get_selected_text(page_id());
+}
+
+ByteString ViewImplementation::cut_selected_text()
+{
+    return client().cut_selected_text(page_id());
 }
 
 Optional<String> ViewImplementation::selected_text_with_whitespace_collapsed()
@@ -1069,6 +1074,7 @@ void ViewImplementation::initialize_context_menus()
     m_page_context_menu->add_action(*m_navigate_forward_action);
     m_page_context_menu->add_action(application.reload_action());
     m_page_context_menu->add_separator();
+    m_page_context_menu->add_action(application.cut_selection_action());
     m_page_context_menu->add_action(application.copy_selection_action());
     m_page_context_menu->add_action(application.paste_action());
     m_page_context_menu->add_action(application.select_all_action());
@@ -1111,12 +1117,18 @@ void ViewImplementation::initialize_context_menus()
     m_media_context_menu->add_action(*m_copy_url_action);
 }
 
-void ViewImplementation::did_request_page_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position)
+void ViewImplementation::did_request_page_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target)
 {
-    auto const& search_engine = Application::settings().search_engine();
+    auto& cut_selection_action = Application::the().cut_selection_action();
+    cut_selection_action.set_visible(for_input_events_target == Web::ContextMenuForInputEventsTarget::Yes);
 
-    auto selected_text = search_engine.has_value() ? selected_text_with_whitespace_collapsed() : OptionalNone {};
-    TemporaryChange change_url { m_search_text, move(selected_text) };
+    auto const& search_engine = Application::settings().search_engine();
+    m_search_text = search_engine.has_value() ? selected_text_with_whitespace_collapsed() : OptionalNone {};
+
+    ScopeGuard guard { [&]() {
+        cut_selection_action.set_visible(true);
+        m_search_text.clear();
+    } };
 
     if (m_search_text.has_value()) {
         m_search_selected_text_action->set_text(search_engine->format_search_query_for_display(*m_search_text));

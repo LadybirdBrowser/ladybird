@@ -919,12 +919,13 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
     //         context menu is open.
     clear_mousedown_tracking();
 
+    GC::Ref<DOM::Document> document = *m_navigable->active_document();
+
     // NB: Event dispatches above may have run JS that invalidated layout.
-    m_navigable->active_document()->update_layout(DOM::UpdateLayoutReason::EventHandlerShowContextMenu);
+    document->update_layout(DOM::UpdateLayoutReason::EventHandlerShowContextMenu);
 
     auto top_level_viewport_position = m_navigable->to_top_level_position(viewport_position);
     if (GC::Ptr<HTML::HTMLAnchorElement const> link = node->enclosing_link_element()) {
-        GC::Ref<DOM::Document> document = *m_navigable->active_document();
         auto href = link->href();
         auto url = document->encoding_parse_url(href);
         if (url.has_value())
@@ -967,7 +968,8 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
 
             m_navigable->page().did_request_media_context_menu(media_element.unique_id(), top_level_viewport_position, "", modifiers, menu);
         } else {
-            m_navigable->page().client().page_did_request_context_menu(top_level_viewport_position);
+            auto for_input_events_target = document->active_input_events_target() ? ContextMenuForInputEventsTarget::Yes : ContextMenuForInputEventsTarget::No;
+            m_navigable->page().client().page_did_request_context_menu(top_level_viewport_position, for_input_events_target);
         }
     }
 }

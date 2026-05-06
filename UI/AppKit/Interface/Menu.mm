@@ -43,6 +43,9 @@
         case WebView::ActionID::CopySelection:
             [NSApp sendAction:@selector(copy:) to:nil from:sender];
             return;
+        case WebView::ActionID::CutSelection:
+            [NSApp sendAction:@selector(cut:) to:nil from:sender];
+            return;
         case WebView::ActionID::Paste:
             [NSApp sendAction:@selector(paste:) to:nil from:sender];
             return;
@@ -205,6 +208,10 @@ static void initialize_native_icon(WebView::Action& action, id control)
     case WebView::ActionID::CopySelection:
         set_control_image(control, @"document.on.document");
         [control setKeyEquivalent:@"c"];
+        break;
+    case WebView::ActionID::CutSelection:
+        set_control_image(control, @"scissors");
+        [control setKeyEquivalent:@"x"];
         break;
     case WebView::ActionID::Paste:
         set_control_image(control, @"document.on.clipboard");

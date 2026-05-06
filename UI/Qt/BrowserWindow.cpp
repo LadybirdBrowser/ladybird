@@ -233,6 +233,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     auto* edit_menu = m_hamburger_menu->addMenu("&Edit");
     menuBar()->addMenu(edit_menu);
 
+    edit_menu->addAction(create_application_action(*this, Application::the().cut_selection_action()));
     edit_menu->addAction(create_application_action(*this, Application::the().copy_selection_action()));
     edit_menu->addAction(create_application_action(*this, Application::the().paste_action()));
     edit_menu->addAction(create_application_action(*this, Application::the().select_all_action()));

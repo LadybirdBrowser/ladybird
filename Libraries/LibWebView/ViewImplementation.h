@@ -104,6 +104,7 @@ public:
     Optional<Core::SharedVersion> document_cookie_version(URL::URL const&) const;
 
     ByteString selected_text();
+    ByteString cut_selected_text();
     Optional<String> selected_text_with_whitespace_collapsed();
     void select_all();
     void find_in_page(String const& query, CaseSensitivity = CaseSensitivity::CaseInsensitive);
@@ -264,7 +265,7 @@ public:
     Menu& image_context_menu() { return *m_image_context_menu; }
     Menu& media_context_menu() { return *m_media_context_menu; }
 
-    void did_request_page_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position);
+    void did_request_page_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target);
     void did_request_link_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, URL::URL url);
     void did_request_image_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, URL::URL url, Optional<Gfx::ShareableBitmap> bitmap);
     void did_request_media_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, Web::Page::MediaContextMenu menu);

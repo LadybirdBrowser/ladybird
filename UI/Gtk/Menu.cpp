@@ -60,6 +60,8 @@ static char const* primary_accelerator_for_action(WebView::ActionID id)
         return "<Ctrl>r";
     case WebView::ActionID::CopySelection:
         return "<Ctrl>c";
+    case WebView::ActionID::CutSelection:
+        return "<Ctrl>x";
     case WebView::ActionID::Paste:
         return "<Ctrl>v";
     case WebView::ActionID::SelectAll:
@@ -121,6 +123,10 @@ static void initialize_native_control(WebView::Action& action, GSimpleAction* ga
     case WebView::ActionID::CopySelection:
         set_icon("edit-copy-symbolic");
         set_accel("<Ctrl>c");
+        break;
+    case WebView::ActionID::CutSelection:
+        set_icon("edit-cut-symbolic");
+        set_accel("<Ctrl>x");
         break;
     case WebView::ActionID::Paste:
         set_icon("edit-paste-symbolic");

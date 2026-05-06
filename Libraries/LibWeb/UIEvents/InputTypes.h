@@ -12,6 +12,7 @@ namespace Web::UIEvents::InputTypes {
 
 // https://w3c.github.io/input-events/#interface-InputEvent-Attributes
 #define ENUMERATE_INPUT_TYPES                     \
+    __ENUMERATE_INPUT_TYPE(deleteByCut)           \
     __ENUMERATE_INPUT_TYPE(deleteContentBackward) \
     __ENUMERATE_INPUT_TYPE(deleteContentForward)  \
     __ENUMERATE_INPUT_TYPE(insertFromPaste)       \
