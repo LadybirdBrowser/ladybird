@@ -1012,28 +1012,18 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
         set_ui_callbacks_for_tests(*view, test_run_capture);
         view->clear_content_filters();
 
-        auto cleanup_test = [&, view = view.ptr()](size_t test_index, TestResult test_result) {
+        auto cleanup_test = [&, view = view.ptr()](size_t test_index) {
             view->on_load_finish = {};
             view->on_test_finish = {};
             view->on_reference_test_metadata = {};
             view->on_test_variant_metadata = {};
             view->on_set_test_timeout = {};
 
-            // Disconnect child crash handlers so old child crashes don't affect the next test
-            view->disconnect_child_crash_handlers();
-
-            // Don't try to reset state if WebContent crashed - it's gone
-            if (test_result != TestResult::Crashed) {
-                view->reset_zoom();
-                view->reset_viewport_size(window_size);
-            }
-
             auto& test = tests[test_index];
             if (test.timeout_timer) {
                 test.timeout_timer->stop();
                 test.timeout_timer.clear();
             }
-
             s_current_test_index_by_view.remove(view);
         };
 
@@ -1064,8 +1054,8 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
             // Reset promise and attach completion callback
             view->reset_test_promise();
-            view->test_promise().when_resolved([&tests, &tests_remaining, &non_passing_tests, &app, view, cleanup_test, view_id, &test_run_capture, &fail_fast_triggered](auto result) {
-                cleanup_test(result.test_index, result.result);
+            view->test_promise().when_resolved([&tests, &tests_remaining, &non_passing_tests, &app, view, cleanup_test, view_id, window_size, &test_run_capture, &fail_fast_triggered](auto result) {
+                cleanup_test(result.test_index);
 
                 auto& test = tests[result.test_index];
                 if (result.result != TestResult::Expanded)
@@ -1084,6 +1074,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
                 bool const is_non_passing_result = result.result != TestResult::Pass && result.result != TestResult::Expanded;
                 bool const should_trigger_fail_fast = result.result == TestResult::Fail || result.result == TestResult::Timeout || result.result == TestResult::Crashed;
+                bool const should_replace_web_content = result.result == TestResult::Fail || result.result == TestResult::Timeout || result.result == TestResult::Crashed;
 
                 if (is_non_passing_result)
                     non_passing_tests.append(result);
@@ -1103,10 +1094,24 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
                     return;
                 }
-
-                if (--tests_remaining == 0) {
+                tests_remaining--;
+                if (tests_remaining == 0) {
                     s_all_tests_complete->resolve({});
                 } else {
+                    if (should_replace_web_content) {
+                        view->respawn_web_content_process();
+                        view->reset_zoom();
+                        view->reset_viewport_size(window_size);
+                        view->clear_content_filters();
+
+                        if (view_id < s_view_display_states.size())
+                            s_view_display_states[view_id].pid = view->web_content_pid();
+                    } else {
+                        view->disconnect_child_crash_handlers();
+                        view->reset_zoom();
+                        view->reset_viewport_size(window_size);
+                    }
+
                     // Use deferred_invoke to avoid destroying callback while inside it
                     Core::deferred_invoke([view_id]() {
                         // Wake any idle views to help with remaining tests
