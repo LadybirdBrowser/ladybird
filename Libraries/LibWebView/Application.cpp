@@ -906,9 +906,10 @@ void Application::initialize_actions()
     });
 
     m_copy_selection_action = Action::create("Copy"sv, ActionID::CopySelection, [this]() {
-        if (auto view = active_web_view(); view.has_value())
-            if (!view->selected_text().is_empty())
-                insert_clipboard_entry({ view->selected_text(), "text/plain"_string });
+        if (auto view = active_web_view(); view.has_value()) {
+            if (auto text = view->selected_text(); !text.is_empty())
+                insert_clipboard_entry({ move(text), "text/plain"_string });
+        }
     });
     m_paste_action = Action::create("Paste"sv, ActionID::Paste, [this]() {
         if (auto view = active_web_view(); view.has_value())
