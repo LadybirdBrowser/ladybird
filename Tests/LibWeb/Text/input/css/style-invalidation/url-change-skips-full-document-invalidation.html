@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    test(() => {
+        // Verifies that updating the document URL doesn't trigger a full document style invalidation. Links whose
+        // :local-link match state actually flipped should be recomputed.
+
+        const NUM_LINKS = 50;
+        for (let i = 0; i < NUM_LINKS; i++) {
+            document.body.appendChild(makeElement("a", { attributes: { href: `https://example.com/page${i}` } }));
+        }
+        document.body.appendChild(makeElement("a", { id: "same-doc", attributes: { href: "#target" } }));
+        document.body.offsetWidth;
+
+        const printCounters = label => {
+            const counters = internals.getStyleInvalidationCounters();
+            println(`${label}: fullStyleInvalidations=${counters.fullStyleInvalidations}, styleInvalidations=${counters.styleInvalidations}, elementStyleRecomputations=${counters.elementStyleRecomputations}`);
+        };
+
+        // Without any :local-link rule, a URL change should produce no invalidation work at all.
+        resetStyleCounters();
+        history.pushState({}, "", "#initial");
+        document.body.offsetWidth;
+        printCounters("no :local-link rule");
+
+        const documentStyle = addStyle(document.head, `a:local-link { color: rgb(0, 128, 0); }`);
+        document.body.offsetWidth;
+
+        // With a :local-link rule, navigating to the targeted fragment must restyle only the matching anchor, the
+        // other 50 anchors and the rest of the document are untouched.
+        resetStyleCounters();
+        history.pushState({}, "", "#target");
+        document.body.offsetWidth;
+        printCounters(":local-link rule, anchor flips");
+
+        // A :local-link rule that lives only inside a shadow root must still trigger invalidation for shadow
+        // anchors when their match state flips on URL change.
+        documentStyle.remove();
+        const host = makeElement("div");
+        document.body.appendChild(host);
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        addStyle(shadowRoot, `a:local-link { color: rgb(0, 0, 128); }`);
+        shadowRoot.appendChild(makeElement("a", { id: "shadow-anchor", attributes: { href: "#shadow-target" } }));
+        document.body.offsetWidth;
+
+        resetStyleCounters();
+        history.pushState({}, "", "#shadow-target");
+        document.body.offsetWidth;
+        printCounters("shadow-only :local-link rule, shadow anchor flips");
+    });
+</script>

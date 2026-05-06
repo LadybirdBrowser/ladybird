@@ -268,7 +268,7 @@ public:
     void update_base_element(Badge<HTML::HTMLBaseElement>);
     GC::Ptr<HTML::HTMLBaseElement> first_base_element_with_href_in_tree_order() const;
     GC::Ptr<HTML::HTMLBaseElement> first_base_element_with_target_in_tree_order() const;
-    void respond_to_base_url_changes();
+    void respond_to_base_url_changes(URL::URL const& old_document_url, URL::URL const& old_base_url);
 
     String url_string() const { return m_url.to_string(); }
     String document_uri() const { return url_string(); }

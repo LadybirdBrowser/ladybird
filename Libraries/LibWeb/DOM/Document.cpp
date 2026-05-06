@@ -54,6 +54,7 @@
 #include <LibWeb/CSS/Invalidation/PseudoClassInvalidator.h>
 #include <LibWeb/CSS/Invalidation/SlotInvalidator.h>
 #include <LibWeb/CSS/Invalidation/StyleInvalidator.h>
+#include <LibWeb/CSS/InvalidationSet.h>
 #include <LibWeb/CSS/MediaQueryList.h>
 #include <LibWeb/CSS/MediaQueryListEvent.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -1341,7 +1342,7 @@ GC::Ptr<HTML::HTMLBaseElement> Document::first_base_element_with_target_in_tree_
 }
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#respond-to-base-url-changes
-void Document::respond_to_base_url_changes()
+void Document::respond_to_base_url_changes(URL::URL const& old_document_url, URL::URL const& old_base_url)
 {
     // To respond to base URL changes for a Document document:
 
@@ -1352,7 +1353,39 @@ void Document::respond_to_base_url_changes()
     // FIXME: Update those UI elements.
 
     // 2. Ensure that the CSS :link/:visited/etc. pseudo-classes are updated appropriately.
-    invalidate_style(StyleInvalidationReason::BaseURLChanged);
+    auto const& new_document_url = m_url;
+    auto new_base_url = base_url();
+    bool const base_url_unchanged = (old_base_url == new_base_url);
+    if (base_url_unchanged && old_document_url == new_document_url)
+        return;
+
+    auto encoding = encoding_or_default();
+    auto local_link_match = [&](Optional<URL::URL> const& target_url, URL::URL const& document_url) {
+        if (!target_url.has_value())
+            return false;
+        if (target_url->fragment().has_value())
+            return document_url.equals(*target_url, URL::ExcludeFragment::No);
+        return document_url.equals(*target_url, URL::ExcludeFragment::Yes);
+    };
+
+    for_each_shadow_including_descendant([&](Node& node) {
+        auto* element = as_if<Element>(node);
+        if (!element || !element->matches_link_pseudo_class())
+            return TraversalDecision::Continue;
+
+        auto href = element->get_attribute_value(HTML::AttributeNames::href);
+        auto old_target_url = DOMURL::parse(href, old_base_url, encoding);
+        auto new_target_url = base_url_unchanged ? old_target_url : DOMURL::parse(href, new_base_url, encoding);
+
+        if (local_link_match(old_target_url, old_document_url) != local_link_match(new_target_url, new_document_url)) {
+            element->invalidate_style(
+                StyleInvalidationReason::BaseURLChanged,
+                { { .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::LocalLink } },
+                {});
+        }
+
+        return TraversalDecision::Continue;
+    });
 
     // FIXME: 3. For each descendant of document's shadow-including descendants:
     //        ...
@@ -1369,13 +1402,16 @@ void Document::set_url(URL::URL const& url)
 
     ensure_cookie_version_index(url, m_url);
 
+    auto old_document_url = m_url;
+    auto old_base_url = base_url();
+
     // To set the URL for a Document document to a URL record url:
 
     // 1. Set document's URL to url.
     m_url = url;
 
     // 2. Respond to base URL changes given document.
-    respond_to_base_url_changes();
+    respond_to_base_url_changes(old_document_url, old_base_url);
 }
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#fallback-base-url
