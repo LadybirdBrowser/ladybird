@@ -22,6 +22,8 @@
 
 namespace RequestServer {
 
+// Defined here to satisfy the linker for Android shared library builds.
+// main.cpp defines this for non-Android builds, but is not compiled into requestserverservice.so.
 OwnPtr<ResourceSubstitutionMap> g_resource_substitution_map;
 
 }
