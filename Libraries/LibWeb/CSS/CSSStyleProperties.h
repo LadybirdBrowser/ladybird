@@ -75,6 +75,7 @@ private:
     static Vector<StyleProperty> convert_declarations_to_specified_order(Vector<StyleProperty>&);
 
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual size_t external_memory_size() const override;
 
     RefPtr<StyleValue const> style_value_for_computed_property(Layout::NodeWithStyle const&, PropertyID) const;
     Optional<StyleProperty> get_property_internal(PropertyNameAndID const&) const;

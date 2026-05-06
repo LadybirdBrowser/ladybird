@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/Bindings/CSSStyleProperties.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -125,6 +126,14 @@ void CSSStyleProperties::visit_edges(Visitor& visitor)
     for (auto& property : m_properties) {
         property.value->visit_edges(visitor);
     }
+}
+
+size_t CSSStyleProperties::external_memory_size() const
+{
+    auto size = Base::external_memory_size();
+    size = JS::saturating_add_external_memory_size(size, JS::vector_external_memory_size(m_properties));
+    size = JS::saturating_add_external_memory_size(size, JS::hash_map_external_memory_size(m_custom_properties));
+    return size;
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-length
