@@ -1974,20 +1974,31 @@ void Element::serialize_children_as_json(JsonObjectSerializer<StringBuilder>& el
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex
 i32 Element::default_tab_index_value() const
 {
-    // The default value is 0 if the element is an a, area, button, frame, iframe, input, object, select, textarea, or SVG a element, or is a summary element that is a summary for its parent details.
-    // The default value is −1 otherwise.
-    // Note: The varying default value based on element type is a historical artifact.
+    // NB: See tab_index() for spec.
     return -1;
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex
 i32 Element::tab_index() const
 {
-    auto maybe_table_index = Web::HTML::parse_integer(get_attribute_value(HTML::AttributeNames::tabindex));
+    // The tabIndex getter steps are:
+    // 1. Let attribute be this's tabindex attribute.
+    auto attribute = get_attribute(HTML::AttributeNames::tabindex);
 
-    if (!maybe_table_index.has_value())
-        return default_tab_index_value();
-    return maybe_table_index.value();
+    // 2. If attribute is not null:
+    if (attribute.has_value()) {
+        // 1. Let parsedValue be the result of integer parsing attribute's value.
+        auto parsed_value = HTML::parse_integer(attribute.value());
+
+        // 2. If parsedValue is not an error and is within the long range, then return parsedValue.
+        if (parsed_value.has_value())
+            return parsed_value.release_value();
+    }
+
+    // 3. Return 0 if this is an a, area, button, frame, iframe, input, object, select, textarea, or SVG a element, or
+    //    MathML a element, or is a summary element that is a summary for its parent details; otherwise −1.
+    // NB: We implement this by overriding default_tab_index_value().
+    return default_tab_index_value();
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex
