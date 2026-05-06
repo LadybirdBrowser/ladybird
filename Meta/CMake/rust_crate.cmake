@@ -30,7 +30,23 @@ function(import_rust_crate)
         execute_process(COMMAND "${RUST_RUSTC}" -vV OUTPUT_VARIABLE rustc_verbose)
         string(REGEX MATCH "host: ([^\n]+)" _ "${rustc_verbose}")
         string(STRIP "${CMAKE_MATCH_1}" host_triple)
-        set(RUST_TARGET_TRIPLE "${host_triple}" CACHE INTERNAL "Rust target triple")
+        if (CMAKE_SYSTEM_NAME STREQUAL "Android")
+            # When cross-compiling for Android, use the Android Rust target triple
+            # instead of the host triple so that Cargo builds for the correct ABI.
+            if (CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
+                set(RUST_TARGET_TRIPLE "aarch64-linux-android" CACHE INTERNAL "Rust target triple")
+            elseif (CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")
+                set(RUST_TARGET_TRIPLE "armv7-linux-androideabi" CACHE INTERNAL "Rust target triple")
+            elseif (CMAKE_ANDROID_ARCH_ABI STREQUAL "x86_64")
+                set(RUST_TARGET_TRIPLE "x86_64-linux-android" CACHE INTERNAL "Rust target triple")
+            elseif (CMAKE_ANDROID_ARCH_ABI STREQUAL "x86")
+                set(RUST_TARGET_TRIPLE "i686-linux-android" CACHE INTERNAL "Rust target triple")
+            else()
+                message(FATAL_ERROR "import_rust_crate: unsupported Android ABI '${CMAKE_ANDROID_ARCH_ABI}'")
+            endif()
+        else()
+            set(RUST_TARGET_TRIPLE "${host_triple}" CACHE INTERNAL "Rust target triple")
+        endif()
     endif()
 
     # Build the uppercased and underscored variants of the target triple.
@@ -66,19 +82,43 @@ function(import_rust_crate)
 
     # Build environment variables for cargo.
     set(cargo_env
-        "CC_${target_underscore}=${CMAKE_C_COMPILER}"
-        "CXX_${target_underscore}=${CMAKE_CXX_COMPILER}"
         "CARGO_BUILD_RUSTC=${RUST_RUSTC}"
         "FFI_OUTPUT_DIR=${ARG_FFI_OUTPUT_DIR}"
     )
 
-    # On Windows, rustc invokes the linker directly with MSVC-style flags, so we must not override it with a
-    # compiler driver like clang-cl.
-    if (NOT WIN32)
+    if (CMAKE_SYSTEM_NAME STREQUAL "Android")
+        # For Android cross-compilation, the NDK provides per-target wrapper scripts
+        # (e.g. aarch64-linux-android30-clang) that already bake in --target and
+        # --sysroot, so Cargo compiles and links for the correct ABI without any
+        # additional flags.  CMAKE_C_COMPILER is the bare NDK clang which does not
+        # include those flags on its own.
+        get_filename_component(ndk_toolchain_bin "${CMAKE_C_COMPILER}" DIRECTORY)
+        # The NDK wrapper for armeabi-v7a uses "armv7a" (not "armv7") in the name.
+        if (CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")
+            set(ndk_triple_prefix "armv7a-linux-androideabi")
+        else()
+            set(ndk_triple_prefix "${RUST_TARGET_TRIPLE}")
+        endif()
+        set(android_rust_cc "${ndk_toolchain_bin}/${ndk_triple_prefix}${CMAKE_SYSTEM_VERSION}-clang")
         list(APPEND cargo_env
-            "CARGO_TARGET_${target_upper}_LINKER=${CMAKE_C_COMPILER}"
+            "CC_${target_underscore}=${android_rust_cc}"
+            "CXX_${target_underscore}=${android_rust_cc}++"
+            "CARGO_TARGET_${target_upper}_LINKER=${android_rust_cc}"
             "AR_${target_underscore}=${CMAKE_AR}"
         )
+    else()
+        list(APPEND cargo_env
+            "CC_${target_underscore}=${CMAKE_C_COMPILER}"
+            "CXX_${target_underscore}=${CMAKE_CXX_COMPILER}"
+        )
+        # On Windows, rustc invokes the linker directly with MSVC-style flags, so we
+        # must not override it with a compiler driver like clang-cl.
+        if (NOT WIN32)
+            list(APPEND cargo_env
+                "CARGO_TARGET_${target_upper}_LINKER=${CMAKE_C_COMPILER}"
+                "AR_${target_underscore}=${CMAKE_AR}"
+            )
+        endif()
     endif()
 
     if (APPLE AND CMAKE_OSX_SYSROOT)
