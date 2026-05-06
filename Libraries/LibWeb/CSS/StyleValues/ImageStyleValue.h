@@ -10,7 +10,6 @@
 #pragma once
 
 #include <LibGC/Weak.h>
-#include <LibGfx/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/URL.h>
@@ -56,9 +55,10 @@ public:
 
     virtual bool is_paintable() const override;
     void paint(DisplayListRecordingContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering) const override;
+    virtual RefPtr<Gfx::DecodedImageFrame> current_frame(DevicePixelRect const& dest_rect) const override;
+    RefPtr<Painting::ExternalContentSource> current_frame_external_content_source(DevicePixelRect const& dest_rect) const;
 
     virtual Optional<Gfx::Color> color_if_single_pixel_bitmap() const override;
-    RefPtr<Gfx::DecodedImageFrame> current_frame(DevicePixelRect const& dest_rect) const;
 
     mutable Function<void()> on_animate;
 

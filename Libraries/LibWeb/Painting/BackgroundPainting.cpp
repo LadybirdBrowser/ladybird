@@ -7,7 +7,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/Layout/Node.h>
@@ -284,17 +283,24 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
             display_list_recorder.apply_effects(1.0f, compositing_and_blending_operator);
         }
 
-        if (auto color = image.color_if_single_pixel_bitmap(); color.has_value()) {
-            // OPTIMIZATION: If the image is a single pixel, we can just fill the whole area with it.
-            //               However, we must first figure out the real coverage area, taking repeat etc into account.
+        if (!is<CSS::ImageStyleValue>(image)) {
+            auto color = image.color_if_single_pixel_bitmap();
+            if (color.has_value()) {
+                // OPTIMIZATION: If the image is a single pixel, we can just fill the whole area with it.
+                //               However, we must first figure out the real coverage area, taking repeat etc into account.
 
-            // FIXME: This could be written in a far more efficient way.
-            DevicePixelRect fill_rect;
-            for_each_image_device_rect([&](auto const& image_device_rect) {
-                fill_rect.unite(image_device_rect);
-            });
-            display_list_recorder.fill_rect(fill_rect.to_type<int>(), color.value());
-        } else if (is<CSS::ImageStyleValue>(image) && (repeat_x || repeat_y) && !repeat_x_has_gap && !repeat_y_has_gap) {
+                // FIXME: This could be written in a far more efficient way.
+                DevicePixelRect fill_rect;
+                for_each_image_device_rect([&](auto const& image_device_rect) {
+                    fill_rect.unite(image_device_rect);
+                });
+                display_list_recorder.fill_rect(fill_rect.to_type<int>(), color.value());
+            } else {
+                for_each_image_device_rect([&](auto const& image_device_rect) {
+                    image.paint(context, image_device_rect, image_rendering);
+                });
+            }
+        } else if ((repeat_x || repeat_y) && !repeat_x_has_gap && !repeat_y_has_gap) {
             // Use a dedicated painting command for repeated images instead of recording a separate command for each instance
             // of a repeated background, so the painter has the opportunity to optimize the painting of repeated images.
             auto dest_rect = context.rounded_device_rect(image_rect);
@@ -305,11 +311,15 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
             if (dest_rect.height() == 0)
                 dest_rect.set_height(1);
 
-            auto frame = static_cast<CSS::ImageStyleValue const&>(image).current_frame(dest_rect);
-            if (!frame)
-                return;
-            auto scaling_mode = to_gfx_scaling_mode(image_rendering, frame->size(), dest_rect.size().to_type<int>());
-            context.display_list_recorder().draw_repeated_decoded_image_frame(dest_rect.to_type<int>(), clip_rect.to_type<int>(), *frame, scaling_mode, repeat_x, repeat_y);
+            auto const& image_style_value = static_cast<CSS::ImageStyleValue const&>(image);
+            if (auto source = image_style_value.current_frame_external_content_source(dest_rect)) {
+                auto scaling_mode = to_gfx_scaling_mode(image_rendering, dest_rect.size().to_type<int>(), dest_rect.size().to_type<int>());
+                context.display_list_recorder().draw_external_content(dest_rect.to_type<int>(), clip_rect.to_type<int>(), NonnullRefPtr<ExternalContentSource> { *source }, scaling_mode, repeat_x, repeat_y);
+            } else {
+                for_each_image_device_rect([&](auto const& image_device_rect) {
+                    image.paint(context, image_device_rect, image_rendering);
+                });
+            }
         } else {
             for_each_image_device_rect([&](auto const& image_device_rect) {
                 image.paint(context, image_device_rect, image_rendering);

@@ -9,6 +9,7 @@
 #include <AK/String.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/System.h>
+#include <LibThreading/Thread.h>
 #include <LibWebView/ProcessManager.h>
 
 namespace WebView {
@@ -21,6 +22,8 @@ ProcessType process_type_from_name(StringView name)
         return ProcessType::WebContent;
     if (name == "WebWorker"sv)
         return ProcessType::WebWorker;
+    if (name == "PaintServer"sv)
+        return ProcessType::PaintServer;
     if (name == "RequestServer"sv)
         return ProcessType::RequestServer;
     if (name == "ImageDecoder"sv)
@@ -39,6 +42,8 @@ StringView process_name_from_type(ProcessType type)
         return "WebContent"sv;
     case ProcessType::WebWorker:
         return "WebWorker"sv;
+    case ProcessType::PaintServer:
+        return "PaintServer"sv;
     case ProcessType::RequestServer:
         return "RequestServer"sv;
     case ProcessType::ImageDecoder:
@@ -67,13 +72,13 @@ ProcessManager::ProcessManager()
 
 Optional<Process&> ProcessManager::find_process(pid_t pid)
 {
-    verify_event_loop();
+    VERIFY(Threading::is_main_thread());
     return m_processes.get(pid);
 }
 
 void ProcessManager::add_process(WebView::Process&& process)
 {
-    verify_event_loop();
+    VERIFY(Threading::is_main_thread());
     auto pid = process.pid();
     on_process_added(process);
     auto result = m_processes.set(pid, move(process));
@@ -84,7 +89,7 @@ void ProcessManager::add_process(WebView::Process&& process)
 
 void ProcessManager::for_each_process(Function<void(Process&)> callback)
 {
-    verify_event_loop();
+    VERIFY(Threading::is_main_thread());
     for (auto& entry : m_processes)
         callback(entry.value);
 }
@@ -92,7 +97,7 @@ void ProcessManager::for_each_process(Function<void(Process&)> callback)
 #if defined(AK_OS_MACH)
 void ProcessManager::set_process_mach_port(pid_t pid, Core::MachPort&& port)
 {
-    verify_event_loop();
+    VERIFY(Threading::is_main_thread());
     for (auto const& info : m_statistics.processes) {
         if (info->pid == pid) {
             info->child_task_port = move(port);
@@ -104,7 +109,7 @@ void ProcessManager::set_process_mach_port(pid_t pid, Core::MachPort&& port)
 
 Optional<Process> ProcessManager::remove_process(pid_t pid)
 {
-    verify_event_loop();
+    VERIFY(Threading::is_main_thread());
     m_statistics.processes.remove_first_matching([&](auto const& info) {
         return (info->pid == pid);
     });
@@ -113,13 +118,13 @@ Optional<Process> ProcessManager::remove_process(pid_t pid)
 
 void ProcessManager::update_all_process_statistics()
 {
-    verify_event_loop();
+    VERIFY(Threading::is_main_thread());
     (void)update_process_statistics(m_statistics);
 }
 
 JsonValue ProcessManager::serialize_json()
 {
-    verify_event_loop();
+    VERIFY(Threading::is_main_thread());
     JsonArray serialized;
 
     m_statistics.for_each_process([&](auto const& process) {
@@ -141,12 +146,6 @@ JsonValue ProcessManager::serialize_json()
     });
 
     return serialized;
-}
-
-void ProcessManager::verify_event_loop() const
-{
-    if (Core::EventLoop::is_running())
-        VERIFY(&Core::EventLoop::current() == m_creation_event_loop);
 }
 
 }

@@ -13,7 +13,7 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibGfx/PainterSkia.h>
+#include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Rect.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/ValueInlines.h>
@@ -36,6 +36,8 @@
 #include <LibWeb/HTML/TextMetrics.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Layout/TextNode.h>
+#include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/DisplayListSubmitter.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/SVG/SVGImageElement.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -146,7 +148,6 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
     auto frame = canvas_image_source_frame(image);
     if (!frame)
         return {};
-    auto const& bitmap = frame->bitmap();
 
     // 4. Establish the source and destination rectangles as follows:
     //    If not specified, the dw and dh arguments must default to the values of sw and sh, interpreted such that one CSS pixel in the image is treated as one unit in the output bitmap's coordinate space.
@@ -179,7 +180,7 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
     auto destination_rect = Gfx::FloatRect { destination_x, destination_y, destination_width, destination_height };
     //    When the source rectangle is outside the source image, the source rectangle must be clipped
     //    to the source image and the destination rectangle must be clipped in the same proportion.
-    auto clipped_source = source_rect.intersected(bitmap.rect().to_type<float>());
+    auto clipped_source = source_rect.intersected(frame->rect().to_type<float>());
     auto clipped_destination = destination_rect;
     if (clipped_source != source_rect) {
         clipped_destination.set_width(clipped_destination.width() * (clipped_source.width() / source_rect.width()));
@@ -219,12 +220,35 @@ void CanvasRenderingContext2D::did_draw(Gfx::FloatRect const&)
 Gfx::Painter* CanvasRenderingContext2D::painter()
 {
     allocate_painting_surface_if_needed();
-    auto surface = canvas_element().surface();
-    if (!m_painter && surface) {
+    if (!m_painter) {
         canvas_element().set_needs_repaint();
-        m_painter = make<Gfx::PainterSkia>(*canvas_element().surface());
+        auto sink_page_id = canvas_element().document().page().client().painting_sink_id();
+        m_painter = make<PaintServer::CanvasPainter>([sink_page_id](Gfx::DecodedImageFrame const& bitmap) -> Optional<PaintServer::DrawCommandImageResource> {
+            if (!sink_page_id.has_value())
+                return {};
+            auto image_resource_id = Painting::DisplayListSubmitter::register_bitmap_resource(sink_page_id.value(), bitmap);
+            if (!image_resource_id.has_value())
+                return {};
+            return PaintServer::DrawCommandImageResource {
+                .image_resource_id = image_resource_id.value(),
+                .image_id = image_resource_id->raw(),
+            };
+        },
+            canvas_element().surface().ptr());
     }
     return m_painter.ptr();
+}
+
+bool CanvasRenderingContext2D::has_recorded_draw_commands() const
+{
+    return m_painter && !m_painter->draw_list().is_empty();
+}
+
+PaintServer::DrawList CanvasRenderingContext2D::take_recorded_draw_commands()
+{
+    if (!m_painter)
+        return {};
+    return m_painter->take_draw_list();
 }
 
 void CanvasRenderingContext2D::set_size(Gfx::IntSize const& size)
@@ -242,6 +266,24 @@ void CanvasRenderingContext2D::present()
         m_painter->prune_caches();
 }
 
+bool CanvasRenderingContext2D::adopt_painting_surface(NonnullRefPtr<Gfx::PaintingSurface> surface)
+{
+    if (surface->size() != m_size)
+        return false;
+    if (m_surface == surface.ptr())
+        return true;
+
+    if (m_surface) {
+        auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::BitmapAlpha::Premultiplied, m_size));
+        m_surface->read_into_bitmap(*bitmap);
+        surface->write_from_bitmap(*bitmap);
+    }
+
+    m_surface = move(surface);
+    m_painter = nullptr;
+    return true;
+}
+
 void CanvasRenderingContext2D::allocate_painting_surface_if_needed()
 {
     if (m_surface || m_size.is_empty())
@@ -254,7 +296,7 @@ void CanvasRenderingContext2D::allocate_painting_surface_if_needed()
 
     auto color_type = m_context_attributes.alpha ? Gfx::BitmapFormat::BGRA8888 : Gfx::BitmapFormat::BGRx8888;
 
-    m_surface = Gfx::PaintingSurface::create_with_size(canvas_element().bitmap_size_for_canvas(), color_type, Gfx::AlphaType::Premultiplied);
+    m_surface = Gfx::PaintingSurface::create_with_size(canvas_element().bitmap_size_for_canvas(), color_type, Gfx::BitmapAlpha::Premultiplied);
     m_painter = nullptr;
 
     // https://html.spec.whatwg.org/multipage/canvas.html#the-canvas-settings:concept-canvas-alpha
@@ -552,10 +594,13 @@ WebIDL::ExceptionOr<GC::Ptr<ImageData>> CanvasRenderingContext2D::get_image_data
     auto image_data = TRY(ImageData::create(realm(), abs_width, abs_height, settings));
 
     // NOTE: We don't attempt to create the underlying bitmap here; if it doesn't exist, it's like copying only transparent black pixels (which is a no-op).
-    auto surface = canvas_element().surface();
-    if (!surface)
+    auto readback_surface = const_cast<HTMLCanvasElement&>(canvas_element()).paint_server_surface_for_2d_context_readback();
+    if (!readback_surface)
+        readback_surface = canvas_element().surface();
+    if (!readback_surface)
         return image_data;
-    auto const snapshot = Gfx::DecodedImageFrame::create(*surface->snapshot_bitmap());
+    auto snapshot_bitmap = readback_surface->snapshot_bitmap();
+    auto snapshot_frame = Gfx::DecodedImageFrame::create(NonnullRefPtr<Gfx::Bitmap const> { *snapshot_bitmap }, Gfx::ColorSpace {});
 
     // 5. Let the source rectangle be the rectangle whose corners are the four points (sx, sy), (sx+sw, sy), (sx+sw, sy+sh), (sx, sy+sh).
     auto source_rect = Gfx::Rect { x, y, abs_width, abs_height };
@@ -566,17 +611,17 @@ WebIDL::ExceptionOr<GC::Ptr<ImageData>> CanvasRenderingContext2D::get_image_data
     if (width < 0 || height < 0) {
         source_rect = source_rect.translated(min(width, 0), min(height, 0));
     }
-    auto source_rect_intersected = source_rect.intersected(snapshot->rect());
+    auto source_rect_intersected = source_rect.intersected(snapshot_frame->rect());
 
     // 6. Set the pixel values of imageData to be the pixels of this's output bitmap in the area specified by the source rectangle in the bitmap's coordinate space units, converted from this's color space to imageData's colorSpace using 'relative-colorimetric' rendering intent.
     // NOTE: Internally we must use premultiplied alpha, but ImageData should hold unpremultiplied alpha. This conversion
     //       might result in a loss of precision, but is according to spec.
     //       See: https://html.spec.whatwg.org/multipage/canvas.html#premultiplied-alpha-and-the-2d-rendering-context
-    VERIFY(snapshot->bitmap().alpha_type() == Gfx::AlphaType::Premultiplied);
-    VERIFY(image_data->bitmap().alpha_type() == Gfx::AlphaType::Unpremultiplied);
+    VERIFY(snapshot_frame->bitmap().alpha_type() == Gfx::BitmapAlpha::Premultiplied || snapshot_frame->bitmap().alpha_type() == Gfx::BitmapAlpha::Opaque);
+    VERIFY(image_data->bitmap().alpha_type() == Gfx::BitmapAlpha::Unpremultiplied);
 
     auto painter = Gfx::Painter::create(image_data->bitmap());
-    painter->draw_bitmap(image_data->bitmap().rect().to_type<float>(), *snapshot, source_rect_intersected, Gfx::ScalingMode::NearestNeighbor, {}, 1, Gfx::CompositingAndBlendingOperator::SourceOver);
+    painter->draw_bitmap(image_data->bitmap().rect().to_type<float>(), *snapshot_frame, source_rect_intersected, Gfx::ScalingMode::NearestNeighbor, {}, 1, Gfx::CompositingAndBlendingOperator::SourceOver);
 
     // 7. Set the pixels values of imageData for areas of the source rectangle that are outside of the output bitmap to transparent black.
     // NOTE: No-op, already done during creation.
@@ -666,9 +711,10 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::put_pixels_from_an_image_dat
     auto dst_rect = Gfx::FloatRect { dx + dirty_x, dy + dirty_y, dirty_width, dirty_height };
     painter.save();
     painter.set_transform({});
+    auto image_data_frame = Gfx::DecodedImageFrame::create(image_data.bitmap(), Gfx::BitmapAlpha::Unpremultiplied);
     painter.draw_bitmap(
         dst_rect,
-        *Gfx::DecodedImageFrame::create(image_data.bitmap(), Gfx::AlphaType::Unpremultiplied),
+        *image_data_frame,
         Gfx::IntRect { dirty_x, dirty_y, dirty_width, dirty_height },
         Gfx::ScalingMode::NearestNeighbor,
         {},
@@ -895,11 +941,11 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
                 return WebIDL::InvalidStateError::create(image_element->realm(), "Image element state is broken"_utf16);
 
             // If image is not fully decodable, then return bad.
-            if (!image_element->current_image_frame())
+            if (!image_element->decoded_image_data())
                 return { CanvasImageSourceUsability::Bad };
 
             // If image has an intrinsic width or intrinsic height (or both) equal to zero, then return bad.
-            if (image_element->current_image_frame()->width() == 0 || image_element->current_image_frame()->height() == 0)
+            if (auto frame = image_element->current_image_frame(); frame && (frame->width() == 0 || frame->height() == 0))
                 return { CanvasImageSourceUsability::Bad };
             return Optional<CanvasImageSourceUsability> {};
         },
@@ -908,11 +954,11 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
             // FIXME: If image's current request's state is broken, then throw an "InvalidStateError" DOMException.
 
             // If image is not fully decodable, then return bad.
-            if (!image_element->current_image_frame())
+            if (!image_element->decoded_image_data())
                 return { CanvasImageSourceUsability::Bad };
 
             // If image has an intrinsic width or intrinsic height (or both) equal to zero, then return bad.
-            if (image_element->current_image_frame()->width() == 0 || image_element->current_image_frame()->height() == 0)
+            if (auto frame = image_element->current_image_frame(); frame && (frame->width() == 0 || frame->height() == 0))
                 return { CanvasImageSourceUsability::Bad };
             return Optional<CanvasImageSourceUsability> {};
         },

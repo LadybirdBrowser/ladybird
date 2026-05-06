@@ -8,6 +8,7 @@
 
 #include <AK/AtomicRefCounted.h>
 #include <AK/Noncopyable.h>
+#include <LibThreading/Mutex.h>
 
 #ifdef USE_VULKAN
 #    include <LibGfx/VulkanContext.h>
@@ -41,6 +42,7 @@ public:
     static void initialize_gpu_backend();
     static RefPtr<SkiaBackendContext> create_independent_gpu_backend();
     static RefPtr<SkiaBackendContext> the_main_thread_context();
+    static RefPtr<SkiaBackendContext> create_raster_context();
 
     SkiaBackendContext() { }
     virtual ~SkiaBackendContext() { }
@@ -50,6 +52,8 @@ public:
 
     virtual MetalContext& metal_context() = 0;
     virtual VulkanContext const& vulkan_context() = 0;
+
+    Threading::Mutex m_mutex;
 };
 
 }

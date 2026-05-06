@@ -14,7 +14,7 @@
 #include <LibCrypto/OpenSSLForward.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/PathFontProvider.h>
-#include <LibGfx/SkiaBackendContext.h>
+#include <LibGfx/Resource/Resource.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibMain/Main.h>
@@ -23,13 +23,13 @@
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
+#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/UniversalGlobalScope.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Internals/Internals.h>
 #include <LibWeb/Loader/ContentFilter.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Loader/ResourceLoader.h>
-#include <LibWeb/Painting/BackingStoreManager.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/FontPlugin.h>
@@ -148,6 +148,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool collect_garbage_on_every_allocation = false;
     bool is_headless = false;
     bool disable_scrollbar_painting = false;
+    u16 resource_client_id = 0;
     StringView echo_server_port_string_view {};
     StringView default_time_zone {};
     StringView style_invalidation_counter_dump_interval {};
@@ -169,6 +170,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(force_fontconfig, "Force using fontconfig for font loading", "force-fontconfig");
     args_parser.add_option(collect_garbage_on_every_allocation, "Collect garbage after every JS heap allocation", "collect-garbage-on-every-allocation");
     args_parser.add_option(disable_scrollbar_painting, "Don't paint horizontal or vertical viewport scrollbars", "disable-scrollbar-painting");
+    args_parser.add_option(resource_client_id, "Resource id client field for this WebContent process", "resource-client-id", 0, "resource_client_id");
     args_parser.add_option(echo_server_port_string_view, "Echo server port used in test internals", "echo-server-port", 0, "echo_server_port");
     args_parser.add_option(is_headless, "Report that the browser is running in headless mode", "headless");
     args_parser.add_option(default_time_zone, "Default time zone", "default-time-zone", 0, "time-zone-id");
@@ -202,13 +204,14 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     }
     font_provider.load_all_fonts_from_uri("resource://fonts"sv);
 
-    // Always use the CPU backend for tests, as the GPU backend is not deterministic
-    if (force_cpu_painting) {
+    Gfx::ResourceID::set_this_client(resource_client_id);
+
+    // Always use the CPU backend for tests, as the GPU backend is not deterministic.
+    // Outside tests, GPU ownership lives in PaintServer rather than WebContent.
+    if (force_cpu_painting)
         WebContent::PageClient::set_use_skia_painter(WebContent::PageClient::UseSkiaPainter::CPUBackend);
-    } else {
-        Gfx::SkiaBackendContext::initialize_gpu_backend();
+    else
         WebContent::PageClient::set_use_skia_painter(WebContent::PageClient::UseSkiaPainter::GPUBackendIfAvailable);
-    }
 
     WebContent::PageClient::set_is_headless(is_headless);
 
@@ -271,7 +274,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             dbgln("Failed to connect to image decoder: {}", result.error());
     };
 
-    return event_loop.exec();
+    int const exit_code = event_loop.exec();
+
+    Web::HTML::shutdown_all_navigables();
+    Web::Bindings::main_thread_vm().heap().collect_garbage(GC::Heap::CollectionType::CollectEverything);
+
+    return exit_code;
 }
 
 static ErrorOr<void> load_content_filters(StringView config_path)

@@ -2,5 +2,25 @@
   "version": 6,
   "include": [
     "CMakeUnixPresets.json"
+  ],
+  "configurePresets": [
+    {
+      "name": "Debug_VcpkgWayland",
+      "inherits": "Debug",
+      "binaryDir": "$env{LADYBIRD_SOURCE_DIR}/Build/debug-vcpkg-wayland",
+      "cacheVariables": {
+        "LADYBIRD_VCPKG_WAYLAND": "ON",
+        "VCPKG_MANIFEST_FEATURES": "vcpkg-wayland"
+      }
+    },
+    {
+      "name": "Release_VcpkgWayland",
+      "inherits": "Release",
+      "binaryDir": "$env{LADYBIRD_SOURCE_DIR}/Build/release-vcpkg-wayland",
+      "cacheVariables": {
+        "LADYBIRD_VCPKG_WAYLAND": "ON",
+        "VCPKG_MANIFEST_FEATURES": "vcpkg-wayland"
+      }
+    }
   ]
 }

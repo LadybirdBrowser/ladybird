@@ -8,6 +8,7 @@
 
 #include <AK/Array.h>
 #include <AK/HashMap.h>
+#include <AK/RefPtr.h>
 #include <LibGC/Ptr.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/DecodedImageFrame.h>
@@ -31,7 +32,8 @@ public:
         Gfx::IntSize,
         Gfx::ColorSpace,
         Vector<u32> durations,
-        Vector<NonnullRefPtr<Gfx::Bitmap>> initial_bitmaps);
+        Vector<NonnullRefPtr<Gfx::Bitmap>> initial_bitmaps,
+        bool use_gpu_backed_bitmap_resources);
 
     virtual ~AnimatedDecodedImageData() override;
     virtual void finalize() override;
@@ -77,13 +79,17 @@ private:
         u32 loop_count,
         Gfx::IntSize,
         Gfx::ColorSpace,
-        Vector<u32> durations);
+        Vector<u32> durations,
+        bool use_gpu_backed_bitmap_resources);
 
     BufferSlot const* find_slot(u32 frame_index) const;
+    Optional<u64> stable_image_id_for_frame(u32 frame_index) const;
     BufferSlot& evict_oldest_slot();
+    u32 count_contiguous_frames_ahead(size_t current_frame_index) const;
     void maybe_request_more_frames(size_t current_frame_index);
 
     i64 m_session_id;
+    u32 m_image_owner_id { 0 };
     u32 m_frame_count;
     u32 m_loop_count;
     Gfx::IntSize m_size;
@@ -97,6 +103,7 @@ private:
     u32 m_current_frame_index { 0 };
     u32 m_last_requested_start_frame { 0 };
     u32 m_highest_requested_frame { 0 };
+    bool m_use_gpu_backed_bitmap_resources { false };
 };
 
 }

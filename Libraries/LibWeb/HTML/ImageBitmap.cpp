@@ -15,7 +15,7 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(ImageBitmap);
 
-[[nodiscard]] static auto create_bitmap_from_bitmap_data(Gfx::BitmapFormat const format, Gfx::AlphaType const alpha_type, u32 const width, u32 const height, u32 const pitch, ByteBuffer data)
+[[nodiscard]] static auto create_bitmap_from_bitmap_data(Gfx::BitmapFormat const format, Gfx::BitmapAlpha const alpha_type, u32 const width, u32 const height, u32 const pitch, ByteBuffer data)
 {
     // NB: The data is captured by value in the destruction callback lambda to ensure its lifetime.
     return Gfx::Bitmap::create_wrapper(format, alpha_type, Gfx::IntSize(width, height), pitch, data.data(), [data = move(data)] { });
@@ -44,7 +44,7 @@ static void serialize_bitmap(HTML::TransferDataEncoder& encoder, RefPtr<Gfx::Bit
     auto const height = decoder.decode<int>();
     auto const pitch = decoder.decode<size_t>();
     auto const format = decoder.decode<Gfx::BitmapFormat>();
-    auto const alpha_type = decoder.decode<Gfx::AlphaType>();
+    auto const alpha_type = decoder.decode<Gfx::BitmapAlpha>();
     auto const data = TRY(decoder.decode_buffer(realm));
     return TRY_OR_THROW_OOM(realm.vm(), create_bitmap_from_bitmap_data(format, alpha_type, width, height, pitch, data));
 }

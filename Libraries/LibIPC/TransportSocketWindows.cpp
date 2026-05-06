@@ -55,6 +55,13 @@ TransportSocketWindows::TransportSocketWindows(NonnullOwnPtr<Core::LocalSocket> 
 {
 }
 
+ErrorOr<pid_t> TransportSocketWindows::peer_pid() const
+{
+    if (m_peer_pid <= 0)
+        return Error::from_string_literal("TransportSocketWindows: peer pid is not set");
+    return m_peer_pid;
+}
+
 void TransportSocketWindows::set_peer_pid(int pid)
 {
     m_peer_pid = pid;

@@ -86,7 +86,6 @@ if (APPLE OR CMAKE_SYSTEM_NAME STREQUAL "GNU")
 endif()
 
 if (APPLE)
-    list(APPEND SOURCES IOSurface.cpp)
     list(APPEND SOURCES Platform/ScopedAutoreleasePoolMacOS.mm)
 endif()
 
@@ -110,7 +109,6 @@ if (APPLE)
     target_link_libraries(LibCore PUBLIC "-framework CoreFoundation")
     target_link_libraries(LibCore PUBLIC "-framework CoreServices")
     target_link_libraries(LibCore PUBLIC "-framework Foundation")
-    target_link_libraries(LibCore PUBLIC "-framework IOSurface")
 endif()
 
 if (WIN32)

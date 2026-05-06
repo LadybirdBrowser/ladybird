@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <LibGfx/DecodedImageFrame.h>
+#include <AK/OwnPtr.h>
+#include <LibGC/Function.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/Page/Page.h>
 
@@ -22,6 +23,8 @@ public:
     virtual ~SVGDecodedImageData() override;
 
     virtual RefPtr<Gfx::DecodedImageFrame> frame(size_t frame_index, Gfx::IntSize) const override;
+    virtual RefPtr<Painting::ExternalContentSource> external_content_source(size_t frame_index, Gfx::IntSize) const override;
+    void when_frame_available(Gfx::IntSize, ESCAPING GC::Root<GC::Function<void()>>) const;
 
     virtual Optional<CSSPixels> intrinsic_width() const override;
     virtual Optional<CSSPixels> intrinsic_height() const override;
@@ -43,14 +46,11 @@ public:
 private:
     SVGDecodedImageData(GC::Ref<Page>, GC::Ref<SVGPageClient>, GC::Ref<DOM::Document>, GC::Ref<SVG::SVGSVGElement>);
 
-    RefPtr<Gfx::PaintingSurface> surface(size_t frame_index, Gfx::IntSize) const;
-    RefPtr<Gfx::PaintingSurface> render_to_surface(Gfx::IntSize) const;
-    RefPtr<Painting::DisplayList> record_display_list(Gfx::IntSize) const;
+    struct CachedOffscreenRender;
 
-    // FIXME: Remove this once everything is using surfaces instead.
-    mutable HashMap<Gfx::IntSize, NonnullRefPtr<Gfx::DecodedImageFrame>> m_cached_rendered_frames;
+    CachedOffscreenRender const* ensure_offscreen_render(Gfx::IntSize) const;
 
-    mutable HashMap<Gfx::IntSize, NonnullRefPtr<Gfx::PaintingSurface>> m_cached_rendered_surfaces;
+    mutable HashMap<Gfx::IntSize, CachedOffscreenRender> m_cached_offscreen_renders;
 
     GC::Ref<Page> m_page;
     GC::Ref<SVGPageClient> m_page_client;
@@ -75,6 +75,7 @@ public:
     GC::Ptr<Page> m_svg_page;
 
     virtual u64 id() const override { VERIFY_NOT_REACHED(); }
+    virtual Optional<u64> painting_sink_id() const override { return m_host_page->client().painting_sink_id(); }
     virtual Page& page() override { return *m_svg_page; }
     virtual Page const& page() const override { return *m_svg_page; }
     virtual bool is_connection_open() const override { return false; }

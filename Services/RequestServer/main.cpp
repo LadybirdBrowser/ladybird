@@ -62,7 +62,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     if (!resource_map_path.is_empty()) {
         auto map = RequestServer::ResourceSubstitutionMap::load_from_file(resource_map_path);
         if (map.is_error())
-            warnln("Unable to load resource substitution map from '{}': {}", resource_map_path, map.error());
+            dbgln("Unable to load resource substitution map from '{}': {}", resource_map_path, map.error());
         else
             RequestServer::g_resource_substitution_map = map.release_value();
     }
@@ -92,7 +92,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         }());
 
         if (auto cache = HTTP::DiskCache::create(mode); cache.is_error())
-            warnln("Unable to create disk cache: {}", cache.error());
+            dbgln("Unable to create disk cache: {}", cache.error());
         else
             disk_cache = cache.release_value();
     }

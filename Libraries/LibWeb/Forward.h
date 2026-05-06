@@ -44,7 +44,6 @@ namespace Web::Painting {
 class BackingStore;
 class DevicePixelConverter;
 class DisplayList;
-class DisplayListPlayerSkia;
 class DisplayListRecorder;
 class ExternalContentSource;
 class VideoFrameSource;

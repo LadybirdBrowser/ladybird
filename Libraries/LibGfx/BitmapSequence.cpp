@@ -26,8 +26,8 @@ namespace IPC {
 template<>
 ErrorOr<void> encode(Encoder& encoder, Gfx::BitmapMetadata const& metadata)
 {
-    TRY(encoder.encode(static_cast<u32>(metadata.format)));
-    TRY(encoder.encode(static_cast<u32>(metadata.alpha_type)));
+    TRY(encoder.encode(metadata.format));
+    TRY(encoder.encode(metadata.alpha_type));
     TRY(encoder.encode(metadata.size_in_bytes));
     TRY(encoder.encode(metadata.size));
 
@@ -37,15 +37,8 @@ ErrorOr<void> encode(Encoder& encoder, Gfx::BitmapMetadata const& metadata)
 template<>
 ErrorOr<Gfx::BitmapMetadata> decode(Decoder& decoder)
 {
-    auto raw_bitmap_format = TRY(decoder.decode<u32>());
-    if (!Gfx::is_valid_bitmap_format(raw_bitmap_format))
-        return Error::from_string_literal("IPC: Invalid Gfx::BitmapSequence format");
-    auto format = static_cast<Gfx::BitmapFormat>(raw_bitmap_format);
-
-    auto raw_alpha_type = TRY(decoder.decode<u32>());
-    if (!Gfx::is_valid_alpha_type(raw_alpha_type))
-        return Error::from_string_literal("IPC: Invalid Gfx::BitmapSequence alpha type");
-    auto alpha_type = static_cast<Gfx::AlphaType>(raw_alpha_type);
+    auto format = TRY(decoder.decode<Gfx::BitmapFormat>());
+    auto alpha_type = TRY(decoder.decode<Gfx::BitmapAlpha>());
 
     auto size_in_bytes = TRY(decoder.decode<size_t>());
     auto size = TRY(decoder.decode<Gfx::IntSize>());

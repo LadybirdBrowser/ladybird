@@ -4575,8 +4575,8 @@ Optional<FlyString> Element::document_scoped_view_transition_name()
 RefPtr<Gfx::DecodedImageFrame> Element::capture_the_image()
 {
     // FIXME: Actually implement this.
-    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, Gfx::IntSize(1, 1)));
-    return Gfx::DecodedImageFrame::create(*bitmap);
+    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::BitmapAlpha::Premultiplied, Gfx::IntSize(1, 1)));
+    return Gfx::DecodedImageFrame::create(NonnullRefPtr<Gfx::Bitmap const> { *bitmap });
 }
 
 void Element::set_pointer_capture(WebIDL::Long pointer_id)

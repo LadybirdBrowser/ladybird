@@ -21,7 +21,7 @@ GC_DEFINE_ALLOCATOR(ImageData);
 
 [[nodiscard]] static auto create_bitmap_backed_by_uint8_clamped_array(u32 const width, u32 const height, JS::Uint8ClampedArray& data)
 {
-    return Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Unpremultiplied, Gfx::IntSize(width, height), width * sizeof(u32), data.data().data());
+    return Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::RGBA8888, Gfx::BitmapAlpha::Unpremultiplied, Gfx::IntSize(width, height), width * sizeof(u32), data.data().data());
 }
 
 GC::Ref<ImageData> ImageData::create(JS::Realm& realm)

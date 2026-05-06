@@ -8,7 +8,6 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
-#include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/ImageBitmap.h>
 
 namespace Web::HTML {
@@ -24,8 +23,8 @@ Gfx::IntSize canvas_image_source_dimensions(CanvasImageSource const& image)
             return { source->width(), source->height() };
         },
         [](GC::Root<SVG::SVGImageElement> const& source) -> Gfx::IntSize {
-            if (auto decoded_image_frame = source->current_image_frame())
-                return decoded_image_frame->size();
+            if (auto frame = source->current_image_frame())
+                return frame->size();
 
             // FIXME: This is very janky and not correct.
             return { source->width()->anim_val()->value(), source->height()->anim_val()->value() };
@@ -46,6 +45,8 @@ Gfx::IntSize canvas_image_source_dimensions(CanvasImageSource const& image)
             return {};
         },
         [](GC::Root<HTMLVideoElement> const& source) -> Gfx::IntSize {
+            if (auto frame = source->current_decoded_image_frame())
+                return frame->size();
             return { source->video_width(), source->video_height() };
         });
 }
@@ -53,25 +54,26 @@ Gfx::IntSize canvas_image_source_dimensions(CanvasImageSource const& image)
 RefPtr<Gfx::DecodedImageFrame> canvas_image_source_frame(CanvasImageSource const& image)
 {
     return image.visit(
-        [](OneOf<GC::Root<HTMLImageElement>, GC::Root<SVG::SVGImageElement>> auto const& element) -> RefPtr<Gfx::DecodedImageFrame> {
-            auto image_data = element->decoded_image_data();
-            if (!image_data)
-                return {};
-
-            Gfx::IntSize size;
-            auto intrinsic_width = element->intrinsic_width();
-            auto intrinsic_height = element->intrinsic_height();
-            if (intrinsic_width.has_value() && intrinsic_height.has_value())
-                size = { intrinsic_width->to_int(), intrinsic_height->to_int() };
-
-            return image_data->frame(0, size);
+        [](GC::Root<HTMLImageElement> const& element) -> RefPtr<Gfx::DecodedImageFrame> {
+            return element->current_image_frame();
+        },
+        [](GC::Root<SVG::SVGImageElement> const& element) -> RefPtr<Gfx::DecodedImageFrame> {
+            return element->current_image_frame();
         },
         [](GC::Root<HTMLCanvasElement> const& canvas) -> RefPtr<Gfx::DecodedImageFrame> {
-            canvas->present();
-            auto surface = canvas->surface();
+            auto surface = canvas->paint_server_surface_for_2d_context_readback();
             if (!surface)
-                return Gfx::DecodedImageFrame::create(*canvas->get_bitmap_from_surface());
-            return Gfx::DecodedImageFrame::create(*surface->snapshot_bitmap());
+                surface = canvas->surface();
+            if (!surface) {
+                auto bitmap = canvas->get_bitmap_from_surface();
+                if (!bitmap)
+                    return nullptr;
+                return Gfx::DecodedImageFrame::create(*bitmap);
+            }
+
+            auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::BitmapAlpha::Premultiplied, surface->size()));
+            surface->read_into_bitmap(*bitmap);
+            return Gfx::DecodedImageFrame::create(NonnullRefPtr<Gfx::Bitmap const> { *bitmap });
         },
         [](OneOf<GC::Root<ImageBitmap>, GC::Root<OffscreenCanvas>> auto const& source) -> RefPtr<Gfx::DecodedImageFrame> {
             auto bitmap = source->bitmap();

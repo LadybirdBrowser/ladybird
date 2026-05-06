@@ -16,7 +16,18 @@ namespace Gfx {
 ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_resource(Core::Resource const& resource, u32 ttc_index)
 {
     auto font_data = Gfx::FontData::create_from_resource(resource);
-    return try_load_from_font_data(move(font_data), ttc_index);
+    auto typeface = TRY(try_load_from_font_data(move(font_data), ttc_index));
+    auto& skia_typeface = as<TypefaceSkia>(*typeface);
+    skia_typeface.set_local_font_info(TypefaceSkia::LocalFontInfo {
+        .resource_name = resource.filesystem_path().to_byte_string(),
+        .family_name = skia_typeface.family(),
+        .weight = skia_typeface.weight(),
+        .width = skia_typeface.width(),
+        .slope = skia_typeface.slope(),
+        .ttc_index = skia_typeface.ttc_index(),
+        .variation_axes = {},
+    });
+    return typeface;
 }
 
 ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_font_data(NonnullOwnPtr<Gfx::FontData> font_data, u32 ttc_index)

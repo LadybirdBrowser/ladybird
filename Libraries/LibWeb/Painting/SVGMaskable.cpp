@@ -45,15 +45,18 @@ Optional<CSSPixelRect> SVGMaskable::get_svg_mask_area() const
 Optional<CSSPixelRect> SVGMaskable::get_svg_clip_area() const
 {
     auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*dom_node_of_svg());
-    auto const* clip_box = get_clip_box(graphics_element);
-    if (!clip_box)
-        return {};
+    if (auto const* clip_box = get_clip_box(graphics_element)) {
+        auto const* clip_paintable = as_if<SVGPaintable>(*clip_box->first_paintable());
+        VERIFY(clip_paintable);
 
-    auto const& clip_paintable = as<SVGPaintable>(*clip_box->paintable_box());
+        auto clip_path_transform = Gfx::AffineTransform { target_svg_transform() }.multiply(clip_box->dom_node().element_transform());
+        if (auto clip_area = clip_paintable->clip_path_geometry_bounds(clip_path_transform); clip_area.has_value())
+            return clip_area;
 
-    auto clip_path_transform = Gfx::AffineTransform { target_svg_transform() }.multiply(clip_box->dom_node().element_transform());
-    // An empty clipping path will completely clip away the element that had the clip-path property applied.
-    return clip_paintable.clip_path_geometry_bounds(clip_path_transform).value_or(CSSPixelRect {});
+        // An empty clipping path will completely clip away the element that had the clip-path property applied.
+        return CSSPixelRect {};
+    }
+    return {};
 }
 
 static Gfx::MaskKind mask_type_to_gfx_mask_kind(CSS::MaskType mask_type)
@@ -84,8 +87,8 @@ static RefPtr<DisplayList> paint_mask_or_clip_to_display_list(
     bool is_clip_path)
 {
     auto mask_rect = context.enclosing_device_rect(area);
-    auto display_list = DisplayList::create(AccumulatedVisualContextTree::create());
-    DisplayListRecorder display_list_recorder(*display_list);
+    auto display_list = DisplayList::create(context.display_list_recorder().visual_context_tree());
+    DisplayListRecorder display_list_recorder(*display_list, context.display_list_recorder());
     display_list_recorder.translate(-mask_rect.location().to_type<int>());
     auto paint_context = context.clone(display_list_recorder);
     auto const& mask_element = as<SVG::SVGGraphicsElement const>(*paintable.dom_node());

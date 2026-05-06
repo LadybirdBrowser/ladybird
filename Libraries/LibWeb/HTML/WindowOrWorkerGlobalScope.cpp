@@ -53,6 +53,7 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
 #include <LibWeb/ResourceTiming/PerformanceResourceTiming.h>
+#include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGImageElement.h>
 #include <LibWeb/ServiceWorker/CacheStorage.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicyFactory.h>
@@ -458,40 +459,96 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
                     WebIDL::reject_promise(realm, *p, error);
                 },
                 // -> img
-                // -> SVG image
-                [&](auto const& image_element) {
+                [&](GC::Root<HTMLImageElement> const& image_element) {
                     // 1. If image's media data has no natural dimensions (e.g., it's a vector graphic with no specified content size) and options's resizeWidth or options's resizeHeight is not present, then return a promise rejected with an "InvalidStateError" DOMException.
                     auto const has_natural_dimensions = image_element->intrinsic_width().has_value() && image_element->intrinsic_height().has_value();
-                    if (!has_natural_dimensions && (!options.has_value() || !options->resize_width.has_value() || !options->resize_width.has_value())) {
+                    if (!has_natural_dimensions && (!options.has_value() || !options->resize_width.has_value() || !options->resize_height.has_value())) {
                         WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(image_bitmap->realm(), "Image data is detached"_utf16));
                         return;
                     }
 
                     // 2. If image's media data has no natural dimensions (e.g., it's a vector graphic with no specified content size), it should be rendered to a bitmap of the size specified by the resizeWidth and the resizeHeight options.
                     // 3. Set imageBitmap's bitmap data to a copy of image's media data, cropped to the source rectangle with formatting. If this is an animated image, imageBitmap's bitmap data must only be taken from the default image of the animation (the one that the format defines is to be used when animation is not supported or is disabled), or, if there is no such image, the first frame of the animation.
-                    RefPtr<Gfx::DecodedImageFrame> decoded_frame;
-                    if (has_natural_dimensions) {
-                        decoded_frame = image_element->default_image_frame_sized(Gfx::IntSize { *image_element->intrinsic_width(), *image_element->intrinsic_height() });
-                    } else {
-                        decoded_frame = image_element->default_image_frame_sized(Gfx::IntSize { *options->resize_width, *options->resize_height });
-                    }
-                    auto cropped_bitmap_or_error = crop_to_the_source_rectangle_with_formatting(decoded_frame->bitmap(), sx, sy, sw, sh, options);
-                    // AD-HOC: Reject promise with an "InvalidStateError" DOMException on allocation failure
-                    // Spec issue: https://github.com/whatwg/html/issues/3323
-                    if (cropped_bitmap_or_error.is_error()) {
+                    Gfx::IntSize bitmap_size = has_natural_dimensions
+                        ? Gfx::IntSize { *image_element->intrinsic_width(), *image_element->intrinsic_height() }
+                        : Gfx::IntSize { *options->resize_width, *options->resize_height };
+
+                    auto finish = GC::create_function(realm.heap(),
+                        [image_element, image_bitmap = GC::Root(*image_bitmap), p = GC::Root(*p), sx, sy, sw, sh, options, bitmap_size] {
+                            auto& realm = relevant_realm(*image_bitmap);
+                            TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+                            auto frame = image_element->default_image_frame_sized(bitmap_size);
+                            if (!frame) {
+                                WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(realm, "Image size is invalid"_utf16));
+                                return;
+                            }
+                            auto cropped_bitmap_or_error = crop_to_the_source_rectangle_with_formatting(frame->bitmap_ref(), sx, sy, sw, sh, options);
+                            // AD-HOC: Reject promise with an "InvalidStateError" DOMException on allocation failure
+                            // Spec issue: https://github.com/whatwg/html/issues/3323
+                            if (cropped_bitmap_or_error.is_error()) {
+                                WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(realm, "Image size is invalid"_utf16));
+                                return;
+                            }
+                            image_bitmap->set_bitmap(cropped_bitmap_or_error.release_value());
+
+                            // FIXME: 4. If image is not origin-clean, then set the origin-clean flag of imageBitmap's bitmap to false.
+
+                            // 5. Queue a global task, using the bitmap task source, to resolve promise with imageBitmap.
+                            queue_global_task(Task::Source::BitmapTask, *image_bitmap, GC::create_function(image_bitmap->heap(), [p, image_bitmap] {
+                                auto& realm = relevant_realm(*image_bitmap);
+                                TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
+                                WebIDL::resolve_promise(realm, *p, image_bitmap);
+                            }));
+                        });
+                    if (!image_element->default_image_frame_sized(bitmap_size)) {
                         WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(image_bitmap->realm(), "Image size is invalid"_utf16));
                         return;
                     }
-                    image_bitmap->set_bitmap(cropped_bitmap_or_error.release_value());
+                    finish->function()();
+                },
+                // -> SVG image
+                [&](GC::Root<SVG::SVGImageElement> const& image_element) {
+                    auto const has_natural_dimensions = image_element->intrinsic_width().has_value() && image_element->intrinsic_height().has_value();
+                    if (!has_natural_dimensions && (!options.has_value() || !options->resize_width.has_value() || !options->resize_height.has_value())) {
+                        WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(image_bitmap->realm(), "Image data is detached"_utf16));
+                        return;
+                    }
 
-                    // FIXME: 4. If image is not origin-clean, then set the origin-clean flag of imageBitmap's bitmap to false.
+                    Gfx::IntSize bitmap_size = has_natural_dimensions
+                        ? Gfx::IntSize { *image_element->intrinsic_width(), *image_element->intrinsic_height() }
+                        : Gfx::IntSize { *options->resize_width, *options->resize_height };
 
-                    // 5. Queue a global task, using the bitmap task source, to resolve promise with imageBitmap.
-                    queue_global_task(Task::Source::BitmapTask, image_bitmap, GC::create_function(realm.heap(), [p, image_bitmap] {
-                        auto& realm = relevant_realm(image_bitmap);
-                        TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
-                        WebIDL::resolve_promise(realm, *p, image_bitmap);
-                    }));
+                    auto finish = GC::create_function(realm.heap(),
+                        [image_element, image_bitmap = GC::Root(*image_bitmap), p = GC::Root(*p), sx, sy, sw, sh, options, bitmap_size] {
+                            auto& realm = relevant_realm(*image_bitmap);
+                            TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+                            auto frame = image_element->default_image_frame_sized(bitmap_size);
+                            if (!frame) {
+                                WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(realm, "Image size is invalid"_utf16));
+                                return;
+                            }
+                            auto cropped_bitmap_or_error = crop_to_the_source_rectangle_with_formatting(frame->bitmap_ref(), sx, sy, sw, sh, options);
+                            if (cropped_bitmap_or_error.is_error()) {
+                                WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(realm, "Image size is invalid"_utf16));
+                                return;
+                            }
+                            image_bitmap->set_bitmap(cropped_bitmap_or_error.release_value());
+
+                            queue_global_task(Task::Source::BitmapTask, *image_bitmap, GC::create_function(image_bitmap->heap(), [p, image_bitmap] {
+                                auto& realm = relevant_realm(*image_bitmap);
+                                TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
+                                WebIDL::resolve_promise(realm, *p, image_bitmap);
+                            }));
+                        });
+                    if (!image_element->default_image_frame_sized(bitmap_size)) {
+                        if (auto image_data = image_element->decoded_image_data(); image_data && is<SVG::SVGDecodedImageData>(*image_data)) {
+                            as<SVG::SVGDecodedImageData>(*image_data).when_frame_available(bitmap_size, finish);
+                            return;
+                        }
+                    }
+                    finish->function()();
                 });
         });
 

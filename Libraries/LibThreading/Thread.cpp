@@ -8,6 +8,8 @@
 
 namespace Threading {
 
+static Optional<pthread_t> s_main_thread_tid;
+
 Thread::Thread(Function<intptr_t()> action, StringView thread_name)
     : m_action(move(action))
     , m_thread_name(thread_name)
@@ -140,6 +142,21 @@ void Thread::detach()
 
     int rc = pthread_detach(m_tid);
     VERIFY(rc == 0);
+}
+
+bool is_main_thread()
+{
+    if (!s_main_thread_tid.has_value()) {
+        dbgln("Thread::set_main_thread() must be called before Thread::is_main_thread()");
+        VERIFY_NOT_REACHED();
+    }
+    return pthread_equal(pthread_self(), *s_main_thread_tid);
+}
+
+void set_main_thread()
+{
+    VERIFY(!s_main_thread_tid.has_value());
+    s_main_thread_tid = pthread_self();
 }
 
 }

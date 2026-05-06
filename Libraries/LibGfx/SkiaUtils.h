@@ -30,10 +30,7 @@ namespace Gfx {
 constexpr SkColorType to_skia_color_type(Gfx::BitmapFormat format)
 {
     switch (format) {
-    case Gfx::BitmapFormat::Invalid:
-        return kUnknown_SkColorType;
     case Gfx::BitmapFormat::BGRA8888:
-        return kBGRA_8888_SkColorType;
     case Gfx::BitmapFormat::BGRx8888:
         // FIXME: This is not fully correct, since our bitmap's alpha component might contain garbage data.
         // If the alpha component does not contain 0xFF, Skia might wrongly use that value as alpha.
@@ -42,20 +39,36 @@ constexpr SkColorType to_skia_color_type(Gfx::BitmapFormat format)
         return kRGBA_8888_SkColorType;
     case Gfx::BitmapFormat::RGBx8888:
         return kRGB_888x_SkColorType;
+    case Gfx::BitmapFormat::RGBAF16:
+        return kRGBA_F16_SkColorType;
+    case Gfx::BitmapFormat::Gray8:
+        return SkColorType::kGray_8_SkColorType;
+    case Gfx::BitmapFormat::Alpha8:
+        return SkColorType::kAlpha_8_SkColorType;
+    case Gfx::BitmapFormat::RGB565:
+        return SkColorType::kRGB_565_SkColorType;
+    case Gfx::BitmapFormat::RGBA5551:
+        return SkColorType::kUnknown_SkColorType;
+    case Gfx::BitmapFormat::RGBA4444:
+        return SkColorType::kARGB_4444_SkColorType;
+    case Gfx::BitmapFormat::RGB888:
+        return SkColorType::kUnknown_SkColorType;
     }
     VERIFY_NOT_REACHED();
 }
 
-constexpr SkAlphaType to_skia_alpha_type(Gfx::BitmapFormat format, Gfx::AlphaType alpha_type)
+constexpr SkAlphaType to_skia_alpha_type(Gfx::BitmapFormat format, Gfx::BitmapAlpha alpha_type)
 {
-    if (format == BitmapFormat::BGRx8888 || format == BitmapFormat::RGBx8888)
+    if (format == BitmapFormat::BGRx8888 || format == BitmapFormat::RGBx8888 || format == BitmapFormat::Gray8 || format == BitmapFormat::RGB565 || format == BitmapFormat::RGB888)
         return kOpaque_SkAlphaType;
 
     switch (alpha_type) {
-    case AlphaType::Premultiplied:
+    case BitmapAlpha::Premultiplied:
         return kPremul_SkAlphaType;
-    case AlphaType::Unpremultiplied:
+    case BitmapAlpha::Unpremultiplied:
         return kUnpremul_SkAlphaType;
+    case BitmapAlpha::Opaque:
+        return kOpaque_SkAlphaType;
     }
     VERIFY_NOT_REACHED();
 }

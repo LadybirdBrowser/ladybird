@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/FlyString.h>
 #include <LibGfx/Font/FontData.h>
 #include <LibGfx/Font/Typeface.h>
 
@@ -31,6 +32,19 @@ public:
 
     virtual ReadonlyBytes buffer() const LIFETIME_BOUND override { return m_buffer; }
     virtual u32 ttc_index() const override { return m_ttc_index; }
+    Vector<FontVariationAxis> const& variation_axes() const { return m_variation_axes; }
+
+    struct LocalFontInfo {
+        ByteString resource_name;
+        ByteString family_name;
+        u16 weight { 0 };
+        u16 width { 0 };
+        u8 slope { 0 };
+        u32 ttc_index { 0 };
+        Vector<FontVariationAxis> variation_axes;
+    };
+    Optional<LocalFontInfo> local_font_info() const { return m_local_font_info; }
+    void set_local_font_info(LocalFontInfo local_font_info);
 
     SkTypeface const* sk_typeface() const;
 
@@ -39,14 +53,15 @@ private:
     Impl& impl() const { return *m_impl; }
     NonnullOwnPtr<Impl> m_impl;
 
-    TypefaceSkia(NonnullOwnPtr<Impl>, ReadonlyBytes, u32 ttc_index = 0);
+    TypefaceSkia(NonnullOwnPtr<Impl>, ReadonlyBytes, u32 ttc_index = 0, Optional<LocalFontInfo> = {});
 
     virtual bool is_skia() const override { return true; }
 
     OwnPtr<FontData> m_font_data;
     ReadonlyBytes m_buffer;
     u32 m_ttc_index { 0 };
-
+    Vector<FontVariationAxis> m_variation_axes;
+    Optional<LocalFontInfo> m_local_font_info;
     mutable Optional<FlyString> m_family;
 
     // This cache stores information per code point.

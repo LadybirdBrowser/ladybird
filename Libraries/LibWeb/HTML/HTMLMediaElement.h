@@ -21,9 +21,14 @@
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/MediaControls.h>
-#include <LibWeb/Painting/VideoFrameSource.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/WebIDL/DOMException.h>
+
+namespace Web::Painting {
+
+class ExternalContentSource;
+
+}
 
 namespace Web::HTML {
 
@@ -171,6 +176,7 @@ public:
     RefPtr<Media::DisplayingVideoSink> const& selected_video_track_sink() const { return m_selected_video_track_sink; }
 
     Painting::VideoFrameSource& ensure_video_frame_source();
+    Painting::ExternalContentSource& ensure_external_content_source();
 
     virtual void update_intrinsic_video_dimensions() { }
     virtual void update_natural_dimensions() { }
@@ -320,8 +326,8 @@ private:
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-duration
     double m_duration { NAN };
 
-    // https://html.spec.whatwg.org/multipage/media.html#timeline-offset
-    Optional<AK::UnixDateTime> m_timeline_offset;
+    // https://html.spec.whatwg.org/multipage/media.html#current-timeline-offset
+    Optional<UnixDateTime> m_timeline_offset;
 
     // https://html.spec.whatwg.org/multipage/media.html#list-of-pending-play-promises
     Vector<GC::Ref<WebIDL::Promise>> m_pending_play_promises;
@@ -372,6 +378,7 @@ private:
     OwnPtr<Media::PlaybackManager> m_playback_manager;
     GC::Ptr<VideoTrack> m_selected_video_track;
     RefPtr<Media::DisplayingVideoSink> m_selected_video_track_sink;
+    RefPtr<Painting::VideoFrameSource> m_video_frame_source;
 
     bool m_loop_was_specified_when_reaching_end_of_media_resource { false };
 
@@ -380,7 +387,7 @@ private:
     bool m_has_enabled_preferred_audio_track { false };
     bool m_has_selected_preferred_video_track { false };
 
-    RefPtr<Painting::VideoFrameSource> m_video_frame_source;
+    RefPtr<Painting::ExternalContentSource> m_external_content_source;
 };
 
 }

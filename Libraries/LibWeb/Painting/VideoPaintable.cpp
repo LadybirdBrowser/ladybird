@@ -7,7 +7,6 @@
 
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibMedia/VideoFrame.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
@@ -53,32 +52,19 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
 
     auto const& poster_frame = video_element.poster_frame();
 
-    auto paint_bitmap = [&](auto const& bitmap) {
-        auto frame = Gfx::DecodedImageFrame::create(bitmap);
-        auto dst_rect = get_replaced_box_painting_area(*this, context, computed_values().object_fit(), bitmap.size());
+    auto paint_frame = [&](Gfx::DecodedImageFrame const& frame) {
+        auto dst_rect = get_replaced_box_painting_area(*this, context, computed_values().object_fit(), frame.size());
         if (dst_rect.is_empty())
             return;
-        auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), frame->size(), dst_rect.size());
-        context.display_list_recorder().draw_scaled_decoded_image_frame(dst_rect, dst_rect, *frame, scaling_mode);
+        auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), frame.size(), dst_rect.size());
+        context.display_list_recorder().draw_scaled_decoded_image_frame(dst_rect, dst_rect, frame, scaling_mode);
     };
 
     auto paint_video_frame = [&]() {
-        auto& source = const_cast<HTML::HTMLVideoElement&>(video_element).ensure_video_frame_source();
-        auto current = source.current_frame();
-
-        Gfx::IntSize src_size;
-        if (current)
-            src_size = current->size().to_type<int>();
-        else if (video_element.natural_media_size().has_value())
-            src_size = video_element.natural_media_size()->to_type<int>();
-        else
+        auto current_frame = video_element.current_decoded_image_frame();
+        if (!current_frame)
             return;
-
-        auto dst_rect = get_replaced_box_painting_area(*this, context, computed_values().object_fit(), src_size);
-        if (dst_rect.is_empty())
-            return;
-        auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), src_size, dst_rect.size());
-        context.display_list_recorder().draw_video_frame_source(dst_rect, source, scaling_mode);
+        paint_frame(*current_frame);
     };
 
     auto paint_transparent_black = [&]() {
@@ -96,7 +82,7 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
 
     case HTML::HTMLVideoElement::Representation::PosterFrame:
         VERIFY(poster_frame);
-        paint_bitmap(*poster_frame);
+        paint_frame(*Gfx::DecodedImageFrame::create(*poster_frame));
         break;
 
     case HTML::HTMLVideoElement::Representation::TransparentBlack:

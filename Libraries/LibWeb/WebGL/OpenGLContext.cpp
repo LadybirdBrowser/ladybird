@@ -8,7 +8,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
 #include <LibGfx/PaintingSurface.h>
-#include <LibGfx/SharedImageBuffer.h>
+#include <LibGfx/SharedImage.h>
 #ifdef USE_VULKAN_DMABUF_IMAGES
 #    include <LibGfx/VulkanImage.h>
 #endif
@@ -106,6 +106,9 @@ void OpenGLContext::free_surface_resources()
         eglDestroySurface(m_impl->display, m_impl->surface);
         m_impl->surface = EGL_NO_SURFACE;
     }
+
+    m_painting_surface = nullptr;
+    m_shared_image = nullptr;
 #endif
 }
 
@@ -289,8 +292,8 @@ void OpenGLContext::clear_buffer_to_default_values()
 #ifdef AK_OS_MACOS
 void OpenGLContext::allocate_iosurface_painting_surface()
 {
-    m_shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::create(m_size));
-    m_painting_surface = Gfx::PaintingSurface::create_from_shared_image_buffer(*m_shared_image_buffer, m_skia_backend_context, Gfx::PaintingSurface::Origin::BottomLeft);
+    m_shared_image = make<Gfx::SharedImage>(Gfx::SharedImage::create(m_size));
+    m_painting_surface = m_shared_image->create_painting_surface(m_skia_backend_context, Gfx::PaintingSurface::Origin::BottomLeft);
 
     EGLint const surface_attributes[] = {
         EGL_WIDTH,
@@ -310,7 +313,7 @@ void OpenGLContext::allocate_iosurface_painting_surface()
         EGL_NONE,
         EGL_NONE,
     };
-    m_impl->surface = eglCreatePbufferFromClientBuffer(m_impl->display, EGL_IOSURFACE_ANGLE, m_shared_image_buffer->iosurface_handle().core_foundation_pointer(), m_impl->config, surface_attributes);
+    m_impl->surface = eglCreatePbufferFromClientBuffer(m_impl->display, EGL_IOSURFACE_ANGLE, m_shared_image->platform_surface_handle(), m_impl->config, surface_attributes);
 
     eglMakeCurrent(m_impl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, m_impl->context);
 
@@ -352,8 +355,19 @@ void OpenGLContext::allocate_vkimage_painting_surface()
         }
     }
 
-    auto vulkan_image = MUST(Gfx::create_shared_vulkan_image(m_skia_backend_context->vulkan_context(), m_size.width(), m_size.height(), vulkan_format, renderable_modifiers));
-    m_painting_surface = Gfx::PaintingSurface::create_from_vkimage(m_skia_backend_context, vulkan_image, Gfx::PaintingSurface::Origin::BottomLeft);
+    auto vulkan_image = MUST(Gfx::create_dma_buf_vulkan_image(m_skia_backend_context->vulkan_context(), m_size, vulkan_format, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, renderable_modifiers));
+    m_shared_image = make<Gfx::SharedImage>(Gfx::SharedImage::create_from_vulkan_image(vulkan_image, {
+                                                                                                           .size = m_size,
+                                                                                                           .row_bytes = static_cast<u32>(vulkan_image->info.row_pitch),
+                                                                                                           .mip_level_count = 1,
+                                                                                                           .sample_count = 1,
+                                                                                                           .tiling_modifier = 0,
+                                                                                                           .pixel_format = Gfx::BitmapFormat::BGRA8888,
+                                                                                                           .color_space = Gfx::BitmapColorSpace::Linear,
+                                                                                                           .alpha_type = Gfx::BitmapAlpha::Premultiplied,
+                                                                                                           .origin = Gfx::BitmapOrigin::BottomLeft,
+                                                                                                       }));
+    m_painting_surface = m_shared_image->create_painting_surface(m_skia_backend_context, Gfx::PaintingSurface::Origin::BottomLeft);
 
     EGLAttrib attribs[] = {
         EGL_WIDTH,
@@ -435,6 +449,7 @@ void OpenGLContext::set_size(Gfx::IntSize const& size)
 {
     if (m_size != size) {
         m_painting_surface = nullptr;
+        m_shared_image = nullptr;
     }
     m_size = size;
 }
@@ -478,6 +493,15 @@ void OpenGLContext::present(bool preserve_drawing_buffer)
 RefPtr<Gfx::PaintingSurface> OpenGLContext::surface()
 {
     return m_painting_surface;
+}
+
+Optional<Gfx::SharedImagePayload> OpenGLContext::content_image_payload() const
+{
+#ifdef ENABLE_WEBGL
+    if (m_shared_image)
+        return m_shared_image->export_payload();
+#endif
+    return {};
 }
 
 u32 OpenGLContext::default_renderbuffer() const

@@ -10,17 +10,12 @@
 #include <AK/Function.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/RefPtr.h>
+#include <LibGfx/BitmapInfo.h>
 #include <LibGfx/Color.h>
+#include <LibGfx/ColorSpace.h>
 #include <LibGfx/Size.h>
 #include <LibGfx/SkiaBackendContext.h>
-
-#ifdef USE_VULKAN_DMABUF_IMAGES
-namespace Gfx {
-
-struct VulkanImage;
-
-}
-#endif
+#include <LibGfx/VulkanImage.h>
 
 #ifdef AK_OS_MACOS
 #    include <LibGfx/MetalContext.h>
@@ -31,6 +26,8 @@ class SkSurface;
 
 namespace Gfx {
 
+class SharedImage;
+
 class PaintingSurface : public AtomicRefCounted<PaintingSurface> {
 public:
     enum class Origin {
@@ -40,16 +37,11 @@ public:
 
     Function<void(PaintingSurface&)> on_flush;
 
-    static NonnullRefPtr<PaintingSurface> create_with_size(IntSize size, BitmapFormat color_type, AlphaType alpha_type, RefPtr<SkiaBackendContext> = {});
+    static NonnullRefPtr<PaintingSurface> create_with_size(RefPtr<SkiaBackendContext> context, IntSize size, BitmapFormat color_type, BitmapAlpha alpha_type);
+    static NonnullRefPtr<PaintingSurface> create_with_size(IntSize size, BitmapFormat color_type, BitmapAlpha alpha_type);
     static NonnullRefPtr<PaintingSurface> wrap_bitmap(Bitmap&);
-
-#ifdef AK_OS_MACOS
-    static NonnullRefPtr<PaintingSurface> create_from_shared_image_buffer(SharedImageBuffer&, NonnullRefPtr<SkiaBackendContext>, Origin = Origin::TopLeft);
-#endif
-
-#ifdef USE_VULKAN_DMABUF_IMAGES
-    static NonnullRefPtr<PaintingSurface> create_from_vkimage(NonnullRefPtr<SkiaBackendContext> context, NonnullRefPtr<VulkanImage> vulkan_image, Origin origin);
-#endif
+    static NonnullRefPtr<PaintingSurface> wrap_bitmap(Bitmap&, ColorSpace const&, BitmapColorSpace = BitmapColorSpace::SRGB);
+    static NonnullRefPtr<PaintingSurface> create_from_shared_image(SharedImage&, NonnullRefPtr<SkiaBackendContext>, Origin = Origin::TopLeft);
 
     NonnullRefPtr<Bitmap> snapshot_bitmap() const;
 
@@ -72,6 +64,9 @@ public:
     void flush();
 
     ~PaintingSurface();
+
+    void lock_context() const;
+    void unlock_context() const;
 
 private:
     struct Impl;

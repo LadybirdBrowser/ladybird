@@ -7,11 +7,12 @@
 #pragma once
 
 #include <LibGfx/Forward.h>
-#include <LibWeb/CSS/Enums.h>
+#include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Painting {
 
 Gfx::IntRect get_replaced_box_painting_area(PaintableBox const& paintable, DisplayListRecordingContext const& context, CSS::ObjectFit object_fit, Gfx::IntSize content_size);
+CSSPixelRect get_replaced_content_rect(PaintableBox const&, CSS::SizeWithAspectRatio const& natural_size);
 
 }

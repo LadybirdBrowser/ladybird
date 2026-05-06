@@ -52,6 +52,7 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/DocumentFramePainter.h>
 #include <LibWeb/Painting/ExternalContentSource.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableBox.h>
@@ -272,22 +273,17 @@ bool Navigable::is_ancestor_of(GC::Ref<Navigable> other) const
     return false;
 }
 
+void shutdown_all_navigables()
+{
+    all_navigables().clear();
+}
+
 Navigable::Navigable(GC::Ref<Page> page, bool is_svg_page)
     : m_page(page)
     , m_event_handler({}, *this)
     , m_is_svg_page(is_svg_page)
-    , m_backing_store_manager(heap().allocate<Painting::BackingStoreManager>(*this))
-    , m_rendering_thread([page_client = &page->client()](Gfx::IntRect const& viewport_rect, i32 bitmap_id) {
-        if (page_client)
-            page_client->page_did_paint(viewport_rect, bitmap_id);
-    })
 {
     all_navigables().set(*this);
-
-    if (!m_is_svg_page) {
-        auto display_list_player_type = page->client().display_list_player_type();
-        m_rendering_thread.start(display_list_player_type);
-    }
 }
 
 Navigable::~Navigable() = default;
@@ -317,7 +313,6 @@ void Navigable::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_parent);
     visitor.visit(m_active_document);
     visitor.visit(m_container);
-    visitor.visit(m_backing_store_manager);
     m_event_handler.visit_edges(visitor);
 
     for (auto& navigation_params : m_pending_navigations) {
@@ -421,11 +416,6 @@ void Navigable::initialize_navigable(NonnullRefPtr<DocumentState> document_state
     m_parent = parent;
     if (parent)
         m_should_show_line_box_borders = parent->m_should_show_line_box_borders;
-    if (parent && !m_is_svg_page) {
-        m_external_content_source = Painting::ExternalContentSource::create();
-        m_rendering_thread.set_presentation_mode(RenderingThread::PublishToExternalContent { external_content_source() });
-    }
-
     // 6. Set the initial visibility state of documentState's document to navigable's traversable navigable's system visibility state.
     document->set_initial_visibility_state(traversable_navigable()->system_visibility_state());
 }
@@ -2837,8 +2827,6 @@ void Navigable::set_viewport_size(CSSPixelSize size, InvalidateDisplayList inval
     m_viewport_size = size;
 
     if (!m_is_svg_page) {
-        m_backing_store_manager->restart_resize_timer();
-        m_backing_store_manager->resize_backing_stores_if_needed(Web::Painting::BackingStoreManager::WindowResizingInProgress::Yes);
         m_pending_set_browser_zoom_request = false;
     }
 
@@ -3085,17 +3073,6 @@ void Navigable::set_has_session_history_entry_and_ready_for_navigation()
     }
 }
 
-void Navigable::ready_to_paint()
-{
-    m_rendering_thread.ready_to_paint();
-}
-
-NonnullRefPtr<Painting::ExternalContentSource> Navigable::external_content_source() const
-{
-    VERIFY(m_external_content_source);
-    return *m_external_content_source;
-}
-
 void Navigable::set_should_show_line_box_borders(bool value)
 {
     m_should_show_line_box_borders = value;
@@ -3104,47 +3081,36 @@ void Navigable::set_should_show_line_box_borders(bool value)
     for (auto const& child_navigable : child_navigables())
         child_navigable->set_should_show_line_box_borders(value);
 }
-
-void Navigable::record_display_list_and_scroll_state(PaintConfig paint_config)
-{
-    m_needs_repaint = false;
-    auto document = active_document();
-    if (!document)
-        return;
-
-    auto display_list = document->record_display_list(paint_config);
-    if (!display_list)
-        return;
-
-    auto& document_paintable = *document->paintable();
-    document_paintable.refresh_scroll_state();
-
-    m_rendering_thread.update_display_list(*display_list, Painting::ScrollStateSnapshot(document_paintable.scroll_state_snapshot()));
-}
-
 void Navigable::paint_next_frame()
 {
+    m_needs_repaint = false;
+
     auto viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
     PaintConfig paint_config { .paint_overlay = true, .should_show_line_box_borders = m_should_show_line_box_borders };
     if (is_top_level_traversable()) {
         paint_config.canvas_fill_rect = Gfx::IntRect { {}, viewport_rect.size() };
-    } else {
-        // Nested navigables publish transparent bitmaps to their preconfigured ExternalContentSource instead of filling
-        // the canvas for the UI process.
-        VERIFY(m_external_content_source);
     }
 
-    record_display_list_and_scroll_state(paint_config);
+    auto document = active_document();
+    if (!document)
+        return;
 
-    auto frame_id = m_rendering_thread.present_frame(viewport_rect);
-    if (!is_top_level_traversable())
-        m_rendering_thread.wait_for_frame(frame_id);
-}
+    if (!is_top_level_traversable()) {
+        (void)document->update_display_list(paint_config);
+        return;
+    }
 
-void Navigable::render_screenshot(Gfx::PaintingSurface& painting_surface, PaintConfig paint_config, Function<void()>&& callback)
-{
-    record_display_list_and_scroll_state(paint_config);
-    m_rendering_thread.request_screenshot(painting_surface, move(callback));
+    auto sink_page_id = page().client().painting_sink_id();
+    VERIFY(sink_page_id.has_value());
+
+    auto prepared_submission = Painting::prepare_paint_commands_for_document_frame(*document, paint_config, sink_page_id.value());
+    if (!prepared_submission.has_value())
+        return;
+
+    auto submit = move(prepared_submission->submit);
+    auto release_token = submit();
+    if (release_token.has_value())
+        page().client().page_did_submit_paint_frame(release_token.release_value());
 }
 
 GC::Ref<WebIDL::Promise> Navigable::scroll_viewport_by_delta(CSSPixelPoint delta)

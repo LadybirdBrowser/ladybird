@@ -9,8 +9,13 @@
 #include <LibGfx/Forward.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibWeb/HTML/HTMLElement.h>
-#include <LibWeb/Painting/ExternalContentSource.h>
 #include <LibWeb/WebIDL/Types.h>
+
+namespace Web::Painting {
+
+class ExternalContentSource;
+
+}
 
 namespace Web::HTML {
 
@@ -50,6 +55,7 @@ public:
     void set_canvas_content_dirty();
 
     RefPtr<Gfx::PaintingSurface> surface() const;
+    RefPtr<Gfx::PaintingSurface> paint_server_surface_for_2d_context_readback();
     void allocate_painting_surface_if_needed();
 
     Painting::ExternalContentSource& ensure_external_content_source();
@@ -69,6 +75,9 @@ private:
     virtual GC::Ptr<Layout::Node> create_layout_node(GC::Ref<CSS::ComputedProperties>) override;
     virtual void adjust_computed_style(CSS::ComputedProperties&) override;
 
+    void schedule_paint_server_canvas_present();
+    void schedule_paint_server_canvas_present_when_ready(Painting::ExternalContentSource&);
+
     template<typename ContextType>
     JS::ThrowCompletionOr<HasOrCreatedContext> create_webgl_context(JS::Value options);
     void reset_context_to_default_state();
@@ -77,6 +86,8 @@ private:
     Variant<GC::Ref<HTML::CanvasRenderingContext2D>, GC::Ref<WebGL::WebGLRenderingContext>, GC::Ref<WebGL::WebGL2RenderingContext>, Empty> m_context;
     RefPtr<Painting::ExternalContentSource> m_external_content_source;
     bool m_canvas_content_dirty { false };
+    bool m_paint_server_canvas_present_scheduled { false };
+    bool m_paint_server_canvas_present_waiting_for_content { false };
 };
 
 }

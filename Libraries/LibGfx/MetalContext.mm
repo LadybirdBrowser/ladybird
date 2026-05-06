@@ -7,6 +7,7 @@
 #include <AK/OwnPtr.h>
 #include <LibGfx/MetalContext.h>
 
+#import <IOSurface/IOSurface.h>
 #import <Metal/Metal.h>
 
 namespace Gfx {
@@ -42,16 +43,27 @@ public:
     void const* device() const override { return m_device; }
     void const* queue() const override { return m_queue; }
 
-    OwnPtr<MetalTexture> create_texture_from_iosurface(Core::IOSurfaceHandle const& iosurface) override
+    OwnPtr<MetalTexture> create_texture_from_iosurface(void* platform_surface_handle, IntSize size, BitmapFormat bitmap_format) override
     {
         auto* const descriptor = [[MTLTextureDescriptor alloc] init];
-        descriptor.pixelFormat = MTLPixelFormatBGRA8Unorm;
-        descriptor.width = iosurface.width();
-        descriptor.height = iosurface.height();
+        switch (bitmap_format) {
+        case BitmapFormat::BGRA8888:
+        case BitmapFormat::BGRx8888:
+            descriptor.pixelFormat = MTLPixelFormatBGRA8Unorm;
+            break;
+        case BitmapFormat::RGBA8888:
+        case BitmapFormat::RGBx8888:
+            descriptor.pixelFormat = MTLPixelFormatRGBA8Unorm;
+            break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+        descriptor.width = size.width();
+        descriptor.height = size.height();
         descriptor.storageMode = MTLStorageModeShared;
         descriptor.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead;
 
-        id<MTLTexture> texture = [m_device newTextureWithDescriptor:descriptor iosurface:(IOSurfaceRef)iosurface.core_foundation_pointer() plane:0];
+        id<MTLTexture> texture = [m_device newTextureWithDescriptor:descriptor iosurface:(IOSurfaceRef)platform_surface_handle plane:0];
         [descriptor release];
         return make<MetalTextureImpl>(texture);
     }

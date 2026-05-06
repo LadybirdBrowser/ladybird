@@ -34,7 +34,7 @@ void CanvasPaintable::paint(DisplayListRecordingContext& context, PaintPhase pha
 
         auto& canvas_element = as<HTML::HTMLCanvasElement>(*dom_node());
         if (canvas_element.surface()) {
-            // present() snapshots the surface and publishes to ExternalContentSource.
+            // present() publishes the surface to ExternalContentSource.
             // FIXME: Remove this const_cast.
             auto& mutable_canvas_element = const_cast<HTML::HTMLCanvasElement&>(canvas_element);
             mutable_canvas_element.present();

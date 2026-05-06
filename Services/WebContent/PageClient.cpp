@@ -14,6 +14,7 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
+#include <LibIPC/File.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibJS/Console.h>
 #include <LibJS/Runtime/ConsoleObject.h>
@@ -24,6 +25,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/MutationType.h>
+#include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/NodeList.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/HTMLLinkElement.h>
@@ -32,16 +34,20 @@
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWebView/SiteIsolation.h>
 #include <LibWebView/ViewImplementation.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/DevToolsConsoleClient.h>
 #include <WebContent/PageClient.h>
+#include <WebContent/PageClientOfPaintServer.h>
 #include <WebContent/PageHost.h>
 #include <WebContent/WebContentClientEndpoint.h>
 #include <WebContent/WebDriverConnection.h>
 #include <WebContent/WebUIConnection.h>
+
+#include <LibPaintServer/RenderClientOfPaintServer.h>
 
 namespace WebContent {
 
@@ -56,6 +62,11 @@ void PageClient::set_use_skia_painter(UseSkiaPainter use_skia_painter)
 }
 
 bool PageClient::is_headless() const
+{
+    return s_is_headless;
+}
+
+bool PageClient::is_headless_for_process()
 {
     return s_is_headless;
 }
@@ -81,9 +92,13 @@ PageClient::PageClient(PageHost& owner, u64 id)
         m_last_frame_dispatch_time = Web::HighResolutionTime::unsafe_shared_current_time();
         Web::HTML::main_thread_event_loop().queue_task_to_update_the_rendering();
     });
+    if (display_list_player_type() == Web::DisplayListPlayerType::PaintServer)
+        m_painter = make<PageClientOfPaintServer>(*this);
 }
 
-PageClient::~PageClient() = default;
+PageClient::~PageClient()
+{
+}
 
 void PageClient::visit_edges(JS::Cell::Visitor& visitor)
 {
@@ -188,9 +203,10 @@ void PageClient::set_window_size(Web::DevicePixelSize size)
     page().set_window_size(size);
 }
 
-void PageClient::ready_to_paint()
+PageClientOfPaintServer& PageClient::gpu_adapter()
 {
-    page().top_level_traversable()->ready_to_paint();
+    VERIFY(m_painter);
+    return *m_painter;
 }
 
 Queue<Web::QueuedInputEvent>& PageClient::input_event_queue()
@@ -351,6 +367,9 @@ void PageClient::page_did_change_active_document_in_top_level_browsing_context(W
 {
     auto& realm = document.realm();
 
+    if (m_painter)
+        m_painter->did_change_top_level_origin(document.url().origin());
+
     m_web_ui.clear();
 
     if (auto console_client = document.console_client()) {
@@ -393,7 +412,7 @@ void PageClient::page_did_set_browser_zoom(double factor)
     traversable->set_pending_set_browser_zoom_request(true);
     client().async_did_set_browser_zoom(m_id, factor);
     auto& event_loop = Web::HTML::main_thread_event_loop();
-    event_loop.spin_until(GC::create_function(event_loop.heap(), [this, traversable]() {
+    (void)event_loop.spin_until(GC::create_function(event_loop.heap(), [this, traversable]() {
         return !traversable->pending_set_browser_zoom_request() || !is_connection_open();
     }));
 }
@@ -734,11 +753,6 @@ void PageClient::page_did_change_audio_play_state(Web::HTML::AudioPlayState play
     client().async_did_change_audio_play_state(m_id, play_state);
 }
 
-void PageClient::page_did_allocate_backing_stores(i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store)
-{
-    client().async_did_allocate_backing_stores(m_id, front_bitmap_id, move(front_backing_store), back_bitmap_id, move(back_backing_store));
-}
-
 Web::PageClient::WorkerAgentResponse PageClient::request_worker_agent(Web::Bindings::AgentType type)
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::RequestWorkerAgent>(m_id, type);
@@ -788,14 +802,11 @@ void PageClient::page_did_mutate_dom(FlyString const& type, Web::DOM::Node const
     client().async_did_mutate_dom(m_id, { type.to_string(), target.unique_id(), move(serialized_target), mutation.release_value() });
 }
 
-void PageClient::page_did_paint(Gfx::IntRect const& content_rect, i32 bitmap_id)
+void PageClient::page_did_submit_paint_frame(PaintServer::ReleaseToken release_token)
 {
-    client().async_did_paint(m_id, content_rect, bitmap_id);
-}
-
-void PageClient::page_did_take_screenshot(Gfx::ShareableBitmap const& screenshot)
-{
-    client().async_did_take_screenshot(m_id, screenshot);
+    if (!m_painter)
+        return;
+    m_painter->did_submit_gpu_operation(release_token);
 }
 
 ErrorOr<void> PageClient::connect_to_webdriver(ByteString const& webdriver_endpoint)
@@ -1006,17 +1017,171 @@ Web::DisplayListPlayerType PageClient::display_list_player_type() const
 {
     switch (s_use_skia_painter) {
     case UseSkiaPainter::GPUBackendIfAvailable:
-        return Web::DisplayListPlayerType::SkiaGPUIfAvailable;
     case UseSkiaPainter::CPUBackend:
-        return Web::DisplayListPlayerType::SkiaCPU;
+        return Web::DisplayListPlayerType::PaintServer;
     default:
         VERIFY_NOT_REACHED();
     }
 }
 
-void PageClient::queue_screenshot_task(Optional<Web::UniqueNodeID> node_id)
+void PageClient::did_complete_offscreen_render(PaintServer::RequestID request_id, PaintServer::ImageID image_id, Optional<Gfx::SharedImagePayload> content_image, Optional<Gfx::ShareableBitmap> bitmap)
 {
-    page().top_level_traversable()->queue_screenshot_task(node_id);
+    auto maybe_callback = m_pending_offscreen_render_callbacks.get(request_id);
+    if (!maybe_callback.has_value())
+        return;
+
+    auto callback = move(maybe_callback.value());
+    m_pending_offscreen_render_callbacks.remove(request_id);
+    callback(OffscreenRenderResult {
+        .image_id = image_id,
+        .content_image = move(content_image),
+        .bitmap = move(bitmap),
+    });
+}
+
+void PageClient::queue_screenshot_task(Optional<Web::UniqueNodeID> node_id, ScreenshotCallback callback)
+{
+    m_screenshot_tasks.enqueue(ScreenshotTask { node_id.has_value() ? ScreenshotTask::Kind::Node : ScreenshotTask::Kind::Document, node_id, move(callback) });
+    page().top_level_traversable()->set_needs_repaint();
+    request_frame();
+}
+
+void PageClient::queue_viewport_screenshot_task(ScreenshotCallback callback)
+{
+    m_screenshot_tasks.enqueue(ScreenshotTask { ScreenshotTask::Kind::Viewport, {}, move(callback) });
+    page().top_level_traversable()->set_needs_repaint();
+    request_frame();
+}
+
+void PageClient::complete_screenshot_task(Gfx::ShareableBitmap const& screenshot)
+{
+    VERIFY(m_pending_screenshot_task.has_value());
+    auto callback = move(m_pending_screenshot_task.value().callback);
+    m_pending_screenshot_task.clear();
+    m_screenshot_task_in_flight = false;
+
+    if (callback)
+        callback(screenshot);
+    process_screenshot_requests();
+}
+
+void PageClient::process_screenshot_requests()
+{
+    if (m_screenshot_task_in_flight || (!m_pending_screenshot_task.has_value() && m_screenshot_tasks.is_empty()))
+        return;
+
+    auto traversable = page().top_level_traversable();
+    if (!m_pending_screenshot_task.has_value())
+        m_pending_screenshot_task = m_screenshot_tasks.dequeue();
+    auto const& task = m_pending_screenshot_task.value();
+
+    auto document = traversable->active_document();
+    if (!document) {
+        complete_screenshot_task({});
+        return;
+    }
+
+    Web::HTML::PaintConfig paint_config;
+
+    switch (task.kind) {
+    case ScreenshotTask::Kind::Viewport: {
+        document->update_layout(Web::DOM::UpdateLayoutReason::ProcessScreenshot);
+        auto rect = page().css_to_device_rect(traversable->viewport_rect()).to_type<int>();
+        if (rect.is_empty()) {
+            complete_screenshot_task({});
+            return;
+        }
+        paint_config = Web::HTML::PaintConfig {
+            .paint_overlay = true,
+            .canvas_fill_rect = Gfx::IntRect { {}, rect.size() },
+        };
+        break;
+    }
+    case ScreenshotTask::Kind::Node: {
+        auto* dom_node = Web::DOM::Node::from_unique_id(*task.node_id);
+        if (dom_node)
+            dom_node->document().update_layout(Web::DOM::UpdateLayoutReason::ProcessScreenshot);
+        if (!dom_node || !dom_node->paintable_box()) {
+            complete_screenshot_task({});
+            return;
+        }
+        auto rect = page().enclosing_device_rect(dom_node->paintable_box()->absolute_border_box_rect());
+        paint_config = Web::HTML::PaintConfig { .canvas_fill_rect = rect.to_type<int>() };
+        break;
+    }
+    case ScreenshotTask::Kind::Document: {
+        if (!document->layout_node() || !document->layout_node()->paintable_box()) {
+            complete_screenshot_task({});
+            return;
+        }
+        document->update_layout(Web::DOM::UpdateLayoutReason::ProcessScreenshot);
+        auto scrollable_overflow_rect = document->layout_node()->paintable_box()->scrollable_overflow_rect();
+        if (!scrollable_overflow_rect.has_value()) {
+            complete_screenshot_task({});
+            return;
+        }
+        auto rect = page().enclosing_device_rect(scrollable_overflow_rect.value());
+        paint_config = Web::HTML::PaintConfig { .paint_overlay = true, .canvas_fill_rect = rect.to_type<int>() };
+        break;
+    }
+    }
+
+    PaintServer::OffscreenRenderTarget offscreen_target {
+        .kind = PaintServer::OffscreenTargetKind::ShareableBitmap,
+        .backend_preference = PaintServer::OffscreenBackendPreference::RequireCPU,
+    };
+    m_screenshot_task_in_flight = true;
+
+    auto request_id = request_offscreen_render(OffscreenPaintRequest {
+        .document = *document,
+        .paint_config = paint_config,
+        .target = offscreen_target,
+        .readiness = Web::Painting::OffscreenPaintSync::WaitForExternalContent,
+        .callback = [protected_this = GC::make_root(*this)](OffscreenRenderResult result) {
+            if (!result.bitmap.has_value()) {
+                protected_this->complete_screenshot_task({});
+                return;
+            }
+            protected_this->complete_screenshot_task(*result.bitmap);
+        },
+    });
+    if (!request_id.has_value())
+        complete_screenshot_task({});
+}
+
+Optional<PaintServer::RequestID> PageClient::request_offscreen_render(OffscreenPaintRequest request)
+{
+    if (!request.callback)
+        return {};
+
+    auto* render_client = client().paint_server_render_client();
+    if (!render_client)
+        return {};
+
+    auto sink_page_id = painting_sink_id();
+    if (!sink_page_id.has_value())
+        return {};
+
+    request.target.request_id = m_next_offscreen_render_request_id++;
+    if (request.target.kind == PaintServer::OffscreenTargetKind::ContentImage) {
+        if (request.target.image_id == 0)
+            request.target.image_id = render_client->allocate_image_id();
+        if (request.target.image_id == 0)
+            return {};
+    }
+
+    PaintServer::RequestID const request_id = request.target.request_id;
+    m_pending_offscreen_render_callbacks.set(request_id, move(request.callback));
+
+    bool const submitted = Web::Painting::submit_offscreen_paint_request(move(request), sink_page_id.value(), [protected_this = GC::make_root(*this), request_id] {
+        protected_this->did_complete_offscreen_render(request_id, 0, {}, {});
+    });
+    if (!submitted) {
+        m_pending_offscreen_render_callbacks.remove(request_id);
+        return {};
+    }
+
+    return request_id;
 }
 
 }

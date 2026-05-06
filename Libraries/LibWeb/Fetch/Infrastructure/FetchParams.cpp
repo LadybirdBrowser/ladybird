@@ -6,6 +6,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibWeb/Fetch/Fetching/PendingResponse.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 

@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <AK/JsonValue.h>
 #include <AK/Queue.h>
 #include <AK/Variant.h>
@@ -20,13 +21,14 @@
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/ShareableBitmap.h>
-#include <LibGfx/SharedImage.h>
+#include <LibGfx/SharedImagePayload.h>
 #include <LibGfx/Size.h>
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/Forward.h>
 #include <LibHTTP/Header.h>
 #include <LibIPC/Forward.h>
 #include <LibIPC/TransportHandle.h>
+#include <LibPaintServer/Types.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibURL/URL.h>
@@ -41,6 +43,7 @@
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/ColorPickerUpdateState.h>
 #include <LibWeb/HTML/FileFilter.h>
+#include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/HTML/SelectItem.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
 #include <LibWeb/HTML/WebViewHints.h>
@@ -49,6 +52,7 @@
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Page/ViewportIsFullscreen.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
+#include <LibWeb/Painting/OffscreenPaintRequest.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWeb/UIEvents/KeyCode.h>
@@ -360,7 +364,7 @@ private:
 };
 
 enum class DisplayListPlayerType {
-    SkiaGPUIfAvailable,
+    PaintServer,
     SkiaCPU,
 };
 
@@ -369,6 +373,7 @@ class PageClient : public JS::Cell {
 
 public:
     virtual u64 id() const = 0;
+    virtual Optional<u64> painting_sink_id() const { return id(); }
     virtual Page& page() = 0;
     virtual Page const& page() const = 0;
     virtual bool is_connection_open() const = 0;
@@ -445,7 +450,6 @@ public:
     virtual void page_did_request_activate_tab() { }
     virtual void page_did_close_top_level_traversable() { }
     virtual void page_did_update_navigation_buttons_state([[maybe_unused]] bool back_enabled, [[maybe_unused]] bool forward_enabled) { }
-    virtual void page_did_allocate_backing_stores([[maybe_unused]] i32 front_bitmap_id, [[maybe_unused]] Gfx::SharedImage front_backing_store, [[maybe_unused]] i32 back_bitmap_id, [[maybe_unused]] Gfx::SharedImage back_backing_store) { }
 
     virtual void request_file(FileRequest) = 0;
 
@@ -485,8 +489,12 @@ public:
 
     virtual void page_did_mutate_dom([[maybe_unused]] FlyString const& type, [[maybe_unused]] DOM::Node const& target, [[maybe_unused]] DOM::NodeList& added_nodes, [[maybe_unused]] DOM::NodeList& removed_nodes, [[maybe_unused]] GC::Ptr<DOM::Node> previous_sibling, [[maybe_unused]] GC::Ptr<DOM::Node> next_sibling, [[maybe_unused]] Optional<String> const& attribute_name) { }
 
-    virtual void page_did_paint([[maybe_unused]] Gfx::IntRect const& content_rect, [[maybe_unused]] i32 bitmap_id) { }
-    virtual void page_did_take_screenshot(Gfx::ShareableBitmap const&) { }
+    virtual void page_did_submit_paint_frame([[maybe_unused]] PaintServer::ReleaseToken release_token) { }
+    virtual void process_screenshot_requests() { }
+
+    using OffscreenRenderResult = Painting::OffscreenPaintResult;
+    using OffscreenPaintRequest = Painting::OffscreenPaintRequest;
+    virtual Optional<PaintServer::RequestID> request_offscreen_render([[maybe_unused]] OffscreenPaintRequest request) { return {}; }
 
     virtual void received_message_from_web_ui([[maybe_unused]] String const& name, [[maybe_unused]] JS::Value data) { }
 

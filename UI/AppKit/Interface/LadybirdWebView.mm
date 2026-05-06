@@ -11,6 +11,7 @@
 #include <LibWebView/Application.h>
 
 #import <Application/ApplicationDelegate.h>
+#import <IOSurface/IOSurface.h>
 #import <Interface/Event.h>
 #import <Interface/LadybirdWebView.h>
 #import <Interface/Menu.h>
@@ -57,10 +58,20 @@ struct HideCursor {
     id<MTLDevice> m_metal_device;
     id<MTLCommandQueue> m_metal_queue;
 
+    NSMutableDictionary<NSNumber*, id<MTLTexture>>* m_iosurface_textures_by_image_id;
+    size_t m_iosurface_texture_width;
+    size_t m_iosurface_texture_height;
+
     // We have to send key events for modifer keys, but AppKit does not generate key down/up events when only a modifier
     // key is pressed. Instead, we only receive an event that the modifier flags have changed, and we must determine for
     // ourselves whether the modifier key was pressed or released.
     NSEventModifierFlags m_modifier_flags;
+
+    NSTimeInterval m_last_present_time;
+    NSTimeInterval m_fps_window_start_time;
+    NSUInteger m_fps_window_frame_count;
+    double m_last_frame_time_ms;
+    double m_current_fps;
 }
 
 @property (nonatomic, weak) id<LadybirdWebViewObserver> observer;
@@ -70,6 +81,7 @@ struct HideCursor {
 @property (nonatomic, strong) NSMenu* media_context_menu;
 @property (nonatomic, strong) NSMenu* select_dropdown;
 @property (nonatomic, strong) NSTextField* status_label;
+@property (nonatomic, strong) NSTextField* performance_label;
 @property (nonatomic, strong) NSAlert* dialog;
 @property (nonatomic, strong) NSMagnificationGestureRecognizer* pinch_recognizer;
 
@@ -116,6 +128,10 @@ struct HideCursor {
             m_metal_device = MTLCreateSystemDefaultDevice();
             m_metal_queue = [m_metal_device newCommandQueue];
         }
+
+        m_iosurface_textures_by_image_id = [NSMutableDictionary dictionary];
+        m_iosurface_texture_width = 0;
+        m_iosurface_texture_height = 0;
 
         auto* screens = [NSScreen screens];
 
@@ -191,6 +207,7 @@ struct HideCursor {
 
     [self updateViewportRect];
     [self updateStatusLabelPosition];
+    [self updatePerformanceLabelPosition];
 }
 
 - (void)handleDevicePixelRatioChange
@@ -198,6 +215,7 @@ struct HideCursor {
     m_web_view_bridge->set_device_pixel_ratio([[self window] backingScaleFactor]);
     [self updateViewportRect];
     [self updateStatusLabelPosition];
+    [self updatePerformanceLabelPosition];
 }
 
 - (void)handleDisplayRefreshRateChange
@@ -269,6 +287,18 @@ struct HideCursor {
 
     auto position = NSMakePoint(LABEL_INSET, visible_rect.origin.y + visible_rect.size.height - status_label_rect.size.height - LABEL_INSET);
     [self.status_label setFrameOrigin:position];
+}
+
+- (void)updatePerformanceLabelPosition
+{
+    static constexpr CGFloat LABEL_INSET = 10;
+
+    auto visible_rect = [self visibleRect];
+    auto performance_label_rect = [self.performance_label frame];
+
+    auto position = NSMakePoint(visible_rect.origin.x + visible_rect.size.width - performance_label_rect.size.width - LABEL_INSET,
+        visible_rect.origin.y + visible_rect.size.height - performance_label_rect.size.height - LABEL_INSET);
+    [self.performance_label setFrameOrigin:position];
 }
 
 - (void)setWebViewCallbacks
@@ -950,6 +980,21 @@ struct HideCursor {
     return _status_label;
 }
 
+- (NSTextField*)performance_label
+{
+    if (!_performance_label) {
+        _performance_label = [NSTextField labelWithString:@"GPU -- fps | -- ms | --x--"];
+        [_performance_label setDrawsBackground:YES];
+        [_performance_label setBordered:YES];
+        [_performance_label setFont:[NSFont monospacedDigitSystemFontOfSize:11 weight:NSFontWeightMedium]];
+
+        [self addSubview:_performance_label];
+        [_performance_label sizeToFit];
+    }
+
+    return _performance_label;
+}
+
 #pragma mark - NSView
 
 - (CALayer*)makeBackingLayer
@@ -971,32 +1016,128 @@ struct HideCursor {
 
 - (void)presentMetalFrame
 {
-    VERIFY(m_metal_device);
-
-    auto paintable = m_web_view_bridge->paintable();
-    if (!paintable.has_value())
+    auto frame = m_web_view_bridge->presentable_frame();
+    if (!frame.has_value())
         return;
-    auto [shared_image_buffer, bitmap_size] = *paintable;
-    VERIFY(shared_image_buffer);
-    auto bitmap = shared_image_buffer->bitmap();
+
+    auto const& presentable_frame = *frame;
+
+    IOSurfaceRef source_surface = nullptr;
+    size_t source_surface_width = 0;
+    size_t source_surface_height = 0;
+    size_t presented_width = 0;
+    size_t presented_height = 0;
+    bool did_use_gpu_surface = presentable_frame.platform_surface_handle.has_value();
+    bool source_uses_iosurface = false;
+    void const* bitmap_data = nullptr;
+    size_t bitmap_bytes_per_row = 0;
+
+    if (presentable_frame.bitmap) {
+        auto const& bitmap = *presentable_frame.bitmap;
+        auto const& bitmap_size = presentable_frame.bitmap_size;
+        source_surface_width = static_cast<size_t>(bitmap.width());
+        source_surface_height = static_cast<size_t>(bitmap.height());
+        presented_width = static_cast<size_t>(bitmap_size.width());
+        presented_height = static_cast<size_t>(bitmap_size.height());
+
+        bitmap_data = bitmap.scanline_u8(0);
+        bitmap_bytes_per_row = bitmap.pitch();
+    }
+
+    if (did_use_gpu_surface && presentable_frame.platform_surface_handle.has_value()) {
+        source_surface = (IOSurfaceRef)presentable_frame.platform_surface_handle.value();
+        if (source_surface) {
+            CFRetain(source_surface);
+            source_uses_iosurface = true;
+
+            source_surface_width = IOSurfaceGetWidth(source_surface);
+            source_surface_height = IOSurfaceGetHeight(source_surface);
+
+            if (presentable_frame.surface_size.width() > 0 && presentable_frame.surface_size.height() > 0) {
+                presented_width = static_cast<size_t>(presentable_frame.surface_size.width());
+                presented_height = static_cast<size_t>(presentable_frame.surface_size.height());
+            } else {
+                presented_width = source_surface_width;
+                presented_height = source_surface_height;
+            }
+        }
+    }
+
+    if (source_surface_width == 0 || source_surface_height == 0 || presented_width == 0 || presented_height == 0)
+        return;
 
     CAMetalLayer* metal_layer = (CAMetalLayer*)self.layer;
-    metal_layer.drawableSize = CGSizeMake(bitmap_size.width(), bitmap_size.height());
+    metal_layer.drawableSize = CGSizeMake(static_cast<CGFloat>(presented_width), static_cast<CGFloat>(presented_height));
     metal_layer.contentsScale = m_web_view_bridge->device_pixel_ratio();
 
     id<CAMetalDrawable> drawable = [metal_layer nextDrawable];
     if (!drawable)
         return;
 
-    MTLTextureDescriptor* desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
-                                                                                    width:bitmap->width()
-                                                                                   height:bitmap->height()
-                                                                                mipmapped:NO];
-    desc.storageMode = MTLStorageModeShared;
-    desc.usage = MTLTextureUsageShaderRead;
-    id<MTLTexture> src_texture = [m_metal_device newTextureWithDescriptor:desc
-                                                                iosurface:(IOSurfaceRef)shared_image_buffer->iosurface_handle().core_foundation_pointer()
-                                                                    plane:0];
+    id<MTLTexture> src_texture = nil;
+    if (source_uses_iosurface) {
+        if (presentable_frame.image_id.has_value()) {
+            u64 image_id = presentable_frame.image_id.value();
+
+            if (m_iosurface_texture_width != source_surface_width || m_iosurface_texture_height != source_surface_height) {
+                [m_iosurface_textures_by_image_id removeAllObjects];
+                m_iosurface_texture_width = source_surface_width;
+                m_iosurface_texture_height = source_surface_height;
+            }
+
+            NSNumber* key = [NSNumber numberWithUnsignedLongLong:image_id];
+            src_texture = [m_iosurface_textures_by_image_id objectForKey:key];
+            if (!src_texture) {
+                MTLTextureDescriptor* desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
+                                                                                                width:source_surface_width
+                                                                                               height:source_surface_height
+                                                                                            mipmapped:NO];
+                desc.storageMode = MTLStorageModeShared;
+                desc.usage = MTLTextureUsageShaderRead;
+
+                src_texture = [m_metal_device newTextureWithDescriptor:desc
+                                                             iosurface:source_surface
+                                                                 plane:0];
+                if (src_texture)
+                    [m_iosurface_textures_by_image_id setObject:src_texture forKey:key];
+            }
+        } else {
+            MTLTextureDescriptor* desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
+                                                                                            width:source_surface_width
+                                                                                           height:source_surface_height
+                                                                                        mipmapped:NO];
+            desc.storageMode = MTLStorageModeShared;
+            desc.usage = MTLTextureUsageShaderRead;
+
+            src_texture = [m_metal_device newTextureWithDescriptor:desc
+                                                         iosurface:source_surface
+                                                             plane:0];
+        }
+        CFRelease(source_surface);
+    } else {
+        MTLTextureDescriptor* desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
+                                                                                        width:source_surface_width
+                                                                                       height:source_surface_height
+                                                                                    mipmapped:NO];
+        desc.storageMode = MTLStorageModeShared;
+        desc.usage = MTLTextureUsageShaderRead;
+
+        src_texture = [m_metal_device newTextureWithDescriptor:desc];
+        if (!src_texture)
+            return;
+
+        if (!bitmap_data || bitmap_bytes_per_row == 0)
+            return;
+
+        MTLRegion full_region = MTLRegionMake2D(0, 0, source_surface_width, source_surface_height);
+        [src_texture replaceRegion:full_region mipmapLevel:0 withBytes:bitmap_data bytesPerRow:bitmap_bytes_per_row];
+    }
+
+    if (!src_texture)
+        return;
+
+    size_t blit_width = presented_width < source_surface_width ? presented_width : source_surface_width;
+    size_t blit_height = presented_height < source_surface_height ? presented_height : source_surface_height;
 
     id<MTLCommandBuffer> cmd_buf = [m_metal_queue commandBuffer];
     id<MTLBlitCommandEncoder> blit = [cmd_buf blitCommandEncoder];
@@ -1004,14 +1145,66 @@ struct HideCursor {
               sourceSlice:0
               sourceLevel:0
              sourceOrigin:MTLOriginMake(0, 0, 0)
-               sourceSize:MTLSizeMake(bitmap_size.width(), bitmap_size.height(), 1)
+               sourceSize:MTLSizeMake(blit_width, blit_height, 1)
                 toTexture:drawable.texture
          destinationSlice:0
          destinationLevel:0
         destinationOrigin:MTLOriginMake(0, 0, 0)];
     [blit endEncoding];
     [cmd_buf presentDrawable:drawable];
+
+    if (did_use_gpu_surface && presentable_frame.present_id.has_value()) {
+        u64 present_id = presentable_frame.present_id.value();
+        __weak LadybirdWebView* weak_self = self;
+        [cmd_buf addCompletedHandler:^(id<MTLCommandBuffer>) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                LadybirdWebView* strong_self = weak_self;
+                if (!strong_self)
+                    return;
+                strong_self->m_web_view_bridge->did_present_frame(present_id);
+            });
+        }];
+    }
+
     [cmd_buf commit];
+
+    NSTimeInterval now = CACurrentMediaTime();
+    if (m_last_present_time > 0)
+        m_last_frame_time_ms = (now - m_last_present_time) * 1000.0;
+    m_last_present_time = now;
+
+    if (m_fps_window_start_time == 0)
+        m_fps_window_start_time = now;
+
+    m_fps_window_frame_count++;
+    NSTimeInterval fps_window_duration = now - m_fps_window_start_time;
+    if (fps_window_duration >= 1.0) {
+        m_current_fps = static_cast<double>(m_fps_window_frame_count) / fps_window_duration;
+        m_fps_window_start_time = now;
+        m_fps_window_frame_count = 0;
+    }
+
+    size_t const last_frame_time_ms = static_cast<size_t>(m_last_frame_time_ms);
+    auto maybe_submit_to_ack_max_ms = m_web_view_bridge->submit_to_ack_window_max_ms();
+    if (maybe_submit_to_ack_max_ms.has_value()) {
+        size_t const ack_max_ms = static_cast<size_t>(maybe_submit_to_ack_max_ms.value());
+        self.performance_label.stringValue = [NSString stringWithFormat:@"%s %.1f fps | %zu ms | ack %zu ms | %zux%zu",
+            did_use_gpu_surface ? "GPU" : "CPU",
+            m_current_fps,
+            last_frame_time_ms,
+            ack_max_ms,
+            presented_width,
+            presented_height];
+    } else {
+        self.performance_label.stringValue = [NSString stringWithFormat:@"%s %.1f fps | %zu ms | ack -- ms | %zux%zu",
+            did_use_gpu_surface ? "GPU" : "CPU",
+            m_current_fps,
+            last_frame_time_ms,
+            presented_width,
+            presented_height];
+    }
+    [self.performance_label sizeToFit];
+    [self updatePerformanceLabelPosition];
 }
 
 - (void)viewWillStartLiveResize
@@ -1030,23 +1223,26 @@ struct HideCursor {
 {
     VERIFY(!m_metal_device);
 
-    auto paintable = m_web_view_bridge->paintable();
-    if (!paintable.has_value()) {
-        layer.contents = nil;
+    // auto paintable = m_web_view_bridge->paintable();
+    // if (!paintable.has_value()) {
+    //     layer.contents = nil;
+    // Fallback for non-IOSurface path (e.g. Intel Macs)
+    auto frame = m_web_view_bridge->presentable_frame();
+    if (!frame.has_value() || !frame->bitmap) {
+        self.layer.contents = nil;
         return;
     }
 
-    auto [shared_image_buffer, bitmap_size] = *paintable;
-    VERIFY(shared_image_buffer);
-    auto bitmap = shared_image_buffer->bitmap();
+    auto const& bitmap = *frame->bitmap;
+    auto const& bitmap_size = frame->bitmap_size;
 
-    VERIFY(bitmap->format() == Gfx::BitmapFormat::BGRA8888);
+    VERIFY(bitmap.format() == Gfx::BitmapFormat::BGRA8888);
 
     static constexpr size_t BITS_PER_COMPONENT = 8;
     static constexpr size_t BITS_PER_PIXEL = 32;
     static auto* color_space = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
 
-    auto* provider = CGDataProviderCreateWithData(nil, bitmap->scanline_u8(0), bitmap->size_in_bytes(), nil);
+    auto* provider = CGDataProviderCreateWithData(nil, bitmap.scanline_u8(0), bitmap.size_in_bytes(), nil);
 
     // Ideally, this would be NSBitmapImageRep, but the equivalent factory initWithBitmapDataPlanes: does
     // not seem to actually respect endianness. We need NSBitmapFormatThirtyTwoBitLittleEndian, but the
@@ -1056,7 +1252,7 @@ struct HideCursor {
         bitmap_size.height(),
         BITS_PER_COMPONENT,
         BITS_PER_PIXEL,
-        bitmap->pitch(),
+        bitmap.pitch(),
         color_space,
         kCGBitmapByteOrder32Little | kCGImageAlphaFirst,
         provider,
@@ -1206,6 +1402,15 @@ struct HideCursor {
 {
     if (self.event_being_redispatched == event) {
         return;
+    }
+
+    auto modifier_flags = event.modifierFlags & NSEventModifierFlagDeviceIndependentFlagsMask;
+    if (modifier_flags == (NSEventModifierFlagCommand | NSEventModifierFlagShift)) {
+        auto* characters = [event charactersIgnoringModifiers];
+        if ([characters length] == 1 && [[[characters lowercaseString] substringToIndex:1] isEqualToString:@"l"]) {
+            m_web_view_bridge->debug_request("log-next-gpu-frame"sv);
+            return;
+        }
     }
 
     self.current_key_down_event = event;

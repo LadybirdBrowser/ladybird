@@ -402,6 +402,7 @@ void TransportSocket::read_incoming_messages()
     while (index + sizeof(MessageHeader) <= m_unprocessed_bytes.size()) {
         MessageHeader header;
         memcpy(&header, m_unprocessed_bytes.data() + index, sizeof(MessageHeader));
+
         if (header.type == MessageHeader::Type::Payload) {
             if (header.payload_size > MAX_MESSAGE_PAYLOAD_SIZE) {
                 dbgln("TransportSocket: Rejecting message with payload_size {} exceeding limit {}", header.payload_size, MAX_MESSAGE_PAYLOAD_SIZE);
@@ -433,6 +434,7 @@ void TransportSocket::read_incoming_messages()
                 m_peer_eof = true;
                 break;
             }
+
             batch.append(move(message));
         } else if (header.type == MessageHeader::Type::FileDescriptorAcknowledgement) {
             if (header.payload_size != 0) {

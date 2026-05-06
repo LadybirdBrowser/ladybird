@@ -1,0 +1,22 @@
+#include <LibPaintServer/Types.h>
+#include <LibGfx/SharedImagePayload.h>
+#include <LibGfx/Size.h>
+
+endpoint ToBrokerFromPaintServer
+{
+    server_epoch_changed(PaintServer::GPUEpoch server_epoch) =|
+
+    // Async reply for ToPaintServerFromBroker::hello.
+    did_hello(
+        PaintServer::RequestID request_id,
+        int peer_pid,
+        PaintServer::GPUEpoch server_epoch,
+        size_t max_texture_size
+    ) =|
+
+    capabilities(
+        size_t max_texture_size
+    ) =|
+
+    frame_ready(PaintServer::SurfaceID surface_id, PaintServer::FrameID present_id, PaintServer::ImageID image_id, Gfx::IntSize frame_size) =|
+}

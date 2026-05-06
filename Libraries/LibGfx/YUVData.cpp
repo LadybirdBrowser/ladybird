@@ -132,7 +132,7 @@ ErrorOr<NonnullRefPtr<Bitmap>> YUVData::to_bitmap() const
     auto const& impl = *m_impl;
     VERIFY(impl.bit_depth <= 12);
 
-    auto bitmap = TRY(Bitmap::create(BitmapFormat::RGBA8888, AlphaType::Premultiplied, impl.size));
+    auto bitmap = TRY(Bitmap::create(BitmapFormat::RGBA8888, BitmapAlpha::Premultiplied, impl.size));
     auto* dst = reinterpret_cast<u8*>(bitmap->scanline(0));
     auto dst_stride = static_cast<u32>(bitmap->pitch());
 
@@ -272,6 +272,32 @@ static u16 expand_sample_to_full_16_bit_range(u16 sample, u8 bit_depth)
     auto const shift = 16 - bit_depth;
     auto const inverse_shift = bit_depth - shift;
     return static_cast<u16>((sample << shift) | (sample >> inverse_shift));
+}
+
+static void expand_plane_samples_to_full_16_bit_range(FixedArray<u8>& buffer, IntSize plane_size, u8 bit_depth)
+{
+    VERIFY(bit_depth > 8);
+
+    u16* samples = reinterpret_cast<u16*>(buffer.data());
+    size_t sample_count = static_cast<size_t>(plane_size.width()) * plane_size.height();
+
+    for (size_t index = 0; index < sample_count; index++)
+        samples[index] = expand_sample_to_full_16_bit_range(samples[index], bit_depth);
+}
+
+void YUVData::expand_samples_to_full_16_bit_range()
+{
+    auto& impl = *m_impl;
+    if (impl.bit_depth <= 8 || impl.bit_depth >= 16)
+        return;
+
+    expand_plane_samples_to_full_16_bit_range(impl.y_buffer, impl.size, impl.bit_depth);
+
+    IntSize uv_size = impl.subsampling.subsampled_size(impl.size);
+    expand_plane_samples_to_full_16_bit_range(impl.u_buffer, uv_size, impl.bit_depth);
+    expand_plane_samples_to_full_16_bit_range(impl.v_buffer, uv_size, impl.bit_depth);
+
+    impl.bit_depth = 16;
 }
 
 static void copy_plane_expanded_to_full_16_bit_range(FixedArray<u8> const& source_buffer, SkPixmap const& destination, IntSize plane_size, u8 bit_depth)

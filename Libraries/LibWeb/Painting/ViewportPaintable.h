@@ -36,7 +36,15 @@ public:
 
     bool handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, int wheel_delta_x, int wheel_delta_y) override;
 
-    void set_needs_to_refresh_scroll_state(bool value) { m_needs_to_refresh_scroll_state = value; }
+    void set_needs_to_refresh_scroll_state(bool value)
+    {
+        m_needs_to_refresh_scroll_state = value;
+        if (value)
+            m_has_pending_scroll_state_update = true;
+    }
+    bool needs_to_refresh_scroll_state() const { return m_needs_to_refresh_scroll_state; }
+    bool has_pending_scroll_state_update() const { return m_has_pending_scroll_state_update; }
+    void clear_pending_scroll_state_update() { m_has_pending_scroll_state_update = false; }
 
     ScrollState const& scroll_state() const { return m_scroll_state; }
     ScrollStateSnapshot const& scroll_state_snapshot() const { return m_scroll_state_snapshot; }
@@ -67,6 +75,7 @@ private:
     ScrollState m_scroll_state;
     ScrollStateSnapshot m_scroll_state_snapshot;
     bool m_needs_to_refresh_scroll_state { true };
+    bool m_has_pending_scroll_state_update { false };
 
     Vector<GC::Ref<PaintableBox>> m_paintable_boxes_with_auto_content_visibility;
 

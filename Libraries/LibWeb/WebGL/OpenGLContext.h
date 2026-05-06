@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
@@ -47,6 +48,7 @@ public:
     void set_size(Gfx::IntSize const&);
 
     RefPtr<Gfx::PaintingSurface> surface();
+    Optional<Gfx::SharedImagePayload> content_image_payload() const;
 
     u32 default_framebuffer() const;
     u32 default_renderbuffer() const;
@@ -60,9 +62,7 @@ private:
     NonnullRefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     Gfx::IntSize m_size;
     RefPtr<Gfx::PaintingSurface> m_painting_surface;
-#ifdef AK_OS_MACOS
-    OwnPtr<Gfx::SharedImageBuffer> m_shared_image_buffer;
-#endif
+    OwnPtr<Gfx::SharedImage> m_shared_image;
     NonnullOwnPtr<Impl> m_impl;
     Optional<Vector<String>> m_requestable_extensions;
     WebGLVersion m_webgl_version;

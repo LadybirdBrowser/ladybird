@@ -18,8 +18,6 @@ class SVGEllipseElement final : public SVGGeometryElement {
 public:
     virtual ~SVGEllipseElement() override = default;
 
-    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
-
     virtual Gfx::Path get_path(CSSPixelSize viewport_size) override;
 
     GC::Ref<SVGAnimatedLength> cx() const;
@@ -31,11 +29,6 @@ private:
     SVGEllipseElement(DOM::Document&, DOM::QualifiedName);
 
     virtual void initialize(JS::Realm&) override;
-
-    Optional<float> m_center_x;
-    Optional<float> m_center_y;
-    Optional<float> m_radius_x;
-    Optional<float> m_radius_y;
 };
 
 }

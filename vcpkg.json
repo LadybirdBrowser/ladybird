@@ -181,6 +181,25 @@
     "zlib"
   ],
   "features": {
+    "vcpkg-wayland": {
+      "description": "Build Wayland client libraries and protocols via vcpkg (Linux only)",
+      "dependencies": [
+        {
+          "name": "wayland",
+          "platform": "linux",
+          "features": [
+            "force-build"
+          ]
+        },
+        {
+          "name": "wayland-protocols",
+          "platform": "linux",
+          "features": [
+            "force-build"
+          ]
+        }
+      ]
+    },
     "gtk": {
       "description": "Build with GTK 4 GUI framework",
       "dependencies": [

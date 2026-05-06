@@ -20,6 +20,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/Time.h>
 #include <AK/Utf8View.h>
+#include <LibCore/ElapsedTimer.h>
 #include <LibCore/Timer.h>
 #include <LibGC/RootVector.h>
 #include <LibHTTP/Cookie/Cookie.h>
@@ -28,6 +29,8 @@
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/NativeFunction.h>
+#include <LibPaintServer/Compositor/DrawList.h>
+#include <LibPaintServer/Debug.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibURL/Origin.h>
 #include <LibURL/Parser.h>
@@ -179,9 +182,8 @@
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
-#include <LibWeb/Painting/DisplayList.h>
-#include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
+#include <LibWeb/Painting/DocumentFramePainter.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
@@ -7515,74 +7517,26 @@ void Document::set_needs_repaint(InvalidateDisplayList should_invalidate_display
 
 void Document::invalidate_display_list()
 {
-    m_cached_display_list.clear();
+    m_retained_display_list.clear();
 }
 
-RefPtr<Painting::DisplayList> Document::cached_display_list() const
+RefPtr<Painting::DisplayList> Document::retained_display_list() const
 {
-    return m_cached_display_list;
+    return m_retained_display_list;
 }
 
-RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig config)
+RefPtr<Painting::DisplayList> Document::update_display_list(HTML::PaintConfig config)
 {
-    if (m_cached_display_list && m_cached_display_list_paint_config == config)
-        return m_cached_display_list;
+    if (m_retained_display_list && m_retained_display_list_paint_config == config)
+        return m_retained_display_list;
 
     update_paint_and_hit_testing_properties_if_needed();
-    VERIFY(paintable());
+    auto display_list = Painting::update_display_list_for_document_frame(*this, config);
+    if (!display_list)
+        return {};
 
-    auto display_list = Painting::DisplayList::create(paintable()->visual_context_tree());
-    Painting::DisplayListRecorder display_list_recorder(display_list);
-
-    // https://drafts.csswg.org/css-color-adjust-1/#color-scheme-effect
-    // On the root element, the used color scheme additionally must affect the surface color of the canvas, and the viewport’s scrollbars.
-    auto color_scheme = CSS::PreferredColorScheme::Light;
-    if (auto* html_element = this->html_element(); html_element && html_element->layout_node()) {
-        if (html_element->layout_node()->computed_values().color_scheme() == CSS::PreferredColorScheme::Dark)
-            color_scheme = CSS::PreferredColorScheme::Dark;
-    }
-
-    // .. in the case of embedded documents typically rendered over a transparent canvas
-    // (such as provided via an HTML iframe element), if the used color scheme of the element
-    // and the used color scheme of the embedded document’s root element do not match,
-    // then the UA must use an opaque canvas of the Canvas color appropriate to the
-    // embedded document’s used color scheme instead of a transparent canvas.
-    bool opaque_canvas = false;
-    if (auto container_element = navigable()->container(); container_element && container_element->layout_node()) {
-        auto container_scheme = container_element->layout_node()->computed_values().color_scheme();
-        if (container_scheme == CSS::PreferredColorScheme::Auto)
-            container_scheme = CSS::PreferredColorScheme::Light;
-
-        opaque_canvas = container_scheme != color_scheme;
-    }
-
-    if (config.canvas_fill_rect.has_value()) {
-        display_list_recorder.fill_rect(config.canvas_fill_rect.value(), CSS::SystemColor::canvas(color_scheme));
-    }
-
-    auto viewport_rect = page().css_to_device_rect(this->viewport_rect());
-    Gfx::IntRect bitmap_rect { {}, viewport_rect.size().to_type<int>() };
-
-    if (opaque_canvas)
-        display_list_recorder.fill_rect(bitmap_rect, CSS::SystemColor::canvas(color_scheme));
-
-    display_list_recorder.fill_rect(bitmap_rect, background_color());
-
-    Web::DisplayListRecordingContext context(display_list_recorder, page().palette(), page().client().device_pixels_per_css_pixel(), page().chrome_metrics());
-    context.set_device_viewport_rect(viewport_rect);
-    context.set_should_show_line_box_borders(config.should_show_line_box_borders);
-    context.set_should_paint_overlay(config.paint_overlay);
-
-    auto& viewport_paintable = *paintable();
-
-    viewport_paintable.paint_all_phases(context);
-
-    if (highlighted_node() && highlighted_node()->paintable()) {
-        highlighted_node()->paintable()->paint_inspector_overlay(context);
-    }
-
-    m_cached_display_list = display_list;
-    m_cached_display_list_paint_config = config;
+    m_retained_display_list = display_list;
+    m_retained_display_list_paint_config = config;
 
     return display_list;
 }
@@ -7921,7 +7875,7 @@ String Document::dump_display_list()
     if (!viewport_paintable)
         return "No paintable"_string;
 
-    auto display_list = record_display_list(HTML::PaintConfig {});
+    auto display_list = update_display_list(HTML::PaintConfig {});
     if (!display_list)
         return "No display list"_string;
 
@@ -7974,26 +7928,30 @@ String Document::dump_display_list()
         [&](Painting::DisplayList const& list, int base_indent) {
             int indent = base_indent;
             for (auto const& item : list.commands()) {
-                int nesting_change = item.command.visit([](auto const& cmd) {
-                    if constexpr (requires { cmd.nesting_level_change; })
-                        return cmd.nesting_level_change;
-                    return 0;
-                });
+                if (item.kind == Painting::DisplayList::ItemKind::NestedDisplayList) {
+                    auto const& nested = list.nested_display_list_for(item);
+                    builder.append_repeated(' ', indent * 2);
+                    builder.appendff("PaintNestedDisplayList@{} rect={}", item.context_index.value(), nested.rect);
+                    builder.append('\n');
+                    if (nested.display_list)
+                        dump_commands(*nested.display_list, indent + 1);
+                    continue;
+                }
 
+                auto command = PaintServer::DrawListView(list.bytes_for(item));
+                PaintServer::Cursor cursor(command.bytes());
+                auto command_view = MUST(cursor.next());
+                if (!command_view.has_value())
+                    continue;
+
+                int nesting_change = Painting::command_nesting_level_change(*command_view);
                 if (nesting_change < 0)
                     indent = max(base_indent, indent + nesting_change);
 
                 builder.append_repeated(' ', indent * 2);
-                item.command.visit([&](auto const& command) {
-                    builder.appendff("{}@{}", command.command_name, item.context_index.value());
-                    command.dump(builder);
-                });
+                builder.appendff("{}@{}", Painting::dump_command_name(*command_view), item.context_index.value());
+                Painting::dump_command(builder, *command_view);
                 builder.append('\n');
-
-                if (auto const* nested = item.command.get_pointer<Painting::PaintNestedDisplayList>()) {
-                    if (nested->display_list)
-                        dump_commands(*nested->display_list, indent + 1);
-                }
 
                 if (nesting_change > 0)
                     indent += nesting_change;

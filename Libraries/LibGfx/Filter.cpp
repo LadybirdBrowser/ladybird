@@ -10,6 +10,7 @@
 #include <LibGfx/SkiaUtils.h>
 #include <core/SkBlendMode.h>
 #include <core/SkColorFilter.h>
+#include <core/SkImage.h>
 #include <core/SkScalar.h>
 #include <effects/SkColorMatrix.h>
 #include <effects/SkImageFilters.h>
@@ -35,7 +36,7 @@ Filter& Filter::operator=(Filter const& other)
 Filter::~Filter() = default;
 
 Filter::Filter(NonnullOwnPtr<FilterImpl>&& impl)
-    : m_impl(impl->clone())
+    : m_impl(move(impl))
 {
 }
 
@@ -51,7 +52,7 @@ Filter Filter::arithmetic(Optional<Filter const&> background, Optional<Filter co
 
     auto filter = SkImageFilters::Arithmetic(
         SkFloatToScalar(k1), SkFloatToScalar(k2), SkFloatToScalar(k3), SkFloatToScalar(k4), false, move(background_skia), move(foreground_skia));
-    return Filter(Impl::create(filter));
+    return Filter(Impl::create(filter, background, foreground));
 }
 
 Filter Filter::compose(Filter const& outer, Filter const& inner)
@@ -60,7 +61,7 @@ Filter Filter::compose(Filter const& outer, Filter const& inner)
     auto outer_skia = outer.m_impl->filter;
 
     auto filter = SkImageFilters::Compose(outer_skia, inner_skia);
-    return Filter(Impl::create(filter));
+    return Filter(Impl::create(filter, Optional<Filter const&> { outer }, Optional<Filter const&> { inner }));
 }
 
 Filter Filter::blend(Optional<Filter const&> background, Optional<Filter const&> foreground, Gfx::CompositingAndBlendingOperator mode)
@@ -69,7 +70,7 @@ Filter Filter::blend(Optional<Filter const&> background, Optional<Filter const&>
     sk_sp<SkImageFilter> foreground_skia = foreground.has_value() ? foreground->m_impl->filter : nullptr;
 
     auto filter = SkImageFilters::Blend(to_skia_blender(mode), background_skia, foreground_skia);
-    return Filter(Impl::create(filter));
+    return Filter(Impl::create(filter, background, foreground));
 }
 
 Filter Filter::blur(float radius_x, float radius_y, Optional<Filter const&> input)
@@ -77,7 +78,7 @@ Filter Filter::blur(float radius_x, float radius_y, Optional<Filter const&> inpu
     sk_sp<SkImageFilter> input_skia = input.has_value() ? input->m_impl->filter : nullptr;
 
     auto filter = SkImageFilters::Blur(radius_x, radius_y, input_skia);
-    return Filter(Impl::create(filter));
+    return Filter(Impl::create(filter, input));
 }
 
 Filter Filter::flood(Gfx::Color color, float opacity)
@@ -111,7 +112,7 @@ Filter Filter::displacement_map(Optional<Filter const&> color, Optional<Filter c
     auto x_channel_selector_skia = convert_channel_selector(x_channel_selector);
     auto y_channel_selector_skia = convert_channel_selector(y_channel_selector);
     auto filter = SkImageFilters::DisplacementMap(x_channel_selector_skia, y_channel_selector_skia, scale, displacement_skia, color_skia);
-    return Filter(Impl::create(filter));
+    return Filter(Impl::create(filter, color, displacement));
 }
 
 Filter Filter::drop_shadow(float offset_x, float offset_y, float radius, Gfx::Color color,
@@ -121,7 +122,7 @@ Filter Filter::drop_shadow(float offset_x, float offset_y, float radius, Gfx::Co
     auto shadow_color = to_skia_color(color);
 
     auto filter = SkImageFilters::DropShadow(offset_x, offset_y, radius, radius, shadow_color, input_skia);
-    return Filter(Impl::create(filter));
+    return Filter(Impl::create(filter, input));
 }
 
 Filter Filter::color(ColorFilterType type, float amount, Optional<Filter const&> input)
@@ -213,14 +214,14 @@ Filter Filter::color(ColorFilterType type, float amount, Optional<Filter const&>
         VERIFY_NOT_REACHED();
     }
 
-    return Filter(Impl::create(SkImageFilters::ColorFilter(color_filter, input_skia)));
+    return Filter(Impl::create(SkImageFilters::ColorFilter(color_filter, input_skia), input));
 }
 
 Filter Filter::color_matrix(float matrix[20], Optional<Filter const&> input)
 {
     sk_sp<SkImageFilter> input_skia = input.has_value() ? input->m_impl->filter : nullptr;
 
-    return Filter(Impl::create(SkImageFilters::ColorFilter(SkColorFilters::Matrix(matrix), input_skia)));
+    return Filter(Impl::create(SkImageFilters::ColorFilter(SkColorFilters::Matrix(matrix), input_skia), input));
 }
 
 Filter Filter::color_table(Optional<ReadonlyBytes> a, Optional<ReadonlyBytes> r, Optional<ReadonlyBytes> g,
@@ -243,7 +244,7 @@ Filter Filter::color_table(Optional<ReadonlyBytes> a, Optional<ReadonlyBytes> r,
     auto srgb_to_linear = SkImageFilters::ColorFilter(SkColorFilters::SRGBToLinearGamma(), input_skia);
     auto color_table = SkImageFilters::ColorFilter(SkColorFilters::TableARGB(a_table, r_table, g_table, b_table), srgb_to_linear);
     auto linear_to_srgb = SkImageFilters::ColorFilter(SkColorFilters::LinearToSRGBGamma(), color_table);
-    return Filter(Impl::create(linear_to_srgb));
+    return Filter(Impl::create(linear_to_srgb, input));
 }
 
 Filter Filter::saturate(float value, Optional<Filter const&> input)
@@ -253,7 +254,7 @@ Filter Filter::saturate(float value, Optional<Filter const&> input)
     SkColorMatrix matrix;
     matrix.setSaturation(value);
 
-    return Filter(Impl::create(SkImageFilters::ColorFilter(SkColorFilters::Matrix(matrix), input_skia)));
+    return Filter(Impl::create(SkImageFilters::ColorFilter(SkColorFilters::Matrix(matrix), input_skia), input));
 }
 
 Filter Filter::hue_rotate(float angle_degrees, Optional<Filter const&> input)
@@ -283,7 +284,7 @@ Filter Filter::hue_rotate(float angle_degrees, Optional<Filter const&> input)
     };
 
     auto color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kNo);
-    return Filter(Impl::create(SkImageFilters::ColorFilter(color_filter, input_skia)));
+    return Filter(Impl::create(SkImageFilters::ColorFilter(color_filter, input_skia), input));
 }
 
 Filter Filter::image(Gfx::DecodedImageFrame const& frame, Gfx::IntRect const& src_rect, Gfx::IntRect const& dest_rect, Gfx::ScalingMode scaling_mode)
@@ -292,8 +293,15 @@ Filter Filter::image(Gfx::DecodedImageFrame const& frame, Gfx::IntRect const& sr
     auto skia_dest_rect = to_skia_rect(dest_rect);
     auto sampling_options = to_skia_sampling_options(scaling_mode);
 
-    auto image = sk_image_from_bitmap(frame.bitmap(), frame.color_space());
-    return Filter(Impl::create(SkImageFilters::Image(move(image), skia_src_rect, skia_dest_rect, sampling_options)));
+    auto sk_image = sk_image_from_bitmap(frame.bitmap(), frame.color_space());
+    if (!sk_image)
+        return Filter(Impl::create(nullptr));
+
+    u32 const skia_image_unique_id = sk_image->uniqueID();
+    return Filter(Impl::create(SkImageFilters::Image(move(sk_image), skia_src_rect, skia_dest_rect, sampling_options), FilterImageReference {
+                                                                                                                           .skia_image_unique_id = skia_image_unique_id,
+                                                                                                                           .frame = NonnullRefPtr<DecodedImageFrame const> { frame },
+                                                                                                                       }));
 }
 
 Filter Filter::merge(Vector<Optional<Filter>> const& inputs)
@@ -303,25 +311,25 @@ Filter Filter::merge(Vector<Optional<Filter>> const& inputs)
     for (auto& filter : inputs)
         skia_filters.unchecked_append(filter.has_value() ? filter->m_impl->filter : nullptr);
 
-    return Filter(Impl::create(SkImageFilters::Merge(skia_filters.data(), skia_filters.size())));
+    return Filter(Impl::create(SkImageFilters::Merge(skia_filters.data(), skia_filters.size()), inputs.span()));
 }
 
 Filter Filter::erode(float radius_x, float radius_y, Optional<Filter> const& input)
 {
     sk_sp<SkImageFilter> input_skia = input.has_value() ? input->m_impl->filter : nullptr;
-    return Filter(Impl::create(SkImageFilters::Erode(radius_x, radius_y, input_skia)));
+    return Filter(Impl::create(SkImageFilters::Erode(radius_x, radius_y, input_skia), input));
 }
 
 Filter Filter::dilate(float radius_x, float radius_y, Optional<Filter> const& input)
 {
     sk_sp<SkImageFilter> input_skia = input.has_value() ? input->m_impl->filter : nullptr;
-    return Filter(Impl::create(SkImageFilters::Dilate(radius_x, radius_y, input_skia)));
+    return Filter(Impl::create(SkImageFilters::Dilate(radius_x, radius_y, input_skia), input));
 }
 
 Filter Filter::offset(float dx, float dy, Optional<Filter const&> input)
 {
     sk_sp<SkImageFilter> input_skia = input.has_value() ? input->m_impl->filter : nullptr;
-    return Filter(Impl::create(SkImageFilters::Offset(dx, dy, input_skia)));
+    return Filter(Impl::create(SkImageFilters::Offset(dx, dy, input_skia), input));
 }
 
 Filter Filter::turbulence(TurbulenceType turbulence_type, float base_frequency_x, float base_frequency_y, i32 num_octaves, float seed, Gfx::IntSize const& tile_stitch_size)

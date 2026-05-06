@@ -17,8 +17,11 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/SystemTheme.h>
+#include <LibIPC/Transport.h>
 #include <LibJS/Runtime/ConsoleObject.h>
 #include <LibJS/Runtime/Date.h>
+#include <LibPaintServer/Debug.h>
+#include <LibPaintServer/RenderClientOfPaintServer.h>
 #include <LibUnicode/TimeZone.h>
 #include <LibWeb/ARIA/RoleType.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
@@ -52,6 +55,7 @@
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Loader/UserAgent.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/Painting/DisplayListSubmitter.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/PermissionsPolicy/AutoplayAllowlist.h>
@@ -61,6 +65,7 @@
 #include <LibWebView/ViewImplementation.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/PageClient.h>
+#include <WebContent/PageClientOfPaintServer.h>
 #include <WebContent/PageHost.h>
 #include <WebContent/WebContentClientEndpoint.h>
 
@@ -154,6 +159,104 @@ void ConnectionFromClient::connect_to_request_server(IPC::TransportHandle handle
         on_request_server_connection(handle);
 }
 
+void ConnectionFromClient::connect_to_paint_server_render_client(IPC::TransportHandle handle)
+{
+    Web::Painting::DisplayListSubmitter::reset_all_resources();
+
+    auto transport = handle.create_transport();
+    if (transport.is_error()) {
+        dbgln("Failed to create PaintServer render client transport: {}", transport.error());
+        return;
+    }
+
+    m_gpu_render_client = adopt_ref(*new PaintServer::RenderClientOfPaintServer(transport.release_value()));
+
+    m_gpu_render_client->hello([this](auto response) {
+        if (!m_gpu_render_client)
+            return;
+        m_gpu_render_client->set_server_epoch(response.server_epoch);
+    },
+        PageClient::is_headless_for_process());
+
+    m_gpu_render_client->on_server_epoch_changed = [this](u64 server_epoch) {
+        Web::Painting::DisplayListSubmitter::reset_all_resources();
+
+        if (m_gpu_render_client)
+            m_gpu_render_client->set_server_epoch(server_epoch);
+    };
+
+    m_gpu_render_client->on_did_complete = [this](PaintServer::SurfaceID surface_id, PaintServer::ReleaseToken release_token, PaintServer::CompletionStatus status) {
+        auto page_id = m_page_id_by_gpu_surface_id.get(surface_id);
+        if (!page_id.has_value())
+            return;
+        if (auto page = this->page(page_id.value()); page.has_value()) {
+            if (status == PaintServer::CompletionStatus::Ingested)
+                page->gpu_adapter().did_ingest_gpu_operation(release_token);
+            else if (status == PaintServer::CompletionStatus::Rendered)
+                page->gpu_adapter().did_render_gpu_operation(release_token, true);
+        }
+    };
+
+    m_gpu_render_client->on_did_complete_offscreen_render = [this](PaintServer::SurfaceID surface_id, PaintServer::RequestID request_id, PaintServer::ImageID image_id, Optional<Gfx::SharedImagePayload> content_image, Optional<Gfx::ShareableBitmap> bitmap) {
+        auto page_id = m_page_id_by_gpu_surface_id.get(surface_id);
+        if (!page_id.has_value())
+            return;
+        if (auto page = this->page(page_id.value()); page.has_value())
+            page->did_complete_offscreen_render(request_id, image_id, move(content_image), move(bitmap));
+    };
+
+    m_gpu_render_client->on_request_frame_repaint = [this](PaintServer::SurfaceID surface_id) {
+        auto page_id = m_page_id_by_gpu_surface_id.get(surface_id);
+        if (!page_id.has_value())
+            return;
+        if (auto page = this->page(page_id.value()); page.has_value())
+            page->gpu_adapter().request_frame_repaint();
+    };
+
+    m_gpu_render_client->on_did_fail_resource_registration = [this](PaintServer::SurfaceID surface_id, PaintServer::ResourceID resource_id, PaintServer::ReleaseToken) {
+        auto page_id = m_page_id_by_gpu_surface_id.get(surface_id);
+        if (PaintServer::is_logging_enabled(PaintServer::LOG_RESOURCE) || PaintServer::is_logging_enabled(PaintServer::LOG_INGRESS)) {
+            dbgln("ConnectionFromClient: on_did_fail_resource_registration {} surface_id={} page_id_found={} page_id={}",
+                resource_id,
+                surface_id,
+                page_id.has_value(),
+                page_id.value_or(0));
+        }
+        if (!page_id.has_value())
+            return;
+        if (auto page = this->page(page_id.value()); page.has_value())
+            page->gpu_adapter().did_fail_resource_registration(resource_id);
+    };
+
+    m_gpu_render_client->on_death = [this]() {
+        m_gpu_render_client = nullptr;
+        m_page_id_by_gpu_surface_id.clear();
+        Web::Painting::DisplayListSubmitter::reset_all_resources();
+    };
+}
+
+void ConnectionFromClient::set_surface_id(u64 page_id, u64 surface_id)
+{
+    if (auto page = this->page(page_id); page.has_value()) {
+        // Remove any previous mapping for this page.
+        Vector<PaintServer::SurfaceID> keys_to_remove;
+        for (auto const& it : m_page_id_by_gpu_surface_id) {
+            if (it.value == page_id)
+                keys_to_remove.append(it.key);
+        }
+        for (auto key : keys_to_remove)
+            m_page_id_by_gpu_surface_id.remove(key);
+
+        if (page->display_list_player_type() != Web::DisplayListPlayerType::PaintServer)
+            return;
+
+        page->gpu_adapter().set_surface_id(static_cast<PaintServer::SurfaceID>(surface_id));
+
+        if (surface_id != 0)
+            m_page_id_by_gpu_surface_id.set(static_cast<PaintServer::SurfaceID>(surface_id), page_id);
+    }
+}
+
 void ConnectionFromClient::update_system_theme(u64 page_id, Core::AnonymousBuffer theme_buffer)
 {
     auto page = this->page(page_id);
@@ -204,12 +307,6 @@ void ConnectionFromClient::set_viewport(u64 page_id, Web::DevicePixelSize size, 
         page->set_viewport(size, device_pixel_ratio);
         page->page().set_viewport_is_fullscreen(is_fullscreen);
     }
-}
-
-void ConnectionFromClient::ready_to_paint(u64 page_id)
-{
-    if (auto page = this->page(page_id); page.has_value())
-        page->ready_to_paint();
 }
 
 void ConnectionFromClient::key_event(u64 page_id, Web::KeyEvent event)
@@ -342,6 +439,7 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
                 });
             });
         }
+
         return;
     }
 
@@ -392,6 +490,12 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
         Core::deferred_invoke([] {
             Web::Bindings::main_thread_vm().heap().collect_garbage(GC::Heap::CollectionType::CollectGarbage, true);
         });
+        return;
+    }
+
+    if (request == "log-next-gpu-frame") {
+        page->gpu_adapter().arm_next_frame_logging();
+        page->gpu_adapter().request_frame_repaint();
         return;
     }
 
@@ -926,13 +1030,26 @@ void ConnectionFromClient::remove_dom_node(u64 page_id, Web::UniqueNodeID node_i
     async_did_finish_editing_dom_node(page_id, previous_dom_node->unique_id());
 }
 
+void ConnectionFromClient::take_viewport_screenshot(u64 page_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    page->queue_viewport_screenshot_task([this, page_id](Gfx::ShareableBitmap const& screenshot) {
+        async_did_take_screenshot(page_id, screenshot);
+    });
+}
+
 void ConnectionFromClient::take_document_screenshot(u64 page_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
         return;
 
-    page->queue_screenshot_task({});
+    page->queue_screenshot_task({}, [this, page_id](Gfx::ShareableBitmap const& screenshot) {
+        async_did_take_screenshot(page_id, screenshot);
+    });
 }
 
 void ConnectionFromClient::take_dom_node_screenshot(u64 page_id, Web::UniqueNodeID node_id)
@@ -941,7 +1058,9 @@ void ConnectionFromClient::take_dom_node_screenshot(u64 page_id, Web::UniqueNode
     if (!page.has_value())
         return;
 
-    page->queue_screenshot_task(node_id);
+    page->queue_screenshot_task(node_id, [this, page_id](Gfx::ShareableBitmap const& screenshot) {
+        async_did_take_screenshot(page_id, screenshot);
+    });
 }
 
 static void append_page_text(Web::Page& page, StringBuilder& builder)

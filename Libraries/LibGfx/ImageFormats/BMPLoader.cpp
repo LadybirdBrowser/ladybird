@@ -1261,44 +1261,42 @@ static ErrorOr<void> decode_bmp_pixel_data(BMPLoadingContext& context)
 
     u16 const bits_per_pixel = context.dib.core.bpp;
 
-    BitmapFormat format = [&]() -> BitmapFormat {
-        // NOTE: If this is an BMP included in an ICO, the bitmap format will be converted to BGRA8888.
-        //       This is because images with less than 32 bits of color depth follow a particular format:
-        //       the image is encoded with a color mask (the "XOR mask") together with an opacity mask (the "AND mask") of 1 bit per pixel.
-        //       The height of the encoded image must be exactly twice the real height, before both masks are combined.
-        //       Bitmaps have no knowledge of this format as they do not store extra rows for the AND mask.
-        if (context.is_included_in_ico)
-            return BitmapFormat::BGRA8888;
-
+    BitmapFormat format;
+    // NOTE: If this is an BMP included in an ICO, the bitmap format will be converted to BGRA8888.
+    //       This is because images with less than 32 bits of color depth follow a particular format:
+    //       the image is encoded with a color mask (the "XOR mask") together with an opacity mask (the "AND mask") of 1 bit per pixel.
+    //       The height of the encoded image must be exactly twice the real height, before both masks are combined.
+    //       Bitmaps have no knowledge of this format as they do not store extra rows for the AND mask.
+    if (context.is_included_in_ico) {
+        format = BitmapFormat::BGRA8888;
+    } else {
         switch (bits_per_pixel) {
         case 1:
         case 2:
         case 4:
         case 8:
-            return BitmapFormat::BGRx8888;
+            format = BitmapFormat::BGRx8888;
+            break;
         case 16:
-            if (context.dib.info.masks.size() == 4)
-                return BitmapFormat::BGRA8888;
-            return BitmapFormat::BGRx8888;
+            format = context.dib.info.masks.size() == 4 ? BitmapFormat::BGRA8888 : BitmapFormat::BGRx8888;
+            break;
         case 24:
-            return BitmapFormat::RGBx8888;
+            format = BitmapFormat::RGBx8888;
+            break;
         case 32:
-            return BitmapFormat::BGRA8888;
+            format = BitmapFormat::BGRA8888;
+            break;
         default:
-            return BitmapFormat::Invalid;
+            dbgln("BMP has invalid bpp of {}", bits_per_pixel);
+            context.state = BMPLoadingContext::State::Error;
+            return Error::from_string_literal("BMP has invalid bpp");
         }
-    }();
-
-    if (format == BitmapFormat::Invalid) {
-        dbgln("BMP has invalid bpp of {}", bits_per_pixel);
-        context.state = BMPLoadingContext::State::Error;
-        return Error::from_string_literal("BMP has invalid bpp");
     }
 
     u32 const width = abs(context.dib.core.width);
     u32 const height = !context.is_included_in_ico ? abs(context.dib.core.height) : (abs(context.dib.core.height) / 2);
 
-    context.bitmap = TRY(Bitmap::create(format, Gfx::AlphaType::Unpremultiplied, { static_cast<int>(width), static_cast<int>(height) }));
+    context.bitmap = TRY(Bitmap::create(format, Gfx::BitmapAlpha::Unpremultiplied, { static_cast<int>(width), static_cast<int>(height) }));
 
     ByteBuffer rle_buffer;
     ReadonlyBytes bytes { context.file_bytes + context.data_offset, context.file_size - context.data_offset };

@@ -16,10 +16,13 @@
 #include <LibWebView/Autocomplete.h>
 
 #include <QObject>
+#include <QPointer>
 
 class QFrame;
 class QLineEdit;
 class QListView;
+class QMouseEvent;
+class QWidget;
 
 namespace Ladybird {
 
@@ -56,6 +59,9 @@ protected:
     virtual bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
+    QWidget* replay_target_at(QPoint const& global_position) const;
+    void update_hover_replay_target(QWidget* target);
+    bool replay_outside_mouse_event(QMouseEvent const& event);
     void position_popup();
     bool is_selectable_row(int row) const;
     int step_to_selectable_row(int from, int direction) const;
@@ -66,6 +72,8 @@ private:
     QListView* m_list_view { nullptr };
     AutocompleteModel* m_model { nullptr };
     AutocompleteDelegate* m_delegate { nullptr };
+    QPointer<QWidget> m_hover_replay_target;
+    QPointer<QWidget> m_pressed_replay_target;
 
     NonnullOwnPtr<WebView::Autocomplete> m_autocomplete;
 };

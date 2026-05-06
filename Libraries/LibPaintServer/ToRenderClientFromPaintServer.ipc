@@ -1,0 +1,20 @@
+#include <LibPaintServer/Types.h>
+#include <LibGfx/ShareableBitmap.h>
+#include <LibGfx/SharedImagePayload.h>
+
+endpoint ToRenderClientFromPaintServer
+{
+    server_epoch_changed(PaintServer::GPUEpoch server_epoch) =|
+    did_hello(
+        PaintServer::RequestID request_id,
+        int peer_pid,
+        PaintServer::GPUEpoch server_epoch,
+        size_t max_texture_size
+    ) =|
+    did_complete(PaintServer::SurfaceID surface_id, PaintServer::ReleaseToken release_token, PaintServer::CompletionStatus status) =|
+    did_complete_offscreen_render(PaintServer::SurfaceID surface_id, PaintServer::RequestID request_id, PaintServer::ImageID image_id, Optional<Gfx::SharedImagePayload> content_image, Optional<Gfx::ShareableBitmap> bitmap) =|
+    request_frame_repaint(PaintServer::SurfaceID surface_id) =|
+    did_fail_resource_registration(PaintServer::SurfaceID surface_id, PaintServer::ResourceID resource_id, PaintServer::ReleaseToken release_token) =|
+    did_create_content_image(PaintServer::RequestID request_id, bool success, PaintServer::ImageID image_id, Optional<Gfx::SharedImagePayload> content_image) =|
+    did_import_content_image(PaintServer::RequestID request_id, bool success, PaintServer::ImageID image_id) =|
+}

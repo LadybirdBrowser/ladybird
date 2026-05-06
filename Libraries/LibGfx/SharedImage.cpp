@@ -4,144 +4,90 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/Bitmap.h>
+#include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SharedImage.h>
-#include <LibIPC/Attachment.h>
-#include <LibIPC/Decoder.h>
-#include <LibIPC/Encoder.h>
-#ifdef USE_VULKAN_DMABUF_IMAGES
-#    include <LibGfx/VulkanImage.h>
-#endif
-
-#ifdef AK_OS_MACOS
-static Core::MachPort copy_send_right(Core::MachPort const& port)
-{
-    auto result = mach_port_mod_refs(mach_task_self(), port.port(), MACH_PORT_RIGHT_SEND, +1);
-    VERIFY(result == KERN_SUCCESS);
-    return Core::MachPort::adopt_right(port.port(), Core::MachPort::PortRight::Send);
-}
-#endif
-
 namespace Gfx {
 
-#ifdef AK_OS_MACOS
-SharedImage::SharedImage(Core::MachPort&& port)
-    : m_port(move(port))
-{
-}
-#else
-SharedImage::SharedImage(ShareableBitmap shareable_bitmap)
-    : m_data(move(shareable_bitmap))
-{
-}
+static constexpr auto shared_image_wire_format = BitmapFormat::BGRA8888;
+static constexpr auto shared_image_wire_alpha_type = BitmapAlpha::Premultiplied;
+static constexpr auto shared_image_wire_color_space = BitmapColorSpace::Linear;
+static constexpr auto shared_image_wire_origin = BitmapOrigin::TopLeft;
 
-SharedImage::SharedImage(LinuxDmaBufHandle&& dmabuf)
-    : m_data(move(dmabuf))
+SharedImagePayload SharedImage::make_shareable_bitmap_payload(BitmapInfo const& info, NonnullRefPtr<Bitmap> const& bitmap, ColorSpace const& color_space)
 {
-}
-
-#    ifdef USE_VULKAN_DMABUF_IMAGES
-static constexpr auto shared_image_bitmap_format = BitmapFormat::BGRA8888;
-static constexpr auto shared_image_alpha_type = AlphaType::Premultiplied;
-
-SharedImage duplicate_shared_image(VulkanImage const& vulkan_image)
-{
-    return SharedImage { duplicate_linux_dmabuf_handle(vulkan_image) };
-}
-
-LinuxDmaBufHandle duplicate_linux_dmabuf_handle(VulkanImage const& vulkan_image)
-{
-    VERIFY(vulkan_image.info.format == VK_FORMAT_B8G8R8A8_UNORM);
-    auto fd = vulkan_image.get_dma_buf_fd();
-    VERIFY(fd >= 0);
-    return LinuxDmaBufHandle {
-        .bitmap_format = shared_image_bitmap_format,
-        .alpha_type = shared_image_alpha_type,
-        .size = IntSize(static_cast<int>(vulkan_image.info.extent.width), static_cast<int>(vulkan_image.info.extent.height)),
-        .drm_format = vk_format_to_drm_format(vulkan_image.info.format),
-        .pitch = static_cast<size_t>(vulkan_image.info.row_pitch),
-        .modifier = vulkan_image.info.modifier,
-        .file = IPC::File::adopt_fd(fd),
+    auto payload_info = info;
+    payload_info.row_bytes = static_cast<u32>(bitmap->pitch());
+    return SharedImagePayload {
+        payload_info,
+        ShareableBitmap { bitmap, ShareableBitmap::ConstructWithKnownGoodBitmap },
+        color_space
     };
 }
-#    endif
-#endif
 
+SharedImage::SharedImage(BitmapInfo const& info, NonnullRefPtr<Bitmap> bitmap)
+    : m_info(info)
+    , m_bitmap(move(bitmap))
+{
 }
 
-namespace IPC {
-
-#ifndef AK_OS_MACOS
-enum class SharedImageBackingType : u8 {
-    ShareableBitmap,
-    LinuxDmaBuf,
-};
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Gfx::LinuxDmaBufHandle const& dmabuf)
+bool SharedImage::is_shareable_bitmap_backed() const
 {
-    TRY(encoder.encode(dmabuf.bitmap_format));
-    TRY(encoder.encode(dmabuf.alpha_type));
-    TRY(encoder.encode(dmabuf.size));
-    TRY(encoder.encode(dmabuf.drm_format));
-    TRY(encoder.encode(dmabuf.pitch));
-    TRY(encoder.encode(dmabuf.modifier));
-    TRY(encoder.encode(TRY(IPC::File::clone_fd(dmabuf.file.fd()))));
-    return {};
+    return m_backing_kind == BackingKind::ShareableBitmap;
 }
 
-template<>
-ErrorOr<Gfx::LinuxDmaBufHandle> decode(Decoder& decoder)
+SharedImage SharedImage::create_bitmap_backed(BitmapInfo const& info, BitmapAlpha alpha_type)
 {
-    return Gfx::LinuxDmaBufHandle {
-        .bitmap_format = TRY(decoder.decode<Gfx::BitmapFormat>()),
-        .alpha_type = TRY(decoder.decode<Gfx::AlphaType>()),
-        .size = TRY(decoder.decode<Gfx::IntSize>()),
-        .drm_format = TRY(decoder.decode<u32>()),
-        .pitch = TRY(decoder.decode<size_t>()),
-        .modifier = TRY(decoder.decode<u64>()),
-        .file = TRY(decoder.decode<IPC::File>()),
-    };
-}
-#endif
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Gfx::SharedImage const& shared_image)
-{
-#ifdef AK_OS_MACOS
-    TRY(encoder.append_attachment(Attachment::from_mach_port(copy_send_right(shared_image.m_port), Core::MachPort::MessageRight::MoveSend)));
-#else
-    return shared_image.m_data.visit(
-        [&](Gfx::ShareableBitmap const& shareable_bitmap) -> ErrorOr<void> {
-            TRY(encoder.encode(SharedImageBackingType::ShareableBitmap));
-            TRY(encoder.encode(shareable_bitmap));
-            return {};
-        },
-        [&](Gfx::LinuxDmaBufHandle const& dmabuf) -> ErrorOr<void> {
-            TRY(encoder.encode(SharedImageBackingType::LinuxDmaBuf));
-            TRY(encoder.encode(dmabuf));
-            return {};
-        });
-#endif
-    return {};
+    auto bitmap = MUST(Bitmap::create_shareable(info.pixel_format, alpha_type, info.size));
+    auto bitmap_info = info;
+    bitmap_info.row_bytes = static_cast<u32>(bitmap->pitch());
+    return SharedImage(bitmap_info, move(bitmap));
 }
 
-template<>
-ErrorOr<Gfx::SharedImage> decode(Decoder& decoder)
+#if !defined(AK_OS_MACOS) && !defined(USE_VULKAN_DMABUF_IMAGES)
+SharedImage::SharedImage(SharedImage&&) = default;
+SharedImage& SharedImage::operator=(SharedImage&&) = default;
+SharedImage::~SharedImage() = default;
+
+SharedImage SharedImage::create(BitmapInfo const& info)
 {
-#ifdef AK_OS_MACOS
-    auto attachment = decoder.attachments().dequeue();
-    VERIFY(attachment.message_right() == Core::MachPort::MessageRight::MoveSend);
-    return Gfx::SharedImage { attachment.release_mach_port() };
-#else
-    switch (TRY(decoder.decode<SharedImageBackingType>())) {
-    case SharedImageBackingType::ShareableBitmap:
-        return Gfx::SharedImage { TRY(decoder.decode<Gfx::ShareableBitmap>()) };
-    case SharedImageBackingType::LinuxDmaBuf:
-        return Gfx::SharedImage { TRY(decoder.decode<Gfx::LinuxDmaBufHandle>()) };
-    default:
-        VERIFY_NOT_REACHED();
+    return create_bitmap_backed(info, info.alpha_type);
+}
+
+SharedImage SharedImage::import_from_payload(SharedImagePayload payload)
+{
+    if (auto* shareable_bitmap = payload.shareable_bitmap()) {
+        auto bitmap_info = payload.info();
+        bitmap_info.row_bytes = static_cast<u32>(shareable_bitmap->bitmap()->pitch());
+        auto shared_image = SharedImage(bitmap_info, NonnullRefPtr<Bitmap> { *shareable_bitmap->bitmap() });
+        shared_image.set_color_space(payload.color_space());
+        return shared_image;
     }
+    VERIFY_NOT_REACHED();
+}
+
+SharedImagePayload SharedImage::export_payload() const
+{
+    if (m_backing_kind == BackingKind::ShareableBitmap)
+        return make_shareable_bitmap_payload(m_info, m_bitmap, m_color_space);
+    VERIFY_NOT_REACHED();
+}
 #endif
+
+SharedImage SharedImage::create(IntSize size)
+{
+    return create({
+        .size = size,
+        .pixel_format = shared_image_wire_format,
+        .color_space = shared_image_wire_color_space,
+        .alpha_type = shared_image_wire_alpha_type,
+        .origin = shared_image_wire_origin,
+    });
+}
+
+NonnullRefPtr<PaintingSurface> SharedImage::create_painting_surface(NonnullRefPtr<SkiaBackendContext> context, PaintingSurface::Origin origin)
+{
+    return PaintingSurface::create_from_shared_image(*this, move(context), origin);
 }
 
 }

@@ -25,7 +25,7 @@ public:
     void clear_content_filters();
     pid_t web_content_pid() const;
 
-    NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> take_screenshot();
+    NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> take_screenshot(WebView::ViewImplementation::ScreenshotType = WebView::ViewImplementation::ScreenshotType::Full);
 
     TestPromise& test_promise() { return *m_test_promise; }
     void reset_test_promise() { m_test_promise = TestPromise::construct(); }
@@ -33,10 +33,6 @@ public:
 
 private:
     TestWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewport_size);
-
-    virtual void did_receive_screenshot(Badge<WebView::WebContentClient>, Gfx::ShareableBitmap const& screenshot) override;
-
-    RefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> m_pending_screenshot;
 
     NonnullRefPtr<TestPromise> m_test_promise;
 };

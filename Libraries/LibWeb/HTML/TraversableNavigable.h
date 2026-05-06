@@ -110,14 +110,6 @@ public:
     Geolocation::EmulatedPositionData const& emulated_position_data() const;
     void set_emulated_position_data(Geolocation::EmulatedPositionData data);
 
-    void process_screenshot_requests();
-    void queue_screenshot_task(Optional<UniqueNodeID> node_id)
-    {
-        m_screenshot_tasks.enqueue({ node_id });
-        set_needs_repaint();
-        page().client().request_frame();
-    }
-
 private:
     friend class ApplyHistoryStepState;
 
@@ -182,11 +174,6 @@ private:
 
     // https://w3c.github.io/geolocation/#dfn-emulated-position-data
     Geolocation::EmulatedPositionData m_emulated_position_data;
-
-    struct ScreenshotTask {
-        Optional<Web::UniqueNodeID> node_id;
-    };
-    Queue<ScreenshotTask> m_screenshot_tasks;
 };
 
 struct BrowsingContextAndDocument {

@@ -14,7 +14,6 @@
 #include <LibWeb/Layout/ReplacedBox.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
@@ -231,6 +230,7 @@ void StackingContext::paint_child(DisplayListRecordingContext& context, Stacking
 void StackingContext::paint_internal(DisplayListRecordingContext& context) const
 {
     VERIFY(!paintable_box().is_svg_paintable());
+
     if (paintable_box().is_svg_svg_paintable()) {
         auto const& svg_svg_paintable = static_cast<SVGSVGPaintable const&>(paintable_box());
         paint_node(svg_svg_paintable, context, PaintPhase::Background);
@@ -276,12 +276,11 @@ void StackingContext::paint_internal(DisplayListRecordingContext& context) const
     for (auto const& paintable : m_positioned_descendants_and_stacking_contexts_with_stack_level_0) {
         // At this point, `paintable_box` is a positioned descendant with z-index: auto.
         // FIXME: This is basically duplicating logic found elsewhere in this same function. Find a way to make this more elegant.
-        if (auto* child = paintable->stacking_context()) {
+        if (auto const* child = paintable->stacking_context())
             paint_child(context, *child);
-        } else {
+        else
             paint_node_as_stacking_context(paintable, context);
-        }
-    };
+    }
 
     // Stacking contexts formed by positioned descendants with z-indices greater than or equal to 1 in z-index order
     // (smallest first) then tree order. (Step 9)
@@ -337,8 +336,8 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
     Vector<DisplayListRecorder::MaskInfo> masks;
 
     if (mask_image) {
-        auto mask_display_list = DisplayList::create(AccumulatedVisualContextTree::create());
-        DisplayListRecorder display_list_recorder(*mask_display_list);
+        auto mask_display_list = DisplayList::create(context.display_list_recorder().visual_context_tree());
+        DisplayListRecorder display_list_recorder(*mask_display_list, context.display_list_recorder());
         auto mask_painting_context = context.clone(display_list_recorder);
         auto mask_rect_in_device_pixels = context.enclosing_device_rect(paintable_box().absolute_padding_box_rect());
         mask_image->paint(mask_painting_context, { {}, mask_rect_in_device_pixels.size() }, CSS::ImageRendering::Auto);

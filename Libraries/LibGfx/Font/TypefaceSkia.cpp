@@ -75,6 +75,42 @@ static SkFontStyle::Slant slope_to_skia_slant(u8 slope)
     }
 }
 
+static u8 skia_slant_to_slope(SkFontStyle::Slant slant)
+{
+    switch (slant) {
+    case SkFontStyle::kItalic_Slant:
+        return 1;
+    case SkFontStyle::kOblique_Slant:
+        return 2;
+    default:
+        return 0;
+    }
+}
+
+static ByteString typeface_resource_name(SkTypeface const& skia_typeface)
+{
+    SkString resource_name;
+    if (skia_typeface.getResourceName(&resource_name) <= 0)
+        return {};
+    return ByteString { resource_name.c_str(), resource_name.size() };
+}
+
+static TypefaceSkia::LocalFontInfo local_font_info_for_typeface(SkTypeface const& skia_typeface, ByteString resource_name, u32 ttc_index, Vector<FontVariationAxis> variation_axes = {})
+{
+    SkString family_name;
+    skia_typeface.getFamilyName(&family_name);
+    SkFontStyle const style = skia_typeface.fontStyle();
+    return TypefaceSkia::LocalFontInfo {
+        .resource_name = move(resource_name),
+        .family_name = ByteString { family_name.c_str(), family_name.size() },
+        .weight = static_cast<u16>(style.weight()),
+        .width = static_cast<u16>(style.width()),
+        .slope = skia_slant_to_slope(style.slant()),
+        .ttc_index = ttc_index,
+        .variation_axes = move(variation_axes),
+    };
+}
+
 ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::ReadonlyBytes buffer, u32 ttc_index)
 {
     auto data = SkData::MakeWithoutCopy(buffer.data(), buffer.size());
@@ -100,7 +136,7 @@ ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::find_typeface_for_code_point(u32 cod
     SkFontStyle style(weight, width, slope_to_skia_slant(slope));
 
     auto skia_typeface = font_manager().matchFamilyStyleCharacter(
-        nullptr, style, nullptr, 0, code_point);
+        nullptr, style, nullptr, 0, static_cast<SkUnichar>(code_point));
 
     if (!skia_typeface)
         return RefPtr<TypefaceSkia> {};
@@ -115,7 +151,8 @@ ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::find_typeface_for_code_point(u32 cod
         return adopt_ref(*new TypefaceSkia {
             make<TypefaceSkia::Impl>(skia_typeface, std::move(stream)),
             bytes,
-            ttc_index });
+            ttc_index,
+            local_font_info_for_typeface(*skia_typeface, typeface_resource_name(*skia_typeface), ttc_index) });
     }
 
     auto data = skia_typeface->serialize(SkTypeface::SerializeBehavior::kDoIncludeData);
@@ -124,7 +161,11 @@ ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::find_typeface_for_code_point(u32 cod
 
     auto buffer = TRY(ByteBuffer::copy({ data->data(), data->size() }));
     auto font_data = FontData::create_from_byte_buffer(move(buffer));
-    auto result = TRY(load_from_buffer(font_data->bytes(), ttc_index));
+    auto result = adopt_ref(*new TypefaceSkia {
+        make<TypefaceSkia::Impl>(skia_typeface),
+        font_data->bytes(),
+        ttc_index,
+        local_font_info_for_typeface(*skia_typeface, typeface_resource_name(*skia_typeface), ttc_index) });
     result->m_font_data = move(font_data);
     return result;
 }
@@ -144,6 +185,12 @@ Optional<FlyString> TypefaceSkia::resolve_generic_family(StringView family_name,
     if (result_or_error.is_error())
         return {};
     return result_or_error.release_value();
+}
+
+void TypefaceSkia::set_local_font_info(LocalFontInfo local_font_info)
+{
+    m_variation_axes = local_font_info.variation_axes;
+    m_local_font_info = move(local_font_info);
 }
 
 RefPtr<TypefaceSkia const> TypefaceSkia::clone_with_variations(Vector<FontVariationAxis> const& axes) const
@@ -172,7 +219,15 @@ RefPtr<TypefaceSkia const> TypefaceSkia::clone_with_variations(Vector<FontVariat
     if (!skia_typeface)
         return {};
 
-    return adopt_ref(*new TypefaceSkia { make<TypefaceSkia::Impl>(skia_typeface), m_buffer, m_ttc_index });
+    Optional<LocalFontInfo> local_font_info;
+    if (m_local_font_info.has_value()) {
+        local_font_info = m_local_font_info;
+        local_font_info->variation_axes = axes;
+    }
+
+    auto cloned_typeface = adopt_ref(*new TypefaceSkia { make<TypefaceSkia::Impl>(skia_typeface), m_buffer, m_ttc_index, move(local_font_info) });
+    cloned_typeface->m_variation_axes = axes;
+    return cloned_typeface;
 }
 
 SkTypeface const* TypefaceSkia::sk_typeface() const
@@ -180,10 +235,11 @@ SkTypeface const* TypefaceSkia::sk_typeface() const
     return impl().skia_typeface.get();
 }
 
-TypefaceSkia::TypefaceSkia(NonnullOwnPtr<Impl> impl, ReadonlyBytes buffer, u32 ttc_index)
+TypefaceSkia::TypefaceSkia(NonnullOwnPtr<Impl> impl, ReadonlyBytes buffer, u32 ttc_index, Optional<LocalFontInfo> local_font_info)
     : m_impl(move(impl))
     , m_buffer(buffer)
     , m_ttc_index(ttc_index)
+    , m_local_font_info(move(local_font_info))
 {
 }
 
@@ -227,7 +283,7 @@ void TypefaceSkia::populate_glyph_page(GlyphPage& glyph_page, size_t page_index)
     u32 first_code_point = page_index * GlyphPage::glyphs_per_page;
     for (size_t i = 0; i < GlyphPage::glyphs_per_page; ++i) {
         u32 code_point = first_code_point + i;
-        glyph_page.glyph_ids[i] = impl().skia_typeface->unicharToGlyph(code_point);
+        glyph_page.glyph_ids[i] = impl().skia_typeface->unicharToGlyph(static_cast<SkUnichar>(code_point));
     }
 }
 
@@ -252,17 +308,7 @@ u16 TypefaceSkia::width() const
 
 u8 TypefaceSkia::slope() const
 {
-    auto slant = impl().skia_typeface->fontStyle().slant();
-    switch (slant) {
-    case SkFontStyle::kUpright_Slant:
-        return 0;
-    case SkFontStyle::kItalic_Slant:
-        return 1;
-    case SkFontStyle::kOblique_Slant:
-        return 2;
-    default:
-        return 0;
-    }
+    return skia_slant_to_slope(impl().skia_typeface->fontStyle().slant());
 }
 
 }

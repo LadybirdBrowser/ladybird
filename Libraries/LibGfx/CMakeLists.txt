@@ -2,6 +2,7 @@ set(SOURCES
     AffineTransform.cpp
     Bitmap.cpp
     BitmapExport.cpp
+    BitmapInfo.cpp
     BitmapSequence.cpp
     CMYKBitmap.cpp
     Color.cpp
@@ -9,6 +10,7 @@ set(SOURCES
     ColorSpace.cpp
     Cursor.cpp
     Filter.cpp
+    FilterImpl.cpp
     Font/Font.cpp
     Font/FontData.cpp
     Font/FontDatabase.cpp
@@ -48,8 +50,11 @@ set(SOURCES
     PathSkia.cpp
     Point.cpp
     Rect.cpp
+    Resource/BitmapResource.cpp
+    Resource/FontResource.cpp
+    Resource/Resource.cpp
     SharedImage.cpp
-    SharedImageBuffer.cpp
+    SharedImagePayload.cpp
     ShareableBitmap.cpp
     Size.cpp
     SkiaBackendContext.cpp
@@ -62,7 +67,7 @@ set(SOURCES
 )
 
 if (APPLE)
-    list(APPEND SOURCES MetalContext.mm)
+    list(APPEND SOURCES MetalContext.mm MetalImage.mm)
 endif()
 
 if (HAS_VULKAN)
@@ -138,6 +143,7 @@ else()
 endif()
 
 if (APPLE)
+    target_link_libraries(LibGfx PRIVATE "-framework IOSurface")
     target_link_libraries(LibCore PUBLIC "-framework Metal")
     target_link_libraries(LibCore PUBLIC "-framework Accelerate")
 endif()

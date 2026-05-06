@@ -4,14 +4,25 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
 #include <AK/Enumerate.h>
 #include <LibCore/Process.h>
+#include <LibCore/Socket.h>
 #include <LibCore/System.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/Utilities.h>
 
 namespace WebView {
+
+static u16 allocate_web_content_resource_client_id()
+{
+    static Atomic<u16> s_next_web_content_resource_client_id { 0 };
+
+    u16 resource_client_id = s_next_web_content_resource_client_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed);
+
+    return resource_client_id;
+}
 
 template<typename ClientType, typename... ClientArguments>
 static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
@@ -56,8 +67,20 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
                 client->set_pid(process.pid());
 
             if constexpr (requires { client->transport().set_peer_pid(0); } && !IsSame<ClientType, Web::HTML::WebWorkerClient>) {
-                auto response = client->template send_sync<typename ClientType::InitTransport>(Core::System::getpid());
-                client->transport().set_peer_pid(response->peer_pid());
+                if constexpr (requires { client->hello([](auto) { }); }) {
+                    client->transport().set_peer_pid(process.pid());
+                    client->hello([client](auto response) {
+                        client->transport().set_peer_pid(response.peer_pid);
+                    });
+                } else if constexpr (requires { typename ClientType::Hello::ResponseType; }) {
+                    auto response = client->template send_sync<typename ClientType::Hello>(ClientType::hello_protocol_version(), ClientType::hello_client_kind(), Core::System::getpid());
+                    client->transport().set_peer_pid(response->peer_pid());
+                } else if constexpr (requires { typename ClientType::InitTransport::ResponseType; }) {
+                    auto response = client->template send_sync<typename ClientType::InitTransport>(Core::System::getpid());
+                    client->transport().set_peer_pid(response->peer_pid());
+                } else {
+                    client->transport().set_peer_pid(process.pid());
+                }
             }
 
             WebView::Application::the().add_child_process(move(process));
@@ -86,8 +109,12 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
 {
     auto const& browser_options = WebView::Application::browser_options();
     auto const& web_content_options = WebView::Application::web_content_options();
+    u16 const resource_client_id = allocate_web_content_resource_client_id();
 
-    Vector<ByteString> arguments;
+    Vector<ByteString> arguments {
+        "--resource-client-id"sv,
+        ByteString::number(resource_client_id),
+    };
 
     if (browser_options.headless_mode.has_value())
         arguments.append("--headless"sv);
@@ -150,6 +177,25 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(Web
 ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_spare_web_content_process()
 {
     return launch_web_content_process_impl();
+}
+
+ErrorOr<NonnullRefPtr<WebView::BrokerOfPaintServer>> launch_paint_server_process(u64 server_epoch)
+{
+    Vector<ByteString> arguments;
+    arguments.append("--gpu-epoch"sv);
+    arguments.append(ByteString::number(server_epoch));
+
+    if (Application::web_content_options().force_cpu_painting == WebView::ForceCPUPainting::Yes)
+        arguments.append("--software-painting"sv);
+    if (Application::web_content_options().force_fontconfig == WebView::ForceFontconfig::Yes)
+        arguments.append("--force-fontconfig"sv);
+
+    if (auto server = mach_server_name(); server.has_value()) {
+        arguments.append("--mach-server-name"sv);
+        arguments.append(server.value());
+    }
+
+    return launch_server_process<WebView::BrokerOfPaintServer>("PaintServer"sv, arguments);
 }
 
 ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process()

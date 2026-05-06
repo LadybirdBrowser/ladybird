@@ -10,9 +10,9 @@
 
 #include <AK/String.h>
 #include <LibGfx/Forward.h>
-#include <LibGfx/Painter.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/TextLayout.h>
+#include <LibPaintServer/Compositor/CanvasPainter.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/HTML/Canvas/CanvasCompositing.h>
 #include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
@@ -127,8 +127,12 @@ public:
 
     void set_size(Gfx::IntSize const&);
     void present();
+    Gfx::IntSize size() const { return m_size; }
+    bool has_recorded_draw_commands() const;
+    PaintServer::DrawList take_recorded_draw_commands();
 
     RefPtr<Gfx::PaintingSurface> surface() { return m_surface; }
+    bool adopt_painting_surface(NonnullRefPtr<Gfx::PaintingSurface>);
     void allocate_painting_surface_if_needed();
 
 private:
@@ -166,7 +170,7 @@ private:
     void paint_shadow_for_stroke_internal(Gfx::Path const&, Gfx::Path::CapStyle, Gfx::Path::JoinStyle, Vector<float> const&);
 
     GC::Ref<HTMLCanvasElement> m_element;
-    OwnPtr<Gfx::Painter> m_painter;
+    OwnPtr<PaintServer::CanvasPainter> m_painter;
 
     // https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-origin-clean
     bool m_origin_clean { true };

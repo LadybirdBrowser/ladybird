@@ -72,8 +72,6 @@ static ErrorOr<void> move_alpha_to_rgb(LoadedImage& image)
     auto& frame = image.bitmap.get<NonnullRefPtr<Gfx::Bitmap>>();
 
     switch (frame->format()) {
-    case Gfx::BitmapFormat::Invalid:
-        return Error::from_string_literal("Can't --move-alpha-to-rgb with invalid bitmaps");
     case Gfx::BitmapFormat::RGBA8888:
         // No image decoder currently produces bitmaps with this format.
         // If that ever changes, preferably fix the image decoder to use BGRA8888 instead :)
@@ -90,6 +88,8 @@ static ErrorOr<void> move_alpha_to_rgb(LoadedImage& image)
     case Gfx::BitmapFormat::RGBx8888:
         // This should never be the case, as there's no alpha channel in the image
         return Error::from_string_literal("Can't --move-alpha-to-rgb with RGBx8888 bitmaps");
+    default:
+        return Error::from_string_literal("Can't --move-alpha-to-rgb with invalid bitmaps");
     }
     return {};
 }
@@ -101,8 +101,6 @@ static ErrorOr<void> strip_alpha(LoadedImage& image)
     auto& frame = image.bitmap.get<NonnullRefPtr<Gfx::Bitmap>>();
 
     switch (frame->format()) {
-    case Gfx::BitmapFormat::Invalid:
-        return Error::from_string_literal("Can't --strip-alpha with invalid bitmaps");
     case Gfx::BitmapFormat::RGBA8888:
         // No image decoder currently produces bitmaps with this format.
         // If that ever changes, preferably fix the image decoder to use BGRA8888 instead :)
@@ -117,6 +115,8 @@ static ErrorOr<void> strip_alpha(LoadedImage& image)
     case Gfx::BitmapFormat::RGBx8888:
         // This format means there's no alpha channel, so nothing to do here
         break;
+    default:
+        return Error::from_string_literal("Can't --strip-alpha with invalid bitmaps");
     }
     return {};
 }

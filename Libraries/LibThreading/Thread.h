@@ -20,6 +20,9 @@ namespace Threading {
 
 AK_TYPEDEF_DISTINCT_ORDERED_ID(intptr_t, ThreadError);
 
+bool is_main_thread();
+void set_main_thread();
+
 // States of userspace threads are simplified over actual kernel states (and possibly POSIX states).
 // There are only a couple of well-defined transitions between these states, and any attempt to call a function in a state where this is not allowed will crash the program.
 enum class ThreadState : u8 {

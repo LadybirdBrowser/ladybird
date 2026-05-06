@@ -103,12 +103,6 @@ void WebContentClient::notify_all_views_of_crash()
     }
 }
 
-void WebContentClient::did_paint(u64 page_id, Gfx::IntRect rect, i32 bitmap_id)
-{
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        view->server_did_paint({}, bitmap_id, rect.size());
-}
-
 void WebContentClient::did_request_new_process_for_navigation(u64 page_id, URL::URL url)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
@@ -846,10 +840,10 @@ void WebContentClient::did_update_navigation_buttons_state(u64 page_id, bool bac
         view->did_update_navigation_buttons_state({}, back_enabled, forward_enabled);
 }
 
-void WebContentClient::did_allocate_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store)
+void WebContentClient::did_update_submit_to_ack_window_max_ms(u64 page_id, Optional<double> max_ms)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_allocate_backing_stores({}, front_bitmap_id, move(front_backing_store), back_bitmap_id, move(back_backing_store));
+        view->did_update_submit_to_ack_window_max_ms({}, max_ms);
 }
 
 Messages::WebContentClient::RequestWorkerAgentResponse WebContentClient::request_worker_agent(u64 page_id, Web::Bindings::AgentType worker_type)

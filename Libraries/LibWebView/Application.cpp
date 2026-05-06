@@ -5,6 +5,7 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/ScopeGuard.h>
 #include <AK/Time.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/Environment.h>
@@ -14,7 +15,10 @@
 #include <LibDatabase/Database.h>
 #include <LibDevTools/DevToolsServer.h>
 #include <LibFileSystem/FileSystem.h>
+#include <LibIPC/Transport.h>
+#include <LibIPC/TransportHandle.h>
 #include <LibImageDecoderClient/Client.h>
+#include <LibPaintServer/Types.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/Loader/UserAgent.h>
 #include <LibWebView/Application.h>
@@ -27,11 +31,10 @@
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
 #include <LibWebView/Utilities.h>
+#include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
-
 #if defined(AK_OS_MACOS)
 #    include <LibIPC/MachBootstrapListener.h>
-#    include <LibIPC/Transport.h>
 #    include <LibIPC/TransportBootstrapMach.h>
 #endif
 
@@ -87,6 +90,8 @@ Application::Application(Optional<ByteString> ladybird_binary_path)
 
 Application::~Application()
 {
+    m_is_shutting_down = true;
+
     // Explicitly delete the observers first, as the observer destructors will refer to Application::the().
     m_settings_observer.clear();
     m_bookmark_store_observer.clear();
@@ -105,12 +110,14 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         warnln("Unable to increase open file limit: {}", result.error());
 #endif
 
+    m_event_loop = create_platform_event_loop();
+
 #if defined(AK_OS_MACOS)
     m_mach_port_server = make<IPC::MachBootstrapListener>(mach_server_name_for_process("Ladybird"sv, Core::System::getpid()));
     set_mach_server_name(m_mach_port_server->server_port_name());
 
     m_mach_port_server->on_bootstrap_request = [this](IPC::MachBootstrapListener::BootstrapRequest request) {
-        set_process_mach_port(request.pid, move(request.task_port));
+        m_event_loop->deferred_invoke([this, pid = request.pid, task_port = move(request.task_port)]() mutable { set_process_mach_port(pid, move(task_port)); });
         auto result = MUST(m_transport_bootstrap_server.handle_bootstrap_request(request.pid, move(request.reply_port)));
         result.visit(
             [](IPC::TransportBootstrapMachServer::ChildTransportHandled) {
@@ -370,7 +377,8 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     create_platform_options(m_browser_options, m_request_server_options, m_web_content_options);
 
-    // Test mode implies experimental interfaces and internals object are exposed and the Skia CPU backend is used.
+    // Test mode implies experimental interfaces and internals object are exposed.
+    // Keep CPU painting as the default test behavior unless a caller explicitly opts into PaintServer-backed painting.
     if (m_web_content_options.is_test_mode == IsTestMode::Yes) {
         m_web_content_options.expose_experimental_interfaces = ExposeExperimentalInterfaces::Yes;
         m_web_content_options.expose_internals_object = ExposeInternalsObject::Yes;
@@ -382,7 +390,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     initialize_actions();
 
-    m_event_loop = create_platform_event_loop();
     TRY(launch_services());
 
     return {};
@@ -400,6 +407,25 @@ void Application::open_bookmark_in_new_tab(String const& bookmark_id, Web::HTML:
         open_url_in_new_tab(bookmark->bookmark().url, activate_tab);
 }
 
+static ErrorOr<void> attach_paint_serverrender_client_to_webcontent_process(WebView::WebContentClient& web_content_client)
+{
+    auto* broker_client = WebView::Application::paint_server_broker_client();
+    if (!broker_client)
+        return {};
+
+    auto paired = TRY(IPC::Transport::create_paired());
+    auto web_content_handle = move(paired.remote_handle);
+    auto paint_server_handle = TRY(paired.local->release_for_transfer());
+
+    // Give PaintServer one end of the transport pair.
+    broker_client->async_attach_render_client(paint_server_handle);
+
+    // And hand the other end to the WebContent process.
+    web_content_client.async_connect_to_paint_server_render_client(web_content_handle);
+
+    return {};
+}
+
 static ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(Optional<ViewImplementation&> view)
 {
     auto request_server_handle = TRY(connect_new_request_server_client());
@@ -411,6 +437,9 @@ static ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(Option
 
     client->async_connect_to_request_server(move(request_server_handle));
     client->async_connect_to_image_decoder(move(image_decoder_handle));
+
+    if (auto result = attach_paint_serverrender_client_to_webcontent_process(*client); result.is_error())
+        dbgln("Unable to attach PaintServer render client to WebContent: {}", result.error());
 
     return client;
 }
@@ -511,6 +540,7 @@ ErrorOr<void> Application::launch_services()
     }
 
     TRY(launch_request_server());
+    TRY(launch_paint_server());
     TRY(launch_image_decoder_server());
 
     if (m_browser_options.devtools_port.has_value())
@@ -537,10 +567,10 @@ ErrorOr<void> Application::launch_request_server()
     };
 
     m_request_server_client->on_request_server_died = [this]() {
-        m_request_server_client = nullptr;
-
-        if (Core::EventLoop::current().was_exit_requested())
+        if (m_is_shutting_down || Core::EventLoop::current().was_exit_requested())
             return;
+
+        m_request_server_client = nullptr;
 
         if (auto result = launch_request_server(); result.is_error()) {
             warnln("\033[31;1mUnable to launch replacement RequestServer: {}\033[0m", result.error());
@@ -571,10 +601,10 @@ ErrorOr<void> Application::launch_image_decoder_server()
     m_image_decoder_client = TRY(launch_image_decoder_process());
 
     m_image_decoder_client->on_death = [this]() {
-        m_image_decoder_client = nullptr;
-
-        if (Core::EventLoop::current().was_exit_requested())
+        if (m_is_shutting_down || Core::EventLoop::current().was_exit_requested())
             return;
+
+        m_image_decoder_client = nullptr;
 
         if (auto result = launch_image_decoder_server(); result.is_error()) {
             dbgln("Failed to restart image decoder: {}", result.error());
@@ -593,6 +623,45 @@ ErrorOr<void> Application::launch_image_decoder_server()
             return IterationDecision::Continue;
         });
     };
+
+    return {};
+}
+
+ErrorOr<void> Application::launch_paint_server()
+{
+    ++m_server_epoch;
+    m_painter = TRY(launch_paint_server_process(m_server_epoch));
+    bool const prefer_cpu_mappable_presentation_buffers = m_web_content_options.force_cpu_painting == ForceCPUPainting::Yes;
+    m_painter->set_prefer_cpu_mappable_presentation_buffers(prefer_cpu_mappable_presentation_buffers);
+
+    m_painter->on_server_epoch_changed = [this](u64 server_epoch) {
+        if (server_epoch <= m_server_epoch)
+            return;
+        m_server_epoch = server_epoch;
+        ViewImplementation::notify_paint_server_reset(server_epoch);
+    };
+
+    m_painter->on_frame_ready = [](u64 surface_id, u64 present_id, u64 image_id, Gfx::IntSize frame_size) {
+        auto view = ViewImplementation::find_view_by_id(surface_id);
+        if (!view.has_value())
+            return;
+        view->did_receive_presentation_frame(present_id, image_id, frame_size);
+    };
+
+    m_painter->on_death = [this]() {
+        if (m_is_shutting_down || Core::EventLoop::current().was_exit_requested())
+            return;
+
+        m_painter = nullptr;
+
+        if (auto result = launch_paint_server(); result.is_error()) {
+            dbgln("Failed to restart PaintServer process: {}", result.error());
+            VERIFY_NOT_REACHED();
+        }
+    };
+
+    if (m_server_epoch > 1)
+        ViewImplementation::notify_paint_server_reset(m_server_epoch);
 
     return {};
 }
@@ -726,7 +795,7 @@ Optional<Process&> Application::find_process(pid_t pid)
 
 void Application::process_did_exit(Process&& process)
 {
-    if (m_event_loop->was_exit_requested())
+    if (m_is_shutting_down || m_event_loop->was_exit_requested())
         return;
 
     dbgln_if(WEBVIEW_PROCESS_DEBUG, "Process {} died, type: {}", process.pid(), process_name_from_type(process.type()));
@@ -753,6 +822,13 @@ void Application::process_did_exit(Process&& process)
         break;
     case ProcessType::WebWorker:
         dbgln_if(WEBVIEW_PROCESS_DEBUG, "WebWorker {} died, not sure what to do.", process.pid());
+        break;
+    case ProcessType::PaintServer:
+        if (auto client = process.client<BrokerOfPaintServer>(); client.has_value()) {
+            dbgln_if(WEBVIEW_PROCESS_DEBUG, "Restart PaintServer process");
+            if (auto on_death = move(client->on_death))
+                on_death();
+        }
         break;
     case ProcessType::Browser:
         dbgln("Invalid process type to be dying: Browser");

@@ -28,7 +28,7 @@ public:
         return create(NonnullRefPtr<Bitmap const> { bitmap }, move(color_space));
     }
 
-    static NonnullRefPtr<DecodedImageFrame> create(Bitmap const& bitmap, AlphaType alpha_type, ColorSpace color_space = {})
+    static NonnullRefPtr<DecodedImageFrame> create(Bitmap const& bitmap, BitmapAlpha alpha_type, ColorSpace color_space = {})
     {
         auto converted_bitmap = [&] -> NonnullRefPtr<Bitmap const> {
             if (bitmap.alpha_type() == alpha_type)

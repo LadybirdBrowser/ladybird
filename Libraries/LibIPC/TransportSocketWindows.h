@@ -28,6 +28,8 @@ public:
 
     explicit TransportSocketWindows(NonnullOwnPtr<Core::LocalSocket> socket);
 
+    ErrorOr<pid_t> peer_pid() const;
+
     void set_peer_pid(int pid);
     void set_up_read_hook(Function<void()>);
     bool is_open() const;

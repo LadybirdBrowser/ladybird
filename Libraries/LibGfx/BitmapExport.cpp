@@ -16,65 +16,48 @@
 
 namespace Gfx {
 
-StringView export_format_name(ExportFormat format)
+static int bytes_per_pixel_for_export_format(BitmapFormat format)
 {
     switch (format) {
-#define ENUMERATE_EXPORT_FORMAT(format) \
-    case Gfx::ExportFormat::format:     \
-        return #format##sv;
-        ENUMERATE_EXPORT_FORMATS(ENUMERATE_EXPORT_FORMAT)
-#undef ENUMERATE_EXPORT_FORMAT
-    }
-    VERIFY_NOT_REACHED();
-}
-
-static int bytes_per_pixel_for_export_format(ExportFormat format)
-{
-    switch (format) {
-    case ExportFormat::Gray8:
-    case ExportFormat::Alpha8:
+    case BitmapFormat::Gray8:
+    case BitmapFormat::Alpha8:
         return 1;
-    case ExportFormat::RGB565:
-    case ExportFormat::RGBA5551:
-    case ExportFormat::RGBA4444:
+    case BitmapFormat::RGB565:
+    case BitmapFormat::RGBA5551:
+    case BitmapFormat::RGBA4444:
         return 2;
-    case ExportFormat::RGB888:
+    case BitmapFormat::RGB888:
         return 3;
-    case ExportFormat::RGBA8888:
+    case BitmapFormat::BGRA8888:
+    case BitmapFormat::BGRx8888:
+    case BitmapFormat::RGBA8888:
+    case BitmapFormat::RGBx8888:
         return 4;
+    case BitmapFormat::RGBAF16:
+        return 8;
     default:
         VERIFY_NOT_REACHED();
     }
 }
 
-static SkColorType export_format_to_skia_color_type(ExportFormat format)
+static SkColorType export_format_to_skia_color_type(BitmapFormat format)
 {
     switch (format) {
-    case ExportFormat::Gray8:
-        return SkColorType::kGray_8_SkColorType;
-    case ExportFormat::Alpha8:
-        return SkColorType::kAlpha_8_SkColorType;
-    case ExportFormat::RGB565:
-        return SkColorType::kRGB_565_SkColorType;
-    case ExportFormat::RGBA5551:
+    case BitmapFormat::RGBA5551:
         dbgln("FIXME: Support conversion to RGBA5551.");
         return SkColorType::kUnknown_SkColorType;
-    case ExportFormat::RGBA4444:
-        return SkColorType::kARGB_4444_SkColorType;
-    case ExportFormat::RGB888:
+    case BitmapFormat::RGB888:
         // This one needs to be converted manually because Skia has no valid 24-bit color type.
         VERIFY_NOT_REACHED();
-    case ExportFormat::RGBA8888:
-        return SkColorType::kRGBA_8888_SkColorType;
     default:
-        VERIFY_NOT_REACHED();
+        return to_skia_color_type(format);
     }
 }
 
 ErrorOr<BitmapExportResult> export_bitmap_to_byte_buffer(
     Bitmap const& bitmap,
     ColorSpace const& color_space,
-    ExportFormat format,
+    BitmapFormat format,
     int flags,
     Optional<int> target_width,
     Optional<int> target_height)
@@ -82,7 +65,7 @@ ErrorOr<BitmapExportResult> export_bitmap_to_byte_buffer(
     int width = target_width.value_or(bitmap.width());
     int height = target_height.value_or(bitmap.height());
 
-    if (format == ExportFormat::RGB888 && (width != bitmap.width() || height != bitmap.height())) {
+    if (format == BitmapFormat::RGB888 && (width != bitmap.width() || height != bitmap.height())) {
         dbgln("FIXME: Ignoring target width and height because scaling is not implemented for this export format.");
         width = bitmap.width();
         height = bitmap.height();
@@ -100,7 +83,7 @@ ErrorOr<BitmapExportResult> export_bitmap_to_byte_buffer(
     auto buffer = MUST(ByteBuffer::create_zeroed(buffer_pitch.value() * height));
 
     if (width > 0 && height > 0) {
-        if (format == ExportFormat::RGB888) {
+        if (format == BitmapFormat::RGB888) {
             // 24 bit RGB is not supported by Skia, so we need to handle this format ourselves.
             auto* raw_buffer = buffer.data();
             for (auto y = 0; y < height; y++) {
