@@ -291,7 +291,7 @@ target_link_libraries(LibJS PUBLIC JSClangPlugin)
 
 import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libjs_rust FFI_HEADER RustFFI.h)
 target_link_libraries(LibJS PRIVATE libjs_rust)
-if ((LINUX OR BSD) AND NOT BUILD_SHARED_LIBS)
+if ((LINUX OR BSD OR ANDROID) AND NOT BUILD_SHARED_LIBS)
     # Rust staticlibs each carry the same allocator shim symbols. LibJS can
     # pull in multiple crates' copies in static ELF links, but they all
     # forward to the same ladybird_rust_* entry points in AK/kmalloc.cpp.
