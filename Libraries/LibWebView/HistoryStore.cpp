@@ -216,25 +216,25 @@ ErrorOr<NonnullOwnPtr<HistoryStore>> HistoryStore::create(Database::Database& da
     statements.clear_entries = TRY(database.prepare_statement("DELETE FROM History;"sv));
     statements.delete_entries_accessed_since = TRY(database.prepare_statement("DELETE FROM History WHERE last_visited_time >= ?;"sv));
 
-    return adopt_own(*new HistoryStore { PersistedStorage { database, statements } });
+    return adopt_own(*new HistoryStore { adopt_own<StorageImpl>(*new PersistedStorage { database, move(statements) }) });
 }
 
 NonnullOwnPtr<HistoryStore> HistoryStore::create()
 {
     dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Opening transient history store");
 
-    return adopt_own(*new HistoryStore { OptionalNone {} });
+    return adopt_own(*new HistoryStore { adopt_own<StorageImpl>(*new TransientStorage {}) });
 }
 
 NonnullOwnPtr<HistoryStore> HistoryStore::create_disabled()
 {
     dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Opening disabled history store");
 
-    return adopt_own(*new HistoryStore { OptionalNone {}, true });
+    return adopt_own(*new HistoryStore { adopt_own<StorageImpl>(*new TransientStorage {}), true });
 }
 
-HistoryStore::HistoryStore(Optional<PersistedStorage> persisted_storage, bool is_disabled)
-    : m_persisted_storage(move(persisted_storage))
+HistoryStore::HistoryStore(NonnullOwnPtr<StorageImpl>&& storage, bool is_disabled)
+    : m_storage(move(storage))
     , m_is_disabled(is_disabled)
 {
 }
@@ -272,15 +272,12 @@ void HistoryStore::record_visit(URL::URL const& url, Optional<String> title, Uni
         return;
 
     dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Recording visit in {} store: url='{}' title='{}' visited_at={}",
-        m_persisted_storage.has_value() ? "SQL"sv : "transient"sv,
+        m_storage->name(),
         *normalized_url,
         title.has_value() ? title->bytes_as_string_view() : "<none>"sv,
         visited_at.seconds_since_epoch());
 
-    if (m_persisted_storage.has_value())
-        m_persisted_storage->record_visit(*normalized_url, title, visited_at);
-    else
-        m_transient_storage.record_visit(normalized_url.release_value(), move(title), visited_at);
+    m_storage->record_visit(*normalized_url, title, visited_at);
 }
 
 void HistoryStore::update_title(URL::URL const& url, String const& title)
@@ -298,14 +295,11 @@ void HistoryStore::update_title(URL::URL const& url, String const& title)
         return;
 
     dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Updating history title in {} store: url='{}' title='{}'",
-        m_persisted_storage.has_value() ? "SQL"sv : "transient"sv,
+        m_storage->name(),
         *normalized_url,
         title);
 
-    if (m_persisted_storage.has_value())
-        m_persisted_storage->update_title(*normalized_url, title);
-    else
-        m_transient_storage.update_title(*normalized_url, title);
+    m_storage->update_title(*normalized_url, title);
 }
 
 void HistoryStore::update_favicon(URL::URL const& url, String const& favicon_base64_png)
@@ -320,14 +314,11 @@ void HistoryStore::update_favicon(URL::URL const& url, String const& favicon_bas
         return;
 
     dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Updating history favicon in {} store: url='{}' bytes={}",
-        m_persisted_storage.has_value() ? "SQL"sv : "transient"sv,
+        m_storage->name(),
         *normalized_url,
         favicon_base64_png.bytes().size());
 
-    if (m_persisted_storage.has_value())
-        m_persisted_storage->update_favicon(*normalized_url, favicon_base64_png);
-    else
-        m_transient_storage.update_favicon(*normalized_url, favicon_base64_png);
+    m_storage->update_favicon(*normalized_url, favicon_base64_png);
 }
 
 Optional<HistoryEntry> HistoryStore::entry_for_url(URL::URL const& url)
@@ -339,9 +330,7 @@ Optional<HistoryEntry> HistoryStore::entry_for_url(URL::URL const& url)
     if (!normalized_url.has_value())
         return {};
 
-    auto entry = m_persisted_storage.has_value()
-        ? m_persisted_storage->entry_for_url(*normalized_url)
-        : m_transient_storage.entry_for_url(*normalized_url);
+    auto entry = m_storage->entry_for_url(*normalized_url);
 
     if (entry.has_value()) {
         dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Found history entry for '{}': title='{}' visits={} last_visited={} has_favicon={}",
@@ -371,12 +360,10 @@ Vector<HistoryEntry> HistoryStore::autocomplete_entries(StringView query, size_t
     auto title_query = autocomplete_title_query(trimmed_query);
     auto url_query = autocomplete_url_query(trimmed_query);
 
-    auto entries = m_persisted_storage.has_value()
-        ? m_persisted_storage->autocomplete_entries(title_query, url_query, limit)
-        : m_transient_storage.autocomplete_entries(title_query, url_query, limit);
+    auto entries = m_storage->autocomplete_entries(title_query, url_query, limit);
 
     dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] {} history autocomplete suggestions for '{}' (title_query='{}', url_query='{}', limit={}): {}",
-        m_persisted_storage.has_value() ? "SQL"sv : "Transient"sv,
+        m_storage->name(),
         trimmed_query,
         title_query,
         url_query,
@@ -391,11 +378,8 @@ void HistoryStore::clear()
     if (m_is_disabled)
         return;
 
-    dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Clearing {} history store", m_persisted_storage.has_value() ? "SQL"sv : "transient"sv);
-    if (m_persisted_storage.has_value())
-        m_persisted_storage->clear();
-    else
-        m_transient_storage.clear();
+    dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Clearing {} history store", m_storage->name());
+    m_storage->clear();
 }
 
 void HistoryStore::remove_entries_accessed_since(UnixDateTime since)
@@ -404,15 +388,12 @@ void HistoryStore::remove_entries_accessed_since(UnixDateTime since)
         return;
 
     dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Removing {} history entries accessed since {}",
-        m_persisted_storage.has_value() ? "SQL"sv : "transient"sv,
+        m_storage->name(),
         since.seconds_since_epoch());
-    if (m_persisted_storage.has_value())
-        m_persisted_storage->remove_entries_accessed_since(since);
-    else
-        m_transient_storage.remove_entries_accessed_since(since);
+    m_storage->remove_entries_accessed_since(since);
 }
 
-void HistoryStore::TransientStorage::record_visit(String url, Optional<String> title, UnixDateTime visited_at)
+void HistoryStore::TransientStorage::record_visit(String const& url, Optional<String> const& title, UnixDateTime visited_at)
 {
     auto entry = m_entries.find(url);
     if (entry == m_entries.end()) {
@@ -435,7 +416,7 @@ void HistoryStore::TransientStorage::record_visit(String url, Optional<String> t
         entry->value.title = move(title);
 }
 
-void HistoryStore::TransientStorage::update_title(String const& url, String title)
+void HistoryStore::TransientStorage::update_title(String const& url, String const& title)
 {
     auto entry = m_entries.find(url);
     if (entry == m_entries.end())
@@ -444,7 +425,7 @@ void HistoryStore::TransientStorage::update_title(String const& url, String titl
     entry->value.title = move(title);
 }
 
-void HistoryStore::TransientStorage::update_favicon(String const& url, String favicon_base64_png)
+void HistoryStore::TransientStorage::update_favicon(String const& url, String const& favicon_base64_png)
 {
     auto entry = m_entries.find(url);
     if (entry == m_entries.end())
@@ -494,10 +475,18 @@ void HistoryStore::TransientStorage::remove_entries_accessed_since(UnixDateTime 
     });
 }
 
+HistoryStore::PersistedStorage::PersistedStorage(Database::Database& database, Statements&& statements)
+    : m_database(database)
+    , m_statements(move(statements))
+{
+}
+
+HistoryStore::PersistedStorage::~PersistedStorage() = default;
+
 void HistoryStore::PersistedStorage::record_visit(String const& url, Optional<String> const& title, UnixDateTime visited_at)
 {
-    database.execute_statement(
-        statements.upsert_entry,
+    m_database.execute_statement(
+        m_statements.upsert_entry,
         {},
         url,
         title.value_or(String {}),
@@ -506,8 +495,8 @@ void HistoryStore::PersistedStorage::record_visit(String const& url, Optional<St
 
 void HistoryStore::PersistedStorage::update_title(String const& url, String const& title)
 {
-    database.execute_statement(
-        statements.update_title,
+    m_database.execute_statement(
+        m_statements.update_title,
         {},
         title,
         url);
@@ -515,8 +504,8 @@ void HistoryStore::PersistedStorage::update_title(String const& url, String cons
 
 void HistoryStore::PersistedStorage::update_favicon(String const& url, String const& favicon_base64_png)
 {
-    database.execute_statement(
-        statements.update_favicon,
+    m_database.execute_statement(
+        m_statements.update_favicon,
         {},
         favicon_base64_png,
         url);
@@ -526,18 +515,18 @@ Optional<HistoryEntry> HistoryStore::PersistedStorage::entry_for_url(String cons
 {
     Optional<HistoryEntry> entry;
 
-    database.execute_statement(
-        statements.get_entry,
+    m_database.execute_statement(
+        m_statements.get_entry,
         [&](auto statement_id) {
-            auto title = database.result_column<String>(statement_id, 0);
-            auto favicon = database.result_column<String>(statement_id, 3);
+            auto title = m_database.result_column<String>(statement_id, 0);
+            auto favicon = m_database.result_column<String>(statement_id, 3);
 
             entry = HistoryEntry {
                 .url = url,
                 .title = title.is_empty() ? Optional<String> {} : Optional<String> { move(title) },
                 .favicon_base64_png = favicon.is_empty() ? Optional<String> {} : Optional<String> { move(favicon) },
-                .visit_count = database.result_column<u64>(statement_id, 1),
-                .last_visited_time = database.result_column<UnixDateTime>(statement_id, 2),
+                .visit_count = m_database.result_column<u64>(statement_id, 1),
+                .last_visited_time = m_database.result_column<UnixDateTime>(statement_id, 2),
             };
         },
         url);
@@ -553,18 +542,18 @@ Vector<HistoryEntry> HistoryStore::PersistedStorage::autocomplete_entries(String
     auto title_query_string = MUST(String::from_utf8(title_query));
     auto url_contains_query_string = MUST(String::from_utf8(autocomplete_url_contains_query(url_query)));
 
-    database.execute_statement(
-        statements.search_entries,
+    m_database.execute_statement(
+        m_statements.search_entries,
         [&](auto statement_id) {
-            auto title = database.result_column<String>(statement_id, 1);
-            auto favicon = database.result_column<String>(statement_id, 4);
+            auto title = m_database.result_column<String>(statement_id, 1);
+            auto favicon = m_database.result_column<String>(statement_id, 4);
 
             entries.append(HistoryEntry {
-                .url = database.result_column<String>(statement_id, 0),
+                .url = m_database.result_column<String>(statement_id, 0),
                 .title = title.is_empty() ? Optional<String> {} : Optional<String> { move(title) },
                 .favicon_base64_png = favicon.is_empty() ? Optional<String> {} : Optional<String> { move(favicon) },
-                .visit_count = database.result_column<u64>(statement_id, 2),
-                .last_visited_time = database.result_column<UnixDateTime>(statement_id, 3),
+                .visit_count = m_database.result_column<u64>(statement_id, 2),
+                .last_visited_time = m_database.result_column<UnixDateTime>(statement_id, 3),
             });
         },
         url_query_string,
@@ -577,12 +566,12 @@ Vector<HistoryEntry> HistoryStore::PersistedStorage::autocomplete_entries(String
 
 void HistoryStore::PersistedStorage::clear()
 {
-    database.execute_statement(statements.clear_entries, {});
+    m_database.execute_statement(m_statements.clear_entries, {});
 }
 
 void HistoryStore::PersistedStorage::remove_entries_accessed_since(UnixDateTime since)
 {
-    database.execute_statement(statements.delete_entries_accessed_since, {}, since);
+    m_database.execute_statement(m_statements.delete_entries_accessed_since, {}, since);
 }
 
 }
