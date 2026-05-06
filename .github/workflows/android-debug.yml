@@ -73,6 +73,13 @@ jobs:
             "platforms;android-35" \
             "ndk;29.0.13599879"
 
+      - name: Install Rust Android Targets
+        run: |
+          rustup target add aarch64-linux-android
+          rustup target add x86_64-linux-android
+          rustup target add armv7-linux-androideabi
+          rustup target add i686-linux-android
+
       # === BUILD ===
 
       - name: Build Android Debug APK
