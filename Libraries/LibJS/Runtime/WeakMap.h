@@ -25,16 +25,22 @@ public:
 
     virtual ~WeakMap() override = default;
 
-    HashMap<GC::Ptr<Cell>, Value> const& values() const { return m_values; }
-    HashMap<GC::Ptr<Cell>, Value>& values() { return m_values; }
+    Optional<Value> weak_map_get(GC::Ptr<Cell>) const;
+    bool weak_map_has(GC::Ptr<Cell>) const;
+    void weak_map_set(GC::Ptr<Cell>, Value);
+    bool weak_map_remove(GC::Ptr<Cell>);
+    size_t weak_map_size() const { return m_values.size(); }
 
     virtual void remove_dead_cells(Badge<GC::Heap>) override;
+    virtual size_t external_memory_size() const override;
 
 private:
     explicit WeakMap(Object& prototype);
 
     virtual bool is_weak_map() const final { return true; }
     void visit_edges(Visitor&) override;
+
+    void account_external_memory_change(size_t old_external_memory_size);
 
     HashMap<GC::Ptr<Cell>, Value> m_values; // This stores Cell pointers instead of Object pointers to aide with sweeping
 };

@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/HashTable.h>
 #include <AK/TypeCasts.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/WeakSetPrototype.h>
@@ -49,7 +48,7 @@ JS_DEFINE_NATIVE_FUNCTION(WeakSetPrototype::add)
     //     a. If e is not empty and SameValue(e, value) is true, then
     //         i. Return S.
     // 5. Append value to S.[[WeakSetData]].
-    weak_set->values().set(&value.as_cell(), AK::HashSetExistingEntryBehavior::Keep);
+    weak_set->weak_set_add(&value.as_cell());
 
     // 6. Return S.
     return weak_set;
@@ -73,7 +72,7 @@ JS_DEFINE_NATIVE_FUNCTION(WeakSetPrototype::delete_)
     //         i. Replace the element of S.[[WeakSetData]] whose value is e with an element whose value is empty.
     //         ii. Return true.
     // 5. Return false.
-    return Value(weak_set->values().remove(&value.as_cell()));
+    return Value(weak_set->weak_set_remove(&value.as_cell()));
 }
 
 // 24.4.3.4 WeakSet.prototype.has ( value ), https://tc39.es/ecma262/#sec-weakset.prototype.has
@@ -91,9 +90,7 @@ JS_DEFINE_NATIVE_FUNCTION(WeakSetPrototype::has)
 
     // 4. For each element e of S.[[WeakSetData]], do
     //     a. If e is not empty and SameValue(e, value) is true, return true.
-    auto& values = weak_set->values();
-    auto result = values.find(&value.as_cell());
-    if (result != values.end())
+    if (weak_set->weak_set_has(&value.as_cell()))
         return Value(true);
 
     // 5. Return false.

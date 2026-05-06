@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/Map.h>
 
 namespace JS {
@@ -23,8 +24,10 @@ Map::Map(Object& prototype)
 // 24.1.3.1 Map.prototype.clear ( ), https://tc39.es/ecma262/#sec-map.prototype.clear
 void Map::map_clear()
 {
+    auto old_external_memory_size = external_memory_size();
     m_keys.clear();
     m_entries.clear();
+    account_external_memory_change(old_external_memory_size);
 }
 
 // 24.1.3.3 Map.prototype.delete ( key ), https://tc39.es/ecma262/#sec-map.prototype.delete
@@ -42,8 +45,10 @@ bool Map::map_remove(Value const& key)
     if (!index.has_value())
         return false;
 
+    auto old_external_memory_size = external_memory_size();
     m_keys.remove(*index);
     m_entries.remove(key);
+    account_external_memory_change(old_external_memory_size);
     return true;
 }
 
@@ -68,15 +73,42 @@ void Map::map_set(Value const& key, Value value)
     if (it != m_entries.end()) {
         it->value = value;
     } else {
+        auto old_external_memory_size = external_memory_size();
         auto index = m_next_insertion_id++;
         m_keys.insert(index, key);
         m_entries.set(key, value);
+        account_external_memory_change(old_external_memory_size);
     }
 }
 
 size_t Map::map_size() const
 {
     return m_keys.size();
+}
+
+static size_t map_key_tree_external_memory_size(RedBlackTree<size_t, Value> const& keys)
+{
+    constexpr auto approximate_node_size = sizeof(AK::BaseRedBlackTree<size_t>::Node) + sizeof(Value);
+    if (keys.size() > NumericLimits<size_t>::max() / approximate_node_size)
+        return NumericLimits<size_t>::max();
+    return keys.size() * approximate_node_size;
+}
+
+size_t Map::external_memory_size() const
+{
+    auto size = Object::external_memory_size();
+    size = saturating_add_external_memory_size(size, map_key_tree_external_memory_size(m_keys));
+    size = saturating_add_external_memory_size(size, hash_map_external_memory_size(m_entries));
+    return size;
+}
+
+void Map::account_external_memory_change(size_t old_external_memory_size)
+{
+    auto new_external_memory_size = external_memory_size();
+    if (new_external_memory_size > old_external_memory_size)
+        heap().did_allocate_external_memory(new_external_memory_size - old_external_memory_size);
+    else if (old_external_memory_size > new_external_memory_size)
+        heap().did_free_external_memory(old_external_memory_size - new_external_memory_size);
 }
 
 void Map::visit_edges(Cell::Visitor& visitor)

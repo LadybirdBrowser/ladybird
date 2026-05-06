@@ -25,13 +25,18 @@ public:
 
     virtual ~WeakSet() override = default;
 
-    HashTable<GC::Ptr<Cell>> const& values() const { return m_values; }
-    HashTable<GC::Ptr<Cell>>& values() { return m_values; }
+    bool weak_set_has(GC::Ptr<Cell>) const;
+    void weak_set_add(GC::Ptr<Cell>);
+    bool weak_set_remove(GC::Ptr<Cell>);
+    size_t weak_set_size() const { return m_values.size(); }
 
     virtual void remove_dead_cells(Badge<GC::Heap>) override;
+    virtual size_t external_memory_size() const override;
 
 private:
     explicit WeakSet(Object& prototype);
+
+    void account_external_memory_change(size_t old_external_memory_size);
 
     HashTable<GC::RawPtr<Cell>> m_values; // This stores Cell pointers instead of Object pointers to aide with sweeping
 };
