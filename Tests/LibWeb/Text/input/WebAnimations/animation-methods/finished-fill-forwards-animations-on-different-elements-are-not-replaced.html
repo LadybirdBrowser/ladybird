@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<div id="first"></div>
+<div id="second"></div>
+<script src="../../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const first = document.getElementById("first");
+        const second = document.getElementById("second");
+
+        first.animate([{ opacity: 1 }, { opacity: 0 }], {
+            duration: 300,
+            fill: "forwards",
+        }).finish();
+
+        second.animate([{ opacity: 1 }, { opacity: 0 }], {
+            duration: 300,
+            fill: "forwards",
+        }).finish();
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        println(`first animations after timeout: ${first.getAnimations().length}`);
+        println(`first opacity after timeout: ${getComputedStyle(first).opacity}`);
+        println(`second animations after timeout: ${second.getAnimations().length}`);
+        println(`second opacity after timeout: ${getComputedStyle(second).opacity}`);
+    });
+</script>
