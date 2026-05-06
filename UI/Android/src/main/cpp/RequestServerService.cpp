@@ -17,17 +17,21 @@
 #include <LibTLS/TLSv12.h>
 #include <LibWebView/Utilities.h>
 #include <RequestServer/ConnectionFromClient.h>
+#include <RequestServer/ResourceSubstitutionMap.h>
+#include <RequestServer/Resolver.h>
 
 namespace RequestServer {
 
-extern ByteString g_default_certificate_path;
+// Defined here to satisfy the linker for Android shared library builds.
+// main.cpp defines this for non-Android builds, but is not compiled into requestserverservice.so.
+OwnPtr<ResourceSubstitutionMap> g_resource_substitution_map;
 
 }
 
 ErrorOr<int> service_main(int ipc_socket)
 {
 
-    RequestServer::g_default_certificate_path = ByteString::formatted("{}/cacert.pem", WebView::s_ladybird_resource_root);
+    RequestServer::set_default_certificate_path(ByteString::formatted("{}/cacert.pem", WebView::s_ladybird_resource_root));
 
     Core::EventLoop event_loop;
 
