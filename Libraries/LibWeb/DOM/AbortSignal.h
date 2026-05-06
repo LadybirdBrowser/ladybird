@@ -57,6 +57,7 @@ private:
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual size_t external_memory_size() const override;
 
     bool dependent() const { return m_dependent; }
     void set_dependent(bool dependent) { m_dependent = dependent; }

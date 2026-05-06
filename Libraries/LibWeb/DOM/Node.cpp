@@ -14,6 +14,7 @@
 #include <LibGC/DeferGC.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
@@ -137,6 +138,14 @@ void Node::visit_edges(Cell::Visitor& visitor)
     if (m_registered_observer_list) {
         visitor.visit(*m_registered_observer_list);
     }
+}
+
+size_t Node::external_memory_size() const
+{
+    auto size = Base::external_memory_size();
+    if (m_registered_observer_list)
+        size = JS::saturating_add_external_memory_size(size, JS::vector_external_memory_size(*m_registered_observer_list));
+    return size;
 }
 
 // https://dom.spec.whatwg.org/#dom-node-baseuri

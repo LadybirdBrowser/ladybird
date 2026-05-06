@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/Bindings/AbortSignal.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/AbortSignal.h>
@@ -131,6 +132,15 @@ void AbortSignal::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_abort_algorithms);
     visitor.visit(m_source_signals);
     visitor.visit(m_dependent_signals);
+}
+
+size_t AbortSignal::external_memory_size() const
+{
+    auto size = Base::external_memory_size();
+    size = JS::saturating_add_external_memory_size(size, JS::hash_map_external_memory_size(m_abort_algorithms));
+    size = JS::saturating_add_external_memory_size(size, JS::vector_external_memory_size(m_source_signals));
+    size = JS::saturating_add_external_memory_size(size, JS::vector_external_memory_size(m_dependent_signals));
+    return size;
 }
 
 // https://dom.spec.whatwg.org/#dom-abortsignal-abort

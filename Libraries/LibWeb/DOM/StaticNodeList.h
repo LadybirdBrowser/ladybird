@@ -26,6 +26,7 @@ private:
     StaticNodeList(JS::Realm&, Vector<GC::Root<Node>>);
 
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual size_t external_memory_size() const override;
 
     Vector<GC::Ref<Node>> m_static_nodes;
 };
