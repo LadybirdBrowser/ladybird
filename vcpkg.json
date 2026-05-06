@@ -164,6 +164,7 @@
       "platform": "android",
       "default-features": false,
       "features": [
+        "freetype",
         "vulkan"
       ]
     },
