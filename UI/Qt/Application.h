@@ -29,6 +29,7 @@ public:
     void set_active_window(BrowserWindow& w) { m_active_window = &w; }
 
     Tab* active_tab() const { return m_active_window ? m_active_window->current_tab() : nullptr; }
+    void update_reopen_recently_closed_actions() const;
 
 private:
     explicit Application();
@@ -58,6 +59,7 @@ private:
 
     virtual void on_devtools_enabled() const override;
     virtual void on_devtools_disabled() const override;
+    virtual void on_recently_closed_entries_changed() const override;
 
     OwnPtr<QApplication> m_application;
     BrowserWindow* m_active_window { nullptr };

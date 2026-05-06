@@ -249,6 +249,14 @@ void Application::update_bookmarks_bar_display(bool show_bookmarks_bar) const
     }
 }
 
+void Application::update_reopen_recently_closed_actions() const
+{
+    for (auto* widget : QApplication::topLevelWidgets()) {
+        if (auto* window = as_if<BrowserWindow>(widget))
+            window->update_reopen_recently_closed_action();
+    }
+}
+
 void Application::show_bookmark_context_menu(Gfx::IntPoint content_position, Optional<WebView::BookmarkItem const&> item, Optional<String const&> target_folder_id)
 {
     if (auto* active_tab = this->active_tab()) {
@@ -416,6 +424,11 @@ void Application::on_devtools_disabled() const
 
     if (m_active_window)
         m_active_window->on_devtools_disabled();
+}
+
+void Application::on_recently_closed_entries_changed() const
+{
+    update_reopen_recently_closed_actions();
 }
 
 }

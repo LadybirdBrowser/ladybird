@@ -104,6 +104,7 @@ public:
 
     void rebuild_bookmarks_menu();
     void update_bookmarks_bar_display(bool show_bookmarks_bar);
+    void update_reopen_recently_closed_action();
 
     double refresh_rate() const { return m_refresh_rate; }
 
@@ -170,6 +171,7 @@ private:
 
     QAction* m_new_tab_action { nullptr };
     QAction* m_new_window_action { nullptr };
+    QAction* m_reopen_recently_closed_tab_action { nullptr };
     QAction* m_find_in_page_action { nullptr };
 
     IsPopupWindow m_is_popup_window { IsPopupWindow::No };
@@ -178,6 +180,7 @@ private:
     FullscreenMode* m_fullscreen_mode { nullptr };
     // Determine if window should restore to maximized or normal, when exiting fullscreen.
     bool m_restore_to_maximized { false };
+    bool m_should_record_closed_window_on_close { true };
 };
 
 }
