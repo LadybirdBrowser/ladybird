@@ -276,12 +276,32 @@ static auto wait_for_reftest_completion = generate_wait_for_test_string("reftest
 
 // For PDF tests: by the time this runs (after on_load_finish), ladybirdpdf has already fired
 // and openPdf() is in progress; initializedPromise lets us hook in at the right moment.
-// Text mode uses the page count; Layout mode ignores the signalTestIsDone argument.
+// This script ensures we wait until the text and annotation layers are rendered for the first page.
+// pdf.js renders pages lazily, so only those pages visible in the viewport are rendered. We currently fail for PDFs
+// with more than one page, as we don't currently guarantee rendering of all pages.
 static auto const wait_for_pdf_done = R"(
 window.PDFViewerApplication.initializedPromise.then(() => {
-    window.PDFViewerApplication.eventBus.on('pagesloaded', () => {
-        internals.signalTestIsDone(`Pages: ${window.PDFViewerApplication.pagesCount}`);
+    const eventBus = window.PDFViewerApplication.eventBus;
+    let pagesCount = null;
+    let textRendered = false;
+    let annotationRendered = false;
+    const checkDone = () => {
+        if (pagesCount !== null && textRendered && annotationRendered) {
+            internals.signalTestIsDone(`Pages: ${pagesCount}`);
+        }
+    };
+    eventBus.on("pagesloaded", evt => {
+        pagesCount = evt.pagesCount;
+        if (pagesCount !== 1) {
+            const message = `PDF tests must use a single-page PDF (got ${pagesCount} pages).`;
+            document.body.replaceChildren(document.createTextNode(message));
+            internals.signalTestIsDone(`Pages: ${pagesCount}`);
+            return;
+        }
+        checkDone();
     });
+    eventBus.on("textlayerrendered", evt => { if (evt.pageNumber === 1) { textRendered = true; checkDone(); } });
+    eventBus.on("annotationlayerrendered", evt => { if (evt.pageNumber === 1) { annotationRendered = true; checkDone(); } });
 });
 )"_string;
 
