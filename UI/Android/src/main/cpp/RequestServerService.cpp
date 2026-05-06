@@ -32,7 +32,13 @@ ErrorOr<int> service_main(int ipc_socket)
     Core::EventLoop event_loop;
 
     auto socket = TRY(Core::LocalSocket::adopt_fd(ipc_socket));
-    auto client = TRY(RequestServer::ConnectionFromClient::try_create(make<IPC::Transport>(move(socket))));
+    RequestServer::ConnectionFromClient::ConnectionMap connections;
+    Optional<HTTP::DiskCache&> disk_cache;
+    [[maybe_unused]] auto client = RequestServer::ConnectionFromClient::construct(
+        make<IPC::Transport>(move(socket)),
+        RequestServer::ConnectionFromClient::IsPrimaryConnection::Yes,
+        connections,
+        disk_cache);
 
     return event_loop.exec();
 }
