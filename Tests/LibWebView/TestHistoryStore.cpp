@@ -177,6 +177,94 @@ TEST_CASE(history_favicon_updates_entry)
     EXPECT_EQ(entry->favicon_base64_png, Optional<String> { "Zm9v"_string });
 }
 
+TEST_CASE(recently_closed_entries_are_reopened_in_lifo_order)
+{
+    auto store = WebView::HistoryStore::create();
+    auto first_url = parse_url("https://first.example.com/"sv);
+    auto second_url = parse_url("https://second.example.com/"sv);
+    auto third_url = parse_url("https://third.example.com/"sv);
+
+    EXPECT(!store->has_recently_closed_entries());
+
+    store->record_closed_tab(first_url, UnixDateTime::from_seconds_since_epoch(10));
+    store->record_closed_window({ second_url, third_url }, 1, UnixDateTime::from_seconds_since_epoch(20));
+
+    EXPECT(store->has_recently_closed_entries());
+
+    auto recently_closed_entry = store->pop_most_recently_closed_entry();
+    VERIFY(recently_closed_entry.has_value());
+    EXPECT(recently_closed_entry->was_window);
+    EXPECT_EQ(recently_closed_entry->active_tab_index, 1u);
+    EXPECT_EQ(recently_closed_entry->urls.size(), 2u);
+    EXPECT_EQ(recently_closed_entry->urls[0], second_url);
+    EXPECT_EQ(recently_closed_entry->urls[1], third_url);
+    EXPECT(store->has_recently_closed_entries());
+
+    recently_closed_entry = store->pop_most_recently_closed_entry();
+    VERIFY(recently_closed_entry.has_value());
+    EXPECT(!recently_closed_entry->was_window);
+    EXPECT_EQ(recently_closed_entry->active_tab_index, 0u);
+    EXPECT_EQ(recently_closed_entry->urls.size(), 1u);
+    EXPECT_EQ(recently_closed_entry->urls[0], first_url);
+    EXPECT(!store->has_recently_closed_entries());
+
+    EXPECT(!store->pop_most_recently_closed_entry().has_value());
+}
+
+TEST_CASE(recently_closed_entries_accessed_since_can_be_removed)
+{
+    auto store = WebView::HistoryStore::create();
+    auto older_url = parse_url("https://older.example.com/"sv);
+    auto newer_url = parse_url("https://newer.example.com/"sv);
+    auto newest_url = parse_url("https://newest.example.com/"sv);
+
+    store->record_closed_tab(older_url, UnixDateTime::from_seconds_since_epoch(10));
+    store->record_closed_window({ newer_url, newest_url }, 0, UnixDateTime::from_seconds_since_epoch(20));
+
+    store->remove_entries_accessed_since(UnixDateTime::from_seconds_since_epoch(15));
+
+    EXPECT(store->has_recently_closed_entries());
+
+    auto recently_closed_entry = store->pop_most_recently_closed_entry();
+    VERIFY(recently_closed_entry.has_value());
+    EXPECT_EQ(recently_closed_entry->urls.size(), 1u);
+    EXPECT_EQ(recently_closed_entry->urls[0], older_url);
+    EXPECT(!store->has_recently_closed_entries());
+}
+
+TEST_CASE(recently_closed_entries_can_be_peeked_without_popping)
+{
+    auto store = WebView::HistoryStore::create();
+    auto first_url = parse_url("https://peek.example.com/"sv);
+    auto second_url = parse_url("https://peek-two.example.com/"sv);
+
+    store->record_closed_window({ first_url, second_url }, 0, UnixDateTime::from_seconds_since_epoch(10));
+
+    auto recently_closed_entry = store->most_recently_closed_entry();
+    VERIFY(recently_closed_entry.has_value());
+    EXPECT(recently_closed_entry->was_window);
+    EXPECT_EQ(recently_closed_entry->urls.size(), 2u);
+    EXPECT_EQ(recently_closed_entry->urls[0], first_url);
+    EXPECT_EQ(recently_closed_entry->urls[1], second_url);
+    EXPECT(store->has_recently_closed_entries());
+}
+
+TEST_CASE(recently_closed_entries_are_cleared_with_history)
+{
+    auto store = WebView::HistoryStore::create();
+    auto first_url = parse_url("https://clear.example.com/"sv);
+    auto second_url = parse_url("https://clear-two.example.com/"sv);
+
+    store->record_closed_tab(first_url, UnixDateTime::from_seconds_since_epoch(10));
+    store->record_closed_window({ second_url }, 0, UnixDateTime::from_seconds_since_epoch(20));
+
+    store->clear();
+
+    EXPECT(!store->has_recently_closed_entries());
+    EXPECT(!store->most_recently_closed_entry().has_value());
+    EXPECT(!store->pop_most_recently_closed_entry().has_value());
+}
+
 TEST_CASE(history_autocomplete_entries_include_metadata)
 {
     auto store = WebView::HistoryStore::create();

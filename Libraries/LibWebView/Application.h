@@ -180,6 +180,7 @@ protected:
 
     virtual void rebuild_bookmarks_menu() const { }
     virtual void update_bookmarks_bar_display([[maybe_unused]] bool show_bookmarks_bar) const { }
+    virtual void on_recently_closed_entries_changed() const { }
 
     struct BookmarkID {
         String id;
