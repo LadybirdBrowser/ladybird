@@ -36,6 +36,7 @@ public:
     DOM::Document const& svg_document() const { return *m_document; }
 
     virtual void visit_edges(Cell::Visitor& visitor) override;
+    virtual size_t external_memory_size() const override;
 
     virtual Optional<Gfx::IntRect> frame_rect(size_t frame_index) const override;
     virtual void paint(DisplayListRecordingContext&, size_t frame_index, Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, Gfx::ScalingMode scaling_mode) const override;

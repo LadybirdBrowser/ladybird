@@ -5,6 +5,7 @@
  */
 
 #include <LibJS/Runtime/Completion.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/VM.h>
@@ -152,6 +153,11 @@ void AudioBuffer::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_channels);
+}
+
+size_t AudioBuffer::external_memory_size() const
+{
+    return JS::saturating_add_external_memory_size(Base::external_memory_size(), JS::vector_external_memory_size(m_channels));
 }
 
 }
