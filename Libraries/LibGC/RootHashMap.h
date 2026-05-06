@@ -49,11 +49,18 @@ public:
     virtual void gather_roots(HashMap<Cell*, GC::HeapRoot>& roots) const override
     {
         for (auto& [key, value] : *this) {
+            if constexpr (IsBaseOf<NanBoxedValue, K>) {
+                if (key.is_cell())
+                    roots.set(&const_cast<K&>(key).as_cell(), HeapRoot { .type = HeapRoot::Type::RootHashMap });
+            } else if constexpr (IsConvertible<K, Cell const*>) {
+                roots.set(const_cast<Cell*>(static_cast<Cell const*>(key)), HeapRoot { .type = HeapRoot::Type::RootHashMap });
+            }
+
             if constexpr (IsBaseOf<NanBoxedValue, V>) {
                 if (value.is_cell())
                     roots.set(&const_cast<V&>(value).as_cell(), HeapRoot { .type = HeapRoot::Type::RootHashMap });
-            } else {
-                roots.set(value, HeapRoot { .type = HeapRoot::Type::RootHashMap });
+            } else if constexpr (IsConvertible<V, Cell const*>) {
+                roots.set(const_cast<Cell*>(static_cast<Cell const*>(value)), HeapRoot { .type = HeapRoot::Type::RootHashMap });
             }
         }
     }
