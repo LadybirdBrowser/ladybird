@@ -199,13 +199,22 @@ TEST_CASE(disabled_history_store_ignores_updates)
     auto store = WebView::HistoryStore::create_disabled();
     auto url = parse_url("https://example.com/"sv);
 
-    store->record_visit(url, "Example"_string, UnixDateTime::from_seconds_since_epoch(10));
-    store->update_title(url, "Example title"_string);
-    store->remove_entries_accessed_since(UnixDateTime::from_seconds_since_epoch(0));
-    store->clear();
+    auto check_is_empty = [&] {
+        EXPECT(!store->entry_for_url(url).has_value());
+        EXPECT(store->autocomplete_entries("example"sv, 8).is_empty());
+    };
 
-    EXPECT(!store->entry_for_url(url).has_value());
-    EXPECT(store->autocomplete_entries("example"sv, 8).is_empty());
+    store->record_visit(url, "Example"_string, UnixDateTime::from_seconds_since_epoch(10));
+    check_is_empty();
+
+    store->update_title(url, "Example title"_string);
+    check_is_empty();
+
+    store->remove_entries_accessed_since(UnixDateTime::from_seconds_since_epoch(0));
+    check_is_empty();
+
+    store->clear();
+    check_is_empty();
 }
 
 TEST_CASE(history_entries_accessed_since_can_be_removed)
