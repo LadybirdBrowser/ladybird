@@ -31,6 +31,7 @@
 #include <LibWeb/CSS/StyleValues/CursorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/URL.h>
@@ -311,19 +312,17 @@ class SVGPaint {
 public:
     static SVGPaint from_style_value(NonnullRefPtr<StyleValue const> const& style_value, ColorResolutionContext const& color_resolution_context)
     {
-        auto extract_paint_fallback_color = [&](CSS::URLStyleValue const& url_value) -> Optional<Color> {
-            if (auto const& fallback = url_value.paint_fallback()) {
-                if (fallback->has_color())
-                    return fallback->to_color(color_resolution_context);
-            }
-            return {};
-        };
-
         if (style_value->has_color())
             return style_value->to_color(color_resolution_context).value();
 
-        if (style_value->is_url())
-            return CSS::SVGPaint(style_value->as_url().url(), extract_paint_fallback_color(style_value->as_url()));
+        if (style_value->is_value_list()) {
+            auto const& values = style_value->as_value_list().values();
+
+            if (values.size() == 1)
+                return { values[0]->as_url().url(), {} };
+
+            return { values[0]->as_url().url(), values[1]->to_color(color_resolution_context) };
+        }
 
         VERIFY_NOT_REACHED();
     }

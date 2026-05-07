@@ -2816,13 +2816,18 @@ RefPtr<StyleValue const> Parser::parse_paint_value(TokenStream<ComponentValue>& 
 
     if (auto url = parse_url_value(tokens)) {
         tokens.discard_whitespace();
+
+        StyleValueVector values;
+        values.ensure_capacity(2);
+        values.unchecked_append(url.release_nonnull());
+
         if (auto color_or_none = parse_color_or_none(); color_or_none == nullptr) {
             // Fail to parse if the fallback is invalid, but otherwise ignore it.
             return nullptr;
         } else if (color_or_none.has_value() && *color_or_none && (*color_or_none)->has_color()) {
-            return URLStyleValue::create(url->as_url().url(), color_or_none->release_nonnull());
+            values.unchecked_append(color_or_none->release_nonnull());
         }
-        return url;
+        return StyleValueList::create(move(values), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
     }
 
     return nullptr;

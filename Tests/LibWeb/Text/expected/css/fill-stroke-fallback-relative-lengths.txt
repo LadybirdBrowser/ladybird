@@ -1,0 +1,2 @@
+fill: url("#missing-fill") rgb(0, 255, 0)
+stroke: url("#missing-stroke") rgb(0, 255, 0)
