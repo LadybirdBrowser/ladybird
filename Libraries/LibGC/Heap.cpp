@@ -50,6 +50,24 @@ static Heap* s_the;
 
 namespace {
 
+// LIBGC_LOG_LEVEL controls how much detail collect_garbage() prints:
+//   0 (default) - silent.
+//   1           - per-GC report with totals and per-phase timing breakdown.
+//   2+          - everything in level 1, plus a full block allocator dump.
+i32 read_libgc_log_level()
+{
+    char const* env = getenv("LIBGC_LOG_LEVEL");
+    if (!env || !*env)
+        return 0;
+    return atoi(env);
+}
+
+i32 libgc_log_level()
+{
+    static i32 const level = read_libgc_log_level();
+    return level;
+}
+
 // Per-phase timings recorded during a single collect_garbage() call. We keep
 // these at file scope (instead of threading more parameters through the GC's
 // internal helpers) since GC is single-threaded, guarded by m_collecting_garbage.
@@ -125,27 +143,27 @@ void print_gc_report(i64 total_us, size_t live_block_count)
     dbgln("     Freed blocks: {} ({})", s.freed_block_count, human_readable_size(s.freed_block_count * HeapBlock::BLOCK_SIZE));
     dbgln("");
     dbgln("Phase breakdown (us, % of total):");
-    dbgln("  gather_roots                  {:>10} us ({:5.1f}%)", t.gather_roots_us, pct(t.gather_roots_us));
-    dbgln("    must-survive scan           {:>10} us ({:5.1f}%)", t.gather_must_survive_roots_us, pct(t.gather_must_survive_roots_us));
-    dbgln("    embedder roots              {:>10} us ({:5.1f}%)", t.gather_embedder_roots_us, pct(t.gather_embedder_roots_us));
-    dbgln("    conservative roots          {:>10} us ({:5.1f}%)", t.gather_conservative_roots_us, pct(t.gather_conservative_roots_us));
-    dbgln("      register scan             {:>10} us ({:5.1f}%)", t.conservative_register_scan_us, pct(t.conservative_register_scan_us));
-    dbgln("      stack scan                {:>10} us ({:5.1f}%)", t.conservative_stack_scan_us, pct(t.conservative_stack_scan_us));
-    dbgln("      conservative-vector scan  {:>10} us ({:5.1f}%)", t.conservative_vector_scan_us, pct(t.conservative_vector_scan_us));
-    dbgln("      cell lookup               {:>10} us ({:5.1f}%)", t.conservative_cell_lookup_us, pct(t.conservative_cell_lookup_us));
-    dbgln("    explicit roots              {:>10} us ({:5.1f}%)", t.gather_explicit_roots_us, pct(t.gather_explicit_roots_us));
-    dbgln("  mark_live_cells               {:>10} us ({:5.1f}%)", t.mark_live_cells_us, pct(t.mark_live_cells_us));
-    dbgln("    initial visit               {:>10} us ({:5.1f}%)", t.mark_initial_visit_us, pct(t.mark_initial_visit_us));
-    dbgln("    BFS marking                 {:>10} us ({:5.1f}%)", t.mark_bfs_us, pct(t.mark_bfs_us));
-    dbgln("    clear uprooted              {:>10} us ({:5.1f}%)", t.mark_clear_uprooted_us, pct(t.mark_clear_uprooted_us));
-    dbgln("  finalize_unmarked_cells       {:>10} us ({:5.1f}%)", t.finalize_unmarked_cells_us, pct(t.finalize_unmarked_cells_us));
-    dbgln("  sweep_weak_blocks             {:>10} us ({:5.1f}%)", t.sweep_weak_blocks_us, pct(t.sweep_weak_blocks_us));
-    dbgln("  sweep_dead_cells              {:>10} us ({:5.1f}%)", t.sweep_dead_cells_us, pct(t.sweep_dead_cells_us));
-    dbgln("    block iteration             {:>10} us ({:5.1f}%)", t.sweep_block_iteration_us, pct(t.sweep_block_iteration_us));
-    dbgln("    weak containers             {:>10} us ({:5.1f}%)", t.sweep_weak_containers_us, pct(t.sweep_weak_containers_us));
-    dbgln("    sweep callbacks             {:>10} us ({:5.1f}%)", t.sweep_callbacks_us, pct(t.sweep_callbacks_us));
-    dbgln("    block reclassify            {:>10} us ({:5.1f}%)", t.sweep_block_reclassify_us, pct(t.sweep_block_reclassify_us));
-    dbgln("    update threshold            {:>10} us ({:5.1f}%)", t.sweep_update_threshold_us, pct(t.sweep_update_threshold_us));
+    dbgln("  gather_roots                  {:>10} us ({:>5.1f}%)", t.gather_roots_us, pct(t.gather_roots_us));
+    dbgln("    must-survive scan           {:>10} us ({:>5.1f}%)", t.gather_must_survive_roots_us, pct(t.gather_must_survive_roots_us));
+    dbgln("    embedder roots              {:>10} us ({:>5.1f}%)", t.gather_embedder_roots_us, pct(t.gather_embedder_roots_us));
+    dbgln("    conservative roots          {:>10} us ({:>5.1f}%)", t.gather_conservative_roots_us, pct(t.gather_conservative_roots_us));
+    dbgln("      register scan             {:>10} us ({:>5.1f}%)", t.conservative_register_scan_us, pct(t.conservative_register_scan_us));
+    dbgln("      stack scan                {:>10} us ({:>5.1f}%)", t.conservative_stack_scan_us, pct(t.conservative_stack_scan_us));
+    dbgln("      conservative-vector scan  {:>10} us ({:>5.1f}%)", t.conservative_vector_scan_us, pct(t.conservative_vector_scan_us));
+    dbgln("      cell lookup               {:>10} us ({:>5.1f}%)", t.conservative_cell_lookup_us, pct(t.conservative_cell_lookup_us));
+    dbgln("    explicit roots              {:>10} us ({:>5.1f}%)", t.gather_explicit_roots_us, pct(t.gather_explicit_roots_us));
+    dbgln("  mark_live_cells               {:>10} us ({:>5.1f}%)", t.mark_live_cells_us, pct(t.mark_live_cells_us));
+    dbgln("    initial visit               {:>10} us ({:>5.1f}%)", t.mark_initial_visit_us, pct(t.mark_initial_visit_us));
+    dbgln("    BFS marking                 {:>10} us ({:>5.1f}%)", t.mark_bfs_us, pct(t.mark_bfs_us));
+    dbgln("    clear uprooted              {:>10} us ({:>5.1f}%)", t.mark_clear_uprooted_us, pct(t.mark_clear_uprooted_us));
+    dbgln("  finalize_unmarked_cells       {:>10} us ({:>5.1f}%)", t.finalize_unmarked_cells_us, pct(t.finalize_unmarked_cells_us));
+    dbgln("  sweep_weak_blocks             {:>10} us ({:>5.1f}%)", t.sweep_weak_blocks_us, pct(t.sweep_weak_blocks_us));
+    dbgln("  sweep_dead_cells              {:>10} us ({:>5.1f}%)", t.sweep_dead_cells_us, pct(t.sweep_dead_cells_us));
+    dbgln("    block iteration             {:>10} us ({:>5.1f}%)", t.sweep_block_iteration_us, pct(t.sweep_block_iteration_us));
+    dbgln("    weak containers             {:>10} us ({:>5.1f}%)", t.sweep_weak_containers_us, pct(t.sweep_weak_containers_us));
+    dbgln("    sweep callbacks             {:>10} us ({:>5.1f}%)", t.sweep_callbacks_us, pct(t.sweep_callbacks_us));
+    dbgln("    block reclassify            {:>10} us ({:>5.1f}%)", t.sweep_block_reclassify_us, pct(t.sweep_block_reclassify_us));
+    dbgln("    update threshold            {:>10} us ({:>5.1f}%)", t.sweep_update_threshold_us, pct(t.sweep_update_threshold_us));
     dbgln("=================================================================");
 }
 
@@ -463,8 +481,14 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
     {
         TemporaryChange change(m_collecting_garbage, true);
 
+        // The caller can force level 1 by passing print_report=true; LIBGC_LOG_LEVEL=N
+        // raises the floor for every collection.
+        auto effective_log_level = max(libgc_log_level(), print_report ? 1 : 0);
+        bool report = effective_log_level >= 1;
+        bool dump_allocators_too = effective_log_level >= 2;
+
         Core::ElapsedTimer collection_measurement_timer { Core::TimerType::Precise };
-        if (print_report) {
+        if (report) {
             collection_measurement_timer.start();
             g_phase_timings = {};
             g_recording_phase_timings = true;
@@ -479,35 +503,36 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
             HashMap<Cell*, HeapRoot> roots;
             HashTable<HeapBlock*> all_live_heap_blocks;
             {
-                ScopedPhaseTimer timer { print_report, g_phase_timings.gather_roots_us };
+                ScopedPhaseTimer timer { report, g_phase_timings.gather_roots_us };
                 gather_roots(roots, all_live_heap_blocks);
             }
             {
-                ScopedPhaseTimer timer { print_report, g_phase_timings.mark_live_cells_us };
+                ScopedPhaseTimer timer { report, g_phase_timings.mark_live_cells_us };
                 mark_live_cells(roots, all_live_heap_blocks);
             }
         }
         {
-            ScopedPhaseTimer timer { print_report, g_phase_timings.finalize_unmarked_cells_us };
+            ScopedPhaseTimer timer { report, g_phase_timings.finalize_unmarked_cells_us };
             finalize_unmarked_cells();
         }
         {
-            ScopedPhaseTimer timer { print_report, g_phase_timings.sweep_weak_blocks_us };
+            ScopedPhaseTimer timer { report, g_phase_timings.sweep_weak_blocks_us };
             sweep_weak_blocks();
         }
         {
-            ScopedPhaseTimer timer { print_report, g_phase_timings.sweep_dead_cells_us };
-            sweep_dead_cells(print_report, collection_measurement_timer);
+            ScopedPhaseTimer timer { report, g_phase_timings.sweep_dead_cells_us };
+            sweep_dead_cells(report, collection_measurement_timer);
         }
 
-        if (print_report) {
+        if (report) {
             size_t live_block_count = 0;
             for_each_block([&](auto&) {
                 ++live_block_count;
                 return IterationDecision::Continue;
             });
             print_gc_report(collection_measurement_timer.elapsed_time().to_microseconds(), live_block_count);
-            dump_allocators();
+            if (dump_allocators_too)
+                dump_allocators();
         }
     }
 
