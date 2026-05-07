@@ -165,7 +165,7 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
         return {};
 
     auto frame = canvas_image_source_frame(image);
-    if (!frame)
+    if (!frame.has_value())
         return {};
     auto const& bitmap = frame->bitmap();
 
@@ -576,7 +576,7 @@ WebIDL::ExceptionOr<GC::Ptr<ImageData>> CanvasRenderingContext2D::get_image_data
     auto surface = canvas_element().surface();
     if (!surface)
         return image_data;
-    auto const snapshot = Gfx::DecodedImageFrame::create(*surface->snapshot_bitmap());
+    auto const snapshot = Gfx::DecodedImageFrame { *surface->snapshot_bitmap() };
 
     // 5. Let the source rectangle be the rectangle whose corners are the four points (sx, sy), (sx+sw, sy), (sx+sw, sy+sh), (sx, sy+sh).
     auto source_rect = Gfx::Rect { x, y, abs_width, abs_height };
@@ -587,17 +587,17 @@ WebIDL::ExceptionOr<GC::Ptr<ImageData>> CanvasRenderingContext2D::get_image_data
     if (width < 0 || height < 0) {
         source_rect = source_rect.translated(min(width, 0), min(height, 0));
     }
-    auto source_rect_intersected = source_rect.intersected(snapshot->rect());
+    auto source_rect_intersected = source_rect.intersected(snapshot.rect());
 
     // 6. Set the pixel values of imageData to be the pixels of this's output bitmap in the area specified by the source rectangle in the bitmap's coordinate space units, converted from this's color space to imageData's colorSpace using 'relative-colorimetric' rendering intent.
     // NOTE: Internally we must use premultiplied alpha, but ImageData should hold unpremultiplied alpha. This conversion
     //       might result in a loss of precision, but is according to spec.
     //       See: https://html.spec.whatwg.org/multipage/canvas.html#premultiplied-alpha-and-the-2d-rendering-context
-    VERIFY(snapshot->bitmap().alpha_type() == Gfx::AlphaType::Premultiplied);
+    VERIFY(snapshot.bitmap().alpha_type() == Gfx::AlphaType::Premultiplied);
     VERIFY(image_data->bitmap().alpha_type() == Gfx::AlphaType::Unpremultiplied);
 
     auto painter = Gfx::Painter::create(image_data->bitmap());
-    painter->draw_bitmap(image_data->bitmap().rect().to_type<float>(), *snapshot, source_rect_intersected, Gfx::ScalingMode::NearestNeighbor, {}, 1, Gfx::CompositingAndBlendingOperator::SourceOver);
+    painter->draw_bitmap(image_data->bitmap().rect().to_type<float>(), snapshot, source_rect_intersected, Gfx::ScalingMode::NearestNeighbor, {}, 1, Gfx::CompositingAndBlendingOperator::SourceOver);
 
     // 7. Set the pixels values of imageData for areas of the source rectangle that are outside of the output bitmap to transparent black.
     // NOTE: No-op, already done during creation.
@@ -689,7 +689,7 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::put_pixels_from_an_image_dat
     painter.set_transform({});
     painter.draw_bitmap(
         dst_rect,
-        *Gfx::DecodedImageFrame::create(image_data.bitmap(), Gfx::AlphaType::Unpremultiplied),
+        Gfx::DecodedImageFrame { image_data.bitmap(), Gfx::AlphaType::Unpremultiplied },
         Gfx::IntRect { dirty_x, dirty_y, dirty_width, dirty_height },
         Gfx::ScalingMode::NearestNeighbor,
         {},
@@ -916,11 +916,12 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
                 return WebIDL::InvalidStateError::create(image_element->realm(), "Image element state is broken"_utf16);
 
             // If image is not fully decodable, then return bad.
-            if (!image_element->current_image_frame())
+            auto current_image_frame = image_element->current_image_frame();
+            if (!current_image_frame.has_value())
                 return { CanvasImageSourceUsability::Bad };
 
             // If image has an intrinsic width or intrinsic height (or both) equal to zero, then return bad.
-            if (image_element->current_image_frame()->width() == 0 || image_element->current_image_frame()->height() == 0)
+            if (current_image_frame->width() == 0 || current_image_frame->height() == 0)
                 return { CanvasImageSourceUsability::Bad };
             return Optional<CanvasImageSourceUsability> {};
         },
@@ -929,11 +930,12 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
             // FIXME: If image's current request's state is broken, then throw an "InvalidStateError" DOMException.
 
             // If image is not fully decodable, then return bad.
-            if (!image_element->current_image_frame())
+            auto current_image_frame = image_element->current_image_frame();
+            if (!current_image_frame.has_value())
                 return { CanvasImageSourceUsability::Bad };
 
             // If image has an intrinsic width or intrinsic height (or both) equal to zero, then return bad.
-            if (image_element->current_image_frame()->width() == 0 || image_element->current_image_frame()->height() == 0)
+            if (current_image_frame->width() == 0 || current_image_frame->height() == 0)
                 return { CanvasImageSourceUsability::Bad };
             return Optional<CanvasImageSourceUsability> {};
         },

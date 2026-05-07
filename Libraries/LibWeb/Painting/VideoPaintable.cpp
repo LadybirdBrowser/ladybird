@@ -54,12 +54,12 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
     auto const& poster_frame = video_element.poster_frame();
 
     auto paint_bitmap = [&](auto const& bitmap) {
-        auto frame = Gfx::DecodedImageFrame::create(bitmap);
+        auto frame = Gfx::DecodedImageFrame { bitmap };
         auto dst_rect = get_replaced_box_painting_area(*this, context, computed_values().object_fit(), bitmap.size());
         if (dst_rect.is_empty())
             return;
-        auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), frame->size(), dst_rect.size());
-        context.display_list_recorder().draw_scaled_decoded_image_frame(dst_rect, dst_rect, *frame, scaling_mode);
+        auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), frame.size(), dst_rect.size());
+        context.display_list_recorder().draw_scaled_decoded_image_frame(dst_rect, dst_rect, move(frame), scaling_mode);
     };
 
     auto paint_video_frame = [&]() {

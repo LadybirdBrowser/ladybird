@@ -125,7 +125,7 @@ size_t SVGDecodedImageData::external_memory_size() const
     size_t size = Base::external_memory_size();
     size = JS::saturating_add_external_memory_size(size, JS::hash_map_external_memory_size(m_cached_rendered_frames));
     for (auto const& cached_frame : m_cached_rendered_frames)
-        size = JS::saturating_add_external_memory_size(size, cached_frame.value->bitmap().data_size());
+        size = JS::saturating_add_external_memory_size(size, cached_frame.value.bitmap().data_size());
 
     size = JS::saturating_add_external_memory_size(size, JS::hash_map_external_memory_size(m_cached_rendered_surfaces));
     for (auto const& cached_surface : m_cached_rendered_surfaces)
@@ -146,7 +146,7 @@ RefPtr<Gfx::PaintingSurface> SVGDecodedImageData::render_to_surface(Gfx::IntSize
     VERIFY(m_document->navigable());
 
     if (size.is_empty())
-        return nullptr;
+        return {};
 
     if (auto it = m_cached_rendered_surfaces.find(size); it != m_cached_rendered_surfaces.end())
         return it->value;
@@ -176,10 +176,10 @@ RefPtr<Gfx::PaintingSurface> SVGDecodedImageData::render_to_surface(Gfx::IntSize
     return surface;
 }
 
-RefPtr<Gfx::DecodedImageFrame> SVGDecodedImageData::frame(size_t, Gfx::IntSize size) const
+Optional<Gfx::DecodedImageFrame> SVGDecodedImageData::frame(size_t, Gfx::IntSize size) const
 {
     if (size.is_empty())
-        return nullptr;
+        return {};
 
     if (auto it = m_cached_rendered_frames.find(size); it != m_cached_rendered_frames.end())
         return it->value;
@@ -189,7 +189,7 @@ RefPtr<Gfx::DecodedImageFrame> SVGDecodedImageData::frame(size_t, Gfx::IntSize s
     if (m_cached_rendered_frames.size() > 10)
         m_cached_rendered_frames.remove(m_cached_rendered_frames.begin());
 
-    auto decoded_frame = Gfx::DecodedImageFrame::create(*render_to_surface(size)->snapshot_bitmap());
+    auto decoded_frame = Gfx::DecodedImageFrame { *render_to_surface(size)->snapshot_bitmap() };
     m_cached_rendered_frames.set(size, decoded_frame);
     return decoded_frame;
 }

@@ -266,28 +266,28 @@ Optional<Gfx::BitmapExportResult> WebGLRenderingContextBase::read_and_pixel_conv
     //        a SECURITY_ERR exception must be thrown. See Origin Restrictions.
     // FIXME: If source is null then an INVALID_VALUE error is generated.
     auto frame = source.visit(
-        [](GC::Root<HTML::HTMLImageElement> const& source) -> RefPtr<Gfx::DecodedImageFrame> {
+        [](GC::Root<HTML::HTMLImageElement> const& source) -> Optional<Gfx::DecodedImageFrame> {
             return source->current_image_frame();
         },
-        [](GC::Root<HTML::HTMLCanvasElement> const& source) -> RefPtr<Gfx::DecodedImageFrame> {
+        [](GC::Root<HTML::HTMLCanvasElement> const& source) -> Optional<Gfx::DecodedImageFrame> {
             auto surface = source->surface();
             if (!surface)
-                return Gfx::DecodedImageFrame::create(*source->get_bitmap_from_surface());
-            return Gfx::DecodedImageFrame::create(*surface->snapshot_bitmap());
+                return Gfx::DecodedImageFrame { *source->get_bitmap_from_surface() };
+            return Gfx::DecodedImageFrame { *surface->snapshot_bitmap() };
         },
-        [](GC::Root<HTML::OffscreenCanvas> const& source) -> RefPtr<Gfx::DecodedImageFrame> {
-            return Gfx::DecodedImageFrame::create(*source->bitmap());
+        [](GC::Root<HTML::OffscreenCanvas> const& source) -> Optional<Gfx::DecodedImageFrame> {
+            return Gfx::DecodedImageFrame { *source->bitmap() };
         },
-        [](GC::Root<HTML::HTMLVideoElement> const& source) -> RefPtr<Gfx::DecodedImageFrame> {
+        [](GC::Root<HTML::HTMLVideoElement> const& source) -> Optional<Gfx::DecodedImageFrame> {
             return source->current_decoded_image_frame();
         },
-        [](GC::Root<HTML::ImageBitmap> const& source) -> RefPtr<Gfx::DecodedImageFrame> {
-            return Gfx::DecodedImageFrame::create(*source->bitmap());
+        [](GC::Root<HTML::ImageBitmap> const& source) -> Optional<Gfx::DecodedImageFrame> {
+            return Gfx::DecodedImageFrame { *source->bitmap() };
         },
-        [](GC::Root<HTML::ImageData> const& source) -> RefPtr<Gfx::DecodedImageFrame> {
-            return Gfx::DecodedImageFrame::create(source->bitmap());
+        [](GC::Root<HTML::ImageData> const& source) -> Optional<Gfx::DecodedImageFrame> {
+            return Gfx::DecodedImageFrame { source->bitmap() };
         });
-    if (!frame)
+    if (!frame.has_value())
         return OptionalNone {};
 
     auto export_format = determine_export_format(format, type);

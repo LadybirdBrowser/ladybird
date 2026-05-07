@@ -9,7 +9,9 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <LibGC/Weak.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
@@ -58,7 +60,7 @@ public:
     void paint(DisplayListRecordingContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering) const override;
 
     virtual Optional<Gfx::Color> color_if_single_pixel_bitmap() const override;
-    RefPtr<Gfx::DecodedImageFrame> current_frame(DevicePixelRect const& dest_rect) const;
+    Optional<Gfx::DecodedImageFrame> current_frame(DevicePixelRect const& dest_rect) const;
 
     mutable Function<void()> on_animate;
 
@@ -76,7 +78,7 @@ private:
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     void animate();
-    RefPtr<Gfx::DecodedImageFrame> frame(size_t frame_index, Gfx::IntSize = {}) const;
+    Optional<Gfx::DecodedImageFrame> frame(size_t frame_index, Gfx::IntSize = {}) const;
 
     GC::Ptr<HTML::SharedResourceRequest> m_resource_request;
     GC::Ptr<CSSStyleSheet> m_style_sheet;

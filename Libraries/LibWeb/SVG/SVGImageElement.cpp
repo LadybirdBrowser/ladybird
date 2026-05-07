@@ -243,7 +243,7 @@ Optional<CSSPixelFraction> SVGImageElement::intrinsic_aspect_ratio() const
     return {};
 }
 
-RefPtr<Gfx::DecodedImageFrame> SVGImageElement::default_image_frame_sized(Gfx::IntSize size) const
+Optional<Gfx::DecodedImageFrame> SVGImageElement::default_image_frame_sized(Gfx::IntSize size) const
 {
     if (!m_resource_request)
         return {};
@@ -252,7 +252,7 @@ RefPtr<Gfx::DecodedImageFrame> SVGImageElement::default_image_frame_sized(Gfx::I
     return {};
 }
 
-RefPtr<Gfx::DecodedImageFrame> SVGImageElement::current_image_frame_sized(Gfx::IntSize size) const
+Optional<Gfx::DecodedImageFrame> SVGImageElement::current_image_frame_sized(Gfx::IntSize size) const
 {
     if (!m_resource_request)
         return {};

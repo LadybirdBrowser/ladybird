@@ -9,6 +9,7 @@
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibGfx/SkiaUtils.h>
 
+#include <core/SkColorSpace.h>
 #include <core/SkImage.h>
 #include <gpu/ganesh/GrDirectContext.h>
 #include <gpu/ganesh/SkImageGanesh.h>
@@ -28,12 +29,13 @@ DecodedImageFrameSkiaImageCache::~DecodedImageFrameSkiaImageCache() = default;
 
 sk_sp<SkImage> DecodedImageFrameSkiaImageCache::image_for_frame(DecodedImageFrame const& frame)
 {
-    if (auto it = m_images.find(&frame); it != m_images.end()) {
+    auto const& bitmap = frame.bitmap();
+    if (auto it = m_images.find(frame); it != m_images.end()) {
         it->value.last_used_generation = m_generation;
         return it->value.image;
     }
 
-    auto raster_image = sk_image_from_bitmap(frame.bitmap(), frame.color_space());
+    auto raster_image = sk_image_from_bitmap(bitmap, frame.color_space());
     sk_sp<SkImage> image;
     auto* gr_context = m_skia_backend_context ? m_skia_backend_context->sk_context() : nullptr;
     if (gr_context) {
@@ -48,11 +50,10 @@ sk_sp<SkImage> DecodedImageFrameSkiaImageCache::image_for_frame(DecodedImageFram
         return nullptr;
 
     CachedImage cached_image {
-        .frame = &frame,
         .image = image,
         .last_used_generation = m_generation,
     };
-    m_images.set(&frame, move(cached_image));
+    m_images.set(frame, move(cached_image));
     return image;
 }
 

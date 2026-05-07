@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Assertions.h>
-#include <AK/AtomicRefCounted.h>
 #include <AK/NonnullRefPtr.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
@@ -16,29 +15,22 @@
 
 namespace Gfx {
 
-class DecodedImageFrame final : public AtomicRefCounted<DecodedImageFrame> {
+class DecodedImageFrame final {
 public:
-    static NonnullRefPtr<DecodedImageFrame> create(NonnullRefPtr<Bitmap const> bitmap, ColorSpace color_space = {})
+    DecodedImageFrame(NonnullRefPtr<Bitmap const> bitmap, ColorSpace color_space = {})
+        : m_bitmap(move(bitmap))
+        , m_color_space(move(color_space))
     {
-        return adopt_ref(*new DecodedImageFrame(move(bitmap), move(color_space)));
     }
 
-    static NonnullRefPtr<DecodedImageFrame> create(Bitmap const& bitmap, ColorSpace color_space = {})
+    DecodedImageFrame(Bitmap const& bitmap, ColorSpace color_space = {})
+        : DecodedImageFrame(NonnullRefPtr<Bitmap const> { bitmap }, move(color_space))
     {
-        return create(NonnullRefPtr<Bitmap const> { bitmap }, move(color_space));
     }
 
-    static NonnullRefPtr<DecodedImageFrame> create(Bitmap const& bitmap, AlphaType alpha_type, ColorSpace color_space = {})
+    DecodedImageFrame(Bitmap const& bitmap, AlphaType alpha_type, ColorSpace color_space = {})
+        : DecodedImageFrame(bitmap_with_alpha_type(bitmap, alpha_type), move(color_space))
     {
-        auto converted_bitmap = [&] -> NonnullRefPtr<Bitmap const> {
-            if (bitmap.alpha_type() == alpha_type)
-                return NonnullRefPtr<Bitmap const> { bitmap };
-            auto new_bitmap = MUST(bitmap.clone());
-            new_bitmap->set_alpha_type_destructive(alpha_type);
-            return new_bitmap;
-        }();
-
-        return create(move(converted_bitmap), move(color_space));
     }
 
     Bitmap const& bitmap() const { return *m_bitmap; }
@@ -51,10 +43,13 @@ public:
     IntSize size() const { return m_bitmap->size(); }
 
 private:
-    DecodedImageFrame(NonnullRefPtr<Bitmap const> bitmap, ColorSpace color_space)
-        : m_bitmap(move(bitmap))
-        , m_color_space(move(color_space))
+    static NonnullRefPtr<Bitmap const> bitmap_with_alpha_type(Bitmap const& bitmap, AlphaType alpha_type)
     {
+        if (bitmap.alpha_type() == alpha_type)
+            return NonnullRefPtr<Bitmap const> { bitmap };
+        auto new_bitmap = MUST(bitmap.clone());
+        new_bitmap->set_alpha_type_destructive(alpha_type);
+        return new_bitmap;
     }
 
     NonnullRefPtr<Bitmap const> m_bitmap;

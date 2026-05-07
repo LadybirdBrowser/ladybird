@@ -606,11 +606,11 @@ Optional<CSSPixelFraction> HTMLObjectElement::intrinsic_aspect_ratio() const
     return {};
 }
 
-RefPtr<Gfx::DecodedImageFrame> HTMLObjectElement::current_image_frame_sized(Gfx::IntSize size) const
+Optional<Gfx::DecodedImageFrame> HTMLObjectElement::current_image_frame_sized(Gfx::IntSize size) const
 {
     if (auto image_data = this->image_data())
         return image_data->frame(0, size);
-    return nullptr;
+    return {};
 }
 
 void HTMLObjectElement::set_visible_in_viewport(bool)

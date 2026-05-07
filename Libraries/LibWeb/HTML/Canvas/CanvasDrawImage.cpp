@@ -17,14 +17,14 @@ Gfx::IntSize canvas_image_source_dimensions(CanvasImageSource const& image)
 {
     return image.visit(
         [](GC::Root<HTMLImageElement> const& source) -> Gfx::IntSize {
-            if (auto frame = source->current_image_frame())
+            if (auto frame = source->current_image_frame(); frame.has_value())
                 return frame->size();
 
             // FIXME: This is very janky and not correct.
             return { source->width(), source->height() };
         },
         [](GC::Root<SVG::SVGImageElement> const& source) -> Gfx::IntSize {
-            if (auto decoded_image_frame = source->current_image_frame())
+            if (auto decoded_image_frame = source->current_image_frame(); decoded_image_frame.has_value())
                 return decoded_image_frame->size();
 
             // FIXME: This is very janky and not correct.
@@ -50,10 +50,10 @@ Gfx::IntSize canvas_image_source_dimensions(CanvasImageSource const& image)
         });
 }
 
-RefPtr<Gfx::DecodedImageFrame> canvas_image_source_frame(CanvasImageSource const& image)
+Optional<Gfx::DecodedImageFrame> canvas_image_source_frame(CanvasImageSource const& image)
 {
     return image.visit(
-        [](OneOf<GC::Root<HTMLImageElement>, GC::Root<SVG::SVGImageElement>> auto const& element) -> RefPtr<Gfx::DecodedImageFrame> {
+        [](OneOf<GC::Root<HTMLImageElement>, GC::Root<SVG::SVGImageElement>> auto const& element) -> Optional<Gfx::DecodedImageFrame> {
             auto image_data = element->decoded_image_data();
             if (!image_data)
                 return {};
@@ -66,20 +66,20 @@ RefPtr<Gfx::DecodedImageFrame> canvas_image_source_frame(CanvasImageSource const
 
             return image_data->frame(0, size);
         },
-        [](GC::Root<HTMLCanvasElement> const& canvas) -> RefPtr<Gfx::DecodedImageFrame> {
+        [](GC::Root<HTMLCanvasElement> const& canvas) -> Optional<Gfx::DecodedImageFrame> {
             canvas->present();
             auto surface = canvas->surface();
             if (!surface)
-                return Gfx::DecodedImageFrame::create(*canvas->get_bitmap_from_surface());
-            return Gfx::DecodedImageFrame::create(*surface->snapshot_bitmap());
+                return Gfx::DecodedImageFrame { *canvas->get_bitmap_from_surface() };
+            return Gfx::DecodedImageFrame { *surface->snapshot_bitmap() };
         },
-        [](OneOf<GC::Root<ImageBitmap>, GC::Root<OffscreenCanvas>> auto const& source) -> RefPtr<Gfx::DecodedImageFrame> {
+        [](OneOf<GC::Root<ImageBitmap>, GC::Root<OffscreenCanvas>> auto const& source) -> Optional<Gfx::DecodedImageFrame> {
             auto bitmap = source->bitmap();
             if (!bitmap)
                 return {};
-            return Gfx::DecodedImageFrame::create(*bitmap);
+            return Gfx::DecodedImageFrame { *bitmap };
         },
-        [](GC::Root<HTMLVideoElement> const& source) -> RefPtr<Gfx::DecodedImageFrame> {
+        [](GC::Root<HTMLVideoElement> const& source) -> Optional<Gfx::DecodedImageFrame> {
             return source->current_decoded_image_frame();
         });
 }

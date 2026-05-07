@@ -266,7 +266,7 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
                 return IterationDecision::Continue;
 
             auto frame = image_data->frame(0, {});
-            if (!frame)
+            if (!frame.has_value())
                 return IterationDecision::Continue;
 
             auto src_rect = image_primitive->content_rect();

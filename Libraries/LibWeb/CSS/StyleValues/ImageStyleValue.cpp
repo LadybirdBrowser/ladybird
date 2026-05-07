@@ -118,11 +118,11 @@ bool ImageStyleValue::is_paintable() const
     return image_data();
 }
 
-RefPtr<Gfx::DecodedImageFrame> ImageStyleValue::frame(size_t frame_index, Gfx::IntSize size) const
+Optional<Gfx::DecodedImageFrame> ImageStyleValue::frame(size_t frame_index, Gfx::IntSize size) const
 {
     if (auto image_data = this->image_data())
         return image_data->frame(frame_index, size);
-    return nullptr;
+    return {};
 }
 
 void ImageStyleValue::serialize(StringBuilder& builder, SerializationMode) const
@@ -170,7 +170,7 @@ void ImageStyleValue::paint(DisplayListRecordingContext& context, DevicePixelRec
     image_data->paint(context, m_current_frame_index, dest_int_rect, dest_int_rect, scaling_mode);
 }
 
-RefPtr<Gfx::DecodedImageFrame> ImageStyleValue::current_frame(DevicePixelRect const& dest_rect) const
+Optional<Gfx::DecodedImageFrame> ImageStyleValue::current_frame(DevicePixelRect const& dest_rect) const
 {
     return frame(m_current_frame_index, dest_rect.size().to_type<int>());
 }
@@ -184,7 +184,7 @@ GC::Ptr<HTML::DecodedImageData> ImageStyleValue::image_data() const
 
 Optional<Gfx::Color> ImageStyleValue::color_if_single_pixel_bitmap() const
 {
-    if (auto decoded_frame = frame(m_current_frame_index)) {
+    if (auto decoded_frame = frame(m_current_frame_index); decoded_frame.has_value()) {
         auto const& bitmap = decoded_frame->bitmap();
         if (bitmap.width() == 1 && bitmap.height() == 1)
             return bitmap.get_pixel(0, 0);

@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/Forward.h>
@@ -59,7 +60,7 @@ public:
     };
     Representation current_representation() const;
 
-    RefPtr<Gfx::DecodedImageFrame> current_decoded_image_frame() const;
+    Optional<Gfx::DecodedImageFrame> current_decoded_image_frame() const;
 
 private:
     HTMLVideoElement(DOM::Document&, DOM::QualifiedName);

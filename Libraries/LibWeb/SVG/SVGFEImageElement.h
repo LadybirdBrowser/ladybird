@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/Optional.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGFilterPrimitiveStandardAttributes.h>
@@ -24,7 +26,7 @@ public:
     virtual ~SVGFEImageElement() override = default;
 
     GC::Ptr<HTML::DecodedImageData> image_data() const;
-    RefPtr<Gfx::DecodedImageFrame> current_image_frame(Gfx::IntSize = {}) const;
+    Optional<Gfx::DecodedImageFrame> current_image_frame(Gfx::IntSize = {}) const;
     Optional<Gfx::IntRect> content_rect() const;
 
 private:

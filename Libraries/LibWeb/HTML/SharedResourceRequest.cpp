@@ -187,7 +187,7 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
             Vector<BitmapDecodedImageData::Frame> frames;
             for (auto& frame : result.frames) {
                 frames.append(BitmapDecodedImageData::Frame {
-                    .frame = Gfx::DecodedImageFrame::create(*frame.bitmap, result.color_space),
+                    .frame = Gfx::DecodedImageFrame { *frame.bitmap, result.color_space },
                     .duration = static_cast<int>(frame.duration),
                 });
             }

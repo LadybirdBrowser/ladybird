@@ -87,7 +87,7 @@ static void apply_paint_style(SkPaint& paint, PaintStyle const& style, DecodedIm
         paint.setShader(shader);
     } else if (auto const* canvas_pattern = as_if<CanvasPatternPaintStyle>(style)) {
         auto frame = canvas_pattern->image();
-        if (!frame)
+        if (!frame.has_value())
             return;
         auto sk_image = image_cache.image_for_frame(*frame);
         if (!sk_image)

@@ -216,7 +216,7 @@ public:
     virtual Optional<CSSPixels> intrinsic_height() const override { return m_image->natural_height(); }
     virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const override { return m_image->natural_aspect_ratio(); }
 
-    virtual RefPtr<Gfx::DecodedImageFrame> current_image_frame_sized(Gfx::IntSize size) const override
+    virtual Optional<Gfx::DecodedImageFrame> current_image_frame_sized(Gfx::IntSize size) const override
     {
         auto rect = DevicePixelRect { DevicePixelPoint {}, size.to_type<DevicePixels>() };
         return m_image->current_frame(rect);

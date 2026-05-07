@@ -946,7 +946,7 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
             auto image_url = image_element.document().encoding_parse_url(image_element.current_src());
             if (image_url.has_value()) {
                 Optional<Gfx::Bitmap const*> bitmap;
-                if (auto frame = image_element.current_image_frame())
+                if (auto frame = image_element.current_image_frame(); frame.has_value())
                     bitmap = &frame->bitmap();
 
                 m_navigable->page().client().page_did_request_image_context_menu(top_level_viewport_position, *image_url, "", modifiers, bitmap);
