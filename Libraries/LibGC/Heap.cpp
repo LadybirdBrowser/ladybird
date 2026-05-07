@@ -21,6 +21,7 @@
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
+#include <LibGC/BlockAllocator.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Heap.h>
 #include <LibGC/HeapBlock.h>
@@ -424,7 +425,7 @@ void Heap::dump_allocators()
         builder.appendff(" x {}", total_live_cells);
 
         size_t cost = blocks.size() * HeapBlock::BLOCK_SIZE / KiB;
-        size_t reserved = allocator.block_allocator().blocks().size() * HeapBlock::BLOCK_SIZE / KiB;
+        size_t reserved = allocator.block_allocator().block_count() * HeapBlock::BLOCK_SIZE / KiB;
         builder.appendff(", cost: {} KiB, reserved: {} KiB", cost, reserved);
 
         size_t total_dead_bytes = ((blocks.size() * cell_count) - total_live_cells) * allocator.cell_size();
@@ -847,6 +848,10 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
         dbgln("   Freed blocks: {} ({} bytes)", empty_blocks.size(), empty_blocks.size() * HeapBlock::BLOCK_SIZE);
         dbgln("=============================================");
     }
+
+    // Sweep is done; kick the global decommit worker so the slots we just
+    // freed get madvise()'d off the GC pause path.
+    BlockAllocator::wake_decommit_worker_async();
 }
 
 void Heap::defer_gc()
