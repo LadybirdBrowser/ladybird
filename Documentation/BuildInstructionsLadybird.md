@@ -211,8 +211,11 @@ Or, download a version of Gradle >= 8.0.0, and run the ``gradlew`` program in ``
 ### FreeBSD
 
 ```
-pkg install autoconf-archive automake autoconf bash cmake curl gmake gn libdrm libtool libxcb libxkbcommon libX11 libXrender libXi nasm ninja patchelf pkgconf python3 qt6-base unzip zip
+pkg install autoconf-archive automake autoconf bash cmake ccache curl gmake gn libdrm libtool libxcb libxkbcommon libX11 libXrender libXi nasm ninja patchelf pkgconf python3 qt6-base tar unzip zip
 ```
+> [!NOTE]
+> `zip`, `unzip`, and `tar` are required by the vcpkg bootstrap step. If any of these are missing,
+> the build will fail with a Python `CalledProcessError` traceback rather than a clear error message.
 
 ## Build steps
 
