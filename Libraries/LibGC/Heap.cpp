@@ -14,6 +14,7 @@
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/LexicalPath.h>
+#include <AK/NumberFormat.h>
 #include <AK/Platform.h>
 #include <AK/StackInfo.h>
 #include <AK/StackUnwinder.h>
@@ -337,7 +338,7 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
     {
         TemporaryChange change(m_collecting_garbage, true);
 
-        Core::ElapsedTimer collection_measurement_timer;
+        Core::ElapsedTimer collection_measurement_timer { Core::TimerType::Precise };
         if (print_report)
             collection_measurement_timer.start();
 
@@ -833,12 +834,12 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
 
         dbgln("Garbage collection report");
         dbgln("=============================================");
-        dbgln("     Time spent: {} ms", time_spent.to_milliseconds());
-        dbgln("     Live cells: {} ({} bytes)", live_cells, live_cell_bytes);
-        dbgln("  Live external: {} bytes", live_external_bytes);
-        dbgln("Collected cells: {} ({} bytes)", collected_cells, collected_cell_bytes);
-        dbgln("    Live blocks: {} ({} bytes)", live_block_count, live_block_count * HeapBlock::BLOCK_SIZE);
-        dbgln("   Freed blocks: {} ({} bytes)", empty_blocks.size(), empty_blocks.size() * HeapBlock::BLOCK_SIZE);
+        dbgln("     Time spent: {} us", time_spent.to_microseconds());
+        dbgln("     Live cells: {} ({})", live_cells, human_readable_size(live_cell_bytes));
+        dbgln("  Live external: {}", human_readable_size(live_external_bytes));
+        dbgln("Collected cells: {} ({})", collected_cells, human_readable_size(collected_cell_bytes));
+        dbgln("    Live blocks: {} ({})", live_block_count, human_readable_size(live_block_count * HeapBlock::BLOCK_SIZE));
+        dbgln("   Freed blocks: {} ({})", empty_blocks.size(), human_readable_size(empty_blocks.size() * HeapBlock::BLOCK_SIZE));
         dbgln("=============================================");
     }
 
