@@ -8,6 +8,7 @@
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <AK/Optional.h>
+#include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibGC/Cell.h>
 #include <LibGC/CellAllocator.h>
@@ -339,6 +340,31 @@ TEST_CASE(visit_vector_of_nan_boxed_values_routes_to_visit_impl)
     EXPECT_EQ(visitor.last_nan_span_size, 4u);
 }
 
+TEST_CASE(visit_variant_traces_active_cell_alternative)
+{
+    auto& heap = test_heap();
+    auto cell = heap.allocate<TestCell>();
+    Variant<GC::Ref<TestCell>, int> variant { GC::Ref<TestCell>(cell) };
+
+    TestVisitor visitor;
+    visitor.visit(variant);
+
+    EXPECT(visitor.visited_cells.contains(cell.ptr()));
+}
+
+TEST_CASE(visit_variant_skips_untraced_alternative)
+{
+    auto& heap = test_heap();
+    auto cell = heap.allocate<TestCell>();
+    Variant<GC::Ref<TestCell>, int> variant { 42 };
+
+    TestVisitor visitor;
+    visitor.visit(variant);
+
+    EXPECT_EQ(visitor.visited_cells.size(), 0u);
+    EXPECT(!visitor.visited_cells.contains(cell.ptr()));
+}
+
 static_assert(GC::IsVisitable<Vector<GC::Ref<TestCell>>>::value);
 static_assert(GC::IsVisitable<Span<GC::Ref<TestCell>>>::value);
 static_assert(GC::IsVisitable<ReadonlySpan<GC::Ref<TestCell>>>::value);
@@ -354,3 +380,6 @@ static_assert(!GC::IsVisitable<ReadonlySpan<int>>::value);
 static_assert(!GC::IsVisitable<HashTable<int>>::value);
 static_assert(!GC::IsVisitable<OrderedHashTable<int>>::value);
 static_assert(!GC::IsVisitable<Optional<int>>::value);
+
+static_assert(GC::IsVisitable<Variant<GC::Ref<TestCell>, int>>::value);
+static_assert(!GC::IsVisitable<Variant<int, double>>::value);

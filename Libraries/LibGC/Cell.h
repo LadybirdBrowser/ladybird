@@ -193,6 +193,16 @@ public:
 
         void visit(NanBoxedValue const& value);
 
+        template<typename... Ts>
+        void visit(Variant<Ts...> const& variant)
+        requires((IsVisitable<Ts>::value || ...))
+        {
+            variant.visit([&](auto const& value) {
+                if constexpr (requires { visit(value); })
+                    visit(value);
+            });
+        }
+
         // Allow explicitly ignoring a GC-allocated member in a visit_edges implementation instead
         // of just not using it.
         template<typename T>
