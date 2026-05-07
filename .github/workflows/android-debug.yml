@@ -29,12 +29,6 @@ jobs:
             cache_os: Linux
             cache_key_extra: Android Debug Ubuntu
             artifact_name: app-debug-ubuntu
-          - label: macOS
-            runner: macos-14
-            setup_os: Android
-            cache_os: Android
-            cache_key_extra: Android Debug macOS
-            artifact_name: app-debug-macos
 
     steps:
       # For push events check out the branch directly; for pull requests use the
