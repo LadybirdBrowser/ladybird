@@ -12,6 +12,7 @@
 #include <LibGC/Weak.h>
 #include <LibWeb/Bindings/HTMLFormElement.h>
 #include <LibWeb/DOM/InputEventsTarget.h>
+#include <LibWeb/DOM/Node.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -307,5 +308,17 @@ private:
     // https://w3c.github.io/selection-api/#dfn-has-scheduled-selectionchange-event
     bool m_has_scheduled_selectionchange_event { false };
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<HTML::FormAssociatedTextControlElement>() const { return is_html_input_element() || is_html_textarea_element(); }
+
+template<>
+HTML::FormAssociatedTextControlElement* Node::fast_as<HTML::FormAssociatedTextControlElement>();
+template<>
+HTML::FormAssociatedTextControlElement const* Node::fast_as<HTML::FormAssociatedTextControlElement>() const;
 
 }

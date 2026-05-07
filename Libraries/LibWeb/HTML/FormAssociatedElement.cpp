@@ -1357,3 +1357,23 @@ GC::Ref<JS::Cell> FormAssociatedTextControlElement::as_cell()
 }
 
 }
+
+namespace Web::DOM {
+
+template<>
+HTML::FormAssociatedTextControlElement* Node::fast_as<HTML::FormAssociatedTextControlElement>()
+{
+    if (auto* input = as_if<HTML::HTMLInputElement>(*this))
+        return input;
+    if (auto* textarea = as_if<HTML::HTMLTextAreaElement>(*this))
+        return textarea;
+    return nullptr;
+}
+
+template<>
+HTML::FormAssociatedTextControlElement const* Node::fast_as<HTML::FormAssociatedTextControlElement>() const
+{
+    return const_cast<Node&>(*this).fast_as<HTML::FormAssociatedTextControlElement>();
+}
+
+}
