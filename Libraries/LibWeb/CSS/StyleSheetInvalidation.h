@@ -104,4 +104,11 @@ void invalidate_owners_for_inserted_style_rule(CSSStyleSheet const& style_sheet,
 // `keyframes_rule` into it. Only elements already referencing the inserted animation-name are dirtied.
 void invalidate_owners_for_inserted_keyframes_rule(CSSStyleSheet const& style_sheet, CSSKeyframesRule const& keyframes_rule);
 
+// For every @keyframes rule contained in `sheet`, dirty only the elements (and pseudo-elements) under `root` that
+// already reference the keyframes name. When `root` is a shadow root, the walk also fans out to the shadow host (and
+// host-side light DOM) if any active rule in the same scope can match those nodes via :host or ::slotted(...). Used
+// by the sheet add/remove paths so a sheet that contains @keyframes does not have to fall back to a whole-subtree
+// invalidation.
+void invalidate_root_for_keyframes_rules_in_sheet(DOM::Node& root, CSSStyleSheet const& sheet);
+
 }

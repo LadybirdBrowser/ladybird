@@ -105,16 +105,22 @@ static bool rule_requires_broad_add_or_remove_invalidation(CSSRule const& rule)
 {
     switch (rule.type()) {
     case CSSRule::Type::Property:
-    case CSSRule::Type::FontFeatureValues:
     case CSSRule::Type::CounterStyle:
-    case CSSRule::Type::Keyframes:
     case CSSRule::Type::LayerBlock:
     case CSSRule::Type::LayerStatement:
+    // @font-feature-values changes how font-variant-alternates resolves at computed-style time, so
+    // a declaration-time mutation still requires a whole-subtree restyle.
+    case CSSRule::Type::FontFeatureValues:
         return true;
     // OPTIMIZATION: @font-face declares a resource whose effect on computed style is deferred until
     //               the font actually loads (handled by CSSFontLoaded). Adding or removing the
     //               at-rule itself doesn't change any element's computed style.
     case CSSRule::Type::FontFace:
+    // OPTIMIZATION: @keyframes rules only matter for elements that already reference the named
+    //               animation. Sheet add/remove handles each contained @keyframes rule with a
+    //               targeted invalidation (see invalidate_root_for_keyframes_rules_in_sheet)
+    //               instead of forcing a whole-subtree restyle here.
+    case CSSRule::Type::Keyframes:
     default:
         break;
     }
@@ -197,6 +203,11 @@ void StyleSheetList::add_sheet(CSSStyleSheet& sheet)
     }
 
     invalidate_root_for_style_sheet_change(document_or_shadow_root(), invalidation_set_result, DOM::StyleInvalidationReason::StyleSheetListAddSheet, requires_broad_invalidation);
+
+    // OPTIMIZATION: Walk @keyframes rules in the new sheet and dirty only the elements that already
+    //               reference each animation-name, so a sheet add carrying @keyframes does not have
+    //               to escalate to a whole-subtree restyle.
+    invalidate_root_for_keyframes_rules_in_sheet(document_or_shadow_root(), sheet);
 }
 
 void StyleSheetList::remove_sheet(CSSStyleSheet& sheet)
@@ -233,6 +244,10 @@ void StyleSheetList::remove_sheet(CSSStyleSheet& sheet)
     }
 
     invalidate_root_for_style_sheet_change(document_or_shadow_root(), invalidation_set_result, DOM::StyleInvalidationReason::StyleSheetListRemoveSheet, requires_broad_invalidation);
+
+    // OPTIMIZATION: Mirror the sheet-add path for @keyframes — only elements still referencing the
+    //               removed animation-name need to be restyled, not the entire subtree.
+    invalidate_root_for_keyframes_rules_in_sheet(document_or_shadow_root(), sheet);
 }
 
 GC::Ref<StyleSheetList> StyleSheetList::create(GC::Ref<DOM::Node> document_or_shadow_root)

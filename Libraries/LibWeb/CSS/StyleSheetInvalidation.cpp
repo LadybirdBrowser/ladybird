@@ -697,6 +697,33 @@ void invalidate_style_for_style_sheet_owners(CSSStyleSheet const& style_sheet, D
     });
 }
 
+void invalidate_root_for_keyframes_rules_in_sheet(DOM::Node& root, CSSStyleSheet const& sheet)
+{
+    // Shadow-scoped keyframes can still affect elements outside the shadow subtree when an active rule in the same
+    // scope sets `animation-name` via :host or ::slotted(...). Mirror the fan-out used by the per-rule helper so the
+    // walk reaches the host (and host-side light DOM) when the shadow scope can match those elements.
+    bool include_host = false;
+    bool include_light_dom_under_shadow_host = false;
+    if (auto* shadow_root = as_if<DOM::ShadowRoot>(root)) {
+        auto effects = determine_shadow_root_stylesheet_effects(*shadow_root);
+        include_host = effects.may_match_shadow_host;
+        include_light_dom_under_shadow_host = effects.may_match_light_dom_under_shadow_host;
+    }
+
+    sheet.for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& rule) {
+        auto const* keyframes_rule = as_if<CSSKeyframesRule>(rule);
+        if (!keyframes_rule)
+            return;
+        for_each_tree_affected_by_shadow_root_stylesheet_change(
+            root,
+            include_host,
+            include_light_dom_under_shadow_host,
+            [&](DOM::Node& affected_root) {
+                invalidate_elements_affected_by_inserted_keyframes_rule(affected_root, keyframes_rule->name());
+            });
+    });
+}
+
 void invalidate_owners_for_inserted_keyframes_rule(CSSStyleSheet const& style_sheet, CSSKeyframesRule const& keyframes_rule)
 {
     for (auto& document_or_shadow_root : style_sheet.owning_documents_or_shadow_roots()) {
