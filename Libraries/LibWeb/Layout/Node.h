@@ -279,6 +279,8 @@ class WEB_API NodeWithStyle : public Node {
 public:
     virtual ~NodeWithStyle() override = default;
 
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     class ImageObserver final : public CSS::ImageStyleValue::Client {
     public:
         ImageObserver(NodeWithStyle&, NonnullRefPtr<CSS::ImageStyleValue const> image);
@@ -322,6 +324,7 @@ protected:
 
 private:
     virtual bool is_node_with_style() const final { return true; }
+    virtual void finalize() override;
 
     void reset_table_box_computed_values_used_by_wrapper_to_init_values();
     void propagate_non_inherit_values(NodeWithStyle& target_node) const;

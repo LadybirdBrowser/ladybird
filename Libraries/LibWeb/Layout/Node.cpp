@@ -628,6 +628,12 @@ void NodeWithStyle::ImageObserver::visit_edges(JS::Cell::Visitor& visitor) const
     m_image->visit_edges(visitor);
 }
 
+void NodeWithStyle::finalize()
+{
+    Base::finalize();
+    m_image_observers.clear();
+}
+
 void NodeWithStyle::rebuild_image_observers()
 {
     auto add_observer_for = [&](CSS::AbstractImageStyleValue const* abstract_image, Vector<NonnullOwnPtr<ImageObserver>>& observers) {
