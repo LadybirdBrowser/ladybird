@@ -24,6 +24,18 @@ Timer::Timer()
 
 Timer::~Timer() = default;
 
+void Timer::finalize()
+{
+    Base::finalize();
+    stop();
+    on_timeout = nullptr;
+}
+
+bool Timer::must_survive_garbage_collection() const
+{
+    return is_active();
+}
+
 void Timer::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);

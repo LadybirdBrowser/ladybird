@@ -22,7 +22,12 @@ public:
     static GC::Ref<Timer> create_repeating(GC::Heap&, int interval_ms, GC::Ptr<GC::Function<void()>> timeout_handler);
     static GC::Ref<Timer> create_single_shot(GC::Heap&, int interval_ms, GC::Ptr<GC::Function<void()>> timeout_handler);
 
+    static constexpr bool OVERRIDES_MUST_SURVIVE_GARBAGE_COLLECTION = true;
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     virtual ~Timer();
+    virtual void finalize() override;
+    virtual bool must_survive_garbage_collection() const override;
 
     void start();
     void start(int interval_ms);
