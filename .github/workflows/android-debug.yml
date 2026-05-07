@@ -15,10 +15,26 @@ env:
 
 jobs:
   build:
-    name: Android Debug APK (Ubuntu)
-    runs-on: ubuntu-24.04
+    name: Android Debug APK (${{ matrix.label }})
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Ubuntu
+            runner: ubuntu-24.04
+            setup_os: Linux
+            cache_os: Linux
+            cache_key_extra: Android Debug Ubuntu
+            artifact_name: app-debug-ubuntu
+          - label: macOS
+            runner: macos-14
+            setup_os: Android
+            cache_os: Android
+            cache_key_extra: Android Debug macOS
+            artifact_name: app-debug-macos
 
     steps:
       # For push events check out the branch directly; for pull requests use the
@@ -37,7 +53,7 @@ jobs:
         uses: ./.github/actions/setup
         id: setup
         with:
-          os: 'Linux'
+          os: ${{ matrix.setup_os }}
           arch: 'x86_64'
           toolchain: 'Clang'
           llvm_version: '18'
@@ -57,10 +73,10 @@ jobs:
         uses: ./.github/actions/cache-restore
         id: cache-restore
         with:
-          os: 'Linux'
+          os: ${{ matrix.cache_os }}
           arch: 'Lagom'
           toolchain: 'Clang'
-          cache_key_extra: 'Android Debug'
+          cache_key_extra: ${{ matrix.cache_key_extra }}
           ccache_path: ${{ env.CCACHE_DIR }}
           vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
 
@@ -95,7 +111,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: app-debug
+          name: ${{ matrix.artifact_name }}
           path: ${{ github.workspace }}/UI/Android/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
