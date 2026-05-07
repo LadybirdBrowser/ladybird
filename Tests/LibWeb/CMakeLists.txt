@@ -12,6 +12,7 @@ set(TEST_SOURCES
     TestMicrosyntax.cpp
     TestMimeSniff.cpp
     TestNumbers.cpp
+    TestRefCountedTreeNode.cpp
     TestSourceHighlighter.cpp
     TestStrings.cpp
 )
