@@ -121,16 +121,6 @@ void StrokePath::dump(StringBuilder&) const
 {
 }
 
-void DrawEllipse::dump(StringBuilder& builder) const
-{
-    builder.appendff(" rect={} color={} thickness={}", rect, color, thickness);
-}
-
-void FillEllipse::dump(StringBuilder& builder) const
-{
-    builder.appendff(" rect={} color={}", rect, color);
-}
-
 void DrawLine::dump(StringBuilder& builder) const
 {
     builder.appendff(" from={} to={} color={} thickness={}", from, to, color, thickness);

@@ -250,29 +250,6 @@ struct StrokePath {
     void dump(StringBuilder&) const;
 };
 
-struct DrawEllipse {
-    static constexpr StringView command_name = "DrawEllipse"sv;
-
-    Gfx::IntRect rect;
-    Color color;
-    int thickness;
-
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
-
-    void dump(StringBuilder&) const;
-};
-
-struct FillEllipse {
-    static constexpr StringView command_name = "FillEllipse"sv;
-
-    Gfx::IntRect rect;
-    Color color;
-
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
-
-    void dump(StringBuilder&) const;
-};
-
 struct DrawLine {
     static constexpr StringView command_name = "DrawLine"sv;
 
@@ -407,8 +384,6 @@ using DisplayListCommand = Variant<
     FillRectWithRoundedCorners,
     FillPath,
     StrokePath,
-    DrawEllipse,
-    FillEllipse,
     DrawLine,
     ApplyBackdropFilter,
     DrawRect,

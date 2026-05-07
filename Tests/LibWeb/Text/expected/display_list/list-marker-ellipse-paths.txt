@@ -1,0 +1,11 @@
+AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+
+DisplayList:
+SaveLayer@0
+  DrawGlyphRun@1 rect=[40,0 39x23] translation=[40,17.5] color=rgb(0, 0, 0)
+  FillPath@1 path_bounding_rect=[23,7 8x9]
+  DrawGlyphRun@1 rect=[40,24 56x23] translation=[40,41.5] color=rgb(0, 0, 0)
+  StrokePath@1
+Restore@0
+

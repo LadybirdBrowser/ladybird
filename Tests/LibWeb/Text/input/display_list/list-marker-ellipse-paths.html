@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    ul {
+        font: 20px Arial;
+        margin: 0;
+        padding-left: 40px;
+    }
+
+    li {
+        height: 24px;
+    }
+
+    .disc {
+        list-style-type: disc;
+    }
+
+    .circle {
+        list-style-type: circle;
+    }
+</style>
+<ul>
+    <li class="disc">disc</li>
+    <li class="circle">circle</li>
+</ul>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

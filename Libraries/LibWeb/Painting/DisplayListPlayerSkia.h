@@ -42,8 +42,6 @@ private:
     void fill_rect_with_rounded_corners(FillRectWithRoundedCorners const&) override;
     void fill_path(FillPath const&) override;
     void stroke_path(StrokePath const&) override;
-    void draw_ellipse(DrawEllipse const&) override;
-    void fill_ellipse(FillEllipse const&) override;
     void draw_line(DrawLine const&) override;
     void apply_backdrop_filter(ApplyBackdropFilter const&) override;
     void draw_rect(DrawRect const&) override;

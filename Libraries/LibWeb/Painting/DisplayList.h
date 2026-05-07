@@ -53,8 +53,6 @@ private:
     virtual void fill_rect_with_rounded_corners(FillRectWithRoundedCorners const&) = 0;
     virtual void fill_path(FillPath const&) = 0;
     virtual void stroke_path(StrokePath const&) = 0;
-    virtual void draw_ellipse(DrawEllipse const&) = 0;
-    virtual void fill_ellipse(FillEllipse const&) = 0;
     virtual void draw_line(DrawLine const&) = 0;
     virtual void apply_backdrop_filter(ApplyBackdropFilter const&) = 0;
     virtual void draw_rect(DrawRect const&) = 0;

@@ -611,28 +611,6 @@ void DisplayListPlayerSkia::stroke_path(StrokePath const& command)
     surface().canvas().drawPath(path, paint);
 }
 
-void DisplayListPlayerSkia::draw_ellipse(DrawEllipse const& command)
-{
-    auto const& rect = command.rect;
-    auto& canvas = surface().canvas();
-    SkPaint paint;
-    paint.setAntiAlias(true);
-    paint.setStyle(SkPaint::kStroke_Style);
-    paint.setStrokeWidth(command.thickness);
-    paint.setColor(to_skia_color(command.color));
-    canvas.drawOval(to_skia_rect(rect), paint);
-}
-
-void DisplayListPlayerSkia::fill_ellipse(FillEllipse const& command)
-{
-    auto const& rect = command.rect;
-    auto& canvas = surface().canvas();
-    SkPaint paint;
-    paint.setAntiAlias(true);
-    paint.setColor(to_skia_color(command.color));
-    canvas.drawOval(to_skia_rect(rect), paint);
-}
-
 void DisplayListPlayerSkia::draw_line(DrawLine const& command)
 {
     auto from = to_skia_point(command.from);

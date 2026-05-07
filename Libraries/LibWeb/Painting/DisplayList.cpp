@@ -202,8 +202,6 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
         else HANDLE_COMMAND(FillRectWithRoundedCorners, fill_rect_with_rounded_corners)
         else HANDLE_COMMAND(FillPath, fill_path)
         else HANDLE_COMMAND(StrokePath, stroke_path)
-        else HANDLE_COMMAND(DrawEllipse, draw_ellipse)
-        else HANDLE_COMMAND(FillEllipse, fill_ellipse)
         else HANDLE_COMMAND(DrawLine, draw_line)
         else HANDLE_COMMAND(ApplyBackdropFilter, apply_backdrop_filter)
         else HANDLE_COMMAND(DrawRect, draw_rect)

@@ -11,6 +11,26 @@
 
 namespace Web::Painting {
 
+static Gfx::Path path_for_ellipse(Gfx::IntRect const& rect)
+{
+    auto left = static_cast<float>(rect.left());
+    auto right = static_cast<float>(rect.right());
+    auto top = static_cast<float>(rect.top());
+    auto bottom = static_cast<float>(rect.bottom());
+    auto center_x = (left + right) / 2.0f;
+    auto center_y = (top + bottom) / 2.0f;
+    Gfx::FloatSize radii { (right - left) / 2.0f, (bottom - top) / 2.0f };
+
+    Gfx::Path path;
+    path.move_to({ right, center_y });
+    path.elliptical_arc_to({ center_x, bottom }, radii, 0.0f, false, true);
+    path.elliptical_arc_to({ left, center_y }, radii, 0.0f, false, true);
+    path.elliptical_arc_to({ center_x, top }, radii, 0.0f, false, true);
+    path.elliptical_arc_to({ right, center_y }, radii, 0.0f, false, true);
+    path.close();
+    return path;
+}
+
 DisplayListRecorder::DisplayListRecorder(DisplayList& command_list)
     : m_display_list(command_list)
 {
@@ -180,10 +200,16 @@ void DisplayListRecorder::draw_ellipse(Gfx::IntRect const& a_rect, Color color, 
 {
     if (a_rect.is_empty() || color.alpha() == 0 || !thickness)
         return;
-    APPEND(DrawEllipse {
-        .rect = a_rect,
-        .color = color,
-        .thickness = thickness,
+
+    stroke_path({
+        .cap_style = Gfx::Path::CapStyle::Butt,
+        .join_style = Gfx::Path::JoinStyle::Miter,
+        .miter_limit = 4.0f,
+        .dash_array = {},
+        .dash_offset = 0,
+        .path = path_for_ellipse(a_rect),
+        .paint_style_or_color = color,
+        .thickness = static_cast<float>(thickness),
     });
 }
 
@@ -191,7 +217,12 @@ void DisplayListRecorder::fill_ellipse(Gfx::IntRect const& a_rect, Color color)
 {
     if (a_rect.is_empty() || color.alpha() == 0)
         return;
-    APPEND(FillEllipse { a_rect, color });
+
+    fill_path({
+        .path = path_for_ellipse(a_rect),
+        .paint_style_or_color = color,
+        .winding_rule = Gfx::WindingRule::EvenOdd,
+    });
 }
 
 void DisplayListRecorder::fill_rect_with_linear_gradient(Gfx::IntRect const& gradient_rect, LinearGradientData const& data)
