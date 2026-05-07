@@ -16,6 +16,7 @@
 #include <AK/LexicalPath.h>
 #include <AK/NumberFormat.h>
 #include <AK/Platform.h>
+#include <AK/ScopeGuard.h>
 #include <AK/StackInfo.h>
 #include <AK/StackUnwinder.h>
 #include <AK/TemporaryChange.h>
@@ -46,6 +47,130 @@ static constexpr size_t GC_HEAP_GROWTH_FACTOR_NUMERATOR { 7 };
 static constexpr size_t GC_HEAP_GROWTH_FACTOR_DENOMINATOR { 4 };
 
 static Heap* s_the;
+
+namespace {
+
+// Per-phase timings recorded during a single collect_garbage() call. We keep
+// these at file scope (instead of threading more parameters through the GC's
+// internal helpers) since GC is single-threaded, guarded by m_collecting_garbage.
+struct PhaseTimings {
+    // Top-level phases.
+    i64 gather_roots_us { 0 };
+    i64 mark_live_cells_us { 0 };
+    i64 finalize_unmarked_cells_us { 0 };
+    i64 sweep_weak_blocks_us { 0 };
+    i64 sweep_dead_cells_us { 0 };
+
+    // gather_roots() subphases.
+    i64 gather_must_survive_roots_us { 0 };
+    i64 gather_embedder_roots_us { 0 };
+    i64 gather_conservative_roots_us { 0 };
+    i64 gather_explicit_roots_us { 0 };
+
+    // gather_conservative_roots() subphases.
+    i64 conservative_register_scan_us { 0 };
+    i64 conservative_stack_scan_us { 0 };
+    i64 conservative_vector_scan_us { 0 };
+    i64 conservative_cell_lookup_us { 0 };
+
+    // mark_live_cells() subphases.
+    i64 mark_initial_visit_us { 0 };
+    i64 mark_bfs_us { 0 };
+    i64 mark_clear_uprooted_us { 0 };
+
+    // sweep_dead_cells() subphases.
+    i64 sweep_block_iteration_us { 0 };
+    i64 sweep_weak_containers_us { 0 };
+    i64 sweep_callbacks_us { 0 };
+    i64 sweep_block_reclassify_us { 0 };
+    i64 sweep_update_threshold_us { 0 };
+};
+PhaseTimings g_phase_timings;
+
+// Stats gathered during sweep_dead_cells() and consumed by the report printer
+// in collect_garbage().
+struct SweepStats {
+    size_t collected_cells { 0 };
+    size_t live_cells { 0 };
+    size_t collected_cell_bytes { 0 };
+    size_t live_cell_bytes { 0 };
+    size_t live_external_bytes { 0 };
+    size_t freed_block_count { 0 };
+};
+SweepStats g_sweep_stats;
+
+// Set by collect_garbage() while a reported collection is in flight. Used by
+// the GC's helpers to decide whether they should record subphase timings.
+bool g_recording_phase_timings { false };
+
+void print_gc_report(i64 total_us, size_t live_block_count)
+{
+    auto const& t = g_phase_timings;
+    auto const& s = g_sweep_stats;
+
+    auto pct = [&](i64 part_us) -> double {
+        if (total_us <= 0)
+            return 0.0;
+        return 100.0 * static_cast<double>(part_us) / static_cast<double>(total_us);
+    };
+
+    dbgln("Garbage collection report");
+    dbgln("=================================================================");
+    dbgln("Totals:");
+    dbgln("       Time spent: {} us", total_us);
+    dbgln("       Live cells: {} ({})", s.live_cells, human_readable_size(s.live_cell_bytes));
+    dbgln("    Live external: {}", human_readable_size(s.live_external_bytes));
+    dbgln("  Collected cells: {} ({})", s.collected_cells, human_readable_size(s.collected_cell_bytes));
+    dbgln("      Live blocks: {} ({})", live_block_count, human_readable_size(live_block_count * HeapBlock::BLOCK_SIZE));
+    dbgln("     Freed blocks: {} ({})", s.freed_block_count, human_readable_size(s.freed_block_count * HeapBlock::BLOCK_SIZE));
+    dbgln("");
+    dbgln("Phase breakdown (us, % of total):");
+    dbgln("  gather_roots                  {:>10} us ({:5.1f}%)", t.gather_roots_us, pct(t.gather_roots_us));
+    dbgln("    must-survive scan           {:>10} us ({:5.1f}%)", t.gather_must_survive_roots_us, pct(t.gather_must_survive_roots_us));
+    dbgln("    embedder roots              {:>10} us ({:5.1f}%)", t.gather_embedder_roots_us, pct(t.gather_embedder_roots_us));
+    dbgln("    conservative roots          {:>10} us ({:5.1f}%)", t.gather_conservative_roots_us, pct(t.gather_conservative_roots_us));
+    dbgln("      register scan             {:>10} us ({:5.1f}%)", t.conservative_register_scan_us, pct(t.conservative_register_scan_us));
+    dbgln("      stack scan                {:>10} us ({:5.1f}%)", t.conservative_stack_scan_us, pct(t.conservative_stack_scan_us));
+    dbgln("      conservative-vector scan  {:>10} us ({:5.1f}%)", t.conservative_vector_scan_us, pct(t.conservative_vector_scan_us));
+    dbgln("      cell lookup               {:>10} us ({:5.1f}%)", t.conservative_cell_lookup_us, pct(t.conservative_cell_lookup_us));
+    dbgln("    explicit roots              {:>10} us ({:5.1f}%)", t.gather_explicit_roots_us, pct(t.gather_explicit_roots_us));
+    dbgln("  mark_live_cells               {:>10} us ({:5.1f}%)", t.mark_live_cells_us, pct(t.mark_live_cells_us));
+    dbgln("    initial visit               {:>10} us ({:5.1f}%)", t.mark_initial_visit_us, pct(t.mark_initial_visit_us));
+    dbgln("    BFS marking                 {:>10} us ({:5.1f}%)", t.mark_bfs_us, pct(t.mark_bfs_us));
+    dbgln("    clear uprooted              {:>10} us ({:5.1f}%)", t.mark_clear_uprooted_us, pct(t.mark_clear_uprooted_us));
+    dbgln("  finalize_unmarked_cells       {:>10} us ({:5.1f}%)", t.finalize_unmarked_cells_us, pct(t.finalize_unmarked_cells_us));
+    dbgln("  sweep_weak_blocks             {:>10} us ({:5.1f}%)", t.sweep_weak_blocks_us, pct(t.sweep_weak_blocks_us));
+    dbgln("  sweep_dead_cells              {:>10} us ({:5.1f}%)", t.sweep_dead_cells_us, pct(t.sweep_dead_cells_us));
+    dbgln("    block iteration             {:>10} us ({:5.1f}%)", t.sweep_block_iteration_us, pct(t.sweep_block_iteration_us));
+    dbgln("    weak containers             {:>10} us ({:5.1f}%)", t.sweep_weak_containers_us, pct(t.sweep_weak_containers_us));
+    dbgln("    sweep callbacks             {:>10} us ({:5.1f}%)", t.sweep_callbacks_us, pct(t.sweep_callbacks_us));
+    dbgln("    block reclassify            {:>10} us ({:5.1f}%)", t.sweep_block_reclassify_us, pct(t.sweep_block_reclassify_us));
+    dbgln("    update threshold            {:>10} us ({:5.1f}%)", t.sweep_update_threshold_us, pct(t.sweep_update_threshold_us));
+    dbgln("=================================================================");
+}
+
+class ScopedPhaseTimer {
+public:
+    ScopedPhaseTimer(bool enabled, i64& out_microseconds)
+        : m_out_microseconds(out_microseconds)
+        , m_enabled(enabled)
+    {
+        if (m_enabled)
+            m_timer.start();
+    }
+    ~ScopedPhaseTimer()
+    {
+        if (m_enabled)
+            m_out_microseconds = m_timer.elapsed_time().to_microseconds();
+    }
+
+private:
+    Core::ElapsedTimer m_timer { Core::TimerType::Precise };
+    i64& m_out_microseconds;
+    bool m_enabled;
+};
+
+}
 
 Heap& Heap::the()
 {
@@ -339,8 +464,12 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
         TemporaryChange change(m_collecting_garbage, true);
 
         Core::ElapsedTimer collection_measurement_timer { Core::TimerType::Precise };
-        if (print_report)
+        if (print_report) {
             collection_measurement_timer.start();
+            g_phase_timings = {};
+            g_recording_phase_timings = true;
+        }
+        ScopeGuard stop_recording = [&] { g_recording_phase_timings = false; };
 
         if (collection_type == CollectionType::CollectGarbage) {
             if (m_gc_deferrals) {
@@ -349,15 +478,37 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
             }
             HashMap<Cell*, HeapRoot> roots;
             HashTable<HeapBlock*> all_live_heap_blocks;
-            gather_roots(roots, all_live_heap_blocks);
-            mark_live_cells(roots, all_live_heap_blocks);
+            {
+                ScopedPhaseTimer timer { print_report, g_phase_timings.gather_roots_us };
+                gather_roots(roots, all_live_heap_blocks);
+            }
+            {
+                ScopedPhaseTimer timer { print_report, g_phase_timings.mark_live_cells_us };
+                mark_live_cells(roots, all_live_heap_blocks);
+            }
         }
-        finalize_unmarked_cells();
-        sweep_weak_blocks();
-        sweep_dead_cells(print_report, collection_measurement_timer);
+        {
+            ScopedPhaseTimer timer { print_report, g_phase_timings.finalize_unmarked_cells_us };
+            finalize_unmarked_cells();
+        }
+        {
+            ScopedPhaseTimer timer { print_report, g_phase_timings.sweep_weak_blocks_us };
+            sweep_weak_blocks();
+        }
+        {
+            ScopedPhaseTimer timer { print_report, g_phase_timings.sweep_dead_cells_us };
+            sweep_dead_cells(print_report, collection_measurement_timer);
+        }
 
-        if (print_report)
+        if (print_report) {
+            size_t live_block_count = 0;
+            for_each_block([&](auto&) {
+                ++live_block_count;
+                return IterationDecision::Continue;
+            });
+            print_gc_report(collection_measurement_timer.elapsed_time().to_microseconds(), live_block_count);
             dump_allocators();
+        }
     }
 
     run_post_gc_tasks();
@@ -450,31 +601,43 @@ void Heap::register_sweep_callback(AK::Function<void()> callback)
 
 void Heap::gather_roots(HashMap<Cell*, HeapRoot>& roots, HashTable<HeapBlock*>& all_live_heap_blocks, Vector<StackFrameInfo>* out_stack_frames)
 {
-    for_each_block([&](auto& block) {
-        all_live_heap_blocks.set(&block);
+    {
+        ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.gather_must_survive_roots_us };
+        for_each_block([&](auto& block) {
+            all_live_heap_blocks.set(&block);
 
-        if (block.overrides_must_survive_garbage_collection()) {
-            block.template for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
-                if (cell->must_survive_garbage_collection()) {
-                    roots.set(cell, HeapRoot { .type = HeapRoot::Type::MustSurviveGC });
-                }
-            });
-        }
+            if (block.overrides_must_survive_garbage_collection()) {
+                block.template for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
+                    if (cell->must_survive_garbage_collection()) {
+                        roots.set(cell, HeapRoot { .type = HeapRoot::Type::MustSurviveGC });
+                    }
+                });
+            }
 
-        return IterationDecision::Continue;
-    });
+            return IterationDecision::Continue;
+        });
+    }
 
-    m_gather_embedder_roots(roots);
-    gather_conservative_roots(roots, all_live_heap_blocks, out_stack_frames);
+    {
+        ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.gather_embedder_roots_us };
+        m_gather_embedder_roots(roots);
+    }
+    {
+        ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.gather_conservative_roots_us };
+        gather_conservative_roots(roots, all_live_heap_blocks, out_stack_frames);
+    }
 
-    for (auto& root : m_roots)
-        roots.set(root.cell(), HeapRoot { .type = HeapRoot::Type::Root, .location = &root.source_location() });
+    {
+        ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.gather_explicit_roots_us };
+        for (auto& root : m_roots)
+            roots.set(root.cell(), HeapRoot { .type = HeapRoot::Type::Root, .location = &root.source_location() });
 
-    for (auto& vector : m_root_vectors)
-        vector.gather_roots(roots);
+        for (auto& vector : m_root_vectors)
+            vector.gather_roots(roots);
 
-    for (auto& hash_map : m_root_hash_maps)
-        hash_map.gather_roots(roots);
+        for (auto& hash_map : m_root_hash_maps)
+            hash_map.gather_roots(roots);
+    }
 
     if constexpr (HEAP_DEBUG) {
         dbgln("gather_roots:");
@@ -528,8 +691,11 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot
     FlatPtr min_block_address, max_block_address;
     find_min_and_max_block_addresses(min_block_address, max_block_address);
 
-    for (size_t i = 0; i < ((size_t)sizeof(buf)) / sizeof(FlatPtr); ++i)
-        add_possible_value(possible_pointers, raw_jmp_buf[i], HeapRoot { .type = HeapRoot::Type::RegisterPointer }, min_block_address, max_block_address);
+    {
+        ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.conservative_register_scan_us };
+        for (size_t i = 0; i < ((size_t)sizeof(buf)) / sizeof(FlatPtr); ++i)
+            add_possible_value(possible_pointers, raw_jmp_buf[i], HeapRoot { .type = HeapRoot::Type::RegisterPointer }, min_block_address, max_block_address);
+    }
 
     auto stack_reference = bit_cast<FlatPtr>(&dummy);
     auto stack_top = m_stack_info.top();
@@ -624,26 +790,35 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot
         return frame_boundaries[nearby].frame_index;
     };
 
-    for (FlatPtr stack_address = stack_reference; stack_address < stack_top; stack_address += sizeof(FlatPtr)) {
-        auto data = *reinterpret_cast<FlatPtr*>(stack_address);
-        add_possible_value(possible_pointers, data, HeapRoot { .type = HeapRoot::Type::StackPointer, .stack_frame_index = frame_index_for_stack_address(stack_address) }, min_block_address, max_block_address);
-        gather_asan_fake_stack_roots(possible_pointers, data, min_block_address, max_block_address, stack_reference, stack_top);
-    }
-
-    for (auto& vector : m_conservative_vectors) {
-        for (auto possible_value : vector.possible_values()) {
-            add_possible_value(possible_pointers, possible_value, HeapRoot { .type = HeapRoot::Type::ConservativeVector }, min_block_address, max_block_address);
+    {
+        ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.conservative_stack_scan_us };
+        for (FlatPtr stack_address = stack_reference; stack_address < stack_top; stack_address += sizeof(FlatPtr)) {
+            auto data = *reinterpret_cast<FlatPtr*>(stack_address);
+            add_possible_value(possible_pointers, data, HeapRoot { .type = HeapRoot::Type::StackPointer, .stack_frame_index = frame_index_for_stack_address(stack_address) }, min_block_address, max_block_address);
+            gather_asan_fake_stack_roots(possible_pointers, data, min_block_address, max_block_address, stack_reference, stack_top);
         }
     }
 
-    for_each_cell_among_possible_pointers(all_live_heap_blocks, possible_pointers, [&](Cell* cell, FlatPtr possible_pointer) {
-        if (cell->state() == Cell::State::Live) {
-            dbgln_if(HEAP_DEBUG, "  ?-> {}", (void const*)cell);
-            roots.set(cell, *possible_pointers.get(possible_pointer));
-        } else {
-            dbgln_if(HEAP_DEBUG, "  #-> {}", (void const*)cell);
+    {
+        ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.conservative_vector_scan_us };
+        for (auto& vector : m_conservative_vectors) {
+            for (auto possible_value : vector.possible_values()) {
+                add_possible_value(possible_pointers, possible_value, HeapRoot { .type = HeapRoot::Type::ConservativeVector }, min_block_address, max_block_address);
+            }
         }
-    });
+    }
+
+    {
+        ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.conservative_cell_lookup_us };
+        for_each_cell_among_possible_pointers(all_live_heap_blocks, possible_pointers, [&](Cell* cell, FlatPtr possible_pointer) {
+            if (cell->state() == Cell::State::Live) {
+                dbgln_if(HEAP_DEBUG, "  ?-> {}", (void const*)cell);
+                roots.set(cell, *possible_pointers.get(possible_pointer));
+            } else {
+                dbgln_if(HEAP_DEBUG, "  #-> {}", (void const*)cell);
+            }
+        });
+    }
 }
 
 class MarkingVisitor final : public Cell::Visitor {
@@ -722,13 +897,24 @@ void Heap::mark_live_cells(HashMap<Cell*, HeapRoot> const& roots, HashTable<Heap
 {
     dbgln_if(HEAP_DEBUG, "mark_live_cells:");
 
-    MarkingVisitor visitor(*this, roots, all_live_heap_blocks);
-    visitor.mark_all_live_cells();
+    Optional<MarkingVisitor> visitor;
+    {
+        ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.mark_initial_visit_us };
+        visitor.emplace(*this, roots, all_live_heap_blocks);
+    }
 
-    for (auto& inverse_root : m_uprooted_cells)
-        inverse_root->set_marked(false);
+    {
+        ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.mark_bfs_us };
+        visitor->mark_all_live_cells();
+    }
 
-    m_uprooted_cells.clear();
+    {
+        ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.mark_clear_uprooted_us };
+        for (auto& inverse_root : m_uprooted_cells)
+            inverse_root->set_marked(false);
+
+        m_uprooted_cells.clear();
+    }
 }
 
 void Heap::finalize_unmarked_cells()
@@ -772,47 +958,59 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
     size_t live_cell_bytes = 0;
     size_t live_external_bytes = 0;
 
-    for_each_block([&](auto& block) {
-        bool block_has_live_cells = false;
-        bool block_was_full = block.is_full();
-        block.template for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
-            if (!cell->is_marked()) {
-                dbgln_if(HEAP_DEBUG, "  ~ {}", cell);
-                block.deallocate(cell);
-                ++collected_cells;
-                collected_cell_bytes += block.cell_size();
-            } else {
-                cell->set_marked(false);
-                block_has_live_cells = true;
-                ++live_cells;
-                live_cell_bytes += block.cell_size();
-                auto cell_external_memory_size = cell->external_memory_size();
-                live_external_bytes = cell_external_memory_size > NumericLimits<size_t>::max() - live_external_bytes
-                    ? NumericLimits<size_t>::max()
-                    : live_external_bytes + cell_external_memory_size;
-            }
+    {
+        ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.sweep_block_iteration_us };
+        for_each_block([&](auto& block) {
+            bool block_has_live_cells = false;
+            bool block_was_full = block.is_full();
+            block.template for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
+                if (!cell->is_marked()) {
+                    dbgln_if(HEAP_DEBUG, "  ~ {}", cell);
+                    block.deallocate(cell);
+                    ++collected_cells;
+                    collected_cell_bytes += block.cell_size();
+                } else {
+                    cell->set_marked(false);
+                    block_has_live_cells = true;
+                    ++live_cells;
+                    live_cell_bytes += block.cell_size();
+                    auto cell_external_memory_size = cell->external_memory_size();
+                    live_external_bytes = cell_external_memory_size > NumericLimits<size_t>::max() - live_external_bytes
+                        ? NumericLimits<size_t>::max()
+                        : live_external_bytes + cell_external_memory_size;
+                }
+            });
+            if (!block_has_live_cells)
+                empty_blocks.append(&block);
+            else if (block_was_full != block.is_full())
+                full_blocks_that_became_usable.append(&block);
+            return IterationDecision::Continue;
         });
-        if (!block_has_live_cells)
-            empty_blocks.append(&block);
-        else if (block_was_full != block.is_full())
-            full_blocks_that_became_usable.append(&block);
-        return IterationDecision::Continue;
-    });
-
-    for (auto& weak_container : m_weak_containers)
-        weak_container.remove_dead_cells({});
-
-    for (auto& callback : m_sweep_callbacks)
-        callback();
-
-    for (auto* block : empty_blocks) {
-        dbgln_if(HEAP_DEBUG, " - HeapBlock empty @ {}: cell_size={}", block, block->cell_size());
-        block->cell_allocator().block_did_become_empty({}, *block);
     }
 
-    for (auto* block : full_blocks_that_became_usable) {
-        dbgln_if(HEAP_DEBUG, " - HeapBlock usable again @ {}: cell_size={}", block, block->cell_size());
-        block->cell_allocator().block_did_become_usable({}, *block);
+    {
+        ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.sweep_weak_containers_us };
+        for (auto& weak_container : m_weak_containers)
+            weak_container.remove_dead_cells({});
+    }
+
+    {
+        ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.sweep_callbacks_us };
+        for (auto& callback : m_sweep_callbacks)
+            callback();
+    }
+
+    {
+        ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.sweep_block_reclassify_us };
+        for (auto* block : empty_blocks) {
+            dbgln_if(HEAP_DEBUG, " - HeapBlock empty @ {}: cell_size={}", block, block->cell_size());
+            block->cell_allocator().block_did_become_empty({}, *block);
+        }
+
+        for (auto* block : full_blocks_that_became_usable) {
+            dbgln_if(HEAP_DEBUG, " - HeapBlock usable again @ {}: cell_size={}", block, block->cell_size());
+            block->cell_allocator().block_did_become_usable({}, *block);
+        }
     }
 
     if constexpr (HEAP_DEBUG) {
@@ -822,26 +1020,22 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
         });
     }
 
-    update_gc_bytes_threshold(live_cell_bytes, live_external_bytes);
+    {
+        ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.sweep_update_threshold_us };
+        update_gc_bytes_threshold(live_cell_bytes, live_external_bytes);
+    }
 
     if (print_report) {
-        AK::Duration const time_spent = measurement_timer.elapsed_time();
-        size_t live_block_count = 0;
-        for_each_block([&](auto&) {
-            ++live_block_count;
-            return IterationDecision::Continue;
-        });
-
-        dbgln("Garbage collection report");
-        dbgln("=============================================");
-        dbgln("     Time spent: {} us", time_spent.to_microseconds());
-        dbgln("     Live cells: {} ({})", live_cells, human_readable_size(live_cell_bytes));
-        dbgln("  Live external: {}", human_readable_size(live_external_bytes));
-        dbgln("Collected cells: {} ({})", collected_cells, human_readable_size(collected_cell_bytes));
-        dbgln("    Live blocks: {} ({})", live_block_count, human_readable_size(live_block_count * HeapBlock::BLOCK_SIZE));
-        dbgln("   Freed blocks: {} ({})", empty_blocks.size(), human_readable_size(empty_blocks.size() * HeapBlock::BLOCK_SIZE));
-        dbgln("=============================================");
+        g_sweep_stats = {
+            .collected_cells = collected_cells,
+            .live_cells = live_cells,
+            .collected_cell_bytes = collected_cell_bytes,
+            .live_cell_bytes = live_cell_bytes,
+            .live_external_bytes = live_external_bytes,
+            .freed_block_count = empty_blocks.size(),
+        };
     }
+    (void)measurement_timer;
 
     // Sweep is done; kick the global decommit worker so the slots we just
     // freed get madvise()'d off the GC pause path.
