@@ -122,6 +122,21 @@ struct SweepStats {
 };
 SweepStats g_sweep_stats;
 
+struct IncrementalSweepBatchStats {
+    size_t blocks_swept { 0 };
+    i64 elapsed_us { 0 };
+    bool forced { false };
+};
+
+struct IncrementalSweepStats {
+    bool should_report { false };
+    size_t total_blocks { 0 };
+    Vector<IncrementalSweepBatchStats> batches;
+    Core::ElapsedTimer timer { Core::TimerType::Precise };
+};
+IncrementalSweepStats g_incremental_sweep_stats;
+bool g_next_incremental_sweep_should_report { false };
+
 // Set by collect_garbage() while a reported collection is in flight. Used by
 // the GC's helpers to decide whether they should record subphase timings.
 bool g_recording_phase_timings { false };
@@ -169,6 +184,57 @@ void print_gc_report(i64 total_us, size_t live_block_count)
     dbgln("    sweep callbacks             {:>10} us ({:>5.1f}%)", t.sweep_callbacks_us, pct(t.sweep_callbacks_us));
     dbgln("    block reclassify            {:>10} us ({:>5.1f}%)", t.sweep_block_reclassify_us, pct(t.sweep_block_reclassify_us));
     dbgln("    update threshold            {:>10} us ({:>5.1f}%)", t.sweep_update_threshold_us, pct(t.sweep_update_threshold_us));
+    dbgln("=================================================================");
+}
+
+void record_incremental_sweep_batch(size_t blocks_swept, i64 elapsed_us, bool forced)
+{
+    if (!g_incremental_sweep_stats.should_report || blocks_swept == 0)
+        return;
+    g_incremental_sweep_stats.batches.append({
+        .blocks_swept = blocks_swept,
+        .elapsed_us = elapsed_us,
+        .forced = forced,
+    });
+}
+
+void print_incremental_sweep_report(size_t live_cell_bytes, size_t live_external_bytes, size_t next_gc_bytes_threshold)
+{
+    if (!g_incremental_sweep_stats.should_report)
+        return;
+
+    size_t swept_blocks = 0;
+    i64 batch_time_us = 0;
+    i64 shortest_batch_us = NumericLimits<i64>::max();
+    i64 longest_batch_us = 0;
+    for (auto const& batch : g_incremental_sweep_stats.batches) {
+        swept_blocks += batch.blocks_swept;
+        batch_time_us += batch.elapsed_us;
+        shortest_batch_us = min(shortest_batch_us, batch.elapsed_us);
+        longest_batch_us = max(longest_batch_us, batch.elapsed_us);
+    }
+
+    if (g_incremental_sweep_stats.batches.is_empty())
+        shortest_batch_us = 0;
+
+    dbgln("Incremental sweep report");
+    dbgln("=================================================================");
+    dbgln("Totals:");
+    dbgln("        Wall time: {} us", g_incremental_sweep_stats.timer.elapsed_time().to_microseconds());
+    dbgln("       Batch time: {} us", batch_time_us);
+    dbgln("          Batches: {}", g_incremental_sweep_stats.batches.size());
+    dbgln("    Swept blocks: {} / {} ({})", swept_blocks, g_incremental_sweep_stats.total_blocks, human_readable_size(swept_blocks * HeapBlock::BLOCK_SIZE));
+    dbgln("     Live cells: {}", human_readable_size(live_cell_bytes));
+    dbgln("  Live external: {}", human_readable_size(live_external_bytes));
+    dbgln("  Next threshold: {}", human_readable_size(next_gc_bytes_threshold));
+    dbgln("");
+    dbgln("Batch timings:");
+    dbgln("  Shortest batch: {} us", shortest_batch_us);
+    dbgln("   Longest batch: {} us", longest_batch_us);
+    for (size_t i = 0; i < g_incremental_sweep_stats.batches.size(); ++i) {
+        auto const& batch = g_incremental_sweep_stats.batches[i];
+        dbgln("    #{:>3}: {:>5} blocks in {:>8} us{}", i + 1, batch.blocks_swept, batch.elapsed_us, batch.forced ? " (forced)"sv : ""sv);
+    }
     dbgln("=================================================================");
 }
 
@@ -483,12 +549,8 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
 {
     VERIFY(!m_collecting_garbage);
 
-    // If an incremental sweep is still in progress, finish it first.
-    if (m_incremental_sweep_active && !is_gc_deferred()) {
-        dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep] New GC triggered, finishing current sweep...");
-        while (m_incremental_sweep_active)
-            sweep_next_block();
-    }
+    finish_pending_incremental_sweep();
+    g_next_incremental_sweep_should_report = false;
 
     {
         TemporaryChange change(m_collecting_garbage, true);
@@ -568,6 +630,8 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
             if (dump_allocators_too)
                 dump_allocators();
         }
+
+        g_next_incremental_sweep_should_report = report;
     }
 
     // Arm incremental sweep before running post-GC tasks so any cells those
@@ -575,6 +639,8 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
     // by sweep_block before the next mark phase reaches them.
     if (collection_type != CollectionType::CollectEverything)
         start_incremental_sweep();
+    else
+        g_next_incremental_sweep_should_report = false;
 
     run_post_gc_tasks();
 }
@@ -1154,8 +1220,6 @@ bool Heap::sweep_next_block()
         allocator->m_sweep_list_node.remove();
     }
 
-    // No more blocks to sweep.
-    finish_incremental_sweep();
     return true;
 }
 
@@ -1166,6 +1230,13 @@ void Heap::start_incremental_sweep()
     m_incremental_sweep_active = true;
     m_sweep_live_cell_bytes = 0;
     m_sweep_live_external_bytes = 0;
+    g_incremental_sweep_stats.should_report = false;
+    g_incremental_sweep_stats.total_blocks = 0;
+    g_incremental_sweep_stats.batches.clear();
+    g_incremental_sweep_stats.should_report = g_next_incremental_sweep_should_report;
+    g_next_incremental_sweep_should_report = false;
+    if (g_incremental_sweep_stats.should_report)
+        g_incremental_sweep_stats.timer.start();
 
     // Populate each allocator's pending sweep list with its current blocks.
     // Blocks allocated during incremental sweep won't be on these lists
@@ -1180,6 +1251,7 @@ void Heap::start_incremental_sweep()
         if (allocator.has_blocks_pending_sweep())
             m_allocators_to_sweep.append(allocator);
     }
+    g_incremental_sweep_stats.total_blocks = total_blocks;
 
     dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep] {} blocks to sweep", total_blocks);
 
@@ -1194,6 +1266,7 @@ void Heap::finish_incremental_sweep()
     dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep]     Live cell bytes: {} ({} KiB)", m_sweep_live_cell_bytes, m_sweep_live_cell_bytes / KiB);
     dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep]     Live external bytes: {} ({} KiB)", m_sweep_live_external_bytes, m_sweep_live_external_bytes / KiB);
     dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep]     Next GC threshold: {} ({} KiB)", m_gc_bytes_threshold, m_gc_bytes_threshold / KiB);
+    print_incremental_sweep_report(m_sweep_live_cell_bytes, m_sweep_live_external_bytes, m_gc_bytes_threshold);
 
     // Clear marks on cells allocated during sweep. Sweep already cleared
     // marks on cells it visited, so only these remain marked.
@@ -1212,8 +1285,17 @@ void Heap::finish_pending_incremental_sweep()
         return;
 
     dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep] Finishing pending sweep...");
-    while (m_incremental_sweep_active)
-        sweep_next_block();
+    size_t blocks_swept = 0;
+    auto start_time = MonotonicTime::now();
+    while (m_incremental_sweep_active) {
+        if (sweep_next_block()) {
+            auto elapsed = MonotonicTime::now() - start_time;
+            record_incremental_sweep_batch(blocks_swept, elapsed.to_microseconds(), true);
+            finish_incremental_sweep();
+            break;
+        }
+        ++blocks_swept;
+    }
 }
 
 void Heap::start_incremental_sweep_timer()
@@ -1241,16 +1323,23 @@ void Heap::sweep_on_timer()
         return;
 
     size_t blocks_swept = 0;
+    bool finished_sweep = false;
     auto start_time = MonotonicTime::now();
     auto deadline = start_time + AK::Duration::from_milliseconds(GC_INCREMENTAL_SWEEP_SLICE_MS);
     while (MonotonicTime::now() < deadline) {
-        if (sweep_next_block())
+        if (sweep_next_block()) {
+            auto elapsed = MonotonicTime::now() - start_time;
+            record_incremental_sweep_batch(blocks_swept, elapsed.to_microseconds(), false);
+            finish_incremental_sweep();
+            finished_sweep = true;
             break;
+        }
         ++blocks_swept;
     }
 
-    if (blocks_swept > 0) {
+    if (blocks_swept > 0 && !finished_sweep) {
         auto elapsed = MonotonicTime::now() - start_time;
+        record_incremental_sweep_batch(blocks_swept, elapsed.to_microseconds(), false);
         dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep] Timer slice: {} blocks in {}ms",
             blocks_swept, elapsed.to_milliseconds());
     }
