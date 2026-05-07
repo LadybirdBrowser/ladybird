@@ -419,9 +419,29 @@ float ComputedProperties::opacity() const
     return property(PropertyID::Opacity).as_opacity_value().resolved();
 }
 
+Optional<SVGPaint> ComputedProperties::fill(ColorResolutionContext const& color_resolution_context) const
+{
+    auto const& value = property(PropertyID::Fill);
+
+    if (value.to_keyword() == Keyword::None)
+        return {};
+
+    return SVGPaint::from_style_value(value, color_resolution_context);
+}
+
 float ComputedProperties::fill_opacity() const
 {
     return property(PropertyID::FillOpacity).as_opacity_value().resolved();
+}
+
+Optional<SVGPaint> ComputedProperties::stroke(ColorResolutionContext const& color_resolution_context) const
+{
+    auto const& value = property(PropertyID::Stroke);
+
+    if (value.to_keyword() == Keyword::None)
+        return {};
+
+    return SVGPaint::from_style_value(value, color_resolution_context);
 }
 
 Vector<Variant<LengthPercentage, float>> ComputedProperties::stroke_dasharray() const

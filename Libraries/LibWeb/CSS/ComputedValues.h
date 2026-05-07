@@ -32,6 +32,7 @@
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
+#include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/URL.h>
 
 namespace Web::CSS {
@@ -308,6 +309,25 @@ enum class BackgroundSize {
 // https://svgwg.org/svg2-draft/painting.html#SpecifyingPaint
 class SVGPaint {
 public:
+    static SVGPaint from_style_value(NonnullRefPtr<StyleValue const> const& style_value, ColorResolutionContext const& color_resolution_context)
+    {
+        auto extract_paint_fallback_color = [&](CSS::URLStyleValue const& url_value) -> Optional<Color> {
+            if (auto const& fallback = url_value.paint_fallback()) {
+                if (fallback->has_color())
+                    return fallback->to_color(color_resolution_context);
+            }
+            return {};
+        };
+
+        if (style_value->has_color())
+            return style_value->to_color(color_resolution_context).value();
+
+        if (style_value->is_url())
+            return CSS::SVGPaint(style_value->as_url().url(), extract_paint_fallback_color(style_value->as_url()));
+
+        VERIFY_NOT_REACHED();
+    }
+
     SVGPaint(Color color)
         : m_value(color)
     {
@@ -1133,8 +1153,8 @@ public:
     void set_view_transition_name(Optional<FlyString> value) { m_noninherited.view_transition_name = move(value); }
     void set_touch_action(TouchActionData value) { m_noninherited.touch_action = value; }
 
-    void set_fill(SVGPaint value) { m_inherited.fill = move(value); }
-    void set_stroke(SVGPaint value) { m_inherited.stroke = move(value); }
+    void set_fill(Optional<SVGPaint> value) { m_inherited.fill = move(value); }
+    void set_stroke(Optional<SVGPaint> value) { m_inherited.stroke = move(value); }
     void set_fill_rule(FillRule value) { m_inherited.fill_rule = value; }
     void set_fill_opacity(float value) { m_inherited.fill_opacity = value; }
     void set_stroke_dasharray(Vector<Variant<LengthPercentage, float>> value) { m_inherited.stroke_dasharray = move(value); }
