@@ -110,6 +110,8 @@ public:
     void on_devtools_enabled();
     void on_devtools_disabled();
 
+    void set_window_rect(Optional<Web::DevicePixels> x, Optional<Web::DevicePixels> y, Optional<Web::DevicePixels> width, Optional<Web::DevicePixels> height);
+
 public slots:
     void device_pixel_ratio_changed(qreal dpi);
     void refresh_rate_changed(qreal refresh_rate);
@@ -155,8 +157,6 @@ private:
     QIcon icon_for_page_mute_state(Tab&) const;
     QString tool_tip_for_page_mute_state(Tab&) const;
     QTabBar::ButtonPosition audio_button_position_for_tab(int tab_index) const;
-
-    void set_window_rect(Optional<Web::DevicePixels> x, Optional<Web::DevicePixels> y, Optional<Web::DevicePixels> width, Optional<Web::DevicePixels> height);
 
     QScreen* m_current_screen { nullptr };
     double m_device_pixel_ratio { 0 };

@@ -326,7 +326,13 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         tab.focus_location_editor();
     });
     QObject::connect(m_new_window_action, &QAction::triggered, this, [] {
-        (void)Application::the().new_window({ WebView::Application::settings().new_tab_page_url() });
+        auto const& previous_active_window = Application::the().active_window();
+        WindowConfiguration configuration {
+            .width = previous_active_window.width(),
+            .height = previous_active_window.height(),
+            .maximized = previous_active_window.isMaximized(),
+        };
+        Application::the().new_window({ WebView::Application::settings().new_tab_page_url() }, configuration);
     });
     QObject::connect(open_file_action, &QAction::triggered, this, &BrowserWindow::open_file);
 
@@ -491,8 +497,13 @@ void BrowserWindow::initialize_tab(Tab* tab)
 
     tab->view().on_new_web_view = [this, tab](auto activate_tab, Web::HTML::WebViewHints hints, Optional<u64> page_index) {
         if (hints.popup) {
-            auto& window = Application::the().new_window({}, IsPopupWindow::Yes, tab, AK::move(page_index));
-            window.set_window_rect(hints.screen_x, hints.screen_y, hints.width, hints.height);
+            WindowConfiguration configuration {
+                .x = hints.screen_x,
+                .y = hints.screen_y,
+                .width = hints.width,
+                .height = hints.height,
+            };
+            auto& window = Application::the().new_window({}, configuration, IsPopupWindow::Yes, tab, AK::move(page_index));
             return window.current_tab()->view().handle();
         }
         auto& new_tab = new_child_tab(activate_tab, *tab, page_index);

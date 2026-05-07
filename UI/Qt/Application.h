@@ -15,6 +15,14 @@
 
 namespace Ladybird {
 
+struct WindowConfiguration {
+    Optional<Web::DevicePixels> x {};
+    Optional<Web::DevicePixels> y {};
+    Optional<Web::DevicePixels> width {};
+    Optional<Web::DevicePixels> height {};
+    Optional<bool> maximized {};
+};
+
 class Application : public WebView::Application {
     WEB_VIEW_APPLICATION(Application)
 
@@ -22,8 +30,7 @@ public:
     virtual ~Application() override;
 
     Function<void(URL::URL)> on_open_file;
-
-    BrowserWindow& new_window(Vector<URL::URL> const& initial_urls, BrowserWindow::IsPopupWindow is_popup_window = BrowserWindow::IsPopupWindow::No, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
+    BrowserWindow& new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& = {}, BrowserWindow::IsPopupWindow is_popup_window = BrowserWindow::IsPopupWindow::No, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
 
     BrowserWindow& active_window() const { return *m_active_window; }
     void set_active_window(BrowserWindow& w) { m_active_window = &w; }
