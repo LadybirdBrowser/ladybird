@@ -487,6 +487,10 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         return parse_all_as(tokens, [this](auto& tokens) { return parse_columns_value(tokens); });
     case PropertyID::Contain:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_contain_value(tokens); });
+    case PropertyID::Container:
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_container_value(tokens); });
+    case PropertyID::ContainerName:
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_container_name_value(tokens); });
     case PropertyID::ContainerType:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_container_type_value(tokens); });
     case PropertyID::Content:
@@ -5592,6 +5596,40 @@ RefPtr<StyleValue const> Parser::parse_contain_value(TokenStream<ComponentValue>
     return StyleValueList::create(move(containment_values), StyleValueList::Separator::Space);
 }
 
+// https://drafts.csswg.org/css-conditional-5/#propdef-container-name
+RefPtr<StyleValue const> Parser::parse_container_name_value(TokenStream<ComponentValue>& tokens)
+{
+    // none | <custom-ident>+
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+
+    if (auto none = parse_specific_keyword_value(tokens, Keyword::None)) {
+        transaction.commit();
+        return none;
+    }
+
+    StyleValueVector names;
+    while (tokens.has_next_token()) {
+        // The keywords none, and, not, and or are excluded from this <custom-ident>.
+        auto name = parse_custom_ident_value(tokens, { { "none"sv, "and"sv, "not"sv, "or"sv } });
+        if (!name)
+            break;
+
+        names.append(name.release_nonnull());
+        tokens.discard_whitespace();
+    }
+
+    if (names.is_empty())
+        return {};
+
+    transaction.commit();
+
+    if (names.size() == 1)
+        return names.take_first();
+
+    return StyleValueList::create(move(names), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
+}
+
 // https://drafts.csswg.org/css-conditional-5/#propdef-container-type
 RefPtr<StyleValue const> Parser::parse_container_type_value(TokenStream<ComponentValue>& tokens)
 {
@@ -5643,6 +5681,43 @@ RefPtr<StyleValue const> Parser::parse_container_type_value(TokenStream<Componen
     transaction.commit();
 
     return StyleValueList::create(move(containment_values), StyleValueList::Separator::Space);
+}
+
+// https://drafts.csswg.org/css-conditional-5/#propdef-container
+RefPtr<StyleValue const> Parser::parse_container_value(TokenStream<ComponentValue>& tokens)
+{
+    // <'container-name'> [ / <'container-type'> ]?
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+
+    auto name = parse_container_name_value(tokens);
+    if (!name)
+        return {};
+
+    tokens.discard_whitespace();
+
+    RefPtr<StyleValue const> type;
+    if (tokens.has_next_token()) {
+        if (!tokens.next_token().is_delim('/'))
+            return {};
+        tokens.discard_a_token();
+
+        tokens.discard_whitespace();
+        type = parse_container_type_value(tokens);
+        if (!type)
+            return {};
+
+        tokens.discard_whitespace();
+        if (tokens.has_next_token())
+            return {};
+    } else {
+        type = property_initial_value(PropertyID::ContainerType);
+    }
+
+    transaction.commit();
+    return ShorthandStyleValue::create(PropertyID::Container,
+        { PropertyID::ContainerName, PropertyID::ContainerType },
+        { name.release_nonnull(), type.release_nonnull() });
 }
 
 // https://www.w3.org/TR/css-text-4/#white-space-trim

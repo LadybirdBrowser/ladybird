@@ -1,0 +1,23 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Conditional Test: Computed values of container-name</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-name">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<div id="target"></div>
+<script>
+setup(() => assert_implements_size_container_queries());
+
+test_computed_value('container-name', 'initial', 'none');
+test_computed_value('container-name', 'unset', 'none');
+test_computed_value('container-name', 'foo');
+test_computed_value('container-name', 'FoO');
+test_computed_value('container-name', 'foo bar');
+test_computed_value('container-name', 'bar foo');
+test_computed_value('container-name', 'foo foo bar');
+test_computed_value('container-name', 'foo bar foo');
+test_computed_value('container-name', 'bar foo foo');
+test_computed_value('container-name', '\\!escaped');
+</script>

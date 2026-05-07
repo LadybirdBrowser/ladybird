@@ -1866,6 +1866,25 @@ Containment ComputedProperties::contain() const
     return containment;
 }
 
+Vector<FlyString> ComputedProperties::container_name() const
+{
+    auto const& value = property(PropertyID::ContainerName);
+    if (value.to_keyword() == Keyword::None)
+        return {};
+
+    Vector<FlyString> names;
+
+    if (value.is_value_list()) {
+        auto& values = value.as_value_list().values();
+        for (auto const& item : values)
+            names.append(item->as_custom_ident().custom_ident());
+    } else {
+        names.append(value.as_custom_ident().custom_ident());
+    }
+
+    return names;
+}
+
 ContainerType ComputedProperties::container_type() const
 {
     ContainerType container_type {};

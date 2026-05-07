@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 288 tests
+Found 289 tests
 
-284 Pass
+285 Pass
 4 Fail
 Pass	accent-color
 Pass	border-collapse
@@ -152,6 +152,7 @@ Pass	column-gap
 Pass	column-span
 Pass	column-width
 Pass	contain
+Pass	container-name
 Pass	container-type
 Pass	content
 Pass	content-visibility

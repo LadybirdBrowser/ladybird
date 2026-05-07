@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Pass
+Pass	Property container value 'initial'
+Pass	Property container value 'inherit'
+Pass	Property container value 'unset'
+Pass	Property container value 'none / inline-size'
+Pass	Property container value 'none / size'
+Pass	Property container value 'inline-size / inline-size'
+Pass	Property container value 'block-size / size'
+Pass	Property container value 'foo / inline-size'
+Pass	Property container value 'foo /inline-size'
+Pass	Property container value 'foo/ inline-size'
+Pass	Property container value 'foo/inline-size'
+Pass	Property container value 'FoO / size'
+Pass	Property container value 'foo bar / size'
+Pass	Property container value 'foo / normal'

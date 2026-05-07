@@ -1,0 +1,34 @@
+Harness status: OK
+
+Found 29 tests
+
+29 Pass
+Pass	e.style['container-name'] = "initial" should set the property value
+Pass	e.style['container-name'] = "inherit" should set the property value
+Pass	e.style['container-name'] = "unset" should set the property value
+Pass	e.style['container-name'] = "revert" should set the property value
+Pass	e.style['container-name'] = "none" should set the property value
+Pass	e.style['container-name'] = "foo" should set the property value
+Pass	e.style['container-name'] = "BAR" should set the property value
+Pass	e.style['container-name'] = "foo bar" should set the property value
+Pass	e.style['container-name'] = "foo foo" should set the property value
+Pass	e.style['container-name'] = "\\!escaped" should set the property value
+Pass	e.style['container-name'] = "auto" should set the property value
+Pass	e.style['container-name'] = "normal" should set the property value
+Pass	e.style['container-name'] = "none none" should not set the property value
+Pass	e.style['container-name'] = "foo, bar" should not set the property value
+Pass	e.style['container-name'] = "#fff" should not set the property value
+Pass	e.style['container-name'] = "1px" should not set the property value
+Pass	e.style['container-name'] = "default" should not set the property value
+Pass	e.style['container-name'] = "\"initial\"" should not set the property value
+Pass	e.style['container-name'] = "\"inherit\"" should not set the property value
+Pass	e.style['container-name'] = "\"unset\"" should not set the property value
+Pass	e.style['container-name'] = "\"revert\"" should not set the property value
+Pass	e.style['container-name'] = "\"none\"" should not set the property value
+Pass	e.style['container-name'] = "\"foo\"" should not set the property value
+Pass	e.style['container-name'] = "not" should not set the property value
+Pass	e.style['container-name'] = "and" should not set the property value
+Pass	e.style['container-name'] = "or" should not set the property value
+Pass	e.style['container-name'] = "Not" should not set the property value
+Pass	e.style['container-name'] = "aNd" should not set the property value
+Pass	e.style['container-name'] = "oR" should not set the property value

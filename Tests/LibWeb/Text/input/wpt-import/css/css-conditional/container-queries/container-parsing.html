@@ -1,0 +1,63 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Conditional Test: Parsing of container</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-name">
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-type">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<div id="target"></div>
+<script>
+setup(() => assert_implements_size_container_queries());
+
+test_valid_value('container', 'initial');
+test_valid_value('container', 'inherit');
+test_valid_value('container', 'unset');
+test_valid_value('container', 'revert');
+test_valid_value('container', 'none');
+test_valid_value('container', 'none / normal', 'none');
+test_valid_value('container', 'inline-size');
+test_valid_value('container', 'none / inline-size', 'none / inline-size');
+test_valid_value('container', 'size');
+test_valid_value('container', 'block-size / size');
+test_valid_value('container', 'inline-size / inline-size');
+test_valid_value('container', 'size / size');
+test_valid_value('container', 'foo');
+test_valid_value('container', 'foo / normal', 'foo');
+test_valid_value('container', 'foo bar / size');
+test_valid_value('container', 'foo bar / normal', 'foo bar');
+test_valid_value('container', 'FOO / size');
+test_valid_value('container', 'FOO/size', 'FOO / size');
+test_valid_value('container', '  FOO  /size', 'FOO / size');
+test_valid_value('container', 'normal / size');
+test_valid_value('container', 'auto / size');
+
+test_invalid_value('container', 'none none');
+test_invalid_value('container', 'none inline-size');
+test_invalid_value('container', 'none / inline-size none');
+test_invalid_value('container', 'none / inline-size normal');
+test_invalid_value('container', 'none / inline-size inline-size');
+test_invalid_value('container', 'none / inline-size block-size unknown');
+test_invalid_value('container', 'none / inline-size block-size');
+test_invalid_value('container', 'none / size block-size');
+test_invalid_value('container', 'none, none');
+test_invalid_value('container', 'none, normal');
+test_invalid_value('container', 'none / none');
+test_invalid_value('container', 'none / auto');
+test_invalid_value('container', 'none / foo');
+test_invalid_value('container', 'none / foo, bar');
+test_invalid_value('container', '#fff');
+test_invalid_value('container', '1px');
+test_invalid_value('container', 'default');
+test_invalid_value('container', '10px / inline-size');
+test_invalid_value('container', '#fefefe / inline-size');
+test_invalid_value('container', 'calc(3px) / inline-size');
+test_invalid_value('container', 'size 1 / name');
+test_invalid_value('container', 'none / block-size');
+test_invalid_value('container', 'name / block-size');
+test_invalid_value('container', ' NAME  / block-size', 'NAME / block-size');
+test_invalid_value('container', 'NAME/block-size','NAME / block-size');
+test_invalid_value('container', 'block-size / block-size');
+test_invalid_value('container', 'none / size style');
+</script>

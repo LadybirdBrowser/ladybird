@@ -257,6 +257,17 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
         }
         return;
     }
+    case PropertyID::Container: {
+        auto name = longhand(PropertyID::ContainerName);
+        auto type = longhand(PropertyID::ContainerType);
+        name->serialize(builder, mode);
+
+        if (!type->equals(property_initial_value(PropertyID::ContainerType))) {
+            builder.append(" / "sv);
+            type->serialize(builder, mode);
+        }
+        return;
+    }
     case Web::CSS::PropertyID::BackgroundPosition: {
         auto x_edges = longhand(PropertyID::BackgroundPositionX);
         auto y_edges = longhand(PropertyID::BackgroundPositionY);
