@@ -6,6 +6,7 @@
 
 #include "ALooperEventLoopImplementation.h"
 #include <LibCore/EventLoop.h>
+#include <LibCore/EventReceiver.h>
 #include <LibCore/ThreadEventQueue.h>
 #include <jni.h>
 
