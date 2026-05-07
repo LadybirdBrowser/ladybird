@@ -26,8 +26,8 @@ Java_org_serenityos_ladybird_TimerExecutorService_00024Timer_nativeRun(JNIEnv*, 
         if (!receiver)
             return;
 
-        if (thread_data.thread_queue)
-            thread_data.thread_queue->post_event(receiver.ptr(), Core::Event::Type::Timer);
+        VERIFY(thread_data.thread_queue);
+        thread_data.thread_queue->post_event(receiver.ptr(), Core::Event::Type::Timer);
     }
     // Flush the event loop on this thread to keep any garbage from building up
     if (auto num_events = s_event_loop.pump(Core::EventLoop::WaitMode::PollForEvents); num_events != 0) {
