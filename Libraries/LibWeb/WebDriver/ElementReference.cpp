@@ -257,7 +257,7 @@ bool is_element_pointer_interactable(Web::HTML::BrowsingContext const& browsing_
     if (!document)
         return false;
 
-    auto const* paint_root = document->paintable_box();
+    auto paint_root = document->paintable_box();
     if (!paint_root)
         return false;
 

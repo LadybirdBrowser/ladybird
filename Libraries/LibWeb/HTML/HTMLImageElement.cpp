@@ -292,7 +292,7 @@ WebIDL::UnsignedLong HTMLImageElement::width() const
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLImageElementWidth);
 
     // Return the rendered width of the image, in CSS pixels, if the image is being rendered.
-    if (auto* paintable_box = this->paintable_box())
+    if (auto paintable_box = this->paintable_box())
         return paintable_box->content_width().to_int();
 
     // On setting [the width or height IDL attribute], they must act as if they reflected the respective content attributes of the same name.
@@ -323,7 +323,7 @@ WebIDL::UnsignedLong HTMLImageElement::height() const
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLImageElementHeight);
 
     // Return the rendered height of the image, in CSS pixels, if the image is being rendered.
-    if (auto* paintable_box = this->paintable_box())
+    if (auto paintable_box = this->paintable_box())
         return paintable_box->content_height().to_int();
 
     // On setting [the width or height IDL attribute], they must act as if they reflected the respective content attributes of the same name.
@@ -380,7 +380,7 @@ int HTMLImageElement::x() const
     // to the element and its ancestors, or zero if there is no box.
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLImageElementX);
 
-    auto const* paintable_box = this->paintable_box();
+    auto paintable_box = this->paintable_box();
     if (!paintable_box)
         return 0;
 
@@ -399,7 +399,7 @@ int HTMLImageElement::y() const
     // to the element and its ancestors, or zero if there is no box.
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLImageElementY);
 
-    auto const* paintable_box = this->paintable_box();
+    auto paintable_box = this->paintable_box();
     if (!paintable_box)
         return 0;
 

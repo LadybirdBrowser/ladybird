@@ -59,9 +59,6 @@ void Node::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_dom_node);
-    for (auto const& paintable : m_paintable) {
-        visitor.visit(GC::Ptr { &paintable });
-    }
     visitor.visit(m_containing_block);
     visitor.visit(m_inline_containing_block_if_applicable);
     visitor.visit(m_pseudo_element_generator);
@@ -610,7 +607,7 @@ void NodeWithStyle::ImageObserver::image_style_value_did_update(CSS::ImageStyleV
     VERIFY(m_owner);
 
     for (auto& paintable : m_owner->paintables())
-        paintable.set_needs_repaint();
+        paintable->set_needs_repaint();
 
     // The body's background propagates to the root element's paintable, which holds the cached draw commands.
     if (m_owner->is_body()) {
@@ -619,7 +616,7 @@ void NodeWithStyle::ImageObserver::image_style_value_did_update(CSS::ImageStyleV
             if (auto html_layout_node = html_element->unsafe_layout_node()) {
                 if (html_element->should_use_body_background_properties()) {
                     for (auto& paintable : html_layout_node->paintables())
-                        paintable.set_needs_repaint();
+                        paintable->set_needs_repaint();
                 }
             }
         }
@@ -1256,7 +1253,7 @@ bool NodeWithStyle::is_scroll_container() const
         || overflow_value_makes_box_a_scroll_container(computed_values().overflow_y());
 }
 
-void Node::add_paintable(GC::Ptr<Painting::Paintable> paintable)
+void Node::add_paintable(RefPtr<Painting::Paintable> paintable)
 {
     if (!paintable)
         return;
@@ -1265,10 +1262,14 @@ void Node::add_paintable(GC::Ptr<Painting::Paintable> paintable)
 
 void Node::clear_paintables()
 {
+    for (auto& paintable : m_paintable) {
+        if (paintable->parent())
+            paintable->remove();
+    }
     m_paintable.clear();
 }
 
-GC::Ptr<Painting::Paintable> Node::create_paintable() const
+RefPtr<Painting::Paintable> Node::create_paintable() const
 {
     return nullptr;
 }

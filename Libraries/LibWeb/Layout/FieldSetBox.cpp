@@ -37,7 +37,7 @@ GC::Ptr<LegendBox const> FieldSetBox::rendered_legend() const
     return legend;
 }
 
-GC::Ptr<Painting::Paintable> FieldSetBox::create_paintable() const
+RefPtr<Painting::Paintable> FieldSetBox::create_paintable() const
 {
     return Painting::FieldSetPaintable::create(*this);
 }

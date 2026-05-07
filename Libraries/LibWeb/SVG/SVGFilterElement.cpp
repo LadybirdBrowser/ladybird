@@ -281,7 +281,7 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
             //     during layout update, before the layout-is-up-to-date flag
             //     has been set. The paintable is valid since layout has already
             //     been performed at this point.
-            auto* paintable_box = dom_node->unsafe_paintable_box();
+            auto paintable_box = dom_node->unsafe_paintable_box();
             if (!paintable_box)
                 return IterationDecision::Continue;
 

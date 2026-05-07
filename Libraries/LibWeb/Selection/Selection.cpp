@@ -734,7 +734,7 @@ void Selection::scroll_focus_into_view()
 
     m_document->update_layout(DOM::UpdateLayoutReason::ScrollCursorIntoView);
 
-    auto* paintable = focus->paintable();
+    auto paintable = focus->paintable();
     if (!paintable)
         return;
 

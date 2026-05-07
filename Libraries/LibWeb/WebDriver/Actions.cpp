@@ -150,7 +150,7 @@ static CSSPixelPoint get_parent_offset(HTML::BrowsingContext const& browsing_con
         CSSPixels border_left_width = 0;
         CSSPixels border_top_width = 0;
 
-        if (auto* paintable_box = container_element->paintable_box()) {
+        if (auto paintable_box = container_element->paintable_box()) {
             // 7. Let borderLeftWidth be the computed border-left-width of containerElement in CSS pixels.
             border_left_width = paintable_box->computed_values().border_left().width;
 

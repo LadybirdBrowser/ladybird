@@ -52,7 +52,7 @@ PaintableFragment::PaintableFragment(Layout::LineBoxFragment const& fragment)
 CSSPixelRect const PaintableFragment::absolute_rect() const
 {
     CSSPixelRect rect { offset(), size() };
-    if (auto const* containing_block = paintable().containing_block())
+    if (auto containing_block = paintable().containing_block())
         rect.translate_by(containing_block->absolute_position());
     return rect;
 }
@@ -294,9 +294,10 @@ CSSPixelRect PaintableFragment::selection_rect() const
 
 Utf16View PaintableFragment::text() const
 {
-    if (!is<TextPaintable>(paintable()))
+    auto const* text_paintable = as_if<TextPaintable>(paintable());
+    if (!text_paintable)
         return {};
-    return as<TextPaintable>(paintable()).layout_node().text_for_rendering().substring_view(m_start_offset, m_length_in_code_units);
+    return text_paintable->layout_node().text_for_rendering().substring_view(m_start_offset, m_length_in_code_units);
 }
 
 }

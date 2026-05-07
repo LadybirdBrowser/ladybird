@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/DoublyLinkedList.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Vector.h>
@@ -65,16 +66,26 @@ public:
         m_pseudo_element_generator = &element;
     }
 
-    using PaintableList = IntrusiveList<&Painting::Paintable::m_list_node>;
+    using PaintableList = DoublyLinkedList<NonnullRefPtr<Painting::Paintable>>;
 
-    Painting::Paintable* first_paintable() { return m_paintable.first(); }
-    Painting::Paintable const* first_paintable() const { return m_paintable.first(); }
+    RefPtr<Painting::Paintable> first_paintable()
+    {
+        if (m_paintable.is_empty())
+            return nullptr;
+        return m_paintable.first();
+    }
+    RefPtr<Painting::Paintable const> first_paintable() const
+    {
+        if (m_paintable.is_empty())
+            return nullptr;
+        return m_paintable.first();
+    }
     PaintableList& paintables() { return m_paintable; }
     PaintableList const& paintables() const { return m_paintable; }
-    void add_paintable(GC::Ptr<Painting::Paintable>);
+    void add_paintable(RefPtr<Painting::Paintable>);
     void clear_paintables();
 
-    virtual GC::Ptr<Painting::Paintable> create_paintable() const;
+    virtual RefPtr<Painting::Paintable> create_paintable() const;
 
     DOM::Document& document();
     DOM::Document const& document() const;

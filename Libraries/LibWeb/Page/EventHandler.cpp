@@ -67,7 +67,7 @@ static GC::Ptr<DOM::Node> dom_node_for_event_dispatch(Painting::Paintable& paint
 {
     if (auto node = paintable.dom_node())
         return node;
-    auto* parent = paintable.parent();
+    auto parent = paintable.parent();
     while (parent) {
         if (auto node = parent->dom_node())
             return node;
@@ -197,9 +197,9 @@ static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Painting
     // return the x-coordinate of the position where the event occurred,
     // ignoring the transforms that apply to the element and its ancestors,
     CSSPixelPoint offset_position = position;
-    if (is<Painting::PaintableBox>(paintable)) {
-        offset_position = static_cast<Painting::PaintableBox const&>(paintable).inverse_transform_point(position);
-    } else if (auto* containing_block = paintable.containing_block()) {
+    if (auto const* paintable_box = as_if<Painting::PaintableBox>(paintable)) {
+        offset_position = paintable_box->inverse_transform_point(position);
+    } else if (auto containing_block = paintable.containing_block()) {
         offset_position = containing_block->inverse_transform_point(position);
     }
 
@@ -550,14 +550,14 @@ EventHandler::EventHandler(Badge<HTML::Navigable>, HTML::Navigable& navigable)
 
 EventHandler::~EventHandler() = default;
 
-GC::Ptr<Painting::PaintableBox> EventHandler::paint_root()
+RefPtr<Painting::PaintableBox> EventHandler::paint_root()
 {
     if (!m_navigable->active_document())
         return nullptr;
     return m_navigable->active_document()->paintable_box();
 }
 
-GC::Ptr<Painting::PaintableBox const> EventHandler::paint_root() const
+RefPtr<Painting::PaintableBox const> EventHandler::paint_root() const
 {
     if (!m_navigable->active_document())
         return nullptr;
@@ -587,12 +587,12 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
 
     auto handled_event = EventResult::Dropped;
 
-    GC::Ptr<Painting::Paintable> paintable;
+    RefPtr<Painting::Paintable> paintable;
     if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value())
         paintable = result->paintable;
 
     if (paintable) {
-        Painting::Paintable* containing_block = paintable;
+        RefPtr<Painting::Paintable> containing_block = paintable;
         while (containing_block) {
             auto handled_scroll_event = containing_block->handle_mousewheel({}, visual_viewport_position, buttons, modifiers, wheel_delta_x, wheel_delta_y);
             if (handled_scroll_event)
@@ -621,7 +621,9 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
                 return EventResult::Dropped;
 
             auto page_offset = compute_mouse_event_page_offset(viewport_position);
-            auto const& offset_paintable = layout_node->first_paintable() ? layout_node->first_paintable() : paintable.ptr();
+            RefPtr<Painting::Paintable> offset_paintable = layout_node->first_paintable();
+            if (!offset_paintable)
+                offset_paintable = paintable;
             auto scroll_offset = document->navigable()->viewport_scroll_offset();
             auto offset = compute_mouse_event_offset(visual_viewport_position.translated(scroll_offset), *offset_paintable);
             bool could_scroll_viewport = document->paintable_box()->could_be_scrolled_by_wheel_event();
@@ -643,7 +645,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     return handled_event;
 }
 
-void EventHandler::update_hovered_chrome_widget(GC::Ptr<Painting::ChromeWidget> widget)
+void EventHandler::update_hovered_chrome_widget(RefPtr<Painting::ChromeWidget> widget)
 {
     if (m_hovered_chrome_widget == widget)
         return;
@@ -657,13 +659,15 @@ void EventHandler::update_hovered_chrome_widget(GC::Ptr<Painting::ChromeWidget> 
 EventHandler::MouseEventCoordinates EventHandler::compute_mouse_event_coordinates(CSSPixelPoint visual_viewport_position, CSSPixelPoint viewport_position, Painting::Paintable const& paintable, Layout::Node const& layout_node) const
 {
     auto page_offset = compute_mouse_event_page_offset(viewport_position);
-    auto const& offset_paintable = layout_node.first_paintable() ? layout_node.first_paintable() : &paintable;
+    RefPtr<Painting::Paintable const> offset_paintable = layout_node.first_paintable();
+    if (!offset_paintable)
+        offset_paintable = paintable;
     auto scroll_offset = m_navigable->active_document()->navigable()->viewport_scroll_offset();
     auto offset = compute_mouse_event_offset(visual_viewport_position.translated(scroll_offset), *offset_paintable);
     return { page_offset, visual_viewport_position, viewport_position, offset };
 }
 
-bool EventHandler::dispatch_chrome_widget_pointer_event(GC::Ptr<Painting::ChromeWidget> target, FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position)
+bool EventHandler::dispatch_chrome_widget_pointer_event(RefPtr<Painting::ChromeWidget> target, FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position)
 {
     bool allow_default_behavior = true;
 
@@ -688,7 +692,7 @@ bool EventHandler::dispatch_chrome_widget_pointer_event(GC::Ptr<Painting::Chrome
 }
 
 // https://w3c.github.io/pointerevents/#mapping-for-devices-that-support-hover
-bool EventHandler::dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType type, GC::Ptr<DOM::Node> node, GC::Ptr<Painting::ChromeWidget> chrome_widget, MouseEventCoordinates const& coordinates, CSSPixelPoint screen_position, CSSPixelPoint movement, unsigned button, unsigned buttons, unsigned modifiers, int click_count)
+bool EventHandler::dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType type, GC::Ptr<DOM::Node> node, RefPtr<Painting::ChromeWidget> chrome_widget, MouseEventCoordinates const& coordinates, CSSPixelPoint screen_position, CSSPixelPoint movement, unsigned button, unsigned buttons, unsigned modifiers, int click_count)
 {
     auto& document = *m_navigable->active_document();
     auto& realm = document.realm();
@@ -837,7 +841,7 @@ static void set_page_cursor(Page& page, Gfx::Cursor cursor)
     }
 }
 
-void EventHandler::update_cursor(GC::Ptr<Painting::Paintable> paintable, GC::Ptr<DOM::Node> host_element, GC::Ptr<Painting::ChromeWidget> chrome_widget)
+void EventHandler::update_cursor(RefPtr<Painting::Paintable> paintable, GC::Ptr<DOM::Node> host_element, RefPtr<Painting::ChromeWidget> chrome_widget)
 {
     // AD-HOC: Update the cursor image based on the CSS rules before the steps terminate if the target hasn't changed.
     auto cursor = [&] -> Gfx::Cursor {
@@ -1036,8 +1040,8 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
     if (!paint_root())
         return EventResult::Dropped;
 
-    GC::Ptr<Painting::Paintable> paintable;
-    GC::Ptr<Painting::ChromeWidget> chrome_widget;
+    RefPtr<Painting::Paintable> paintable;
+    RefPtr<Painting::ChromeWidget> chrome_widget;
     if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value()) {
         paintable = result->paintable;
         chrome_widget = result->chrome_widget;
@@ -1140,11 +1144,11 @@ bool EventHandler::initiate_character_selection(DOM::Document& document, Paintin
 
 bool EventHandler::initiate_word_selection(DOM::Document& document, Painting::HitTestResult const& hit, CSS::UserSelect user_select)
 {
-    if (!is<Painting::TextPaintable>(*hit.paintable))
+    auto* hit_paintable = as_if<Painting::TextPaintable>(*hit.paintable);
+    if (!hit_paintable)
         return false;
 
-    auto& hit_paintable = static_cast<Painting::TextPaintable&>(*hit.paintable);
-    auto& hit_node = as<DOM::Text>(*hit_paintable.dom_node());
+    auto& hit_node = as<DOM::Text>(*hit_paintable->dom_node());
 
     size_t previous_boundary = 0;
     size_t next_boundary = 0;
@@ -1153,7 +1157,7 @@ bool EventHandler::initiate_word_selection(DOM::Document& document, Painting::Hi
         next_boundary = hit_node.length_in_utf16_code_units();
     } else {
         auto& segmenter = word_segmenter();
-        segmenter.set_segmented_text(hit_paintable.layout_node().text_for_rendering());
+        segmenter.set_segmented_text(hit_paintable->layout_node().text_for_rendering());
 
         previous_boundary = segmenter.previous_boundary(hit.index_in_node, Unicode::Segmenter::Inclusive::Yes).value_or(0);
         next_boundary = segmenter.next_boundary(hit.index_in_node).value_or(hit_node.length());
@@ -1310,8 +1314,8 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
 
     GC::Ptr<DOM::Node> node;
 
-    GC::Ptr<Painting::Paintable> paintable;
-    GC::Ptr<Painting::ChromeWidget> chrome_widget;
+    RefPtr<Painting::Paintable> paintable;
+    RefPtr<Painting::ChromeWidget> chrome_widget;
     if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value()) {
         paintable = result->paintable;
         chrome_widget = result->chrome_widget;
@@ -1427,8 +1431,8 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
         }
     }
 
-    GC::Ptr<Painting::Paintable> paintable;
-    GC::Ptr<Painting::ChromeWidget> chrome_widget;
+    RefPtr<Painting::Paintable> paintable;
+    RefPtr<Painting::ChromeWidget> chrome_widget;
     Optional<int> start_index;
 
     if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value()) {
@@ -1556,7 +1560,7 @@ EventResult EventHandler::handle_drag_and_drop_event(DragEvent::Type type, CSSPi
     if (!paint_root())
         return EventResult::Dropped;
 
-    GC::Ptr<Painting::Paintable> paintable;
+    RefPtr<Painting::Paintable> paintable;
     if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value())
         paintable = result->paintable;
     else
@@ -1678,7 +1682,7 @@ GC::Ptr<DOM::Node> EventHandler::focus_candidate_for_position(CSSPixelPoint visu
     if (!exact_hit.has_value())
         return {};
 
-    auto focus_dom_node = exact_hit->paintable ? exact_hit->paintable->dom_node() : nullptr;
+    auto focus_dom_node = exact_hit->paintable->dom_node();
 
     while (focus_dom_node && !focus_dom_node->is_focusable())
         focus_dom_node = focus_dom_node->parent_or_shadow_host();
@@ -2151,8 +2155,6 @@ bool EventHandler::should_ignore_device_input_event() const
 void EventHandler::visit_edges(JS::Cell::Visitor& visitor) const
 {
     m_drag_and_drop_event_handler->visit_edges(visitor);
-    visitor.visit(m_hovered_chrome_widget);
-    visitor.visit(m_captured_chrome_widget);
     if (m_mouse_selection_target)
         visitor.visit(m_mouse_selection_target->as_cell());
     visitor.visit(m_selection_origin);

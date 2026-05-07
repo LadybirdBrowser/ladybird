@@ -30,7 +30,7 @@ static void append_text_clip_paths(DisplayListRecordingContext& context, Paintab
             if (!layout_node.is_in_flow() && !layout_node.is_floating())
                 return TraversalDecision::SkipChildrenAndContinue;
         }
-        if (auto* paintable_lines = as_if<PaintableWithLines>(sub_paintable)) {
+        if (auto const* paintable_lines = as_if<PaintableWithLines>(sub_paintable)) {
             for (auto const& fragment : paintable_lines->fragments()) {
                 if (!is<Layout::TextNode>(fragment.layout_node()))
                     continue;

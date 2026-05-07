@@ -133,8 +133,6 @@ void Node::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_child_nodes);
 
     visitor.visit(m_layout_node);
-    visitor.visit(m_paintable);
-
     if (m_registered_observer_list) {
         visitor.visit(*m_registered_observer_list);
     }
@@ -2656,7 +2654,7 @@ Layout::Node* Node::layout_node()
     return m_layout_node;
 }
 
-void Node::set_paintable(GC::Ptr<Painting::Paintable> paintable)
+void Node::set_paintable(WeakPtr<Painting::Paintable> paintable)
 {
     m_paintable = paintable;
 }
@@ -2670,7 +2668,7 @@ void Node::set_needs_repaint(InvalidateDisplayList should_invalidate_display_lis
 {
     if (auto* layout_node = unsafe_layout_node()) {
         for (auto& paintable : layout_node->paintables())
-            paintable.set_needs_repaint(should_invalidate_display_list);
+            paintable->set_needs_repaint(should_invalidate_display_list);
     }
 }
 
@@ -2682,45 +2680,55 @@ void Node::set_needs_layout_update(SetNeedsLayoutReason reason)
     }
 }
 
-Painting::Paintable const* Node::paintable() const
+RefPtr<Painting::Paintable const> Node::paintable() const
 {
     if (m_paintable)
         VERIFY(document().layout_is_up_to_date());
-    return m_paintable;
+    return m_paintable.strong_ref();
 }
 
-Painting::Paintable* Node::paintable()
+RefPtr<Painting::Paintable> Node::paintable()
 {
     if (m_paintable)
         VERIFY(document().layout_is_up_to_date());
-    return m_paintable;
+    return m_paintable.strong_ref();
 }
 
-Painting::PaintableBox const* Node::paintable_box() const
+RefPtr<Painting::Paintable const> Node::unsafe_paintable() const
 {
-    if (auto* p = paintable(); p && p->is_paintable_box())
-        return static_cast<Painting::PaintableBox const*>(p);
+    return m_paintable.strong_ref();
+}
+
+RefPtr<Painting::Paintable> Node::unsafe_paintable()
+{
+    return m_paintable.strong_ref();
+}
+
+RefPtr<Painting::PaintableBox const> Node::paintable_box() const
+{
+    if (auto p = paintable(); p && p->is_paintable_box())
+        return static_cast<Painting::PaintableBox const&>(*p);
     return nullptr;
 }
 
-Painting::PaintableBox* Node::paintable_box()
+RefPtr<Painting::PaintableBox> Node::paintable_box()
 {
-    if (auto* p = paintable(); p && p->is_paintable_box())
-        return static_cast<Painting::PaintableBox*>(p);
+    if (auto p = paintable(); p && p->is_paintable_box())
+        return static_cast<Painting::PaintableBox&>(*p);
     return nullptr;
 }
 
-Painting::PaintableBox const* Node::unsafe_paintable_box() const
+RefPtr<Painting::PaintableBox const> Node::unsafe_paintable_box() const
 {
-    if (m_paintable && m_paintable->is_paintable_box())
-        return static_cast<Painting::PaintableBox const*>(m_paintable.ptr());
+    if (auto paintable = m_paintable.strong_ref(); paintable && paintable->is_paintable_box())
+        return static_cast<Painting::PaintableBox const&>(*paintable);
     return nullptr;
 }
 
-Painting::PaintableBox* Node::unsafe_paintable_box()
+RefPtr<Painting::PaintableBox> Node::unsafe_paintable_box()
 {
-    if (m_paintable && m_paintable->is_paintable_box())
-        return static_cast<Painting::PaintableBox*>(m_paintable.ptr());
+    if (auto paintable = m_paintable.strong_ref(); paintable && paintable->is_paintable_box())
+        return static_cast<Painting::PaintableBox&>(*paintable);
     return nullptr;
 }
 

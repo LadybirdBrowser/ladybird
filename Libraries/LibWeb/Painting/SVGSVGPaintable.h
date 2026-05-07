@@ -12,11 +12,9 @@
 namespace Web::Painting {
 
 class SVGSVGPaintable final : public PaintableBox {
-    GC_CELL(SVGSVGPaintable, PaintableBox);
-    GC_DECLARE_ALLOCATOR(SVGSVGPaintable);
-
 public:
-    static GC::Ref<SVGSVGPaintable> create(Layout::SVGSVGBox const&);
+    static NonnullRefPtr<SVGSVGPaintable> create(Layout::SVGSVGBox const&);
+    virtual StringView class_name() const override { return "SVGSVGPaintable"sv; }
 
     static void paint_svg_box(DisplayListRecordingContext& context, PaintableBox const& svg_box, PaintPhase phase);
     static void paint_descendants(DisplayListRecordingContext& context, PaintableBox const& paintable, PaintPhase phase);

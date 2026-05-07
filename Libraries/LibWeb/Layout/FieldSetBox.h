@@ -25,7 +25,7 @@ public:
     DOM::Element const& dom_node() const { return static_cast<DOM::Element const&>(*BlockContainer::dom_node()); }
 
     GC::Ptr<LegendBox const> rendered_legend() const;
-    virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
+    virtual RefPtr<Painting::Paintable> create_paintable() const override;
 
 private:
     virtual bool is_fieldset_box() const final

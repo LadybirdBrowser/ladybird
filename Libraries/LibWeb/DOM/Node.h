@@ -10,8 +10,10 @@
 #include <AK/FlyString.h>
 #include <AK/Function.h>
 #include <AK/GenericShorthands.h>
+#include <AK/RefPtr.h>
 #include <AK/TypeCasts.h>
 #include <AK/Vector.h>
+#include <AK/WeakPtr.h>
 #include <LibWeb/CSS/InvalidationSet.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/FragmentSerializationMode.h>
@@ -329,17 +331,17 @@ public:
     Layout::Node const* unsafe_layout_node() const { return m_layout_node; }
     Layout::Node* unsafe_layout_node() { return m_layout_node; }
 
-    Painting::PaintableBox const* paintable_box() const;
-    Painting::PaintableBox* paintable_box();
-    Painting::Paintable const* paintable() const;
-    Painting::Paintable* paintable();
+    RefPtr<Painting::PaintableBox const> paintable_box() const;
+    RefPtr<Painting::PaintableBox> paintable_box();
+    RefPtr<Painting::Paintable const> paintable() const;
+    RefPtr<Painting::Paintable> paintable();
 
-    Painting::PaintableBox const* unsafe_paintable_box() const;
-    Painting::PaintableBox* unsafe_paintable_box();
-    Painting::Paintable const* unsafe_paintable() const { return m_paintable; }
-    Painting::Paintable* unsafe_paintable() { return m_paintable; }
+    RefPtr<Painting::PaintableBox const> unsafe_paintable_box() const;
+    RefPtr<Painting::PaintableBox> unsafe_paintable_box();
+    RefPtr<Painting::Paintable const> unsafe_paintable() const;
+    RefPtr<Painting::Paintable> unsafe_paintable();
 
-    void set_paintable(GC::Ptr<Painting::Paintable>);
+    void set_paintable(WeakPtr<Painting::Paintable>);
     void clear_paintable();
 
     void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes);
@@ -498,7 +500,7 @@ protected:
 
     GC::Ptr<Document> m_document;
     GC::Ptr<Layout::Node> m_layout_node;
-    GC::Ptr<Painting::Paintable> m_paintable;
+    WeakPtr<Painting::Paintable> m_paintable;
     NodeType m_type { NodeType::INVALID };
     bool m_needs_layout_tree_update { false };
     bool m_child_needs_layout_tree_update { false };

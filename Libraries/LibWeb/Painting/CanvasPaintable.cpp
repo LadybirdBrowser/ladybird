@@ -9,11 +9,9 @@
 
 namespace Web::Painting {
 
-GC_DEFINE_ALLOCATOR(CanvasPaintable);
-
-GC::Ref<CanvasPaintable> CanvasPaintable::create(Layout::CanvasBox const& layout_box)
+NonnullRefPtr<CanvasPaintable> CanvasPaintable::create(Layout::CanvasBox const& layout_box)
 {
-    return layout_box.heap().allocate<CanvasPaintable>(layout_box);
+    return adopt_ref(*new CanvasPaintable(layout_box));
 }
 
 CanvasPaintable::CanvasPaintable(Layout::CanvasBox const& layout_box)

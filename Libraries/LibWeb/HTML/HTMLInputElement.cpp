@@ -2376,7 +2376,7 @@ WebIDL::UnsignedLong HTMLInputElement::height() const
         return 0;
 
     // Return the rendered height of the image, in CSS pixels, if the image is being rendered.
-    if (auto* paintable_box = this->paintable_box())
+    if (auto paintable_box = this->paintable_box())
         return paintable_box->content_height().to_int();
 
     // On setting [the width or height IDL attribute], they must act as if they reflected the respective content attributes of the same name.
@@ -2411,7 +2411,7 @@ WebIDL::UnsignedLong HTMLInputElement::width() const
         return 0;
 
     // Return the rendered width of the image, in CSS pixels, if the image is being rendered.
-    if (auto* paintable_box = this->paintable_box())
+    if (auto paintable_box = this->paintable_box())
         return paintable_box->content_width().to_int();
 
     // On setting [the width or height IDL attribute], they must act as if they reflected the respective content attributes of the same name.

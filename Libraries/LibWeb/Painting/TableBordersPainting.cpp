@@ -297,7 +297,7 @@ static void paint_collected_edges(DisplayListRecordingContext& context, Vector<B
     }
 }
 
-static HashMap<CellCoordinates, DevicePixelRect> snap_cells_to_device_coordinates(HashMap<CellCoordinates, PaintableBox const*> const& cell_coordinates_to_box, size_t row_count, size_t column_count, DisplayListRecordingContext const& context)
+static HashMap<CellCoordinates, DevicePixelRect> snap_cells_to_device_coordinates(HashMap<CellCoordinates, RefPtr<PaintableBox const>> const& cell_coordinates_to_box, size_t row_count, size_t column_count, DisplayListRecordingContext const& context)
 {
     Vector<DevicePixels> y_line_start_coordinates;
     Vector<DevicePixels> y_line_end_coordinates;
@@ -364,14 +364,14 @@ void paint_table_borders(DisplayListRecordingContext& context, PaintableBox cons
     Vector<PaintableBox const&> cell_boxes;
     collect_cell_boxes(cell_boxes, table_paintable);
     Vector<BorderEdgePaintingInfo> border_edge_painting_info_list;
-    HashMap<CellCoordinates, PaintableBox const*> cell_coordinates_to_box;
+    HashMap<CellCoordinates, RefPtr<PaintableBox const>> cell_coordinates_to_box;
     size_t row_count = 0;
     size_t column_count = 0;
     for (auto const& cell_box : cell_boxes) {
         cell_coordinates_to_box.set(CellCoordinates {
                                         .row_index = cell_box.table_cell_coordinates()->row_index,
                                         .column_index = cell_box.table_cell_coordinates()->column_index },
-            &cell_box);
+            cell_box);
         row_count = max(row_count, cell_box.table_cell_coordinates()->row_index + cell_box.table_cell_coordinates()->row_span);
         column_count = max(column_count, cell_box.table_cell_coordinates()->column_index + cell_box.table_cell_coordinates()->column_span);
     }

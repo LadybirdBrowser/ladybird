@@ -9,7 +9,6 @@
 #include <AK/Debug.h>
 #include <AK/HashMap.h>
 #include <AK/Tuple.h>
-#include <LibGC/RootHashMap.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Layout/AvailableSpace.h>
@@ -189,7 +188,7 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMa
     auto overflow_directions = physical_overflow_directions(box);
 
     // - All line boxes directly contained by the scroll container.
-    if (auto const* paintable_with_lines = as_if<Painting::PaintableWithLines>(box.first_paintable())) {
+    if (auto first_paintable = box.first_paintable(); auto const* paintable_with_lines = as_if<Painting::PaintableWithLines>(first_paintable.ptr())) {
         for (auto const& fragment : paintable_with_lines->fragments())
             scrollable_overflow_rect.unite(fragment.absolute_rect());
     }
@@ -315,11 +314,11 @@ void LayoutState::resolve_relative_positions()
         auto& node = const_cast<NodeWithStyle&>(used_values.node());
 
         for (auto& paintable : node.paintables()) {
-            if (!(is<Painting::PaintableWithLines>(paintable) && is<Layout::InlineNode>(paintable.layout_node())))
+            auto* inline_paintable = as_if<Painting::PaintableWithLines>(paintable.ptr());
+            if (!inline_paintable || !is<Layout::InlineNode>(inline_paintable->layout_node()))
                 continue;
 
-            auto const& inline_paintable = static_cast<Painting::PaintableWithLines&>(paintable);
-            for (auto& fragment : inline_paintable.fragments()) {
+            for (auto& fragment : inline_paintable->fragments()) {
                 auto const& fragment_node = fragment.layout_node();
                 if (!is<Layout::NodeWithStyleAndBoxModelMetrics>(*fragment_node.parent()))
                     continue;
@@ -332,7 +331,8 @@ void LayoutState::resolve_relative_positions()
                         break;
                     if (ancestor->computed_values().position() == CSS::Positioning::Relative) {
                         VERIFY(ancestor->first_paintable());
-                        auto const& ancestor_node = as<Painting::PaintableBox>(*ancestor->first_paintable());
+                        auto ancestor_paintable = ancestor->first_paintable();
+                        auto const& ancestor_node = as<Painting::PaintableBox>(*ancestor_paintable);
                         auto const& inset = ancestor_node.box_model().inset;
                         offset.translate_by(inset.left, inset.top);
                     }
@@ -343,14 +343,14 @@ void LayoutState::resolve_relative_positions()
     });
 }
 
-static void build_paint_tree(Node& node, Painting::Paintable* parent_paintable = nullptr)
+static void build_paint_tree(Node& node, RefPtr<Painting::Paintable> parent_paintable = nullptr)
 {
     for (auto& paintable : node.paintables()) {
-        if (parent_paintable && !paintable.forms_unconnected_subtree()) {
-            VERIFY(!paintable.parent());
+        if (parent_paintable && !paintable->forms_unconnected_subtree()) {
+            VERIFY(!paintable->parent());
             parent_paintable->append_child(paintable);
         }
-        paintable.set_dom_node(node.dom_node());
+        paintable->set_dom_node(node.dom_node());
         if (node.dom_node())
             node.dom_node()->set_paintable(paintable);
     }
@@ -361,19 +361,19 @@ static void build_paint_tree(Node& node, Painting::Paintable* parent_paintable =
 
 void LayoutState::commit(Box& root)
 {
-    Painting::Paintable* parent_paintable = nullptr;
+    RefPtr<Painting::Paintable> parent_paintable;
     if (!root.is_viewport()) {
-        if (auto* existing = as_if<Painting::PaintableBox>(root.first_paintable())) {
-            parent_paintable = existing->parent();
+        if (auto existing = root.first_paintable(); auto* existing_box = as_if<Painting::PaintableBox>(existing.ptr())) {
+            parent_paintable = existing_box->parent();
             if (parent_paintable)
-                parent_paintable->remove_child(*existing);
+                parent_paintable->remove_child(*existing_box);
         }
     }
 
     // Cache existing paintables before clearing.
-    GC::RootHashMap<Node const*, GC::Ref<Painting::PaintableBox>> paintable_cache(root.document().heap());
+    HashMap<Node const*, NonnullRefPtr<Painting::PaintableBox>> paintable_cache;
     root.for_each_in_inclusive_subtree([&](Node& node) {
-        if (auto* paintable_box = as_if<Painting::PaintableBox>(node.first_paintable())) {
+        if (auto paintable = node.first_paintable(); auto* paintable_box = as_if<Painting::PaintableBox>(paintable.ptr())) {
             // InlineNodes are excluded because they can span multiple lines, with a separate
             // InlinePaintable created for each line via create_paintable_for_line_with_index().
             // This 1:N relationship between layout node and paintables, combined with the
@@ -410,7 +410,7 @@ void LayoutState::commit(Box& root)
     });
 
     HashTable<Layout::TextNode*> text_nodes;
-    HashTable<Painting::PaintableWithLines*> inline_node_paintables;
+    HashTable<WeakPtr<Painting::PaintableWithLines>> inline_node_paintables;
 
     auto transfer_box_model_metrics = [](Painting::BoxModelMetrics& box_model, UsedValues const& used_values) {
         box_model.inset = { used_values.inset_top, used_values.inset_right, used_values.inset_bottom, used_values.inset_left };
@@ -430,7 +430,7 @@ void LayoutState::commit(Box& root)
                 if (auto const* used_values = try_get(inline_node))
                     transfer_box_model_metrics(line_paintable->box_model(), *used_values);
                 if (!inline_node_paintables.contains(line_paintable.ptr())) {
-                    inline_node_paintables.set(line_paintable.ptr());
+                    inline_node_paintables.set(line_paintable);
                     inline_node.add_paintable(line_paintable);
                 }
                 return true;
@@ -445,7 +445,7 @@ void LayoutState::commit(Box& root)
         if (m_subtree_root && !m_subtree_root->is_inclusive_ancestor_of(node))
             return;
 
-        GC::Ptr<Painting::Paintable> paintable;
+        RefPtr<Painting::Paintable> paintable;
 
         // Try to reuse cached paintable for Box nodes
         if (auto cached = paintable_cache.get(&node); cached.has_value()) {
@@ -524,7 +524,8 @@ void LayoutState::commit(Box& root)
         if (!node.is_box())
             return;
 
-        auto& paintable = as<Painting::PaintableBox>(*node.first_paintable());
+        auto paintable_ref = node.first_paintable();
+        auto& paintable = as<Painting::PaintableBox>(*paintable_ref);
         CSSPixelPoint offset;
 
         if (used_values.containing_line_box_fragment.has_value()) {
@@ -559,7 +560,10 @@ void LayoutState::commit(Box& root)
     resolve_relative_positions();
 
     // Measure size of paintables created for inline nodes.
-    for (auto* paintable_with_lines : inline_node_paintables) {
+    for (auto const& weak_paintable_with_lines : inline_node_paintables) {
+        auto paintable_with_lines = weak_paintable_with_lines.strong_ref();
+        if (!paintable_with_lines)
+            continue;
         if (!is<InlineNode>(paintable_with_lines->layout_node()))
             continue;
 
@@ -636,7 +640,7 @@ void LayoutState::commit(Box& root)
     m_used_values_store.for_each([&](UsedValues& used_values) {
         auto& node = used_values.node();
         for (auto& paintable : node.paintables()) {
-            auto* paintable_box = as_if<Painting::PaintableBox>(paintable);
+            auto* paintable_box = as_if<Painting::PaintableBox>(paintable.ptr());
             if (!paintable_box)
                 continue;
 
@@ -648,7 +652,7 @@ void LayoutState::commit(Box& root)
                 auto sticky_insets = make<Painting::StickyInsets>();
                 auto const& inset = node.computed_values().inset();
 
-                auto const* nearest_scrollable_ancestor = paintable_box->nearest_scrollable_ancestor();
+                auto nearest_scrollable_ancestor = paintable_box->nearest_scrollable_ancestor();
                 CSSPixelSize scrollport_size;
                 if (nearest_scrollable_ancestor)
                     scrollport_size = nearest_scrollable_ancestor->absolute_rect().size();

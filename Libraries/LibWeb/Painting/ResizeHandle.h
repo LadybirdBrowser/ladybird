@@ -6,17 +6,15 @@
 
 #pragma once
 
+#include <LibGC/Weak.h>
 #include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/PaintableBox.h>
 
 namespace Web::Painting {
 
 class ResizeHandle final : public ChromeWidget {
-    GC_CELL(ResizeHandle, ChromeWidget);
-    GC_DECLARE_ALLOCATOR(ResizeHandle);
-
 public:
-    static GC::Ref<ResizeHandle> create(GC::Heap&, PaintableBox&);
+    static NonnullRefPtr<ResizeHandle> create(PaintableBox&);
 
     bool contains(CSSPixelPoint position, ChromeMetrics const&) const;
 
@@ -29,10 +27,8 @@ public:
 private:
     ResizeHandle(PaintableBox&);
 
-    virtual void visit_edges(Cell::Visitor&) override;
-
-    GC::Ref<PaintableBox> m_paintable_box;
-    GC::Ref<DOM::Element> m_element;
+    WeakPtr<PaintableBox> m_paintable_box;
+    GC::Weak<DOM::Element> m_element;
     OwnPtr<ElementResizeAction> m_resize_action;
 };
 

@@ -12,11 +12,9 @@
 namespace Web::Painting {
 
 class FieldSetPaintable final : public PaintableBox {
-    GC_CELL(FieldSetPaintable, PaintableBox);
-    GC_DECLARE_ALLOCATOR(FieldSetPaintable);
-
 public:
-    static GC::Ref<FieldSetPaintable> create(Layout::FieldSetBox const&);
+    static NonnullRefPtr<FieldSetPaintable> create(Layout::FieldSetBox const&);
+    virtual StringView class_name() const override { return "FieldSetPaintable"sv; }
 
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
     virtual void paint_background(DisplayListRecordingContext&) const override;

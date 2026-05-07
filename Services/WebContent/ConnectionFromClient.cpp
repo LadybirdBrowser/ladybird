@@ -307,7 +307,7 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
 
     if (request == "dump-paint-tree") {
         if (auto* doc = page->page().top_level_browsing_context().active_document()) {
-            if (auto* paintable = doc->paintable())
+            if (auto paintable = doc->paintable())
                 Web::dump_tree(*paintable);
         }
         return;
@@ -318,7 +318,7 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
             if (auto* viewport = doc->layout_node()) {
                 auto& viewport_paintable = static_cast<Web::Painting::ViewportPaintable&>(*viewport->paintable_box());
                 viewport_paintable.build_stacking_context_tree_if_needed();
-                if (auto* stacking_context = viewport_paintable.stacking_context()) {
+                if (auto stacking_context = viewport_paintable.stacking_context()) {
                     StringBuilder builder;
                     stacking_context->dump(builder);
                     dbgln("{}", builder.string_view());
@@ -517,11 +517,12 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, WebView::DOMNodePropert
     };
 
     auto serialize_layout = [&](Web::Layout::Node const* layout_node) {
-        if (!layout_node || !layout_node->is_box() || !layout_node->first_paintable() || !layout_node->first_paintable()->is_paintable_box()) {
+        auto first_paintable = layout_node ? layout_node->first_paintable() : nullptr;
+        if (!layout_node || !layout_node->is_box() || !first_paintable || !first_paintable->is_paintable_box()) {
             return JsonObject {};
         }
 
-        auto const& paintable_box = as<Web::Painting::PaintableBox>(*layout_node->first_paintable());
+        auto const& paintable_box = as<Web::Painting::PaintableBox>(*first_paintable);
         auto const& box_model = paintable_box.box_model();
 
         JsonObject serialized;
@@ -1025,7 +1026,7 @@ static void append_stacking_context_tree(Web::Page& page, StringBuilder& builder
 
     auto& viewport_paintable = static_cast<Web::Painting::ViewportPaintable&>(*layout_root->paintable_box());
     viewport_paintable.build_stacking_context_tree_if_needed();
-    if (auto* stacking_context = viewport_paintable.stacking_context()) {
+    if (auto stacking_context = viewport_paintable.stacking_context()) {
         stacking_context->dump(builder);
     }
 }

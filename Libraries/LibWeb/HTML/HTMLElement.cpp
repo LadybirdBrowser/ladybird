@@ -676,7 +676,7 @@ int HTMLElement::offset_width() const
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLElementOffsetWidth);
 
     // 1. If the element does not have any associated box return zero and terminate this algorithm.
-    auto const* box = paintable_box();
+    auto box = paintable_box();
     if (!box)
         return 0;
 
@@ -695,7 +695,7 @@ int HTMLElement::offset_height() const
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLElementOffsetHeight);
 
     // 1. If the element does not have any associated box return zero and terminate this algorithm.
-    auto const* box = paintable_box();
+    auto box = paintable_box();
     if (!box)
         return 0;
 

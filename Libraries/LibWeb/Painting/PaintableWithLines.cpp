@@ -20,26 +20,25 @@
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Painting/ShadowPainting.h>
+#include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/TextPaintable.h>
 #include <LibWeb/Selection/Selection.h>
 
 namespace Web::Painting {
-
-GC_DEFINE_ALLOCATOR(PaintableWithLines);
 
 static void paint_text_decoration(DisplayListRecordingContext&, TextPaintable const&, PaintableFragment::FragmentSpan const&);
 static Gfx::Path build_triangle_wave_path(Gfx::IntPoint from, Gfx::IntPoint to, float amplitude);
 static void compute_render_spans(PaintableFragment const&, Vector<PaintableFragment::FragmentSpan, 4>&);
 static void paint_text_fragment(DisplayListRecordingContext&, PaintableFragment::FragmentSpan const&);
 
-GC::Ref<PaintableWithLines> PaintableWithLines::create(Layout::BlockContainer const& block_container)
+NonnullRefPtr<PaintableWithLines> PaintableWithLines::create(Layout::BlockContainer const& block_container)
 {
-    return block_container.heap().allocate<PaintableWithLines>(block_container);
+    return adopt_ref(*new PaintableWithLines(block_container));
 }
 
-GC::Ref<PaintableWithLines> PaintableWithLines::create(Layout::InlineNode const& inline_node, size_t line_index)
+NonnullRefPtr<PaintableWithLines> PaintableWithLines::create(Layout::InlineNode const& inline_node, size_t line_index)
 {
-    return inline_node.heap().allocate<PaintableWithLines>(inline_node, line_index);
+    return adopt_ref(*new PaintableWithLines(inline_node, line_index));
 }
 
 PaintableWithLines::PaintableWithLines(Layout::BlockContainer const& layout_box)
@@ -288,8 +287,8 @@ void PaintableWithLines::paint(DisplayListRecordingContext& context, PaintPhase 
 
 void compute_render_spans(PaintableFragment const& fragment, Vector<PaintableFragment::FragmentSpan, 4>& spans)
 {
-    auto const* text_paintable = as_if<TextPaintable>(fragment.paintable());
-    if (!text_paintable) {
+    auto const* maybe_text_paintable = as_if<TextPaintable>(fragment.paintable());
+    if (!maybe_text_paintable) {
         // Non-text fragments still need shadow painting.
         spans.append({
             .fragment = fragment,
@@ -302,11 +301,12 @@ void compute_render_spans(PaintableFragment const& fragment, Vector<PaintableFra
         });
         return;
     }
+    auto const& text_paintable = *maybe_text_paintable;
 
-    if (!text_paintable->is_visible())
+    if (!text_paintable.is_visible())
         return;
 
-    auto text_color = text_paintable->computed_values().webkit_text_fill_color();
+    auto text_color = text_paintable.computed_values().webkit_text_fill_color();
     auto selection_offsets = fragment.selection_offsets();
 
     // No selection: single span with base styling.
@@ -324,7 +324,7 @@ void compute_render_spans(PaintableFragment const& fragment, Vector<PaintableFra
     }
 
     auto [selection_start, selection_end, _] = *selection_offsets;
-    auto selection_style = text_paintable->selection_style();
+    auto selection_style = text_paintable.selection_style();
     auto selection_text_color = selection_style.text_color.value_or(text_color);
 
     // Convert selection text decoration to fragment text decoration data.

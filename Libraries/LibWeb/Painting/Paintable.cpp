@@ -46,22 +46,6 @@ Paintable::Paintable(Layout::Node const& layout_node)
 
 Paintable::~Paintable() = default;
 
-void Paintable::finalize()
-{
-    Base::finalize();
-    if (m_list_node.is_in_list())
-        m_list_node.remove();
-}
-
-void Paintable::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    TreeNode::visit_edges(visitor);
-    visitor.visit(m_dom_node);
-    visitor.visit(m_layout_node);
-    visitor.visit(m_containing_block);
-}
-
 String Paintable::debug_description() const
 {
     return MUST(String::formatted("{}({})", class_name(), layout_node().debug_description()));
@@ -77,19 +61,29 @@ DOM::Document& Paintable::document()
     return layout_node().document();
 }
 
-PaintableBox* Paintable::containing_block() const
+RefPtr<PaintableBox> Paintable::containing_block() const
 {
-    return m_containing_block.ensure([&] -> GC::Ptr<PaintableBox> {
-        auto containing_layout_box = m_layout_node->containing_block();
+    if (m_containing_block.has_value()) {
+        if (auto containing_block = m_containing_block->strong_ref())
+            return containing_block;
+    }
+
+    auto containing_block = [&] -> RefPtr<PaintableBox> {
+        auto containing_layout_box = layout_node().containing_block();
         if (!containing_layout_box)
             return nullptr;
-        return const_cast<PaintableBox*>(containing_layout_box->paintable_box());
-    });
+        auto paintable_box = containing_layout_box->paintable_box();
+        if (!paintable_box)
+            return nullptr;
+        return const_cast<PaintableBox&>(*paintable_box);
+    }();
+    m_containing_block = containing_block;
+    return containing_block;
 }
 
 CSS::ImmutableComputedValues const& Paintable::computed_values() const
 {
-    return m_layout_node->computed_values();
+    return layout_node().computed_values();
 }
 
 bool Paintable::visible_for_hit_testing() const
@@ -101,17 +95,17 @@ bool Paintable::visible_for_hit_testing() const
 
 void Paintable::set_dom_node(GC::Ptr<DOM::Node> dom_node)
 {
-    m_dom_node = dom_node;
+    m_dom_node = dom_node.ptr();
 }
 
 GC::Ptr<DOM::Node> Paintable::dom_node()
 {
-    return m_dom_node;
+    return m_dom_node.ptr();
 }
 
 GC::Ptr<DOM::Node const> Paintable::dom_node() const
 {
-    return m_dom_node;
+    return m_dom_node.ptr();
 }
 
 GC::Ptr<HTML::Navigable> Paintable::navigable() const
@@ -131,18 +125,19 @@ TraversalDecision Paintable::hit_test(CSSPixelPoint, HitTestType, Function<Trave
 
 bool Paintable::has_stacking_context() const
 {
-    if (is_paintable_box())
-        return static_cast<PaintableBox const&>(*this).stacking_context();
+    if (auto const* paintable_box = as_if<PaintableBox>(this))
+        return paintable_box->stacking_context();
     return false;
 }
 
-StackingContext* Paintable::enclosing_stacking_context()
+RefPtr<StackingContext> Paintable::enclosing_stacking_context()
 {
-    for (auto* ancestor = parent(); ancestor; ancestor = ancestor->parent()) {
-        if (!ancestor->is_paintable_box())
+    for (auto ancestor = parent(); ancestor; ancestor = ancestor->parent()) {
+        auto* paintable_box = as_if<PaintableBox>(ancestor.ptr());
+        if (!paintable_box)
             continue;
-        if (auto* stacking_context = static_cast<PaintableBox&>(*ancestor).stacking_context())
-            return const_cast<StackingContext*>(stacking_context);
+        if (auto stacking_context = paintable_box->stacking_context())
+            return stacking_context;
     }
     // We should always reach the viewport's stacking context.
     VERIFY_NOT_REACHED();
@@ -151,12 +146,16 @@ StackingContext* Paintable::enclosing_stacking_context()
 void Paintable::paint_inspector_overlay(DisplayListRecordingContext& context) const
 {
     auto& display_list_recorder = context.display_list_recorder();
-    auto const* paintable_box = as_if<PaintableBox>(this);
-    if (!paintable_box)
+    RefPtr<PaintableBox const> paintable_box;
+    if (is<PaintableBox>(*this))
+        paintable_box = static_cast<PaintableBox const&>(*this);
+    else
         paintable_box = first_ancestor_of_type<PaintableBox>();
 
     if (paintable_box) {
-        auto& visual_context_tree = const_cast<ViewportPaintable*>(document().paintable())->visual_context_tree();
+        auto viewport_paintable = document().paintable();
+        VERIFY(viewport_paintable);
+        auto& visual_context_tree = const_cast<ViewportPaintable&>(*viewport_paintable).visual_context_tree();
         auto visual_context_index = paintable_box->accumulated_visual_context_index();
 
         if (visual_context_index.value()) {
@@ -189,7 +188,7 @@ void Paintable::paint_inspector_overlay(DisplayListRecordingContext& context) co
 void Paintable::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list)
 {
     if (should_invalidate_display_list == InvalidateDisplayList::Yes) {
-        if (auto* containing_block = this->containing_block())
+        if (auto containing_block = this->containing_block())
             containing_block->invalidate_paint_cache();
     }
     document().set_needs_repaint(Badge<Painting::Paintable> {}, should_invalidate_display_list);
@@ -197,13 +196,13 @@ void Paintable::set_needs_repaint(InvalidateDisplayList should_invalidate_displa
 
 CSSPixelPoint Paintable::box_type_agnostic_position() const
 {
-    if (is_paintable_box())
-        return static_cast<PaintableBox const*>(this)->absolute_position();
+    if (auto const* paintable_box = as_if<PaintableBox>(this))
+        return paintable_box->absolute_position();
 
     VERIFY(is_inline());
 
     CSSPixelPoint position;
-    if (auto const* block = containing_block(); block && is<Painting::PaintableWithLines>(*block)) {
+    if (auto block = containing_block(); block && is<Painting::PaintableWithLines>(*block)) {
         auto const& fragments = static_cast<Painting::PaintableWithLines const&>(*block).fragments();
         if (!fragments.is_empty()) {
             position = fragments[0].absolute_rect().location();
@@ -352,11 +351,11 @@ void Paintable::set_selection_state(SelectionState state)
     m_selection_state = state;
     if (auto* box = as_if<PaintableBox>(this)) {
         box->invalidate_paint_cache();
-    } else if (auto* containing_block = this->containing_block()) {
+    } else if (auto containing_block = this->containing_block()) {
         containing_block->invalidate_paint_cache();
         for (auto const* ancestor = layout_node().parent(); ancestor && ancestor != &containing_block->layout_node(); ancestor = ancestor->parent()) {
             for (auto& paintable : ancestor->paintables()) {
-                if (auto* ancestor_box = as_if<PaintableBox>(paintable))
+                if (auto* ancestor_box = as_if<PaintableBox>(paintable.ptr()))
                     ancestor_box->invalidate_paint_cache();
             }
         }
@@ -366,11 +365,12 @@ void Paintable::set_selection_state(SelectionState state)
 void Paintable::scroll_ancestor_to_offset_into_view(size_t offset)
 {
     // Walk up to find the containing PaintableWithLines.
-    GC::Ptr<PaintableWithLines const> paintable_with_lines;
-    for (auto* ancestor = this; ancestor; ancestor = ancestor->parent()) {
-        paintable_with_lines = as_if<PaintableWithLines>(*ancestor);
-        if (paintable_with_lines)
+    RefPtr<PaintableWithLines const> paintable_with_lines;
+    for (RefPtr<Paintable> ancestor = *this; ancestor; ancestor = ancestor->parent()) {
+        if (auto* ancestor_lines = as_if<PaintableWithLines>(*ancestor)) {
+            paintable_with_lines = *ancestor_lines;
             break;
+        }
     }
     if (!paintable_with_lines)
         return;
@@ -385,7 +385,7 @@ void Paintable::scroll_ancestor_to_offset_into_view(size_t offset)
         auto cursor_rect = fragment.range_rect(SelectionState::StartAndEnd, offset, offset);
 
         // Walk up the containing block chain to find the nearest scrollable ancestor.
-        for (auto* ancestor = containing_block(); ancestor; ancestor = ancestor->containing_block()) {
+        for (auto ancestor = containing_block(); ancestor; ancestor = ancestor->containing_block()) {
             if (ancestor->has_scrollable_overflow()) {
                 ancestor->scroll_into_view(cursor_rect);
                 break;

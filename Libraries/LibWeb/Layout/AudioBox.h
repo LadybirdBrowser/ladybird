@@ -22,7 +22,7 @@ public:
 
     virtual bool can_have_children() const override;
 
-    virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
+    virtual RefPtr<Painting::Paintable> create_paintable() const override;
 
 private:
     // Treat the audio element as if it was not a replaced element, sizing based on its content.

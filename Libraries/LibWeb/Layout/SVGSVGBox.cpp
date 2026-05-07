@@ -20,7 +20,7 @@ SVGSVGBox::SVGSVGBox(DOM::Document& document, SVG::SVGSVGElement& element, GC::R
 {
 }
 
-GC::Ptr<Painting::Paintable> SVGSVGBox::create_paintable() const
+RefPtr<Painting::Paintable> SVGSVGBox::create_paintable() const
 {
     return Painting::SVGSVGPaintable::create(*this);
 }

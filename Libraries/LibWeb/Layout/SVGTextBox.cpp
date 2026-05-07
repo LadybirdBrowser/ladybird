@@ -17,7 +17,7 @@ SVGTextBox::SVGTextBox(DOM::Document& document, SVG::SVGTextPositioningElement& 
 {
 }
 
-GC::Ptr<Painting::Paintable> SVGTextBox::create_paintable() const
+RefPtr<Painting::Paintable> SVGTextBox::create_paintable() const
 {
     return Painting::SVGPathPaintable::create(*this);
 }

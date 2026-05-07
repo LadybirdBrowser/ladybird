@@ -489,7 +489,7 @@ String Internals::dump_paintable_tree(GC::Ref<DOM::Node> node)
 {
     node->document().update_layout(DOM::UpdateLayoutReason::Debugging);
 
-    auto* paintable = node->paintable();
+    auto paintable = node->paintable();
     if (!paintable)
         return "(no paintable)"_string;
 

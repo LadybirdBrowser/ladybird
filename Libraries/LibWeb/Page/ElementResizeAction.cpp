@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/WeakInlines.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/DOM/Element.h>
@@ -20,7 +21,7 @@ static Optional<CSSPixelSize> containing_block_padding_box_size(Layout::Node con
     auto parent_box = layout_node.containing_block();
     if (!parent_box)
         return {};
-    if (auto const* paintable_box = as_if<Painting::PaintableBox>(parent_box->first_paintable()))
+    if (auto first_paintable = parent_box->first_paintable(); auto const* paintable_box = as_if<Painting::PaintableBox>(first_paintable.ptr()))
         return paintable_box->absolute_padding_box_rect().size();
     return {};
 }
@@ -29,14 +30,18 @@ ElementResizeAction::ElementResizeAction(GC::Ref<DOM::Element> element, CSSPixel
     : m_element(element)
     , m_pointer_down_origin(pointer_down_origin)
 {
-    auto const* paintable_box = m_element->paintable_box();
+    auto paintable_box = element->paintable_box();
     if (paintable_box)
         m_initial_border_box_size = paintable_box->absolute_border_box_rect().size();
 }
 
 void ElementResizeAction::handle_pointer_move(CSSPixelPoint pointer_position)
 {
-    auto const* paintable_box = m_element->paintable_box();
+    auto element = m_element.ptr();
+    if (!element || !element->is_connected())
+        return;
+
+    auto paintable_box = element->paintable_box();
     if (!paintable_box)
         return;
     auto const& layout_node = paintable_box->layout_node();
@@ -89,17 +94,12 @@ void ElementResizeAction::handle_pointer_move(CSSPixelPoint pointer_position)
         css_height -= metrics.padding.top + metrics.padding.bottom + computed.border_top().width + computed.border_bottom().width;
     }
 
-    auto style = m_element->style_for_bindings();
+    auto style = element->style_for_bindings();
     auto width_str = MUST(String::formatted("{:.2f}px", max(0.0, css_width.to_double())));
     auto height_str = MUST(String::formatted("{:.2f}px", max(0.0, css_height.to_double())));
 
     MUST(style->set_property(CSS::PropertyID::Width, width_str));
     MUST(style->set_property(CSS::PropertyID::Height, height_str));
-}
-
-void ElementResizeAction::visit_edges(GC::Cell::Visitor& visitor) const
-{
-    visitor.visit(m_element);
 }
 
 }

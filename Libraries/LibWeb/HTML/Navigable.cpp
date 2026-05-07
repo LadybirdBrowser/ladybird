@@ -2813,7 +2813,7 @@ CSSPixelPoint Navigable::to_top_level_position(CSSPixelPoint a_position)
             break;
         if (!ancestor->container())
             return {};
-        auto const* paintable = ancestor->container()->paintable();
+        auto paintable = ancestor->container()->paintable();
         if (!paintable)
             return {};
 

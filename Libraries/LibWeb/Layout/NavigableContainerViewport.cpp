@@ -48,7 +48,7 @@ void NavigableContainerViewport::did_set_content_size()
         dom_node().content_navigable()->set_viewport_size(paintable_box()->content_size());
 }
 
-GC::Ptr<Painting::Paintable> NavigableContainerViewport::create_paintable() const
+RefPtr<Painting::Paintable> NavigableContainerViewport::create_paintable() const
 {
     return Painting::NavigableContainerViewportPaintable::create(*this);
 }

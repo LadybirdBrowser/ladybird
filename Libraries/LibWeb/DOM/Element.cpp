@@ -1543,7 +1543,7 @@ static Vector<CSSPixelRect> compute_client_rects_assuming_layout_clean(Element c
     //          are left in the final list.
 
     Vector<CSSPixelRect> rects;
-    if (auto const* paintable_box = element.paintable_box()) {
+    if (auto paintable_box = element.paintable_box()) {
         auto absolute_rect = paintable_box->absolute_border_box_rect();
         rects.append(paintable_box->transform_rect_to_viewport(absolute_rect));
     } else if (element.paintable()) {

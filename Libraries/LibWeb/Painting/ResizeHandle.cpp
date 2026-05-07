@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/WeakInlines.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Page/ElementResizeAction.h>
 #include <LibWeb/Painting/PaintableBox.h>
@@ -14,11 +15,9 @@
 
 namespace Web::Painting {
 
-GC_DEFINE_ALLOCATOR(ResizeHandle);
-
-GC::Ref<ResizeHandle> ResizeHandle::create(GC::Heap& heap, PaintableBox& paintable_box)
+NonnullRefPtr<ResizeHandle> ResizeHandle::create(PaintableBox& paintable_box)
 {
-    return heap.allocate<ResizeHandle>(paintable_box);
+    return adopt_ref(*new ResizeHandle(paintable_box));
 }
 
 ResizeHandle::ResizeHandle(PaintableBox& paintable_box)
@@ -27,26 +26,23 @@ ResizeHandle::ResizeHandle(PaintableBox& paintable_box)
 {
 }
 
-void ResizeHandle::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_paintable_box);
-    visitor.visit(m_element);
-    if (m_resize_action)
-        m_resize_action->visit_edges(visitor);
-}
-
 bool ResizeHandle::contains(CSSPixelPoint position, ChromeMetrics const& metrics) const
 {
-    return m_paintable_box->resizer_contains(position, metrics);
+    auto paintable_box = m_paintable_box.strong_ref();
+    if (!paintable_box)
+        return false;
+    return paintable_box->resizer_contains(position, metrics);
 }
 
 Optional<CSS::CursorPredefined> ResizeHandle::cursor() const
 {
-    auto axes = m_paintable_box->physical_resize_axes();
+    auto paintable_box = m_paintable_box.strong_ref();
+    if (!paintable_box)
+        return {};
+    auto axes = paintable_box->physical_resize_axes();
     if (axes.vertical) {
         if (axes.horizontal) {
-            if (m_paintable_box->is_chrome_mirrored())
+            if (paintable_box->is_chrome_mirrored())
                 return CSS::CursorPredefined::SwResize;
             return CSS::CursorPredefined::SeResize;
         }
@@ -64,8 +60,14 @@ MouseAction ResizeHandle::handle_pointer_event(FlyString const& type, unsigned b
         return MouseAction::None;
     }
 
+    auto element = m_element.ptr();
+    if (!element || !element->is_connected()) {
+        m_resize_action.clear();
+        return MouseAction::None;
+    }
+
     if (!m_resize_action)
-        m_resize_action = make<ElementResizeAction>(m_element, visual_viewport_position);
+        m_resize_action = make<ElementResizeAction>(*element, visual_viewport_position);
     else
         m_resize_action->handle_pointer_move(visual_viewport_position);
 

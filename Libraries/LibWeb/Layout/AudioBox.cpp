@@ -33,7 +33,7 @@ bool AudioBox::can_have_children() const
     return dom_node().shadow_root() != nullptr;
 }
 
-GC::Ptr<Painting::Paintable> AudioBox::create_paintable() const
+RefPtr<Painting::Paintable> AudioBox::create_paintable() const
 {
     return Painting::PaintableBox::create(*this);
 }

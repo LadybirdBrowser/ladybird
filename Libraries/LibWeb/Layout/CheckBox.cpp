@@ -20,7 +20,7 @@ CheckBox::CheckBox(DOM::Document& document, HTML::HTMLInputElement& element, GC:
 
 CheckBox::~CheckBox() = default;
 
-GC::Ptr<Painting::Paintable> CheckBox::create_paintable() const
+RefPtr<Painting::Paintable> CheckBox::create_paintable() const
 {
     return Painting::CheckBoxPaintable::create(*this);
 }

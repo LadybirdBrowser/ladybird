@@ -23,12 +23,13 @@ BlockContainer::BlockContainer(DOM::Document& document, DOM::Node* node, Nonnull
 
 BlockContainer::~BlockContainer() = default;
 
-Painting::PaintableWithLines const* BlockContainer::paintable_with_lines() const
+RefPtr<Painting::PaintableWithLines const> BlockContainer::paintable_with_lines() const
 {
-    return as_if<Painting::PaintableWithLines>(Box::paintable_box());
+    auto paintable_box = Box::paintable_box();
+    return as_if<Painting::PaintableWithLines>(paintable_box.ptr());
 }
 
-GC::Ptr<Painting::Paintable> BlockContainer::create_paintable() const
+RefPtr<Painting::Paintable> BlockContainer::create_paintable() const
 {
     return Painting::PaintableWithLines::create(*this);
 }

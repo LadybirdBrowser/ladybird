@@ -24,11 +24,9 @@
 
 namespace Web::Painting {
 
-GC_DEFINE_ALLOCATOR(ViewportPaintable);
-
-GC::Ref<ViewportPaintable> ViewportPaintable::create(Layout::Viewport const& layout_viewport)
+NonnullRefPtr<ViewportPaintable> ViewportPaintable::create(Layout::Viewport const& layout_viewport)
 {
-    return layout_viewport.heap().allocate<ViewportPaintable>(layout_viewport);
+    return adopt_ref(*new ViewportPaintable(layout_viewport));
 }
 
 ViewportPaintable::ViewportPaintable(Layout::Viewport const& layout_viewport)
@@ -58,12 +56,12 @@ void ViewportPaintable::build_stacking_context_tree_if_needed()
 
 void ViewportPaintable::build_stacking_context_tree()
 {
-    set_stacking_context(heap().allocate<StackingContext>(*this, nullptr, 0));
+    set_stacking_context(StackingContext::create(*this, nullptr, 0));
 
     size_t index_in_tree_order = 1;
     for_each_in_subtree_of_type<PaintableBox>([&](auto& paintable_box) {
         paintable_box.invalidate_stacking_context();
-        auto* parent_context = paintable_box.enclosing_stacking_context();
+        auto parent_context = paintable_box.enclosing_stacking_context();
         auto establishes_stacking_context = paintable_box.layout_node().establishes_stacking_context();
         if ((paintable_box.is_positioned() || establishes_stacking_context) && paintable_box.effective_z_index().value_or(0) == 0)
             parent_context->m_positioned_descendants_and_stacking_contexts_with_stack_level_0.append(paintable_box);
@@ -74,7 +72,7 @@ void ViewportPaintable::build_stacking_context_tree()
             return TraversalDecision::Continue;
         }
         VERIFY(parent_context);
-        paintable_box.set_stacking_context(heap().allocate<StackingContext>(paintable_box, parent_context, index_in_tree_order++));
+        paintable_box.set_stacking_context(StackingContext::create(paintable_box, parent_context, index_in_tree_order++));
         return TraversalDecision::Continue;
     });
 
@@ -97,12 +95,13 @@ void ViewportPaintable::assign_scroll_frames()
             return;
 
         auto const& scroll_ancestor_paintable = m_scroll_state.frame_at(nearest_scrolling_ancestor_index).paintable_box();
+        RefPtr<PaintableBox const> scroll_ancestor_paintable_ref = scroll_ancestor_paintable;
         auto sticky_border_box_rect = paintable_box.absolute_border_box_rect();
-        auto const* containing_block_of_sticky = paintable_box.containing_block();
+        RefPtr<PaintableBox const> containing_block_of_sticky = paintable_box.containing_block();
 
         CSSPixelRect containing_block_region;
         bool needs_parent_offset_adjustment = false;
-        if (containing_block_of_sticky == &scroll_ancestor_paintable) {
+        if (containing_block_of_sticky == scroll_ancestor_paintable_ref) {
             containing_block_region = { {}, containing_block_of_sticky->scrollable_overflow_rect()->size() };
         } else {
             containing_block_region = containing_block_of_sticky->absolute_border_box_rect()
@@ -342,7 +341,8 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
     set_accumulated_visual_context_for_descendants(viewport_state_for_descendants);
 
     for_each_in_subtree_of_type<PaintableBox>([&](auto& paintable_box) {
-        auto* visual_parent = as_if<PaintableBox>(paintable_box.parent());
+        auto visual_parent_paintable = paintable_box.parent();
+        auto* visual_parent = as_if<PaintableBox>(visual_parent_paintable.ptr());
         if (!visual_parent)
             return TraversalDecision::Continue;
 
@@ -359,7 +359,7 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
             inherited_state = m_visual_viewport_context_index;
         } else if (paintable_box.is_absolutely_positioned()) {
             // For position: absolute, use containing block's state to correctly escape scroll containers.
-            auto* containing = paintable_box.containing_block();
+            auto containing = paintable_box.containing_block();
             inherited_state = containing->accumulated_visual_context_for_descendants_index();
 
             // Abspos elements escape scroll containers and overflow clips of non-positioned
@@ -369,8 +369,9 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
             // NOTE: transforms/perspectives/filters establish containing blocks for abspos,
             //       so they cannot appear as intermediates.
             Vector<VisualContextData, 4> intermediate_effects;
-            for (Paintable* paintable = visual_parent; paintable && paintable != containing; paintable = paintable->parent()) {
-                auto* ancestor_box = as_if<PaintableBox>(paintable);
+            RefPtr<Paintable> containing_paintable = containing;
+            for (RefPtr<Paintable> paintable = visual_parent; paintable && paintable != containing_paintable; paintable = paintable->parent()) {
+                auto* ancestor_box = as_if<PaintableBox>(paintable.ptr());
                 if (!ancestor_box)
                     continue;
                 if (auto effects = make_effects_data(*ancestor_box); effects.has_value())
@@ -542,14 +543,14 @@ void ViewportPaintable::recompute_selection_states(DOM::Range& range)
 
         // 2. If it's a text node, mark it as StartAndEnd and return.
         if (is<DOM::Text>(*start_container) && !range.start().node->is_inert()) {
-            if (auto* paintable = start_container->unsafe_paintable())
+            if (auto paintable = start_container->unsafe_paintable())
                 paintable->set_selection_state(SelectionState::StartAndEnd);
             return;
         }
     }
 
     // 3. Mark the selection start node as Start (if text) or Full (if anything else).
-    if (auto* paintable = start_container->unsafe_paintable(); paintable && !range.start().node->is_inert()) {
+    if (auto paintable = start_container->unsafe_paintable(); paintable && !range.start().node->is_inert()) {
         if (is<DOM::Text>(*start_container))
             paintable->set_selection_state(SelectionState::Start);
         else
@@ -572,12 +573,12 @@ void ViewportPaintable::recompute_selection_states(DOM::Range& range)
     for (auto* node = start_at; node && (node != stop_at && !(node == end_container && !end_container->has_children())); node = node->next_in_pre_order(end_container)) {
         if (node->is_inert())
             continue;
-        if (auto* paintable = node->unsafe_paintable())
+        if (auto paintable = node->unsafe_paintable())
             paintable->set_selection_state(SelectionState::Full);
     }
 
     // 5. Mark the selection end node as End if it is a text node.
-    if (auto* paintable = end_container->unsafe_paintable(); paintable && !range.end().node->is_inert() && is<DOM::Text>(*end_container)) {
+    if (auto paintable = end_container->unsafe_paintable(); paintable && !range.end().node->is_inert() && is<DOM::Text>(*end_container)) {
         paintable->set_selection_state(SelectionState::End);
     }
 }
@@ -585,12 +586,6 @@ void ViewportPaintable::recompute_selection_states(DOM::Range& range)
 bool ViewportPaintable::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, int, int)
 {
     return false;
-}
-
-void ViewportPaintable::visit_edges(Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_paintable_boxes_with_auto_content_visibility);
 }
 
 }

@@ -69,7 +69,7 @@ bool ImageBox::renders_as_alt_text() const
     return !m_image_provider.is_image_available();
 }
 
-GC::Ptr<Painting::Paintable> ImageBox::create_paintable() const
+RefPtr<Painting::Paintable> ImageBox::create_paintable() const
 {
     return Painting::ImagePaintable::create(*this);
 }

@@ -75,7 +75,7 @@ Optional<String> ListItemMarkerBox::text() const
         });
 }
 
-GC::Ptr<Painting::Paintable> ListItemMarkerBox::create_paintable() const
+RefPtr<Painting::Paintable> ListItemMarkerBox::create_paintable() const
 {
     return Painting::MarkerPaintable::create(*this);
 }

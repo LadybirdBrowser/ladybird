@@ -20,11 +20,9 @@
 
 namespace Web::Painting {
 
-GC_DEFINE_ALLOCATOR(VideoPaintable);
-
-GC::Ref<VideoPaintable> VideoPaintable::create(Layout::VideoBox const& layout_box)
+NonnullRefPtr<VideoPaintable> VideoPaintable::create(Layout::VideoBox const& layout_box)
 {
-    return layout_box.heap().allocate<VideoPaintable>(layout_box);
+    return adopt_ref(*new VideoPaintable(layout_box));
 }
 
 VideoPaintable::VideoPaintable(Layout::VideoBox const& layout_box)
@@ -37,7 +35,7 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
     if (!is_visible())
         return;
 
-    Base::paint(context, phase);
+    PaintableBox::paint(context, phase);
 
     if (phase != PaintPhase::Foreground)
         return;

@@ -12,11 +12,9 @@
 namespace Web::Painting {
 
 class RadioButtonPaintable final : public PaintableBox {
-    GC_CELL(RadioButtonPaintable, PaintableBox);
-    GC_DECLARE_ALLOCATOR(RadioButtonPaintable);
-
 public:
-    static GC::Ref<RadioButtonPaintable> create(Layout::RadioButton const&);
+    static NonnullRefPtr<RadioButtonPaintable> create(Layout::RadioButton const&);
+    virtual StringView class_name() const override { return "RadioButtonPaintable"sv; }
 
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 

@@ -92,8 +92,8 @@ private:
     CSSPixelPoint compute_mouse_event_movement(CSSPixelPoint screen_position) const;
 
     struct Target {
-        GC::Ptr<Painting::Paintable> paintable;
-        GC::Ptr<Painting::ChromeWidget> chrome_widget;
+        RefPtr<Painting::Paintable> paintable;
+        RefPtr<Painting::ChromeWidget> chrome_widget;
         Optional<int> index_in_node;
     };
     Optional<Target> target_for_mouse_position(CSSPixelPoint position);
@@ -112,11 +112,11 @@ private:
         PointerMove,
         PointerCancel
     };
-    bool dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType, GC::Ptr<DOM::Node>, GC::Ptr<Painting::ChromeWidget>, MouseEventCoordinates const&, CSSPixelPoint screen_position, CSSPixelPoint movement, unsigned button, unsigned buttons, unsigned modifiers, int click_count = 0);
+    bool dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType, GC::Ptr<DOM::Node>, RefPtr<Painting::ChromeWidget>, MouseEventCoordinates const&, CSSPixelPoint screen_position, CSSPixelPoint movement, unsigned button, unsigned buttons, unsigned modifiers, int click_count = 0);
     void track_the_effective_position_of_the_legacy_mouse_pointer(GC::Ptr<DOM::Node>);
-    void update_cursor(GC::Ptr<Painting::Paintable> paintable, GC::Ptr<DOM::Node> host_element, GC::Ptr<Painting::ChromeWidget> chrome_widget);
-    bool dispatch_chrome_widget_pointer_event(GC::Ptr<Painting::ChromeWidget>, FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position);
-    void update_hovered_chrome_widget(GC::Ptr<Painting::ChromeWidget>);
+    void update_cursor(RefPtr<Painting::Paintable> paintable, GC::Ptr<DOM::Node> host_element, RefPtr<Painting::ChromeWidget> chrome_widget);
+    bool dispatch_chrome_widget_pointer_event(RefPtr<Painting::ChromeWidget>, FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position);
+    void update_hovered_chrome_widget(RefPtr<Painting::ChromeWidget>);
     bool fire_click_events(GC::Ref<DOM::Node>, MouseEventCoordinates const&, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count);
     void run_activation_behavior(GC::Ref<DOM::Node>, unsigned button, unsigned modifiers);
     void maybe_show_context_menu(GC::Ref<DOM::Node>, MouseEventCoordinates const&, CSSPixelPoint screen_position, CSSPixelPoint viewport_position, unsigned buttons, unsigned modifiers);
@@ -126,8 +126,8 @@ private:
     void update_mouse_selection(CSSPixelPoint visual_viewport_position);
     void apply_mouse_selection(CSSPixelPoint visual_viewport_position);
 
-    GC::Ptr<Painting::PaintableBox> paint_root();
-    GC::Ptr<Painting::PaintableBox const> paint_root() const;
+    RefPtr<Painting::PaintableBox> paint_root();
+    RefPtr<Painting::PaintableBox const> paint_root() const;
 
     bool should_ignore_device_input_event() const;
 
@@ -141,8 +141,8 @@ private:
     InputEventsTarget* m_mouse_selection_target { nullptr };
     GC::Ptr<DOM::Range> m_selection_origin;
 
-    GC::Ptr<Painting::ChromeWidget> m_hovered_chrome_widget;
-    GC::Ptr<Painting::ChromeWidget> m_captured_chrome_widget;
+    RefPtr<Painting::ChromeWidget> m_hovered_chrome_widget;
+    RefPtr<Painting::ChromeWidget> m_captured_chrome_widget;
 
     NonnullOwnPtr<DragAndDropEventHandler> m_drag_and_drop_event_handler;
 

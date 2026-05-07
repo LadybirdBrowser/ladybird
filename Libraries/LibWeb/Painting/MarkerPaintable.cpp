@@ -12,11 +12,9 @@
 
 namespace Web::Painting {
 
-GC_DEFINE_ALLOCATOR(MarkerPaintable);
-
-GC::Ref<MarkerPaintable> MarkerPaintable::create(Layout::ListItemMarkerBox const& layout_box)
+NonnullRefPtr<MarkerPaintable> MarkerPaintable::create(Layout::ListItemMarkerBox const& layout_box)
 {
-    return layout_box.heap().allocate<MarkerPaintable>(layout_box);
+    return adopt_ref(*new MarkerPaintable(layout_box));
 }
 
 MarkerPaintable::MarkerPaintable(Layout::ListItemMarkerBox const& layout_box)

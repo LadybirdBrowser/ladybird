@@ -12,11 +12,8 @@
 namespace Web::Painting {
 
 class Scrollbar final : public ChromeWidget {
-    GC_CELL(Scrollbar, ChromeWidget);
-    GC_DECLARE_ALLOCATOR(Scrollbar);
-
 public:
-    static GC::Ref<Scrollbar> create(GC::Heap&, PaintableBox&, PaintableBox::ScrollDirection);
+    static NonnullRefPtr<Scrollbar> create(PaintableBox&, PaintableBox::ScrollDirection);
 
     PaintableBox::ScrollDirection direction() const { return m_direction; }
     bool is_enlarged() const { return m_hovered || m_thumb_grab_position.has_value(); }
@@ -30,14 +27,12 @@ public:
 private:
     Scrollbar(PaintableBox&, PaintableBox::ScrollDirection);
 
-    virtual void visit_edges(Cell::Visitor&) override;
-
     MouseAction mouse_down(CSSPixelPoint, unsigned button);
     MouseAction mouse_move(CSSPixelPoint);
     MouseAction mouse_up(CSSPixelPoint, unsigned button);
     void scroll_to_mouse_position(CSSPixelPoint);
 
-    GC::Ref<PaintableBox> m_paintable_box;
+    WeakPtr<PaintableBox> m_paintable_box;
     PaintableBox::ScrollDirection m_direction;
     bool m_hovered { false };
     Optional<CSSPixels> m_thumb_grab_position;

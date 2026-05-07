@@ -17,7 +17,7 @@ SVGClipBox::SVGClipBox(DOM::Document& document, SVG::SVGClipPathElement& element
 {
 }
 
-GC::Ptr<Painting::Paintable> SVGClipBox::create_paintable() const
+RefPtr<Painting::Paintable> SVGClipBox::create_paintable() const
 {
     return Painting::SVGClipPaintable::create(*this);
 }
