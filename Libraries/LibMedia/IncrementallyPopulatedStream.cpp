@@ -73,7 +73,7 @@ void IncrementallyPopulatedStream::add_chunk_at(u64 offset, ReadonlyBytes data)
     auto& chunk = *previous_chunk_iter;
     auto& buffer = chunk.data();
 
-    if (chunk.size() >= new_chunk_end) {
+    if (chunk.end() >= new_chunk_end) {
         // The chunk is fully covered by the existing chunk, skip until after it.
         begin_new_request_while_locked(chunk.end());
         return;
@@ -139,6 +139,9 @@ void IncrementallyPopulatedStream::begin_new_request_while_locked(u64 position)
     m_last_chunk_end = position;
 
     if (m_expected_size.has_value() && position >= m_expected_size.value())
+        return;
+
+    if (!m_callback_event_loop)
         return;
 
     auto event_loop = m_callback_event_loop->take();
