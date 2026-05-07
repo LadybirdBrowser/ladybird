@@ -1,1 +1,1 @@
-:hover-only sheet add: fullStyleInvalidations=1, styleInvalidations=3, elementStyleRecomputations=33, elementStyleNoopRecomputations=32
+:hover-only sheet add: fullStyleInvalidations=0, styleInvalidations=3, elementStyleRecomputations=2, elementStyleNoopRecomputations=1
