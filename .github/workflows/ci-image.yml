@@ -97,7 +97,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build and publish image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: Meta/Docker/ci
           file: Meta/Docker/ci/Dockerfile
