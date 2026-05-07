@@ -570,7 +570,7 @@ void LayoutState::commit(Box& root)
             if (paintable.line_index() != line_index)
                 return TraversalDecision::Continue;
             if (is<BlockContainer>(paintable.layout_node()))
-                return TraversalDecision::Continue;
+                return TraversalDecision::SkipChildrenAndContinue;
 
             auto const* used_values = try_get(paintable.layout_node_with_style_and_box_metrics());
             if (&paintable != paintable_with_lines && used_values)
