@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <AK/JsonValue.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
@@ -57,9 +58,11 @@ public:
 
     Optional<HistoryEntry> entry_for_url(URL::URL const&);
     Vector<HistoryEntry> autocomplete_entries(StringView query, size_t limit = 8);
+    Vector<HistoryEntry> list_all_entries() const;
 
     void clear();
     void remove_entries_accessed_since(UnixDateTime since);
+    void remove_entry_by_url(String const& url);
 
 private:
     struct Statements {
@@ -70,6 +73,8 @@ private:
         Database::StatementID search_entries { 0 };
         Database::StatementID clear_entries { 0 };
         Database::StatementID delete_entries_accessed_since { 0 };
+        Database::StatementID delete_entry_by_url { 0 };
+        Database::StatementID list_all_entries { 0 };
     };
 
     class StorageImpl {
@@ -84,9 +89,11 @@ private:
 
         virtual Optional<HistoryEntry> entry_for_url(String const& url) = 0;
         virtual Vector<HistoryEntry> autocomplete_entries(StringView title_query, StringView url_query, size_t limit) = 0;
+        virtual Vector<HistoryEntry> list_all_entries() const = 0;
 
         virtual void clear() = 0;
         virtual void remove_entries_accessed_since(UnixDateTime since) = 0;
+        virtual void remove_entry_by_url(String const& url) = 0;
     };
 
     class TransientStorage : public StorageImpl {
@@ -101,9 +108,11 @@ private:
 
         virtual Optional<HistoryEntry> entry_for_url(String const& url) override;
         virtual Vector<HistoryEntry> autocomplete_entries(StringView title_query, StringView url_query, size_t limit) override;
+        virtual Vector<HistoryEntry> list_all_entries() const override;
 
         virtual void clear() override;
         virtual void remove_entries_accessed_since(UnixDateTime since) override;
+        virtual void remove_entry_by_url(String const& url) override;
 
     private:
         HashMap<String, HistoryEntry> m_entries;
@@ -122,9 +131,11 @@ private:
 
         virtual Optional<HistoryEntry> entry_for_url(String const& url) override;
         virtual Vector<HistoryEntry> autocomplete_entries(StringView title_query, StringView url_query, size_t limit) override;
+        virtual Vector<HistoryEntry> list_all_entries() const override;
 
         virtual void clear() override;
         virtual void remove_entries_accessed_since(UnixDateTime since) override;
+        virtual void remove_entry_by_url(String const& url) override;
 
     private:
         Database::Database& m_database;

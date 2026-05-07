@@ -42,6 +42,7 @@
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/DOMNodeProperties.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/HistoryStore.h>
 #include <LibWebView/PageInfo.h>
 #include <LibWebView/Settings.h>
 #include <LibWebView/WebContentClient.h>

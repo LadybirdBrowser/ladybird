@@ -5,7 +5,10 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/JsonArray.h>
+#include <AK/JsonObject.h>
 #include <AK/QuickSort.h>
+#include <AK/String.h>
 #include <AK/Utf8View.h>
 #include <LibDatabase/Database.h>
 #include <LibURL/Parser.h>
@@ -216,6 +219,12 @@ ErrorOr<NonnullOwnPtr<HistoryStore>> HistoryStore::create(Database::Database& da
     )#"sv));
     statements.clear_entries = TRY(database.prepare_statement("DELETE FROM History;"sv));
     statements.delete_entries_accessed_since = TRY(database.prepare_statement("DELETE FROM History WHERE last_visited_time >= ?;"sv));
+    statements.delete_entry_by_url = TRY(database.prepare_statement("DELETE FROM History WHERE url = ?;"sv));
+    statements.list_all_entries = TRY(database.prepare_statement(R"#(
+        SELECT url, title, visit_count, last_visited_time, COALESCE(favicon, '')
+        FROM History
+        ORDER BY last_visited_time DESC;
+    )#"sv));
 
     return adopt_own(*new HistoryStore { adopt_own<StorageImpl>(*new PersistedStorage { database, move(statements) }) });
 }
@@ -616,6 +625,51 @@ Vector<HistoryEntry> HistoryStore::PersistedStorage::autocomplete_entries(String
     return entries;
 }
 
+Vector<HistoryEntry> HistoryStore::list_all_entries() const
+{
+    if (m_is_disabled)
+        return {};
+
+    return m_storage->list_all_entries();
+}
+
+Vector<HistoryEntry> HistoryStore::TransientStorage::list_all_entries() const
+{
+    Vector<HistoryEntry> entries;
+
+    for (auto const& [_, entry] : m_entries) {
+        entries.append(entry);
+    }
+
+    return entries;
+}
+
+Vector<HistoryEntry> HistoryStore::PersistedStorage::list_all_entries() const
+{
+    Vector<HistoryEntry> entries;
+    // database query should look something like this
+    // for now I am not very concerned about performance as this will
+    // just run when loading the about:history page
+    // : SELECT * FROM History ORDER BY last_visited_time DESC
+
+    m_database.execute_statement(
+        m_statements.list_all_entries,
+        [&](auto statement_id) {
+            auto title = m_database.result_column<String>(statement_id, 1);
+            auto favicon = m_database.result_column<String>(statement_id, 4);
+
+            entries.append(HistoryEntry {
+                .url = m_database.result_column<String>(statement_id, 0),
+                .title = title.is_empty() ? Optional<String> {} : Optional<String> { move(title) },
+                .favicon_base64_png = favicon.is_empty() ? Optional<String> {} : Optional<String> { move(favicon) },
+                .visit_count = m_database.result_column<u64>(statement_id, 2),
+                .last_visited_time = m_database.result_column<UnixDateTime>(statement_id, 3),
+            });
+        });
+
+    return entries;
+}
+
 void HistoryStore::PersistedStorage::clear()
 {
     m_database.execute_statement(m_statements.clear_entries, {});
@@ -624,6 +678,24 @@ void HistoryStore::PersistedStorage::clear()
 void HistoryStore::PersistedStorage::remove_entries_accessed_since(UnixDateTime since)
 {
     m_database.execute_statement(m_statements.delete_entries_accessed_since, {}, since);
+}
+
+void HistoryStore::remove_entry_by_url(String const& url)
+{
+    if (m_is_disabled)
+        return;
+
+    m_storage->remove_entry_by_url(url);
+}
+
+void HistoryStore::TransientStorage::remove_entry_by_url(String const& url)
+{
+    m_entries.remove(url);
+}
+
+void HistoryStore::PersistedStorage::remove_entry_by_url(String const& url)
+{
+    m_database.execute_statement(m_statements.delete_entry_by_url, {}, url);
 }
 
 }

@@ -1,0 +1,603 @@
+<!doctype html>
+<html>
+    <head>
+        <title>History</title>
+        <link rel="stylesheet" type="text/css" href="resource://ladybird/ladybird.css" />
+        <link rel="stylesheet" type="text/css" href="resource://ladybird/about-pages/webui.css" />
+        <style>
+            @media (prefers-color-scheme: light) {
+                :root {
+                    --tree-hover-color: #e8e8e8;
+                    --tree-selected-color: #d8d8f8;
+                    --empty-text-color: #888;
+                    --url-text-color: #666;
+                    --meta-text-color: #999;
+                    --delete-color: #999;
+                    --delete-hover-color: #e53935;
+                }
+            }
+
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --tree-hover-color: #2e2e2e;
+                    --tree-selected-color: #35355a;
+                    --empty-text-color: #777;
+                    --url-text-color: #999;
+                    --meta-text-color: #666;
+                    --delete-color: #666;
+                    --delete-hover-color: #ef5350;
+                }
+            }
+
+            .tree-empty {
+                color: var(--empty-text-color);
+
+                padding: 40px 20px;
+
+                text-align: center;
+                font-size: 14px;
+            }
+
+            .tree-item-row {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+
+                padding: 14px 12px;
+                border-radius: 6px;
+
+                font-size: 14px;
+            }
+
+            .tree-item-row:hover {
+                background-color: var(--tree-hover-color);
+            }
+
+            .item-icon {
+                display: flex;
+                flex-shrink: 0;
+                align-items: center;
+            }
+
+            .item-icon img,
+            .item-icon svg {
+                width: 32px;
+                height: 32px;
+            }
+
+            .item-info {
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+
+                flex-grow: 1;
+                min-width: 0;
+            }
+
+            .item-title {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                min-width: 0;
+            }
+
+            .item-title a {
+                color: inherit;
+                text-decoration: none;
+            }
+
+            .item-title a:hover {
+                text-decoration: underline;
+            }
+
+            .item-url {
+                color: var(--url-text-color);
+
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+
+                font-size: 12px;
+                min-width: 0;
+            }
+
+            .item-actions {
+                display: flex;
+                align-items: center;
+                flex-shrink: 0;
+                gap: 0;
+                position: relative;
+                padding-left: 24px;
+            }
+
+            .item-actions::before {
+                content: "";
+                position: absolute;
+                top: 0;
+                bottom: 0;
+                left: 0;
+                width: 24px;
+                background: linear-gradient(to right, transparent, var(--card-background-color));
+                pointer-events: none;
+            }
+
+            .tree-item-row:hover .item-actions::before {
+                background: linear-gradient(to right, transparent, var(--tree-hover-color));
+            }
+
+            .item-meta {
+                color: var(--meta-text-color);
+                font-size: 12px;
+                white-space: nowrap;
+                transition: transform 0.2s ease;
+            }
+
+            .tree-item-row:hover .item-meta {
+                transform: translateX(-12px);
+            }
+
+            .item-delete {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+
+                width: 28px;
+                height: 28px;
+
+                color: var(--delete-color);
+                background: none;
+                border: none;
+                border-radius: 4px;
+
+                cursor: pointer;
+                opacity: 0;
+                transform: translateX(0);
+                transition:
+                    opacity 0.2s ease,
+                    transform 0.2s ease;
+            }
+
+            .tree-item-row:hover .item-delete {
+                opacity: 1;
+            }
+
+            .item-delete:hover {
+                color: var(--delete-hover-color);
+                background-color: var(--tree-hover-color);
+            }
+
+            .item-delete svg {
+                width: 14px;
+                height: 14px;
+            }
+
+            .search-container {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+
+                max-width: 65%;
+                margin: 0 auto 24px auto;
+                padding: 0px 12px;
+
+                background-color: var(--tree-hover-color);
+                border: none;
+                border-radius: 8px;
+            }
+
+            .search-icon {
+                flex-shrink: 0;
+                width: 16px;
+                height: 16px;
+                color: var(--empty-text-color);
+            }
+
+            .search-input {
+                flex-grow: 1;
+                min-width: 0;
+                font-size: 13px;
+                color: inherit;
+
+                background: none;
+                border: none;
+                outline: none;
+                padding: 0;
+            }
+
+            .search-input::placeholder {
+                color: var(--empty-text-color);
+            }
+
+            .search-highlight {
+                color: inherit;
+                background-color: var(--tree-selected-color);
+                border-radius: 2px;
+            }
+
+            .search-no-results {
+                color: var(--empty-text-color);
+
+                padding: 40px 20px;
+
+                text-align: center;
+                font-size: 14px;
+            }
+
+            .pagination-bar {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 16px;
+
+                margin-top: 16px;
+                padding: 12px 16px;
+
+                font-size: 13px;
+                color: var(--meta-text-color);
+            }
+
+            .pagination-bar.hidden {
+                display: none;
+            }
+
+            .pagination-btn {
+                padding: 6px 14px;
+
+                font-size: 13px;
+                color: inherit;
+                background-color: var(--tree-hover-color);
+                border: none;
+                border-radius: 6px;
+
+                cursor: pointer;
+            }
+
+            .pagination-btn:hover:not(:disabled) {
+                background-color: var(--tree-selected-color);
+            }
+
+            .pagination-btn:disabled {
+                opacity: 0.4;
+                cursor: default;
+            }
+
+            .date-header {
+                padding: 10px 12px 6px;
+                font-size: 13px;
+                font-weight: 600;
+                color: var(--meta-text-color);
+                border-bottom: 1px solid var(--tree-hover-color);
+                margin-top: 8px;
+            }
+
+            .date-header:first-child {
+                margin-top: 0;
+            }
+
+            .pagination-select {
+                padding: 4px 8px;
+
+                font-size: 13px;
+                color: inherit;
+                background-color: var(--tree-hover-color);
+                border: none;
+                border-radius: 4px;
+
+                cursor: pointer;
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <picture>
+                <source srcset="resource://icons/128x128/app-browser.png" media="(prefers-color-scheme: dark)" />
+                <img src="resource://icons/128x128/app-browser-dark.png" />
+            </picture>
+            <h1>History</h1>
+        </header>
+
+        <div class="search-container">
+            <svg
+                class="search-icon"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+            >
+                <circle cx="11" cy="11" r="7" />
+                <line x1="16" y1="16" x2="22" y2="22" />
+            </svg>
+            <input type="text" class="search-input" id="search-input" placeholder="Search history" />
+        </div>
+
+        <div class="card">
+            <div class="card-body" id="history-list"></div>
+        </div>
+
+        <div class="pagination-bar hidden" id="pagination-bar">
+            <button class="pagination-btn" id="prev-btn">Previous</button>
+            <span id="page-indicator"></span>
+            <button class="pagination-btn" id="next-btn">Next</button>
+            <span>Items per page:</span>
+            <select class="pagination-select" id="page-size-select">
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+                <option value="200">200</option>
+            </select>
+        </div>
+
+        <script type="module">
+            const GLOBE_SVG = `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+                    <ellipse cx="12" cy="12" rx="4" ry="10" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                    <line x1="2" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="1.5"/>
+                </svg>`;
+
+            const TRASH_SVG = `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                    <path d="M10 11v6"/>
+                    <path d="M14 11v6"/>
+                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                </svg>`;
+
+            let HISTORY_ENTRIES = [];
+            let SEARCH_QUERY = "";
+            let currentPage = 0;
+            let itemsPerPage = 25;
+
+            const historyList = document.getElementById("history-list");
+            const searchInput = document.getElementById("search-input");
+            const paginationBar = document.getElementById("pagination-bar");
+            const prevBtn = document.getElementById("prev-btn");
+            const nextBtn = document.getElementById("next-btn");
+            const pageIndicator = document.getElementById("page-indicator");
+            const pageSizeSelect = document.getElementById("page-size-select");
+
+            function createElement(tagName, properties = {}, children = []) {
+                const element = document.createElement(tagName);
+                Object.assign(element, properties);
+                element.append(...children);
+                return element;
+            }
+
+            function createFaviconIcon(favicon) {
+                if (!favicon) {
+                    return createElement("span", { className: "item-icon", innerHTML: GLOBE_SVG });
+                }
+                return createElement("span", { className: "item-icon" }, [
+                    createElement("img", { src: `data:image/png;base64,${favicon}` }),
+                ]);
+            }
+
+            function getDateGroup(timestamp) {
+                const now = new Date();
+                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const entryDate = new Date(timestamp);
+                const entryDay = new Date(entryDate.getFullYear(), entryDate.getMonth(), entryDate.getDate());
+                const diffDays = Math.round((today - entryDay) / 86400000);
+
+                if (diffDays === 0) return { key: "today", label: "Today" };
+                if (diffDays === 1) return { key: "yesterday", label: "Yesterday" };
+                if (diffDays < 7) {
+                    const dayName = entryDate.toLocaleDateString(undefined, { weekday: "long" });
+                    return { key: `day-${diffDays}`, label: dayName };
+                }
+                if (diffDays < 14) return { key: "last-week", label: "Last Week" };
+
+                const entryMonth = entryDate.getMonth();
+                const entryYear = entryDate.getFullYear();
+
+                if (entryYear === now.getFullYear() && entryMonth === now.getMonth()) {
+                    return { key: "earlier-this-month", label: "Earlier This Month" };
+                }
+
+                const monthLabel = entryDate.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+                return { key: `${entryYear}-${entryMonth}`, label: monthLabel };
+            }
+
+            function formatTime(timestamp) {
+                const date = new Date(timestamp);
+                return date.toLocaleTimeString(undefined, {
+                    hour: "numeric",
+                    minute: "2-digit",
+                });
+            }
+
+            function highlightText(text, query) {
+                if (!query) {
+                    return [document.createTextNode(text)];
+                }
+
+                const lowerText = text.toLowerCase();
+                const lowerQuery = query.toLowerCase();
+                const fragments = [];
+                let lastIndex = 0;
+                let matchIndex = lowerText.indexOf(lowerQuery, lastIndex);
+
+                for (; matchIndex !== -1; matchIndex = lowerText.indexOf(lowerQuery, lastIndex)) {
+                    if (matchIndex > lastIndex) {
+                        fragments.push(document.createTextNode(text.slice(lastIndex, matchIndex)));
+                    }
+
+                    const mark = createElement("mark", {
+                        className: "search-highlight",
+                        textContent: text.slice(matchIndex, matchIndex + query.length),
+                    });
+                    fragments.push(mark);
+
+                    lastIndex = matchIndex + query.length;
+                }
+
+                if (lastIndex < text.length) {
+                    fragments.push(document.createTextNode(text.slice(lastIndex)));
+                }
+
+                return fragments.length > 0 ? fragments : [document.createTextNode(text)];
+            }
+
+            function filterEntries(entries, query) {
+                if (!query) {
+                    return entries;
+                }
+
+                const lowerQuery = query.toLowerCase();
+                return entries.filter(entry => {
+                    if (!entry) return false;
+                    const title = (entry.title || "").toLowerCase();
+                    const url = (entry.url || "").toLowerCase();
+                    return title.includes(lowerQuery) || url.includes(lowerQuery);
+                });
+            }
+
+            function deleteEntry(url) {
+                ladybird.sendMessage("deleteHistoryEntry", { url });
+                HISTORY_ENTRIES = HISTORY_ENTRIES.filter(entry => entry.url !== url);
+                renderList();
+            }
+
+            function renderList() {
+                historyList.innerHTML = "";
+
+                if (HISTORY_ENTRIES.length === 0) {
+                    historyList.appendChild(
+                        createElement("div", {
+                            className: "tree-empty",
+                            textContent: "No history yet.",
+                        })
+                    );
+                    renderPagination(0);
+                    return;
+                }
+
+                const filtered = filterEntries(HISTORY_ENTRIES, SEARCH_QUERY);
+
+                if (filtered.length === 0) {
+                    historyList.appendChild(
+                        createElement("div", {
+                            className: "search-no-results",
+                            textContent: "No history matching your search.",
+                        })
+                    );
+                    renderPagination(0);
+                    return;
+                }
+
+                const totalPages = Math.ceil(filtered.length / itemsPerPage);
+                if (currentPage >= totalPages) {
+                    currentPage = totalPages - 1;
+                }
+
+                const start = currentPage * itemsPerPage;
+                const pageEntries = filtered.slice(start, start + itemsPerPage);
+
+                let lastGroupKey = null;
+
+                for (const entry of pageEntries) {
+                    if (entry === null) {
+                        continue;
+                    }
+
+                    const group = getDateGroup(entry.dateVisited);
+                    if (group.key !== lastGroupKey) {
+                        lastGroupKey = group.key;
+                        historyList.appendChild(
+                            createElement("div", {
+                                className: "date-header",
+                                textContent: group.label,
+                            })
+                        );
+                    }
+
+                    const row = createElement("div", { className: "tree-item-row" });
+
+                    row.appendChild(createFaviconIcon(entry.favicon));
+
+                    const link = createElement("a", { href: entry.url });
+                    link.append(...highlightText(entry.title || entry.url, SEARCH_QUERY));
+                    const title = createElement("span", { className: "item-title" }, [link]);
+
+                    const url = createElement("span", { className: "item-url" });
+                    url.append(...highlightText(entry.url, SEARCH_QUERY));
+
+                    row.appendChild(createElement("span", { className: "item-info" }, [title, url]));
+
+                    const meta = createElement("span", {
+                        className: "item-meta",
+                        textContent: formatTime(entry.dateVisited),
+                    });
+
+                    const deleteBtn = createElement("button", {
+                        className: "item-delete",
+                        innerHTML: TRASH_SVG,
+                        title: "Remove from history",
+                    });
+                    deleteBtn.addEventListener("click", event => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        deleteEntry(entry.url);
+                    });
+
+                    row.appendChild(createElement("span", { className: "item-actions" }, [meta, deleteBtn]));
+
+                    historyList.appendChild(row);
+                }
+
+                renderPagination(filtered.length);
+            }
+
+            function renderPagination(totalItems) {
+                if (totalItems === 0) {
+                    paginationBar.classList.add("hidden");
+                    return;
+                }
+
+                paginationBar.classList.remove("hidden");
+
+                const totalPages = Math.ceil(totalItems / itemsPerPage);
+                pageIndicator.textContent = `Page ${currentPage + 1} of ${totalPages}`;
+                prevBtn.disabled = currentPage === 0;
+                nextBtn.disabled = currentPage >= totalPages - 1;
+            }
+
+            prevBtn.addEventListener("click", () => {
+                if (currentPage > 0) {
+                    currentPage--;
+                    renderList();
+                }
+            });
+
+            nextBtn.addEventListener("click", () => {
+                currentPage++;
+                renderList();
+            });
+
+            pageSizeSelect.addEventListener("change", () => {
+                itemsPerPage = parseInt(pageSizeSelect.value, 10);
+                currentPage = 0;
+                renderList();
+            });
+
+            searchInput.addEventListener("input", () => {
+                SEARCH_QUERY = searchInput.value.trim();
+                currentPage = 0;
+                renderList();
+            });
+
+            document.addEventListener("WebUILoaded", () => {
+                ladybird.sendMessage("loadHistory");
+            });
+
+            document.addEventListener("WebUIMessage", event => {
+                if (event.detail.name === "loadHistory") {
+                    HISTORY_ENTRIES = event.detail.data;
+                    renderList();
+                }
+            });
+        </script>
+    </body>
+</html>
