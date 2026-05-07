@@ -97,6 +97,12 @@ bool element_matches_any_invalidation_set_property(DOM::Element const& element, 
                 return element.is_being_activated();
             case PseudoClass::Target:
                 return element.document().target_element() == &element;
+            case PseudoClass::FirstChild:
+                return !element.previous_element_sibling();
+            case PseudoClass::LastChild:
+                return !element.next_element_sibling();
+            case PseudoClass::OnlyChild:
+                return !element.previous_element_sibling() && !element.next_element_sibling();
             default:
                 VERIFY_NOT_REACHED();
             }

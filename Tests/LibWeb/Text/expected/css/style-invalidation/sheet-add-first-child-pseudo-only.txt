@@ -1,1 +1,1 @@
-:first-child-only sheet add: fullStyleInvalidations=1, styleInvalidations=3, elementStyleRecomputations=36, elementStyleNoopRecomputations=0
+:first-child-only sheet add: fullStyleInvalidations=0, styleInvalidations=7, elementStyleRecomputations=6, elementStyleNoopRecomputations=0

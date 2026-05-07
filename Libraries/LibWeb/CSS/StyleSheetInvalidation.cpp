@@ -231,6 +231,38 @@ void extend_style_sheet_invalidation_set_with_style_rule(StyleSheetInvalidationS
             continue;
         }
 
+        // OPTIMIZATION: When the rightmost compound has no class/tag/id/attr feature but does have a
+        //               structural-position pseudo-class (:first-child, :last-child, or :only-child)
+        //               as its only "feature", we can target the boundary children instead of falling
+        //               back to a whole-subtree invalidation. We restrict this to the case with no
+        //               other targetable feature so that selectors like `.foo:first-child` keep
+        //               matching only `.foo` elements rather than every first-child in the document.
+        bool rightmost_has_only_structural_pseudo = false;
+        for (auto const& simple : rightmost.simple_selectors) {
+            if (simple.type != Selector::SimpleSelector::Type::PseudoClass)
+                continue;
+            auto pseudo_class_type = simple.pseudo_class().type;
+            if (pseudo_class_type == PseudoClass::FirstChild
+                || pseudo_class_type == PseudoClass::LastChild
+                || pseudo_class_type == PseudoClass::OnlyChild) {
+                rightmost_has_only_structural_pseudo = true;
+                break;
+            }
+        }
+        if (rightmost_has_only_structural_pseudo) {
+            for (auto const& simple : rightmost.simple_selectors) {
+                if (simple.type != Selector::SimpleSelector::Type::PseudoClass)
+                    continue;
+                auto pseudo_class_type = simple.pseudo_class().type;
+                if (pseudo_class_type == PseudoClass::FirstChild
+                    || pseudo_class_type == PseudoClass::LastChild
+                    || pseudo_class_type == PseudoClass::OnlyChild) {
+                    result.invalidation_set.set_needs_invalidate_pseudo_class(pseudo_class_type);
+                }
+            }
+            continue;
+        }
+
         // The rightmost compound has no targetable properties on its own, but we can still avoid a whole-subtree
         // invalidation if the leading compounds carry an anchor invalidation set that we can match against.
         if (is_pseudo_element_only_compound(rightmost)) {
