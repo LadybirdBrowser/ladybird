@@ -4,6 +4,7 @@
 <script>
     asyncTest(async (done) => {
         const scriptContainer = document.getElementById("script-container");
+        globalThis.errors = new Map();
 
         const createScript = (type) => {
             return new Promise((resolve) => {
@@ -15,7 +16,7 @@
                         const normalizedStack = e.stack
                             .replace(uuidRegex, "[flaky-uuid-replaced]")
                             .replace(/blob:(file:\\/\\/\\/|ladybird\\/)/g, "blob:<origin>/");
-                        globalThis.println("${type}: " + normalizedStack);
+                        globalThis.errors.set("${type}", normalizedStack);
                     }
                 `;
 
@@ -41,6 +42,12 @@
         ];
 
         await Promise.all(scriptPromises);
+        
+        const sortedErrors = new Map([...globalThis.errors.entries()].sort());
+        for (const [type, normalizedStack] of sortedErrors) {
+            globalThis.println(`${type}: ${normalizedStack}`);
+        }
+        
         done();
     });
 </script>
