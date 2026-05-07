@@ -6,6 +6,7 @@
 
 #include "WebViewImplementationNative.h"
 #include "JNIHelpers.h"
+#include <LibCore/System.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/Painter.h>
@@ -53,12 +54,12 @@ void WebViewImplementationNative::initialize_client(WebView::ViewImplementation:
     auto new_client = bind_web_content_client();
 
     m_client_state.client = new_client;
-    m_client_state.client->on_web_content_process_crash = [] {
+    m_client_state.client->on_web_content_crashed = [] {
         warnln("WebContent crashed!");
         // FIXME: launch a new client
     };
 
-    m_client_state.client_handle = MUST(Web::Crypto::generate_random_uuid());
+    m_client_state.client_handle = Web::Crypto::generate_random_uuid();
     client().async_set_window_handle(0, m_client_state.client_handle);
 
     client().async_set_viewport(0, viewport_size(), m_device_pixel_ratio, Web::ViewportIsFullscreen::No);
@@ -76,7 +77,12 @@ void WebViewImplementationNative::paint_into_bitmap(void* android_bitmap_raw, An
 
     auto android_bitmap = MUST(Gfx::Bitmap::create_wrapper(to_gfx_bitmap_format(info.format), Gfx::AlphaType::Premultiplied, { info.width, info.height }, info.stride, android_bitmap_raw));
     auto painter = Gfx::Painter::create(android_bitmap);
-    if (auto* bitmap = m_client_state.has_usable_bitmap ? m_client_state.front_bitmap.bitmap.ptr() : m_backup_bitmap.ptr())
+    Gfx::Bitmap const* bitmap = nullptr;
+    if (m_client_state.has_usable_bitmap && m_client_state.front_bitmap.shared_image_buffer)
+        bitmap = m_client_state.front_bitmap.shared_image_buffer->bitmap().ptr();
+    else if (m_backup_shared_image_buffer)
+        bitmap = m_backup_shared_image_buffer->bitmap().ptr();
+    if (bitmap)
         painter->draw_bitmap(android_bitmap->rect().to_type<float>(), Gfx::ImmutableBitmap::create(MUST(bitmap->clone())), bitmap->rect(), Gfx::ScalingMode::NearestNeighbor, {}, 1.0f, Gfx::CompositingAndBlendingOperator::Copy);
     else
         painter->fill_rect(android_bitmap->rect().to_type<float>(), Gfx::Color::Magenta);
@@ -111,6 +117,7 @@ void WebViewImplementationNative::mouse_event(Web::MouseEvent::Type event_type, 
         Web::UIEvents::MouseButton::Primary,
         Web::UIEvents::MouseButton::Primary,
         Web::UIEvents::KeyModifier::Mod_None,
+        0,
         0,
         0,
         nullptr

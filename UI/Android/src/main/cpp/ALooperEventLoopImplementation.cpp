@@ -197,14 +197,6 @@ void ALooperEventLoopImplementation::wake()
     ALooper_wake(m_event_loop);
 }
 
-void ALooperEventLoopImplementation::post_event(Core::EventReceiver& receiver, NonnullOwnPtr<Core::Event>&& event)
-{
-    m_thread_event_queue.post_event(receiver, move(event));
-
-    if (&m_thread_event_queue != &Core::ThreadEventQueue::current())
-        wake();
-}
-
 static int notifier_callback(int fd, int events, void* data)
 {
     auto& notifier = *static_cast<Core::Notifier*>(data);
