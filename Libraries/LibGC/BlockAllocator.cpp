@@ -8,7 +8,6 @@
 #include <AK/Assertions.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/Platform.h>
-#include <AK/Random.h>
 #include <AK/Vector.h>
 #include <LibGC/BlockAllocator.h>
 #include <LibGC/HeapBlock.h>
@@ -252,11 +251,9 @@ void* BlockAllocator::allocate_block([[maybe_unused]] char const* name)
         // decommit payoff -- hot recycle skips both MADV_FREE_REUSABLE
         // and MADV_FREE_REUSE.
         if (!m_freshly_freed.is_empty()) {
-            size_t random_index = get_random_uniform(m_freshly_freed.size());
-            block = m_freshly_freed.unstable_take(random_index);
+            block = m_freshly_freed.take_last();
         } else if (!m_blocks.is_empty()) {
-            size_t random_index = get_random_uniform(m_blocks.size());
-            block = m_blocks.unstable_take(random_index);
+            block = m_blocks.take_last();
             needs_madvise_reuse = true;
         }
     }
@@ -303,8 +300,7 @@ void* BlockAllocator::allocate_block([[maybe_unused]] char const* name)
         Threading::MutexLocker locker(m_mutex);
         for (size_t i = 0; i < BLOCKS_PER_CHUNK; ++i)
             m_blocks.append(static_cast<u8*>(chunk_base) + i * HeapBlock::BLOCK_SIZE);
-        size_t random_index = get_random_uniform(m_blocks.size());
-        block = m_blocks.unstable_take(random_index);
+        block = m_blocks.take_last();
         needs_madvise_reuse = true;
     }
 
