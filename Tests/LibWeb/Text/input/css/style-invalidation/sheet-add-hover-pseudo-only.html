@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="trigger"></div>
+<script>
+    function settleAndReset(triggerElement) {
+        getComputedStyle(triggerElement).color;
+        getComputedStyle(triggerElement).color;
+        internals.resetStyleInvalidationCounters();
+    }
+
+    function addBystanders(parent, count) {
+        for (let i = 0; i < count; ++i) {
+            const bystander = document.createElement("div");
+            bystander.textContent = `bystander ${i}`;
+            parent.appendChild(bystander);
+        }
+    }
+
+    function dumpCounters(label) {
+        const c = internals.getStyleInvalidationCounters();
+        println(`${label}: fullStyleInvalidations=${c.fullStyleInvalidations}, styleInvalidations=${c.styleInvalidations}, elementStyleRecomputations=${c.elementStyleRecomputations}, elementStyleNoopRecomputations=${c.elementStyleNoopRecomputations}`);
+    }
+
+    test(() => {
+        const trigger = document.getElementById("trigger");
+        addBystanders(document.body, 25);
+        settleAndReset(trigger);
+
+        // Adding a sheet whose only rule's rightmost compound is :hover
+        // should be targeted to the hovered element, of which there are at
+        // most a handful at any moment. Without an interaction-state pseudo
+        // optimization, the walk falls back to a whole-subtree invalidation
+        // that recomputes every element.
+        const hoverStyle = document.createElement("style");
+        hoverStyle.textContent = ":hover { color: rgb(0, 128, 0); }";
+        document.head.appendChild(hoverStyle);
+        getComputedStyle(trigger).color;
+
+        dumpCounters(":hover-only sheet add");
+    });
+</script>

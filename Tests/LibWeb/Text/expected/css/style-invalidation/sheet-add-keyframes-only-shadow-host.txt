@@ -1,0 +1,1 @@
+@keyframes only sheet add (host animation-name via :host): fullStyleInvalidations=0, styleInvalidations=3, elementStyleRecomputations=28, elementStyleNoopRecomputations=26

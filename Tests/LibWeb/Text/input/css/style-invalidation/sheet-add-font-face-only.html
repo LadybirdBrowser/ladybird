@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="trigger"></div>
+<script>
+    function settleAndReset(triggerElement) {
+        getComputedStyle(triggerElement).color;
+        getComputedStyle(triggerElement).color;
+        internals.resetStyleInvalidationCounters();
+    }
+
+    function addBystanders(parent, count) {
+        for (let i = 0; i < count; ++i) {
+            const bystander = document.createElement("div");
+            bystander.textContent = `bystander ${i}`;
+            parent.appendChild(bystander);
+        }
+    }
+
+    function dumpCounters(label) {
+        const c = internals.getStyleInvalidationCounters();
+        println(`${label}: fullStyleInvalidations=${c.fullStyleInvalidations}, styleInvalidations=${c.styleInvalidations}, elementStyleRecomputations=${c.elementStyleRecomputations}, elementStyleNoopRecomputations=${c.elementStyleNoopRecomputations}`);
+    }
+
+    test(() => {
+        const trigger = document.getElementById("trigger");
+        addBystanders(document.body, 25);
+        settleAndReset(trigger);
+
+        // Adding a sheet that only declares @font-face does not change any
+        // element's computed style at the at-rule's declaration time. The font
+        // resource takes effect later, via CSSFontLoaded.
+        const fontFaceStyle = document.createElement("style");
+        fontFaceStyle.textContent = `@font-face { font-family: "test-font"; src: url(/test-font.woff); }`;
+        document.head.appendChild(fontFaceStyle);
+        getComputedStyle(trigger).color;
+
+        dumpCounters("@font-face only sheet add");
+    });
+</script>
