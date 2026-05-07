@@ -105,13 +105,16 @@ static bool rule_requires_broad_add_or_remove_invalidation(CSSRule const& rule)
 {
     switch (rule.type()) {
     case CSSRule::Type::Property:
-    case CSSRule::Type::FontFace:
     case CSSRule::Type::FontFeatureValues:
     case CSSRule::Type::CounterStyle:
     case CSSRule::Type::Keyframes:
     case CSSRule::Type::LayerBlock:
     case CSSRule::Type::LayerStatement:
         return true;
+    // OPTIMIZATION: @font-face declares a resource whose effect on computed style is deferred until
+    //               the font actually loads (handled by CSSFontLoaded). Adding or removing the
+    //               at-rule itself doesn't change any element's computed style.
+    case CSSRule::Type::FontFace:
     default:
         break;
     }
