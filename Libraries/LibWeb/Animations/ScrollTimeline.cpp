@@ -145,7 +145,7 @@ void ScrollTimeline::update_current_time(double)
     if (!layout_node || !layout_node->is_scroll_container())
         return;
 
-    auto const& paintable_box = propagated_source.visit([](auto const& source) -> Painting::PaintableBox const* { return source->unsafe_paintable_box(); });
+    auto paintable_box = propagated_source.visit([](auto const& source) -> RefPtr<Painting::PaintableBox const> { return source->unsafe_paintable_box(); });
 
     if (!paintable_box || !paintable_box->has_scrollable_overflow())
         return;

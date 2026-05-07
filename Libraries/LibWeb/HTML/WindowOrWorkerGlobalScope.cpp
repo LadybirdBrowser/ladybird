@@ -469,7 +469,7 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
 
                     // 2. If image's media data has no natural dimensions (e.g., it's a vector graphic with no specified content size), it should be rendered to a bitmap of the size specified by the resizeWidth and the resizeHeight options.
                     // 3. Set imageBitmap's bitmap data to a copy of image's media data, cropped to the source rectangle with formatting. If this is an animated image, imageBitmap's bitmap data must only be taken from the default image of the animation (the one that the format defines is to be used when animation is not supported or is disabled), or, if there is no such image, the first frame of the animation.
-                    RefPtr<Gfx::DecodedImageFrame> decoded_frame;
+                    Optional<Gfx::DecodedImageFrame> decoded_frame;
                     if (has_natural_dimensions) {
                         decoded_frame = image_element->default_image_frame_sized(Gfx::IntSize { *image_element->intrinsic_width(), *image_element->intrinsic_height() });
                     } else {

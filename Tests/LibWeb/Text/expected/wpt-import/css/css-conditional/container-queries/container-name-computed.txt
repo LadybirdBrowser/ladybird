@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	Property container-name value 'initial'
+Pass	Property container-name value 'unset'
+Pass	Property container-name value 'foo'
+Pass	Property container-name value 'FoO'
+Pass	Property container-name value 'foo bar'
+Pass	Property container-name value 'bar foo'
+Pass	Property container-name value 'foo foo bar'
+Pass	Property container-name value 'foo bar foo'
+Pass	Property container-name value 'bar foo foo'
+Pass	Property container-name value '\!escaped'

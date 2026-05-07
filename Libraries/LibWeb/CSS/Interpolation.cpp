@@ -1240,7 +1240,7 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, Calculatio
             generic_function = TransformFunction::Matrix3d;
             // NB: Called during animation interpolation.
             auto paintable_box = [&] -> Optional<Painting::PaintableBox const&> {
-                if (auto* box = element.unsafe_paintable_box())
+                if (auto box = element.unsafe_paintable_box())
                     return *box;
                 return {};
             }();
@@ -1343,8 +1343,9 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, Calculatio
     //     iterating over Va and Vb.
     // NB: Called during animation interpolation.
     Optional<Painting::PaintableBox const&> paintable_box;
-    if (auto* paintable = as_if<Painting::PaintableBox>(element.unsafe_paintable()))
-        paintable_box = *paintable;
+    auto paintable = element.unsafe_paintable();
+    if (auto const* box = as_if<Painting::PaintableBox>(paintable.ptr()))
+        paintable_box = *box;
 
     auto post_multiply_remaining_transformations = [&paintable_box](size_t start_index, Vector<NonnullRefPtr<TransformationStyleValue const>> const& transformations) -> Optional<FloatMatrix4x4> {
         FloatMatrix4x4 result = FloatMatrix4x4::identity();

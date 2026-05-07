@@ -9,11 +9,9 @@
 
 namespace Web::Painting {
 
-GC_DEFINE_ALLOCATOR(TextPaintable);
-
-GC::Ref<TextPaintable> TextPaintable::create(Layout::TextNode const& layout_node)
+NonnullRefPtr<TextPaintable> TextPaintable::create(Layout::TextNode const& layout_node)
 {
-    return layout_node.heap().allocate<TextPaintable>(layout_node);
+    return adopt_ref(*new TextPaintable(layout_node));
 }
 
 TextPaintable::TextPaintable(Layout::TextNode const& layout_node)
@@ -23,8 +21,9 @@ TextPaintable::TextPaintable(Layout::TextNode const& layout_node)
 
 void TextPaintable::paint_inspector_overlay_internal(DisplayListRecordingContext& context) const
 {
-    if (auto const* parent_paintable = as_if<PaintableWithLines>(parent())) {
-        for (auto const& fragment : parent_paintable->fragments()) {
+    auto parent_paintable = parent();
+    if (auto const* paintable_with_lines = as_if<PaintableWithLines>(parent_paintable.ptr())) {
+        for (auto const& fragment : paintable_with_lines->fragments()) {
             if (&fragment.paintable() == this) {
                 PaintableWithLines::paint_text_fragment_debug_highlight(context, fragment);
             }

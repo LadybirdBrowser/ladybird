@@ -12,9 +12,9 @@
 namespace Web::Painting {
 
 class SVGPaintable : public PaintableBox {
-    GC_CELL(SVGPaintable, PaintableBox);
-
 public:
+    virtual StringView class_name() const override { return "SVGPaintable"sv; }
+
     Layout::SVGBox const& layout_box() const;
     virtual Optional<CSSPixelRect> clip_path_geometry_bounds(Gfx::AffineTransform const& additional_transform) const;
     bool contributes_to_clip_path() const;

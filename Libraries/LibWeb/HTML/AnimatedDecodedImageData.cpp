@@ -6,6 +6,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/HTML/AnimatedDecodedImageData.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
@@ -67,7 +68,7 @@ GC::Ref<AnimatedDecodedImageData> AnimatedDecodedImageData::create(
     for (u32 i = 0; i < initial_bitmaps.size(); ++i) {
         auto& slot = data->m_buffer_slots[i % BUFFER_POOL_SIZE];
         slot.frame_index = i;
-        slot.frame = Gfx::DecodedImageFrame::create(*initial_bitmaps[i], data->m_color_space);
+        slot.frame = Gfx::DecodedImageFrame { *initial_bitmaps[i], data->m_color_space };
         slot.generation = ++data->m_write_generation;
     }
 
@@ -100,6 +101,16 @@ AnimatedDecodedImageData::AnimatedDecodedImageData(
 
 AnimatedDecodedImageData::~AnimatedDecodedImageData() = default;
 
+size_t AnimatedDecodedImageData::external_memory_size() const
+{
+    size_t size = JS::vector_external_memory_size(m_durations);
+    for (auto const& slot : m_buffer_slots) {
+        if (slot.frame.has_value())
+            size = JS::saturating_add_external_memory_size(size, slot.frame->bitmap().data_size());
+    }
+    return size;
+}
+
 void AnimatedDecodedImageData::finalize()
 {
     Base::finalize();
@@ -110,7 +121,7 @@ void AnimatedDecodedImageData::finalize()
 AnimatedDecodedImageData::BufferSlot const* AnimatedDecodedImageData::find_slot(u32 frame_index) const
 {
     for (auto const& slot : m_buffer_slots) {
-        if (slot.frame_index == frame_index && slot.frame)
+        if (slot.frame_index == frame_index && slot.frame.has_value())
             return &slot;
     }
     return nullptr;
@@ -126,7 +137,7 @@ AnimatedDecodedImageData::BufferSlot& AnimatedDecodedImageData::evict_oldest_slo
     return *oldest;
 }
 
-RefPtr<Gfx::DecodedImageFrame> AnimatedDecodedImageData::frame(size_t frame_index, Gfx::IntSize) const
+Optional<Gfx::DecodedImageFrame> AnimatedDecodedImageData::frame(size_t frame_index, Gfx::IntSize) const
 {
     if (frame_index >= m_frame_count)
         return m_last_displayed_frame;
@@ -170,7 +181,7 @@ Optional<Gfx::IntRect> AnimatedDecodedImageData::frame_rect(size_t) const
 void AnimatedDecodedImageData::paint(DisplayListRecordingContext& context, size_t frame_index, Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, Gfx::ScalingMode scaling_mode) const
 {
     auto decoded_frame = frame(frame_index);
-    if (!decoded_frame)
+    if (!decoded_frame.has_value())
         return;
     context.display_list_recorder().draw_scaled_decoded_image_frame(dst_rect, clip_rect, *decoded_frame, scaling_mode);
 }
@@ -190,7 +201,7 @@ void AnimatedDecodedImageData::receive_frames(Vector<NonnullRefPtr<Gfx::Bitmap>>
 
         auto& slot = evict_oldest_slot();
         slot.frame_index = frame_index;
-        slot.frame = Gfx::DecodedImageFrame::create(*bitmaps[i], m_color_space);
+        slot.frame = Gfx::DecodedImageFrame { *bitmaps[i], m_color_space };
         slot.generation = ++m_write_generation;
     }
 }

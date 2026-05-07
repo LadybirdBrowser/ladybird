@@ -17,7 +17,7 @@ SVGGraphicsBox::SVGGraphicsBox(DOM::Document& document, SVG::SVGGraphicsElement&
 {
 }
 
-GC::Ptr<Painting::Paintable> SVGGraphicsBox::create_paintable() const
+RefPtr<Painting::Paintable> SVGGraphicsBox::create_paintable() const
 {
     return Painting::SVGGraphicsPaintable::create(*this);
 }

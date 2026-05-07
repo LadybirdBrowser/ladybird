@@ -14,6 +14,7 @@
 #include <AK/Utf16View.h>
 #include <AK/Utf8View.h>
 #include <LibJS/Runtime/AbstractOperations.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/PropertyKey.h>
@@ -228,6 +229,16 @@ PrimitiveString::PrimitiveString(String string)
 }
 
 PrimitiveString::~PrimitiveString() = default;
+
+size_t PrimitiveString::external_memory_size() const
+{
+    size_t size = 0;
+    if (m_utf8_string.has_value())
+        size += string_external_memory_size(*m_utf8_string);
+    if (m_utf16_string.has_value())
+        size = saturating_add_external_memory_size(size, utf16_string_external_memory_size(*m_utf16_string));
+    return size;
+}
 
 void PrimitiveString::finalize()
 {

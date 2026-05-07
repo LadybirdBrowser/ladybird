@@ -6,6 +6,7 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/Symbol.h>
 #include <LibJS/Runtime/VM.h>
 
@@ -50,6 +51,13 @@ Optional<Utf16String> Symbol::key() const
     // 2. Assert: GlobalSymbolRegistry does not currently contain an entry for sym.
     // 3. Return undefined.
     return {};
+}
+
+size_t Symbol::external_memory_size() const
+{
+    if (!m_description.has_value())
+        return 0;
+    return utf16_string_external_memory_size(*m_description);
 }
 
 }

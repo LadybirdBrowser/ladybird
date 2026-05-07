@@ -16,11 +16,9 @@
 
 namespace Web::Painting {
 
-GC_DEFINE_ALLOCATOR(NavigableContainerViewportPaintable);
-
-GC::Ref<NavigableContainerViewportPaintable> NavigableContainerViewportPaintable::create(Layout::NavigableContainerViewport const& layout_box)
+NonnullRefPtr<NavigableContainerViewportPaintable> NavigableContainerViewportPaintable::create(Layout::NavigableContainerViewport const& layout_box)
 {
-    return layout_box.heap().allocate<NavigableContainerViewportPaintable>(layout_box);
+    return adopt_ref(*new NavigableContainerViewportPaintable(layout_box));
 }
 
 NavigableContainerViewportPaintable::NavigableContainerViewportPaintable(Layout::NavigableContainerViewport const& layout_box)

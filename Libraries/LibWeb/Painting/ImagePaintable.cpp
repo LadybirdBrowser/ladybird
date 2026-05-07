@@ -16,19 +16,17 @@
 
 namespace Web::Painting {
 
-GC_DEFINE_ALLOCATOR(ImagePaintable);
-
-GC::Ref<ImagePaintable> ImagePaintable::create(Layout::SVGImageBox const& layout_box)
+NonnullRefPtr<ImagePaintable> ImagePaintable::create(Layout::SVGImageBox const& layout_box)
 {
-    return layout_box.heap().allocate<ImagePaintable>(layout_box, layout_box.dom_node(), false, String {}, true);
+    return adopt_ref(*new ImagePaintable(layout_box, layout_box.dom_node(), false, String {}, true));
 }
 
-GC::Ref<ImagePaintable> ImagePaintable::create(Layout::ImageBox const& layout_box)
+NonnullRefPtr<ImagePaintable> ImagePaintable::create(Layout::ImageBox const& layout_box)
 {
     String alt;
     if (auto element = layout_box.dom_node())
         alt = element->get_attribute_value(HTML::AttributeNames::alt);
-    return layout_box.heap().allocate<ImagePaintable>(layout_box, layout_box.image_provider(), layout_box.renders_as_alt_text(), move(alt), false);
+    return adopt_ref(*new ImagePaintable(layout_box, layout_box.image_provider(), layout_box.renders_as_alt_text(), move(alt), false));
 }
 
 ImagePaintable::ImagePaintable(Layout::Box const& layout_box, Layout::ImageProvider const& image_provider, bool renders_as_alt_text, String alt_text, bool is_svg_image)
@@ -38,12 +36,6 @@ ImagePaintable::ImagePaintable(Layout::Box const& layout_box, Layout::ImageProvi
     , m_image_provider(image_provider)
     , m_is_svg_image(is_svg_image)
 {
-}
-
-void ImagePaintable::visit_edges(JS::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    m_image_provider.image_provider_visit_edges(visitor);
 }
 
 void ImagePaintable::reset_for_relayout()

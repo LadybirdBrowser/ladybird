@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/PrivateEnvironment.h>
 
 namespace JS {
@@ -51,6 +52,11 @@ void PrivateEnvironment::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_outer_environment);
+}
+
+size_t PrivateEnvironment::external_memory_size() const
+{
+    return vector_external_memory_size(m_private_names);
 }
 
 }

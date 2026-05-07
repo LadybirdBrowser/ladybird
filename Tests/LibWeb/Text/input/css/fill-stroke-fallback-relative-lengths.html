@@ -1,0 +1,15 @@
+<!doctype html>
+<style>
+    #foo {
+        stroke: url(#missing-stroke) rgb(0 calc(255 * sign(1em - 1px)) 0);
+        fill: url(#missing-fill) rgb(0 calc(255 * sign(1em - 1px)) 0);
+    }
+</style>
+<div id="foo"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`fill: ${getComputedStyle(foo).fill}`);
+        println(`stroke: ${getComputedStyle(foo).stroke}`);
+    });
+</script>

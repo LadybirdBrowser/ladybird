@@ -296,7 +296,7 @@ public:
                             });
                         },
                         [this](RenderingThread::PublishToExternalContent const& mode) {
-                            auto snapshot = Gfx::DecodedImageFrame::create(*m_backing_stores.front_store->snapshot_bitmap());
+                            auto snapshot = Gfx::DecodedImageFrame { *m_backing_stores.front_store->snapshot_bitmap() };
                             mode.source->update(move(snapshot));
                         });
                 }

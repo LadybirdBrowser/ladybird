@@ -87,6 +87,7 @@ private:
     {
     }
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual size_t external_memory_size() const override;
 };
 
 // 16.2.1.4 Abstract Module Records, https://tc39.es/ecma262/#sec-abstract-module-records
@@ -125,6 +126,7 @@ protected:
     Module(Realm&, ByteString filename, Script::HostDefined* host_defined = nullptr);
 
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual size_t external_memory_size() const override;
 
     void set_environment(GC::Ref<ModuleEnvironment> environment)
     {

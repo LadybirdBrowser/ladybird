@@ -13,20 +13,15 @@
 namespace Web::Painting {
 
 class ImagePaintable final : public PaintableBox {
-    GC_CELL(ImagePaintable, PaintableBox);
-    GC_DECLARE_ALLOCATOR(ImagePaintable);
-
 public:
-    static GC::Ref<ImagePaintable> create(Layout::ImageBox const& layout_box);
-    static GC::Ref<ImagePaintable> create(Layout::SVGImageBox const& layout_box);
+    static NonnullRefPtr<ImagePaintable> create(Layout::ImageBox const& layout_box);
+    static NonnullRefPtr<ImagePaintable> create(Layout::SVGImageBox const& layout_box);
+    virtual StringView class_name() const override { return "ImagePaintable"sv; }
 
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
     virtual void reset_for_relayout() override;
 
 private:
-    // ^JS::Cell
-    virtual void visit_edges(Visitor&) override;
-
     ImagePaintable(Layout::Box const& layout_box, Layout::ImageProvider const& image_provider, bool renders_as_alt_text, String alt_text, bool is_svg_image);
 
     bool m_renders_as_alt_text { false };

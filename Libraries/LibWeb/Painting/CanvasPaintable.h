@@ -12,11 +12,9 @@
 namespace Web::Painting {
 
 class CanvasPaintable final : public PaintableBox {
-    GC_CELL(CanvasPaintable, PaintableBox);
-    GC_DECLARE_ALLOCATOR(CanvasPaintable);
-
 public:
-    static GC::Ref<CanvasPaintable> create(Layout::CanvasBox const&);
+    static NonnullRefPtr<CanvasPaintable> create(Layout::CanvasBox const&);
+    virtual StringView class_name() const override { return "CanvasPaintable"sv; }
 
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 

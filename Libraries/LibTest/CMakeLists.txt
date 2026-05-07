@@ -2,6 +2,7 @@ add_library(LibTestMain OBJECT TestMain.cpp AssertionHandler.cpp)
 target_link_libraries(LibTestMain PUBLIC GenericClangPlugin)
 
 add_library(JavaScriptTestRunnerMain OBJECT JavaScriptTestRunnerMain.cpp)
+target_link_libraries(JavaScriptTestRunnerMain PRIVATE LibJS LibGC)
 
 set(SOURCES
     TestSuite.cpp

@@ -17,7 +17,7 @@ SVGForeignObjectBox::SVGForeignObjectBox(DOM::Document& document, SVG::SVGForeig
 {
 }
 
-GC::Ptr<Painting::Paintable> SVGForeignObjectBox::create_paintable() const
+RefPtr<Painting::Paintable> SVGForeignObjectBox::create_paintable() const
 {
     return Painting::SVGForeignObjectPaintable::create(*this);
 }

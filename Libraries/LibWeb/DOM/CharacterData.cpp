@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/Bindings/CharacterData.h>
 #include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
@@ -30,6 +31,11 @@ void CharacterData::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CharacterData);
     Base::initialize(realm);
+}
+
+size_t CharacterData::external_memory_size() const
+{
+    return Node::external_memory_size() + JS::utf16_string_external_memory_size(m_data);
 }
 
 // https://dom.spec.whatwg.org/#dom-characterdata-data

@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Bindings/CSSStyleSheet.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -142,6 +143,19 @@ void CSSStyleSheet::visit_edges(Cell::Visitor& visitor)
         m_shared_single_constructed_sheet_style_cache->visit_edges(visitor);
     for (auto& subresource : m_critical_subresources)
         subresource.visit_edges(visitor);
+}
+
+size_t CSSStyleSheet::external_memory_size() const
+{
+    auto size = Base::external_memory_size();
+    if (m_source_text.has_value())
+        size = JS::saturating_add_external_memory_size(size, JS::string_external_memory_size(*m_source_text));
+    size = JS::saturating_add_external_memory_size(size, JS::hash_map_external_memory_size(m_namespace_rules));
+    size = JS::saturating_add_external_memory_size(size, JS::vector_external_memory_size(m_import_rules));
+    size = JS::saturating_add_external_memory_size(size, JS::hash_table_external_memory_size(m_owning_documents_or_shadow_roots));
+    size = JS::saturating_add_external_memory_size(size, JS::vector_external_memory_size(m_critical_subresources));
+    size = JS::saturating_add_external_memory_size(size, JS::vector_external_memory_size(m_pending_image_values));
+    return size;
 }
 
 // https://www.w3.org/TR/cssom/#dom-cssstylesheet-insertrule

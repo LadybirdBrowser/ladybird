@@ -44,7 +44,7 @@ CSS::SizeWithAspectRatio VideoBox::natural_size() const
     return { natural_size->width(), natural_size->height(), natural_size->width() / natural_size->height() };
 }
 
-GC::Ptr<Painting::Paintable> VideoBox::create_paintable() const
+RefPtr<Painting::Paintable> VideoBox::create_paintable() const
 {
     return Painting::VideoPaintable::create(*this);
 }

@@ -122,6 +122,10 @@ CSSTransition::CSSTransition(
     m_keyframe_effect->set_target(abstract_element);
     m_keyframe_effect->set_specified_start_delay(delay);
     m_keyframe_effect->set_specified_iteration_duration(end_time - start_time);
+    // AD-HOC: CSS Transitions require the start value to apply during transition-delay. A default KeyframeEffect does
+    //         not fill in the before phase, so use backwards fill to keep the transition value in the cascade until
+    //         the active interval starts.
+    m_keyframe_effect->set_fill_mode(Bindings::FillMode::Backwards);
     // https://drafts.csswg.org/web-animations-2/#updating-animationeffect-timing
     // Timing properties may also be updated due to a style change. Any change to a CSS animation property that affects
     // timing requires rerunning the procedure to normalize specified timing.

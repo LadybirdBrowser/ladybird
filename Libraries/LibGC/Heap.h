@@ -104,6 +104,9 @@ public:
 
     WeakImpl* create_weak_impl(void*);
 
+    void did_allocate_external_memory(size_t);
+    void did_free_external_memory(size_t);
+
 private:
     friend class MarkingVisitor;
     friend class GraphConstructorVisitor;
@@ -137,6 +140,7 @@ private:
     }
 
     void will_allocate(size_t);
+    void update_gc_bytes_threshold(size_t live_cell_bytes, size_t live_external_bytes);
 
     void find_min_and_max_block_addresses(FlatPtr& min_address, FlatPtr& max_address);
     void gather_roots(HashMap<Cell*, HeapRoot>&, HashTable<HeapBlock*>& all_live_heap_blocks, ExcludeConservativeRoots root_inclusion, Vector<StackFrameInfo>* out_stack_frames = nullptr);
@@ -168,8 +172,7 @@ private:
         }
     }
 
-    static constexpr size_t GC_MIN_BYTES_THRESHOLD { 4 * 1024 * 1024 };
-    size_t m_gc_bytes_threshold { GC_MIN_BYTES_THRESHOLD };
+    size_t m_gc_bytes_threshold { 0 };
     size_t m_allocated_bytes_since_last_gc { 0 };
 
     bool m_should_collect_on_every_allocation { false };

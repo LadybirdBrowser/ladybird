@@ -6,6 +6,7 @@
 
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/SharedFunctionInstanceData.h>
 #include <LibJS/Runtime/VM.h>
@@ -228,6 +229,19 @@ void Script::visit_edges(Cell::Visitor& visitor)
         m_host_defined->visit_host_defined_self(visitor);
     for (auto const& loaded_module : m_loaded_modules)
         visitor.visit(loaded_module.module);
+}
+
+size_t Script::external_memory_size() const
+{
+    size_t size = vector_external_memory_size(m_loaded_modules);
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(m_lexical_names));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(m_var_names));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(m_functions_to_initialize));
+    size = saturating_add_external_memory_size(size, m_declared_function_names.capacity() * sizeof(Utf16FlyString));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(m_var_scoped_names));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(m_annex_b_candidate_names));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(m_lexical_bindings));
+    return size;
 }
 
 }

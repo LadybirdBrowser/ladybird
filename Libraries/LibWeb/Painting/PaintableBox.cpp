@@ -34,8 +34,6 @@
 
 namespace Web::Painting {
 
-GC_DEFINE_ALLOCATOR(PaintableBox);
-
 static bool g_paint_viewport_scrollbars = true;
 
 void set_paint_viewport_scrollbars(bool const enabled)
@@ -98,7 +96,7 @@ ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, Paintab
                     result.svg_filter = filter_element->gfx_filter(layout_node);
                     auto bounds = paintable_box.absolute_border_box_rect();
                     if (bounds.is_empty()) {
-                        if (auto const* svg_ancestor = paintable_box.first_ancestor_of_type<SVGSVGPaintable>())
+                        if (auto svg_ancestor = paintable_box.first_ancestor_of_type<SVGSVGPaintable>())
                             result.svg_filter_bounds = svg_ancestor->absolute_rect();
                     }
                     if (!bounds.is_empty())
@@ -109,14 +107,14 @@ ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, Paintab
     return result;
 }
 
-GC::Ref<PaintableBox> PaintableBox::create(Layout::Box const& layout_box)
+NonnullRefPtr<PaintableBox> PaintableBox::create(Layout::Box const& layout_box)
 {
-    return layout_box.heap().allocate<PaintableBox>(layout_box);
+    return adopt_ref(*new PaintableBox(layout_box));
 }
 
-GC::Ref<PaintableBox> PaintableBox::create(Layout::InlineNode const& layout_box)
+NonnullRefPtr<PaintableBox> PaintableBox::create(Layout::InlineNode const& layout_box)
 {
-    return layout_box.heap().allocate<PaintableBox>(layout_box);
+    return adopt_ref(*new PaintableBox(layout_box));
 }
 
 PaintableBox::PaintableBox(Layout::Box const& layout_box)
@@ -167,15 +165,6 @@ void PaintableBox::reset_for_relayout()
     m_cached_phase_commands = {};
 
     invalidate_stacking_context();
-}
-
-void PaintableBox::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_stacking_context);
-    visitor.visit(m_horizontal_scrollbar);
-    visitor.visit(m_vertical_scrollbar);
-    visitor.visit(m_resize_handle);
 }
 
 CSSPixelPoint PaintableBox::scroll_offset() const
@@ -308,7 +297,7 @@ CSSPixelPoint PaintableBox::offset() const
 CSSPixelRect PaintableBox::compute_absolute_rect() const
 {
     CSSPixelRect rect { offset(), content_size() };
-    for (auto const* block = containing_block(); block; block = block->containing_block())
+    for (auto block = containing_block(); block; block = block->containing_block())
         rect.translate_by(block->offset());
     return rect;
 }
@@ -402,7 +391,7 @@ static CSSPixelRect united_rect_for_continuation_chain(PaintableBox const& start
         for (auto const& paintable : node->paintables()) {
             if (!is<PaintableBox>(paintable))
                 continue;
-            auto const& paintable_box = static_cast<PaintableBox const&>(paintable);
+            auto const& paintable_box = static_cast<PaintableBox const&>(*paintable);
             auto paintable_border_box_rect = get_rect(paintable_box);
             if (!result.has_value())
                 result = paintable_border_box_rect;
@@ -444,16 +433,16 @@ Optional<CSSPixelRect> PaintableBox::get_clip_rect() const
     return {};
 }
 
-GC::Ptr<Scrollbar> PaintableBox::scrollbar(ScrollDirection direction) const
+RefPtr<Scrollbar> PaintableBox::scrollbar(ScrollDirection direction) const
 {
     return direction == ScrollDirection::Horizontal ? m_horizontal_scrollbar : m_vertical_scrollbar;
 }
 
-GC::Ref<Scrollbar> PaintableBox::ensure_scrollbar(ScrollDirection direction)
+NonnullRefPtr<Scrollbar> PaintableBox::ensure_scrollbar(ScrollDirection direction)
 {
     auto& slot = direction == ScrollDirection::Horizontal ? m_horizontal_scrollbar : m_vertical_scrollbar;
     if (!slot)
-        slot = Scrollbar::create(heap(), const_cast<PaintableBox&>(*this), direction);
+        slot = Scrollbar::create(const_cast<PaintableBox&>(*this), direction);
     return *slot;
 }
 
@@ -800,9 +789,19 @@ void PaintableBox::paint_inspector_overlay_internal(DisplayListRecordingContext&
     context.display_list_recorder().draw_text(size_text_device_rect, size_text, font->with_size(font->point_size() * context.device_pixels_per_css_pixel()), Gfx::TextAlignment::Center, context.palette().color(Gfx::ColorRole::TooltipText));
 }
 
-void PaintableBox::set_stacking_context(GC::Ref<StackingContext> stacking_context)
+void PaintableBox::set_stacking_context(NonnullRefPtr<StackingContext> stacking_context)
 {
     m_stacking_context = move(stacking_context);
+}
+
+RefPtr<StackingContext> PaintableBox::stacking_context()
+{
+    return m_stacking_context;
+}
+
+RefPtr<StackingContext const> PaintableBox::stacking_context() const
+{
+    return m_stacking_context;
 }
 
 void PaintableBox::invalidate_stacking_context()
@@ -1013,15 +1012,15 @@ bool PaintableBox::is_chrome_mirrored() const
         || writing_mode == CSS::WritingMode::SidewaysRl;
 }
 
-GC::Ptr<ResizeHandle> PaintableBox::resize_handle() const
+RefPtr<ResizeHandle> PaintableBox::resize_handle() const
 {
     return m_resize_handle;
 }
 
-GC::Ref<ResizeHandle> PaintableBox::ensure_resize_handle()
+NonnullRefPtr<ResizeHandle> PaintableBox::ensure_resize_handle()
 {
     if (!m_resize_handle)
-        m_resize_handle = ResizeHandle::create(heap(), *this);
+        m_resize_handle = ResizeHandle::create(*this);
     return *m_resize_handle;
 }
 
@@ -1168,7 +1167,7 @@ Optional<HitTestResult> PaintableBox::hit_test(CSSPixelPoint position, HitTestTy
 
 TraversalDecision PaintableBox::hit_test_children(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
-    for (auto const* child = last_child(); child; child = child->previous_sibling()) {
+    for (auto child = last_child(); child; child = child->previous_sibling()) {
         if (child->is_positioned() && child->computed_values().z_index().value_or(0) == 0)
             continue;
         if (child->has_stacking_context())
@@ -1252,7 +1251,7 @@ CSSPixelRect PaintableBox::transform_reference_box() const
         // FIXME: If a viewBox attribute is specified for the SVG viewport creating element:
         //  - The reference box is positioned at the origin of the coordinate system established by the viewBox attribute.
         //  - The dimension of the reference box is set to the width and height values of the viewBox attribute.
-        auto* svg_paintable = first_ancestor_of_type<Painting::SVGSVGPaintable>();
+        auto svg_paintable = first_ancestor_of_type<Painting::SVGSVGPaintable>();
         if (!svg_paintable)
             return absolute_border_box_rect();
         return svg_paintable->absolute_rect();
@@ -1286,7 +1285,7 @@ ScrollFrameIndex PaintableBox::nearest_scroll_frame_index() const
 {
     if (is_fixed_position())
         return {};
-    auto const* paintable = this->containing_block();
+    auto paintable = this->containing_block();
     while (paintable) {
         if (paintable->own_scroll_frame_index().value())
             return paintable->own_scroll_frame_index();
@@ -1299,9 +1298,9 @@ ScrollFrameIndex PaintableBox::nearest_scroll_frame_index() const
     return {};
 }
 
-PaintableBox const* PaintableBox::nearest_scrollable_ancestor() const
+RefPtr<PaintableBox const> PaintableBox::nearest_scrollable_ancestor() const
 {
-    auto const* paintable = this->containing_block();
+    auto paintable = this->containing_block();
     while (paintable) {
         if (paintable->could_be_scrolled_by_wheel_event())
             return paintable;

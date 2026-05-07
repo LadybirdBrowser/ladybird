@@ -7,7 +7,8 @@
 #pragma once
 
 #include <AK/AtomicRefCounted.h>
-#include <AK/RefPtr.h>
+#include <AK/NonnullRefPtr.h>
+#include <AK/Optional.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
 #include <LibThreading/Mutex.h>
@@ -18,15 +19,15 @@ class ExternalContentSource final : public AtomicRefCounted<ExternalContentSourc
 public:
     static NonnullRefPtr<ExternalContentSource> create();
 
-    void update(RefPtr<Gfx::DecodedImageFrame>);
+    void update(Optional<Gfx::DecodedImageFrame>);
     void clear();
-    RefPtr<Gfx::DecodedImageFrame> current_frame() const;
+    Optional<Gfx::DecodedImageFrame> current_frame() const;
 
 private:
     ExternalContentSource() = default;
 
     mutable Threading::Mutex m_mutex;
-    RefPtr<Gfx::DecodedImageFrame> m_frame;
+    Optional<Gfx::DecodedImageFrame> m_frame;
 };
 
 }

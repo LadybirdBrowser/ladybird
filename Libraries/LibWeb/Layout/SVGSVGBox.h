@@ -24,7 +24,7 @@ public:
 
     virtual bool can_have_children() const override { return true; }
 
-    virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
+    virtual RefPtr<Painting::Paintable> create_paintable() const override;
 
 private:
     virtual CSS::SizeWithAspectRatio natural_size() const override;

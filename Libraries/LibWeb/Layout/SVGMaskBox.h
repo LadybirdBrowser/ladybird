@@ -25,7 +25,7 @@ public:
     SVG::SVGMaskElement& dom_node() { return as<SVG::SVGMaskElement>(SVGGraphicsBox::dom_node()); }
     SVG::SVGMaskElement const& dom_node() const { return as<SVG::SVGMaskElement>(SVGGraphicsBox::dom_node()); }
 
-    virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
+    virtual RefPtr<Painting::Paintable> create_paintable() const override;
 };
 
 template<>

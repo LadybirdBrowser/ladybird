@@ -1543,7 +1543,7 @@ static Vector<CSSPixelRect> compute_client_rects_assuming_layout_clean(Element c
     //          are left in the final list.
 
     Vector<CSSPixelRect> rects;
-    if (auto const* paintable_box = element.paintable_box()) {
+    if (auto paintable_box = element.paintable_box()) {
         auto absolute_rect = paintable_box->absolute_border_box_rect();
         rects.append(paintable_box->transform_rect_to_viewport(absolute_rect));
     } else if (element.paintable()) {
@@ -4583,11 +4583,11 @@ Optional<FlyString> Element::document_scoped_view_transition_name()
 
 // https://drafts.csswg.org/css-view-transitions-1/#capture-the-image
 // To capture the image given an element element, perform the following steps. They return an image.
-RefPtr<Gfx::DecodedImageFrame> Element::capture_the_image()
+Optional<Gfx::DecodedImageFrame> Element::capture_the_image()
 {
     // FIXME: Actually implement this.
     auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, Gfx::IntSize(1, 1)));
-    return Gfx::DecodedImageFrame::create(*bitmap);
+    return Gfx::DecodedImageFrame { *bitmap };
 }
 
 void Element::set_pointer_capture(WebIDL::Long pointer_id)

@@ -5,6 +5,7 @@
  */
 
 #include <LibJS/Bytecode/PropertyNameIterator.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/Shape.h>
 
@@ -191,6 +192,11 @@ void PropertyNameIterator::visit_edges(Visitor& visitor)
     visitor.visit(m_prototype_chain_validity);
     for (auto& key : m_owned_properties)
         key.visit_edges(visitor);
+}
+
+size_t PropertyNameIterator::external_memory_size() const
+{
+    return Object::external_memory_size() + vector_external_memory_size(m_owned_properties);
 }
 
 }

@@ -15,11 +15,9 @@
 
 namespace Web::Painting {
 
-GC_DEFINE_ALLOCATOR(RadioButtonPaintable);
-
-GC::Ref<RadioButtonPaintable> RadioButtonPaintable::create(Layout::RadioButton const& layout_box)
+NonnullRefPtr<RadioButtonPaintable> RadioButtonPaintable::create(Layout::RadioButton const& layout_box)
 {
-    return layout_box.heap().allocate<RadioButtonPaintable>(layout_box);
+    return adopt_ref(*new RadioButtonPaintable(layout_box));
 }
 
 RadioButtonPaintable::RadioButtonPaintable(Layout::RadioButton const& layout_box)

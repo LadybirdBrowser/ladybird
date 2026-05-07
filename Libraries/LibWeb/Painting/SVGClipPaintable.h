@@ -12,11 +12,9 @@
 namespace Web::Painting {
 
 class SVGClipPaintable : public SVGPaintable {
-    GC_CELL(SVGClipPaintable, SVGPaintable);
-    GC_DECLARE_ALLOCATOR(SVGClipPaintable);
-
 public:
-    static GC::Ref<SVGClipPaintable> create(Layout::SVGClipBox const&);
+    static NonnullRefPtr<SVGClipPaintable> create(Layout::SVGClipBox const&);
+    virtual StringView class_name() const override { return "SVGClipPaintable"sv; }
 
     bool forms_unconnected_subtree() const override
     {

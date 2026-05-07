@@ -1458,13 +1458,13 @@ static void relayout_svg_root(Layout::SVGSVGBox& svg_root)
     Layout::LayoutState layout_state(svg_root);
 
     // Pre-populate the svg_root itself.
-    if (auto const* paintable = svg_root.paintable_box())
+    if (auto paintable = svg_root.paintable_box())
         layout_state.populate_from_paintable(svg_root, *paintable);
 
     // Pre-populate SVGGraphicsBox ancestors (up to outer SVG) for get_parent_svg_transform().
     for (auto* ancestor = svg_root.parent(); ancestor; ancestor = ancestor->parent()) {
         if (auto const* svg_graphics_ancestor = as_if<Layout::SVGGraphicsBox>(*ancestor)) {
-            if (auto const* paintable = svg_graphics_ancestor->paintable_box())
+            if (auto paintable = svg_graphics_ancestor->paintable_box())
                 layout_state.populate_from_paintable(*svg_graphics_ancestor, *paintable);
         }
         if (is<Layout::SVGSVGBox>(*ancestor))
@@ -1473,7 +1473,7 @@ static void relayout_svg_root(Layout::SVGSVGBox& svg_root)
 
     // Pre-populate the viewport for position:fixed elements inside <foreignObject>.
     auto& viewport = svg_root.root();
-    if (auto const* paintable = viewport.paintable_box())
+    if (auto paintable = viewport.paintable_box())
         layout_state.populate_from_paintable(viewport, *paintable);
 
     auto const& svg_state = layout_state.get(svg_root);
@@ -1713,7 +1713,7 @@ void Document::update_layout(UpdateLayoutReason reason)
     }
 
     // Collect elements with content-visibility: auto. This is used in the HTML event loop to avoid traversing the whole tree every time.
-    Vector<GC::Ref<Painting::PaintableBox>> paintable_boxes_with_auto_content_visibility;
+    Vector<WeakPtr<Painting::PaintableBox>> paintable_boxes_with_auto_content_visibility;
     unsafe_paintable()->for_each_in_subtree_of_type<Painting::PaintableBox>([&](auto& paintable_box) {
         if (paintable_box.dom_node()
             && paintable_box.dom_node()->is_element()
@@ -1964,13 +1964,13 @@ void Document::set_needs_animated_style_update()
 void Document::update_paint_and_hit_testing_properties_if_needed()
 {
     // NB: Called during paint property resolution.
-    if (auto* paintable = this->unsafe_paintable()) {
+    if (auto paintable = this->unsafe_paintable()) {
         paintable->refresh_scroll_state();
     }
 
     if (m_needs_accumulated_visual_contexts_update) {
         m_needs_accumulated_visual_contexts_update = false;
-        if (auto* paintable = this->unsafe_paintable()) {
+        if (auto paintable = this->unsafe_paintable()) {
             paintable->assign_accumulated_visual_contexts();
         }
     }
@@ -4249,7 +4249,7 @@ void Document::set_page_showing(bool page_showing)
 void Document::invalidate_stacking_context_tree()
 {
     // NB: Called during stacking context invalidation.
-    if (auto* paintable_box = this->unsafe_paintable_box())
+    if (auto paintable_box = this->unsafe_paintable_box())
         paintable_box->invalidate_stacking_context();
 }
 
@@ -5381,15 +5381,15 @@ void Document::queue_an_intersection_observer_entry(IntersectionObserver::Inters
 }
 
 // https://www.w3.org/TR/intersection-observer/#compute-the-intersection
-static CSSPixelRect compute_intersection(GC::Ref<Element> target, CSSPixelRect target_rect, IntersectionObserver::IntersectionObserver const& observer, Painting::PaintableBox const* root_paintable, CSSPixelRect const& root_bounds)
+static CSSPixelRect compute_intersection(GC::Ref<Element> target, CSSPixelRect target_rect, IntersectionObserver::IntersectionObserver const& observer, RefPtr<Painting::PaintableBox> root_paintable, CSSPixelRect const& root_bounds)
 {
     // 1. Let intersectionRect be the result of getting the bounding box for target.
     auto intersection_rect = target_rect;
 
     // 2. Let container be the containing block of target.
     // 3. While container is not root:
-    if (auto const* target_paintable = target->paintable_box()) {
-        for (auto const* container = target_paintable->containing_block(); container; container = container->containing_block()) {
+    if (auto target_paintable = target->paintable_box()) {
+        for (auto container = target_paintable->containing_block(); container; container = container->containing_block()) {
             // Stop when we reach the intersection root.
             if (container == root_paintable)
                 break;
@@ -5460,7 +5460,7 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
 
         // Pre-compute per-observer values to avoid repeated work in the per-target loop.
         auto intersection_root_node = observer->intersection_root_node();
-        auto* root_paintable = intersection_root_node->paintable_box();
+        auto root_paintable = intersection_root_node->paintable_box();
         bool is_implicit_root = observer->is_implicit_root();
         bool root_is_element = intersection_root_node->is_element();
 
@@ -5807,24 +5807,36 @@ void Document::shared_declarative_refresh_steps(StringView input, GC::Ptr<HTML::
     }
 }
 
-Painting::ViewportPaintable const* Document::paintable() const
+RefPtr<Painting::ViewportPaintable const> Document::paintable() const
 {
-    return static_cast<Painting::ViewportPaintable const*>(Node::paintable());
+    auto paintable = Node::paintable();
+    if (!paintable)
+        return nullptr;
+    return as<Painting::ViewportPaintable>(*paintable);
 }
 
-Painting::ViewportPaintable* Document::paintable()
+RefPtr<Painting::ViewportPaintable> Document::paintable()
 {
-    return static_cast<Painting::ViewportPaintable*>(Node::paintable());
+    auto paintable = Node::paintable();
+    if (!paintable)
+        return nullptr;
+    return as<Painting::ViewportPaintable>(*paintable);
 }
 
-Painting::ViewportPaintable const* Document::unsafe_paintable() const
+RefPtr<Painting::ViewportPaintable const> Document::unsafe_paintable() const
 {
-    return static_cast<Painting::ViewportPaintable const*>(Node::unsafe_paintable());
+    auto paintable = Node::unsafe_paintable();
+    if (!paintable)
+        return nullptr;
+    return as<Painting::ViewportPaintable>(*paintable);
 }
 
-Painting::ViewportPaintable* Document::unsafe_paintable()
+RefPtr<Painting::ViewportPaintable> Document::unsafe_paintable()
 {
-    return static_cast<Painting::ViewportPaintable*>(Node::unsafe_paintable());
+    auto paintable = Node::unsafe_paintable();
+    if (!paintable)
+        return nullptr;
+    return as<Painting::ViewportPaintable>(*paintable);
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#restore-the-history-object-state
@@ -6399,7 +6411,7 @@ Element const* Document::element_from_point(double x, double y)
     // 2. If there is a box in the viewport that would be a target for hit testing at coordinates x,y, when applying the transforms
     //    that apply to the descendants of the viewport, return the associated element and terminate these steps.
     GC::Ptr<Element> hit_element;
-    if (auto const* paintable_box = this->paintable_box()) {
+    if (auto paintable_box = this->paintable_box()) {
         (void)paintable_box->hit_test(position, Painting::HitTestType::Exact, [&](Painting::HitTestResult result) {
             if (auto* element = as_if<Element>(result.dom_node())) {
                 hit_element = element;
@@ -6442,7 +6454,7 @@ GC::RootVector<GC::Ref<Element>> Document::elements_from_point(double x, double 
     // 3. For each box in the viewport, in paint order, starting with the topmost box, that would be a target for
     //    hit testing at coordinates x,y even if nothing would be overlapping it, when applying the transforms that
     //    apply to the descendants of the viewport, append the associated element to sequence.
-    if (auto const* paintable_box = this->paintable_box()) {
+    if (auto paintable_box = this->paintable_box()) {
         (void)paintable_box->hit_test(position, Painting::HitTestType::Exact, [&](Painting::HitTestResult result) {
             if (auto* element = as_if<Element>(result.dom_node())) {
                 // AD-HOC: If element is inside a UA internal shadow root, retarget to the host.
@@ -6976,7 +6988,7 @@ GC::Ptr<HTML::HTMLElement> Document::topmost_auto_or_hint_popover()
 void Document::set_needs_to_refresh_scroll_state(bool b)
 {
     // NB: Propagating scroll state invalidation.
-    if (auto* paintable = this->unsafe_paintable())
+    if (auto paintable = this->unsafe_paintable())
         paintable->set_needs_to_refresh_scroll_state(b);
 }
 
@@ -7917,7 +7929,7 @@ String Document::dump_display_list()
 {
     update_layout(UpdateLayoutReason::DumpDisplayList);
 
-    auto* viewport_paintable = paintable();
+    auto viewport_paintable = paintable();
     if (!viewport_paintable)
         return "No paintable"_string;
 
@@ -7925,11 +7937,11 @@ String Document::dump_display_list()
     if (!display_list)
         return "No display list"_string;
 
-    HashMap<size_t, Painting::PaintableBox const*> context_id_to_paintable;
+    HashMap<size_t, RefPtr<Painting::PaintableBox const>> context_id_to_paintable;
     viewport_paintable->for_each_in_inclusive_subtree_of_type<Painting::PaintableBox>([&](auto const& paintable_box) {
         auto visual_context_index = paintable_box.accumulated_visual_context_index();
         if (visual_context_index.value())
-            (void)context_id_to_paintable.try_set(visual_context_index.value(), &paintable_box);
+            (void)context_id_to_paintable.try_set(visual_context_index.value(), paintable_box);
         return TraversalDecision::Continue;
     });
 
@@ -8009,13 +8021,13 @@ String Document::dump_stacking_context_tree()
 {
     update_layout(UpdateLayoutReason::DumpDisplayList);
 
-    auto* viewport_paintable = paintable();
+    auto viewport_paintable = paintable();
     if (!viewport_paintable)
         return "No paintable"_string;
 
     viewport_paintable->build_stacking_context_tree_if_needed();
 
-    auto* stacking_context = viewport_paintable->stacking_context();
+    auto stacking_context = viewport_paintable->stacking_context();
     if (!stacking_context)
         return "No stacking context"_string;
 

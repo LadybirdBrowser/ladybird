@@ -339,7 +339,7 @@ ErrorOr<void> print_set(JS::PrintContext& print_context, JS::Set const& set, Has
 ErrorOr<void> print_weak_map(JS::PrintContext& print_context, JS::WeakMap const& weak_map, HashTable<JS::Object*>&)
 {
     TRY(print_type(print_context, "WeakMap"sv));
-    TRY(js_out(print_context, " ({})", weak_map.values().size()));
+    TRY(js_out(print_context, " ({})", weak_map.weak_map_size()));
     // Note: We could tell you what's actually inside, but not in insertion order.
     return {};
 }
@@ -347,7 +347,7 @@ ErrorOr<void> print_weak_map(JS::PrintContext& print_context, JS::WeakMap const&
 ErrorOr<void> print_weak_set(JS::PrintContext& print_context, JS::WeakSet const& weak_set, HashTable<JS::Object*>&)
 {
     TRY(print_type(print_context, "WeakSet"sv));
-    TRY(js_out(print_context, " ({})", weak_set.values().size()));
+    TRY(js_out(print_context, " ({})", weak_set.weak_set_size()));
     // Note: We could tell you what's actually inside, but not in insertion order.
     return {};
 }

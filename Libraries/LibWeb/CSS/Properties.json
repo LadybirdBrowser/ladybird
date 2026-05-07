@@ -1507,6 +1507,27 @@
       "contain"
     ]
   },
+  "container": {
+    "initial": "none",
+    "longhands": [
+      "container-name",
+      "container-type"
+    ]
+  },
+  "container-name": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "none",
+    "multiplicity": "list",
+    "requires-computation": "never",
+    "valid-types": [
+      "custom-ident ![none,and,not,or]"
+    ],
+    "valid-identifiers": [
+      "none"
+    ]
+  },
   "container-type": {
     "affects-stacking-context": true,
     "animation-type": "none",

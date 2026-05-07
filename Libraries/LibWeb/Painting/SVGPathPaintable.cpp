@@ -12,11 +12,9 @@
 
 namespace Web::Painting {
 
-GC_DEFINE_ALLOCATOR(SVGPathPaintable);
-
-GC::Ref<SVGPathPaintable> SVGPathPaintable::create(Layout::SVGGraphicsBox const& layout_box)
+NonnullRefPtr<SVGPathPaintable> SVGPathPaintable::create(Layout::SVGGraphicsBox const& layout_box)
 {
-    return layout_box.heap().allocate<SVGPathPaintable>(layout_box);
+    return adopt_ref(*new SVGPathPaintable(layout_box));
 }
 
 SVGPathPaintable::SVGPathPaintable(Layout::SVGGraphicsBox const& layout_box)

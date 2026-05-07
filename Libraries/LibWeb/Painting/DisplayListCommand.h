@@ -64,7 +64,7 @@ struct DrawScaledDecodedImageFrame {
 
     Gfx::IntRect dst_rect;
     Gfx::IntRect clip_rect;
-    NonnullRefPtr<Gfx::DecodedImageFrame const> frame;
+    Gfx::DecodedImageFrame frame;
     Gfx::ScalingMode scaling_mode;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return clip_rect; }
@@ -81,7 +81,7 @@ struct DrawRepeatedDecodedImageFrame {
 
     Gfx::IntRect dst_rect;
     Gfx::IntRect clip_rect;
-    NonnullRefPtr<Gfx::DecodedImageFrame const> frame;
+    Gfx::DecodedImageFrame frame;
     Gfx::ScalingMode scaling_mode;
     Repeat repeat;
 

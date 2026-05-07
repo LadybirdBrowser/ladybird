@@ -48,19 +48,23 @@ void Box::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_contained_abspos_children);
 }
 
-GC::Ptr<Painting::Paintable> Box::create_paintable() const
+RefPtr<Painting::Paintable> Box::create_paintable() const
 {
     return Painting::PaintableBox::create(*this);
 }
 
-Painting::PaintableBox* Box::paintable_box()
+RefPtr<Painting::PaintableBox> Box::paintable_box()
 {
-    return static_cast<Painting::PaintableBox*>(Node::first_paintable());
+    if (auto paintable = Node::first_paintable())
+        return static_cast<Painting::PaintableBox&>(*paintable);
+    return nullptr;
 }
 
-Painting::PaintableBox const* Box::paintable_box() const
+RefPtr<Painting::PaintableBox const> Box::paintable_box() const
 {
-    return static_cast<Painting::PaintableBox const*>(Node::first_paintable());
+    if (auto paintable = Node::first_paintable())
+        return static_cast<Painting::PaintableBox const&>(*paintable);
+    return nullptr;
 }
 
 Optional<CSSPixelFraction> Box::preferred_aspect_ratio() const

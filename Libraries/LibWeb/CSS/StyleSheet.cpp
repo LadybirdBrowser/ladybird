@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/Bindings/StyleSheet.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/StyleSheet.h>
@@ -25,6 +26,14 @@ void StyleSheet::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_owner_node);
     visitor.visit(m_parent_style_sheet);
     visitor.visit(m_media);
+}
+
+size_t StyleSheet::external_memory_size() const
+{
+    auto size = Base::external_memory_size();
+    size = JS::saturating_add_external_memory_size(size, JS::string_external_memory_size(m_title));
+    size = JS::saturating_add_external_memory_size(size, JS::string_external_memory_size(m_type_string));
+    return size;
 }
 
 Optional<String> StyleSheet::href() const

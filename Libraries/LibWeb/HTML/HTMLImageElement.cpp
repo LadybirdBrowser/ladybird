@@ -241,11 +241,11 @@ void HTMLImageElement::adjust_computed_style(CSS::ComputedProperties& style)
         style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
 }
 
-RefPtr<Gfx::DecodedImageFrame> HTMLImageElement::default_image_frame_sized(Gfx::IntSize size) const
+Optional<Gfx::DecodedImageFrame> HTMLImageElement::default_image_frame_sized(Gfx::IntSize size) const
 {
     if (auto data = m_current_request->image_data())
         return data->frame(0, size);
-    return nullptr;
+    return {};
 }
 
 bool HTMLImageElement::is_image_available() const
@@ -274,11 +274,11 @@ Optional<CSSPixelFraction> HTMLImageElement::intrinsic_aspect_ratio() const
     return {};
 }
 
-RefPtr<Gfx::DecodedImageFrame> HTMLImageElement::current_image_frame_sized(Gfx::IntSize size) const
+Optional<Gfx::DecodedImageFrame> HTMLImageElement::current_image_frame_sized(Gfx::IntSize size) const
 {
     if (auto data = m_current_request->image_data())
         return data->frame(m_current_frame_index, size);
-    return nullptr;
+    return {};
 }
 
 void HTMLImageElement::set_visible_in_viewport(bool)
@@ -292,7 +292,7 @@ WebIDL::UnsignedLong HTMLImageElement::width() const
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLImageElementWidth);
 
     // Return the rendered width of the image, in CSS pixels, if the image is being rendered.
-    if (auto* paintable_box = this->paintable_box())
+    if (auto paintable_box = this->paintable_box())
         return paintable_box->content_width().to_int();
 
     // On setting [the width or height IDL attribute], they must act as if they reflected the respective content attributes of the same name.
@@ -303,7 +303,7 @@ WebIDL::UnsignedLong HTMLImageElement::width() const
 
     // ...or else the density-corrected intrinsic width and height of the image, in CSS pixels,
     // if the image has intrinsic dimensions and is available but not being rendered.
-    if (auto bitmap = current_image_frame())
+    if (auto bitmap = current_image_frame(); bitmap.has_value())
         return bitmap->width();
 
     // ...or else 0, if the image is not available or does not have intrinsic dimensions.
@@ -323,7 +323,7 @@ WebIDL::UnsignedLong HTMLImageElement::height() const
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLImageElementHeight);
 
     // Return the rendered height of the image, in CSS pixels, if the image is being rendered.
-    if (auto* paintable_box = this->paintable_box())
+    if (auto paintable_box = this->paintable_box())
         return paintable_box->content_height().to_int();
 
     // On setting [the width or height IDL attribute], they must act as if they reflected the respective content attributes of the same name.
@@ -334,7 +334,7 @@ WebIDL::UnsignedLong HTMLImageElement::height() const
 
     // ...or else the density-corrected intrinsic height and height of the image, in CSS pixels,
     // if the image has intrinsic dimensions and is available but not being rendered.
-    if (auto bitmap = current_image_frame())
+    if (auto bitmap = current_image_frame(); bitmap.has_value())
         return bitmap->height();
 
     // ...or else 0, if the image is not available or does not have intrinsic dimensions.
@@ -353,7 +353,7 @@ unsigned HTMLImageElement::natural_width() const
 {
     // Return the density-corrected intrinsic width of the image, in CSS pixels,
     // if the image has intrinsic dimensions and is available.
-    if (auto bitmap = current_image_frame())
+    if (auto bitmap = current_image_frame(); bitmap.has_value())
         return bitmap->width();
 
     // ...or else 0.
@@ -365,7 +365,7 @@ unsigned HTMLImageElement::natural_height() const
 {
     // Return the density-corrected intrinsic height of the image, in CSS pixels,
     // if the image has intrinsic dimensions and is available.
-    if (auto bitmap = current_image_frame())
+    if (auto bitmap = current_image_frame(); bitmap.has_value())
         return bitmap->height();
 
     // ...or else 0.
@@ -380,7 +380,7 @@ int HTMLImageElement::x() const
     // to the element and its ancestors, or zero if there is no box.
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLImageElementX);
 
-    auto const* paintable_box = this->paintable_box();
+    auto paintable_box = this->paintable_box();
     if (!paintable_box)
         return 0;
 
@@ -399,7 +399,7 @@ int HTMLImageElement::y() const
     // to the element and its ancestors, or zero if there is no box.
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLImageElementY);
 
-    auto const* paintable_box = this->paintable_box();
+    auto paintable_box = this->paintable_box();
     if (!paintable_box)
         return 0;
 

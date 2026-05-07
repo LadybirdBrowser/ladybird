@@ -11,6 +11,7 @@
 #include <AK/StringBuilder.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/ObjectEnvironment.h>
@@ -80,6 +81,17 @@ void EventTarget::visit_edges(Cell::Visitor& visitor)
         visitor.visit(data->event_listener_list);
         visitor.visit(data->event_handler_map);
     }
+}
+
+size_t EventTarget::external_memory_size() const
+{
+    auto size = Base::external_memory_size();
+    if (!m_data)
+        return size;
+
+    size = JS::saturating_add_external_memory_size(size, JS::vector_external_memory_size(m_data->event_listener_list));
+    size = JS::saturating_add_external_memory_size(size, JS::hash_map_external_memory_size(m_data->event_handler_map));
+    return size;
 }
 
 Vector<GC::Root<DOMEventListener>> EventTarget::event_listener_list()

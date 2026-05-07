@@ -8,11 +8,9 @@
 
 namespace Web::Painting {
 
-GC_DEFINE_ALLOCATOR(SVGMaskPaintable);
-
-GC::Ref<SVGMaskPaintable> SVGMaskPaintable::create(Layout::SVGMaskBox const& layout_box)
+NonnullRefPtr<SVGMaskPaintable> SVGMaskPaintable::create(Layout::SVGMaskBox const& layout_box)
 {
-    return layout_box.heap().allocate<SVGMaskPaintable>(layout_box);
+    return adopt_ref(*new SVGMaskPaintable(layout_box));
 }
 
 SVGMaskPaintable::SVGMaskPaintable(Layout::SVGMaskBox const& layout_box)

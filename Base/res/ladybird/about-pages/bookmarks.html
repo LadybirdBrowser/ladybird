@@ -225,6 +225,58 @@
                 font-size: 12px;
                 min-width: 0;
             }
+
+            .search-container {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+
+                max-width: 65%;
+                margin: 0 auto 24px auto;
+                padding: 0px 12px;
+
+                background-color: var(--tree-hover-color);
+                border: none;
+                border-radius: 8px;
+            }
+
+            .search-icon {
+                flex-shrink: 0;
+                width: 16px;
+                height: 16px;
+                color: var(--empty-text-color);
+            }
+
+            .search-input {
+                flex-grow: 1;
+                min-width: 0;
+                font-size: 13px;
+                color: inherit;
+
+                background: none;
+                border: none;
+                outline: none;
+                padding: 0;
+            }
+
+            .search-input::placeholder {
+                color: var(--empty-text-color);
+            }
+
+            .search-highlight {
+                color: inherit;
+                background-color: var(--tree-selected-color);
+                border-radius: 2px;
+            }
+
+            .search-no-results {
+                color: var(--empty-text-color);
+
+                padding: 40px 20px;
+
+                text-align: center;
+                font-size: 14px;
+            }
         </style>
     </head>
     <body>
@@ -249,6 +301,21 @@
             </div>
             <input type="file" id="import-file" accept=".html,text/html" hidden />
         </header>
+
+        <div class="search-container">
+            <svg
+                class="search-icon"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+            >
+                <circle cx="11" cy="11" r="7" />
+                <line x1="16" y1="16" x2="22" y2="22" />
+            </svg>
+            <input type="text" class="search-input" id="search-input" placeholder="Search bookmarks" />
+        </div>
 
         <div class="card">
             <div class="card-body" id="bookmark-tree"></div>
@@ -276,6 +343,7 @@
             let BOOKMARKS = [];
             let EXPANDED_FOLDERS = new Set();
             let DRAGGED_ITEM_ID = null;
+            let SEARCH_QUERY = "";
 
             const DROP_INDICATOR = document.createElement("div");
             DROP_INDICATOR.className = "drop-indicator";
@@ -313,6 +381,89 @@
                 const url = createElement("span", { className: "item-url", textContent: item.url });
 
                 return createElement("span", { className: "item-info" }, [title, url]);
+            }
+
+            function createHighlightedBookmarkInfo(item) {
+                const link = createElement("a", { href: item.url });
+                link.append(...highlightText(item.title || item.url, SEARCH_QUERY));
+
+                const title = createElement("span", { className: "item-title" }, [link]);
+
+                const url = createElement("span", { className: "item-url" });
+                url.append(...highlightText(item.url, SEARCH_QUERY));
+
+                return createElement("span", { className: "item-info" }, [title, url]);
+            }
+
+            function itemMatchesQuery(item, query) {
+                const lowerQuery = query.toLowerCase();
+                const title = (item.title || "").toLowerCase();
+
+                if (item.type === "bookmark") {
+                    const url = (item.url || "").toLowerCase();
+                    return title.includes(lowerQuery) || url.includes(lowerQuery);
+                }
+
+                return title.includes(lowerQuery);
+            }
+
+            function filterBookmarks(items, query) {
+                if (!query) {
+                    return items;
+                }
+
+                const result = [];
+
+                for (const item of items) {
+                    if (item.type === "bookmark") {
+                        if (itemMatchesQuery(item, query)) {
+                            result.push(item);
+                        }
+                    } else if (item.type === "folder") {
+                        const filteredChildren = filterBookmarks(item.children || [], query);
+                        const folderMatches = itemMatchesQuery(item, query);
+
+                        if (filteredChildren.length > 0) {
+                            result.push({ ...item, children: filteredChildren });
+                        } else if (folderMatches) {
+                            result.push({ ...item, children: [] });
+                        }
+                    }
+                }
+
+                return result;
+            }
+
+            function highlightText(text, query) {
+                if (!query) {
+                    return [document.createTextNode(text)];
+                }
+
+                const lowerText = text.toLowerCase();
+                const lowerQuery = query.toLowerCase();
+                const fragments = [];
+                let lastIndex = 0;
+                let matchIndex = lowerText.indexOf(lowerQuery, lastIndex);
+
+                for (; matchIndex !== -1; matchIndex = lowerText.indexOf(lowerQuery, lastIndex)) {
+                    if (matchIndex > lastIndex) {
+                        fragments.push(document.createTextNode(text.slice(lastIndex, matchIndex)));
+                    }
+
+                    const mark = createElement("mark", {
+                        className: "search-highlight",
+                        textContent: text.slice(matchIndex, matchIndex + query.length),
+                    });
+                    fragments.push(mark);
+
+                    lastIndex = matchIndex + query.length;
+                }
+
+                if (lastIndex < text.length) {
+                    fragments.push(document.createTextNode(text.slice(lastIndex)));
+                }
+
+                return fragments.length > 0 ? fragments : [document.createTextNode(text)];
             }
 
             function toggleFolder(folderId) {
@@ -386,6 +537,12 @@
             }
 
             function setupDragHandlers(row, item, parentId, index) {
+                if (SEARCH_QUERY) {
+                    row.draggable = false;
+                    row.style.cursor = item.type === "folder" ? "pointer" : "default";
+                    return;
+                }
+
                 row.draggable = true;
 
                 row.addEventListener("dragstart", event => {
@@ -455,7 +612,23 @@
                     return;
                 }
 
-                renderItems(bookmarkTreeContainer, BOOKMARKS, null);
+                if (SEARCH_QUERY) {
+                    const filteredItems = filterBookmarks(BOOKMARKS, SEARCH_QUERY);
+
+                    if (filteredItems.length === 0) {
+                        bookmarkTreeContainer.appendChild(
+                            createElement("div", {
+                                className: "search-no-results",
+                                textContent: "No bookmarks matching your search.",
+                            })
+                        );
+                        return;
+                    }
+
+                    renderItems(bookmarkTreeContainer, filteredItems, null);
+                } else {
+                    renderItems(bookmarkTreeContainer, BOOKMARKS, null);
+                }
             }
 
             function renderItems(container, items, parentId) {
@@ -477,7 +650,7 @@
             function renderBookmarkRow(row, item, index, parentId) {
                 row.appendChild(createSpacer());
                 row.appendChild(createFaviconIcon(item.favicon));
-                row.appendChild(createBookmarkInfo(item));
+                row.appendChild(SEARCH_QUERY ? createHighlightedBookmarkInfo(item) : createBookmarkInfo(item));
 
                 setupDragHandlers(row, item, parentId, index);
                 addContextMenuHandler(row, item, parentId || null);
@@ -485,7 +658,8 @@
 
             function renderFolderRow(row, wrapper, item, index, parentId) {
                 const hasChildren = item.children && item.children.length > 0;
-                const isExpanded = hasChildren && EXPANDED_FOLDERS.has(item.id);
+                const isSearching = SEARCH_QUERY.length > 0;
+                const isExpanded = hasChildren && (isSearching || EXPANDED_FOLDERS.has(item.id));
 
                 if (hasChildren) {
                     row.classList.add("expandable");
@@ -501,12 +675,19 @@
                 }
 
                 row.appendChild(createIcon(FOLDER_SVG));
-                row.appendChild(
-                    createElement("span", {
-                        className: "item-title",
-                        textContent: item.title || "(no title)",
-                    })
-                );
+
+                if (isSearching) {
+                    const folderTitle = createElement("span", { className: "item-title" });
+                    folderTitle.append(...highlightText(item.title || "(no title)", SEARCH_QUERY));
+                    row.appendChild(folderTitle);
+                } else {
+                    row.appendChild(
+                        createElement("span", {
+                            className: "item-title",
+                            textContent: item.title || "(no title)",
+                        })
+                    );
+                }
 
                 setupDragHandlers(row, item, parentId, index);
                 addContextMenuHandler(row, item, item.id);
@@ -712,6 +893,13 @@
                 html += `${pad}</DL><p>\n`;
                 return html;
             }
+
+            const searchInput = document.getElementById("search-input");
+
+            searchInput.addEventListener("input", () => {
+                SEARCH_QUERY = searchInput.value.trim();
+                renderTree();
+            });
 
             exportButton.addEventListener("click", () => {
                 closeMenu();

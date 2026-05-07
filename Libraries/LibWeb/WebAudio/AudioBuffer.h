@@ -45,6 +45,7 @@ private:
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual size_t external_memory_size() const override;
 
     // https://webaudio.github.io/web-audio-api/#dom-audiobuffer-number-of-channels-slot
     // The number of audio channels for this AudioBuffer, which is an unsigned long.

@@ -11,11 +11,9 @@
 
 namespace Web::Painting {
 
-GC_DEFINE_ALLOCATOR(FieldSetPaintable);
-
-GC::Ref<FieldSetPaintable> FieldSetPaintable::create(Layout::FieldSetBox const& layout_box)
+NonnullRefPtr<FieldSetPaintable> FieldSetPaintable::create(Layout::FieldSetBox const& layout_box)
 {
-    return layout_box.heap().allocate<FieldSetPaintable>(layout_box);
+    return adopt_ref(*new FieldSetPaintable(layout_box));
 }
 
 FieldSetPaintable::FieldSetPaintable(Layout::FieldSetBox const& layout_box)
@@ -41,7 +39,7 @@ CSSPixels FieldSetPaintable::effective_border_top() const
     // whichever is greater.
     auto css_border_top = computed_values().border_top().width;
     if (auto legend = layout_box().rendered_legend()) {
-        auto const* legend_paintable = legend->paintable_box();
+        auto legend_paintable = legend->paintable_box();
         auto legend_margin_box_height = legend_paintable->box_model().margin.top
             + legend_paintable->absolute_border_box_rect().height()
             + legend_paintable->box_model().margin.bottom;
@@ -90,7 +88,7 @@ void FieldSetPaintable::paint(DisplayListRecordingContext& context, PaintPhase p
         return;
     }
 
-    auto const* legend_paintable = legend->paintable_box();
+    auto legend_paintable = legend->paintable_box();
 
     auto legend_border_rect = context.rounded_device_rect(legend_paintable->absolute_border_box_rect());
 

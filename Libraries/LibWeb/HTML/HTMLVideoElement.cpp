@@ -339,21 +339,21 @@ HTMLVideoElement::Representation HTMLVideoElement::current_representation() cons
     return Representation::VideoFrame;
 }
 
-RefPtr<Gfx::DecodedImageFrame> HTMLVideoElement::current_decoded_image_frame() const
+Optional<Gfx::DecodedImageFrame> HTMLVideoElement::current_decoded_image_frame() const
 {
     auto const& sink = selected_video_track_sink();
     if (sink == nullptr)
-        return nullptr;
+        return {};
     auto current_frame = sink->current_frame();
     if (!current_frame)
-        return nullptr;
+        return {};
     auto bitmap_or_error = current_frame->yuv_data().to_bitmap();
     if (bitmap_or_error.is_error()) {
         dbgln("Could not convert video frame to bitmap: {}", bitmap_or_error.release_error());
-        return nullptr;
+        return {};
     }
     auto bitmap = bitmap_or_error.release_value();
-    return Gfx::DecodedImageFrame::create(NonnullRefPtr<Gfx::Bitmap const> { *bitmap }, current_frame->color_space());
+    return Gfx::DecodedImageFrame { NonnullRefPtr<Gfx::Bitmap const> { *bitmap }, current_frame->color_space() };
 }
 
 }

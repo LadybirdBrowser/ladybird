@@ -58,6 +58,7 @@
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Selection/Selection.h>
+#include <LibWeb/UIEvents/InputTypes.h>
 #include <LibWeb/XHR/FormData.h>
 
 namespace Web::HTML {
@@ -2813,7 +2814,7 @@ CSSPixelPoint Navigable::to_top_level_position(CSSPixelPoint a_position)
             break;
         if (!ancestor->container())
             return {};
-        auto const* paintable = ancestor->container()->paintable();
+        auto paintable = ancestor->container()->paintable();
         if (!paintable)
             return {};
 
@@ -3008,6 +3009,24 @@ String Navigable::selected_text() const
     if (!range)
         return String {};
     return visible_text_in_range(*range);
+}
+
+String Navigable::cut_selected_text() const
+{
+    auto document = active_document();
+    if (!document)
+        return {};
+
+    auto* target = document->active_input_events_target();
+    if (!target)
+        return {};
+
+    auto text = selected_text();
+    if (text.is_empty())
+        return {};
+
+    target->handle_delete(UIEvents::InputTypes::deleteByCut);
+    return text;
 }
 
 void Navigable::select_all()

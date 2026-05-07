@@ -403,9 +403,9 @@ void PageClient::page_did_set_device_pixel_ratio_for_testing(double ratio)
     set_viewport(m_viewport_size, ratio);
 }
 
-void PageClient::page_did_request_context_menu(Web::CSSPixelPoint content_position)
+void PageClient::page_did_request_context_menu(Web::CSSPixelPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target)
 {
-    client().async_did_request_context_menu(m_id, page().css_to_device_point(content_position).to_type<int>());
+    client().async_did_request_context_menu(m_id, page().css_to_device_point(content_position).to_type<int>(), for_input_events_target);
 }
 
 void PageClient::page_did_request_link_context_menu(Web::CSSPixelPoint content_position, URL::URL const& url, ByteString const& target, unsigned modifiers)

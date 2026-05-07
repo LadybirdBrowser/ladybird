@@ -14,9 +14,9 @@ NonnullRefPtr<ExternalContentSource> ExternalContentSource::create()
     return adopt_ref(*new ExternalContentSource());
 }
 
-void ExternalContentSource::update(RefPtr<Gfx::DecodedImageFrame> frame)
+void ExternalContentSource::update(Optional<Gfx::DecodedImageFrame> frame)
 {
-    RefPtr<Gfx::DecodedImageFrame> old;
+    Optional<Gfx::DecodedImageFrame> old;
     {
         Threading::MutexLocker const locker { m_mutex };
         old = move(m_frame);
@@ -26,14 +26,14 @@ void ExternalContentSource::update(RefPtr<Gfx::DecodedImageFrame> frame)
 
 void ExternalContentSource::clear()
 {
-    RefPtr<Gfx::DecodedImageFrame> old;
+    Optional<Gfx::DecodedImageFrame> old;
     {
         Threading::MutexLocker const locker { m_mutex };
         old = move(m_frame);
     }
 }
 
-RefPtr<Gfx::DecodedImageFrame> ExternalContentSource::current_frame() const
+Optional<Gfx::DecodedImageFrame> ExternalContentSource::current_frame() const
 {
     Threading::MutexLocker const locker { m_mutex };
     return m_frame;

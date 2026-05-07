@@ -56,6 +56,7 @@ protected:
     explicit Promise(Object& prototype);
 
     virtual void visit_edges(Visitor&) override;
+    virtual size_t external_memory_size() const override;
 
 private:
     virtual bool is_promise() const override { return true; }

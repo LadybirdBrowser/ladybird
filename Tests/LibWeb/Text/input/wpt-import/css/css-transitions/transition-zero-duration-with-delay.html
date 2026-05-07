@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+<head>
+<meta charset=utf-8>
+<title>CSS Transitions Test: 0-duration transition with delay applies after delay</title>
+<meta name="assert" content="Transition with 0s duration and 0.3s delay applies property change after delay period">
+<link rel="help" href="https://drafts.csswg.org/css-transitions/#starting">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="./support/helper.js"></script>
+
+</head>
+<body>
+<div id="log"></div>
+
+<script>
+promise_test(async t => {
+  const div = addDiv(t, {
+    style: 'transition: width 0.1s; width: 0px;'
+  });
+
+  // Flush initial state
+  getComputedStyle(div).width;
+  // First transition to 100px
+  div.style.width = '100px';
+  await waitForTransitionEnd(div);
+
+  // Change transition to 0s duration with 300ms delay
+  div.style.transition = 'width 0s linear 0.3s';
+
+  // Set width back to 0
+  div.style.width = '0px';
+  // Immediate check - should NOT have changed yet
+  const computedStart = getComputedStyle(div).width;
+  assert_equals(
+    computedStart,
+    '100px',
+    'Width should remain at 100px initially'
+  );
+  // Wait for transitionend (should trigger after 300ms delay)
+  await waitForTransitionEnd(div);
+
+  // Verify final state
+  const finalWidth = getComputedStyle(div).width;
+
+  assert_equals(
+    finalWidth,
+    '0px',
+    'Width should reset to 0 after delay'
+  );
+
+}, '0-duration transition with delay applies change after delay period');
+</script>
+
+</body>
+</html>

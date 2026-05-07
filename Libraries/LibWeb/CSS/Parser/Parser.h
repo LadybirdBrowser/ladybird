@@ -443,7 +443,9 @@ private:
     RefPtr<PositionStyleValue const> parse_position_value(TokenStream<ComponentValue>&, PositionParsingMode = PositionParsingMode::Normal);
     RefPtr<StyleValue const> parse_filter_value_list_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_contain_value(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue const> parse_container_name_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_container_type_value(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue const> parse_container_value(TokenStream<ComponentValue>&);
     RefPtr<StringStyleValue const> parse_opentype_tag_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_opacity_value_value(TokenStream<ComponentValue>&);
     RefPtr<FontSourceStyleValue const> parse_font_source_value(TokenStream<ComponentValue>&);

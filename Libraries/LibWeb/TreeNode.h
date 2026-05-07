@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Assertions.h>
+#include <AK/IterationDecision.h>
 #include <AK/TypeCasts.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>

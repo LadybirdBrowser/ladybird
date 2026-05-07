@@ -906,7 +906,7 @@ static NonnullRefPtr<Core::Promise<bool>> decode_favicon(ReadonlyBytes favicon_d
         // FIXME: Calculate size based on device pixel ratio
         Gfx::IntSize size { 32, 32 };
         auto decoded_frame = result.release_value()->frame(0, size);
-        if (!decoded_frame) {
+        if (!decoded_frame.has_value()) {
             promise->reject(Error::from_string_view("Failed to get bitmap from SVG favicon"sv));
             return promise;
         }

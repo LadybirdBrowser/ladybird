@@ -1,0 +1,45 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Conditional Test: Parsing of container-name</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-name">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<div id="target"></div>
+<script>
+setup(() => assert_implements_size_container_queries());
+
+test_valid_value('container-name', 'initial');
+test_valid_value('container-name', 'inherit');
+test_valid_value('container-name', 'unset');
+test_valid_value('container-name', 'revert');
+test_valid_value('container-name', 'none');
+test_valid_value('container-name', 'foo');
+test_valid_value('container-name', 'BAR');
+test_valid_value('container-name', 'foo bar');
+test_valid_value('container-name', 'foo foo');
+test_valid_value('container-name', '\\!escaped');
+test_valid_value('container-name', 'auto');
+test_valid_value('container-name', 'normal');
+
+test_invalid_value('container-name', 'none none');
+test_invalid_value('container-name', 'foo, bar');
+test_invalid_value('container-name', '#fff');
+test_invalid_value('container-name', '1px');
+test_invalid_value('container-name', 'default'); /* reserved */
+
+test_invalid_value('container-name', '"initial"');
+test_invalid_value('container-name', '"inherit"');
+test_invalid_value('container-name', '"unset"');
+test_invalid_value('container-name', '"revert"');
+test_invalid_value('container-name', '"none"');
+test_invalid_value('container-name', '"foo"');
+
+test_invalid_value('container-name', 'not');
+test_invalid_value('container-name', 'and');
+test_invalid_value('container-name', 'or');
+test_invalid_value('container-name', 'Not');
+test_invalid_value('container-name', 'aNd');
+test_invalid_value('container-name', 'oR');
+</script>

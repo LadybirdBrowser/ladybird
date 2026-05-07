@@ -9,6 +9,7 @@
 #include <AK/GenericShorthands.h>
 #include <LibJS/CyclicModule.h>
 #include <LibJS/Module.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/ModuleEnvironment.h>
 #include <LibJS/Runtime/ModuleNamespaceObject.h>
 #include <LibJS/Runtime/ModuleRequest.h>
@@ -39,6 +40,11 @@ void Module::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_namespace);
     if (m_host_defined)
         m_host_defined->visit_host_defined_self(visitor);
+}
+
+size_t Module::external_memory_size() const
+{
+    return byte_string_external_memory_size(m_filename);
 }
 
 // 16.2.1.5.1 EvaluateModuleSync ( module ), https://tc39.es/ecma262/#sec-EvaluateModuleSync

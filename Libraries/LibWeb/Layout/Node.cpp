@@ -59,9 +59,6 @@ void Node::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_dom_node);
-    for (auto const& paintable : m_paintable) {
-        visitor.visit(GC::Ptr { &paintable });
-    }
     visitor.visit(m_containing_block);
     visitor.visit(m_inline_containing_block_if_applicable);
     visitor.visit(m_pseudo_element_generator);
@@ -610,7 +607,7 @@ void NodeWithStyle::ImageObserver::image_style_value_did_update(CSS::ImageStyleV
     VERIFY(m_owner);
 
     for (auto& paintable : m_owner->paintables())
-        paintable.set_needs_repaint();
+        paintable->set_needs_repaint();
 
     // The body's background propagates to the root element's paintable, which holds the cached draw commands.
     if (m_owner->is_body()) {
@@ -619,7 +616,7 @@ void NodeWithStyle::ImageObserver::image_style_value_did_update(CSS::ImageStyleV
             if (auto html_layout_node = html_element->unsafe_layout_node()) {
                 if (html_element->should_use_body_background_properties()) {
                     for (auto& paintable : html_layout_node->paintables())
-                        paintable.set_needs_repaint();
+                        paintable->set_needs_repaint();
                 }
             }
         }
@@ -903,24 +900,8 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_x(CSS::LengthPercentage::from_style_value(computed_style.property(CSS::PropertyID::X)));
     computed_values.set_y(CSS::LengthPercentage::from_style_value(computed_style.property(CSS::PropertyID::Y)));
 
-    auto extract_paint_fallback_color = [&](CSS::URLStyleValue const& url_value) -> Optional<Color> {
-        if (auto const& fallback = url_value.paint_fallback()) {
-            if (fallback->has_color())
-                return fallback->to_color(color_resolution_context);
-        }
-        return {};
-    };
-
-    auto const& fill = computed_style.property(CSS::PropertyID::Fill);
-    if (fill.has_color())
-        computed_values.set_fill(fill.to_color(color_resolution_context).value());
-    else if (fill.is_url())
-        computed_values.set_fill(CSS::SVGPaint(fill.as_url().url(), extract_paint_fallback_color(fill.as_url())));
-    auto const& stroke = computed_style.property(CSS::PropertyID::Stroke);
-    if (stroke.has_color())
-        computed_values.set_stroke(stroke.to_color(color_resolution_context).value());
-    else if (stroke.is_url())
-        computed_values.set_stroke(CSS::SVGPaint(stroke.as_url().url(), extract_paint_fallback_color(stroke.as_url())));
+    computed_values.set_fill(computed_style.fill(color_resolution_context));
+    computed_values.set_stroke(computed_style.stroke(color_resolution_context));
 
     computed_values.set_stop_color(computed_style.color(CSS::PropertyID::StopColor, color_resolution_context));
 
@@ -1053,6 +1034,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_mix_blend_mode(computed_style.mix_blend_mode());
     computed_values.set_view_transition_name(computed_style.view_transition_name());
     computed_values.set_contain(computed_style.contain());
+    computed_values.set_container_name(computed_style.container_name());
     computed_values.set_container_type(computed_style.container_type());
     computed_values.set_shape_rendering(computed_values.shape_rendering());
     computed_values.set_will_change(computed_style.will_change());
@@ -1272,7 +1254,7 @@ bool NodeWithStyle::is_scroll_container() const
         || overflow_value_makes_box_a_scroll_container(computed_values().overflow_y());
 }
 
-void Node::add_paintable(GC::Ptr<Painting::Paintable> paintable)
+void Node::add_paintable(RefPtr<Painting::Paintable> paintable)
 {
     if (!paintable)
         return;
@@ -1281,10 +1263,14 @@ void Node::add_paintable(GC::Ptr<Painting::Paintable> paintable)
 
 void Node::clear_paintables()
 {
+    for (auto& paintable : m_paintable) {
+        if (paintable->parent())
+            paintable->remove();
+    }
     m_paintable.clear();
 }
 
-GC::Ptr<Painting::Paintable> Node::create_paintable() const
+RefPtr<Painting::Paintable> Node::create_paintable() const
 {
     return nullptr;
 }

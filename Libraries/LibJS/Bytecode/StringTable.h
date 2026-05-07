@@ -9,6 +9,7 @@
 #include <AK/DistinctNumeric.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 
 namespace JS::Bytecode {
 
@@ -30,6 +31,13 @@ public:
     void dump() const;
     bool is_empty() const { return m_strings.is_empty(); }
     size_t size() const { return m_strings.size(); }
+    size_t external_memory_size() const
+    {
+        size_t size = vector_external_memory_size(m_strings);
+        for (auto const& string : m_strings)
+            size = saturating_add_external_memory_size(size, utf16_string_external_memory_size(string));
+        return size;
+    }
 
 private:
     Vector<Utf16String> m_strings;

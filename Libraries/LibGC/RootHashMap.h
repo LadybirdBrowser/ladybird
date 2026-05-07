@@ -48,12 +48,23 @@ public:
 
     virtual void gather_roots(HashMap<Cell*, GC::HeapRoot>& roots) const override
     {
+        static constexpr bool KeyIsGCType = IsBaseOf<NanBoxedValue, K> || IsConvertible<K, Cell const*>;
+        static constexpr bool ValueIsGCType = IsBaseOf<NanBoxedValue, V> || IsConvertible<V, Cell const*>;
+        static_assert(KeyIsGCType || ValueIsGCType,
+            "RootHashMap requires at least one of key or value types to be convertible to Cell const* or derive from NanBoxedValue");
         for (auto& [key, value] : *this) {
+            if constexpr (IsBaseOf<NanBoxedValue, K>) {
+                if (key.is_cell())
+                    roots.set(&const_cast<K&>(key).as_cell(), HeapRoot { .type = HeapRoot::Type::RootHashMap });
+            } else if constexpr (IsConvertible<K, Cell const*>) {
+                roots.set(const_cast<Cell*>(static_cast<Cell const*>(key)), HeapRoot { .type = HeapRoot::Type::RootHashMap });
+            }
+
             if constexpr (IsBaseOf<NanBoxedValue, V>) {
                 if (value.is_cell())
                     roots.set(&const_cast<V&>(value).as_cell(), HeapRoot { .type = HeapRoot::Type::RootHashMap });
-            } else {
-                roots.set(value, HeapRoot { .type = HeapRoot::Type::RootHashMap });
+            } else if constexpr (IsConvertible<V, Cell const*>) {
+                roots.set(const_cast<Cell*>(static_cast<Cell const*>(value)), HeapRoot { .type = HeapRoot::Type::RootHashMap });
             }
         }
     }

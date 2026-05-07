@@ -432,6 +432,23 @@ void build_invalidation_sets_for_simple_selector(Selector::SimpleSelector const&
         case PseudoClass::LocalLink:
         case PseudoClass::Required:
         case PseudoClass::Optional:
+        // OPTIMIZATION: Interaction-state pseudo-classes match at most a handful of elements at any
+        //               given time (the hovered element, the focused element, and ancestors thereof
+        //               for :focus-within). Treating them as targetable lets a stylesheet add or
+        //               remove that has, e.g., a `:hover` rule walk to those few elements instead
+        //               of falling back to a whole-subtree invalidation.
+        case PseudoClass::Hover:
+        case PseudoClass::Focus:
+        case PseudoClass::FocusVisible:
+        case PseudoClass::FocusWithin:
+        case PseudoClass::Active:
+        case PseudoClass::Target:
+        // OPTIMIZATION: :host matches at most one element per shadow root and :root matches the html
+        //               element only, so treating them as targetable lets a stylesheet add or remove
+        //               with `:host` / `:root` rules invalidate just those elements instead of
+        //               falling back to a whole-subtree invalidation.
+        case PseudoClass::Host:
+        case PseudoClass::Root:
             invalidation_set.set_needs_invalidate_pseudo_class(pseudo_class.type);
             break;
         default:

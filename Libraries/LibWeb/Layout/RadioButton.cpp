@@ -21,7 +21,7 @@ RadioButton::RadioButton(DOM::Document& document, HTML::HTMLInputElement& elemen
 
 RadioButton::~RadioButton() = default;
 
-GC::Ptr<Painting::Paintable> RadioButton::create_paintable() const
+RefPtr<Painting::Paintable> RadioButton::create_paintable() const
 {
     return Painting::RadioButtonPaintable::create(*this);
 }

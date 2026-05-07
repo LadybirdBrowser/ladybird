@@ -12,11 +12,9 @@
 namespace Web::Painting {
 
 class TextPaintable final : public Paintable {
-    GC_CELL(TextPaintable, Paintable);
-    GC_DECLARE_ALLOCATOR(TextPaintable);
-
 public:
-    static GC::Ref<TextPaintable> create(Layout::TextNode const&);
+    static NonnullRefPtr<TextPaintable> create(Layout::TextNode const&);
+    virtual StringView class_name() const override { return "TextPaintable"sv; }
 
     Layout::TextNode const& layout_node() const { return static_cast<Layout::TextNode const&>(Paintable::layout_node()); }
 

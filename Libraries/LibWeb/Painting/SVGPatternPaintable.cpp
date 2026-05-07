@@ -8,11 +8,9 @@
 
 namespace Web::Painting {
 
-GC_DEFINE_ALLOCATOR(SVGPatternPaintable);
-
-GC::Ref<SVGPatternPaintable> SVGPatternPaintable::create(Layout::SVGPatternBox const& layout_box)
+NonnullRefPtr<SVGPatternPaintable> SVGPatternPaintable::create(Layout::SVGPatternBox const& layout_box)
 {
-    return layout_box.heap().allocate<SVGPatternPaintable>(layout_box);
+    return adopt_ref(*new SVGPatternPaintable(layout_box));
 }
 
 SVGPatternPaintable::SVGPatternPaintable(Layout::SVGPatternBox const& layout_box)

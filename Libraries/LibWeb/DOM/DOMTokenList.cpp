@@ -6,6 +6,7 @@
  */
 
 #include <AK/StringBuilder.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/Bindings/DOMTokenList.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
@@ -90,6 +91,15 @@ void DOMTokenList::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_associated_element);
+}
+
+size_t DOMTokenList::external_memory_size() const
+{
+    auto size = Base::external_memory_size();
+    size = JS::saturating_add_external_memory_size(size, JS::vector_external_memory_size(m_token_set));
+    for (auto const& token : m_token_set)
+        size = JS::saturating_add_external_memory_size(size, JS::string_external_memory_size(token));
+    return size;
 }
 
 // https://dom.spec.whatwg.org/#ref-for-domtokenlist%E2%91%A0%E2%91%A1

@@ -83,7 +83,7 @@ private:
     virtual void did_click_link(u64 page_id, URL::URL, ByteString, unsigned) override;
     virtual void did_middle_click_link(u64 page_id, URL::URL, ByteString, unsigned) override;
     virtual void did_start_loading(u64 page_id, URL::URL, bool) override;
-    virtual void did_request_context_menu(u64 page_id, Gfx::IntPoint) override;
+    virtual void did_request_context_menu(u64 page_id, Gfx::IntPoint, Web::ContextMenuForInputEventsTarget) override;
     virtual void did_request_link_context_menu(u64 page_id, Gfx::IntPoint, URL::URL, ByteString, unsigned) override;
     virtual void did_request_image_context_menu(u64 page_id, Gfx::IntPoint, URL::URL, ByteString, unsigned, Optional<Gfx::ShareableBitmap>) override;
     virtual void did_request_media_context_menu(u64 page_id, Gfx::IntPoint, ByteString, unsigned, Web::Page::MediaContextMenu) override;

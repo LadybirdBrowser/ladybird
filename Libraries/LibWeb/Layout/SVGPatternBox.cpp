@@ -16,7 +16,7 @@ SVGPatternBox::SVGPatternBox(DOM::Document& document, SVG::SVGPatternElement& el
 {
 }
 
-GC::Ptr<Painting::Paintable> SVGPatternBox::create_paintable() const
+RefPtr<Painting::Paintable> SVGPatternBox::create_paintable() const
 {
     return Painting::SVGPatternPaintable::create(*this);
 }

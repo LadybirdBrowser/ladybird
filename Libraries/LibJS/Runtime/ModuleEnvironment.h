@@ -32,6 +32,7 @@ private:
     explicit ModuleEnvironment(Environment* outer_environment);
 
     virtual void visit_edges(Visitor&) override;
+    virtual size_t external_memory_size() const override;
 
     struct IndirectBinding {
         Utf16FlyString name;

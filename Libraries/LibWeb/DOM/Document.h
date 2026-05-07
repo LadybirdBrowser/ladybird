@@ -15,6 +15,7 @@
 #include <AK/HashTable.h>
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
+#include <AK/RefPtr.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
@@ -399,11 +400,11 @@ public:
     Layout::Viewport const* unsafe_layout_node() const;
     Layout::Viewport* unsafe_layout_node();
 
-    Painting::ViewportPaintable const* paintable() const;
-    Painting::ViewportPaintable* paintable();
+    RefPtr<Painting::ViewportPaintable const> paintable() const;
+    RefPtr<Painting::ViewportPaintable> paintable();
 
-    Painting::ViewportPaintable const* unsafe_paintable() const;
-    Painting::ViewportPaintable* unsafe_paintable();
+    RefPtr<Painting::ViewportPaintable const> unsafe_paintable() const;
+    RefPtr<Painting::ViewportPaintable> unsafe_paintable();
 
     GC::Ref<NodeList> get_elements_by_name(FlyString const&);
 

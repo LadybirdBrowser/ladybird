@@ -51,6 +51,11 @@ public:
 
     HashMap<u32, ValueAndAttributes> const& sparse_elements() const { return m_sparse_elements; }
 
+    size_t external_memory_size() const
+    {
+        return m_sparse_elements.capacity() * (sizeof(u32) + sizeof(ValueAndAttributes));
+    }
+
 private:
     size_t m_array_size { 0 };
     HashMap<u32, ValueAndAttributes> m_sparse_elements;

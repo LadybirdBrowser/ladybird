@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<style>
+    i { display: inline-block; }
+    i::before { content: "X"; }
+</style>
+<a><i></i></a>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const a = document.querySelector("a");
+        const i = document.querySelector("i");
+        const a_rect = a.getBoundingClientRect();
+        const i_rect = i.getBoundingClientRect();
+        println(`<a> rect matches <i> rect: ${a_rect.x === i_rect.x && a_rect.width === i_rect.width}`);
+    });
+</script>

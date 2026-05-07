@@ -33,6 +33,11 @@ Utf16String BigInt::to_utf16_string() const
     return Utf16String::formatted("{}n", MUST(m_big_integer.to_base(10)));
 }
 
+size_t BigInt::external_memory_size() const
+{
+    return m_big_integer.external_memory_size();
+}
+
 // 21.2.1.1.1 NumberToBigInt ( number ), https://tc39.es/ecma262/#sec-numbertobigint
 ThrowCompletionOr<GC::Ref<BigInt>> number_to_bigint(VM& vm, Value number)
 {

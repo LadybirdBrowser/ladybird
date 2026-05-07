@@ -89,6 +89,7 @@ endpoint WebContentServer
     request_internal_page_info(u64 page_id, WebView::PageInfoType type) =|
 
     get_selected_text(u64 page_id) => (ByteString selection)
+    cut_selected_text(u64 page_id) => (ByteString selection)
     select_all(u64 page_id) =|
     paste(u64 page_id, Utf16String text) =|
 

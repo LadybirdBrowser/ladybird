@@ -299,10 +299,7 @@
                                          keyEquivalent:@"y"]];
     [submenu addItem:[NSMenuItem separatorItem]];
 
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Cut"
-                                                action:@selector(cut:)
-                                         keyEquivalent:@"x"]];
-
+    [submenu addItem:Ladybird::create_application_menu_item(WebView::Application::the().cut_selection_action())];
     [submenu addItem:Ladybird::create_application_menu_item(WebView::Application::the().copy_selection_action())];
     [submenu addItem:Ladybird::create_application_menu_item(WebView::Application::the().paste_action())];
     [submenu addItem:[NSMenuItem separatorItem]];

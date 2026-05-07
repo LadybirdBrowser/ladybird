@@ -5,6 +5,7 @@
  */
 
 #include <AK/TypeCasts.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/Bindings/CSSRuleList.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSContainerRule.h>
@@ -51,6 +52,11 @@ void CSSRuleList::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_rules);
     visitor.visit(m_owner_rule);
+}
+
+size_t CSSRuleList::external_memory_size() const
+{
+    return JS::saturating_add_external_memory_size(Base::external_memory_size(), JS::vector_external_memory_size(m_rules));
 }
 
 // AD-HOC: The spec doesn't include a declared_namespaces parameter, but we need it to handle parsing of namespaced selectors.

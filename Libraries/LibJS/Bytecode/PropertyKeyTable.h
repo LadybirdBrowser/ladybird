@@ -8,6 +8,7 @@
 
 #include <AK/DistinctNumeric.h>
 #include <AK/Vector.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/PropertyKey.h>
 
 namespace JS::Bytecode {
@@ -29,6 +30,7 @@ public:
     PropertyKey const& get(PropertyKeyTableIndex) const;
     void dump() const;
     bool is_empty() const { return m_property_keys.is_empty(); }
+    size_t external_memory_size() const { return vector_external_memory_size(m_property_keys); }
 
     ReadonlySpan<PropertyKey const> property_keys() const { return m_property_keys; }
 

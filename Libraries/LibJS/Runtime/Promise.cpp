@@ -9,6 +9,7 @@
 #include <AK/Optional.h>
 #include <AK/TypeCasts.h>
 #include <LibJS/Runtime/Error.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/JobCallback.h>
 #include <LibJS/Runtime/Promise.h>
@@ -404,6 +405,13 @@ void Promise::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_result);
     visitor.visit(m_fulfill_reactions);
     visitor.visit(m_reject_reactions);
+}
+
+size_t Promise::external_memory_size() const
+{
+    auto size = vector_external_memory_size(m_fulfill_reactions);
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(m_reject_reactions));
+    return size;
 }
 
 }

@@ -113,7 +113,7 @@ void Range::update_associated_selection()
     document.reset_cursor_blink_cycle();
 
     // NB: Called during selection update after range change.
-    if (auto* viewport = document.unsafe_paintable()) {
+    if (auto viewport = document.unsafe_paintable()) {
         viewport->recompute_selection_states(*this);
         viewport->set_needs_repaint();
     }
@@ -1210,9 +1210,10 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
             // 2. For each Text node selected or partially selected by the range (including when the boundary-points
             // are identical), include scaled DOMRect object (for the part that is selected, not the whole line box).
             auto const& text = static_cast<DOM::Text const&>(*node);
-            auto const* paintable = text.paintable();
+            auto paintable = text.paintable();
             if (paintable && selection_state != Painting::Paintable::SelectionState::None) {
-                if (auto const* paintable_lines = as_if<Painting::PaintableWithLines>(paintable->containing_block())) {
+                auto containing_block = paintable->containing_block();
+                if (auto const* paintable_lines = as_if<Painting::PaintableWithLines>(containing_block.ptr())) {
                     auto fragments = paintable_lines->fragments();
                     for (auto frag = fragments.begin(); frag != fragments.end(); frag++) {
                         auto rect = frag->range_rect(selection_state, start_offset(), end_offset());

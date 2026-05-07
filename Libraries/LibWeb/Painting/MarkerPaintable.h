@@ -12,11 +12,9 @@
 namespace Web::Painting {
 
 class MarkerPaintable final : public PaintableBox {
-    GC_CELL(MarkerPaintable, PaintableBox);
-    GC_DECLARE_ALLOCATOR(MarkerPaintable);
-
 public:
-    static GC::Ref<MarkerPaintable> create(Layout::ListItemMarkerBox const&);
+    static NonnullRefPtr<MarkerPaintable> create(Layout::ListItemMarkerBox const&);
+    virtual StringView class_name() const override { return "MarkerPaintable"sv; }
 
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 

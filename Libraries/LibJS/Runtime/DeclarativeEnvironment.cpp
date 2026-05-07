@@ -7,6 +7,7 @@
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
 #include <LibJS/Runtime/Error.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Value.h>
@@ -41,6 +42,13 @@ void DeclarativeEnvironment::visit_edges(Visitor& visitor)
 
     for (auto& binding : m_bindings)
         visitor.visit(binding.value);
+}
+
+size_t DeclarativeEnvironment::external_memory_size() const
+{
+    auto size = vector_external_memory_size(m_bindings);
+    size = saturating_add_external_memory_size(size, hash_map_external_memory_size(m_bindings_assoc));
+    return size;
 }
 
 // 9.1.1.1.1 HasBinding ( N ), https://tc39.es/ecma262/#sec-declarative-environment-records-hasbinding-n

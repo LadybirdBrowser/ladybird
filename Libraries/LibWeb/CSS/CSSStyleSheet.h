@@ -137,6 +137,7 @@ private:
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual size_t external_memory_size() const override;
 
     void recalculate_rule_caches();
     void invalidate_shared_style_cache();

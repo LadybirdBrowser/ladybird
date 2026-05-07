@@ -35,7 +35,7 @@ public:
     virtual void visit_edges(Visitor&) override;
 
 private:
-    virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
+    virtual RefPtr<Painting::Paintable> create_paintable() const override;
 
     void update_text_blocks();
 

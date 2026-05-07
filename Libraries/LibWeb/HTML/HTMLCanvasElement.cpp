@@ -464,7 +464,7 @@ void HTMLCanvasElement::present()
 
     if (auto surface = this->surface()) {
         surface->flush();
-        auto snapshot = Gfx::DecodedImageFrame::create(*surface->snapshot_bitmap());
+        auto snapshot = Gfx::DecodedImageFrame { *surface->snapshot_bitmap() };
         ensure_external_content_source().update(snapshot);
     }
 }

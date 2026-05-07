@@ -5,6 +5,7 @@
  */
 
 #include <AK/TypeCasts.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/ModuleEnvironment.h>
 #include <LibJS/Runtime/VM.h>
@@ -125,6 +126,13 @@ Optional<ModuleEnvironment::BindingAndIndex> ModuleEnvironment::find_binding_and
     }
 
     return DeclarativeEnvironment::find_binding_and_index(name);
+}
+
+size_t ModuleEnvironment::external_memory_size() const
+{
+    auto size = DeclarativeEnvironment::external_memory_size();
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(m_indirect_bindings));
+    return size;
 }
 
 void ModuleEnvironment::visit_edges(Visitor& visitor)

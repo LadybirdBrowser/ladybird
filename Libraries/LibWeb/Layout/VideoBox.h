@@ -21,7 +21,7 @@ public:
 
     virtual bool can_have_children() const override;
 
-    virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
+    virtual RefPtr<Painting::Paintable> create_paintable() const override;
 
 private:
     VideoBox(DOM::Document&, DOM::Element&, GC::Ref<CSS::ComputedProperties>);

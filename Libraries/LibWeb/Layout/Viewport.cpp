@@ -29,7 +29,7 @@ DOM::Document const& Viewport::dom_node() const
     return static_cast<DOM::Document const&>(*Node::dom_node());
 }
 
-GC::Ptr<Painting::Paintable> Viewport::create_paintable() const
+RefPtr<Painting::Paintable> Viewport::create_paintable() const
 {
     return Painting::ViewportPaintable::create(*this);
 }

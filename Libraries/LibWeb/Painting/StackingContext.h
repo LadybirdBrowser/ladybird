@@ -6,25 +6,34 @@
 
 #pragma once
 
+#include <AK/NonnullRefPtr.h>
+#include <AK/RefCounted.h>
+#include <AK/RefPtr.h>
 #include <AK/Vector.h>
-#include <LibGC/CellAllocator.h>
+#include <AK/WeakPtr.h>
+#include <AK/Weakable.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Painting/Paintable.h>
 
 namespace Web::Painting {
 
-class WEB_API StackingContext final : public GC::Cell {
-    GC_CELL(StackingContext, GC::Cell);
-    GC_DECLARE_ALLOCATOR(StackingContext);
+class WEB_API StackingContext final
+    : public RefCounted<StackingContext>
+    , public Weakable<StackingContext> {
     friend class ViewportPaintable;
 
 public:
-    StackingContext(PaintableBox&, StackingContext* parent, size_t index_in_tree_order);
+    static NonnullRefPtr<StackingContext> create(PaintableBox&, RefPtr<StackingContext> parent, size_t index_in_tree_order);
 
-    StackingContext* parent() { return m_parent; }
-    StackingContext const* parent() const { return m_parent; }
+    RefPtr<StackingContext> parent() { return m_parent.strong_ref(); }
+    RefPtr<StackingContext const> parent() const { return m_parent.strong_ref(); }
 
-    PaintableBox const& paintable_box() const { return *m_paintable; }
+    PaintableBox const& paintable_box() const
+    {
+        auto paintable = m_paintable.strong_ref();
+        VERIFY(paintable);
+        return *paintable;
+    }
 
     enum class StackingContextPaintPhase {
         BackgroundAndBorders,
@@ -46,17 +55,17 @@ public:
 
     void set_last_paint_generation_id(u64 generation_id);
 
-    virtual void visit_edges(Visitor&) override;
-
 private:
-    GC::Ref<PaintableBox> m_paintable;
-    GC::Ptr<StackingContext> m_parent;
-    Vector<GC::Ref<StackingContext>> m_children;
+    StackingContext(PaintableBox&, RefPtr<StackingContext> parent, size_t index_in_tree_order);
+
+    WeakPtr<PaintableBox> m_paintable;
+    WeakPtr<StackingContext> m_parent;
+    Vector<NonnullRefPtr<StackingContext>> m_children;
     size_t m_index_in_tree_order { 0 };
     Optional<u64> m_last_paint_generation_id;
 
-    Vector<GC::Ref<PaintableBox const>> m_positioned_descendants_and_stacking_contexts_with_stack_level_0;
-    Vector<GC::Ref<PaintableBox const>> m_non_positioned_floating_descendants;
+    Vector<WeakPtr<PaintableBox>> m_positioned_descendants_and_stacking_contexts_with_stack_level_0;
+    Vector<WeakPtr<PaintableBox>> m_non_positioned_floating_descendants;
 
     static void paint_child(DisplayListRecordingContext&, StackingContext const&);
     void paint_internal(DisplayListRecordingContext&) const;

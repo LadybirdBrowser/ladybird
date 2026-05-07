@@ -154,7 +154,7 @@ void DisplayListPlayerSkia::fill_rect(FillRect const& command)
 void DisplayListPlayerSkia::draw_external_content(DrawExternalContent const& command)
 {
     auto frame = command.source->current_frame();
-    if (!frame)
+    if (!frame.has_value())
         return;
     auto image = m_image_cache.image_for_frame(*frame);
     if (!image)
@@ -212,7 +212,7 @@ void DisplayListPlayerSkia::draw_video_frame_source(DrawVideoFrameSource const& 
 
 void DisplayListPlayerSkia::draw_scaled_decoded_image_frame(DrawScaledDecodedImageFrame const& command)
 {
-    auto image = m_image_cache.image_for_frame(*command.frame);
+    auto image = m_image_cache.image_for_frame(command.frame);
     if (!image)
         return;
 
@@ -229,13 +229,13 @@ void DisplayListPlayerSkia::draw_scaled_decoded_image_frame(DrawScaledDecodedIma
 
 void DisplayListPlayerSkia::draw_repeated_decoded_image_frame(DrawRepeatedDecodedImageFrame const& command)
 {
-    auto image = m_image_cache.image_for_frame(*command.frame);
+    auto image = m_image_cache.image_for_frame(command.frame);
     if (!image)
         return;
 
     SkMatrix matrix;
     auto dst_rect = command.dst_rect.to_type<float>();
-    auto src_size = command.frame->size().to_type<float>();
+    auto src_size = command.frame.size().to_type<float>();
     matrix.setScale(dst_rect.width() / src_size.width(), dst_rect.height() / src_size.height());
     matrix.postTranslate(dst_rect.x(), dst_rect.y());
     auto sampling_options = to_skia_sampling_options(command.scaling_mode);

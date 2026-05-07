@@ -208,6 +208,7 @@ public:
     Page const& page() const { return m_page; }
 
     String selected_text() const;
+    String cut_selected_text() const;
     void select_all();
     void paste(Utf16String const&);
 

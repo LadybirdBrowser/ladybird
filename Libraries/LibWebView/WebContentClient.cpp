@@ -355,10 +355,10 @@ void WebContentClient::did_middle_click_link(u64, URL::URL url, ByteString, unsi
     Application::the().open_url_in_new_tab(url, Web::HTML::ActivateTab::No);
 }
 
-void WebContentClient::did_request_context_menu(u64 page_id, Gfx::IntPoint content_position)
+void WebContentClient::did_request_context_menu(u64 page_id, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_request_page_context_menu({}, content_position);
+        view->did_request_page_context_menu({}, content_position, for_input_events_target);
 }
 
 void WebContentClient::did_request_link_context_menu(u64 page_id, Gfx::IntPoint content_position, URL::URL url, ByteString, unsigned)

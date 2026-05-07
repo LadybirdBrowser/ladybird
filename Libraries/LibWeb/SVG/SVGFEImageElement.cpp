@@ -87,7 +87,7 @@ GC::Ptr<HTML::DecodedImageData> SVGFEImageElement::image_data() const
     return m_resource_request->image_data();
 }
 
-RefPtr<Gfx::DecodedImageFrame> SVGFEImageElement::current_image_frame(Gfx::IntSize size) const
+Optional<Gfx::DecodedImageFrame> SVGFEImageElement::current_image_frame(Gfx::IntSize size) const
 {
     if (auto data = image_data())
         return data->frame(0, size);
@@ -97,7 +97,7 @@ RefPtr<Gfx::DecodedImageFrame> SVGFEImageElement::current_image_frame(Gfx::IntSi
 Optional<Gfx::IntRect> SVGFEImageElement::content_rect() const
 {
     auto bitmap = current_image_frame();
-    if (!bitmap)
+    if (!bitmap.has_value())
         return {};
     // NB: Called during painting.
     auto layout_node = this->unsafe_layout_node();

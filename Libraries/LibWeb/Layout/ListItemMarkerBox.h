@@ -24,7 +24,7 @@ public:
 
     Optional<String> text() const;
 
-    virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
+    virtual RefPtr<Painting::Paintable> create_paintable() const override;
 
     CSS::ListStyleType const& list_style_type() const { return m_list_style_type; }
     CSS::ListStylePosition list_style_position() const { return m_list_style_position; }

@@ -16,7 +16,7 @@ SVGTextPathBox::SVGTextPathBox(DOM::Document& document, SVG::SVGTextPathElement&
 {
 }
 
-GC::Ptr<Painting::Paintable> SVGTextPathBox::create_paintable() const
+RefPtr<Painting::Paintable> SVGTextPathBox::create_paintable() const
 {
     return Painting::SVGPathPaintable::create(*this);
 }

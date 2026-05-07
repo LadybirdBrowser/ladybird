@@ -5,6 +5,8 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibGfx/Bitmap.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/HTML/BitmapDecodedImageData.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
@@ -28,10 +30,18 @@ BitmapDecodedImageData::BitmapDecodedImageData(Vector<Frame>&& frames, size_t lo
 
 BitmapDecodedImageData::~BitmapDecodedImageData() = default;
 
-RefPtr<Gfx::DecodedImageFrame> BitmapDecodedImageData::frame(size_t frame_index, Gfx::IntSize) const
+size_t BitmapDecodedImageData::external_memory_size() const
+{
+    size_t size = JS::vector_external_memory_size(m_frames);
+    for (auto const& frame : m_frames)
+        size = JS::saturating_add_external_memory_size(size, frame.frame.bitmap().data_size());
+    return size;
+}
+
+Optional<Gfx::DecodedImageFrame> BitmapDecodedImageData::frame(size_t frame_index, Gfx::IntSize) const
 {
     if (frame_index >= m_frames.size())
-        return nullptr;
+        return {};
     return m_frames[frame_index].frame;
 }
 
@@ -44,27 +54,27 @@ int BitmapDecodedImageData::frame_duration(size_t frame_index) const
 
 Optional<CSSPixels> BitmapDecodedImageData::intrinsic_width() const
 {
-    return m_frames.first().frame->width();
+    return m_frames.first().frame.width();
 }
 
 Optional<CSSPixels> BitmapDecodedImageData::intrinsic_height() const
 {
-    return m_frames.first().frame->height();
+    return m_frames.first().frame.height();
 }
 
 Optional<CSSPixelFraction> BitmapDecodedImageData::intrinsic_aspect_ratio() const
 {
-    return CSSPixels(m_frames.first().frame->width()) / CSSPixels(m_frames.first().frame->height());
+    return CSSPixels(m_frames.first().frame.width()) / CSSPixels(m_frames.first().frame.height());
 }
 
 Optional<Gfx::IntRect> BitmapDecodedImageData::frame_rect(size_t frame_index) const
 {
-    return m_frames[frame_index].frame->rect();
+    return m_frames[frame_index].frame.rect();
 }
 
 void BitmapDecodedImageData::paint(DisplayListRecordingContext& context, size_t frame_index, Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, Gfx::ScalingMode scaling_mode) const
 {
-    context.display_list_recorder().draw_scaled_decoded_image_frame(dst_rect, clip_rect, *m_frames[frame_index].frame, scaling_mode);
+    context.display_list_recorder().draw_scaled_decoded_image_frame(dst_rect, clip_rect, m_frames[frame_index].frame, scaling_mode);
 }
 
 }

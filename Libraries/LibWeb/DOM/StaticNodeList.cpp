@@ -6,6 +6,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Error.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/StaticNodeList.h>
 
@@ -31,6 +32,11 @@ void StaticNodeList::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_static_nodes);
+}
+
+size_t StaticNodeList::external_memory_size() const
+{
+    return Base::external_memory_size() + JS::vector_external_memory_size(m_static_nodes);
 }
 
 // https://dom.spec.whatwg.org/#dom-nodelist-length

@@ -199,6 +199,7 @@ public:
     Isolation isolation() const;
     TouchActionData touch_action() const;
     Containment contain() const;
+    Vector<FlyString> container_name() const;
     ContainerType container_type() const;
     MixBlendMode mix_blend_mode() const;
     Optional<FlyString> view_transition_name() const;
@@ -233,7 +234,9 @@ public:
 
     MaskType mask_type() const;
     float stop_opacity() const;
+    Optional<SVGPaint> fill(ColorResolutionContext const&) const;
     float fill_opacity() const;
+    Optional<SVGPaint> stroke(ColorResolutionContext const&) const;
     Vector<Variant<LengthPercentage, float>> stroke_dasharray() const;
     StrokeLinecap stroke_linecap() const;
     StrokeLinejoin stroke_linejoin() const;

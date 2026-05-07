@@ -231,6 +231,38 @@ void extend_style_sheet_invalidation_set_with_style_rule(StyleSheetInvalidationS
             continue;
         }
 
+        // OPTIMIZATION: When the rightmost compound has no class/tag/id/attr feature but does have a
+        //               structural-position pseudo-class (:first-child, :last-child, or :only-child)
+        //               as its only "feature", we can target the boundary children instead of falling
+        //               back to a whole-subtree invalidation. We restrict this to the case with no
+        //               other targetable feature so that selectors like `.foo:first-child` keep
+        //               matching only `.foo` elements rather than every first-child in the document.
+        bool rightmost_has_only_structural_pseudo = false;
+        for (auto const& simple : rightmost.simple_selectors) {
+            if (simple.type != Selector::SimpleSelector::Type::PseudoClass)
+                continue;
+            auto pseudo_class_type = simple.pseudo_class().type;
+            if (pseudo_class_type == PseudoClass::FirstChild
+                || pseudo_class_type == PseudoClass::LastChild
+                || pseudo_class_type == PseudoClass::OnlyChild) {
+                rightmost_has_only_structural_pseudo = true;
+                break;
+            }
+        }
+        if (rightmost_has_only_structural_pseudo) {
+            for (auto const& simple : rightmost.simple_selectors) {
+                if (simple.type != Selector::SimpleSelector::Type::PseudoClass)
+                    continue;
+                auto pseudo_class_type = simple.pseudo_class().type;
+                if (pseudo_class_type == PseudoClass::FirstChild
+                    || pseudo_class_type == PseudoClass::LastChild
+                    || pseudo_class_type == PseudoClass::OnlyChild) {
+                    result.invalidation_set.set_needs_invalidate_pseudo_class(pseudo_class_type);
+                }
+            }
+            continue;
+        }
+
         // The rightmost compound has no targetable properties on its own, but we can still avoid a whole-subtree
         // invalidation if the leading compounds carry an anchor invalidation set that we can match against.
         if (is_pseudo_element_only_compound(rightmost)) {
@@ -694,6 +726,33 @@ void invalidate_style_for_style_sheet_owners(CSSStyleSheet const& style_sheet, D
 
         if (!invalidated_host_side && previous_sheet_effects)
             invalidate_shadow_host_side_for_style_sheet_change(*shadow_root, reason, *previous_sheet_effects);
+    });
+}
+
+void invalidate_root_for_keyframes_rules_in_sheet(DOM::Node& root, CSSStyleSheet const& sheet)
+{
+    // Shadow-scoped keyframes can still affect elements outside the shadow subtree when an active rule in the same
+    // scope sets `animation-name` via :host or ::slotted(...). Mirror the fan-out used by the per-rule helper so the
+    // walk reaches the host (and host-side light DOM) when the shadow scope can match those elements.
+    bool include_host = false;
+    bool include_light_dom_under_shadow_host = false;
+    if (auto* shadow_root = as_if<DOM::ShadowRoot>(root)) {
+        auto effects = determine_shadow_root_stylesheet_effects(*shadow_root);
+        include_host = effects.may_match_shadow_host;
+        include_light_dom_under_shadow_host = effects.may_match_light_dom_under_shadow_host;
+    }
+
+    sheet.for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& rule) {
+        auto const* keyframes_rule = as_if<CSSKeyframesRule>(rule);
+        if (!keyframes_rule)
+            return;
+        for_each_tree_affected_by_shadow_root_stylesheet_change(
+            root,
+            include_host,
+            include_light_dom_under_shadow_host,
+            [&](DOM::Node& affected_root) {
+                invalidate_elements_affected_by_inserted_keyframes_rule(affected_root, keyframes_rule->name());
+            });
     });
 }
 

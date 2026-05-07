@@ -27,7 +27,7 @@ CSS::SizeWithAspectRatio CanvasBox::compute_auto_content_box_size() const
     return { width, height, CSSPixelFraction(width, height) };
 }
 
-GC::Ptr<Painting::Paintable> CanvasBox::create_paintable() const
+RefPtr<Painting::Paintable> CanvasBox::create_paintable() const
 {
     return Painting::CanvasPaintable::create(*this);
 }

@@ -8,6 +8,8 @@
 #pragma once
 
 #include <AK/Array.h>
+#include <AK/NonnullRefPtr.h>
+#include <AK/RefPtr.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
 #include <LibWeb/Forward.h>
@@ -32,21 +34,19 @@ WEB_API void set_paint_viewport_scrollbars(bool enabled);
 ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, PaintableBox const& paintable_box);
 
 class WEB_API PaintableBox : public Paintable {
-    GC_CELL(PaintableBox, Paintable);
-    GC_DECLARE_ALLOCATOR(PaintableBox);
-
 public:
-    static GC::Ref<PaintableBox> create(Layout::Box const&);
-    static GC::Ref<PaintableBox> create(Layout::InlineNode const&);
+    static NonnullRefPtr<PaintableBox> create(Layout::Box const&);
+    static NonnullRefPtr<PaintableBox> create(Layout::InlineNode const&);
     virtual ~PaintableBox();
+    virtual StringView class_name() const override { return "PaintableBox"sv; }
 
     virtual void reset_for_relayout();
 
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 
-    StackingContext* stacking_context() { return m_stacking_context; }
-    StackingContext const* stacking_context() const { return m_stacking_context; }
-    void set_stacking_context(GC::Ref<StackingContext>);
+    RefPtr<StackingContext> stacking_context();
+    RefPtr<StackingContext const> stacking_context() const;
+    void set_stacking_context(NonnullRefPtr<StackingContext>);
     void invalidate_stacking_context();
     Optional<int> effective_z_index() const;
 
@@ -174,8 +174,8 @@ public:
         ScrollStateSnapshot const* = nullptr) const;
     Optional<CSSPixelRect> absolute_scrollbar_rect(ScrollDirection direction, bool with_gutter, ChromeMetrics const& chrome_metrics) const;
 
-    GC::Ptr<Scrollbar> scrollbar(ScrollDirection) const;
-    GC::Ref<Scrollbar> ensure_scrollbar(ScrollDirection);
+    RefPtr<Scrollbar> scrollbar(ScrollDirection) const;
+    NonnullRefPtr<Scrollbar> ensure_scrollbar(ScrollDirection);
 
     enum class ConflictingElementKind {
         Cell,
@@ -240,14 +240,14 @@ public:
     bool is_chrome_mirrored() const;
     bool has_resizer() const;
 
-    GC::Ptr<ResizeHandle> resize_handle() const;
-    GC::Ref<ResizeHandle> ensure_resize_handle();
+    RefPtr<ResizeHandle> resize_handle() const;
+    NonnullRefPtr<ResizeHandle> ensure_resize_handle();
 
     CSSPixelRect transform_reference_box() const;
 
     ScrollFrameIndex nearest_scroll_frame_index() const;
 
-    PaintableBox const* nearest_scrollable_ancestor() const;
+    RefPtr<PaintableBox const> nearest_scrollable_ancestor() const;
 
     using StickyInsets = Painting::StickyInsets;
     StickyInsets const& sticky_insets() const { return *m_sticky_insets; }
@@ -301,8 +301,6 @@ protected:
     explicit PaintableBox(Layout::Box const&);
     explicit PaintableBox(Layout::InlineNode const&);
 
-    virtual void visit_edges(Visitor&) override;
-
     virtual void paint_border(DisplayListRecordingContext&) const;
     virtual void paint_backdrop_filter(DisplayListRecordingContext&) const;
     virtual void paint_background(DisplayListRecordingContext&) const;
@@ -325,7 +323,7 @@ private:
 
     void paint_middle_button_scroll_indicator(DisplayListRecordingContext&) const;
 
-    GC::Ptr<StackingContext> m_stacking_context;
+    RefPtr<StackingContext> m_stacking_context;
 
     Optional<OverflowData> m_overflow_data;
 
@@ -346,9 +344,9 @@ private:
 
     ResolvedCSSFilter m_filter;
 
-    GC::Ptr<Scrollbar> m_horizontal_scrollbar;
-    GC::Ptr<Scrollbar> m_vertical_scrollbar;
-    GC::Ptr<ResizeHandle> m_resize_handle;
+    RefPtr<Scrollbar> m_horizontal_scrollbar;
+    RefPtr<Scrollbar> m_vertical_scrollbar;
+    RefPtr<ResizeHandle> m_resize_handle;
     bool m_has_non_invertible_css_transform { false };
 
     OwnPtr<StickyInsets> m_sticky_insets;

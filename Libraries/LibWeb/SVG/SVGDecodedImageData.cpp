@@ -4,8 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Checked.h>
+#include <AK/NumericLimits.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
+#include <LibGfx/PaintingSurface.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/DOM/Document.h>
@@ -102,6 +106,34 @@ void SVGDecodedImageData::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_root_element);
 }
 
+static size_t surface_external_memory_size(Gfx::PaintingSurface const& surface)
+{
+    auto surface_size = surface.size();
+    if (surface_size.is_empty())
+        return 0;
+
+    Checked<size_t> pixel_size = static_cast<size_t>(surface_size.width());
+    pixel_size *= static_cast<size_t>(surface_size.height());
+    pixel_size *= sizeof(u32);
+    if (pixel_size.has_overflow())
+        return NumericLimits<size_t>::max();
+    return pixel_size.value();
+}
+
+size_t SVGDecodedImageData::external_memory_size() const
+{
+    size_t size = Base::external_memory_size();
+    size = JS::saturating_add_external_memory_size(size, JS::hash_map_external_memory_size(m_cached_rendered_frames));
+    for (auto const& cached_frame : m_cached_rendered_frames)
+        size = JS::saturating_add_external_memory_size(size, cached_frame.value.bitmap().data_size());
+
+    size = JS::saturating_add_external_memory_size(size, JS::hash_map_external_memory_size(m_cached_rendered_surfaces));
+    for (auto const& cached_surface : m_cached_rendered_surfaces)
+        size = JS::saturating_add_external_memory_size(size, surface_external_memory_size(*cached_surface.value));
+
+    return size;
+}
+
 RefPtr<Painting::DisplayList> SVGDecodedImageData::record_display_list(Gfx::IntSize size) const
 {
     m_document->navigable()->set_viewport_size(size.to_type<CSSPixels>());
@@ -114,7 +146,7 @@ RefPtr<Gfx::PaintingSurface> SVGDecodedImageData::render_to_surface(Gfx::IntSize
     VERIFY(m_document->navigable());
 
     if (size.is_empty())
-        return nullptr;
+        return {};
 
     if (auto it = m_cached_rendered_surfaces.find(size); it != m_cached_rendered_surfaces.end())
         return it->value;
@@ -144,10 +176,10 @@ RefPtr<Gfx::PaintingSurface> SVGDecodedImageData::render_to_surface(Gfx::IntSize
     return surface;
 }
 
-RefPtr<Gfx::DecodedImageFrame> SVGDecodedImageData::frame(size_t, Gfx::IntSize size) const
+Optional<Gfx::DecodedImageFrame> SVGDecodedImageData::frame(size_t, Gfx::IntSize size) const
 {
     if (size.is_empty())
-        return nullptr;
+        return {};
 
     if (auto it = m_cached_rendered_frames.find(size); it != m_cached_rendered_frames.end())
         return it->value;
@@ -157,7 +189,7 @@ RefPtr<Gfx::DecodedImageFrame> SVGDecodedImageData::frame(size_t, Gfx::IntSize s
     if (m_cached_rendered_frames.size() > 10)
         m_cached_rendered_frames.remove(m_cached_rendered_frames.begin());
 
-    auto decoded_frame = Gfx::DecodedImageFrame::create(*render_to_surface(size)->snapshot_bitmap());
+    auto decoded_frame = Gfx::DecodedImageFrame { *render_to_surface(size)->snapshot_bitmap() };
     m_cached_rendered_frames.set(size, decoded_frame);
     return decoded_frame;
 }

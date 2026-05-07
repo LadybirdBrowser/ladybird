@@ -1118,7 +1118,7 @@ void FormAssociatedTextControlElement::scroll_cursor_into_view()
     if (!text_node)
         return;
 
-    auto* paintable = text_node->paintable();
+    auto paintable = text_node->paintable();
     if (!paintable)
         return;
 
@@ -1140,7 +1140,7 @@ void FormAssociatedTextControlElement::selection_was_changed(SelectionSource sou
     if (!text_node)
         return;
     // NB: Called during selection change handling, layout may be stale.
-    auto* text_paintable = text_node->unsafe_paintable();
+    auto text_paintable = text_node->unsafe_paintable();
     if (!text_paintable)
         return;
 

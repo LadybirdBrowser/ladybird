@@ -281,7 +281,7 @@ ErrorOr<ISO2022JPEncoder::State> ISO2022JPEncoder::process_item(u32 item, State 
         if (state == State::jis0208) {
             TRY(on_byte(0x1B));
             TRY(on_byte(0x28));
-            TRY(on_byte(0x4A));
+            TRY(on_byte(0x42));
             return process_item(item, State::ASCII, on_byte, on_error);
         }
 

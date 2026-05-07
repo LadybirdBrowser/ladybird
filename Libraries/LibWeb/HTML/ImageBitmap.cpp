@@ -5,6 +5,7 @@
  */
 
 #include <LibGfx/Bitmap.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/Bindings/ImageBitmap.h>
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
@@ -70,6 +71,14 @@ void ImageBitmap::initialize(JS::Realm& realm)
 void ImageBitmap::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+}
+
+size_t ImageBitmap::external_memory_size() const
+{
+    auto size = Base::external_memory_size();
+    if (m_bitmap)
+        size = JS::saturating_add_external_memory_size(size, m_bitmap->data_size());
+    return size;
 }
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#the-imagebitmap-interface:serialization-steps

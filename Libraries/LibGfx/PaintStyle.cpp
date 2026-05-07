@@ -10,18 +10,18 @@
 
 namespace Gfx {
 
-CanvasPatternPaintStyle::CanvasPatternPaintStyle(RefPtr<DecodedImageFrame> image, Repetition repetition)
+CanvasPatternPaintStyle::CanvasPatternPaintStyle(Optional<DecodedImageFrame> image, Repetition repetition)
     : m_image(move(image))
     , m_repetition(repetition)
 {
 }
 
-ErrorOr<NonnullRefPtr<CanvasPatternPaintStyle>> CanvasPatternPaintStyle::create(RefPtr<DecodedImageFrame> image, Repetition repetition)
+ErrorOr<NonnullRefPtr<CanvasPatternPaintStyle>> CanvasPatternPaintStyle::create(Optional<DecodedImageFrame> image, Repetition repetition)
 {
     return adopt_nonnull_ref_or_enomem(new (nothrow) CanvasPatternPaintStyle(move(image), repetition));
 }
 
-RefPtr<DecodedImageFrame> CanvasPatternPaintStyle::image() const
+Optional<DecodedImageFrame> CanvasPatternPaintStyle::image() const
 {
     return m_image;
 }

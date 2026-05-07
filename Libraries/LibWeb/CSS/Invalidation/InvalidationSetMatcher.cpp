@@ -9,6 +9,7 @@
 #include <LibWeb/CSS/Invalidation/InvalidationSetMatcher.h>
 #include <LibWeb/CSS/InvalidationSet.h>
 #include <LibWeb/CSS/Selector.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
@@ -74,6 +75,34 @@ bool element_matches_any_invalidation_set_property(DOM::Element const& element, 
                 return is<HTML::HTMLInputElement>(element)
                     || is<HTML::HTMLSelectElement>(element)
                     || is<HTML::HTMLTextAreaElement>(element);
+            case PseudoClass::Hover: {
+                auto* hovered = element.document().hovered_node();
+                if (!hovered)
+                    return false;
+                if (hovered == &element)
+                    return true;
+                return element.is_shadow_including_ancestor_of(*hovered);
+            }
+            case PseudoClass::Focus:
+                return element.is_focused();
+            case PseudoClass::FocusVisible:
+                return element.is_focused() && element.should_indicate_focus();
+            case PseudoClass::FocusWithin: {
+                auto focused_area = element.document().focused_area();
+                if (!focused_area)
+                    return false;
+                return element.is_inclusive_ancestor_of(*focused_area);
+            }
+            case PseudoClass::Active:
+                return element.is_being_activated();
+            case PseudoClass::Target:
+                return element.document().target_element() == &element;
+            case PseudoClass::FirstChild:
+                return !element.previous_element_sibling();
+            case PseudoClass::LastChild:
+                return !element.next_element_sibling();
+            case PseudoClass::OnlyChild:
+                return !element.previous_element_sibling() && !element.next_element_sibling();
             default:
                 VERIFY_NOT_REACHED();
             }

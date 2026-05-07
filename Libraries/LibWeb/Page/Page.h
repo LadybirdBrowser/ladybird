@@ -364,6 +364,11 @@ enum class DisplayListPlayerType {
     SkiaCPU,
 };
 
+enum class ContextMenuForInputEventsTarget : u8 {
+    No,
+    Yes,
+};
+
 class PageClient : public JS::Cell {
     GC_CELL(PageClient, JS::Cell);
 
@@ -401,7 +406,7 @@ public:
     virtual void page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document&) { }
     virtual void page_did_finish_loading(URL::URL const&) { }
     virtual void page_did_request_cursor_change(Gfx::Cursor const&) { }
-    virtual void page_did_request_context_menu(CSSPixelPoint) { }
+    virtual void page_did_request_context_menu(CSSPixelPoint, ContextMenuForInputEventsTarget) { }
     virtual void page_did_request_link_context_menu(CSSPixelPoint, URL::URL const&, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers) { }
     virtual void page_did_request_image_context_menu(CSSPixelPoint, URL::URL const&, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers, Optional<Gfx::Bitmap const*>) { }
     virtual void page_did_request_media_context_menu(CSSPixelPoint, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers, Page::MediaContextMenu const&) { }

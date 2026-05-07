@@ -34,7 +34,7 @@ NamedViewTransitionPseudoElement::NamedViewTransitionPseudoElement(CSS::PseudoEl
 {
 }
 
-ReplacedNamedViewTransitionPseudoElement::ReplacedNamedViewTransitionPseudoElement(CSS::PseudoElement type, FlyString view_transition_name, RefPtr<Gfx::DecodedImageFrame> content = {})
+ReplacedNamedViewTransitionPseudoElement::ReplacedNamedViewTransitionPseudoElement(CSS::PseudoElement type, FlyString view_transition_name, Optional<Gfx::DecodedImageFrame> content = {})
     : NamedViewTransitionPseudoElement(type, view_transition_name)
 {
     m_content = content;
@@ -437,7 +437,7 @@ void ViewTransition::setup_transition_pseudo_elements()
         group->append_child(image_pair);
 
         // 5. If capturedElement’s old image is not null, then:
-        if (captured_element->old_image) {
+        if (captured_element->old_image.has_value()) {
             // 1. Let old be a new '::view-transition-old()', with its view transition name set to transitionName,
             //    displaying capturedElement’s old image as its replaced content.
             auto old = heap().allocate<ReplacedNamedViewTransitionPseudoElement>(CSS::PseudoElement::ViewTransitionOld, transition_name, captured_element->old_image);
@@ -457,7 +457,7 @@ void ViewTransition::setup_transition_pseudo_elements()
         }
 
         // 7. If capturedElement’s old image is null, then:
-        if (!captured_element->old_image) {
+        if (!captured_element->old_image.has_value()) {
             // 1. Assert: capturedElement’s new element is not null.
             VERIFY(captured_element->new_element);
 
@@ -480,7 +480,7 @@ void ViewTransition::setup_transition_pseudo_elements()
         // 8. If capturedElement’s new element is null, then:
         if (!captured_element->new_element) {
             // 1. Assert: capturedElement’s old image is not null.
-            VERIFY(captured_element->old_image);
+            VERIFY(captured_element->old_image.has_value());
 
             // 2. Set capturedElement’s image animation name rule to a new CSSStyleRule representing the
             //    following CSS, and append it to document’s dynamic view transition style sheet:
@@ -499,7 +499,7 @@ void ViewTransition::setup_transition_pseudo_elements()
         }
 
         // 9. If both of capturedElement’s old image and new element are not null, then:
-        if (captured_element->old_image && captured_element->new_element) {
+        if (captured_element->old_image.has_value() && captured_element->new_element) {
             // 1. Let transform be capturedElement’s old transform.
             auto& transform = captured_element->old_transform;
             // FIXME: Remove this once tranform gets used in step 5 below.

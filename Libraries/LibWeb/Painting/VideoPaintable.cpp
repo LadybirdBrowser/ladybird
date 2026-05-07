@@ -20,11 +20,9 @@
 
 namespace Web::Painting {
 
-GC_DEFINE_ALLOCATOR(VideoPaintable);
-
-GC::Ref<VideoPaintable> VideoPaintable::create(Layout::VideoBox const& layout_box)
+NonnullRefPtr<VideoPaintable> VideoPaintable::create(Layout::VideoBox const& layout_box)
 {
-    return layout_box.heap().allocate<VideoPaintable>(layout_box);
+    return adopt_ref(*new VideoPaintable(layout_box));
 }
 
 VideoPaintable::VideoPaintable(Layout::VideoBox const& layout_box)
@@ -37,7 +35,7 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
     if (!is_visible())
         return;
 
-    Base::paint(context, phase);
+    PaintableBox::paint(context, phase);
 
     if (phase != PaintPhase::Foreground)
         return;
@@ -54,12 +52,12 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
     auto const& poster_frame = video_element.poster_frame();
 
     auto paint_bitmap = [&](auto const& bitmap) {
-        auto frame = Gfx::DecodedImageFrame::create(bitmap);
+        auto frame = Gfx::DecodedImageFrame { bitmap };
         auto dst_rect = get_replaced_box_painting_area(*this, context, computed_values().object_fit(), bitmap.size());
         if (dst_rect.is_empty())
             return;
-        auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), frame->size(), dst_rect.size());
-        context.display_list_recorder().draw_scaled_decoded_image_frame(dst_rect, dst_rect, *frame, scaling_mode);
+        auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), frame.size(), dst_rect.size());
+        context.display_list_recorder().draw_scaled_decoded_image_frame(dst_rect, dst_rect, move(frame), scaling_mode);
     };
 
     auto paint_video_frame = [&]() {
