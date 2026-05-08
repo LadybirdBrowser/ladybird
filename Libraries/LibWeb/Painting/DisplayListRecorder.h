@@ -155,11 +155,18 @@ public:
 private:
     void end_capture();
 
+    template<DisplayListCommand Command>
+    void append_command(Command const& command, ReadonlyBytes inline_data = {})
+    {
+        m_save_nesting_level += display_list_command_nesting_level_change<Command>();
+        m_display_list.append(command, m_accumulated_visual_context_index, inline_data);
+    }
+
     VisualContextIndex m_accumulated_visual_context_index {};
     Vector<size_t> m_push_sc_index_stack;
     DisplayList& m_display_list;
     bool m_is_capturing { false };
-    size_t m_capture_start_command_index { 0 };
+    size_t m_capture_start_command_offset { 0 };
 };
 
 class DisplayListRecorderStateSaver {

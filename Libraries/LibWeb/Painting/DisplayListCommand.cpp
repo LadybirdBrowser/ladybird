@@ -20,11 +20,6 @@ Gfx::IntRect PaintInnerBoxShadow::bounding_rect() const
     return device_content_rect;
 }
 
-Gfx::IntRect DrawGlyphRun::bounding_rect() const
-{
-    return glyph_run->cached_blob_bounds().translated(translation).to_rounded<int>();
-}
-
 void DrawGlyphRun::dump(StringBuilder& builder) const
 {
     builder.appendff(" rect={} translation={} color={}", rect, translation, color);
@@ -89,7 +84,7 @@ void PaintRadialGradient::dump(StringBuilder& builder) const
 
 void PaintConicGradient::dump(StringBuilder& builder) const
 {
-    builder.appendff(" rect={} position={} angle={}", rect, position, conic_gradient_data.start_angle);
+    builder.appendff(" rect={} position={} angle={}", rect, position, start_angle);
 }
 
 void PaintOuterBoxShadow::dump(StringBuilder& builder) const
@@ -162,7 +157,7 @@ void PaintScrollBar::dump(StringBuilder&) const
 
 void ApplyEffects::dump(StringBuilder& builder) const
 {
-    builder.appendff(" opacity={} has_filter={}", opacity, filter.has_value());
+    builder.appendff(" opacity={} has_filter={}", opacity, has_filter);
 }
 
 }

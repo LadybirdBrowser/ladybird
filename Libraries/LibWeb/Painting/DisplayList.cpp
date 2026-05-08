@@ -5,6 +5,7 @@
  */
 
 #include <AK/Atomic.h>
+#include <AK/NumericLimits.h>
 #include <AK/TemporaryChange.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibWeb/Painting/DisplayList.h>
@@ -12,6 +13,80 @@
 namespace Web::Painting {
 
 static Atomic<u64> s_next_id { 1 };
+
+template<DisplayListCommand Command, typename Callback>
+static void rewrite_command_payload(Bytes payload, Callback callback)
+{
+    VERIFY(payload.size() >= sizeof(Command));
+    auto command = read_display_list_command_payload<Command>(payload);
+    callback(command);
+    __builtin_memcpy(payload.data(), &command, sizeof(Command));
+}
+
+static void set_command_sequence_visual_context(Bytes command_bytes, VisualContextIndex context_index)
+{
+    for (size_t offset = 0; offset < command_bytes.size();) {
+        VERIFY(offset + sizeof(DisplayListCommandHeader) <= command_bytes.size());
+        auto* header_data = command_bytes.data() + offset;
+        DisplayListCommandHeader header;
+        __builtin_memcpy(&header, header_data, sizeof(header));
+        header.context_index = context_index;
+        __builtin_memcpy(header_data, &header, sizeof(header));
+        offset += sizeof(header) + header.payload_size;
+        VERIFY(offset <= command_bytes.size());
+    }
+}
+
+static void adjust_display_list_data_span(DisplayListDataSpan& span, i64 offset_delta)
+{
+    auto offset = static_cast<i64>(span.offset) + offset_delta;
+    VERIFY(offset >= 0);
+    VERIFY(offset <= NumericLimits<u32>::max());
+    span.offset = static_cast<u32>(offset);
+}
+
+static void adjust_gradient_color_stops(DisplayListGradientColorStops& color_stops, i64 offset_delta)
+{
+    adjust_display_list_data_span(color_stops.colors, offset_delta);
+    adjust_display_list_data_span(color_stops.positions, offset_delta);
+}
+
+template<DisplayListCommand Command>
+static constexpr bool command_has_inline_data()
+{
+    return (requires(Command command) { command.glyphs; })
+        || (requires(Command command) { command.path_data; })
+        || (requires(Command command) { command.dash_array; })
+        || (requires(Command command) { command.command_bytes; })
+        || (requires(Command command) { command.color_stops; });
+}
+
+template<DisplayListCommand Command>
+static void adjust_command_inline_data_offsets(Bytes payload, i64 offset_delta)
+{
+    rewrite_command_payload<Command>(payload, [&](Command& command) {
+        if constexpr (requires { command.glyphs; })
+            adjust_display_list_data_span(command.glyphs, offset_delta);
+        if constexpr (requires { command.path_data; })
+            adjust_display_list_data_span(command.path_data, offset_delta);
+        if constexpr (requires { command.dash_array; })
+            adjust_display_list_data_span(command.dash_array, offset_delta);
+        if constexpr (requires { command.command_bytes; })
+            adjust_display_list_data_span(command.command_bytes, offset_delta);
+        if constexpr (requires { command.color_stops; })
+            adjust_gradient_color_stops(command.color_stops, offset_delta);
+    });
+}
+
+static void adjust_command_sequence_inline_data_offsets(Bytes command_bytes, i64 offset_delta)
+{
+    DisplayListCommandSequence::for_each_command_header(command_bytes, [&](DisplayListCommandHeader const& header, Bytes payload) {
+        visit_display_list_command_type(header.type, [&]<DisplayListCommand Command>() {
+            if constexpr (command_has_inline_data<Command>())
+                adjust_command_inline_data_offsets<Command>(payload, offset_delta);
+        });
+    });
+}
 
 DisplayListCommandSequence::DisplayListCommandSequence()
     : m_resource_storage(DisplayListResourceStorage::create())
@@ -27,54 +102,69 @@ DisplayList::DisplayList(
 {
 }
 
-bool DisplayList::append(DisplayListCommand&& command, VisualContextIndex context_index)
+bool DisplayList::append_bytes(
+    DisplayListCommandType type,
+    ReadonlyBytes payload,
+    ReadonlyBytes inline_data,
+    VisualContextIndex context_index,
+    Optional<Gfx::IntRect> bounding_rect,
+    bool is_clip)
 {
     if (context_index.value() && m_visual_context_tree->has_empty_effective_clip(context_index))
         return false;
-    m_commands.append({ context_index, move(command) });
+    VERIFY(m_command_bytes.size() % DisplayListCommandSequence::command_alignment == 0);
+    VERIFY(payload.size() <= NumericLimits<u32>::max());
+    VERIFY(inline_data.size() <= NumericLimits<u32>::max() - payload.size());
+    auto payload_size = payload.size() + inline_data.size();
+    auto record_size = sizeof(DisplayListCommandHeader) + payload_size;
+    constexpr auto command_alignment = DisplayListCommandSequence::command_alignment;
+    auto trailing_padding = align_up_to(record_size, command_alignment) - record_size;
+    VERIFY(trailing_padding <= NumericLimits<u32>::max() - payload_size);
+    DisplayListCommandHeader header {
+        .type = type,
+        .payload_size = static_cast<u32>(payload_size + trailing_padding),
+        .context_index = context_index,
+        .has_bounding_rect = bounding_rect.has_value(),
+        .is_clip = is_clip,
+        .bounding_rect = bounding_rect.value_or({}),
+    };
+    m_command_bytes.append(reinterpret_cast<u8 const*>(&header), sizeof(header));
+    m_command_bytes.append(payload.data(), payload.size());
+    if (!inline_data.is_empty())
+        m_command_bytes.append(inline_data.data(), inline_data.size());
+    m_command_bytes.resize(m_command_bytes.size() + trailing_padding);
     return true;
 }
 
 void DisplayList::append_command_sequence(DisplayListCommandSequence const& sequence, VisualContextIndex context_index)
 {
-    m_resource_storage->append_referenced_resources_from(*sequence.m_resource_storage, sequence.commands());
-    for (auto const& command : sequence.commands()) {
-        auto command_copy = command;
-        append(move(command_copy), context_index);
-    }
+    Vector<u8> command_bytes;
+    if (!sequence.m_command_bytes.is_empty())
+        command_bytes.append(sequence.m_command_bytes.data(), sequence.m_command_bytes.size());
+
+    set_command_sequence_visual_context(command_bytes.span(), context_index);
+    m_resource_storage->append_referenced_resources_from(*sequence.m_resource_storage, command_bytes.span());
+    VERIFY(m_command_bytes.size() % DisplayListCommandSequence::command_alignment == 0);
+    VERIFY(command_bytes.size() % DisplayListCommandSequence::command_alignment == 0);
+    adjust_command_sequence_inline_data_offsets(command_bytes.span(), m_command_bytes.size());
+
+    if (!command_bytes.is_empty())
+        m_command_bytes.append(command_bytes.data(), command_bytes.size());
 }
 
-DisplayListCommandSequence DisplayList::copy_command_sequence_from(size_t command_start_index) const
+DisplayListCommandSequence DisplayList::copy_command_sequence_from(size_t command_start_offset) const
 {
-    VERIFY(command_start_index <= m_commands.size());
+    VERIFY(command_start_offset <= m_command_bytes.size());
     DisplayListCommandSequence sequence;
-    sequence.m_commands.ensure_capacity(m_commands.size() - command_start_index);
-    for (size_t i = command_start_index; i < m_commands.size(); ++i)
-        sequence.m_commands.unchecked_append(m_commands[i].command);
-    sequence.m_resource_storage->append_referenced_resources_from(*m_resource_storage, sequence.commands());
+    if (command_start_offset < m_command_bytes.size())
+        sequence.m_command_bytes.append(
+            m_command_bytes.data() + command_start_offset,
+            m_command_bytes.size() - command_start_offset);
+    adjust_command_sequence_inline_data_offsets(
+        sequence.m_command_bytes.span(),
+        -static_cast<i64>(command_start_offset));
+    sequence.m_resource_storage->append_referenced_resources_from(*m_resource_storage, sequence.m_command_bytes.span());
     return sequence;
-}
-
-static Optional<Gfx::IntRect> command_bounding_rectangle(DisplayListCommand const& command)
-{
-    return command.visit(
-        [&](auto const& command) -> Optional<Gfx::IntRect> {
-            if constexpr (requires { command.bounding_rect(); })
-                return command.bounding_rect();
-            else
-                return {};
-        });
-}
-
-static bool command_is_clip(DisplayListCommand const& command)
-{
-    return command.visit(
-        [&](auto const& command) -> bool {
-            if constexpr (requires { command.is_clip(); })
-                return command.is_clip();
-            else
-                return false;
-        });
 }
 
 void DisplayListPlayer::execute(DisplayList const& display_list, ScrollStateSnapshot const& scroll_state_snapshot, RefPtr<Gfx::PaintingSurface> surface)
@@ -96,64 +186,92 @@ void DisplayListPlayer::execute_display_list_into_surface(DisplayList const& dis
     execute_impl(display_list, scroll_state_snapshot);
 }
 
-void DisplayListPlayer::execute_nested_display_list(DisplayList const& display_list, ScrollStateSnapshot const& scroll_state_snapshot)
+void DisplayListPlayer::execute_nested_display_list(
+    DisplayList const& display_list,
+    ScrollStateSnapshot const& scroll_state_snapshot,
+    ReadonlyBytes command_bytes)
 {
     TemporaryChange display_list_change { m_active_display_list, &display_list };
-    execute_impl(display_list, scroll_state_snapshot);
+    execute_impl(display_list, scroll_state_snapshot, command_bytes);
 }
 
 void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStateSnapshot const& scroll_state)
 {
-    auto const& commands = display_list.commands();
+    execute_impl(display_list, scroll_state, display_list.command_bytes());
+}
+
+void DisplayListPlayer::execute_impl(
+    DisplayList const& display_list,
+    ScrollStateSnapshot const& scroll_state,
+    ReadonlyBytes commands)
+{
     auto const& visual_context_tree = display_list.visual_context_tree();
 
     VERIFY(m_surface);
 
-    auto for_each_node_from_common_ancestor_to_target = [&](this auto const& self, VisualContextIndex common_ancestor_index, VisualContextIndex target_index, auto&& callback) -> IterationDecision {
+    auto for_each_node_from_common_ancestor_to_target =
+        [&](this auto const& self,
+            VisualContextIndex common_ancestor_index,
+            VisualContextIndex target_index,
+            auto&& callback) -> IterationDecision {
         if (!target_index.value() || target_index == common_ancestor_index)
             return IterationDecision::Continue;
-        if (self(common_ancestor_index, visual_context_tree.node_at(target_index).parent_index, callback) == IterationDecision::Break)
+        if (self(common_ancestor_index, visual_context_tree.node_at(target_index).parent_index, callback)
+            == IterationDecision::Break) {
             return IterationDecision::Break;
-        return callback(visual_context_tree.node_at(target_index));
+        }
+        return callback(target_index, visual_context_tree.node_at(target_index));
     };
 
-    auto apply_accumulated_visual_context = [&](AccumulatedVisualContextNode const& node) {
-        node.data.visit(
-            [&](EffectsData const& effects) {
-                apply_effects({ .opacity = effects.opacity, .compositing_and_blending_operator = effects.blend_mode, .filter = effects.gfx_filter });
-            },
-            [&](PerspectiveData const& perspective) {
-                save({});
-                apply_transform({ 0, 0 }, perspective.matrix);
-            },
-            [&](ScrollData const& scroll) {
-                save({});
-                auto offset = scroll_state.device_offset_for_index(scroll.scroll_frame_index);
-                if (!offset.is_zero())
-                    translate({ .delta = offset.to_type<int>() });
-            },
-            [&](ScrollCompensation const& compensation) {
-                save({});
-                auto offset = scroll_state.device_offset_for_index(compensation.scroll_frame_index);
-                if (!offset.is_zero())
-                    translate({ .delta = (-offset).to_type<int>() });
-            },
-            [&](TransformData const& transform) {
-                save({});
-                apply_transform(transform.origin, transform.matrix);
-            },
-            [&](ClipData const& clip) {
-                save({});
-                if (clip.corner_radii.has_any_radius())
-                    add_rounded_rect_clip({ .corner_radii = clip.corner_radii, .border_rect = clip.rect.to_type<int>(), .corner_clip = CornerClip::Outside });
-                else
-                    add_clip_rect({ .rect = clip.rect.to_type<int>() });
-            },
-            [&](ClipPathData const& clip_path) {
-                save({});
-                add_clip_path(clip_path.path);
-            });
-    };
+    auto apply_accumulated_visual_context =
+        [&](VisualContextIndex, AccumulatedVisualContextNode const& node) {
+            node.data.visit(
+                [&](EffectsData const& effects) {
+                    apply_effects({
+                                      .opacity = effects.opacity,
+                                      .compositing_and_blending_operator = effects.blend_mode,
+                                      .has_filter = effects.gfx_filter.has_value(),
+                                      .filter_id = {},
+                                  },
+                        effects.gfx_filter.has_value() ? &effects.gfx_filter.value() : nullptr);
+                },
+                [&](PerspectiveData const& perspective) {
+                    save({});
+                    apply_transform({ 0, 0 }, perspective.matrix);
+                },
+                [&](ScrollData const& scroll) {
+                    save({});
+                    auto offset = scroll_state.device_offset_for_index(scroll.scroll_frame_index);
+                    if (!offset.is_zero())
+                        translate({ .delta = offset.to_type<int>() });
+                },
+                [&](ScrollCompensation const& compensation) {
+                    save({});
+                    auto offset = scroll_state.device_offset_for_index(compensation.scroll_frame_index);
+                    if (!offset.is_zero())
+                        translate({ .delta = (-offset).to_type<int>() });
+                },
+                [&](TransformData const& transform) {
+                    save({});
+                    apply_transform(transform.origin, transform.matrix);
+                },
+                [&](ClipData const& clip) {
+                    save({});
+                    if (clip.corner_radii.has_any_radius()) {
+                        add_rounded_rect_clip({
+                            .corner_radii = clip.corner_radii,
+                            .border_rect = clip.rect.to_type<int>(),
+                            .corner_clip = CornerClip::Outside,
+                        });
+                    } else {
+                        add_clip_rect({ .rect = clip.rect.to_type<int>() });
+                    }
+                },
+                [&](ClipPathData const& clip_path) {
+                    save({});
+                    add_clip_path(clip_path.path);
+                });
+        };
 
     VisualContextIndex applied_context_index;
     size_t applied_depth = 0;
@@ -178,93 +296,69 @@ void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStat
         }
 
         auto result = SwitchResult::Switched;
-        for_each_node_from_common_ancestor_to_target(common_ancestor_index, target_index, [&](AccumulatedVisualContextNode const& node) {
-            if (bounding_rect.has_value() && node.data.has<EffectsData>()) {
-                if (bounding_rect->is_empty() || would_be_fully_clipped_by_painter(*bounding_rect)) {
-                    result = SwitchResult::CulledByEffect;
-                    return IterationDecision::Break;
+        for_each_node_from_common_ancestor_to_target(
+            common_ancestor_index,
+            target_index,
+            [&](VisualContextIndex node_index, AccumulatedVisualContextNode const& node) {
+                if (bounding_rect.has_value() && node.data.has<EffectsData>()) {
+                    if (bounding_rect->is_empty() || would_be_fully_clipped_by_painter(*bounding_rect)) {
+                        result = SwitchResult::CulledByEffect;
+                        return IterationDecision::Break;
+                    }
                 }
-            }
-            apply_accumulated_visual_context(node);
-            applied_depth++;
-            return IterationDecision::Continue;
-        });
+                apply_accumulated_visual_context(node_index, node);
+                applied_depth++;
+                return IterationDecision::Continue;
+            });
 
         if (result == SwitchResult::Switched)
             applied_context_index = target_index;
         return result;
     };
 
-    for (size_t command_index = 0; command_index < commands.size(); command_index++) {
-        auto const& [context_index, command] = commands[command_index];
+    DisplayList::for_each_command_header(commands, [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
+        auto bounding_rect = header.has_bounding_rect
+            ? Optional<Gfx::IntRect>(header.bounding_rect)
+            : Optional<Gfx::IntRect> {};
 
-        auto bounding_rect = command_bounding_rectangle(command);
-
-        if (switch_to_context(context_index, bounding_rect) == SwitchResult::CulledByEffect)
-            continue;
-
-        if (command.has<PaintScrollBar>()) {
-            auto translated_command = command;
-            auto& paint_scroll_bar = translated_command.get<PaintScrollBar>();
-            auto device_offset = scroll_state.device_offset_for_index(paint_scroll_bar.scroll_frame_index);
-            if (paint_scroll_bar.vertical)
-                paint_scroll_bar.thumb_rect.translate_by(0, static_cast<int>(-device_offset.y() * paint_scroll_bar.scroll_size));
-            else
-                paint_scroll_bar.thumb_rect.translate_by(static_cast<int>(-device_offset.x() * paint_scroll_bar.scroll_size), 0);
-            paint_scrollbar(paint_scroll_bar);
-            continue;
-        }
+        if (switch_to_context(header.context_index, bounding_rect) == SwitchResult::CulledByEffect)
+            return;
 
         if (bounding_rect.has_value() && (bounding_rect->is_empty() || would_be_fully_clipped_by_painter(*bounding_rect))) {
             // Any clip that's located outside of the visible region is equivalent to a simple clip-rect,
             // so replace it with one to avoid doing unnecessary work.
-            if (command_is_clip(command)) {
-                if (command.has<AddClipRect>()) {
-                    add_clip_rect(command.get<AddClipRect>());
-                } else {
+            if (header.is_clip) {
+                if (header.type == DisplayListCommandType::AddClipRect)
+                    add_clip_rect(read_display_list_command_payload<AddClipRect>(payload));
+                else
                     add_clip_rect({ bounding_rect.release_value() });
-                }
             }
-            continue;
+            return;
         }
 
-#define HANDLE_COMMAND(command_type, executor_method) \
-    if (command.has<command_type>()) {                \
-        executor_method(command.get<command_type>()); \
-    }
+        auto dispatch_command = [&]<DisplayListCommand Command>(auto&& callback) {
+            auto command = read_display_list_command_payload<Command>(payload);
+            if constexpr (IsSame<Command, PaintScrollBar>) {
+                auto device_offset = scroll_state.device_offset_for_index(command.scroll_frame_index);
+                if (command.vertical)
+                    command.thumb_rect.translate_by(0, static_cast<int>(-device_offset.y() * command.scroll_size));
+                else
+                    command.thumb_rect.translate_by(static_cast<int>(-device_offset.x() * command.scroll_size), 0);
+            }
+            callback(command);
+        };
 
-        // clang-format off
-        HANDLE_COMMAND(DrawGlyphRun, draw_glyph_run)
-        else HANDLE_COMMAND(FillRect, fill_rect)
-        else HANDLE_COMMAND(DrawScaledDecodedImageFrame, draw_scaled_decoded_image_frame)
-        else HANDLE_COMMAND(DrawRepeatedDecodedImageFrame, draw_repeated_decoded_image_frame)
-        else HANDLE_COMMAND(DrawExternalContent, draw_external_content)
-        else HANDLE_COMMAND(DrawVideoFrameSource, draw_video_frame_source)
-        else HANDLE_COMMAND(AddClipRect, add_clip_rect)
-        else HANDLE_COMMAND(Save, save)
-        else HANDLE_COMMAND(SaveLayer, save_layer)
-        else HANDLE_COMMAND(Restore, restore)
-        else HANDLE_COMMAND(Translate, translate)
-        else HANDLE_COMMAND(PaintLinearGradient, paint_linear_gradient)
-        else HANDLE_COMMAND(PaintRadialGradient, paint_radial_gradient)
-        else HANDLE_COMMAND(PaintConicGradient, paint_conic_gradient)
-        else HANDLE_COMMAND(PaintOuterBoxShadow, paint_outer_box_shadow)
-        else HANDLE_COMMAND(PaintInnerBoxShadow, paint_inner_box_shadow)
-        else HANDLE_COMMAND(PaintTextShadow, paint_text_shadow)
-        else HANDLE_COMMAND(FillRectWithRoundedCorners, fill_rect_with_rounded_corners)
-        else HANDLE_COMMAND(FillPath, fill_path)
-        else HANDLE_COMMAND(StrokePath, stroke_path)
-        else HANDLE_COMMAND(DrawEllipse, draw_ellipse)
-        else HANDLE_COMMAND(FillEllipse, fill_ellipse)
-        else HANDLE_COMMAND(DrawLine, draw_line)
-        else HANDLE_COMMAND(ApplyBackdropFilter, apply_backdrop_filter)
-        else HANDLE_COMMAND(DrawRect, draw_rect)
-        else HANDLE_COMMAND(AddRoundedRectClip, add_rounded_rect_clip)
-        else HANDLE_COMMAND(PaintNestedDisplayList, paint_nested_display_list)
-        else HANDLE_COMMAND(ApplyEffects, apply_effects)
-        else VERIFY_NOT_REACHED();
-        // clang-format on
-    }
+        switch (header.type) {
+#define DISPATCH_DISPLAY_LIST_COMMAND(command_type, player_method)                    \
+    case DisplayListCommandType::command_type:                                        \
+        dispatch_command.template operator()<command_type>([&](auto const& command) { \
+            player_method(command);                                                   \
+        });                                                                           \
+        break;
+            ENUMERATE_DISPLAY_LIST_COMMANDS(DISPATCH_DISPLAY_LIST_COMMAND)
+#undef DISPATCH_DISPLAY_LIST_COMMAND
+        }
+    });
 
     while (applied_depth > 0) {
         restore({});

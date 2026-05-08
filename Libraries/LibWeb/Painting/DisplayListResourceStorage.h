@@ -16,7 +16,6 @@
 #include <LibGfx/Filter.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/DisplayListResourceIds.h>
 #include <LibWeb/Painting/ExternalContentSource.h>
 #include <LibWeb/Painting/PaintStyle.h>
@@ -40,7 +39,7 @@ public:
     FilterResourceId add_filter(Gfx::Filter const&);
     PaintStyleResourceId add_paint_style(RefPtr<SVGPaintServerPaintStyle const>);
     DisplayListResourceId add_display_list(NonnullRefPtr<DisplayList const>);
-    void append_referenced_resources_from(DisplayListResourceStorage const& source, ReadonlySpan<DisplayListCommand> commands);
+    void append_referenced_resources_from(DisplayListResourceStorage const& source, ReadonlyBytes command_bytes);
 
     Gfx::Font const& font(FontResourceId id) const { return *m_fonts.get(id.value()).value(); }
     Gfx::DecodedImageFrame const& image_frame(ImageFrameResourceId id) const { return m_image_frames.get(id.value()).value(); }

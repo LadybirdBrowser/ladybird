@@ -79,10 +79,10 @@ DisplayListResourceId DisplayListResourceStorage::add_display_list(NonnullRefPtr
 
 void DisplayListResourceStorage::append_referenced_resources_from(
     DisplayListResourceStorage const& source,
-    ReadonlySpan<DisplayListCommand> commands)
+    ReadonlyBytes command_bytes)
 {
-    for (auto const& display_list_command : commands) {
-        display_list_command.visit([&](auto const& command) {
+    DisplayList::for_each_command_header(command_bytes, [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
+        visit_display_list_command(header.type, payload, [&](auto const& command) {
             if constexpr (requires { command.font_id; })
                 add_font(source.font(command.font_id));
             if constexpr (requires { command.frame_id; })
@@ -106,7 +106,7 @@ void DisplayListResourceStorage::append_referenced_resources_from(
             if constexpr (requires { command.display_list_id; })
                 add_display_list(source.display_list(command.display_list_id));
         });
-    }
+    });
 }
 
 }
