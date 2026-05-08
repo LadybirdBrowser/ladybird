@@ -59,7 +59,7 @@ private:
     virtual void set_use_system_dns() override;
     virtual void start_request(u64 request_id, ByteString, URL::URL, Vector<HTTP::Header>, ByteBuffer, HTTP::CacheMode, HTTP::Cookie::IncludeCredentials, Core::ProxyData) override;
     virtual Messages::RequestServer::StopRequestResponse stop_request(u64 request_id) override;
-    virtual Messages::RequestServer::SetCertificateResponse set_certificate(u64 request_id, ByteString, ByteString) override;
+    virtual Messages::RequestServer::SetCertificateResponse set_certificate(u64 request_id, ByteString certificate, ByteString key) override;
     virtual void ensure_connection(u64 request_id, URL::URL url, ::RequestServer::CacheLevel cache_level) override;
 
     virtual void retrieved_http_cookie(int client_id, u64 request_id, RequestServer::RequestType request_type, String cookie) override;

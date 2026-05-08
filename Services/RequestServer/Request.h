@@ -77,6 +77,7 @@ public:
     virtual void notify_request_unblocked(Badge<HTTP::DiskCache>) override;
     void notify_retrieved_http_cookie(Badge<ConnectionFromClient>, StringView cookie);
     void notify_fetch_complete(Badge<ConnectionFromClient>, int result_code);
+    void set_client_certificate(Badge<ConnectionFromClient>, ByteString certificate, ByteString key);
 
 private:
     enum class State : u8 {
@@ -202,6 +203,9 @@ private:
 
     ByteString m_alt_svc_cache_path;
     Core::ProxyData m_proxy_data;
+
+    ByteString m_client_certificate;
+    ByteString m_client_key;
 
     Optional<u32> m_status_code;
     Optional<String> m_reason_phrase;

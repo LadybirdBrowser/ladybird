@@ -403,10 +403,16 @@ Messages::RequestServer::StopRequestResponse ConnectionFromClient::stop_request(
     return true;
 }
 
-Messages::RequestServer::SetCertificateResponse ConnectionFromClient::set_certificate(u64, ByteString, ByteString)
+Messages::RequestServer::SetCertificateResponse ConnectionFromClient::set_certificate(u64 request_id, ByteString certificate, ByteString key)
 {
-    // FIXME: Store client certificate and pass to cURL for mTLS support (https://github.com/LadybirdBrowser/ladybird/issues/8343).
-    return false;
+    auto request = m_active_requests.get(request_id);
+    if (!request.has_value()) {
+        dbgln("SetCertificate: Request ID {} not found", request_id);
+        return false;
+    }
+
+    (*request)->set_client_certificate({}, move(certificate), move(key));
+    return true;
 }
 
 void ConnectionFromClient::ensure_connection(u64 request_id, URL::URL url, ::RequestServer::CacheLevel cache_level)

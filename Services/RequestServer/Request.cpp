@@ -511,6 +511,16 @@ void Request::notify_retrieved_http_cookie(Badge<ConnectionFromClient>, StringVi
     transition_to_state(State::Fetch);
 }
 
+void Request::set_client_certificate(Badge<ConnectionFromClient>, ByteString certificate, ByteString key)
+{
+    if (certificate.is_empty() && !key.is_empty()) {
+        dbgln("Request: Client key provided without certificate, dropping");
+        return;
+    }
+    m_client_certificate = move(certificate);
+    m_client_key = move(key);
+}
+
 void Request::notify_fetch_complete(Badge<ConnectionFromClient>, int result_code)
 {
     mark_lifecycle_event(this, &WireStats::complete_observed_at);
@@ -884,6 +894,21 @@ void Request::handle_fetch_state()
 
     if (auto const& path = default_certificate_path(); !path.is_empty())
         set_option(CURLOPT_CAINFO, path.characters());
+
+    // Apply client certificate for mTLS if provided. The certificate blob is required;
+    // the key blob is optional (the cert blob may contain the private key, e.g. combined PEM;
+    // future PKCS#12 support needs explicit type/passphrase plumbing).
+    // NOTE: const_cast is needed because curl_blob::data is void*, but CURL_BLOB_COPY ensures cURL
+    //       copies the data, so the source is not modified.
+    if (!m_client_certificate.is_empty()) {
+        curl_blob cert_blob { const_cast<char*>(m_client_certificate.characters()), m_client_certificate.length(), CURL_BLOB_COPY };
+        set_option(CURLOPT_SSLCERT_BLOB, &cert_blob);
+
+        if (!m_client_key.is_empty()) {
+            curl_blob key_blob { const_cast<char*>(m_client_key.characters()), m_client_key.length(), CURL_BLOB_COPY };
+            set_option(CURLOPT_SSLKEY_BLOB, &key_blob);
+        }
+    }
 
     set_option(CURLOPT_ACCEPT_ENCODING, ""); // Empty string lets curl define the accepted encodings.
     set_option(CURLOPT_URL, m_url.to_byte_string().characters());
