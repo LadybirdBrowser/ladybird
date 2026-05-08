@@ -81,6 +81,15 @@ struct BooleanExpressionEvaluationContext {
     GC::Ptr<DOM::Element const> query_container { nullptr };
 };
 
+struct ContainerQueryFeatureRequirements {
+    bool requires_size_container : 1 { false };
+    bool requires_inline_size_container : 1 { false };
+    bool requires_block_size_container : 1 { false };
+    bool requires_style_container : 1 { false };
+    bool requires_scroll_state_container : 1 { false };
+    bool has_unknown_or_unsupported_feature : 1 { false };
+};
+
 // The contents of this file implement the `<boolean-expr>` concept.
 // https://drafts.csswg.org/css-values-5/#typedef-boolean-expr
 class BooleanExpression {
@@ -91,6 +100,7 @@ public:
     static void indent(StringBuilder& builder, int levels);
 
     virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const = 0;
+    virtual void collect_container_query_feature_requirements(ContainerQueryFeatureRequirements&) const { }
     virtual String to_string() const = 0;
     virtual void dump(StringBuilder&, int indent_levels = 0) const = 0;
 };
@@ -105,6 +115,7 @@ public:
     virtual ~GeneralEnclosed() override = default;
 
     virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override { return m_matches; }
+    virtual void collect_container_query_feature_requirements(ContainerQueryFeatureRequirements&) const override;
     virtual String to_string() const override { return m_serialized_contents; }
     virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
@@ -128,6 +139,7 @@ public:
     virtual ~BooleanNotExpression() override = default;
 
     virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override;
+    virtual void collect_container_query_feature_requirements(ContainerQueryFeatureRequirements&) const override;
     virtual String to_string() const override;
     virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
@@ -149,6 +161,7 @@ public:
     virtual ~BooleanExpressionInParens() override = default;
 
     virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override;
+    virtual void collect_container_query_feature_requirements(ContainerQueryFeatureRequirements&) const override;
     virtual String to_string() const override;
     virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
@@ -170,6 +183,7 @@ public:
     virtual ~BooleanAndExpression() override = default;
 
     virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override;
+    virtual void collect_container_query_feature_requirements(ContainerQueryFeatureRequirements&) const override;
     virtual String to_string() const override;
     virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
@@ -191,6 +205,7 @@ public:
     virtual ~BooleanOrExpression() override = default;
 
     virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override;
+    virtual void collect_container_query_feature_requirements(ContainerQueryFeatureRequirements&) const override;
     virtual String to_string() const override;
     virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 

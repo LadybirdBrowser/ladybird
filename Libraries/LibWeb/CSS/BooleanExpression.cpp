@@ -19,6 +19,11 @@ void BooleanExpression::indent(StringBuilder& builder, int levels)
     builder.append_repeated("  "sv, levels);
 }
 
+void GeneralEnclosed::collect_container_query_feature_requirements(ContainerQueryFeatureRequirements& requirements) const
+{
+    requirements.has_unknown_or_unsupported_feature = true;
+}
+
 void GeneralEnclosed::dump(StringBuilder& builder, int indent_levels) const
 {
     indent(builder, indent_levels);
@@ -40,6 +45,11 @@ MatchResult BooleanNotExpression::evaluate(BooleanExpressionEvaluationContext co
     VERIFY_NOT_REACHED();
 }
 
+void BooleanNotExpression::collect_container_query_feature_requirements(ContainerQueryFeatureRequirements& requirements) const
+{
+    m_child->collect_container_query_feature_requirements(requirements);
+}
+
 String BooleanNotExpression::to_string() const
 {
     return MUST(String::formatted("not {}", m_child->to_string()));
@@ -55,6 +65,11 @@ void BooleanNotExpression::dump(StringBuilder& builder, int indent_levels) const
 MatchResult BooleanExpressionInParens::evaluate(BooleanExpressionEvaluationContext const& context) const
 {
     return m_child->evaluate(context);
+}
+
+void BooleanExpressionInParens::collect_container_query_feature_requirements(ContainerQueryFeatureRequirements& requirements) const
+{
+    m_child->collect_container_query_feature_requirements(requirements);
 }
 
 String BooleanExpressionInParens::to_string() const
@@ -89,6 +104,12 @@ MatchResult BooleanAndExpression::evaluate(BooleanExpressionEvaluationContext co
     return MatchResult::Unknown;
 }
 
+void BooleanAndExpression::collect_container_query_feature_requirements(ContainerQueryFeatureRequirements& requirements) const
+{
+    for (auto const& child : m_children)
+        child->collect_container_query_feature_requirements(requirements);
+}
+
 String BooleanAndExpression::to_string() const
 {
     return MUST(String::join(" and "sv, m_children));
@@ -118,6 +139,12 @@ MatchResult BooleanOrExpression::evaluate(BooleanExpressionEvaluationContext con
     if (false_results == m_children.size())
         return MatchResult::False;
     return MatchResult::Unknown;
+}
+
+void BooleanOrExpression::collect_container_query_feature_requirements(ContainerQueryFeatureRequirements& requirements) const
+{
+    for (auto const& child : m_children)
+        child->collect_container_query_feature_requirements(requirements);
 }
 
 String BooleanOrExpression::to_string() const

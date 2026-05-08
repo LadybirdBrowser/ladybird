@@ -22,6 +22,13 @@ ContainerQuery::ContainerQuery(NonnullOwnPtr<BooleanExpression>&& condition)
 {
 }
 
+ContainerQueryFeatureRequirements ContainerQuery::collect_feature_requirements() const
+{
+    ContainerQueryFeatureRequirements requirements;
+    m_condition->collect_container_query_feature_requirements(requirements);
+    return requirements;
+}
+
 String ContainerQuery::to_string() const
 {
     return m_condition->to_string();

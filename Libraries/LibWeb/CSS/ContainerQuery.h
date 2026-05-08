@@ -18,6 +18,7 @@ public:
     static NonnullRefPtr<ContainerQuery> create(NonnullOwnPtr<BooleanExpression>&&);
 
     bool matches() const { return m_matches; }
+    ContainerQueryFeatureRequirements collect_feature_requirements() const;
     String to_string() const;
 
     void dump(StringBuilder&, int indent_levels = 0) const;
