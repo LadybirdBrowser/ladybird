@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 5 tests
+
+1 Pass
+4 Fail
+Fail	match closest named container
+Fail	match ancestor named container
+Pass	no match for unused container name
+Fail	match named container in shadow
+Fail	match named container in outer scope

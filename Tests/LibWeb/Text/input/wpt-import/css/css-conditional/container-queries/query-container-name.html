@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<title>@container: query container name, no query part</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-rule">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  #inner { container-name: --foo }
+  #outer { container-name: --bar }
+  #target {
+    --match-foo: no;
+    --match-bar: no;
+    --match-baz: no;
+  }
+  @container --foo { #target { --match-foo: yes; } }
+  @container --bar { #target { --match-bar: yes; } }
+  @container --baz { #target { --match-baz: yes; } }
+</style>
+<div id="outer">
+  <div id="inner">
+    <div id="target"></div>
+  </div>
+</div>
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(target).getPropertyValue("--match-foo"), "yes");
+  }, "match closest named container");
+
+  test(() => {
+    assert_equals(getComputedStyle(target).getPropertyValue("--match-bar"), "yes");
+  }, "match ancestor named container");
+
+  test(() => {
+    assert_equals(getComputedStyle(target).getPropertyValue("--match-baz"), "no");
+  }, "no match for unused container name");
+</script>
+
+<style>
+  @container --in-shadow {
+    #slotted { --match-in-shadow: yes; }
+  }
+</style>
+<div id="host" style="container-name: --for-host">
+  <template shadowrootmode="open">
+    <style>
+      @container --for-host {
+        #in-shadow { --match-for-host: yes; }
+      }
+    </style>
+    <div style="container-name: --in-shadow">
+      <div id="in-shadow"></div>
+      <slot></slot>
+    </div>
+  </template>
+  <div id="slotted"></div>
+</div>
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(slotted).getPropertyValue("--match-in-shadow"), "yes");
+  }, "match named container in shadow");
+
+  test(() => {
+    assert_equals(getComputedStyle(host.shadowRoot.querySelector("#in-shadow")).getPropertyValue("--match-for-host"), "yes");
+  }, "match named container in outer scope");
+</script>

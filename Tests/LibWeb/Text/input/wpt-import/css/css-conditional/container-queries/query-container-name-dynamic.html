@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<title>@container: query container name, dynamic changes</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-rule">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  .container { container-name: --foo; }
+  #inner { --match-inner: no; }
+  #outer { --match-outer: no; }
+  @container --foo { #inner { --match-inner: yes; } }
+  @container --foo { #outer { --match-outer: yes; } }
+</style>
+<div id="couter" class="container">
+  <div id="outer">
+    <div id="cinner">
+      <div id="inner"></div>
+    </div>
+  </div>
+</div>
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(inner).getPropertyValue("--match-inner"), "yes", "#inner target");
+    assert_equals(getComputedStyle(outer).getPropertyValue("--match-outer"), "yes", "#outer target");
+  }, "Initially selects #couter as --foo container, both match");
+
+  test(() => {
+    couter.classList.toggle("container");
+    assert_equals(getComputedStyle(inner).getPropertyValue("--match-inner"), "no", "#inner target");
+    assert_equals(getComputedStyle(outer).getPropertyValue("--match-outer"), "no", "#outer target");
+  }, "Remove #couter --foo container-name, none match");
+
+  test(() => {
+    cinner.classList.toggle("container");
+    assert_equals(getComputedStyle(inner).getPropertyValue("--match-inner"), "yes", "#inner target");
+    assert_equals(getComputedStyle(outer).getPropertyValue("--match-outer"), "no", "#outer target");
+  }, "Make #cinner a --foo container, #inner starts matching");
+</script>
