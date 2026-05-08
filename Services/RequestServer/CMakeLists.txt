@@ -6,6 +6,7 @@ set(SOURCES
     Resolver.cpp
     ResourceSubstitutionMap.cpp
     WebSocketImplCurl.cpp
+    BodyDecoder.cpp
 )
 
 set(GENERATED_SOURCES
@@ -31,7 +32,7 @@ target_include_directories(requestserverservice PRIVATE ${CMAKE_CURRENT_BINARY_D
 target_include_directories(requestserverservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
 
 target_link_libraries(RequestServer PRIVATE requestserverservice)
-target_link_libraries(requestserverservice PUBLIC LibCore LibDNS LibHTTP LibIPC LibMain LibRequests LibTLS LibWebSocket LibURL LibTextCodec CURL::libcurl)
+target_link_libraries(requestserverservice PUBLIC LibCore LibDNS LibHTTP LibIPC LibMain LibRequests LibTLS LibWebSocket LibURL LibTextCodec CURL::libcurl LibCompress)
 target_link_libraries(requestserverservice PRIVATE OpenSSL::Crypto OpenSSL::SSL)
 
 if (WIN32)

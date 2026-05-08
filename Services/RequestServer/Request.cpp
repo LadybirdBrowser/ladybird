@@ -537,6 +537,17 @@ void Request::notify_fetch_complete(Badge<ConnectionFromClient>, int result_code
 
     m_curl_result_code = result_code;
 
+    if (m_body_decoder && result_code == CURLE_OK) {
+        auto flush_result = m_body_decoder->finish(m_response_buffer);
+
+        if (flush_result.is_error()) {
+            dbgln("Request::notify_fetch_complete: Body decoder flush failed: {}", flush_result.error());
+            m_network_error = Requests::NetworkError::InvalidContentEncoding;
+            transition_to_state(State::Error);
+            return;
+        }
+    }
+
     if (m_response_buffer.is_eof())
         transition_to_state(State::Complete);
 }
@@ -904,7 +915,10 @@ void Request::handle_fetch_state()
     if (auto const& path = default_certificate_path(); !path.is_empty())
         set_option(CURLOPT_CAINFO, path.characters());
 
-    set_option(CURLOPT_ACCEPT_ENCODING, ""); // Empty string lets curl define the accepted encodings.
+    // do not let curl perform HTTP content decoding.
+    // curl treats unknown Content-Encoding values as errors, but websites doesn't always follow the spec.
+    set_option(CURLOPT_HTTP_CONTENT_DECODING, 0L);
+
     set_option(CURLOPT_URL, m_url.to_byte_string().characters());
     set_option(CURLOPT_PORT, m_url.port_or_default());
     set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
@@ -934,6 +948,12 @@ void Request::handle_fetch_state()
             curl_headers = curl_slist_append(curl_headers, "Content-Type:");
     } else if (m_method == "HEAD"sv) {
         set_option(CURLOPT_NOBODY, 1L);
+    }
+
+    // Append the encoding methods that ladybird supports in the Accept-Encoding header
+    if (!m_request_headers->contains("Accept-Encoding"sv)) {
+        // TODO: Add brotli (br) and zstd (zstd) once they are implemented in LibCompress.
+        m_request_headers->append({ "Accept-Encoding"sv, "gzip, deflate"sv });
     }
 
     for (auto const& header : *m_request_headers) {
@@ -1129,8 +1149,26 @@ size_t Request::on_data_received(void* buffer, size_t size, size_t nmemb, void* 
     auto total_size = size * nmemb;
     ReadonlyBytes bytes { static_cast<u8 const*>(buffer), total_size };
 
+    if (!request.m_body_decoder) {
+        auto encoding_chain = parse_content_encoding(*request.m_response_headers);
+        if (encoding_chain.is_empty()) {
+            request.m_body_decoder = BodyDecoder::create_pass_through();
+        } else {
+            auto decoder_or_error = BodyDecoder::create(encoding_chain);
+            if (decoder_or_error.is_error()) {
+                dbgln("Request::on_data_received: Failed to build body decoder: {}", decoder_or_error.error());
+                request.m_network_error = Requests::NetworkError::InvalidContentEncoding;
+                return CURL_WRITEFUNC_ERROR;
+            }
+            request.m_body_decoder = decoder_or_error.release_value();
+        }
+    }
+
     auto result = [&] -> ErrorOr<void> {
-        TRY(request.m_response_buffer.write_some(bytes));
+        if (auto push_result = request.m_body_decoder->push(bytes, request.m_response_buffer); push_result.is_error()) {
+            request.m_network_error = Requests::NetworkError::InvalidContentEncoding;
+            return push_result.release_error();
+        }
         return request.write_queued_bytes_without_blocking();
     }();
 

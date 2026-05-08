@@ -20,6 +20,7 @@
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibURL/URL.h>
+#include <RequestServer/BodyDecoder.h>
 #include <RequestServer/CacheLevel.h>
 #include <RequestServer/Forward.h>
 #include <RequestServer/RequestPipe.h>
@@ -215,6 +216,8 @@ private:
     size_t m_bytes_transferred_to_client { 0 };
 
     Optional<Requests::NetworkError> m_network_error;
+
+    OwnPtr<BodyDecoder> m_body_decoder;
 };
 
 }
