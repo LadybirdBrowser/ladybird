@@ -4,9 +4,9 @@ interface SVGAnimationElement : SVGElement {
 
     [FIXME] readonly attribute SVGElement? targetElement;
 
-    [FIXME] attribute EventHandler onbegin;
-    [FIXME] attribute EventHandler onend;
-    [FIXME] attribute EventHandler onrepeat;
+    attribute EventHandler onbegin;
+    attribute EventHandler onend;
+    attribute EventHandler onrepeat;
 
     [FIXME] float getStartTime();
     [FIXME] float getCurrentTime();
