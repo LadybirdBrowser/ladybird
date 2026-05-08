@@ -448,12 +448,12 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(FlyString 
         if (name == HTML::EventNames::error && is<HTML::Window>(this)) {
             //  -> If name is onerror and eventTarget is a Window object
             //      Let the function have five arguments, named event, source, lineno, colno, and error.
-            source_builder.appendff("function {}(event, source, lineno, colno, error) {{\n{}\n}}", name, body);
+            source_builder.appendff("function on{}(event, source, lineno, colno, error) {{\n{}\n}}", name, body);
             parameters_string = "event, source, lineno, colno, error"sv;
         } else {
             //  -> Otherwise
             //      Let the function have a single argument called event.
-            source_builder.appendff("function {}(event) {{\n{}\n}}", name, body);
+            source_builder.appendff("function on{}(event) {{\n{}\n}}", name, body);
             parameters_string = "event"sv;
         }
 
