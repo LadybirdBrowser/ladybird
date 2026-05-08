@@ -54,7 +54,15 @@ void PathFontProvider::load_all_fonts_from_uri(StringView uri)
     root->for_each_descendant_file([this](Core::Resource const& resource) -> IterationDecision {
         auto uri = resource.uri();
         auto path = LexicalPath(uri.bytes_as_string_view());
-        if (path.has_extension(".ttf"sv) || path.has_extension(".ttc"sv) || path.has_extension(".otf"sv)) {
+        auto is_truetype = path.has_extension(".ttf"sv) || path.has_extension(".ttc"sv) || path.has_extension(".otf"sv);
+        auto is_woff = path.has_extension(".woff"sv);
+        if (!is_truetype && !is_woff)
+            return IterationDecision::Continue;
+
+        if (m_loaded_paths.set(resource.filesystem_path(), AK::HashSetExistingEntryBehavior::Keep) != AK::HashSetResult::InsertedNewEntry)
+            return IterationDecision::Continue;
+
+        if (is_truetype) {
             auto font_count = number_of_fonts_in_ttc(resource.data());
             for (u32 ttc_index = 0; ttc_index < font_count; ++ttc_index) {
                 if (auto font_or_error = Typeface::try_load_from_resource(resource, ttc_index); !font_or_error.is_error()) {
@@ -65,7 +73,7 @@ void PathFontProvider::load_all_fonts_from_uri(StringView uri)
                     family.append(font);
                 }
             }
-        } else if (path.has_extension(".woff"sv)) {
+        } else {
             if (auto font_or_error = WOFF::try_load_from_resource(resource); !font_or_error.is_error()) {
                 auto font = font_or_error.release_value();
                 auto& family = m_typeface_by_family.ensure(font->family(), [] {
