@@ -82,6 +82,8 @@ struct PhaseTimings {
     i64 mark_live_cells_us { 0 };
     i64 finalize_unmarked_cells_us { 0 };
     i64 sweep_weak_blocks_us { 0 };
+    i64 prune_weak_containers_us { 0 };
+    i64 sweep_callbacks_us { 0 };
     i64 sweep_dead_cells_us { 0 };
 
     // gather_roots() subphases.
@@ -101,10 +103,9 @@ struct PhaseTimings {
     i64 mark_bfs_us { 0 };
     i64 mark_clear_uprooted_us { 0 };
 
-    // sweep_dead_cells() subphases.
+    // sweep_dead_cells() subphases. Only populated for CollectEverything;
+    // normal collections defer sweep to the incremental sweeper.
     i64 sweep_block_iteration_us { 0 };
-    i64 sweep_weak_containers_us { 0 };
-    i64 sweep_callbacks_us { 0 };
     i64 sweep_block_reclassify_us { 0 };
     i64 sweep_update_threshold_us { 0 };
 };
@@ -178,12 +179,14 @@ void print_gc_report(i64 total_us, size_t live_block_count)
     dbgln("    clear uprooted              {:>10} us ({:>5.1f}%)", t.mark_clear_uprooted_us, pct(t.mark_clear_uprooted_us));
     dbgln("  finalize_unmarked_cells       {:>10} us ({:>5.1f}%)", t.finalize_unmarked_cells_us, pct(t.finalize_unmarked_cells_us));
     dbgln("  sweep_weak_blocks             {:>10} us ({:>5.1f}%)", t.sweep_weak_blocks_us, pct(t.sweep_weak_blocks_us));
-    dbgln("  sweep_dead_cells              {:>10} us ({:>5.1f}%)", t.sweep_dead_cells_us, pct(t.sweep_dead_cells_us));
-    dbgln("    block iteration             {:>10} us ({:>5.1f}%)", t.sweep_block_iteration_us, pct(t.sweep_block_iteration_us));
-    dbgln("    weak containers             {:>10} us ({:>5.1f}%)", t.sweep_weak_containers_us, pct(t.sweep_weak_containers_us));
-    dbgln("    sweep callbacks             {:>10} us ({:>5.1f}%)", t.sweep_callbacks_us, pct(t.sweep_callbacks_us));
-    dbgln("    block reclassify            {:>10} us ({:>5.1f}%)", t.sweep_block_reclassify_us, pct(t.sweep_block_reclassify_us));
-    dbgln("    update threshold            {:>10} us ({:>5.1f}%)", t.sweep_update_threshold_us, pct(t.sweep_update_threshold_us));
+    dbgln("  prune_weak_containers         {:>10} us ({:>5.1f}%)", t.prune_weak_containers_us, pct(t.prune_weak_containers_us));
+    dbgln("  sweep_callbacks               {:>10} us ({:>5.1f}%)", t.sweep_callbacks_us, pct(t.sweep_callbacks_us));
+    if (t.sweep_dead_cells_us > 0) {
+        dbgln("  sweep_dead_cells              {:>10} us ({:>5.1f}%)", t.sweep_dead_cells_us, pct(t.sweep_dead_cells_us));
+        dbgln("    block iteration             {:>10} us ({:>5.1f}%)", t.sweep_block_iteration_us, pct(t.sweep_block_iteration_us));
+        dbgln("    block reclassify            {:>10} us ({:>5.1f}%)", t.sweep_block_reclassify_us, pct(t.sweep_block_reclassify_us));
+        dbgln("    update threshold            {:>10} us ({:>5.1f}%)", t.sweep_update_threshold_us, pct(t.sweep_update_threshold_us));
+    }
     dbgln("=================================================================");
 }
 
@@ -596,10 +599,13 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
         // Prune weak containers while we're still stop-the-world; doing this
         // during incremental sweep risks reading cells that have already been
         // freed and ASAN-poisoned.
-        for (auto& weak_container : m_weak_containers) {
-            if (!weak_container.owner_cell({}).is_marked())
-                continue;
-            weak_container.remove_dead_cells({});
+        {
+            ScopedPhaseTimer timer { report, g_phase_timings.prune_weak_containers_us };
+            for (auto& weak_container : m_weak_containers) {
+                if (!weak_container.owner_cell({}).is_marked())
+                    continue;
+                weak_container.remove_dead_cells({});
+            }
         }
 
         // Run sweep callbacks at STW so they fire for every collection,
