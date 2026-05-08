@@ -153,7 +153,7 @@ void DisplayListPlayerSkia::fill_rect(FillRect const& command)
 
 void DisplayListPlayerSkia::draw_external_content(DrawExternalContent const& command)
 {
-    auto frame = command.source->current_frame();
+    auto frame = active_display_list().resource_storage().external_content_source(command.source_id).current_frame();
     if (!frame.has_value())
         return;
     auto image = m_image_cache.image_for_frame(*frame);
@@ -169,7 +169,7 @@ void DisplayListPlayerSkia::draw_external_content(DrawExternalContent const& com
 
 void DisplayListPlayerSkia::draw_video_frame_source(DrawVideoFrameSource const& command)
 {
-    auto frame = command.source->current_frame();
+    auto frame = active_display_list().resource_storage().video_frame_source(command.source_id).current_frame();
     if (!frame)
         return;
 
@@ -212,7 +212,8 @@ void DisplayListPlayerSkia::draw_video_frame_source(DrawVideoFrameSource const& 
 
 void DisplayListPlayerSkia::draw_scaled_decoded_image_frame(DrawScaledDecodedImageFrame const& command)
 {
-    auto image = m_image_cache.image_for_frame(command.frame);
+    auto const& frame = active_display_list().resource_storage().image_frame(command.frame_id);
+    auto image = m_image_cache.image_for_frame(frame);
     if (!image)
         return;
 
@@ -229,13 +230,14 @@ void DisplayListPlayerSkia::draw_scaled_decoded_image_frame(DrawScaledDecodedIma
 
 void DisplayListPlayerSkia::draw_repeated_decoded_image_frame(DrawRepeatedDecodedImageFrame const& command)
 {
-    auto image = m_image_cache.image_for_frame(command.frame);
+    auto const& frame = active_display_list().resource_storage().image_frame(command.frame_id);
+    auto image = m_image_cache.image_for_frame(frame);
     if (!image)
         return;
 
     SkMatrix matrix;
     auto dst_rect = command.dst_rect.to_type<float>();
-    auto src_size = command.frame.size().to_type<float>();
+    auto src_size = frame.size().to_type<float>();
     matrix.setScale(dst_rect.width() / src_size.width(), dst_rect.height() / src_size.height());
     matrix.postTranslate(dst_rect.x(), dst_rect.y());
     auto sampling_options = to_skia_sampling_options(command.scaling_mode);
@@ -571,13 +573,12 @@ void DisplayListPlayerSkia::fill_path(FillPath const& command)
     path.setFillType(to_skia_path_fill_type(command.winding_rule));
 
     SkPaint paint;
-    if (command.paint_style_or_color.has<PaintStyle>()) {
-        auto const& paint_style = command.paint_style_or_color.get<PaintStyle>();
-        paint = paint_style_to_skia_paint(*paint_style, command.bounding_rect().to_type<float>());
+    if (command.paint_kind == PathPaintKind::PaintStyle) {
+        auto const& paint_style = active_display_list().resource_storage().paint_style(command.paint_style_id);
+        paint = paint_style_to_skia_paint(paint_style, command.bounding_rect().to_type<float>());
         paint.setAlphaf(command.opacity);
     } else {
-        auto const& color = command.paint_style_or_color.get<Color>();
-        paint.setColor(to_skia_color(color));
+        paint.setColor(to_skia_color(command.color));
     }
     paint.setAntiAlias(command.should_anti_alias == ShouldAntiAlias::Yes);
     surface().canvas().drawPath(path, paint);
@@ -587,13 +588,12 @@ void DisplayListPlayerSkia::stroke_path(StrokePath const& command)
 {
     auto path = to_skia_path(command.path);
     SkPaint paint;
-    if (command.paint_style_or_color.has<PaintStyle>()) {
-        auto const& paint_style = command.paint_style_or_color.get<PaintStyle>();
-        paint = paint_style_to_skia_paint(*paint_style, command.bounding_rect().to_type<float>());
+    if (command.paint_kind == PathPaintKind::PaintStyle) {
+        auto const& paint_style = active_display_list().resource_storage().paint_style(command.paint_style_id);
+        paint = paint_style_to_skia_paint(paint_style, command.bounding_rect().to_type<float>());
         paint.setAlphaf(command.opacity);
     } else {
-        auto const& color = command.paint_style_or_color.get<Color>();
-        paint.setColor(to_skia_color(color));
+        paint.setColor(to_skia_color(command.color));
     }
     paint.setAntiAlias(command.should_anti_alias == ShouldAntiAlias::Yes);
     paint.setStyle(SkPaint::Style::kStroke_Style);
@@ -683,8 +683,9 @@ void DisplayListPlayerSkia::apply_backdrop_filter(ApplyBackdropFilter const& com
     canvas.clipRect(rect, true);
     ScopeGuard guard = [&] { canvas.restore(); };
 
-    if (command.backdrop_filter.has_value()) {
-        auto image_filter = to_skia_image_filter(command.backdrop_filter.value());
+    if (command.has_backdrop_filter) {
+        auto image_filter = to_skia_image_filter(
+            active_display_list().resource_storage().filter(command.backdrop_filter_id));
         canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, nullptr, image_filter.get(), 0));
         canvas.restore();
     }
@@ -781,7 +782,8 @@ void DisplayListPlayerSkia::paint_nested_display_list(PaintNestedDisplayList con
     auto& canvas = surface().canvas();
     canvas.translate(command.rect.x(), command.rect.y());
     ScrollStateSnapshot scroll_state_snapshot;
-    execute_impl(*command.display_list, scroll_state_snapshot);
+    auto& nested_display_list = active_display_list().resource_storage().display_list(command.display_list_id);
+    execute_nested_display_list(nested_display_list, scroll_state_snapshot);
 }
 
 void DisplayListPlayerSkia::paint_scrollbar(PaintScrollBar const& command)

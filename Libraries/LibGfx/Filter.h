@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/NonnullOwnPtr.h>
+#include <AK/Types.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/Forward.h>
@@ -66,9 +67,11 @@ public:
     static Filter turbulence(TurbulenceType turbulence_type, float base_frequency_x, float base_frequency_y, i32 num_octaves, float seed, Gfx::IntSize const& tile_stitch_size);
 
     FilterImpl const& impl() const;
+    u64 id() const { return m_id; }
 
 private:
     Filter(NonnullOwnPtr<FilterImpl>&&);
+    u64 m_id { 0 };
     NonnullOwnPtr<FilterImpl> m_impl;
 };
 

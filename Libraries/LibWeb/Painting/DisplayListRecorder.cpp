@@ -29,10 +29,10 @@ DisplayListRecorder::CommandCapture::~CommandCapture()
         m_recorder->end_capture();
 }
 
-Vector<DisplayListCommand> DisplayListRecorder::CommandCapture::take()
+DisplayListCommandSequence DisplayListRecorder::CommandCapture::take()
 {
     VERIFY(m_recorder);
-    auto commands = move(m_recorder->m_captured_commands);
+    auto commands = m_recorder->m_display_list.copy_command_sequence_from(m_recorder->m_capture_start_command_index);
     m_recorder->m_is_capturing = false;
     m_recorder = nullptr;
     return commands;
@@ -42,14 +42,13 @@ DisplayListRecorder::CommandCapture DisplayListRecorder::begin_command_capture()
 {
     VERIFY(!m_is_capturing);
     m_is_capturing = true;
-    m_captured_commands.clear();
+    m_capture_start_command_index = m_display_list.command_count();
     return CommandCapture(*this);
 }
 
 void DisplayListRecorder::end_capture()
 {
     m_is_capturing = false;
-    m_captured_commands.clear();
 }
 
 template<typename T>
@@ -60,35 +59,33 @@ consteval static int command_nesting_level_change(T const& command)
     return 0;
 }
 
-#define APPEND(...)                                                                       \
-    do {                                                                                  \
-        auto command = __VA_ARGS__;                                                       \
-        m_save_nesting_level += command_nesting_level_change(command);                    \
-        if (m_is_capturing) {                                                             \
-            auto command_copy = command;                                                  \
-            if (m_display_list.append(move(command), m_accumulated_visual_context_index)) \
-                m_captured_commands.append(move(command_copy));                           \
-        } else {                                                                          \
-            m_display_list.append(move(command), m_accumulated_visual_context_index);     \
-        }                                                                                 \
+#define APPEND(...)                                                               \
+    do {                                                                          \
+        auto command = __VA_ARGS__;                                               \
+        m_save_nesting_level += command_nesting_level_change(command);            \
+        m_display_list.append(move(command), m_accumulated_visual_context_index); \
     } while (false)
 
-void DisplayListRecorder::replay_cached_commands(ReadonlySpan<DisplayListCommand> commands)
+void DisplayListRecorder::replay_cached_commands(DisplayListCommandSequence const& commands)
 {
-    for (auto const& command : commands) {
-        auto command_copy = command;
-        m_save_nesting_level += command_copy.visit([](auto const& command) -> int {
+    for (auto const& command : commands.commands()) {
+        m_save_nesting_level += command.visit([](auto const& command) -> int {
             if constexpr (requires { command.nesting_level_change; })
                 return command.nesting_level_change;
             return 0;
         });
-        m_display_list.append(move(command_copy), m_accumulated_visual_context_index);
     }
+    m_display_list.append_command_sequence(commands, m_accumulated_visual_context_index);
 }
 
 void DisplayListRecorder::paint_nested_display_list(RefPtr<DisplayList> display_list, Gfx::IntRect rect)
 {
-    APPEND(PaintNestedDisplayList { move(display_list), rect });
+    if (!display_list)
+        return;
+    APPEND(PaintNestedDisplayList {
+        .display_list_id = resource_storage().add_display_list(*display_list),
+        .rect = rect,
+    });
 }
 
 void DisplayListRecorder::add_rounded_rect_clip(CornerRadii corner_radii, Gfx::IntRect border_rect, CornerClip corner_clip)
@@ -140,11 +137,22 @@ void DisplayListRecorder::fill_path(FillPathParams params)
     auto path_bounding_int_rect = enclosing_int_rect(path_bounding_rect);
     if (path_bounding_int_rect.is_empty())
         return;
+    auto paint_kind = PathPaintKind::Color;
+    Color color;
+    PaintStyleResourceId paint_style_id;
+    if (params.paint_style_or_color.has<PaintStyle>()) {
+        paint_kind = PathPaintKind::PaintStyle;
+        paint_style_id = resource_storage().add_paint_style(params.paint_style_or_color.get<PaintStyle>());
+    } else {
+        color = params.paint_style_or_color.get<Gfx::Color>();
+    }
     APPEND(FillPath {
         .path_bounding_rect = path_bounding_int_rect,
         .path = move(params.path),
         .opacity = params.opacity,
-        .paint_style_or_color = params.paint_style_or_color,
+        .paint_kind = paint_kind,
+        .color = color,
+        .paint_style_id = paint_style_id,
         .winding_rule = params.winding_rule,
         .should_anti_alias = params.should_anti_alias });
 }
@@ -162,6 +170,15 @@ void DisplayListRecorder::stroke_path(StrokePathParams params)
     auto path_bounding_int_rect = enclosing_int_rect(path_bounding_rect);
     if (path_bounding_int_rect.is_empty())
         return;
+    auto paint_kind = PathPaintKind::Color;
+    Color color;
+    PaintStyleResourceId paint_style_id;
+    if (params.paint_style_or_color.has<PaintStyle>()) {
+        paint_kind = PathPaintKind::PaintStyle;
+        paint_style_id = resource_storage().add_paint_style(params.paint_style_or_color.get<PaintStyle>());
+    } else {
+        color = params.paint_style_or_color.get<Gfx::Color>();
+    }
     APPEND(StrokePath {
         .cap_style = params.cap_style,
         .join_style = params.join_style,
@@ -171,7 +188,9 @@ void DisplayListRecorder::stroke_path(StrokePathParams params)
         .path_bounding_rect = path_bounding_int_rect,
         .path = move(params.path),
         .opacity = params.opacity,
-        .paint_style_or_color = params.paint_style_or_color,
+        .paint_kind = paint_kind,
+        .color = color,
+        .paint_style_id = paint_style_id,
         .thickness = params.thickness,
         .should_anti_alias = params.should_anti_alias });
 }
@@ -236,14 +255,14 @@ void DisplayListRecorder::draw_external_content(Gfx::IntRect const& dst_rect, No
 {
     if (dst_rect.is_empty())
         return;
-    APPEND(DrawExternalContent { .dst_rect = dst_rect, .source = move(source), .scaling_mode = scaling_mode });
+    APPEND(DrawExternalContent { .dst_rect = dst_rect, .source_id = resource_storage().add_external_content_source(move(source)), .scaling_mode = scaling_mode });
 }
 
 void DisplayListRecorder::draw_video_frame_source(Gfx::IntRect const& dst_rect, NonnullRefPtr<VideoFrameSource> source, Gfx::ScalingMode scaling_mode)
 {
     if (dst_rect.is_empty())
         return;
-    APPEND(DrawVideoFrameSource { .dst_rect = dst_rect, .source = move(source), .scaling_mode = scaling_mode });
+    APPEND(DrawVideoFrameSource { .dst_rect = dst_rect, .source_id = resource_storage().add_video_frame_source(move(source)), .scaling_mode = scaling_mode });
 }
 
 void DisplayListRecorder::draw_scaled_decoded_image_frame(Gfx::IntRect const& dst_rect, Gfx::IntRect const& clip_rect, Gfx::DecodedImageFrame frame, Gfx::ScalingMode scaling_mode)
@@ -253,7 +272,7 @@ void DisplayListRecorder::draw_scaled_decoded_image_frame(Gfx::IntRect const& ds
     APPEND(DrawScaledDecodedImageFrame {
         .dst_rect = dst_rect,
         .clip_rect = clip_rect,
-        .frame = move(frame),
+        .frame_id = resource_storage().add_image_frame(frame),
         .scaling_mode = scaling_mode,
     });
 }
@@ -263,7 +282,7 @@ void DisplayListRecorder::draw_repeated_decoded_image_frame(Gfx::IntRect dst_rec
     APPEND(DrawRepeatedDecodedImageFrame {
         .dst_rect = dst_rect,
         .clip_rect = clip_rect,
-        .frame = move(frame),
+        .frame_id = resource_storage().add_image_frame(frame),
         .scaling_mode = scaling_mode,
         .repeat = { repeat_x, repeat_y },
     });
@@ -351,7 +370,8 @@ void DisplayListRecorder::apply_backdrop_filter(Gfx::IntRect const& backdrop_reg
     APPEND(ApplyBackdropFilter {
         .backdrop_region = backdrop_region,
         .corner_radii = corner_radii,
-        .backdrop_filter = backdrop_filter,
+        .has_backdrop_filter = true,
+        .backdrop_filter_id = resource_storage().add_filter(backdrop_filter),
     });
 }
 

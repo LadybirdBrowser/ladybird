@@ -18,13 +18,16 @@ public:
     static NonnullRefPtr<VideoFrameSource> create();
     ~VideoFrameSource();
 
+    u64 id() const { return m_id; }
+
     void update(RefPtr<Media::VideoFrame>);
     void clear();
     RefPtr<Media::VideoFrame> current_frame() const;
 
 private:
-    VideoFrameSource() = default;
+    VideoFrameSource();
 
+    u64 m_id { 0 };
     mutable Threading::Mutex m_mutex;
     RefPtr<Media::VideoFrame> m_frame;
 };

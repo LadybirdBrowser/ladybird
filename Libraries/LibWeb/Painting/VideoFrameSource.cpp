@@ -4,14 +4,22 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
 #include <LibMedia/VideoFrame.h>
 #include <LibWeb/Painting/VideoFrameSource.h>
 
 namespace Web::Painting {
 
+static Atomic<u64> s_next_id { 1 };
+
 NonnullRefPtr<VideoFrameSource> VideoFrameSource::create()
 {
     return adopt_ref(*new VideoFrameSource());
+}
+
+VideoFrameSource::VideoFrameSource()
+    : m_id(s_next_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
+{
 }
 
 VideoFrameSource::~VideoFrameSource() = default;

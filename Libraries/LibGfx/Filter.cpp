@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Filter.h>
 #include <LibGfx/FilterImpl.h>
@@ -17,16 +18,20 @@
 
 namespace Gfx {
 
+static Atomic<u64> s_next_id { 1 };
+
 using Impl = FilterImpl;
 
 Filter::Filter(Filter const& other)
-    : m_impl(other.m_impl->clone())
+    : m_id(other.m_id)
+    , m_impl(other.m_impl->clone())
 {
 }
 
 Filter& Filter::operator=(Filter const& other)
 {
     if (this != &other) {
+        m_id = other.m_id;
         m_impl = other.m_impl->clone();
     }
     return *this;
@@ -35,7 +40,8 @@ Filter& Filter::operator=(Filter const& other)
 Filter::~Filter() = default;
 
 Filter::Filter(NonnullOwnPtr<FilterImpl>&& impl)
-    : m_impl(impl->clone())
+    : m_id(s_next_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
+    , m_impl(impl->clone())
 {
 }
 

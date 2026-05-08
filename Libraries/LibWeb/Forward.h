@@ -46,6 +46,7 @@ class DevicePixelConverter;
 class DisplayList;
 class DisplayListPlayerSkia;
 class DisplayListRecorder;
+class DisplayListResourceStorage;
 class ExternalContentSource;
 class VideoFrameSource;
 class SVGGradientPaintStyle;

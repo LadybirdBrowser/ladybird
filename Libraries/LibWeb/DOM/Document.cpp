@@ -8064,8 +8064,8 @@ String Document::dump_display_list()
                 builder.append('\n');
 
                 if (auto const* nested = item.command.get_pointer<Painting::PaintNestedDisplayList>()) {
-                    if (nested->display_list)
-                        dump_commands(*nested->display_list, indent + 1);
+                    auto& nested_display_list = list.resource_storage().display_list(nested->display_list_id);
+                    dump_commands(nested_display_list, indent + 1);
                 }
 
                 if (nesting_change > 0)

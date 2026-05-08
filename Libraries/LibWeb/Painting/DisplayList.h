@@ -10,26 +10,44 @@
 #include <AK/Forward.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/SegmentedVector.h>
+#include <AK/Span.h>
+#include <AK/Vector.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
+#include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/ScrollState.h>
 
 namespace Web::Painting {
+
+class DisplayListCommandSequence {
+public:
+    DisplayListCommandSequence();
+
+    ReadonlySpan<DisplayListCommand> commands() const { return m_commands; }
+
+private:
+    friend class DisplayList;
+
+    NonnullRefPtr<DisplayListResourceStorage> m_resource_storage;
+    Vector<DisplayListCommand> m_commands;
+};
 
 class DisplayListPlayer {
 public:
     virtual ~DisplayListPlayer() = default;
 
-    void execute(DisplayList&, ScrollStateSnapshot const&, RefPtr<Gfx::PaintingSurface>);
+    void execute(DisplayList const&, ScrollStateSnapshot const&, RefPtr<Gfx::PaintingSurface>);
 
 protected:
     Gfx::PaintingSurface& surface() const { return *m_surface; }
-    void execute_impl(DisplayList&, ScrollStateSnapshot const& scroll_state);
-    void execute_display_list_into_surface(DisplayList&, Gfx::PaintingSurface&);
+    DisplayList const& active_display_list() const { return *m_active_display_list; }
+    void execute_impl(DisplayList const&, ScrollStateSnapshot const& scroll_state);
+    void execute_display_list_into_surface(DisplayList const&, Gfx::PaintingSurface&);
+    void execute_nested_display_list(DisplayList const&, ScrollStateSnapshot const&);
 
 private:
     virtual void flush() = 0;
@@ -67,6 +85,7 @@ private:
 
     virtual void add_clip_path(Gfx::Path const&) = 0;
 
+    DisplayList const* m_active_display_list { nullptr };
     RefPtr<Gfx::PaintingSurface> m_surface;
 };
 
@@ -74,7 +93,14 @@ class DisplayList : public AtomicRefCounted<DisplayList> {
 public:
     static NonnullRefPtr<DisplayList> create(NonnullRefPtr<AccumulatedVisualContextTree const> visual_context_tree)
     {
-        return adopt_ref(*new DisplayList(move(visual_context_tree)));
+        return adopt_ref(*new DisplayList(move(visual_context_tree), DisplayListResourceStorage::create()));
+    }
+
+    static NonnullRefPtr<DisplayList> create(
+        NonnullRefPtr<AccumulatedVisualContextTree const> visual_context_tree,
+        NonnullRefPtr<DisplayListResourceStorage> resource_storage)
+    {
+        return adopt_ref(*new DisplayList(move(visual_context_tree), move(resource_storage)));
     }
 
     bool append(DisplayListCommand&& command, VisualContextIndex context_index);
@@ -85,17 +111,25 @@ public:
     };
 
     AccumulatedVisualContextTree const& visual_context_tree() const { return *m_visual_context_tree; }
+    u64 id() const { return m_id; }
 
     auto& commands(Badge<DisplayListRecorder>) { return m_commands; }
     auto const& commands() const { return m_commands; }
+    DisplayListResourceStorage& resource_storage() { return *m_resource_storage; }
+    DisplayListResourceStorage const& resource_storage() const { return *m_resource_storage; }
+
+    void append_command_sequence(DisplayListCommandSequence const&, VisualContextIndex);
+    DisplayListCommandSequence copy_command_sequence_from(size_t command_start_index) const;
+    size_t command_count() const { return m_commands.size(); }
 
 private:
-    explicit DisplayList(NonnullRefPtr<AccumulatedVisualContextTree const> visual_context_tree)
-        : m_visual_context_tree(move(visual_context_tree))
-    {
-    }
+    explicit DisplayList(
+        NonnullRefPtr<AccumulatedVisualContextTree const> visual_context_tree,
+        NonnullRefPtr<DisplayListResourceStorage> resource_storage);
 
     NonnullRefPtr<AccumulatedVisualContextTree const> const m_visual_context_tree;
+    NonnullRefPtr<DisplayListResourceStorage> m_resource_storage;
+    u64 m_id { 0 };
     AK::SegmentedVector<CommandListItem, 512> m_commands;
 };
 

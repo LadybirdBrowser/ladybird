@@ -4,10 +4,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/PaintStyle.h>
 
 namespace Web::Painting {
+
+static Atomic<u64> s_next_id { 1 };
+
+SVGPaintServerPaintStyle::SVGPaintServerPaintStyle()
+    : m_id(s_next_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
+{
+}
+
+SVGPaintServerPaintStyle::~SVGPaintServerPaintStyle() = default;
 
 NonnullRefPtr<SVGPatternPaintStyle> SVGPatternPaintStyle::create(NonnullRefPtr<DisplayList> tile_display_list, Gfx::FloatRect tile_rect, Optional<Gfx::AffineTransform> pattern_transform)
 {

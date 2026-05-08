@@ -19,13 +19,16 @@ class ExternalContentSource final : public AtomicRefCounted<ExternalContentSourc
 public:
     static NonnullRefPtr<ExternalContentSource> create();
 
+    u64 id() const { return m_id; }
+
     void update(Optional<Gfx::DecodedImageFrame>);
     void clear();
     Optional<Gfx::DecodedImageFrame> current_frame() const;
 
 private:
-    ExternalContentSource() = default;
+    ExternalContentSource();
 
+    u64 m_id { 0 };
     mutable Threading::Mutex m_mutex;
     Optional<Gfx::DecodedImageFrame> m_frame;
 };

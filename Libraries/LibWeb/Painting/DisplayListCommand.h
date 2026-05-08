@@ -25,6 +25,7 @@
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/Painting/BorderRadiiData.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
+#include <LibWeb/Painting/DisplayListResourceIds.h>
 #include <LibWeb/Painting/ExternalContentSource.h>
 #include <LibWeb/Painting/GradientData.h>
 #include <LibWeb/Painting/PaintStyle.h>
@@ -64,7 +65,7 @@ struct DrawScaledDecodedImageFrame {
 
     Gfx::IntRect dst_rect;
     Gfx::IntRect clip_rect;
-    Gfx::DecodedImageFrame frame;
+    ImageFrameResourceId frame_id;
     Gfx::ScalingMode scaling_mode;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return clip_rect; }
@@ -81,7 +82,7 @@ struct DrawRepeatedDecodedImageFrame {
 
     Gfx::IntRect dst_rect;
     Gfx::IntRect clip_rect;
-    Gfx::DecodedImageFrame frame;
+    ImageFrameResourceId frame_id;
     Gfx::ScalingMode scaling_mode;
     Repeat repeat;
 
@@ -93,7 +94,7 @@ struct DrawExternalContent {
     static constexpr StringView command_name = "DrawExternalContent"sv;
 
     Gfx::IntRect dst_rect;
-    NonnullRefPtr<ExternalContentSource> source;
+    ExternalContentResourceId source_id;
     Gfx::ScalingMode scaling_mode;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }
@@ -104,7 +105,7 @@ struct DrawVideoFrameSource {
     static constexpr StringView command_name = "DrawVideoFrameSource"sv;
 
     Gfx::IntRect dst_rect;
-    NonnullRefPtr<VideoFrameSource> source;
+    VideoFrameResourceId source_id;
     Gfx::ScalingMode scaling_mode;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }
@@ -215,13 +216,20 @@ struct FillRectWithRoundedCorners {
     void dump(StringBuilder&) const;
 };
 
+enum class PathPaintKind : u8 {
+    Color,
+    PaintStyle,
+};
+
 struct FillPath {
     static constexpr StringView command_name = "FillPath"sv;
 
     Gfx::IntRect path_bounding_rect;
     Gfx::Path path;
     float opacity { 1.0f };
-    PaintStyleOrColor paint_style_or_color;
+    PathPaintKind paint_kind { PathPaintKind::Color };
+    Color color;
+    PaintStyleResourceId paint_style_id;
     Gfx::WindingRule winding_rule;
     ShouldAntiAlias should_anti_alias { ShouldAntiAlias::Yes };
 
@@ -241,7 +249,9 @@ struct StrokePath {
     Gfx::IntRect path_bounding_rect;
     Gfx::Path path;
     float opacity;
-    PaintStyleOrColor paint_style_or_color;
+    PathPaintKind paint_kind { PathPaintKind::Color };
+    Color color;
+    PaintStyleResourceId paint_style_id;
     float thickness;
     ShouldAntiAlias should_anti_alias { ShouldAntiAlias::Yes };
 
@@ -292,7 +302,8 @@ struct ApplyBackdropFilter {
 
     Gfx::IntRect backdrop_region;
     CornerRadii corner_radii;
-    Optional<Gfx::Filter> backdrop_filter;
+    bool has_backdrop_filter { false };
+    FilterResourceId backdrop_filter_id;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return backdrop_region; }
 
@@ -352,7 +363,7 @@ struct AddRoundedRectClip {
 struct PaintNestedDisplayList {
     static constexpr StringView command_name = "PaintNestedDisplayList"sv;
 
-    RefPtr<DisplayList> display_list;
+    DisplayListResourceId display_list_id;
     Gfx::IntRect rect;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }

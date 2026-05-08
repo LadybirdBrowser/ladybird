@@ -4,11 +4,28 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
 #include <AK/TemporaryChange.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibWeb/Painting/DisplayList.h>
 
 namespace Web::Painting {
+
+static Atomic<u64> s_next_id { 1 };
+
+DisplayListCommandSequence::DisplayListCommandSequence()
+    : m_resource_storage(DisplayListResourceStorage::create())
+{
+}
+
+DisplayList::DisplayList(
+    NonnullRefPtr<AccumulatedVisualContextTree const> visual_context_tree,
+    NonnullRefPtr<DisplayListResourceStorage> resource_storage)
+    : m_visual_context_tree(move(visual_context_tree))
+    , m_resource_storage(move(resource_storage))
+    , m_id(s_next_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
+{
+}
 
 bool DisplayList::append(DisplayListCommand&& command, VisualContextIndex context_index)
 {
@@ -16,6 +33,26 @@ bool DisplayList::append(DisplayListCommand&& command, VisualContextIndex contex
         return false;
     m_commands.append({ context_index, move(command) });
     return true;
+}
+
+void DisplayList::append_command_sequence(DisplayListCommandSequence const& sequence, VisualContextIndex context_index)
+{
+    m_resource_storage->append_referenced_resources_from(*sequence.m_resource_storage, sequence.commands());
+    for (auto const& command : sequence.commands()) {
+        auto command_copy = command;
+        append(move(command_copy), context_index);
+    }
+}
+
+DisplayListCommandSequence DisplayList::copy_command_sequence_from(size_t command_start_index) const
+{
+    VERIFY(command_start_index <= m_commands.size());
+    DisplayListCommandSequence sequence;
+    sequence.m_commands.ensure_capacity(m_commands.size() - command_start_index);
+    for (size_t i = command_start_index; i < m_commands.size(); ++i)
+        sequence.m_commands.unchecked_append(m_commands[i].command);
+    sequence.m_resource_storage->append_referenced_resources_from(*m_resource_storage, sequence.commands());
+    return sequence;
 }
 
 static Optional<Gfx::IntRect> command_bounding_rectangle(DisplayListCommand const& command)
@@ -40,23 +77,32 @@ static bool command_is_clip(DisplayListCommand const& command)
         });
 }
 
-void DisplayListPlayer::execute(DisplayList& display_list, ScrollStateSnapshot const& scroll_state_snapshot, RefPtr<Gfx::PaintingSurface> surface)
+void DisplayListPlayer::execute(DisplayList const& display_list, ScrollStateSnapshot const& scroll_state_snapshot, RefPtr<Gfx::PaintingSurface> surface)
 {
     m_surface = surface;
+    m_active_display_list = &display_list;
     execute_impl(display_list, scroll_state_snapshot);
     if (surface)
         flush();
+    m_active_display_list = nullptr;
     m_surface = nullptr;
 }
 
-void DisplayListPlayer::execute_display_list_into_surface(DisplayList& display_list, Gfx::PaintingSurface& target_surface)
+void DisplayListPlayer::execute_display_list_into_surface(DisplayList const& display_list, Gfx::PaintingSurface& target_surface)
 {
     TemporaryChange surface_change { m_surface, RefPtr<Gfx::PaintingSurface> { target_surface } };
+    TemporaryChange display_list_change { m_active_display_list, &display_list };
     ScrollStateSnapshot scroll_state_snapshot;
     execute_impl(display_list, scroll_state_snapshot);
 }
 
-void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnapshot const& scroll_state)
+void DisplayListPlayer::execute_nested_display_list(DisplayList const& display_list, ScrollStateSnapshot const& scroll_state_snapshot)
+{
+    TemporaryChange display_list_change { m_active_display_list, &display_list };
+    execute_impl(display_list, scroll_state_snapshot);
+}
+
+void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStateSnapshot const& scroll_state)
 {
     auto const& commands = display_list.commands();
     auto const& visual_context_tree = display_list.visual_context_tree();

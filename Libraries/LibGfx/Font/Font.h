@@ -61,6 +61,7 @@ public:
     ScaledFontMetrics metrics() const;
     ~Font();
 
+    u64 id() const { return m_id; }
     float point_size() const;
     float pixel_size() const;
     FontPixelMetrics const& pixel_metrics() const { return m_pixel_metrics; }
@@ -98,6 +99,8 @@ public:
     bool is_emoji_font() const;
 
 private:
+    u64 m_id { 0 };
+
     mutable RefPtr<Font const> m_bold_variant;
     mutable hb_font_t* m_harfbuzz_font { nullptr };
 

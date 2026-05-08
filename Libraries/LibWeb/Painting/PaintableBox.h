@@ -283,12 +283,12 @@ public:
         return m_cached_phase_commands[to_underlying(phase)].has_value();
     }
 
-    Vector<DisplayListCommand> const& cached_commands(PaintPhase phase) const
+    DisplayListCommandSequence const& cached_commands(PaintPhase phase) const
     {
         return m_cached_phase_commands[to_underlying(phase)].value();
     }
 
-    void set_cached_commands(PaintPhase phase, Vector<DisplayListCommand> commands) const
+    void set_cached_commands(PaintPhase phase, DisplayListCommandSequence commands) const
     {
         m_cached_phase_commands[to_underlying(phase)] = move(commands);
     }
@@ -360,7 +360,7 @@ private:
 
     BoxModelMetrics m_box_model;
 
-    mutable Array<Optional<Vector<DisplayListCommand>>, paint_phase_count> m_cached_phase_commands;
+    mutable Array<Optional<DisplayListCommandSequence>, paint_phase_count> m_cached_phase_commands;
 };
 
 }

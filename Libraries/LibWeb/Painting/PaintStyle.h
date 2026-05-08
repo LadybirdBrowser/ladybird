@@ -19,7 +19,15 @@ class DisplayList;
 
 class SVGPaintServerPaintStyle : public AtomicRefCounted<SVGPaintServerPaintStyle> {
 public:
-    virtual ~SVGPaintServerPaintStyle() = default;
+    u64 id() const { return m_id; }
+
+    virtual ~SVGPaintServerPaintStyle();
+
+protected:
+    SVGPaintServerPaintStyle();
+
+private:
+    u64 m_id { 0 };
 };
 
 struct ColorStop {
