@@ -95,6 +95,9 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
         return invalidation;
     }
 
+    if (AK::first_is_one_of(property_id, CSS::PropertyID::ContainerName, CSS::PropertyID::ContainerType))
+        invalidation.recompute_descendant_styles = true;
+
     // OPTIMIZATION: Special handling for CSS `visibility`:
     if (property_id == CSS::PropertyID::Visibility) {
         // We don't need to relayout if the visibility changes from visible to hidden or vice versa. Only collapse requires relayout.

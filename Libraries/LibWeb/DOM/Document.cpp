@@ -1805,7 +1805,13 @@ bool Document::layout_is_up_to_date() const
         && m_svg_roots_needing_relayout.is_empty();
 }
 
-[[nodiscard]] static CSS::RequiredInvalidationAfterStyleChange update_style_recursively(Node& node, CSS::StyleComputer& style_computer, bool needs_inherited_style_update, bool recompute_elements_depending_on_custom_properties, bool parent_display_changed)
+[[nodiscard]] static CSS::RequiredInvalidationAfterStyleChange update_style_recursively(
+    Node& node,
+    CSS::StyleComputer& style_computer,
+    bool needs_inherited_style_update,
+    bool recompute_elements_depending_on_custom_properties,
+    bool parent_display_changed,
+    bool ancestor_needs_descendant_style_recompute)
 {
     bool const needs_full_style_update = node.document().needs_full_style_update();
     CSS::RequiredInvalidationAfterStyleChange invalidation;
@@ -1827,7 +1833,12 @@ bool Document::layout_is_up_to_date() const
         //        include media conditions, or b) the data used to resolve media queries hasn't changed.
         bool const needs_style_update_due_to_if_media = element.style_uses_if_css_function();
 
-        if (needs_full_style_update || node.needs_style_update() || parent_display_changed || (recompute_elements_depending_on_custom_properties && (element.style_uses_var_css_function() || element.style_uses_inherit_css_function())) || needs_style_update_due_to_if_media) {
+        if (needs_full_style_update
+            || node.needs_style_update()
+            || parent_display_changed
+            || ancestor_needs_descendant_style_recompute
+            || (recompute_elements_depending_on_custom_properties && (element.style_uses_var_css_function() || element.style_uses_inherit_css_function()))
+            || needs_style_update_due_to_if_media) {
             node_invalidation = element.recompute_style(did_change_custom_properties);
         } else if (needs_inherited_style_update) {
             node_invalidation = element.recompute_inherited_style();
@@ -1859,11 +1870,29 @@ bool Document::layout_is_up_to_date() const
     // NB: When display changes to/from flex/grid/contents, children may need to be blockified or un-blockified.
     //     This requires a full style recompute, not just inherited style update.
     bool children_need_full_style_recompute = node_invalidation.rebuild_layout_tree;
-    if (needs_full_style_update || node.child_needs_style_update() || children_need_inherited_style_update || recompute_elements_depending_on_custom_properties || children_need_full_style_recompute) {
+    bool descendant_style_recompute_needed = ancestor_needs_descendant_style_recompute || node_invalidation.recompute_descendant_styles;
+    if (needs_full_style_update
+        || node.child_needs_style_update()
+        || children_need_inherited_style_update
+        || recompute_elements_depending_on_custom_properties
+        || children_need_full_style_recompute
+        || descendant_style_recompute_needed) {
         if (node.is_element()) {
             if (auto shadow_root = static_cast<DOM::Element&>(node).shadow_root()) {
-                if (needs_full_style_update || shadow_root->needs_style_update() || shadow_root->child_needs_style_update()) {
-                    auto subtree_invalidation = update_style_recursively(*shadow_root, style_computer, children_need_inherited_style_update, recompute_elements_depending_on_custom_properties, children_need_full_style_recompute);
+                if (needs_full_style_update
+                    || shadow_root->needs_style_update()
+                    || shadow_root->child_needs_style_update()
+                    || children_need_inherited_style_update
+                    || recompute_elements_depending_on_custom_properties
+                    || children_need_full_style_recompute
+                    || descendant_style_recompute_needed) {
+                    auto subtree_invalidation = update_style_recursively(
+                        *shadow_root,
+                        style_computer,
+                        children_need_inherited_style_update,
+                        recompute_elements_depending_on_custom_properties,
+                        children_need_full_style_recompute,
+                        descendant_style_recompute_needed);
                     if (!is_display_none)
                         invalidation |= subtree_invalidation;
                 }
@@ -1871,8 +1900,20 @@ bool Document::layout_is_up_to_date() const
         }
 
         node.for_each_child([&](auto& child) {
-            if (needs_full_style_update || child.needs_style_update() || children_need_inherited_style_update || child.child_needs_style_update() || recompute_elements_depending_on_custom_properties || children_need_full_style_recompute) {
-                auto subtree_invalidation = update_style_recursively(child, style_computer, children_need_inherited_style_update, recompute_elements_depending_on_custom_properties, children_need_full_style_recompute);
+            if (needs_full_style_update
+                || child.needs_style_update()
+                || children_need_inherited_style_update
+                || child.child_needs_style_update()
+                || recompute_elements_depending_on_custom_properties
+                || children_need_full_style_recompute
+                || descendant_style_recompute_needed) {
+                auto subtree_invalidation = update_style_recursively(
+                    child,
+                    style_computer,
+                    children_need_inherited_style_update,
+                    recompute_elements_depending_on_custom_properties,
+                    children_need_full_style_recompute,
+                    descendant_style_recompute_needed);
                 if (!is_display_none)
                     invalidation |= subtree_invalidation;
             }
@@ -1929,7 +1970,7 @@ void Document::update_style()
 
     build_registered_properties_cache();
 
-    auto invalidation = update_style_recursively(*this, style_computer(), false, false, false);
+    auto invalidation = update_style_recursively(*this, style_computer(), false, false, false, false);
     if (!invalidation.is_none())
         invalidate_display_list();
 
