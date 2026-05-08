@@ -18,7 +18,7 @@ NonnullRefPtr<ContainerQuery> ContainerQuery::create(NonnullOwnPtr<BooleanExpres
 
 ContainerQuery::ContainerQuery(NonnullOwnPtr<BooleanExpression>&& condition)
     : m_condition(move(condition))
-    , m_matches(m_condition->evaluate_to_boolean(nullptr))
+    , m_matches(m_condition->evaluate_to_boolean({}))
 {
 }
 

@@ -144,7 +144,7 @@ public:
             }));
     }
 
-    virtual MatchResult evaluate(DOM::Document const*) const override;
+    virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override;
     virtual String to_string() const override;
     virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 

@@ -2100,7 +2100,7 @@ NonnullRefPtr<StyleValue const> Parser::parse_as_sizes_attribute(DOM::Element co
         // "If the result of any of the above productions is used in any
         // context that expects a two-valued boolean, 'unknown' must be
         // converted to 'false'."
-        if (m_document && !media_condition->evaluate_to_boolean(m_document))
+        if (m_document && !media_condition->evaluate_to_boolean({ .document = m_document }))
             continue;
 
         // 5. If size is not auto, then return size. Otherwise, continue.

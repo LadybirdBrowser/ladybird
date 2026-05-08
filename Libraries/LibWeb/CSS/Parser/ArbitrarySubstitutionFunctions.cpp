@@ -347,7 +347,7 @@ static Vector<ComponentValue> replace_an_if_function(DOM::AbstractElement& eleme
         //    evaluates to false.
         //    If the result of condition is false, continue.
         // FIXME: Implement the above behavior once we support style queries.
-        auto condition_evaluation_result = maybe_parsed_if_condition->evaluate(&element.element().document());
+        auto condition_evaluation_result = maybe_parsed_if_condition->evaluate({ .document = element.element().document() });
 
         if (condition_evaluation_result == MatchResult::False)
             continue;

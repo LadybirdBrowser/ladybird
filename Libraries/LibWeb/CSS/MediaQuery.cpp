@@ -80,8 +80,9 @@ String MediaFeature::to_string() const
     VERIFY_NOT_REACHED();
 }
 
-MatchResult MediaFeature::evaluate(DOM::Document const* document) const
+MatchResult MediaFeature::evaluate(BooleanExpressionEvaluationContext const& context) const
 {
+    auto const& document = context.document;
     VERIFY(document);
 
     // FIXME: In some cases (e.g. when parsing HTML using DOMParser::parse_from_string()) a document may not be associated with a window -
@@ -293,7 +294,7 @@ bool MediaQuery::evaluate(DOM::Document const& document)
     MatchResult result = matches_media(m_media_type);
 
     if ((result != MatchResult::False) && m_media_condition)
-        result = result && m_media_condition->evaluate(&document);
+        result = result && m_media_condition->evaluate({ .document = document });
 
     if (m_negated)
         result = negate(result);

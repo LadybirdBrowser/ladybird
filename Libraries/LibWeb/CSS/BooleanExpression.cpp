@@ -9,9 +9,9 @@
 
 namespace Web::CSS {
 
-bool BooleanExpression::evaluate_to_boolean(DOM::Document const* document) const
+bool BooleanExpression::evaluate_to_boolean(BooleanExpressionEvaluationContext const& context) const
 {
-    return evaluate(document) == MatchResult::True;
+    return evaluate(context) == MatchResult::True;
 }
 
 void BooleanExpression::indent(StringBuilder& builder, int levels)
@@ -25,11 +25,11 @@ void GeneralEnclosed::dump(StringBuilder& builder, int indent_levels) const
     builder.appendff("GeneralEnclosed: {}\n", to_string());
 }
 
-MatchResult BooleanNotExpression::evaluate(DOM::Document const* document) const
+MatchResult BooleanNotExpression::evaluate(BooleanExpressionEvaluationContext const& context) const
 {
     // https://drafts.csswg.org/css-values-5/#boolean-logic
     // `not test` evaluates to true if its contained test is false, false if it’s true, and unknown if it’s unknown.
-    switch (m_child->evaluate(document)) {
+    switch (m_child->evaluate(context)) {
     case MatchResult::False:
         return MatchResult::True;
     case MatchResult::True:
@@ -52,9 +52,9 @@ void BooleanNotExpression::dump(StringBuilder& builder, int indent_levels) const
     m_child->dump(builder, indent_levels + 1);
 }
 
-MatchResult BooleanExpressionInParens::evaluate(DOM::Document const* document) const
+MatchResult BooleanExpressionInParens::evaluate(BooleanExpressionEvaluationContext const& context) const
 {
-    return m_child->evaluate(document);
+    return m_child->evaluate(context);
 }
 
 String BooleanExpressionInParens::to_string() const
@@ -71,14 +71,14 @@ void BooleanExpressionInParens::dump(StringBuilder& builder, int indent_levels) 
     builder.append(")\n"sv);
 }
 
-MatchResult BooleanAndExpression::evaluate(DOM::Document const* document) const
+MatchResult BooleanAndExpression::evaluate(BooleanExpressionEvaluationContext const& context) const
 {
     // https://drafts.csswg.org/css-values-5/#boolean-logic
     // Multiple tests connected with `and` evaluate to true if all of those tests are true, false if any of them are
     // false, and unknown otherwise (i.e. if at least one unknown, but no false).
     size_t true_results = 0;
     for (auto const& child : m_children) {
-        auto child_match = child->evaluate(document);
+        auto child_match = child->evaluate(context);
         if (child_match == MatchResult::False)
             return MatchResult::False;
         if (child_match == MatchResult::True)
@@ -102,14 +102,14 @@ void BooleanAndExpression::dump(StringBuilder& builder, int indent_levels) const
         child->dump(builder, indent_levels + 1);
 }
 
-MatchResult BooleanOrExpression::evaluate(DOM::Document const* document) const
+MatchResult BooleanOrExpression::evaluate(BooleanExpressionEvaluationContext const& context) const
 {
     // https://drafts.csswg.org/css-values-5/#boolean-logic
     // Multiple tests connected with `or` evaluate to true if any of those tests are true, false if all of them are
     // false, and unknown otherwise (i.e. at least one unknown, but no true).
     size_t false_results = 0;
     for (auto const& child : m_children) {
-        auto child_match = child->evaluate(document);
+        auto child_match = child->evaluate(context);
         if (child_match == MatchResult::True)
             return MatchResult::True;
         if (child_match == MatchResult::False)

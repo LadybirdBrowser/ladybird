@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,6 +9,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
@@ -75,16 +76,21 @@ constexpr StringView to_string(MatchResult result)
     VERIFY_NOT_REACHED();
 }
 
+struct BooleanExpressionEvaluationContext {
+    GC::Ptr<DOM::Document const> document { nullptr };
+    GC::Ptr<DOM::Element const> query_container { nullptr };
+};
+
 // The contents of this file implement the `<boolean-expr>` concept.
 // https://drafts.csswg.org/css-values-5/#typedef-boolean-expr
 class BooleanExpression {
 public:
     virtual ~BooleanExpression() = default;
 
-    bool evaluate_to_boolean(DOM::Document const*) const;
+    bool evaluate_to_boolean(BooleanExpressionEvaluationContext const&) const;
     static void indent(StringBuilder& builder, int levels);
 
-    virtual MatchResult evaluate(DOM::Document const*) const = 0;
+    virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const = 0;
     virtual String to_string() const = 0;
     virtual void dump(StringBuilder&, int indent_levels = 0) const = 0;
 };
@@ -98,7 +104,7 @@ public:
     }
     virtual ~GeneralEnclosed() override = default;
 
-    virtual MatchResult evaluate(DOM::Document const*) const override { return m_matches; }
+    virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override { return m_matches; }
     virtual String to_string() const override { return m_serialized_contents; }
     virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
@@ -121,7 +127,7 @@ public:
     }
     virtual ~BooleanNotExpression() override = default;
 
-    virtual MatchResult evaluate(DOM::Document const*) const override;
+    virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override;
     virtual String to_string() const override;
     virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
@@ -142,7 +148,7 @@ public:
     }
     virtual ~BooleanExpressionInParens() override = default;
 
-    virtual MatchResult evaluate(DOM::Document const*) const override;
+    virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override;
     virtual String to_string() const override;
     virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
@@ -163,7 +169,7 @@ public:
     }
     virtual ~BooleanAndExpression() override = default;
 
-    virtual MatchResult evaluate(DOM::Document const*) const override;
+    virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override;
     virtual String to_string() const override;
     virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
@@ -184,7 +190,7 @@ public:
     }
     virtual ~BooleanOrExpression() override = default;
 
-    virtual MatchResult evaluate(DOM::Document const*) const override;
+    virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override;
     virtual String to_string() const override;
     virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
@@ -205,7 +211,7 @@ public:
     }
     virtual ~ConstantBooleanExpression() override = default;
 
-    virtual MatchResult evaluate(DOM::Document const*) const override { return m_value; }
+    virtual MatchResult evaluate(BooleanExpressionEvaluationContext const&) const override { return m_value; }
     virtual String to_string() const override { return MUST(String::from_utf8(CSS::to_string(m_value))); }
     virtual void dump(StringBuilder&, int indent_levels = 0) const override;
 
