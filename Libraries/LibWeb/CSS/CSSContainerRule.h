@@ -9,6 +9,7 @@
 #include <AK/FlyString.h>
 #include <AK/Optional.h>
 #include <LibWeb/CSS/CSSConditionRule.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::CSS {
 
@@ -34,6 +35,7 @@ public:
 
     virtual String condition_text() const override;
     virtual bool condition_matches() const override;
+    bool matches(DOM::AbstractElement const&) const;
 
     String container_name() const;
     String container_query() const;
@@ -51,6 +53,8 @@ private:
     virtual void clear_caches() override;
     virtual String serialized() const override;
     CSSContainerRule const* find_parent_container_rule() const;
+
+    bool conditions_match(DOM::AbstractElement const&) const;
 
     Vector<Condition> m_conditions;
     mutable GC::Ptr<CSSContainerRule const> m_cached_parent_container_rule;

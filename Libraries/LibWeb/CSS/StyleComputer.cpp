@@ -24,6 +24,7 @@
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/CSS/AnimationEvent.h>
 #include <LibWeb/CSS/CSSAnimation.h>
+#include <LibWeb/CSS/CSSContainerRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
 #include <LibWeb/CSS/CSSLayerStatementRule.h>
@@ -276,6 +277,9 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules(
             || (shadow_root && !rule_root && shadow_root->uses_document_style_sheets());
 
         if (!rule_is_relevant_for_current_scope)
+            return;
+
+        if (rule_to_run.container_rule && !rule_to_run.container_rule->matches(abstract_element))
             return;
 
         auto const& selector = rule_to_run.selector;

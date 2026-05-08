@@ -6,6 +6,9 @@
  */
 
 #include <LibCore/ReportTime.h>
+#include <LibWeb/CSS/CSSConditionRule.h>
+#include <LibWeb/CSS/CSSContainerRule.h>
+#include <LibWeb/CSS/CSSGroupingRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
@@ -73,6 +76,7 @@ void MatchingRule::visit_edges(GC::Cell::Visitor& visitor)
 {
     visitor.visit(rule);
     visitor.visit(sheet);
+    visitor.visit(container_rule);
 }
 
 void RuleCache::visit_edges(GC::Cell::Visitor& visitor)
@@ -214,6 +218,89 @@ static CSSStyleSheet& svg_stylesheet()
     return *sheet;
 }
 
+static GC::Ptr<CSSContainerRule const> current_container_rule(Vector<GC::Ptr<CSSContainerRule const>> const& container_rule_stack)
+{
+    if (container_rule_stack.is_empty())
+        return nullptr;
+    return container_rule_stack.last();
+}
+
+using RuleCacheStyleRuleCallback = Function<void(CSSRule const&, GC::Ptr<CSSContainerRule const>)>;
+
+static void for_each_style_producing_rule_for_rule_cache(
+    CSSRuleList const& rule_list,
+    Vector<GC::Ptr<CSSContainerRule const>>& container_rule_stack,
+    RuleCacheStyleRuleCallback const& callback);
+
+static void for_each_style_producing_rule_for_rule_cache(
+    CSSStyleSheet const& sheet,
+    Vector<GC::Ptr<CSSContainerRule const>>& container_rule_stack,
+    RuleCacheStyleRuleCallback const& callback)
+{
+    if (!sheet.media()->matches())
+        return;
+    for_each_style_producing_rule_for_rule_cache(sheet.rules(), container_rule_stack, callback);
+}
+
+static void for_each_style_producing_rule_for_rule_cache(
+    CSSRuleList const& rule_list,
+    Vector<GC::Ptr<CSSContainerRule const>>& container_rule_stack,
+    RuleCacheStyleRuleCallback const& callback)
+{
+    for (auto const& rule : rule_list) {
+        switch (rule->type()) {
+        case CSSRule::Type::Import: {
+            auto const& import_rule = as<CSSImportRule>(*rule);
+            if (import_rule.loaded_style_sheet())
+                for_each_style_producing_rule_for_rule_cache(*import_rule.loaded_style_sheet(), container_rule_stack, callback);
+            break;
+        }
+
+        case CSSRule::Type::Container: {
+            auto const& container_rule = as<CSSContainerRule>(*rule);
+            // @container conditions are element-dependent, so keep their style rules and evaluate the container later.
+            container_rule_stack.append(&container_rule);
+            for_each_style_producing_rule_for_rule_cache(container_rule.css_rules(), container_rule_stack, callback);
+            container_rule_stack.take_last();
+            break;
+        }
+
+        case CSSRule::Type::Media:
+        case CSSRule::Type::Supports:
+            if (as<CSSConditionRule>(*rule).condition_matches())
+                for_each_style_producing_rule_for_rule_cache(as<CSSGroupingRule>(*rule).css_rules(), container_rule_stack, callback);
+            break;
+
+        case CSSRule::Type::LayerBlock:
+        case CSSRule::Type::Page:
+            for_each_style_producing_rule_for_rule_cache(as<CSSGroupingRule>(*rule).css_rules(), container_rule_stack, callback);
+            break;
+
+        case CSSRule::Type::Style:
+            callback(*rule, current_container_rule(container_rule_stack));
+            for_each_style_producing_rule_for_rule_cache(as<CSSGroupingRule>(*rule).css_rules(), container_rule_stack, callback);
+            break;
+
+        case CSSRule::Type::NestedDeclarations:
+            callback(*rule, current_container_rule(container_rule_stack));
+            break;
+
+        case CSSRule::Type::CounterStyle:
+        case CSSRule::Type::FontFace:
+        case CSSRule::Type::FontFeatureValues:
+        case CSSRule::Type::Function:
+        case CSSRule::Type::FunctionDeclarations:
+        case CSSRule::Type::Keyframe:
+        case CSSRule::Type::Keyframes:
+        case CSSRule::Type::LayerStatement:
+        case CSSRule::Type::Margin:
+        case CSSRule::Type::Namespace:
+        case CSSRule::Type::Property:
+            break;
+        }
+    }
+}
+
 void StyleScope::for_each_stylesheet(CascadeOrigin cascade_origin, Function<void(CSS::CSSStyleSheet&)> const& callback) const
 {
     if (cascade_origin == CascadeOrigin::UserAgent) {
@@ -253,7 +340,8 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
         }();
 
         size_t rule_index = 0;
-        sheet.for_each_effective_style_producing_rule([&](auto const& rule) {
+        Vector<GC::Ptr<CSSContainerRule const>> container_rule_stack;
+        for_each_style_producing_rule_for_rule_cache(sheet, container_rule_stack, [&](auto const& rule, auto container_rule) {
             SelectorList const& absolutized_selectors = [&]() {
                 if (rule.type() == CSSRule::Type::Style)
                     return static_cast<CSSStyleRule const&>(rule).absolutized_selectors();
@@ -270,6 +358,7 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
                 MatchingRule matching_rule {
                     .rule = &rule,
                     .sheet = sheet,
+                    .container_rule = container_rule,
                     .default_namespace = sheet.default_namespace(),
                     .selector = selector,
                     .style_sheet_index = style_sheet_index,
