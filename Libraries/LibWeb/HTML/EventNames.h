@@ -22,6 +22,7 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(audioend)                 \
     __ENUMERATE_HTML_EVENT(audioprocess)             \
     __ENUMERATE_HTML_EVENT(audiostart)               \
+    __ENUMERATE_HTML_EVENT(begin)                    \
     __ENUMERATE_HTML_EVENT(beforeinput)              \
     __ENUMERATE_HTML_EVENT(beforematch)              \
     __ENUMERATE_HTML_EVENT(beforeprint)              \
@@ -110,6 +111,7 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(rejectionhandled)         \
     __ENUMERATE_HTML_EVENT(remove)                   \
     __ENUMERATE_HTML_EVENT(removetrack)              \
+    __ENUMERATE_HTML_EVENT(repeat)                   \
     __ENUMERATE_HTML_EVENT(reset)                    \
     __ENUMERATE_HTML_EVENT(resize)                   \
     __ENUMERATE_HTML_EVENT(result)                   \
