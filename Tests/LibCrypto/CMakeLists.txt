@@ -16,6 +16,7 @@ set(TEST_SOURCES
     TestPSS.cpp
     TestRSA.cpp
     TestSecureByteBuffer.cpp
+    TestSecureStore.cpp
 )
 
 foreach(source IN LISTS TEST_SOURCES)

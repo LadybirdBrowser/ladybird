@@ -16,6 +16,7 @@ set(SOURCES
     Curves/EdwardsCurve.cpp
     Curves/SECPxxxr1.cpp
     KeyProvider.cpp
+    SecureStore.cpp
     Hash/Argon2.cpp
     Hash/SHAKE.cpp
     Hash/BLAKE2b.cpp
