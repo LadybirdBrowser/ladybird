@@ -850,49 +850,6 @@ static Optional<u32> index_gb18030_ranges_code_point(u32 pointer)
     if (pointer == 7457)
         return 0xE7C7;
 
-    // FIXME: Encoding specification is not updated to GB-18030-2022 yet (https://github.com/whatwg/encoding/issues/312)
-    // NOTE: This matches https://commits.webkit.org/266173@main
-    switch (pointer) {
-    case 19057:
-        return 0xE81E; // 82 35 90 37
-    case 19058:
-        return 0xE826; // 82 35 90 38
-    case 19059:
-        return 0xE82B; // 82 35 90 39
-    case 19060:
-        return 0xE82C; // 82 35 91 30
-    case 19061:
-        return 0xE832; // 82 35 91 31
-    case 19062:
-        return 0xE843; // 82 35 91 32
-    case 19063:
-        return 0xE854; // 82 35 91 33
-    case 19064:
-        return 0xE864; // 82 35 91 34
-    case 39076:
-        return 0xE78D; // 84 31 82 36
-    case 39077:
-        return 0xE78F; // 84 31 82 37
-    case 39078:
-        return 0xE78E; // 84 31 82 38
-    case 39079:
-        return 0xE790; // 84 31 82 39
-    case 39080:
-        return 0xE791; // 84 31 83 30
-    case 39081:
-        return 0xE792; // 84 31 83 31
-    case 39082:
-        return 0xE793; // 84 31 83 32
-    case 39083:
-        return 0xE794; // 84 31 83 33
-    case 39084:
-        return 0xE795; // 84 31 83 34
-    case 39085:
-        return 0xE796; // 84 31 83 35
-    default:
-        break;
-    }
-
     // 3. Let offset be the last pointer in index gb18030 ranges that is less than or equal to pointer and let code point offset be its corresponding code point.
     size_t last_index;
     binary_search(s_gb18030_ranges, pointer, &last_index, [](auto const pointer, auto const& entry) {
