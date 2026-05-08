@@ -13,6 +13,7 @@ set(TEST_SOURCES
     TestMLDSA.cpp
     TestOAEP.cpp
     TestPBKDF2.cpp
+    TestPKCS12.cpp
     TestPSS.cpp
     TestRSA.cpp
 )

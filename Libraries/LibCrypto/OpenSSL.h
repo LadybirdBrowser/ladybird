@@ -126,6 +126,18 @@ public:
     static ErrorOr<OpenSSL_CIPHER_CTX> create();
 };
 
+class OpenSSL_BIO {
+    OPENSSL_WRAPPER_CLASS(OpenSSL_BIO, BIO, BIO);
+};
+
+class OpenSSL_X509 {
+    OPENSSL_WRAPPER_CLASS(OpenSSL_X509, X509, X509);
+};
+
+class OpenSSL_PKCS12 {
+    OPENSSL_WRAPPER_CLASS(OpenSSL_PKCS12, PKCS12, PKCS12);
+};
+
 #undef OPENSSL_WRAPPER_CLASS
 
 ErrorOr<OpenSSL_BN> unsigned_big_integer_to_openssl_bignum(UnsignedBigInteger const& integer);

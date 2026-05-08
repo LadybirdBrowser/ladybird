@@ -19,6 +19,9 @@ typedef struct evp_mac_st EVP_MAC;
 typedef struct evp_mac_ctx_st EVP_MAC_CTX;
 typedef struct evp_cipher_st EVP_CIPHER;
 typedef struct evp_cipher_ctx_st EVP_CIPHER_CTX;
+typedef struct bio_st BIO;
+typedef struct x509_st X509;
+typedef struct PKCS12_st PKCS12;
 
 void ERR_print_errors_cb(int (*cb)(char const* str, size_t len, void* u), void* u);
 
@@ -37,4 +40,7 @@ void EVP_KDF_free(EVP_KDF* kdf);
 void EVP_MAC_CTX_free(EVP_MAC_CTX*);
 void EVP_MAC_free(EVP_MAC*);
 void BN_free(BIGNUM*);
+int BIO_free(BIO*);
+void X509_free(X509*);
+void PKCS12_free(PKCS12*);
 }

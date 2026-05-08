@@ -11,6 +11,7 @@ set(SOURCES
     BigInt/SignedBigInteger.cpp
     BigInt/UnsignedBigInteger.cpp
     Certificate/Certificate.cpp
+    Certificate/PKCS12.cpp
     Cipher/AES.cpp
     Cipher/ChaCha.cpp
     Curves/EdwardsCurve.cpp
