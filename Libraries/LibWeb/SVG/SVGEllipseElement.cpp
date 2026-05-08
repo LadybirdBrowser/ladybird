@@ -5,10 +5,9 @@
  */
 
 #include <LibGfx/Path.h>
+#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGEllipseElement.h>
-#include <LibWeb/HTML/Window.h>
-#include <LibWeb/SVG/AttributeNames.h>
-#include <LibWeb/SVG/AttributeParser.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/SVGEllipseElement.h>
 
 namespace Web::SVG {
@@ -26,33 +25,44 @@ void SVGEllipseElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-void SVGEllipseElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+Gfx::Path SVGEllipseElement::get_path(CSSPixelSize viewport_size)
 {
-    Base::attribute_changed(name, old_value, value, namespace_);
-
-    if (name == SVG::AttributeNames::cx) {
-        m_center_x = AttributeParser::parse_coordinate(value.value_or(String {}));
-    } else if (name == SVG::AttributeNames::cy) {
-        m_center_y = AttributeParser::parse_coordinate(value.value_or(String {}));
-    } else if (name == SVG::AttributeNames::rx) {
-        m_radius_x = AttributeParser::parse_positive_length(value.value_or(String {}));
-    } else if (name == SVG::AttributeNames::ry) {
-        m_radius_y = AttributeParser::parse_positive_length(value.value_or(String {}));
+    // NB: Called during SVG layout.
+    auto node = unsafe_layout_node();
+    if (!node) {
+        dbgln("FIXME: Null layout node in SVGEllipseElement::get_path");
+        return {};
     }
-}
 
-Gfx::Path SVGEllipseElement::get_path(CSSPixelSize)
-{
-    float rx = m_radius_x.value_or(0);
-    float ry = m_radius_y.value_or(0);
-    float cx = m_center_x.value_or(0);
-    float cy = m_center_y.value_or(0);
-    Gfx::Path path;
+    auto const& rx_computed = node->computed_values().rx();
+    auto const& ry_computed = node->computed_values().ry();
 
-    // A computed value of zero for either dimension, or a computed value of auto for both dimensions, disables rendering of the element.
+    // A value of auto for both dimensions disables rendering.
+    // https://svgwg.org/svg2-draft/geometry.html#RX
+    if (rx_computed.is_auto() && ry_computed.is_auto())
+        return {};
+
+    auto cx = float(node->computed_values().cx().to_px(*node, viewport_size.width()));
+    auto cy = float(node->computed_values().cy().to_px(*node, viewport_size.height()));
+
+    float rx, ry;
+    // When rx is auto it equals ry, and when ry is auto it equals rx.
+    if (rx_computed.is_auto()) {
+        ry = float(ry_computed.length_percentage().to_px(*node, viewport_size.height()));
+        rx = ry;
+    } else if (ry_computed.is_auto()) {
+        rx = float(rx_computed.length_percentage().to_px(*node, viewport_size.width()));
+        ry = rx;
+    } else {
+        rx = float(rx_computed.length_percentage().to_px(*node, viewport_size.width()));
+        ry = float(ry_computed.length_percentage().to_px(*node, viewport_size.height()));
+    }
+
+    // A computed value of zero for either dimension disables rendering.
     if (rx == 0 || ry == 0)
-        return path;
+        return {};
 
+    Gfx::Path path;
     Gfx::FloatSize radii = { rx, ry };
     double x_axis_rotation = 0;
     bool large_arc = false;
@@ -76,44 +86,28 @@ Gfx::Path SVGEllipseElement::get_path(CSSPixelSize)
     return path;
 }
 
-// https://www.w3.org/TR/SVG11/shapes.html#EllipseElementCXAttribute
+// https://svgwg.org/svg2-draft/shapes.html#__svg__SVGEllipseElement__cx
 GC::Ref<SVGAnimatedLength> SVGEllipseElement::cx() const
 {
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_center_x.value_or(0), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_center_x.value_or(0), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
+    return svg_animated_length_for_property(CSS::PropertyID::Cx);
 }
 
-// https://www.w3.org/TR/SVG11/shapes.html#EllipseElementCYAttribute
+// https://svgwg.org/svg2-draft/shapes.html#__svg__SVGEllipseElement__cy
 GC::Ref<SVGAnimatedLength> SVGEllipseElement::cy() const
 {
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_center_y.value_or(0), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_center_y.value_or(0), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
+    return svg_animated_length_for_property(CSS::PropertyID::Cy);
 }
 
-// https://www.w3.org/TR/SVG11/shapes.html#EllipseElementRXAttribute
+// https://svgwg.org/svg2-draft/shapes.html#__svg__SVGEllipseElement__rx
 GC::Ref<SVGAnimatedLength> SVGEllipseElement::rx() const
 {
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_radius_x.value_or(0), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_radius_x.value_or(0), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
+    return svg_animated_length_for_property(CSS::PropertyID::Rx);
 }
 
-// https://www.w3.org/TR/SVG11/shapes.html#EllipseElementRYAttribute
+// https://svgwg.org/svg2-draft/shapes.html#__svg__SVGEllipseElement__ry
 GC::Ref<SVGAnimatedLength> SVGEllipseElement::ry() const
 {
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_radius_y.value_or(0), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_radius_y.value_or(0), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
+    return svg_animated_length_for_property(CSS::PropertyID::Ry);
 }
 
 }
