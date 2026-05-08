@@ -47,9 +47,14 @@ private:
     CSSContainerRule(JS::Realm&, Vector<Condition>&&, CSSRuleList&);
 
     virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void clear_caches() override;
     virtual String serialized() const override;
+    CSSContainerRule const* find_parent_container_rule() const;
 
     Vector<Condition> m_conditions;
+    mutable GC::Ptr<CSSContainerRule const> m_cached_parent_container_rule;
+    mutable bool m_parent_container_rule_cache_valid { false };
 };
 
 template<>

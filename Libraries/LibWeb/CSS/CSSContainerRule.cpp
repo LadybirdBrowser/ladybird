@@ -34,6 +34,19 @@ void CSSContainerRule::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
+void CSSContainerRule::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_cached_parent_container_rule);
+}
+
+void CSSContainerRule::clear_caches()
+{
+    Base::clear_caches();
+    m_cached_parent_container_rule = nullptr;
+    m_parent_container_rule_cache_valid = false;
+}
+
 // https://drafts.csswg.org/css-conditional-5/#the-csscontainerrule-interface
 String CSSContainerRule::condition_text() const
 {
@@ -80,6 +93,23 @@ bool CSSContainerRule::condition_matches() const
 {
     // NB: @container is processed differently from other CSSConditionRules. As such this is never called.
     VERIFY_NOT_REACHED();
+}
+
+CSSContainerRule const* CSSContainerRule::find_parent_container_rule() const
+{
+    if (m_parent_container_rule_cache_valid)
+        return m_cached_parent_container_rule.ptr();
+
+    m_cached_parent_container_rule = nullptr;
+    for (auto const* rule = parent_rule(); rule; rule = rule->parent_rule()) {
+        if (auto const* container_rule = as_if<CSSContainerRule>(*rule)) {
+            m_cached_parent_container_rule = container_rule;
+            break;
+        }
+    }
+    m_parent_container_rule_cache_valid = true;
+
+    return m_cached_parent_container_rule.ptr();
 }
 
 // https://drafts.csswg.org/cssom-1/#serialize-a-css-rule
