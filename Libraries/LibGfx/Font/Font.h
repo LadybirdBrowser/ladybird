@@ -11,6 +11,8 @@
 
 #include <AK/AtomicRefCounted.h>
 #include <AK/FlyString.h>
+#include <AK/HashMap.h>
+#include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Utf16String.h>
 #include <LibGfx/Font/Font.h>
@@ -22,6 +24,16 @@ struct hb_font_t;
 struct hb_buffer_t;
 
 namespace Gfx {
+
+struct ShapedGlyphs;
+
+struct ShapingCacheKey {
+    Utf16String text;
+    u8 text_type { 0 };
+    u32 letter_spacing_bit_pattern { 0 };
+
+    bool operator==(ShapingCacheKey const&) const = default;
+};
 
 struct FontPixelMetrics {
     float x_height { 0 };
@@ -79,8 +91,8 @@ public:
     ShapeFeatures const& features() const { return m_shape_features; }
 
     struct ShapingCache {
-        HashMap<Utf16String, hb_buffer_t*> map;
-        hb_buffer_t* single_ascii_character_map[128] { nullptr };
+        HashMap<ShapingCacheKey, OwnPtr<ShapedGlyphs>> map;
+        OwnPtr<ShapedGlyphs> single_ascii_character_map[128];
 
         ~ShapingCache();
         void clear();
@@ -107,6 +119,18 @@ private:
     FontPixelMetrics m_pixel_metrics;
 
     float m_pixel_size { 0.0f };
+};
+
+}
+
+namespace AK {
+
+template<>
+struct Traits<Gfx::ShapingCacheKey> : public DefaultTraits<Gfx::ShapingCacheKey> {
+    static unsigned hash(Gfx::ShapingCacheKey const& key)
+    {
+        return pair_int_hash(key.text.hash(), pair_int_hash(key.text_type, key.letter_spacing_bit_pattern));
+    }
 };
 
 }

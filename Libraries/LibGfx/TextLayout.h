@@ -30,6 +30,11 @@ struct DrawGlyph {
     u32 glyph_id { 0 };
 };
 
+struct ShapedGlyphs {
+    Vector<DrawGlyph> glyphs;
+    float width { 0 };
+};
+
 class GlyphRun : public AtomicRefCounted<GlyphRun> {
 public:
     enum class TextType {
