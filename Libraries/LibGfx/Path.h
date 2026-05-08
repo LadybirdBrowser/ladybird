@@ -9,6 +9,7 @@
 #include <AK/Forward.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/String.h>
+#include <AK/Vector.h>
 #include <LibGfx/AffineTransform.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Point.h>
@@ -39,6 +40,9 @@ public:
     virtual void append_path(Gfx::Path const&) = 0;
     virtual void intersect(Gfx::Path const&) = 0;
 
+    [[nodiscard]] virtual Vector<u8> serialize_to_bytes() const = 0;
+    virtual void deserialize_from_bytes(ReadonlyBytes) = 0;
+
     [[nodiscard]] virtual bool is_empty() const = 0;
     virtual Gfx::FloatPoint last_point() const = 0;
     virtual Gfx::FloatRect bounding_box() const = 0;
@@ -56,6 +60,8 @@ public:
 class Path {
 public:
     Path() = default;
+
+    [[nodiscard]] static Path from_serialized_bytes(ReadonlyBytes);
 
     Path(Path const& other)
         : m_impl(other.impl().clone())
@@ -103,6 +109,8 @@ public:
 
     void append_path(Gfx::Path const& other) { impl().append_path(other); }
     void intersect(Gfx::Path const& other) { impl().intersect(other); }
+
+    [[nodiscard]] Vector<u8> serialize_to_bytes() const { return impl().serialize_to_bytes(); }
 
     [[nodiscard]] bool is_empty() const { return impl().is_empty(); }
     Gfx::FloatPoint last_point() const { return impl().last_point(); }
