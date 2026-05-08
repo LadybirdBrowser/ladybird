@@ -138,23 +138,13 @@ SkFont Font::skia_font(float scale) const
     return sk_font;
 }
 
-Font::ShapingCache::~ShapingCache()
-{
-    clear();
-}
+Font::ShapingCache::~ShapingCache() = default;
 
 void Font::ShapingCache::clear()
 {
-    for (auto& it : map) {
-        hb_buffer_destroy(it.value);
-    }
     map.clear();
-    for (auto& buffer : single_ascii_character_map) {
-        if (buffer) {
-            hb_buffer_destroy(buffer);
-            buffer = nullptr;
-        }
-    }
+    for (auto& slot : single_ascii_character_map)
+        slot = nullptr;
 }
 
 static bool hb_face_has_table(hb_face_t* face, hb_tag_t tag)

@@ -7,6 +7,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/BitCast.h>
+#include <AK/HashFunctions.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibGfx/Font/Font.h>
@@ -195,41 +197,18 @@ static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font
     return buffer;
 }
 
-NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf16View const& string, Font const& font, GlyphRun::TextType text_type)
+static NonnullOwnPtr<ShapedGlyphs> build_origin_relative_shape(Utf16View const& string, Font const& font, GlyphRun::TextType text_type, float letter_spacing)
 {
     auto const& metrics = font.pixel_metrics();
-    auto& shaping_cache = font.shaping_cache();
+    auto* buffer = setup_text_shaping(string, font, text_type);
 
-    // FIXME: The cache currently grows unbounded. We should have some limit and LRU mechanism.
-    auto get_or_create_buffer = [&] -> hb_buffer_t* {
-        if (string.length_in_code_units() == 1) {
-            auto code_unit = string.code_unit_at(0);
-            if (code_unit < 128) {
-                auto*& cache_slot = shaping_cache.single_ascii_character_map[code_unit];
-                if (!cache_slot) {
-                    cache_slot = setup_text_shaping(string, font, text_type);
-                }
-                return cache_slot;
-            }
-        }
-        if (auto it = shaping_cache.map.find(
-                string.hash(), [&](auto& candidate) { return candidate.key == string; });
-            it != shaping_cache.map.end()) {
-            return it->value;
-        }
-        auto* buffer = setup_text_shaping(string, font, text_type);
-        shaping_cache.map.set(Utf16String::from_utf16(string), buffer);
-        return buffer;
-    };
-
-    hb_buffer_t* buffer = get_or_create_buffer();
     u32 glyph_count;
     auto const* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
     auto const* positions = hb_buffer_get_glyph_positions(buffer, &glyph_count);
 
-    Vector<DrawGlyph> glyph_run;
-    glyph_run.ensure_capacity(glyph_count);
-    FloatPoint point = baseline_start;
+    Vector<DrawGlyph> glyphs;
+    glyphs.ensure_capacity(glyph_count);
+    FloatPoint point;
 
     // We track the code unit length rather than just the code unit offset because LibWeb may later collapse glyph runs.
     // Updating the offset of each glyph gets tricky when handling text direction (LTR/RTL). So rather than doing that,
@@ -253,7 +232,7 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
             - FloatPoint { 0, metrics.ascent }
             + FloatPoint { positions[i].x_offset, positions[i].y_offset } / text_shaping_resolution;
 
-        glyph_run.unchecked_append({
+        glyphs.unchecked_append({
             .position = position,
             .length_in_code_units = glyph_length_in_code_units(i),
             .glyph_width = positions[i].x_advance / text_shaping_resolution + letter_spacing,
@@ -267,7 +246,52 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
         point.translate_by(letter_spacing, 0);
     }
 
-    return adopt_ref(*new GlyphRun(move(glyph_run), font, text_type, point.x() - baseline_start.x()));
+    hb_buffer_destroy(buffer);
+
+    return make<ShapedGlyphs>(move(glyphs), point.x());
+}
+
+NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf16View const& string, Font const& font, GlyphRun::TextType text_type)
+{
+    auto& shaping_cache = font.shaping_cache();
+
+    auto build_glyph_run = [&](ShapedGlyphs const& shape) -> NonnullRefPtr<GlyphRun> {
+        Vector<DrawGlyph> glyphs = shape.glyphs;
+        if (!baseline_start.is_zero()) {
+            for (auto& glyph : glyphs)
+                glyph.position.translate_by(baseline_start);
+        }
+        return adopt_ref(*new GlyphRun(move(glyphs), font, text_type, shape.width));
+    };
+
+    // FIXME: The cache currently grows unbounded. We should have some limit and LRU mechanism.
+    if (string.length_in_code_units() == 1 && letter_spacing == 0.f && text_type == GlyphRun::TextType::Common) {
+        auto code_unit = string.code_unit_at(0);
+        if (code_unit < 128) {
+            auto& cache_slot = shaping_cache.single_ascii_character_map[code_unit];
+            if (!cache_slot)
+                cache_slot = build_origin_relative_shape(string, font, text_type, letter_spacing);
+            return build_glyph_run(*cache_slot);
+        }
+    }
+
+    auto text_type_bits = static_cast<u8>(to_underlying(text_type));
+    auto letter_spacing_bit_pattern = bit_cast<u32>(letter_spacing);
+    auto key_hash = pair_int_hash(string.hash(), pair_int_hash(text_type_bits, letter_spacing_bit_pattern));
+
+    if (auto it = shaping_cache.map.find(key_hash, [&](auto const& candidate) {
+            return candidate.key.text_type == text_type_bits
+                && candidate.key.letter_spacing_bit_pattern == letter_spacing_bit_pattern
+                && candidate.key.text == string;
+        });
+        it != shaping_cache.map.end()) {
+        return build_glyph_run(*it->value);
+    }
+
+    auto shape = build_origin_relative_shape(string, font, text_type, letter_spacing);
+    auto run = build_glyph_run(*shape);
+    shaping_cache.map.set({ Utf16String::from_utf16(string), text_type_bits, letter_spacing_bit_pattern }, move(shape));
+    return run;
 }
 
 float measure_text_width(Utf16View const& string, Font const& font, float letter_spacing)
