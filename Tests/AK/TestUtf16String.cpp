@@ -1326,3 +1326,29 @@ TEST_CASE(optional)
     EXPECT(!string.has_value());
     EXPECT_EQ(released, u"well 😀 hello"sv);
 }
+
+TEST_CASE(utf16_builder_clear_resets_ascii_flag)
+{
+    // Regression test: StringBuilder(UTF16) must reset m_utf16_builder_is_ascii
+    // on clear(). Without this, a builder that previously held non-ASCII content
+    // stores subsequent ASCII as char16_t, and to_utf16_string() corrupts the
+    // first code unit via placement-new overlap in from_string_builder().
+    StringBuilder builder(StringBuilder::Mode::UTF16);
+
+    // 1. Append a non-ASCII code point to force m_utf16_builder_is_ascii = false.
+    builder.append_code_point(0x00D7); // U+00D7 MULTIPLICATION SIGN (×)
+    auto first = builder.to_utf16_string();
+    EXPECT_EQ(first.length_in_code_units(), 1u);
+    EXPECT_EQ(first.code_unit_at(0), 0x00D7);
+
+    // 2. Clear and reuse for ASCII content.
+    builder.clear();
+    builder.append_code_point('\n');
+    for (int i = 0; i < 100; ++i)
+        builder.append_code_point(' ');
+
+    auto second = builder.to_utf16_string();
+    EXPECT_EQ(second.length_in_code_units(), 101u);
+    EXPECT_EQ(second.code_unit_at(0), 0x000A); // Must be newline, not null.
+    EXPECT_EQ(second.code_unit_at(1), 0x0020);
+}
