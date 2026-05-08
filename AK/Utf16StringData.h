@@ -151,7 +151,7 @@ private:
 
     mutable bool m_is_fly_string { false };
 
-    union {
+    union alignas(8) {
         char m_ascii_data[0];
         char16_t m_utf16_data[0];
     };

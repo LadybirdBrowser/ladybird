@@ -445,6 +445,25 @@ TEST_CASE(from_string_builder)
     EXPECT_EQ(string, "ab😀𐀀🍕cd"sv);
 }
 
+TEST_CASE(from_string_builder_alignment)
+{
+    StringBuilder builder(StringBuilder::Mode::UTF16);
+    builder.append("\u00a0"sv);
+    builder.append(R"~~(
+<script>
+    const containsValidURL = input => {
+        return input.value.length !== 0 && input.checkValidity();
+    };
+</script>
+)~~"sv);
+
+    auto string1 = builder.to_utf16_string();
+    auto string2 = string1.to_utf8();
+
+    EXPECT_EQ(string1.code_unit_at(0), 0x00a0);
+    EXPECT_EQ(string2.bytes_as_string_view().substring_view(0, 2), "\u00a0"sv);
+}
+
 TEST_CASE(from_ipc_stream)
 {
     {
