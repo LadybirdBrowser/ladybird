@@ -6,24 +6,24 @@
 
 #pragma once
 
-#include <AK/Span.h>
+#include <AK/Optional.h>
 #include <AK/Vector.h>
-#include <LibGfx/Gradients.h>
+#include <LibGfx/Color.h>
 #include <LibWeb/CSS/StyleValues/ColorInterpolationMethodStyleValue.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Painting {
 
-using ColorStopList = Vector<Gfx::ColorStop, 4>;
-
 struct ColorStopData {
-    ColorStopList list;
-    Optional<float> repeat_length;
+    Vector<Color, 4> colors;
+    Vector<float, 4> positions;
     bool repeating { false };
 };
 
 struct LinearGradientData {
     float gradient_angle;
+    float first_stop_position { 0 };
+    float repeat_length { 1 };
     ColorStopData color_stops;
     CSS::ColorInterpolationMethodStyleValue::ColorInterpolationMethod interpolation_method;
 };

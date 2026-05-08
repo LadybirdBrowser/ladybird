@@ -364,29 +364,23 @@ static SkGradientShader::Interpolation to_skia_interpolation(CSS::ColorInterpola
 void DisplayListPlayerSkia::paint_linear_gradient(PaintLinearGradient const& command)
 {
     auto const& linear_gradient_data = command.linear_gradient_data;
-    auto const& color_stop_list = linear_gradient_data.color_stops.list;
-    auto const& repeat_length = linear_gradient_data.color_stops.repeat_length;
-    VERIFY(!color_stop_list.is_empty());
+    auto const& color_stop_colors = linear_gradient_data.color_stops.colors;
+    auto const& color_stop_positions = linear_gradient_data.color_stops.positions;
+    VERIFY(!color_stop_colors.is_empty());
+    VERIFY(color_stop_colors.size() == color_stop_positions.size());
 
     Vector<SkColor4f> colors;
-    Vector<SkScalar> positions;
-    auto const first_position = repeat_length.has_value() ? color_stop_list.first().position : 0.f;
-    for (size_t stop_index = 0; stop_index < color_stop_list.size(); stop_index++) {
-        auto const& stop = color_stop_list[stop_index];
-        if (stop_index > 0 && stop == color_stop_list[stop_index - 1])
-            continue;
-
-        colors.append(to_skia_color4f(stop.color));
-        positions.append((stop.position - first_position) / repeat_length.value_or(1));
-    }
+    colors.ensure_capacity(color_stop_colors.size());
+    for (auto color : color_stop_colors)
+        colors.unchecked_append(to_skia_color4f(color));
 
     auto rect = command.gradient_rect.to_type<float>();
     auto length = calculate_gradient_length<float>(rect.size(), linear_gradient_data.gradient_angle);
 
     // Starting and ending points before rotation (0deg / "to top")
     auto rect_center = rect.center();
-    auto start = rect_center.translated(0, (.5f - first_position) * length);
-    auto end = start.translated(0, repeat_length.value_or(1) * -length);
+    auto start = rect_center.translated(0, (.5f - linear_gradient_data.first_stop_position) * length);
+    auto end = start.translated(0, linear_gradient_data.repeat_length * -length);
     Array const points { to_skia_point(start), to_skia_point(end) };
 
     SkMatrix matrix;
@@ -394,7 +388,7 @@ void DisplayListPlayerSkia::paint_linear_gradient(PaintLinearGradient const& com
 
     auto color_space = SkColorSpace::MakeSRGB();
     auto interpolation = to_skia_interpolation(linear_gradient_data.interpolation_method);
-    auto shader = SkGradientShader::MakeLinear(points.data(), colors.data(), color_space, positions.data(), positions.size(), SkTileMode::kRepeat, interpolation, &matrix);
+    auto shader = SkGradientShader::MakeLinear(points.data(), colors.data(), color_space, color_stop_positions.data(), color_stop_positions.size(), SkTileMode::kRepeat, interpolation, &matrix);
 
     SkPaint paint;
     paint.setDither(true);
@@ -711,18 +705,15 @@ void DisplayListPlayerSkia::draw_rect(DrawRect const& command)
 void DisplayListPlayerSkia::paint_radial_gradient(PaintRadialGradient const& command)
 {
     auto const& radial_gradient_data = command.radial_gradient_data;
-    auto const& color_stop_list = radial_gradient_data.color_stops.list;
-    VERIFY(!color_stop_list.is_empty());
+    auto const& color_stop_colors = radial_gradient_data.color_stops.colors;
+    auto const& color_stop_positions = radial_gradient_data.color_stops.positions;
+    VERIFY(!color_stop_colors.is_empty());
+    VERIFY(color_stop_colors.size() == color_stop_positions.size());
 
     Vector<SkColor4f> colors;
-    Vector<SkScalar> positions;
-    for (size_t stop_index = 0; stop_index < color_stop_list.size(); stop_index++) {
-        auto const& stop = color_stop_list[stop_index];
-        if (stop_index > 0 && stop == color_stop_list[stop_index - 1])
-            continue;
-        colors.append(to_skia_color4f(stop.color));
-        positions.append(stop.position);
-    }
+    colors.ensure_capacity(color_stop_colors.size());
+    for (auto color : color_stop_colors)
+        colors.unchecked_append(to_skia_color4f(color));
 
     auto const& rect = command.rect;
     auto center = to_skia_point(command.center.translated(command.rect.location()));
@@ -739,7 +730,7 @@ void DisplayListPlayerSkia::paint_radial_gradient(PaintRadialGradient const& com
 
     auto color_space = SkColorSpace::MakeSRGB();
     auto interpolation = to_skia_interpolation(radial_gradient_data.interpolation_method);
-    auto shader = SkGradientShader::MakeRadial(center, size.height(), colors.data(), color_space, positions.data(), positions.size(), tile_mode, interpolation, &matrix);
+    auto shader = SkGradientShader::MakeRadial(center, size.height(), colors.data(), color_space, color_stop_positions.data(), color_stop_positions.size(), tile_mode, interpolation, &matrix);
 
     SkPaint paint;
     paint.setDither(true);
@@ -751,18 +742,15 @@ void DisplayListPlayerSkia::paint_radial_gradient(PaintRadialGradient const& com
 void DisplayListPlayerSkia::paint_conic_gradient(PaintConicGradient const& command)
 {
     auto const& conic_gradient_data = command.conic_gradient_data;
-    auto const& color_stop_list = conic_gradient_data.color_stops.list;
-    VERIFY(!color_stop_list.is_empty());
+    auto const& color_stop_colors = conic_gradient_data.color_stops.colors;
+    auto const& color_stop_positions = conic_gradient_data.color_stops.positions;
+    VERIFY(!color_stop_colors.is_empty());
+    VERIFY(color_stop_colors.size() == color_stop_positions.size());
 
     Vector<SkColor4f> colors;
-    Vector<SkScalar> positions;
-    for (size_t stop_index = 0; stop_index < color_stop_list.size(); stop_index++) {
-        auto const& stop = color_stop_list[stop_index];
-        if (stop_index > 0 && stop == color_stop_list[stop_index - 1])
-            continue;
-        colors.append(to_skia_color4f(stop.color));
-        positions.append(stop.position);
-    }
+    colors.ensure_capacity(color_stop_colors.size());
+    for (auto color : color_stop_colors)
+        colors.unchecked_append(to_skia_color4f(color));
 
     auto const& rect = command.rect;
     auto center = command.position.translated(rect.location()).to_type<float>();
@@ -771,7 +759,7 @@ void DisplayListPlayerSkia::paint_conic_gradient(PaintConicGradient const& comma
     matrix.setRotate(-90 + conic_gradient_data.start_angle, center.x(), center.y());
     auto color_space = SkColorSpace::MakeSRGB();
     auto interpolation = to_skia_interpolation(conic_gradient_data.interpolation_method);
-    auto shader = SkGradientShader::MakeSweep(center.x(), center.y(), colors.data(), color_space, positions.data(), positions.size(), SkTileMode::kRepeat, 0, 360, interpolation, &matrix);
+    auto shader = SkGradientShader::MakeSweep(center.x(), center.y(), colors.data(), color_space, color_stop_positions.data(), color_stop_positions.size(), SkTileMode::kRepeat, 0, 360, interpolation, &matrix);
 
     SkPaint paint;
     paint.setDither(true);
