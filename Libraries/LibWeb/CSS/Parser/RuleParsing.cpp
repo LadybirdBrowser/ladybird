@@ -844,7 +844,7 @@ template<typename NestedDeclarationsRule>
 GC::Ptr<CSSContainerRule> Parser::convert_to_container_rule(AtRule const& rule, Nested nested)
 {
     // @container <container-condition># {
-    //   <block-contents>
+    //   <rule-list>
     // }
     // <container-condition> = [ <container-name>? <container-query>? ]!
     // <container-name> = <custom-ident>
