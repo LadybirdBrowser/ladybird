@@ -125,6 +125,12 @@ void HTMLMediaElement::finalize()
 {
     Base::finalize();
 
+    // Tear down the controls eagerly so the Core::Timer they own (and the
+    // closures it captures) cannot fire during the window between this GC
+    // and our sweep, when our GC::Weak references to shadow tree nodes are
+    // already cleared.
+    m_controls.clear();
+
     document().page().unregister_media_element({}, unique_id());
 }
 
