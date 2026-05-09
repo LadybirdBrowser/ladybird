@@ -4485,12 +4485,17 @@ static bool interface_prototype_has_immutable_prototype(IDL::Interface const& in
         || interface.name == "EventTarget"sv;
 }
 
-static bool can_use_shared_interface_objects(IDL::Interface const& interface)
+static bool can_use_shared_interface_constructor(IDL::Interface const& interface)
+{
+    return !interface.is_namespace
+        && !interface.is_callback_interface;
+}
+
+static bool can_use_shared_interface_prototype(IDL::Interface const& interface)
 {
     return !interface.is_namespace
         && !interface.is_callback_interface
         && !interface.extended_attributes.contains("Global")
-        && !interface.extended_attributes.contains("LegacyFactoryFunction")
         && !interface.value_iterator_type.has_value()
         && !interface.pair_iterator_types.has_value()
         && !interface.async_value_iterator_type.has_value()
@@ -7169,10 +7174,12 @@ namespace Web::Bindings {
 
 )~~~"sv);
 
-    if (can_use_shared_interface_objects(interface)) {
+    auto can_use_shared_constructor = can_use_shared_interface_constructor(interface);
+    auto can_use_shared_prototype = can_use_shared_interface_prototype(interface);
+
+    if (can_use_shared_constructor) {
         SourceGenerator generator { builder };
         generator.set("constructor_class", interface.constructor_class);
-        generator.set("prototype_class", interface.prototype_class);
         generator.append(R"~~~(
 struct @constructor_class@ {
 public:
@@ -7184,7 +7191,13 @@ private:
         generate_constructor_declarations(interface, builder);
         generator.append(R"~~~(
 };
+)~~~");
+    }
 
+    if (can_use_shared_prototype) {
+        SourceGenerator generator { builder };
+        generator.set("prototype_class", interface.prototype_class);
+        generator.append(R"~~~(
 struct @prototype_class@ {
 public:
     static void initialize(JS::Realm&, JS::Object&);
@@ -7202,8 +7215,10 @@ private:
     if (interface.is_namespace) {
         generate_namespace_header(interface, builder);
     } else {
-        generate_constructor_header(interface, builder);
-        generate_prototype_header(interface, builder);
+        if (!can_use_shared_constructor)
+            generate_constructor_header(interface, builder);
+        if (!can_use_shared_prototype)
+            generate_prototype_header(interface, builder);
     }
 
     if (interface.pair_iterator_types.has_value())
@@ -7262,27 +7277,28 @@ namespace Web::Bindings {
 
 static void generate_implementation_for_interface(IDL::Interface const& interface, StringBuilder& builder)
 {
-    if (can_use_shared_interface_objects(interface)) {
-        generate_implementation_prologue(interface, builder);
-        generate_constructor_initialization_for_existing_object(interface, builder);
-        generate_constructor_static_member_definitions(interface, builder);
-        generate_prototype_or_global_mixin_initialization(interface, builder, GenerateUnforgeables::No, InitializeExistingObject::Yes);
-        generate_prototype_or_global_mixin_initialization(interface, builder, GenerateUnforgeables::Yes);
-        generate_prototype_or_global_mixin_definitions(interface, builder);
-        generate_idl_value_conversion_implementations(module_for_path(interface.context, interface.module_own_path), builder);
-        builder.append(R"~~~(
-} // namespace Web::Bindings
-)~~~"sv);
-        return;
-    }
+    auto can_use_shared_constructor = can_use_shared_interface_constructor(interface);
+    auto can_use_shared_prototype = can_use_shared_interface_prototype(interface);
 
     generate_implementation_prologue(interface, builder);
 
     if (interface.is_namespace) {
         generate_namespace_implementation(interface, builder);
     } else {
-        generate_constructor_implementation(interface, builder);
-        generate_prototype_implementation(interface, builder);
+        if (can_use_shared_constructor) {
+            generate_constructor_initialization_for_existing_object(interface, builder);
+            generate_constructor_static_member_definitions(interface, builder);
+        } else {
+            generate_constructor_implementation(interface, builder);
+        }
+
+        if (can_use_shared_prototype) {
+            generate_prototype_or_global_mixin_initialization(interface, builder, GenerateUnforgeables::No, InitializeExistingObject::Yes);
+            generate_prototype_or_global_mixin_initialization(interface, builder, GenerateUnforgeables::Yes);
+            generate_prototype_or_global_mixin_definitions(interface, builder);
+        } else {
+            generate_prototype_implementation(interface, builder);
+        }
     }
 
     if (interface.pair_iterator_types.has_value())

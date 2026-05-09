@@ -56,15 +56,20 @@ JS::Object& Intrinsics::existing_web_prototype(FlyString const& class_name)
 
 void Intrinsics::create_web_prototype_and_constructor(JS::Realm& realm, InterfaceObjectMetadata const& metadata)
 {
-    auto& vm = realm.vm();
-
     auto prototype = realm.create<InterfacePrototypeObject>(realm, metadata);
     m_prototypes.set(FlyString::from_utf8_without_validation(metadata.namespaced_name.bytes()), prototype);
+
+    create_web_constructor(realm, metadata, prototype);
+}
+
+void Intrinsics::create_web_constructor(JS::Realm& realm, InterfaceObjectMetadata const& metadata, JS::Object& prototype)
+{
+    auto& vm = realm.vm();
 
     auto constructor = realm.create<InterfaceConstructor>(realm, metadata);
     m_constructors.set(FlyString::from_utf8_without_validation(metadata.namespaced_name.bytes()), constructor);
 
-    prototype->define_direct_property(vm.names.constructor, constructor.ptr(), JS::Attribute::Writable | JS::Attribute::Configurable);
+    prototype.define_direct_property(vm.names.constructor, constructor.ptr(), JS::Attribute::Writable | JS::Attribute::Configurable);
 }
 
 }

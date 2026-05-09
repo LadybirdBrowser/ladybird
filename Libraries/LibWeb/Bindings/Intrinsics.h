@@ -98,6 +98,7 @@ private:
     template<typename PrototypeType>
     void create_web_prototype_and_constructor(JS::Realm& realm);
     void create_web_prototype_and_constructor(JS::Realm& realm, InterfaceObjectMetadata const&);
+    void create_web_constructor(JS::Realm& realm, InterfaceObjectMetadata const&, JS::Object& prototype);
 
     HashMap<FlyString, GC::Ref<JS::Object>> m_namespaces;
     HashMap<FlyString, GC::Ref<JS::Object>> m_prototypes;
