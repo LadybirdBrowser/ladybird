@@ -18,12 +18,20 @@ class Function final : public Cell {
     GC_DECLARE_ALLOCATOR(Function);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     static Ref<Function> create(Heap& heap, ESCAPING AK::Function<T>&& function)
     {
         return heap.allocate<Function>(move(function));
     }
 
     virtual ~Function() override = default;
+
+    virtual void finalize() override
+    {
+        Base::finalize();
+        m_function = nullptr;
+    }
 
     [[nodiscard]] AK::Function<T> const& function() const { return m_function; }
 
