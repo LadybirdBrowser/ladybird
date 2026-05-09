@@ -147,6 +147,10 @@ void MediaControls::set_up_event_listeners()
     add_event_listener(realm, media_element, HTML::EventNames::play, [this]() {
         update_play_pause_icon();
         update_placeholder_visibility();
+        if (m_request_animation_frame_callback && m_request_animation_frame_id == 0) {
+            auto& window = as<HTML::Window>(m_media_element->realm().global_object());
+            m_request_animation_frame_id = window.request_animation_frame(*m_request_animation_frame_callback);
+        }
         return true;
     });
     add_event_listener(realm, media_element, HTML::EventNames::pause, [this] {
@@ -416,19 +420,25 @@ void MediaControls::set_up_event_listeners()
     });
 
     // Use requestAnimationFrame to update the timeline, since timeupdate only fires every 250ms.
+    // Only keep the loop running while the media element is potentially playing, so paused
+    // videos don't keep the rendering pipeline busy.
     auto request_animation_frame_callback_function = JS::NativeFunction::create(
         realm, [this](JS::VM&) {
+            m_request_animation_frame_id = 0;
             update_timeline();
 
-            auto& realm = m_media_element->realm();
-            auto& window = as<HTML::Window>(realm.global_object());
-            m_request_animation_frame_id = window.request_animation_frame(*m_request_animation_frame_callback);
+            if (m_media_element && m_media_element->potentially_playing()) {
+                auto& realm = m_media_element->realm();
+                auto& window = as<HTML::Window>(realm.global_object());
+                m_request_animation_frame_id = window.request_animation_frame(*m_request_animation_frame_callback);
+            }
 
             return JS::js_undefined();
         },
         0, Utf16FlyString {}, &realm);
     m_request_animation_frame_callback = realm.heap().allocate<WebIDL::CallbackType>(request_animation_frame_callback_function, realm);
-    m_request_animation_frame_id = window.request_animation_frame(*m_request_animation_frame_callback);
+    if (media_element.potentially_playing())
+        m_request_animation_frame_id = window.request_animation_frame(*m_request_animation_frame_callback);
 }
 
 void MediaControls::toggle_playback()
