@@ -266,26 +266,18 @@ function (generate_js_bindings target)
     endmacro()
 
     function(libweb_js_bindings class)
+        get_filename_component(basename "${class}" NAME)
+        set(idl_path "${LIBWEB_INPUT_FOLDER}/${class}.idl")
+        if ("${basename}.idl" IN_LIST LIBWEB_ALL_GENERATED_IDL)
+            set(idl_path "${CMAKE_CURRENT_BINARY_DIR}/${class}.idl")
+        endif()
+
         libweb_add_bindings_source(${class})
 
-        list(APPEND LIBWEB_ALL_IDL_FILES "${LIBWEB_INPUT_FOLDER}/${class}.idl")
+        list(APPEND LIBWEB_ALL_IDL_FILES "${idl_path}")
         set(LIBWEB_ALL_IDL_FILES ${LIBWEB_ALL_IDL_FILES} PARENT_SCOPE)
 
-        list(APPEND LIBWEB_ALL_PARSED_IDL_FILES "${LIBWEB_INPUT_FOLDER}/${class}.idl")
-        set(LIBWEB_ALL_PARSED_IDL_FILES ${LIBWEB_ALL_PARSED_IDL_FILES} PARENT_SCOPE)
-    endfunction()
-
-    function(libweb_support_idl class)
-        libweb_add_bindings_source(${class})
-
-        list(APPEND LIBWEB_ALL_PARSED_IDL_FILES "${LIBWEB_INPUT_FOLDER}/${class}.idl")
-        set(LIBWEB_ALL_PARSED_IDL_FILES ${LIBWEB_ALL_PARSED_IDL_FILES} PARENT_SCOPE)
-    endfunction()
-
-    function(libweb_generated_support_idl class)
-        libweb_add_bindings_source(${class})
-
-        list(APPEND LIBWEB_ALL_PARSED_IDL_FILES "${CMAKE_CURRENT_BINARY_DIR}/${class}.idl")
+        list(APPEND LIBWEB_ALL_PARSED_IDL_FILES "${idl_path}")
         set(LIBWEB_ALL_PARSED_IDL_FILES ${LIBWEB_ALL_PARSED_IDL_FILES} PARENT_SCOPE)
     endfunction()
 

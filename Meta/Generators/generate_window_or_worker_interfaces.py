@@ -691,7 +691,9 @@ def main() -> int:
     for path in read_input_paths(arguments.paths):
         interface = parse_module(path, path.read_text(encoding="utf-8")).interface
         if interface is None:
-            raise RuntimeError(f"Interface for file {path} missing")
+            continue
+        if not should_have_interface_object(interface):
+            continue
         interface_sets.add_interface(interface)
 
     write_generated_file(

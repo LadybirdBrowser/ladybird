@@ -153,9 +153,6 @@ class Parser:
 
             self.consume_whitespace()
 
-        if module.interface is None:
-            self.raise_parse_error("did not find an interface, callback interface, or namespace")
-
         return module
 
     def set_or_check_module_interface(
