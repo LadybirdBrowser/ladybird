@@ -559,7 +559,8 @@ void Page::update_all_media_element_video_sinks()
     bool should_request_another_frame = false;
     for_each_media_element([&](auto& media_element) {
         media_element.update_video_frame_and_timeline();
-        should_request_another_frame = true;
+        if (media_element.potentially_playing())
+            should_request_another_frame = true;
     });
 
     if (should_request_another_frame)
