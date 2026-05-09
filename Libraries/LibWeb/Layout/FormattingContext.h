@@ -162,6 +162,8 @@ public:
 protected:
     FormattingContext(Type, LayoutMode, LayoutState&, Box const&, FormattingContext* parent = nullptr);
 
+    [[nodiscard]] static bool computed_height_establishes_definite_containing_block_height(CSS::Size const&);
+
     [[nodiscard]] bool should_treat_width_as_auto(Box const&, AvailableSpace const&) const;
     [[nodiscard]] bool should_treat_height_as_auto(Box const&, AvailableSpace const&) const;
 
