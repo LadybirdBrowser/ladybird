@@ -44,8 +44,57 @@ namespace GC {
 // before the worker sees them skip the madvise pair entirely.
 static constexpr size_t CHUNK_SIZE = 2 * MiB;
 static constexpr size_t BLOCKS_PER_CHUNK = CHUNK_SIZE / HeapBlock::BLOCK_SIZE;
+static_assert((HeapBlock::BLOCK_SIZE & (HeapBlock::BLOCK_SIZE - 1)) == 0);
 static_assert(CHUNK_SIZE % HeapBlock::BLOCK_SIZE == 0);
 static_assert(BLOCKS_PER_CHUNK == 128);
+
+#if !defined(AK_OS_MACOS) && !defined(AK_OS_WINDOWS)
+static auto const s_page_size = [] {
+    auto page_size_result = sysconf(_SC_PAGESIZE);
+    VERIFY(page_size_result > 0);
+    return static_cast<size_t>(page_size_result);
+}();
+
+static void* allocate_chunk_with_aligned_heap_blocks()
+{
+    auto const page_size = s_page_size;
+    VERIFY((page_size & (page_size - 1)) == 0);
+    VERIFY(HeapBlock::BLOCK_SIZE % page_size == 0 || page_size % HeapBlock::BLOCK_SIZE == 0);
+    VERIFY(CHUNK_SIZE % page_size == 0);
+
+    auto const extra_size = page_size < HeapBlock::BLOCK_SIZE ? HeapBlock::BLOCK_SIZE - page_size : 0;
+    auto* mapped = mmap(nullptr, CHUNK_SIZE + extra_size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    VERIFY(mapped != MAP_FAILED);
+
+    auto const mapped_address = reinterpret_cast<FlatPtr>(mapped);
+    auto const aligned_address = align_up_to(mapped_address, HeapBlock::BLOCK_SIZE);
+    VERIFY(aligned_address % HeapBlock::BLOCK_SIZE == 0);
+
+    auto const left_padding = aligned_address - mapped_address;
+    if (left_padding > 0) {
+        VERIFY(left_padding % page_size == 0);
+        if (munmap(mapped, left_padding) < 0) {
+            perror("munmap");
+            VERIFY_NOT_REACHED();
+        }
+    }
+
+    auto const mapped_end = mapped_address + CHUNK_SIZE + extra_size;
+    auto const chunk_end = aligned_address + CHUNK_SIZE;
+    VERIFY(chunk_end <= mapped_end);
+
+    auto const right_padding = mapped_end - chunk_end;
+    if (right_padding > 0) {
+        VERIFY(right_padding % page_size == 0);
+        if (munmap(reinterpret_cast<void*>(chunk_end), right_padding) < 0) {
+            perror("munmap");
+            VERIFY_NOT_REACHED();
+        }
+    }
+
+    return reinterpret_cast<void*>(aligned_address);
+}
+#endif
 
 static void madvise_block_for_decommit(void* block)
 {
@@ -272,7 +321,7 @@ void* BlockAllocator::allocate_block([[maybe_unused]] char const* name)
             mach_task_self(),
             &address,
             CHUNK_SIZE,
-            CHUNK_SIZE - 1,
+            HeapBlock::BLOCK_SIZE - 1,
             VM_FLAGS_ANYWHERE,
             MEMORY_OBJECT_NULL,
             0,
@@ -286,8 +335,7 @@ void* BlockAllocator::allocate_block([[maybe_unused]] char const* name)
         chunk_base = VirtualAlloc(nullptr, CHUNK_SIZE, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
         VERIFY(chunk_base);
 #else
-        auto rc = posix_memalign(&chunk_base, CHUNK_SIZE, CHUNK_SIZE);
-        VERIFY(rc == 0);
+        chunk_base = allocate_chunk_with_aligned_heap_blocks();
 #endif
 
 #if defined(MADV_FREE_REUSE) && defined(MADV_FREE_REUSABLE)
