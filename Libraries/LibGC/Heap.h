@@ -105,25 +105,14 @@ private:
     void dump_allocators();
 
     template<typename T>
-    static consteval bool has_own_gc_allocator_marker()
-    {
-        if constexpr (requires { typename T::gc_allocator_marker; })
-            return IsSame<typename T::gc_allocator_marker, T>;
-        return false;
-    }
-
-    template<typename T>
     Cell* allocate_cell()
     {
-        static_assert(has_own_gc_allocator_marker<T>(), "Cell type must declare its own allocator with either GC_DECLARE_ALLOCATOR (for type-isolated allocation) or GC_DECLARE_SIZE_BASED_ALLOCATOR (for size-based allocation)");
+        static_assert(requires { T::cell_allocator.allocator.get().allocate_cell(*this); }, "GC cell type must declare its own allocator using GC_DECLARE_ALLOCATOR(ClassName)");
+        static_assert(IsSame<T, typename decltype(T::cell_allocator)::CellType>,
+            "GC cell allocator type mismatch");
 
         will_allocate(sizeof(T));
-        if constexpr (requires { T::cell_allocator.allocator.get().allocate_cell(*this); }) {
-            if constexpr (IsSame<T, typename decltype(T::cell_allocator)::CellType>) {
-                return T::cell_allocator.allocator.get().allocate_cell(*this);
-            }
-        }
-        return allocator_for_size(sizeof(T)).allocate_cell(*this);
+        return T::cell_allocator.allocator.get().allocate_cell(*this);
     }
 
     void will_allocate(size_t);
@@ -139,17 +128,6 @@ private:
     void sweep_weak_blocks();
     void run_post_gc_tasks();
 
-    ALWAYS_INLINE CellAllocator& allocator_for_size(size_t cell_size)
-    {
-        // FIXME: Use binary search?
-        for (auto& allocator : m_size_based_cell_allocators) {
-            if (allocator->cell_size() >= cell_size)
-                return *allocator;
-        }
-        dbgln("Cannot get CellAllocator for cell size {}, largest available is {}!", cell_size, m_size_based_cell_allocators.last()->cell_size());
-        VERIFY_NOT_REACHED();
-    }
-
     template<typename Callback>
     void for_each_block(Callback callback)
     {
@@ -164,7 +142,6 @@ private:
 
     bool m_should_collect_on_every_allocation { false };
 
-    Vector<NonnullOwnPtr<CellAllocator>> m_size_based_cell_allocators;
     CellAllocator::List m_all_cell_allocators;
 
     RootImpl::List m_roots;

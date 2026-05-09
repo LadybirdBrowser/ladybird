@@ -57,13 +57,6 @@ Heap::Heap(AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> gather_embedder_roo
     s_the = this;
     m_gc_bytes_threshold = GC_MIN_BYTES_THRESHOLD;
     static_assert(HeapBlock::min_possible_cell_size <= 32, "Heap Cell tracking uses too much data!");
-    m_size_based_cell_allocators.append(make<CellAllocator>(64));
-    m_size_based_cell_allocators.append(make<CellAllocator>(96));
-    m_size_based_cell_allocators.append(make<CellAllocator>(128));
-    m_size_based_cell_allocators.append(make<CellAllocator>(256));
-    m_size_based_cell_allocators.append(make<CellAllocator>(512));
-    m_size_based_cell_allocators.append(make<CellAllocator>(1024));
-    m_size_based_cell_allocators.append(make<CellAllocator>(3072));
 }
 
 Heap::~Heap()
