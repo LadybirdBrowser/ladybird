@@ -2,20 +2,7 @@
 <script src="../../include.js"></script>
 <script src="structural-matrix.js"></script>
 <script>
-    // Adding a constructed CSSStyleSheet via document.adoptedStyleSheets currently
-    // triggers TWO full-document style invalidations:
-    //   1. AdoptedStyleSheetsList from the adopt operation itself.
-    //   2. MediaQueryChangedMatchState from the next update_style call, because
-    //      CSSStyleSheet::evaluate_media_queries treats "no recorded result" as a
-    //      flip even though no real change happened (the rules were already in the
-    //      cascade thanks to the AdoptedStyleSheetsList invalidation).
-    //
-    // Inner @media rules have the same first-eval issue: m_matches starts at false,
-    // so the very first evaluation that actually matches flips false -> true and is
-    // counted as a state change.
-    //
-    // These tests record the current (buggy) counters. The optimization commits will
-    // rebaseline them as fullStyleInvalidations and the recomputation counts drop.
+    // Counters lock in targeted adoptedStyleSheets invalidation across outer/inner @media combinations.
 
     function setupFixture() {
         const fixture = makeElement("section");
