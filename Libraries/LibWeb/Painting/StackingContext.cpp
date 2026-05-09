@@ -144,6 +144,13 @@ void StackingContext::paint_descendants(DisplayListRecordingContext& context, Pa
         if (child.has_stacking_context())
             return IterationDecision::Continue;
 
+        auto const& z_index = [&] { return child.computed_values().z_index(); };
+
+        // Positioned descendants at stack level 0 are painted in a separate pass.
+        // See `m_positioned_descendants_and_stacking_contexts_with_stack_level_0`.
+        if (child.is_positioned() && z_index().value_or(0) == 0)
+            return IterationDecision::Continue;
+
         if (child.is_svg_svg_paintable()) {
             paint_svg(context, static_cast<PaintableBox const&>(child), to_paint_phase(phase));
             return IterationDecision::Continue;
@@ -154,7 +161,6 @@ void StackingContext::paint_descendants(DisplayListRecordingContext& context, Pa
         //       "For each one of these, treat the element as if it created a new stacking context, but any positioned
         //       descendants and descendants which actually create a new stacking context should be considered part of
         //       the parent stacking context, not this new one."
-        auto const& z_index = [&] { return child.computed_values().z_index(); };
         if (child.layout_node().is_grid_item() && !z_index().has_value()) {
             // FIXME: This may not be fully correct with respect to the paint phases.
             if (phase == StackingContextPaintPhase::Foreground)
@@ -173,9 +179,6 @@ void StackingContext::paint_descendants(DisplayListRecordingContext& context, Pa
             }
             return IterationDecision::Continue;
         }
-
-        if (child.is_positioned() && z_index().value_or(0) == 0)
-            return IterationDecision::Continue;
 
         bool child_is_inline_or_replaced = child.is_inline() || is<Layout::ReplacedBox>(child.layout_node());
         switch (phase) {
