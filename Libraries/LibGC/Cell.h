@@ -38,6 +38,11 @@ public:                                            \
     }                                              \
     friend class GC::Heap;
 
+#define GC_CELL_WITH_CUSTOM_CLASS_NAME(class_, base_class) \
+public:                                                    \
+    using Base = base_class;                               \
+    friend class GC::Heap;
+
 class GC_API Cell {
     AK_MAKE_NONCOPYABLE(Cell);
     AK_MAKE_NONMOVABLE(Cell);

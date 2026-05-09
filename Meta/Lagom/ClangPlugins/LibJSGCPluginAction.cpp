@@ -944,6 +944,7 @@ void LibJSPPCallbacks::MacroExpands(clang::Token const& name_token, clang::Macro
         static llvm::StringMap<LibJSCellMacro::Type> libjs_macro_types {
             { "GC_CELL", LibJSCellMacro::Type::GCCell },
             { "JS_OBJECT", LibJSCellMacro::Type::JSObject },
+            { "JS_OBJECT_WITH_CUSTOM_CLASS_NAME", LibJSCellMacro::Type::JSObject },
             { "JS_ENVIRONMENT", LibJSCellMacro::Type::JSEnvironment },
             { "JS_PROTOTYPE_OBJECT", LibJSCellMacro::Type::JSPrototypeObject },
             { "WEB_PLATFORM_OBJECT", LibJSCellMacro::Type::WebPlatformObject },
