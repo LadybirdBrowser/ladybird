@@ -21,7 +21,7 @@ void generate_header(Module const&, StringBuilder&);
 void generate_implementation(Module const&, StringBuilder&);
 void generate_forward_header(Context const&, StringBuilder&);
 
-CppType idl_type_name_to_cpp_type(Type const& type, Context const& context);
+CppType idl_type_name_to_cpp_type(Type const& type, Context const& context, Optional<HashMap<ByteString, ByteString> const&> extended_attributes = {});
 
 extern Vector<StringView> g_header_search_paths;
 
