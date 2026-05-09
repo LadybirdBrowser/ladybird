@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
@@ -161,7 +162,7 @@ private:
     bool stylesheet_linked_resource_fetch_setup_steps(Fetch::Infrastructure::Request&);
 
     void preconnect(LinkProcessingOptions const&);
-    void preload(LinkProcessingOptions&, GC::Ptr<GC::Function<void(Fetch::Infrastructure::Response&)>> process_response = {});
+    void preload(LinkProcessingOptions&, Function<void(Fetch::Infrastructure::Response&)> process_response = {});
 
     void process_linked_resource(bool success, Fetch::Infrastructure::Response const&, ByteBuffer);
     void process_icon_resource(bool success, Fetch::Infrastructure::Response const&, ByteBuffer);
