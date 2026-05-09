@@ -2312,7 +2312,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 
         if (type.name() == "FrozenArray"sv) {
             scoped_generator.append(R"~~~(
-    TRY(new_array@recursion_depth@_@iteration_index@->set_integrity_level(IntegrityLevel::Frozen));
+    TRY(new_array@recursion_depth@_@iteration_index@->set_integrity_level(JS::Object::IntegrityLevel::Frozen));
 )~~~");
         }
 
@@ -2905,7 +2905,12 @@ static void generate_dictionary_types(SourceGenerator& generator, Vector<ByteStr
     generator.append("};\n");
 }
 
-static void generate_overload_arbiter(SourceGenerator& generator, auto const& overload_set, IDL::Interface const& interface, ByteString const& class_name, IsConstructor is_constructor)
+enum class SharedConstructor {
+    No,
+    Yes,
+};
+
+static void generate_overload_arbiter(SourceGenerator& generator, auto const& overload_set, IDL::Interface const& interface, ByteString const& class_name, IsConstructor is_constructor, SharedConstructor shared_constructor = SharedConstructor::No)
 {
     auto function_generator = generator.fork();
     if (is_constructor == IsConstructor::Yes)
@@ -2917,7 +2922,14 @@ static void generate_overload_arbiter(SourceGenerator& generator, auto const& ov
 
     HashTable<ByteString> dictionary_types;
 
-    if (is_constructor == IsConstructor::Yes) {
+    if (is_constructor == IsConstructor::Yes && shared_constructor == SharedConstructor::Yes) {
+        function_generator.append(R"~~~(
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> @constructor_class@::construct(InterfaceConstructor& constructor, JS::FunctionObject& new_target)
+{
+    auto& vm = constructor.vm();
+    WebIDL::log_trace(vm, "@constructor_class@::construct");
+)~~~");
+    } else if (is_constructor == IsConstructor::Yes) {
         function_generator.append(R"~~~(
 JS::ThrowCompletionOr<GC::Ref<JS::Object>> @constructor_class@::construct(JS::FunctionObject& new_target)
 {
@@ -3060,9 +3072,15 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@function.name:snakecase@)
     case @overload_id@:
 )~~~");
         if (is_constructor == IsConstructor::Yes) {
-            function_generator.append(R"~~~(
+            if (shared_constructor == SharedConstructor::Yes) {
+                function_generator.append(R"~~~(
+        return construct@overload_id@(constructor, new_target);
+)~~~");
+            } else {
+                function_generator.append(R"~~~(
         return construct@overload_id@(new_target);
 )~~~");
+            }
         } else {
             function_generator.append(R"~~~(
         return @function.name:snakecase@@overload_id@(vm);
@@ -3226,7 +3244,11 @@ static void generate_html_constructor(SourceGenerator& generator, IDL::Construct
 static void generate_constructor(SourceGenerator& generator, IDL::Constructor const& constructor, IDL::Interface const& interface, bool is_html_constructor)
 {
     auto constructor_generator = generator.fork();
+    constructor_generator.set("name", interface.name);
+    constructor_generator.set("namespaced_name", interface.namespaced_name);
+    constructor_generator.set("prototype_class", interface.prototype_class);
     constructor_generator.set("constructor_class", interface.constructor_class);
+    constructor_generator.set("fully_qualified_name", interface.fully_qualified_name);
     constructor_generator.set("interface_fully_qualified_name", interface.fully_qualified_name);
     constructor_generator.set("overload_suffix", constructor.is_overloaded ? ByteString::number(constructor.overload_index) : ByteString::empty());
 
@@ -3356,6 +3378,134 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> @constructor_class@::construct([[mayb
         if (overload_set.value.size() == 1)
             continue;
         generate_overload_arbiter(generator, overload_set, interface, interface.constructor_class, IsConstructor::Yes);
+    }
+}
+
+static void generate_shared_constructor(SourceGenerator& generator, IDL::Constructor const& constructor, IDL::Interface const& interface, bool is_html_constructor)
+{
+    auto constructor_generator = generator.fork();
+    constructor_generator.set("name", interface.name);
+    constructor_generator.set("namespaced_name", interface.namespaced_name);
+    constructor_generator.set("prototype_class", interface.prototype_class);
+    constructor_generator.set("constructor_class", interface.constructor_class);
+    constructor_generator.set("fully_qualified_name", interface.fully_qualified_name);
+    constructor_generator.set("interface_fully_qualified_name", interface.fully_qualified_name);
+    constructor_generator.set("overload_suffix", constructor.is_overloaded ? ByteString::number(constructor.overload_index) : ByteString::empty());
+
+    constructor_generator.append(R"~~~(
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> @constructor_class@::construct@overload_suffix@(InterfaceConstructor& constructor, [[maybe_unused]] JS::FunctionObject& new_target)
+{
+    WebIDL::log_trace(constructor.vm(), "@constructor_class@::construct@overload_suffix@");
+    auto& vm = constructor.vm();
+    auto& realm = *vm.current_realm();
+)~~~");
+
+    if (is_html_constructor) {
+        generate_html_constructor(constructor_generator, constructor, interface);
+    } else {
+        constructor_generator.append(R"~~~(
+    // To internally create a new object implementing the interface @name@:
+
+    // 3.2. Let prototype be ? Get(newTarget, "prototype").
+    auto prototype = TRY(new_target.get(vm.names.prototype));
+
+    // 3.3. If Type(prototype) is not Object, then:
+    if (!prototype.is_object()) {
+        // 1. Let targetRealm be ? GetFunctionRealm(newTarget).
+        auto* target_realm = TRY(JS::get_function_realm(vm, new_target));
+
+        // 2. Set prototype to the interface prototype object for interface in targetRealm.
+        VERIFY(target_realm);
+        prototype = &Bindings::ensure_web_prototype<@prototype_class@>(*target_realm, "@namespaced_name@"_fly_string);
+    }
+
+    // 4. Let instance be MakeBasicObject( « [[Prototype]], [[Extensible]], [[Realm]], [[PrimaryInterface]] »).
+    // 5. Set instance.[[Realm]] to realm.
+    // 6. Set instance.[[PrimaryInterface]] to interface.
+)~~~");
+        if (!constructor.parameters.is_empty()) {
+            generate_argument_count_check(constructor_generator, constructor.name, constructor.shortest_length());
+
+            StringBuilder arguments_builder;
+            generate_arguments(constructor_generator, constructor.parameters, arguments_builder, interface);
+            constructor_generator.set(".constructor_arguments", arguments_builder.string_view());
+
+            constructor_generator.append(R"~~~(
+    auto impl = TRY(throw_dom_exception_if_needed(vm, [&] { return @fully_qualified_name@::construct_impl(realm, @.constructor_arguments@); }));
+)~~~");
+        } else {
+            constructor_generator.append(R"~~~(
+    auto impl = TRY(throw_dom_exception_if_needed(vm, [&] { return @fully_qualified_name@::construct_impl(realm); }));
+)~~~");
+        }
+
+        constructor_generator.append(R"~~~(
+    // 7. Set instance.[[Prototype]] to prototype.
+    VERIFY(prototype.is_object());
+    impl->set_prototype(&prototype.as_object());
+
+    // FIXME: Steps 8...11. of the "internally create a new object implementing the interface @name@" algorithm
+    // (https://webidl.spec.whatwg.org/#js-platform-objects) are currently not handled, or are handled within @fully_qualified_name@::construct_impl().
+    //  8. Let interfaces be the inclusive inherited interfaces of interface.
+    //  9. For every interface ancestor interface in interfaces:
+    //    9.1. Let unforgeables be the value of the [[Unforgeables]] slot of the interface object of ancestor interface in realm.
+    //    9.2. Let keys be ! unforgeables.[[OwnPropertyKeys]]().
+    //    9.3. For each element key of keys:
+    //      9.3.1. Let descriptor be ! unforgeables.[[GetOwnProperty]](key).
+    //      9.3.2. Perform ! DefinePropertyOrThrow(instance, key, descriptor).
+    //  10. If interface is declared with the [Global] extended attribute, then:
+    //    10.1. Define the regular operations of interface on instance, given realm.
+    //    10.2. Define the regular attributes of interface on instance, given realm.
+    //    10.3. Define the iteration methods of interface on instance given realm.
+    //    10.4. Define the asynchronous iteration methods of interface on instance given realm.
+    //    10.5. Define the global property references on instance, given realm.
+    //    10.6. Set instance.[[SetPrototypeOf]] as defined in § 3.8.1 [[SetPrototypeOf]].
+    //  11. Otherwise, if interfaces contains an interface which supports indexed properties, named properties, or both:
+    //    11.1. Set instance.[[GetOwnProperty]] as defined in § 3.9.1 [[GetOwnProperty]].
+    //    11.2. Set instance.[[Set]] as defined in § 3.9.2 [[Set]].
+    //    11.3. Set instance.[[DefineOwnProperty]] as defined in § 3.9.3 [[DefineOwnProperty]].
+    //    11.4. Set instance.[[Delete]] as defined in § 3.9.4 [[Delete]].
+    //    11.5. Set instance.[[PreventExtensions]] as defined in § 3.9.5 [[PreventExtensions]].
+    //    11.6. Set instance.[[OwnPropertyKeys]] as defined in § 3.9.6 [[OwnPropertyKeys]].
+
+    return *impl;
+}
+)~~~");
+    }
+}
+
+static void generate_shared_constructors(SourceGenerator& generator, IDL::Interface const& interface)
+{
+    bool has_html_constructor = false;
+    for (auto const& constructor : interface.constructors) {
+        if (constructor.extended_attributes.contains("HTMLConstructor"sv)) {
+            has_html_constructor = true;
+            break;
+        }
+    }
+
+    if (has_html_constructor && interface.constructors.size() != 1) {
+        dbgln("Interface {}'s constructor annotated with [HTMLConstructor] must be the only constructor", interface.name);
+        VERIFY_NOT_REACHED();
+    }
+
+    if (interface.constructors.is_empty()) {
+        generator.append(R"~~~(
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> @constructor_class@::construct([[maybe_unused]] InterfaceConstructor& constructor, [[maybe_unused]] JS::FunctionObject& new_target)
+{
+    WebIDL::log_trace(constructor.vm(), "@constructor_class@::construct");
+    return constructor.vm().throw_completion<JS::TypeError>(JS::ErrorType::NotAConstructor, "@namespaced_name@");
+}
+)~~~");
+    } else {
+        for (auto& constructor : interface.constructors)
+            generate_shared_constructor(generator, constructor, interface, has_html_constructor);
+    }
+
+    for (auto const& overload_set : interface.constructor_overload_sets) {
+        if (overload_set.value.size() == 1)
+            continue;
+        generate_overload_arbiter(generator, overload_set, interface, interface.constructor_class, IsConstructor::Yes, SharedConstructor::Yes);
     }
 }
 
@@ -4335,12 +4485,42 @@ static bool interface_prototype_has_immutable_prototype(IDL::Interface const& in
         || interface.name == "EventTarget"sv;
 }
 
+static bool can_use_shared_interface_objects(IDL::Interface const& interface)
+{
+    return !interface.is_namespace
+        && !interface.is_callback_interface
+        && !interface.extended_attributes.contains("Global")
+        && !interface.extended_attributes.contains("LegacyFactoryFunction")
+        && !interface.value_iterator_type.has_value()
+        && !interface.pair_iterator_types.has_value()
+        && !interface.async_value_iterator_type.has_value()
+        && !interface.set_entry_type.has_value()
+        && !interface.map_key_type.has_value()
+        && !interface.supports_named_properties()
+        && !interface.supports_indexed_properties()
+        && !interface.named_property_deleter.has_value()
+        && !interface.named_property_setter.has_value()
+        && !interface.indexed_property_setter.has_value();
+}
+
 enum class GenerateUnforgeables {
     No,
     Yes,
 };
 
+enum class InitializeExistingObject {
+    No,
+    Yes,
+};
+
+static void generate_prototype_or_global_mixin_initialization(IDL::Interface const&, StringBuilder&, GenerateUnforgeables, InitializeExistingObject);
+
 static void generate_prototype_or_global_mixin_initialization(IDL::Interface const& interface, StringBuilder& builder, GenerateUnforgeables generate_unforgeables)
+{
+    generate_prototype_or_global_mixin_initialization(interface, builder, generate_unforgeables, InitializeExistingObject::No);
+}
+
+static void generate_prototype_or_global_mixin_initialization(IDL::Interface const& interface, StringBuilder& builder, GenerateUnforgeables generate_unforgeables, InitializeExistingObject initialize_existing_object)
 {
     SourceGenerator generator { builder };
 
@@ -4358,7 +4538,7 @@ static void generate_prototype_or_global_mixin_initialization(IDL::Interface con
         generator.set("iterator_name", ByteString::formatted("{}Iterator", interface.fully_qualified_name));
     }
 
-    bool define_on_existing_object = is_global_interface || generate_unforgeables == GenerateUnforgeables::Yes;
+    bool define_on_existing_object = is_global_interface || generate_unforgeables == GenerateUnforgeables::Yes || initialize_existing_object == InitializeExistingObject::Yes;
 
     if (define_on_existing_object) {
         generator.set("define_direct_accessor", "object.define_direct_accessor");
@@ -4379,7 +4559,7 @@ static void generate_prototype_or_global_mixin_initialization(IDL::Interface con
 void @class_name@::define_unforgeable_attributes(JS::Realm& realm, [[maybe_unused]] JS::Object& object)
 {
 )~~~");
-    } else if (is_global_interface) {
+    } else if (is_global_interface || initialize_existing_object == InitializeExistingObject::Yes) {
         generator.append(R"~~~(
 void @class_name@::initialize(JS::Realm& realm, JS::Object& object)
 {
@@ -6014,10 +6194,11 @@ private:
 }
 
 // https://webidl.spec.whatwg.org/#define-the-operations
-static void define_the_operations(SourceGenerator& generator, OrderedHashMap<ByteString, Vector<Function&>> const& operations)
+static void define_the_operations(SourceGenerator& generator, OrderedHashMap<ByteString, Vector<Function&>> const& operations, StringView define_native_function = "define_native_function"sv)
 {
     for (auto const& operation : operations) {
         auto function_generator = generator.fork();
+        function_generator.set("define_native_function", define_native_function);
         function_generator.set("function.name", operation.key);
         function_generator.set("function.name:snakecase", make_input_acceptable_cpp(operation.key.to_snakecase()));
         function_generator.set("function.length", ByteString::number(get_shortest_function_length(operation.value)));
@@ -6029,9 +6210,181 @@ static void define_the_operations(SourceGenerator& generator, OrderedHashMap<Byt
             function_generator.set("function.attributes", "JS::Attribute::Writable | JS::Attribute::Enumerable | JS::Attribute::Configurable");
 
         function_generator.append(R"~~~(
-    define_native_function(realm, "@function.name@"_utf16_fly_string, @function.name:snakecase@, @function.length@, @function.attributes@);
+    @define_native_function@(realm, "@function.name@"_utf16_fly_string, @function.name:snakecase@, @function.length@, @function.attributes@);
 )~~~");
     }
+}
+
+static void generate_constructor_declarations(IDL::Interface const& interface, StringBuilder& builder)
+{
+    SourceGenerator generator { builder };
+
+    for (auto const& overload_set : interface.constructor_overload_sets) {
+        auto constructor_generator = generator.fork();
+        if (overload_set.value.size() > 1) {
+            for (auto i = 0u; i < overload_set.value.size(); ++i) {
+                constructor_generator.set("overload_suffix", ByteString::number(i));
+                constructor_generator.append(R"~~~(
+    static JS::ThrowCompletionOr<GC::Ref<JS::Object>> construct@overload_suffix@(InterfaceConstructor&, JS::FunctionObject&);
+)~~~");
+            }
+        }
+    }
+
+    for (auto& attribute : interface.static_attributes) {
+        auto attribute_generator = generator.fork();
+        attribute_generator.set("attribute.name:snakecase", attribute.name.to_snakecase());
+        attribute_generator.append(R"~~~(
+    JS_DECLARE_NATIVE_FUNCTION(@attribute.name:snakecase@_getter);
+)~~~");
+
+        if (!attribute.readonly) {
+            attribute_generator.append(R"~~~(
+    JS_DECLARE_NATIVE_FUNCTION(@attribute.name:snakecase@_setter);
+)~~~");
+        }
+    }
+
+    for (auto const& overload_set : interface.static_overload_sets) {
+        auto function_generator = generator.fork();
+        function_generator.set("function.name:snakecase", make_input_acceptable_cpp(overload_set.key.to_snakecase()));
+        function_generator.append(R"~~~(
+    JS_DECLARE_NATIVE_FUNCTION(@function.name:snakecase@);
+)~~~");
+        if (overload_set.value.size() > 1) {
+            for (auto i = 0u; i < overload_set.value.size(); ++i) {
+                function_generator.set("overload_suffix", ByteString::number(i));
+                function_generator.append(R"~~~(
+    JS_DECLARE_NATIVE_FUNCTION(@function.name:snakecase@@overload_suffix@);
+)~~~");
+            }
+        }
+    }
+}
+
+static void generate_constructor_initialization_for_existing_object(IDL::Interface const& interface, StringBuilder& builder)
+{
+    SourceGenerator generator { builder };
+
+    generator.set("name", interface.name);
+    generator.set("namespaced_name", interface.namespaced_name);
+    generator.set("prototype_class", interface.prototype_class);
+    generator.set("constructor_class", interface.constructor_class);
+    generator.set("parent_name", interface.parent_name);
+    generator.set("prototype_base_class", interface.prototype_base_class);
+
+    auto shortest_length = interface.constructors.is_empty() ? 0u : NumericLimits<size_t>::max();
+    for (auto const& constructor : interface.constructors)
+        shortest_length = min(shortest_length, constructor.shortest_length());
+    generator.set("constructor.length", ByteString::number(shortest_length));
+
+    generator.append(R"~~~(
+void @constructor_class@::initialize(JS::Realm& realm, JS::NativeFunction& object)
+{
+    auto& vm = realm.vm();
+    [[maybe_unused]] u8 default_attributes = JS::Attribute::Enumerable;
+)~~~");
+
+    if (!interface.is_callback_interface && interface.prototype_base_class != "ObjectPrototype") {
+        generator.append(R"~~~(
+    object.set_prototype(&ensure_web_constructor<@prototype_base_class@>(realm, "@parent_name@"_fly_string));
+)~~~");
+    }
+
+    generator.append(R"~~~(
+    object.define_direct_property(vm.names.length, JS::Value(@constructor.length@), JS::Attribute::Configurable);
+    object.define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, "@name@"_string), JS::Attribute::Configurable);
+)~~~");
+
+    if (!interface.is_callback_interface) {
+        generator.append(R"~~~(
+    object.define_direct_property(vm.names.prototype, &ensure_web_prototype<@prototype_class@>(realm, "@namespaced_name@"_fly_string), 0);
+)~~~");
+    }
+
+    for (auto& constant : interface.constants) {
+        auto constant_generator = generator.fork();
+        constant_generator.set("constant.name", constant.name);
+
+        generate_wrap_statement(constant_generator, constant.value, constant.type, interface.context, ByteString::formatted("auto constant_{}_value =", constant.name));
+
+        constant_generator.append(R"~~~(
+    object.define_direct_property("@constant.name@"_utf16_fly_string, constant_@constant.name@_value, JS::Attribute::Enumerable);
+)~~~");
+    }
+
+    for (auto& attribute : interface.static_attributes) {
+        auto attribute_generator = generator.fork();
+        attribute_generator.set("attribute.name", attribute.name);
+        attribute_generator.set("attribute.getter_callback", attribute.getter_callback_name);
+
+        if (!attribute.readonly)
+            attribute_generator.set("attribute.setter_callback", attribute.setter_callback_name);
+        else
+            attribute_generator.set("attribute.setter_callback", "nullptr");
+
+        attribute_generator.append(R"~~~(
+    object.define_native_accessor(realm, "@attribute.name@"_utf16_fly_string, @attribute.getter_callback@, @attribute.setter_callback@, default_attributes);
+)~~~");
+    }
+
+    define_the_operations(generator, interface.static_overload_sets, "object.define_native_function"sv);
+
+    generator.append(R"~~~(
+}
+)~~~");
+}
+
+static void generate_constructor_static_member_definitions(IDL::Interface const& interface, StringBuilder& builder)
+{
+    SourceGenerator generator { builder };
+
+    generator.set("constructor_class", interface.constructor_class);
+    generator.set("namespaced_name", interface.namespaced_name);
+    generator.set("fully_qualified_name", interface.fully_qualified_name);
+
+    generate_shared_constructors(generator, interface);
+
+    for (auto& attribute : interface.static_attributes) {
+        auto attribute_generator = generator.fork();
+        attribute_generator.set("attribute.name", attribute.name);
+        attribute_generator.set("attribute.getter_callback", attribute.getter_callback_name);
+        attribute_generator.set("attribute.setter_callback", attribute.setter_callback_name);
+
+        if (attribute.extended_attributes.contains("ImplementedAs")) {
+            auto implemented_as = attribute.extended_attributes.get("ImplementedAs").value();
+            attribute_generator.set("attribute.cpp_name", implemented_as);
+        } else {
+            attribute_generator.set("attribute.cpp_name", attribute.name.to_snakecase());
+        }
+
+        attribute_generator.append(R"~~~(
+JS_DEFINE_NATIVE_FUNCTION(@constructor_class@::@attribute.getter_callback@)
+{
+    WebIDL::log_trace(vm, "@constructor_class@::@attribute.getter_callback@");
+    auto retval = TRY(throw_dom_exception_if_needed(vm, [&] { return @fully_qualified_name@::@attribute.cpp_name@(vm); }));
+)~~~");
+
+        generate_return_statement(generator, *attribute.type, interface);
+
+        attribute_generator.append(R"~~~(
+}
+)~~~");
+    }
+
+    for (auto& function : interface.static_functions) {
+        if (function.extended_attributes.contains("FIXME"))
+            continue;
+        generate_function(generator, function, StaticFunction::Yes, interface.constructor_class, interface.fully_qualified_name, interface);
+    }
+    for (auto const& overload_set : interface.static_overload_sets) {
+        if (overload_set.value.size() == 1)
+            continue;
+        generate_overload_arbiter(generator, overload_set, interface, interface.constructor_class, IsConstructor::No);
+    }
+
+    generator.append(R"~~~(
+)~~~");
 }
 
 static void generate_namespace_implementation(IDL::Interface const& interface, StringBuilder& builder)
@@ -6784,6 +7137,7 @@ static void generate_header_for_interface(IDL::Interface const& interface, Strin
 {
     builder.append(R"~~~(#pragma once
 
+#include <LibWeb/Bindings/InterfaceObject.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Object.h>
 
@@ -6814,6 +7168,36 @@ namespace Web::Bindings {
 namespace Web::Bindings {
 
 )~~~"sv);
+
+    if (can_use_shared_interface_objects(interface)) {
+        SourceGenerator generator { builder };
+        generator.set("constructor_class", interface.constructor_class);
+        generator.set("prototype_class", interface.prototype_class);
+        generator.append(R"~~~(
+struct @constructor_class@ {
+public:
+    static void initialize(JS::Realm&, JS::NativeFunction&);
+    static JS::ThrowCompletionOr<GC::Ref<JS::Object>> construct(InterfaceConstructor&, JS::FunctionObject&);
+
+private:
+)~~~");
+        generate_constructor_declarations(interface, builder);
+        generator.append(R"~~~(
+};
+
+struct @prototype_class@ {
+public:
+    static void initialize(JS::Realm&, JS::Object&);
+    static void define_unforgeable_attributes(JS::Realm&, JS::Object&);
+
+private:
+)~~~");
+        generate_prototype_or_global_mixin_declarations(interface, builder);
+        builder.append(R"~~~(
+} // namespace Web::Bindings
+)~~~"sv);
+        return;
+    }
 
     if (interface.is_namespace) {
         generate_namespace_header(interface, builder);
@@ -6878,6 +7262,20 @@ namespace Web::Bindings {
 
 static void generate_implementation_for_interface(IDL::Interface const& interface, StringBuilder& builder)
 {
+    if (can_use_shared_interface_objects(interface)) {
+        generate_implementation_prologue(interface, builder);
+        generate_constructor_initialization_for_existing_object(interface, builder);
+        generate_constructor_static_member_definitions(interface, builder);
+        generate_prototype_or_global_mixin_initialization(interface, builder, GenerateUnforgeables::No, InitializeExistingObject::Yes);
+        generate_prototype_or_global_mixin_initialization(interface, builder, GenerateUnforgeables::Yes);
+        generate_prototype_or_global_mixin_definitions(interface, builder);
+        generate_idl_value_conversion_implementations(module_for_path(interface.context, interface.module_own_path), builder);
+        builder.append(R"~~~(
+} // namespace Web::Bindings
+)~~~"sv);
+        return;
+    }
+
     generate_implementation_prologue(interface, builder);
 
     if (interface.is_namespace) {

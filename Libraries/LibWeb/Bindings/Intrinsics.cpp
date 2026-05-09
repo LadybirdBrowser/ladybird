@@ -8,6 +8,7 @@
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Object.h>
+#include <LibWeb/Bindings/InterfaceObject.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 
@@ -44,6 +45,26 @@ GC::Ref<JS::NativeFunction> Intrinsics::ensure_web_unforgeable_function(
     auto function = JS::NativeFunction::create(*m_realm, move(behaviour), type == UnforgeableKey::Type::Setter ? 1 : 0, attribute_name, m_realm, type == UnforgeableKey::Type::Setter ? "set"sv : "get"sv);
     m_unforgeable_functions.set(key, *function);
     return *function;
+}
+
+JS::Object& Intrinsics::existing_web_prototype(FlyString const& class_name)
+{
+    auto it = m_prototypes.find(class_name);
+    VERIFY(it != m_prototypes.end());
+    return *it->value;
+}
+
+void Intrinsics::create_web_prototype_and_constructor(JS::Realm& realm, InterfaceObjectMetadata const& metadata)
+{
+    auto& vm = realm.vm();
+
+    auto prototype = realm.create<InterfacePrototypeObject>(realm, metadata);
+    m_prototypes.set(FlyString::from_utf8_without_validation(metadata.namespaced_name.bytes()), prototype);
+
+    auto constructor = realm.create<InterfaceConstructor>(realm, metadata);
+    m_constructors.set(FlyString::from_utf8_without_validation(metadata.namespaced_name.bytes()), constructor);
+
+    prototype->define_direct_property(vm.names.constructor, constructor.ptr(), JS::Attribute::Writable | JS::Attribute::Configurable);
 }
 
 }

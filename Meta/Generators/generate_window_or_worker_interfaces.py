@@ -153,6 +153,27 @@ def should_have_interface_object(interface: Interface) -> bool:
     return True
 
 
+def can_use_shared_interface_objects(interface: Interface) -> bool:
+    return (
+        not interface.is_namespace
+        and not interface.is_callback_interface
+        and "Global" not in interface.extended_attributes
+        and lookup_legacy_constructor(interface) is None
+        and not interface.has_special_member
+        and interface.named_property_getter is None
+        and interface.indexed_property_getter is None
+    )
+
+
+def interface_prototype_has_immutable_prototype(interface: Interface) -> bool:
+    # NB: This currently assumes only Workers and Window can be globals.
+    return (
+        "Global" in interface.extended_attributes
+        or interface.name == "WorkerGlobalScope"
+        or interface.name == "EventTarget"
+    )
+
+
 def lookup_legacy_constructor(interface: Interface) -> Optional[LegacyConstructor]:
     legacy_factory_function = interface.extended_attributes.get("LegacyFactoryFunction")
     if not legacy_factory_function:
@@ -202,6 +223,7 @@ def write_intrinsic_definitions_implementation(out: TextIO, interface_sets: Inte
     out.write(
         """#include <LibGC/DeferGC.h>
 #include <LibJS/Runtime/Object.h>
+#include <LibWeb/Bindings/InterfaceObject.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Export.h>
@@ -375,6 +397,38 @@ void Intrinsics::create_web_namespace<{interface.namespace_class}>(JS::Realm& re
 
 
 def write_interface_creation(out: TextIO, interface: Interface) -> None:
+    if can_use_shared_interface_objects(interface):
+        out.write(
+            f"""template<>
+WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototype_class}>(JS::Realm& realm)
+{{
+"""
+        )
+
+        ensure_parent_prototype = "nullptr"
+        ensure_parent_constructor = "nullptr"
+        if interface.parent_name:
+            ensure_parent_prototype = f"""[](JS::Realm& realm) -> JS::Object& {{ return Web::Bindings::ensure_web_prototype<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_fly_string); }}"""
+            ensure_parent_constructor = f"""[](JS::Realm& realm) -> JS::NativeFunction& {{ return Web::Bindings::ensure_web_constructor<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_fly_string); }}"""
+
+        out.write(
+            f"""    static constexpr InterfaceObjectMetadata metadata {{
+        .name = "{interface.name}"sv,
+        .namespaced_name = "{interface.namespaced_name}"sv,
+        .ensure_parent_prototype = {ensure_parent_prototype},
+        .ensure_parent_constructor = {ensure_parent_constructor},
+        .initialize_constructor = &{interface.constructor_class}::initialize,
+        .initialize_prototype = &{interface.prototype_class}::initialize,
+        .define_unforgeable_attributes = &{interface.prototype_class}::define_unforgeable_attributes,
+        .construct = &{interface.constructor_class}::construct,
+        .has_immutable_prototype = {str(interface_prototype_has_immutable_prototype(interface)).lower()},
+    }};
+    create_web_prototype_and_constructor(realm, metadata);
+}}
+"""
+        )
+        return
+
     named_properties_class = ""
     if "Global" in interface.extended_attributes and interface.supports_named_properties():
         named_properties_class = f"{interface.name}Properties"

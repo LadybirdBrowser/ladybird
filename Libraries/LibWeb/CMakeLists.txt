@@ -20,6 +20,7 @@ set(SOURCES
     Bindings/AudioConstructor.cpp
     Bindings/HostDefined.cpp
     Bindings/ImageConstructor.cpp
+    Bindings/InterfaceObject.cpp
     Bindings/Intrinsics.cpp
     Bindings/MainThreadVM.cpp
     Bindings/OptionConstructor.cpp

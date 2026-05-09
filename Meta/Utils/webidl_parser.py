@@ -34,6 +34,7 @@ class Interface:
     constants: List[Constant] = field(default_factory=list)
     named_property_getter: Optional[SpecialOperation] = None
     indexed_property_getter: Optional[SpecialOperation] = None
+    has_special_member: bool = False
     implemented_name: str = ""
     namespaced_name: str = ""
     constructor_class: str = ""
@@ -237,6 +238,14 @@ class Parser:
                 interface.constants.append(Constant(stripped_statement))
                 continue
 
+            if (
+                stripped_statement.startswith("iterable<")
+                or stripped_statement.startswith("async iterable<")
+                or stripped_statement.startswith("maplike<")
+                or stripped_statement.startswith("setlike<")
+            ):
+                interface.has_special_member = True
+
             if stripped_statement.startswith("getter "):
                 identifier_type = parse_special_operation_identifier_type(stripped_statement)
                 special_operation = SpecialOperation(identifier_type=identifier_type, declaration=stripped_statement)
@@ -249,6 +258,7 @@ class Parser:
                     self.raise_parse_error(
                         f"named/indexed property getter must use DOMString or unsigned long, got '{identifier_type}'"
                     )
+                continue
 
     def parse_extended_attributes(self) -> Dict[str, str]:
         extended_attributes: Dict[str, str] = {}

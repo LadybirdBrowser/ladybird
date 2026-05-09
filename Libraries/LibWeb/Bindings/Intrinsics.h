@@ -27,6 +27,8 @@
 
 namespace Web::Bindings {
 
+struct InterfaceObjectMetadata;
+
 struct UnforgeableKey {
     enum class Type {
         Setter,
@@ -85,6 +87,8 @@ public:
         Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> behaviour,
         UnforgeableKey::Type);
 
+    JS::Object& existing_web_prototype(FlyString const&);
+
 private:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
@@ -93,6 +97,7 @@ private:
 
     template<typename PrototypeType>
     void create_web_prototype_and_constructor(JS::Realm& realm);
+    void create_web_prototype_and_constructor(JS::Realm& realm, InterfaceObjectMetadata const&);
 
     HashMap<FlyString, GC::Ref<JS::Object>> m_namespaces;
     HashMap<FlyString, GC::Ref<JS::Object>> m_prototypes;
