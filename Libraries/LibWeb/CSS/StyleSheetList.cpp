@@ -7,9 +7,7 @@
 
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/StyleSheetList.h>
-#include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleSheetInvalidation.h>
 #include <LibWeb/CSS/StyleSheetList.h>
 #include <LibWeb/DOM/Document.h>
@@ -87,60 +85,6 @@ GC::Ref<CSSStyleSheet> StyleSheetList::create_a_css_style_sheet(String const& cs
     return sheet;
 }
 
-static StyleSheetInvalidationSet build_invalidation_set_for_stylesheet(CSSStyleSheet const& sheet)
-{
-    StyleSheetInvalidationSet result;
-
-    sheet.for_each_effective_style_producing_rule([&](CSSRule const& rule) {
-        if (result.invalidation_set.needs_invalidate_whole_subtree())
-            return;
-        if (auto const* style_rule = as_if<CSSStyleRule>(rule))
-            extend_style_sheet_invalidation_set_with_style_rule(result, *style_rule);
-    });
-
-    return result;
-}
-
-static bool rule_requires_broad_add_or_remove_invalidation(CSSRule const& rule)
-{
-    switch (rule.type()) {
-    case CSSRule::Type::Property:
-    case CSSRule::Type::CounterStyle:
-    case CSSRule::Type::LayerBlock:
-    case CSSRule::Type::LayerStatement:
-    // @font-feature-values changes how font-variant-alternates resolves at computed-style time, so
-    // a declaration-time mutation still requires a whole-subtree restyle.
-    case CSSRule::Type::FontFeatureValues:
-        return true;
-    // OPTIMIZATION: @font-face declares a resource whose effect on computed style is deferred until
-    //               the font actually loads (handled by CSSFontLoaded). Adding or removing the
-    //               at-rule itself doesn't change any element's computed style.
-    case CSSRule::Type::FontFace:
-    // OPTIMIZATION: @keyframes rules only matter for elements that already reference the named
-    //               animation. Sheet add/remove handles each contained @keyframes rule with a
-    //               targeted invalidation (see invalidate_root_for_keyframes_rules_in_sheet)
-    //               instead of forcing a whole-subtree restyle here.
-    case CSSRule::Type::Keyframes:
-    default:
-        break;
-    }
-
-    return false;
-}
-
-static bool stylesheet_requires_broad_add_or_remove_invalidation(CSSStyleSheet const& sheet)
-{
-    bool requires_broad_invalidation = false;
-    sheet.for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& rule) {
-        if (requires_broad_invalidation)
-            return;
-        // Add/remove invalidation still has to look at effective non-style rules such as @keyframes or @layer, but
-        // inactive top-level media sheets should contribute nothing at all here.
-        requires_broad_invalidation = rule_requires_broad_add_or_remove_invalidation(rule);
-    });
-    return requires_broad_invalidation;
-}
-
 void StyleSheetList::add_sheet(CSSStyleSheet& sheet)
 {
     sheet.add_owning_document_or_shadow_root(document_or_shadow_root());
@@ -171,83 +115,16 @@ void StyleSheetList::add_sheet(CSSStyleSheet& sheet)
     //       If we don't do this, we invalidate now, and then again when Document updates media rules.
     sheet.evaluate_media_queries(document());
 
-    if (sheet.rules().length() == 0) {
-        // NOTE: If the added sheet has no rules, we don't have to invalidate anything.
-        return;
-    }
-
-    if (auto* shadow_root = as_if<DOM::ShadowRoot>(document_or_shadow_root())) {
-        shadow_root->style_scope().invalidate_rule_cache();
-    } else {
-        document_or_shadow_root().document().style_scope().invalidate_rule_cache();
-    }
-
-    if (!document_or_shadow_root().is_shadow_root() && document_or_shadow_root().entire_subtree_needs_style_update()) {
-        // NOTE: If the entire subtree is already marked for style update,
-        //       there's no point spending time building invalidation sets.
-        //       Shadow roots are special: :host(...) and ::slotted(...) can
-        //       still require follow-up invalidation outside that subtree.
-        return;
-    }
-
-    auto invalidation_set_result = build_invalidation_set_for_stylesheet(sheet);
-    bool requires_broad_invalidation = invalidation_set_result.invalidation_set.needs_invalidate_whole_subtree()
-        || stylesheet_requires_broad_add_or_remove_invalidation(sheet);
-    if (requires_broad_invalidation) {
-        if (auto* shadow_root = as_if<DOM::ShadowRoot>(document_or_shadow_root())) {
-            auto effects = determine_shadow_root_stylesheet_effects(*shadow_root);
-            invalidation_set_result.may_match_shadow_host |= effects.may_match_shadow_host;
-            invalidation_set_result.may_match_light_dom_under_shadow_host |= effects.may_match_light_dom_under_shadow_host;
-            invalidation_set_result.may_match_light_dom_outside_shadow_host |= effects.may_match_light_dom_outside_shadow_host;
-        }
-    }
-
-    invalidate_root_for_style_sheet_change(document_or_shadow_root(), invalidation_set_result, DOM::StyleInvalidationReason::StyleSheetListAddSheet, requires_broad_invalidation);
-
-    // OPTIMIZATION: Walk @keyframes rules in the new sheet and dirty only the elements that already
-    //               reference each animation-name, so a sheet add carrying @keyframes does not have
-    //               to escalate to a whole-subtree restyle.
-    invalidate_root_for_keyframes_rules_in_sheet(document_or_shadow_root(), sheet);
+    invalidate_style_for_stylesheet_change(document_or_shadow_root(), sheet, DOM::StyleInvalidationReason::StyleSheetListAddSheet);
 }
 
 void StyleSheetList::remove_sheet(CSSStyleSheet& sheet)
 {
-    auto invalidation_set_result = build_invalidation_set_for_stylesheet(sheet);
-    bool requires_broad_invalidation = invalidation_set_result.invalidation_set.needs_invalidate_whole_subtree()
-        || stylesheet_requires_broad_add_or_remove_invalidation(sheet);
-
     sheet.remove_owning_document_or_shadow_root(document_or_shadow_root());
     bool did_remove = m_sheets.remove_first_matching([&](auto& entry) { return entry.ptr() == &sheet; });
     VERIFY(did_remove);
 
-    if (sheet.rules().length() == 0) {
-        // NOTE: If the removed sheet had no rules, we don't have to invalidate anything.
-        return;
-    }
-
-    if (auto* shadow_root = as_if<DOM::ShadowRoot>(document_or_shadow_root())) {
-        shadow_root->style_scope().invalidate_rule_cache();
-    } else {
-        document_or_shadow_root().document().style_scope().invalidate_rule_cache();
-    }
-
-    if (!document_or_shadow_root().is_shadow_root() && document_or_shadow_root().entire_subtree_needs_style_update())
-        return;
-
-    if (requires_broad_invalidation) {
-        if (auto* shadow_root = as_if<DOM::ShadowRoot>(document_or_shadow_root())) {
-            auto effects = determine_shadow_root_stylesheet_effects(*shadow_root);
-            invalidation_set_result.may_match_shadow_host |= effects.may_match_shadow_host;
-            invalidation_set_result.may_match_light_dom_under_shadow_host |= effects.may_match_light_dom_under_shadow_host;
-            invalidation_set_result.may_match_light_dom_outside_shadow_host |= effects.may_match_light_dom_outside_shadow_host;
-        }
-    }
-
-    invalidate_root_for_style_sheet_change(document_or_shadow_root(), invalidation_set_result, DOM::StyleInvalidationReason::StyleSheetListRemoveSheet, requires_broad_invalidation);
-
-    // OPTIMIZATION: Mirror the sheet-add path for @keyframes — only elements still referencing the
-    //               removed animation-name need to be restyled, not the entire subtree.
-    invalidate_root_for_keyframes_rules_in_sheet(document_or_shadow_root(), sheet);
+    invalidate_style_for_stylesheet_change(document_or_shadow_root(), sheet, DOM::StyleInvalidationReason::StyleSheetListRemoveSheet);
 }
 
 GC::Ref<StyleSheetList> StyleSheetList::create(GC::Ref<DOM::Node> document_or_shadow_root)

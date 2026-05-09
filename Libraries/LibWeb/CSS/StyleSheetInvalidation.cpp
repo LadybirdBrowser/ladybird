@@ -497,6 +497,89 @@ void invalidate_root_for_style_sheet_change(DOM::Node& root, StyleSheetInvalidat
     }
 }
 
+static bool rule_requires_broad_add_or_remove_invalidation(CSSRule const& rule)
+{
+    switch (rule.type()) {
+    case CSSRule::Type::Property:
+    case CSSRule::Type::CounterStyle:
+    case CSSRule::Type::LayerBlock:
+    case CSSRule::Type::LayerStatement:
+    // @font-feature-values changes how font-variant-alternates resolves at computed-style time, so
+    // a declaration-time mutation still requires a whole-subtree restyle.
+    case CSSRule::Type::FontFeatureValues:
+        return true;
+    // OPTIMIZATION: @font-face declares a resource whose effect on computed style is deferred until
+    //               the font actually loads (handled by CSSFontLoaded). Adding or removing the
+    //               at-rule itself doesn't change any element's computed style.
+    case CSSRule::Type::FontFace:
+    // OPTIMIZATION: @keyframes rules only matter for elements that already reference the named
+    //               animation. Sheet add/remove handles each contained @keyframes rule with a
+    //               targeted invalidation (see invalidate_root_for_keyframes_rules_in_sheet)
+    //               instead of forcing a whole-subtree restyle here.
+    case CSSRule::Type::Keyframes:
+    default:
+        break;
+    }
+
+    return false;
+}
+
+void invalidate_style_for_stylesheet_change(DOM::Node& document_or_shadow_root, CSSStyleSheet const& sheet, DOM::StyleInvalidationReason reason)
+{
+    if (sheet.rules().length() == 0) {
+        // NOTE: If the added sheet has no rules, we don't have to invalidate anything.
+        return;
+    }
+
+    if (auto* shadow_root = as_if<DOM::ShadowRoot>(document_or_shadow_root)) {
+        shadow_root->style_scope().invalidate_rule_cache();
+    } else {
+        document_or_shadow_root.document().style_scope().invalidate_rule_cache();
+    }
+
+    if (!document_or_shadow_root.is_shadow_root() && document_or_shadow_root.entire_subtree_needs_style_update()) {
+        // NOTE: If the entire subtree is already marked for style update,
+        //       there's no point spending time building invalidation sets.
+        //       Shadow roots are special: :host(...) and ::slotted(...) can
+        //       still require follow-up invalidation outside that subtree.
+        return;
+    }
+
+    // OPTIMIZATION: Build the targeted invalidation set and check for broad-invalidation-triggering rule kinds in
+    //               a single walk over the sheet's effective rules, so the sheet's @media gates evaluate once and
+    //               every rule is visited once instead of twice.
+    StyleSheetInvalidationSet invalidation_set_result;
+    bool sheet_contains_broad_invalidation_rule = false;
+    sheet.for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& rule) {
+        // Add/remove invalidation still has to look at effective non-style rules such as @keyframes or @layer, but
+        // inactive top-level media sheets should contribute nothing at all here.
+        if (!sheet_contains_broad_invalidation_rule && rule_requires_broad_add_or_remove_invalidation(rule))
+            sheet_contains_broad_invalidation_rule = true;
+        if (invalidation_set_result.invalidation_set.needs_invalidate_whole_subtree())
+            return;
+        if (auto const* style_rule = as_if<CSSStyleRule>(rule))
+            extend_style_sheet_invalidation_set_with_style_rule(invalidation_set_result, *style_rule);
+    });
+
+    bool requires_broad_invalidation = invalidation_set_result.invalidation_set.needs_invalidate_whole_subtree()
+        || sheet_contains_broad_invalidation_rule;
+    if (requires_broad_invalidation) {
+        if (auto* shadow_root = as_if<DOM::ShadowRoot>(document_or_shadow_root)) {
+            auto effects = determine_shadow_root_stylesheet_effects(*shadow_root);
+            invalidation_set_result.may_match_shadow_host |= effects.may_match_shadow_host;
+            invalidation_set_result.may_match_light_dom_under_shadow_host |= effects.may_match_light_dom_under_shadow_host;
+            invalidation_set_result.may_match_light_dom_outside_shadow_host |= effects.may_match_light_dom_outside_shadow_host;
+        }
+    }
+
+    invalidate_root_for_style_sheet_change(document_or_shadow_root, invalidation_set_result, reason, requires_broad_invalidation);
+
+    // OPTIMIZATION: Walk @keyframes rules in the new sheet and dirty only the elements that already
+    //               reference each animation-name, so a sheet add carrying @keyframes does not have
+    //               to escalate to a whole-subtree restyle.
+    invalidate_root_for_keyframes_rules_in_sheet(document_or_shadow_root, sheet);
+}
+
 void invalidate_owners_for_inserted_style_rule(CSSStyleSheet const& style_sheet, CSSStyleRule const& style_rule, DOM::StyleInvalidationReason reason)
 {
     StyleSheetInvalidationSet invalidation_set;
