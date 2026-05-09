@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Weak.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
@@ -51,8 +52,17 @@ SharedResourceRequest::~SharedResourceRequest() = default;
 void SharedResourceRequest::finalize()
 {
     Base::finalize();
-    auto& shared_resource_requests = m_document->shared_resource_requests();
-    shared_resource_requests.remove(m_url);
+
+    m_callbacks.clear();
+    m_load_event_delayer.clear();
+    m_image_data = nullptr;
+    m_fetch_controller = nullptr;
+
+    if (m_document) {
+        auto& shared_resource_requests = m_document->shared_resource_requests();
+        shared_resource_requests.remove(m_url);
+        m_document = nullptr;
+    }
 }
 
 void SharedResourceRequest::visit_edges(JS::Cell::Visitor& visitor)
@@ -85,24 +95,37 @@ void SharedResourceRequest::set_fetch_controller(GC::Ptr<Fetch::Infrastructure::
 
 void SharedResourceRequest::fetch_resource(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Request> request)
 {
+    GC::Weak weak_this { *this };
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
-    fetch_algorithms_input.process_response = [this, &realm, request](GC::Ref<Fetch::Infrastructure::Response> response) {
+    fetch_algorithms_input.process_response = [weak_this, &realm, request](GC::Ref<Fetch::Infrastructure::Response> response) {
+        auto self = weak_this.ptr();
+        if (!self)
+            return;
+
         // FIXME: If the response is CORS cross-origin, we must use its internal response to query any of its data. See:
         //        https://github.com/whatwg/html/issues/9355
         response = response->unsafe_response();
 
-        auto process_body = GC::create_function(heap(), [this, request, response](ByteBuffer data) {
+        auto process_body = GC::create_function(self->heap(), [weak_this, request, response](ByteBuffer data) {
+            auto self = weak_this.ptr();
+            if (!self)
+                return;
+
             auto extracted_mime_type = Fetch::Infrastructure::extract_mime_type(response->header_list());
             auto mime_type = extracted_mime_type.has_value() ? extracted_mime_type.value().essence().bytes_as_string_view() : StringView {};
-            handle_successful_fetch(request->url(), mime_type, move(data));
+            self->handle_successful_fetch(request->url(), mime_type, move(data));
         });
-        auto process_body_error = GC::create_function(heap(), [this](JS::Value) {
-            handle_failed_fetch();
+        auto process_body_error = GC::create_function(self->heap(), [weak_this](JS::Value) {
+            auto self = weak_this.ptr();
+            if (!self)
+                return;
+
+            self->handle_failed_fetch();
         });
 
         // Check for failed fetch response
         if (!Fetch::Infrastructure::is_ok_status(response->status()) || !response->body()) {
-            handle_failed_fetch();
+            self->handle_failed_fetch();
             return;
         }
 
