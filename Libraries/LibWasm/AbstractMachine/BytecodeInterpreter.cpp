@@ -254,6 +254,25 @@ constexpr static auto should_try_to_use_direct_threading = true;
 
 namespace Wasm {
 
+struct InstructionOperandCounts {
+    ssize_t inputs;
+    ssize_t outputs;
+};
+
+static InstructionOperandCounts instruction_operand_counts(OpCode opcode)
+{
+    switch (opcode.value()) {
+#define XM(name, _, ins, outs)             \
+    case Wasm::Instructions::name.value(): \
+        return { ins, outs };
+
+        ENUMERATE_WASM_OPCODES(XM)
+#undef XM
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
 constexpr auto regname = [](auto regnum) -> ByteString {
     if (regnum == Dispatch::Stack)
         return "stack";
@@ -296,22 +315,12 @@ struct ConvertToRaw<double> {
         }                                                                                              \
     } while (false)
 
-#define XM(name, _, ins, outs)             \
-    case Wasm::Instructions::name.value(): \
-        in_count = ins;                    \
-        out_count = outs;                  \
-        break;
-
 static constexpr u64 trace_missing = NumericLimits<u64>::max();
 
 #define LOG_INSN_UNGUARDED                                                                                                                                                                                                    \
     do {                                                                                                                                                                                                                      \
         LOAD_ADDRESSES();                                                                                                                                                                                                     \
-        ssize_t in_count = 0;                                                                                                                                                                                                 \
-        ssize_t out_count = 0;                                                                                                                                                                                                \
-        switch (instruction->opcode().value()) {                                                                                                                                                                              \
-            ENUMERATE_WASM_OPCODES(XM)                                                                                                                                                                                        \
-        }                                                                                                                                                                                                                     \
+        auto [in_count, out_count] = instruction_operand_counts(instruction->opcode());                                                                                                                                       \
         u64 src_lows[3] { trace_missing, trace_missing, trace_missing };                                                                                                                                                      \
         u64 src_highs[3] { trace_missing, trace_missing, trace_missing };                                                                                                                                                     \
         ScopedValueRollback stack { configuration.value_stack() };                                                                                                                                                            \
@@ -7053,17 +7062,7 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
 
                 ([&] { if (k == marks.ip) warnln("       ^-- {}", marks.label); }(), ...);
 
-                ssize_t in_count = 0;
-                ssize_t out_count = 0;
-                switch (instruction->opcode().value()) {
-#define XM(name, _, ins, outs)             \
-    case Wasm::Instructions::name.value(): \
-        in_count = ins;                    \
-        out_count = outs;                  \
-        break;
-
-                    ENUMERATE_WASM_OPCODES(XM)
-                }
+                auto [in_count, out_count] = instruction_operand_counts(instruction->opcode());
                 for (ssize_t i = 0; i < in_count; ++i) {
                     warnln("       arg{} [{}]", i, regname(addresses.sources[i]));
                 }
@@ -7139,11 +7138,7 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         auto& addr = result.src_dst_mappings[i];
 
         // for each input, ensure it's not reading from a register that is not marked as used (unless stack).
-        ssize_t in_count = 0;
-        ssize_t out_count = 0;
-        switch (dispatch.instruction->opcode().value()) {
-            ENUMERATE_WASM_OPCODES(XM)
-        }
+        auto [in_count, out_count] = instruction_operand_counts(dispatch.instruction->opcode());
         for (ssize_t j = 0; j < in_count; ++j) {
             auto src = addr.sources[j];
             if (src == Dispatch::Stack)
