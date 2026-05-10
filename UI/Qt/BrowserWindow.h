@@ -204,6 +204,7 @@ private:
     DevToolsBanner* m_devtools_banner { nullptr };
 
     QMenu* m_hamburger_menu { nullptr };
+    QMenu* m_history_menu { nullptr };
     QMenu* m_bookmarks_menu { nullptr };
     QWidget* m_menu_bar_window_controls { nullptr };
     QToolButton* m_menu_bar_minimize_window_button { nullptr };

@@ -647,10 +647,6 @@ Vector<HistoryEntry> HistoryStore::TransientStorage::list_all_entries() const
 Vector<HistoryEntry> HistoryStore::PersistedStorage::list_all_entries() const
 {
     Vector<HistoryEntry> entries;
-    // database query should look something like this
-    // for now I am not very concerned about performance as this will
-    // just run when loading the about:history page
-    // : SELECT * FROM History ORDER BY last_visited_time DESC
 
     m_database.execute_statement(
         m_statements.list_all_entries,

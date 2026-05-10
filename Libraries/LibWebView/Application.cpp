@@ -22,7 +22,9 @@
 #include <LibDevTools/DevToolsServer.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibImageDecoderClient/Client.h>
+#include <LibURL/URL.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/Loader/UserAgent.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWebView/Application.h>
@@ -1387,6 +1389,16 @@ void Application::initialize_actions()
         m_settings.set_tab_settings(tab_settings);
     });
     update_vertical_tabs_action();
+
+    m_history_menu = Menu::create("History"sv);
+    m_history_menu->add_action(Action::create("Manage History"sv, ActionID::ManageHistory, [this](){
+        open_url_in_new_tab(URL::about_history(), Web::HTML::ActivateTab::Yes);
+    }));
+    m_history_menu->add_separator();
+    m_history_menu->add_action(Action::create("Clear History"sv, ActionID::ClearHistory, [this](){
+        clear_history();
+    }));
+    m_history_menu->add_action(reload_action());
 
     m_bookmarks_menu = Menu::create("Bookmarks"sv);
     m_bookmarks_menu->add_action(Action::create("Manage Bookmarks"sv, ActionID::ManageBookmarks, [this]() {

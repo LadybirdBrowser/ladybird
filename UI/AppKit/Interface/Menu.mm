@@ -247,6 +247,7 @@ static void initialize_native_icon(WebView::Action& action, id control)
         set_control_image(control, @"magnifyingglass");
         break;
 
+    case WebView::ActionID::ManageHistory:
     case WebView::ActionID::ManageBookmarks:
         set_control_image(control, @"bookmark");
         break;

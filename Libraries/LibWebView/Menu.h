@@ -40,6 +40,9 @@ enum class ActionID {
 
     ToggleVerticalTabsExpanded,
 
+    ManageHistory,
+    ClearHistory,
+
     ManageBookmarks,
     ToggleBookmark,
     ToggleBookmarkViaToolbar,

@@ -179,6 +179,7 @@ public:
     Menu& color_scheme_menu() { return *m_color_scheme_menu; }
     Menu& contrast_menu() { return *m_contrast_menu; }
     Menu& motion_menu() { return *m_motion_menu; }
+    Menu& history_menu() { return *m_history_menu; }
 
     Action& toggle_vertical_tabs_expanded_action() { return *m_toggle_vertical_tabs_expanded_action; }
 
@@ -377,6 +378,8 @@ private:
     Web::CSS::PreferredMotion m_motion { Web::CSS::PreferredMotion::Auto };
 
     RefPtr<Action> m_toggle_vertical_tabs_expanded_action;
+
+    RefPtr<Menu> m_history_menu;
 
     RefPtr<Menu> m_bookmarks_menu;
     RefPtr<Action> m_toggle_bookmark_action;

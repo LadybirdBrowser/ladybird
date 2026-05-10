@@ -24,6 +24,7 @@
 @property (nonatomic, weak) Tab* active_tab;
 
 @property (nonatomic, strong) NSMenu* bookmarks_menu;
+@property (nonatomic, strong) NSMenu* history_menu;
 
 @property (nonatomic, strong) InfoBar* info_bar;
 
@@ -354,17 +355,9 @@
 {
     auto* menu = [[NSMenuItem alloc] init];
 
-    auto* submenu = [[NSMenu alloc] initWithTitle:@"History"];
-    [submenu setAutoenablesItems:NO];
+    self.history_menu = Ladybird::create_application_menu(WebView::Application::the().history_menu());
+    [menu setSubmenu:self.history_menu];
 
-    [submenu addItem:Ladybird::create_application_menu_item(WebView::Application::the().reload_action())];
-    [submenu addItem:[NSMenuItem separatorItem]];
-
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Clear History"
-                                                action:@selector(clearHistory:)
-                                         keyEquivalent:@""]];
-
-    [menu setSubmenu:submenu];
     return menu;
 }
 
