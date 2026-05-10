@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<title>CSSOM View - scrollIntoView considers scroll-padding</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="author" title="Sandra Sun" href="mailto:sunyunjia@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-element-scrollintoview">
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#scroll-padding">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style>
+#scroller {
+  width: 200px;
+  height: 200px;
+  overflow: scroll;
+  scroll-padding-top: 4px;
+  scroll-padding-right: 8px;
+  scroll-padding-bottom: 12px;
+  scroll-padding-left: 16px;
+}
+#content {
+  width: 500px;
+  height: 500px;
+}
+#target {
+  position: relative;
+  left: 200px;
+  top: 200px;
+  width: 100px;
+  height: 100px;
+  background-color: lightgreen;
+}
+</style>
+
+<div id="scroller">
+  <div id="content">
+    <div id="target"></div>
+  </div>
+</div>
+<div id="log"></div>
+
+<script>
+var target = document.getElementById("target");
+var scroller = document.getElementById("scroller");
+var expectedXLeft = 200 - 16;
+var expectedXRight = 200 - scroller.clientWidth + 8 + target.clientWidth;
+var expectedXCenter = 200 - (16 + scroller.clientWidth - 8) / 2 +
+                      target.clientWidth / 2;
+
+var expectedYTop = 200 - 4;
+var expectedYBottom = 200 - scroller.clientHeight + 12 + target.clientHeight;
+var expectedYCenter = 200 - (4 + scroller.clientHeight - 12) / 2 +
+                      target.clientHeight / 2;
+
+// This formats dict as a string suitable as test name.
+// format_value() is provided by testharness.js,
+// which also preserves sign for -0.
+function format_dict(dict) {
+  const props = [];
+  for (let prop in dict) {
+    props.push(`${prop}: ${format_value(dict[prop])}`);
+  }
+  return `{${props.join(", ")}}`;
+}
+
+[
+  [{block: "center", inline: "center"}, expectedXCenter, expectedYCenter],
+  [{block: "start", inline: "start"}, expectedXLeft, expectedYTop],
+  [{block: "end", inline: "end"}, expectedXRight, expectedYBottom],
+].forEach(([input, expectedX, expectedY]) => {
+  test(() => {
+    scroller.scrollTo(0, 0);
+    target.scrollIntoView(input);
+    assert_approx_equals(scroller.scrollLeft, expectedX, 0.5, "scrollX");
+    assert_approx_equals(scroller.scrollTop, expectedY, 0.5, "scrollY");
+  }, `scrollIntoView(${format_dict(input)})`);
+})
+</script>

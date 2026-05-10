@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	scrollIntoView({block: "center", inline: "center"})
+Fail	scrollIntoView({block: "start", inline: "start"})
+Fail	scrollIntoView({block: "end", inline: "end"})
