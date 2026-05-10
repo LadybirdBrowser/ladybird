@@ -40,8 +40,7 @@ public:
         static_assert(IsSame<SpanType, Bytes> || IsSame<SpanType, ReadonlyBytes>);
         for (size_t offset = 0; offset < command_bytes.size();) {
             VERIFY(offset + sizeof(DisplayListCommandHeader) <= command_bytes.size());
-            DisplayListCommandHeader header;
-            __builtin_memcpy(&header, command_bytes.data() + offset, sizeof(header));
+            auto header = read_display_list_object<DisplayListCommandHeader>(command_bytes.slice(offset));
             offset += sizeof(header);
             VERIFY(offset + header.payload_size <= command_bytes.size());
             auto payload = SpanType { command_bytes.data() + offset, header.payload_size };
@@ -73,6 +72,19 @@ public:
 protected:
     Gfx::PaintingSurface& surface() const { return *m_surface; }
     DisplayList const& active_display_list() const { return *m_active_display_list; }
+    ReadonlyBytes inline_data(DisplayListDataSpan span) const
+    {
+        VERIFY(static_cast<size_t>(span.offset) + span.size <= m_current_command_payload.size());
+        return m_current_command_payload.slice(span.offset, span.size);
+    }
+    template<typename T>
+    ReadonlySpan<T> inline_objects(DisplayListDataSpan span) const
+    {
+        auto bytes = inline_data(span);
+        VERIFY(bytes.size() % sizeof(T) == 0);
+        VERIFY(reinterpret_cast<FlatPtr>(bytes.data()) % alignof(T) == 0);
+        return { reinterpret_cast<T const*>(bytes.data()), bytes.size() / sizeof(T) };
+    }
     void execute_impl(DisplayList const&, ScrollStateSnapshot const& scroll_state);
     void execute_impl(DisplayList const&, ScrollStateSnapshot const& scroll_state, ReadonlyBytes command_bytes);
     void execute_display_list_into_surface(DisplayList const&, Gfx::PaintingSurface&);
@@ -116,6 +128,7 @@ private:
 
     DisplayList const* m_active_display_list { nullptr };
     RefPtr<Gfx::PaintingSurface> m_surface;
+    ReadonlyBytes m_current_command_payload;
 };
 
 class DisplayList : public AtomicRefCounted<DisplayList> {
@@ -137,26 +150,11 @@ public:
     {
         return append_bytes(
             Command::command_type,
-            ReadonlyBytes { &command, sizeof(Command) },
+            display_list_object_bytes(command),
             inline_data,
             context_index,
             command_bounding_rectangle(command),
             command_is_clip(command));
-    }
-
-    ReadonlyBytes inline_data(DisplayListDataSpan span) const
-    {
-        VERIFY(static_cast<size_t>(span.offset) + span.size <= m_command_bytes.size());
-        return { m_command_bytes.data() + span.offset, span.size };
-    }
-
-    template<typename T>
-    ReadonlySpan<T> inline_objects(DisplayListDataSpan span) const
-    {
-        VERIFY(span.size % sizeof(T) == 0);
-        VERIFY(span.offset % alignof(T) == 0);
-        auto bytes = inline_data(span);
-        return { reinterpret_cast<T const*>(bytes.data()), bytes.size() / sizeof(T) };
     }
 
     AccumulatedVisualContextTree const& visual_context_tree() const { return *m_visual_context_tree; }

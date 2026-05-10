@@ -8,6 +8,7 @@
 
 #include <AK/Forward.h>
 #include <AK/Optional.h>
+#include <AK/Span.h>
 #include <AK/StdLibExtras.h>
 #include <AK/Types.h>
 #include <LibGfx/AffineTransform.h>
@@ -70,6 +71,7 @@ enum class DisplayListCommandType : u8 {
 };
 
 struct DisplayListDataSpan {
+    // Offset into the command payload containing this span.
     u32 offset { 0 };
     u32 size { 0 };
 
@@ -546,13 +548,35 @@ concept DisplayListCommand = requires {
     Command::command_type;
 };
 
+template<typename T>
+requires(IsTriviallyCopyable<T>)
+ReadonlyBytes display_list_object_bytes(T const& object)
+{
+    return { &object, sizeof(T) };
+}
+
+template<typename T>
+requires(IsTriviallyCopyable<T>)
+T read_display_list_object(ReadonlyBytes bytes)
+{
+    VERIFY(bytes.size() >= sizeof(T));
+    T object;
+    __builtin_memcpy(&object, bytes.data(), sizeof(T));
+    return object;
+}
+
+template<typename T>
+requires(IsTriviallyCopyable<T>)
+void write_display_list_object(Bytes bytes, T const& object)
+{
+    VERIFY(bytes.size() >= sizeof(T));
+    __builtin_memcpy(bytes.data(), &object, sizeof(T));
+}
+
 template<DisplayListCommand Command>
 Command read_display_list_command_payload(ReadonlyBytes payload)
 {
-    VERIFY(payload.size() >= sizeof(Command));
-    Command command;
-    __builtin_memcpy(&command, payload.data(), sizeof(Command));
-    return command;
+    return read_display_list_object<Command>(payload);
 }
 
 template<typename Callback>
@@ -594,9 +618,9 @@ inline int display_list_command_nesting_level_change(DisplayListCommandType comm
     });
 }
 
-static_assert(__is_trivially_copyable(DisplayListCommandHeader));
+static_assert(IsTriviallyCopyable<DisplayListCommandHeader>);
 
-#define VERIFY_DISPLAY_LIST_COMMAND(command, player_method) static_assert(IsTriviallyDestructible<command>);
+#define VERIFY_DISPLAY_LIST_COMMAND(command, player_method) static_assert(IsTriviallyCopyable<command>);
 ENUMERATE_DISPLAY_LIST_COMMANDS(VERIFY_DISPLAY_LIST_COMMAND)
 #undef VERIFY_DISPLAY_LIST_COMMAND
 

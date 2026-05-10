@@ -68,20 +68,21 @@ public:
         auto absolute_offset = m_payload_start_offset + m_payload_size;
         auto padded_offset = align_up_to(absolute_offset, alignment);
         auto padding = padded_offset - absolute_offset;
+        auto payload_relative_offset = m_payload_size + padding;
         m_inline_payload.resize(m_inline_payload.size() + padding);
-        m_payload_size += padding + bytes.size();
-        VERIFY(padded_offset <= NumericLimits<u32>::max());
+        VERIFY(payload_relative_offset <= NumericLimits<u32>::max());
         VERIFY(bytes.size() <= NumericLimits<u32>::max());
-        VERIFY(padded_offset + bytes.size() <= NumericLimits<u32>::max());
+        VERIFY(payload_relative_offset + bytes.size() <= NumericLimits<u32>::max());
         if (!bytes.is_empty())
             m_inline_payload.append(bytes.data(), bytes.size());
-        return { static_cast<u32>(padded_offset), static_cast<u32>(bytes.size()) };
+        m_payload_size = payload_relative_offset + bytes.size();
+        return { static_cast<u32>(payload_relative_offset), static_cast<u32>(bytes.size()) };
     }
 
     template<typename T>
     DisplayListDataSpan append_objects(Span<T> objects)
     {
-        static_assert(IsTriviallyDestructible<T>);
+        static_assert(IsTriviallyCopyable<T>);
         return append_data(ReadonlyBytes { objects.data(), objects.size() * sizeof(T) }, alignof(T));
     }
 

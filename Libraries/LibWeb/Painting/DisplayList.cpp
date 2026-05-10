@@ -14,96 +14,17 @@ namespace Web::Painting {
 
 static Atomic<u64> s_next_id { 1 };
 
-template<DisplayListCommand Command, typename Callback>
-static void rewrite_command_payload(Bytes payload, Callback callback)
-{
-    VERIFY(payload.size() >= sizeof(Command));
-    auto command = read_display_list_command_payload<Command>(payload);
-    callback(command);
-    __builtin_memcpy(payload.data(), &command, sizeof(Command));
-}
-
 static void set_command_sequence_visual_context(Bytes command_bytes, VisualContextIndex context_index)
 {
     for (size_t offset = 0; offset < command_bytes.size();) {
         VERIFY(offset + sizeof(DisplayListCommandHeader) <= command_bytes.size());
         auto* header_data = command_bytes.data() + offset;
-        DisplayListCommandHeader header;
-        __builtin_memcpy(&header, header_data, sizeof(header));
+        auto header = read_display_list_object<DisplayListCommandHeader>({ header_data, command_bytes.size() - offset });
         header.context_index = context_index;
-        __builtin_memcpy(header_data, &header, sizeof(header));
+        write_display_list_object(Bytes { header_data, sizeof(header) }, header);
         offset += sizeof(header) + header.payload_size;
         VERIFY(offset <= command_bytes.size());
     }
-}
-
-static void adjust_display_list_data_span(DisplayListDataSpan& span, i64 offset_delta)
-{
-    auto offset = static_cast<i64>(span.offset) + offset_delta;
-    VERIFY(offset >= 0);
-    VERIFY(offset <= NumericLimits<u32>::max());
-    span.offset = static_cast<u32>(offset);
-}
-
-static void adjust_gradient_color_stops(DisplayListGradientColorStops& color_stops, i64 offset_delta)
-{
-    adjust_display_list_data_span(color_stops.colors, offset_delta);
-    adjust_display_list_data_span(color_stops.positions, offset_delta);
-}
-
-static void adjust_paint_style(DisplayListPaintStyle& paint_style, i64 offset_delta)
-{
-    switch (paint_style.type) {
-    case DisplayListPaintStyleType::LinearGradient:
-    case DisplayListPaintStyleType::RadialGradient:
-        adjust_gradient_color_stops(paint_style.gradient.color_stops, offset_delta);
-        break;
-    case DisplayListPaintStyleType::None:
-    case DisplayListPaintStyleType::Pattern:
-        break;
-    }
-}
-
-template<DisplayListCommand Command>
-static constexpr bool command_has_inline_data()
-{
-    return (requires(Command command) { command.glyphs; })
-        || (requires(Command command) { command.path_data; })
-        || (requires(Command command) { command.dash_array; })
-        || (requires(Command command) { command.paint_style; })
-        || (requires(Command command) { command.command_bytes; })
-        || (requires(Command command) { command.color_stops; });
-}
-
-template<DisplayListCommand Command>
-static void adjust_command_inline_data_offsets(Bytes payload, i64 offset_delta)
-{
-    rewrite_command_payload<Command>(payload, [&](Command& command) {
-        if constexpr (requires { command.glyphs; })
-            adjust_display_list_data_span(command.glyphs, offset_delta);
-        if constexpr (requires { command.path_data; })
-            adjust_display_list_data_span(command.path_data, offset_delta);
-        if constexpr (requires { command.dash_array; })
-            adjust_display_list_data_span(command.dash_array, offset_delta);
-        if constexpr (requires { command.paint_style; command.paint_kind; }) {
-            if (command.paint_kind == decltype(command.paint_kind)::PaintStyle)
-                adjust_paint_style(command.paint_style, offset_delta);
-        }
-        if constexpr (requires { command.command_bytes; })
-            adjust_display_list_data_span(command.command_bytes, offset_delta);
-        if constexpr (requires { command.color_stops; })
-            adjust_gradient_color_stops(command.color_stops, offset_delta);
-    });
-}
-
-static void adjust_command_sequence_inline_data_offsets(Bytes command_bytes, i64 offset_delta)
-{
-    DisplayListCommandSequence::for_each_command_header(command_bytes, [&](DisplayListCommandHeader const& header, Bytes payload) {
-        visit_display_list_command_type(header.type, [&]<DisplayListCommand Command>() {
-            if constexpr (command_has_inline_data<Command>())
-                adjust_command_inline_data_offsets<Command>(payload, offset_delta);
-        });
-    });
 }
 
 DisplayListCommandSequence::DisplayListCommandSequence()
@@ -146,7 +67,8 @@ bool DisplayList::append_bytes(
         .is_clip = is_clip,
         .bounding_rect = bounding_rect.value_or({}),
     };
-    m_command_bytes.append(reinterpret_cast<u8 const*>(&header), sizeof(header));
+    auto header_bytes = display_list_object_bytes(header);
+    m_command_bytes.append(header_bytes.data(), header_bytes.size());
     m_command_bytes.append(payload.data(), payload.size());
     if (!inline_data.is_empty())
         m_command_bytes.append(inline_data.data(), inline_data.size());
@@ -164,7 +86,6 @@ void DisplayList::append_command_sequence(DisplayListCommandSequence const& sequ
     m_resource_storage->append_referenced_resources_from(*sequence.m_resource_storage, command_bytes.span());
     VERIFY(m_command_bytes.size() % DisplayListCommandSequence::command_alignment == 0);
     VERIFY(command_bytes.size() % DisplayListCommandSequence::command_alignment == 0);
-    adjust_command_sequence_inline_data_offsets(command_bytes.span(), m_command_bytes.size());
 
     if (!command_bytes.is_empty())
         m_command_bytes.append(command_bytes.data(), command_bytes.size());
@@ -178,9 +99,6 @@ DisplayListCommandSequence DisplayList::copy_command_sequence_from(size_t comman
         sequence.m_command_bytes.append(
             m_command_bytes.data() + command_start_offset,
             m_command_bytes.size() - command_start_offset);
-    adjust_command_sequence_inline_data_offsets(
-        sequence.m_command_bytes.span(),
-        -static_cast<i64>(command_start_offset));
     sequence.m_resource_storage->append_referenced_resources_from(*m_resource_storage, sequence.m_command_bytes.span());
     return sequence;
 }
@@ -354,6 +272,7 @@ void DisplayListPlayer::execute_impl(
             return;
         }
 
+        TemporaryChange current_command_payload_change { m_current_command_payload, payload };
         auto dispatch_command = [&]<DisplayListCommand Command>(auto&& callback) {
             auto command = read_display_list_command_payload<Command>(payload);
             if constexpr (IsSame<Command, PaintScrollBar>) {

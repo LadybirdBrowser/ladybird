@@ -117,7 +117,7 @@ void DisplayListPlayerSkia::flush()
 void DisplayListPlayerSkia::draw_glyph_run(DrawGlyphRun const& command)
 {
     auto const& font = active_display_list().resource_storage().font(command.font_id);
-    auto glyphs = active_display_list().inline_objects<Gfx::DrawGlyph>(command.glyphs);
+    auto glyphs = inline_objects<Gfx::DrawGlyph>(command.glyphs);
     if (glyphs.is_empty())
         return;
 
@@ -376,12 +376,12 @@ static SkGradientShader::Interpolation to_skia_interpolation(DisplayListColorInt
 
 ReadonlySpan<Color> DisplayListPlayerSkia::gradient_colors(DisplayListGradientColorStops color_stops) const
 {
-    return active_display_list().inline_objects<Color>(color_stops.colors);
+    return inline_objects<Color>(color_stops.colors);
 }
 
 ReadonlySpan<float> DisplayListPlayerSkia::gradient_positions(DisplayListGradientColorStops color_stops) const
 {
-    return active_display_list().inline_objects<float>(color_stops.positions);
+    return inline_objects<float>(color_stops.positions);
 }
 
 static Vector<SkColor4f> to_skia_gradient_colors(ReadonlySpan<Color> color_stop_colors)
@@ -607,7 +607,7 @@ SkPaint DisplayListPlayerSkia::paint_style_to_skia_paint(DisplayListPaintStyle c
 
 Gfx::Path DisplayListPlayerSkia::path_from_data(DisplayListDataSpan path_data) const
 {
-    auto bytes = active_display_list().inline_data(path_data);
+    auto bytes = inline_data(path_data);
     return Gfx::Path::from_serialized_bytes(bytes);
 }
 
@@ -643,7 +643,7 @@ void DisplayListPlayerSkia::stroke_path(StrokePath const& command)
     paint.setStrokeCap(to_skia_cap(command.cap_style));
     paint.setStrokeJoin(to_skia_join(command.join_style));
     paint.setStrokeMiter(command.miter_limit);
-    auto dash_array = active_display_list().inline_objects<float>(command.dash_array);
+    auto dash_array = inline_objects<float>(command.dash_array);
     paint.setPathEffect(SkDashPathEffect::Make(dash_array.data(), dash_array.size(), command.dash_offset));
     surface().canvas().drawPath(path, paint);
 }
@@ -815,7 +815,7 @@ void DisplayListPlayerSkia::paint_nested_display_list(PaintNestedDisplayList con
     auto& canvas = surface().canvas();
     canvas.translate(command.rect.x(), command.rect.y());
     ScrollStateSnapshot scroll_state_snapshot;
-    auto command_bytes = active_display_list().inline_data(command.command_bytes);
+    auto command_bytes = inline_data(command.command_bytes);
     auto& nested_display_list = active_display_list().resource_storage().display_list(command.display_list_id);
     execute_nested_display_list(nested_display_list, scroll_state_snapshot, command_bytes);
 }
