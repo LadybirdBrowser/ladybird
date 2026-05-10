@@ -18,7 +18,6 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/DisplayListResourceIds.h>
 #include <LibWeb/Painting/ExternalContentSource.h>
-#include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/Painting/VideoFrameSource.h>
 
 namespace Web::Painting {
@@ -37,7 +36,6 @@ public:
     ExternalContentResourceId add_external_content_source(NonnullRefPtr<ExternalContentSource const>);
     VideoFrameResourceId add_video_frame_source(NonnullRefPtr<VideoFrameSource const>);
     FilterResourceId add_filter(Gfx::Filter const&);
-    PaintStyleResourceId add_paint_style(RefPtr<SVGPaintServerPaintStyle const>);
     DisplayListResourceId add_display_list(NonnullRefPtr<DisplayList const>);
     void append_referenced_resources_from(DisplayListResourceStorage const& source, ReadonlyBytes command_bytes);
 
@@ -46,7 +44,6 @@ public:
     ExternalContentSource const& external_content_source(ExternalContentResourceId id) const { return *m_external_content_sources.get(id.value()).value(); }
     VideoFrameSource const& video_frame_source(VideoFrameResourceId id) const { return *m_video_frame_sources.get(id.value()).value(); }
     Gfx::Filter const& filter(FilterResourceId id) const { return m_filters.get(id.value()).value(); }
-    SVGPaintServerPaintStyle const& paint_style(PaintStyleResourceId id) const { return *m_paint_styles.get(id.value()).value(); }
     DisplayList const& display_list(DisplayListResourceId id) const { return *m_display_lists.get(id.value()).value(); }
 
 private:
@@ -57,7 +54,6 @@ private:
     HashMap<u64, NonnullRefPtr<ExternalContentSource const>> m_external_content_sources;
     HashMap<u64, NonnullRefPtr<VideoFrameSource const>> m_video_frame_sources;
     HashMap<u64, Gfx::Filter> m_filters;
-    HashMap<u64, RefPtr<SVGPaintServerPaintStyle const>> m_paint_styles;
     HashMap<u64, NonnullRefPtr<DisplayList const>> m_display_lists;
 };
 

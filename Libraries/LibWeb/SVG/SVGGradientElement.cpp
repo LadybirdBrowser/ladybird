@@ -109,7 +109,7 @@ Gfx::AffineTransform SVGGradientElement::gradient_paint_transform(SVGPaintContex
     return gradient_paint_transform;
 }
 
-void SVGGradientElement::add_color_stops(Painting::SVGGradientPaintStyle& paint_style) const
+void SVGGradientElement::add_color_stops(Painting::GradientPaintStyle& paint_style) const
 {
     auto largest_offset = 0.0f;
     for_each_color_stop([&](auto& stop) {

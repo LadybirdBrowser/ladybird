@@ -50,12 +50,9 @@ class DisplayListRecorder;
 class DisplayListResourceStorage;
 class ExternalContentSource;
 class VideoFrameSource;
-class SVGGradientPaintStyle;
-class SVGPaintServerPaintStyle;
-class SVGPatternPaintStyle;
+struct GradientPaintStyle;
+struct PatternPaintStyle;
 class ScrollStateSnapshot;
-using PaintStyle = RefPtr<SVGPaintServerPaintStyle>;
-using PaintStyleOrColor = Variant<PaintStyle, Gfx::Color>;
 
 }
 

@@ -51,12 +51,26 @@ static void adjust_gradient_color_stops(DisplayListGradientColorStops& color_sto
     adjust_display_list_data_span(color_stops.positions, offset_delta);
 }
 
+static void adjust_paint_style(DisplayListPaintStyle& paint_style, i64 offset_delta)
+{
+    switch (paint_style.type) {
+    case DisplayListPaintStyleType::LinearGradient:
+    case DisplayListPaintStyleType::RadialGradient:
+        adjust_gradient_color_stops(paint_style.gradient.color_stops, offset_delta);
+        break;
+    case DisplayListPaintStyleType::None:
+    case DisplayListPaintStyleType::Pattern:
+        break;
+    }
+}
+
 template<DisplayListCommand Command>
 static constexpr bool command_has_inline_data()
 {
     return (requires(Command command) { command.glyphs; })
         || (requires(Command command) { command.path_data; })
         || (requires(Command command) { command.dash_array; })
+        || (requires(Command command) { command.paint_style; })
         || (requires(Command command) { command.command_bytes; })
         || (requires(Command command) { command.color_stops; });
 }
@@ -71,6 +85,10 @@ static void adjust_command_inline_data_offsets(Bytes payload, i64 offset_delta)
             adjust_display_list_data_span(command.path_data, offset_delta);
         if constexpr (requires { command.dash_array; })
             adjust_display_list_data_span(command.dash_array, offset_delta);
+        if constexpr (requires { command.paint_style; command.paint_kind; }) {
+            if (command.paint_kind == decltype(command.paint_kind)::PaintStyle)
+                adjust_paint_style(command.paint_style, offset_delta);
+        }
         if constexpr (requires { command.command_bytes; })
             adjust_display_list_data_span(command.command_bytes, offset_delta);
         if constexpr (requires { command.color_stops; })

@@ -113,14 +113,81 @@ static DisplayListColorInterpolationMethod to_display_list_color_interpolation_m
 template<DisplayListCommand Command>
 static DisplayListGradientColorStops append_color_stops(
     CommandPayloadBuilder<Command>& payload_builder,
+    ReadonlySpan<Color> colors,
+    ReadonlySpan<float> positions,
+    bool repeating = false)
+{
+    VERIFY(colors.size() == positions.size());
+    return {
+        .colors = payload_builder.append_objects(colors),
+        .positions = payload_builder.append_objects(positions),
+        .repeating = repeating,
+    };
+}
+
+template<DisplayListCommand Command>
+static DisplayListGradientColorStops append_color_stops(
+    CommandPayloadBuilder<Command>& payload_builder,
     ColorStopData const& color_stops)
 {
-    VERIFY(color_stops.colors.size() == color_stops.positions.size());
+    return append_color_stops(payload_builder, color_stops.colors.span(), color_stops.positions.span(), color_stops.repeating);
+}
+
+static DisplayListGradientSpreadMethod to_display_list_gradient_spread_method(GradientPaintStyle::SpreadMethod spread_method)
+{
+    switch (spread_method) {
+    case GradientPaintStyle::SpreadMethod::Pad:
+        return DisplayListGradientSpreadMethod::Pad;
+    case GradientPaintStyle::SpreadMethod::Repeat:
+        return DisplayListGradientSpreadMethod::Repeat;
+    case GradientPaintStyle::SpreadMethod::Reflect:
+        return DisplayListGradientSpreadMethod::Reflect;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+template<DisplayListCommand Command>
+static DisplayListGradientPaintStyle to_display_list_gradient_paint_style(
+    CommandPayloadBuilder<Command>& payload_builder,
+    GradientPaintStyle const& paint_style)
+{
     return {
-        .colors = payload_builder.append_objects(color_stops.colors.span()),
-        .positions = payload_builder.append_objects(color_stops.positions.span()),
-        .repeating = color_stops.repeating,
+        .gradient_transform = paint_style.gradient_transform(),
+        .spread_method = to_display_list_gradient_spread_method(paint_style.spread_method()),
+        .color_space = paint_style.color_space(),
+        .color_stops = append_color_stops(payload_builder, paint_style.color_stop_colors(), paint_style.color_stop_positions()),
     };
+}
+
+template<DisplayListCommand Command>
+static DisplayListPaintStyle to_display_list_paint_style(
+    CommandPayloadBuilder<Command>& payload_builder,
+    DisplayListResourceStorage& resource_storage,
+    PaintStyle const& paint_style)
+{
+    DisplayListPaintStyle display_list_paint_style;
+    paint_style.visit(
+        [&](LinearGradientPaintStyle const& linear_gradient) {
+            display_list_paint_style.type = DisplayListPaintStyleType::LinearGradient;
+            display_list_paint_style.gradient = to_display_list_gradient_paint_style(payload_builder, linear_gradient);
+            display_list_paint_style.linear_gradient_start_point = linear_gradient.start_point();
+            display_list_paint_style.linear_gradient_end_point = linear_gradient.end_point();
+        },
+        [&](RadialGradientPaintStyle const& radial_gradient) {
+            display_list_paint_style.type = DisplayListPaintStyleType::RadialGradient;
+            display_list_paint_style.gradient = to_display_list_gradient_paint_style(payload_builder, radial_gradient);
+            display_list_paint_style.radial_gradient_start_center = radial_gradient.start_center();
+            display_list_paint_style.radial_gradient_start_radius = radial_gradient.start_radius();
+            display_list_paint_style.radial_gradient_end_center = radial_gradient.end_center();
+            display_list_paint_style.radial_gradient_end_radius = radial_gradient.end_radius();
+        },
+        [&](PatternPaintStyle const& pattern) {
+            display_list_paint_style.type = DisplayListPaintStyleType::Pattern;
+            display_list_paint_style.pattern_tile_display_list_id = resource_storage.add_display_list(pattern.tile_display_list());
+            display_list_paint_style.pattern_tile_rect = pattern.tile_rect();
+            display_list_paint_style.pattern_transform = pattern.pattern_transform();
+        });
+    return display_list_paint_style;
 }
 
 template<DisplayListCommand Command>
@@ -207,10 +274,10 @@ void DisplayListRecorder::fill_path(FillPathParams params)
     auto path_span = append_path_data(payload_builder, params.path);
     auto paint_kind = PathPaintKind::Color;
     Color color;
-    PaintStyleResourceId paint_style_id;
+    DisplayListPaintStyle paint_style;
     if (params.paint_style_or_color.has<PaintStyle>()) {
         paint_kind = PathPaintKind::PaintStyle;
-        paint_style_id = resource_storage().add_paint_style(params.paint_style_or_color.get<PaintStyle>());
+        paint_style = to_display_list_paint_style(payload_builder, resource_storage(), params.paint_style_or_color.get<PaintStyle>());
     } else {
         color = params.paint_style_or_color.get<Gfx::Color>();
     }
@@ -221,7 +288,7 @@ void DisplayListRecorder::fill_path(FillPathParams params)
             .opacity = params.opacity,
             .paint_kind = paint_kind,
             .color = color,
-            .paint_style_id = paint_style_id,
+            .paint_style = paint_style,
             .winding_rule = params.winding_rule,
             .should_anti_alias = params.should_anti_alias,
         },
@@ -246,10 +313,10 @@ void DisplayListRecorder::stroke_path(StrokePathParams params)
     auto dash_array = payload_builder.append_objects(params.dash_array.span());
     auto paint_kind = PathPaintKind::Color;
     Color color;
-    PaintStyleResourceId paint_style_id;
+    DisplayListPaintStyle paint_style;
     if (params.paint_style_or_color.has<PaintStyle>()) {
         paint_kind = PathPaintKind::PaintStyle;
-        paint_style_id = resource_storage().add_paint_style(params.paint_style_or_color.get<PaintStyle>());
+        paint_style = to_display_list_paint_style(payload_builder, resource_storage(), params.paint_style_or_color.get<PaintStyle>());
     } else {
         color = params.paint_style_or_color.get<Gfx::Color>();
     }
@@ -265,7 +332,7 @@ void DisplayListRecorder::stroke_path(StrokePathParams params)
             .opacity = params.opacity,
             .paint_kind = paint_kind,
             .color = color,
-            .paint_style_id = paint_style_id,
+            .paint_style = paint_style,
             .thickness = params.thickness,
             .should_anti_alias = params.should_anti_alias,
         },

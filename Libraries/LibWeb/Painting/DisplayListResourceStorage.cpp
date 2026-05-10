@@ -58,16 +58,6 @@ FilterResourceId DisplayListResourceStorage::add_filter(Gfx::Filter const& filte
     return { id };
 }
 
-PaintStyleResourceId DisplayListResourceStorage::add_paint_style(RefPtr<SVGPaintServerPaintStyle const> paint_style)
-{
-    VERIFY(paint_style);
-    auto id = paint_style->id();
-    m_paint_styles.ensure(id, [&] {
-        return paint_style;
-    });
-    return { id };
-}
-
 DisplayListResourceId DisplayListResourceStorage::add_display_list(NonnullRefPtr<DisplayList const> display_list)
 {
     auto id = display_list->id();
@@ -91,9 +81,10 @@ void DisplayListResourceStorage::append_referenced_resources_from(
                 add_external_content_source(source.external_content_source(command.source_id));
             if constexpr (requires { source.video_frame_source(command.source_id); })
                 add_video_frame_source(source.video_frame_source(command.source_id));
-            if constexpr (requires { command.paint_style_id; command.paint_kind; }) {
-                if (command.paint_kind == decltype(command.paint_kind)::PaintStyle)
-                    add_paint_style(source.paint_style(command.paint_style_id));
+            if constexpr (requires { command.paint_style; command.paint_kind; }) {
+                if (command.paint_kind == decltype(command.paint_kind)::PaintStyle
+                    && command.paint_style.type == DisplayListPaintStyleType::Pattern)
+                    add_display_list(source.display_list(command.paint_style.pattern_tile_display_list_id));
             }
             if constexpr (requires { command.backdrop_filter_id; }) {
                 if (command.has_backdrop_filter)

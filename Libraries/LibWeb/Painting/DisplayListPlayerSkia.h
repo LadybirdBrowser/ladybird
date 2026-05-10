@@ -59,7 +59,7 @@ private:
 
     bool would_be_fully_clipped_by_painter(Gfx::IntRect) const override;
 
-    SkPaint paint_style_to_skia_paint(SVGPaintServerPaintStyle const&, Gfx::FloatRect const& bounding_rect);
+    SkPaint paint_style_to_skia_paint(DisplayListPaintStyle const&, Gfx::FloatRect const& bounding_rect);
     Gfx::Path path_from_data(DisplayListDataSpan) const;
     ReadonlySpan<Color> gradient_colors(DisplayListGradientColorStops) const;
     ReadonlySpan<float> gradient_positions(DisplayListGradientColorStops) const;

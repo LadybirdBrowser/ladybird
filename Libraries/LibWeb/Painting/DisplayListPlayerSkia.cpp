@@ -40,7 +40,6 @@
 #include <LibMedia/VideoFrame.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
-#include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/Painting/VideoFrameSource.h>
 
 namespace Web::Painting {
@@ -496,85 +495,95 @@ void DisplayListPlayerSkia::fill_rect_with_rounded_corners(FillRectWithRoundedCo
     canvas.drawRRect(rounded_rect, paint);
 }
 
-static SkTileMode to_skia_tile_mode(SVGLinearGradientPaintStyle::SpreadMethod spread_method)
+static SkTileMode to_skia_tile_mode(DisplayListGradientSpreadMethod spread_method)
 {
     switch (spread_method) {
-    case SVGLinearGradientPaintStyle::SpreadMethod::Pad:
+    case DisplayListGradientSpreadMethod::Pad:
         return SkTileMode::kClamp;
-    case SVGLinearGradientPaintStyle::SpreadMethod::Reflect:
+    case DisplayListGradientSpreadMethod::Reflect:
         return SkTileMode::kMirror;
-    case SVGLinearGradientPaintStyle::SpreadMethod::Repeat:
+    case DisplayListGradientSpreadMethod::Repeat:
         return SkTileMode::kRepeat;
     default:
         VERIFY_NOT_REACHED();
     }
 }
 
-static SkPaint gradient_paint_style_to_skia_paint(Painting::SVGGradientPaintStyle const& paint_style, Gfx::FloatRect const& bounding_rect)
+template<typename MakeShader>
+static SkPaint gradient_paint_style_to_skia_paint(
+    DisplayListGradientPaintStyle const& paint_style,
+    ReadonlySpan<Color> color_stop_colors,
+    ReadonlySpan<float> color_stop_positions,
+    Gfx::FloatRect const& bounding_rect,
+    MakeShader make_shader)
 {
     SkPaint paint;
 
-    auto const& color_stops = paint_style.color_stops();
+    VERIFY(color_stop_colors.size() == color_stop_positions.size());
 
     Vector<SkColor> colors;
-    colors.ensure_capacity(color_stops.size());
+    colors.ensure_capacity(color_stop_colors.size());
     Vector<SkScalar> positions;
-    positions.ensure_capacity(color_stops.size());
+    positions.ensure_capacity(color_stop_positions.size());
 
-    for (auto const& color_stop : color_stops) {
-        colors.append(to_skia_color(color_stop.color));
-        positions.append(color_stop.position);
-    }
+    for (auto color : color_stop_colors)
+        colors.unchecked_append(to_skia_color(color));
+    for (auto position : color_stop_positions)
+        positions.unchecked_append(position);
 
     SkMatrix matrix;
     matrix.setTranslate(bounding_rect.x(), bounding_rect.y());
-    if (auto gradient_transform = paint_style.gradient_transform(); gradient_transform.has_value())
-        matrix = matrix * to_skia_matrix(gradient_transform.value());
+    if (paint_style.gradient_transform.has_value())
+        matrix = matrix * to_skia_matrix(paint_style.gradient_transform.value());
 
-    auto tile_mode = to_skia_tile_mode(paint_style.spread_method());
+    auto tile_mode = to_skia_tile_mode(paint_style.spread_method);
 
-    sk_sp<SkShader> shader;
-    if (is<SVGLinearGradientPaintStyle>(paint_style)) {
-        auto const& linear_gradient_paint_style = static_cast<SVGLinearGradientPaintStyle const&>(paint_style);
-
-        Array points {
-            to_skia_point(linear_gradient_paint_style.start_point()),
-            to_skia_point(linear_gradient_paint_style.end_point()),
-        };
-        shader = SkGradientShader::MakeLinear(points.data(), colors.data(), positions.data(), color_stops.size(), tile_mode, 0, &matrix);
-    } else if (is<SVGRadialGradientPaintStyle>(paint_style)) {
-        auto const& radial_gradient_paint_style = static_cast<SVGRadialGradientPaintStyle const&>(paint_style);
-
-        auto start_center = to_skia_point(radial_gradient_paint_style.start_center());
-        auto end_center = to_skia_point(radial_gradient_paint_style.end_center());
-
-        auto start_radius = radial_gradient_paint_style.start_radius();
-        auto end_radius = radial_gradient_paint_style.end_radius();
-
-        shader = SkGradientShader::MakeTwoPointConical(start_center, start_radius, end_center, end_radius, colors.data(), positions.data(), color_stops.size(), tile_mode, 0, &matrix);
-    }
-    paint.setShader(shader);
-    if (paint_style.color_space() == Gfx::InterpolationColorSpace::LinearRGB) {
+    paint.setShader(make_shader(colors, positions, tile_mode, matrix));
+    if (paint_style.color_space == Gfx::InterpolationColorSpace::LinearRGB) {
         paint.setColorFilter(SkColorFilters::LinearToSRGBGamma());
     }
 
     return paint;
 }
 
-SkPaint DisplayListPlayerSkia::paint_style_to_skia_paint(Painting::SVGPaintServerPaintStyle const& paint_style, Gfx::FloatRect const& bounding_rect)
+SkPaint DisplayListPlayerSkia::paint_style_to_skia_paint(DisplayListPaintStyle const& paint_style, Gfx::FloatRect const& bounding_rect)
 {
-    if (auto const* gradient = as_if<SVGGradientPaintStyle>(paint_style))
-        return gradient_paint_style_to_skia_paint(*gradient, bounding_rect);
+    auto make_gradient_paint = [&](auto make_shader) {
+        return gradient_paint_style_to_skia_paint(
+            paint_style.gradient,
+            gradient_colors(paint_style.gradient.color_stops),
+            gradient_positions(paint_style.gradient.color_stops),
+            bounding_rect,
+            make_shader);
+    };
 
-    if (auto const* pattern = as_if<SVGPatternPaintStyle>(paint_style)) {
-        auto const& tile_rect = pattern->tile_rect();
+    switch (paint_style.type) {
+    case DisplayListPaintStyleType::None:
+        return {};
+    case DisplayListPaintStyleType::LinearGradient:
+        return make_gradient_paint([&](Vector<SkColor> const& colors, Vector<SkScalar> const& positions, SkTileMode tile_mode, SkMatrix const& matrix) {
+            Array points {
+                to_skia_point(paint_style.linear_gradient_start_point),
+                to_skia_point(paint_style.linear_gradient_end_point),
+            };
+            return SkGradientShader::MakeLinear(points.data(), colors.data(), positions.data(), colors.size(), tile_mode, 0, &matrix);
+        });
+    case DisplayListPaintStyleType::RadialGradient:
+        return make_gradient_paint([&](Vector<SkColor> const& colors, Vector<SkScalar> const& positions, SkTileMode tile_mode, SkMatrix const& matrix) {
+            auto start_center = to_skia_point(paint_style.radial_gradient_start_center);
+            auto end_center = to_skia_point(paint_style.radial_gradient_end_center);
+            return SkGradientShader::MakeTwoPointConical(start_center, paint_style.radial_gradient_start_radius, end_center, paint_style.radial_gradient_end_radius, colors.data(), positions.data(), colors.size(), tile_mode, 0, &matrix);
+        });
+    case DisplayListPaintStyleType::Pattern: {
+        auto const& tile_rect = paint_style.pattern_tile_rect;
         auto tile_size = Gfx::IntSize(ceilf(tile_rect.width()), ceilf(tile_rect.height()));
         if (tile_size.is_empty())
             return {};
 
         auto tile_surface = Gfx::PaintingSurface::create_with_size(tile_size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_skia_backend_context);
 
-        execute_display_list_into_surface(*pattern->tile_display_list(), *tile_surface);
+        auto const& tile_display_list = active_display_list().resource_storage().display_list(paint_style.pattern_tile_display_list_id);
+        execute_display_list_into_surface(tile_display_list, *tile_surface);
 
         auto image = tile_surface->sk_surface().makeImageSnapshot();
 
@@ -582,8 +591,8 @@ SkPaint DisplayListPlayerSkia::paint_style_to_skia_paint(Painting::SVGPaintServe
         matrix.setTranslate(tile_rect.x(), tile_rect.y());
 
         matrix.preScale(tile_rect.width() / tile_size.width(), tile_rect.height() / tile_size.height());
-        if (auto transform = pattern->pattern_transform(); transform.has_value())
-            matrix = matrix * to_skia_matrix(transform.value());
+        if (paint_style.pattern_transform.has_value())
+            matrix = matrix * to_skia_matrix(paint_style.pattern_transform.value());
 
         auto sampling = SkSamplingOptions(SkFilterMode::kLinear);
         auto shader = image->makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat, sampling, &matrix);
@@ -592,8 +601,8 @@ SkPaint DisplayListPlayerSkia::paint_style_to_skia_paint(Painting::SVGPaintServe
         paint.setShader(shader);
         return paint;
     }
-
-    return {};
+    }
+    VERIFY_NOT_REACHED();
 }
 
 Gfx::Path DisplayListPlayerSkia::path_from_data(DisplayListDataSpan path_data) const
@@ -609,8 +618,7 @@ void DisplayListPlayerSkia::fill_path(FillPath const& command)
 
     SkPaint paint;
     if (command.paint_kind == PathPaintKind::PaintStyle) {
-        auto const& paint_style = active_display_list().resource_storage().paint_style(command.paint_style_id);
-        paint = paint_style_to_skia_paint(paint_style, command.bounding_rect().to_type<float>());
+        paint = paint_style_to_skia_paint(command.paint_style, command.bounding_rect().to_type<float>());
         paint.setAlphaf(command.opacity);
     } else {
         paint.setColor(to_skia_color(command.color));
@@ -624,8 +632,7 @@ void DisplayListPlayerSkia::stroke_path(StrokePath const& command)
     auto path = Gfx::to_skia_path(path_from_data(command.path_data));
     SkPaint paint;
     if (command.paint_kind == PathPaintKind::PaintStyle) {
-        auto const& paint_style = active_display_list().resource_storage().paint_style(command.paint_style_id);
-        paint = paint_style_to_skia_paint(paint_style, command.bounding_rect().to_type<float>());
+        paint = paint_style_to_skia_paint(command.paint_style, command.bounding_rect().to_type<float>());
         paint.setAlphaf(command.opacity);
     } else {
         paint.setColor(to_skia_color(command.color));

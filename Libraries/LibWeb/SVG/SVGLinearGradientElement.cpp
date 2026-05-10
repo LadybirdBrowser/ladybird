@@ -150,19 +150,12 @@ Optional<Painting::PaintStyle> SVGLinearGradientElement::to_gfx_paint_style(SVGP
         };
     }
 
-    if (!m_paint_style) {
-        m_paint_style = Painting::SVGLinearGradientPaintStyle::create(start_point, end_point);
-        // FIXME: Update stops in DOM changes:
-        add_color_stops(*m_paint_style);
-    } else {
-        m_paint_style->set_start_point(start_point);
-        m_paint_style->set_end_point(end_point);
-    }
-
-    m_paint_style->set_gradient_transform(gradient_paint_transform(paint_context));
-    m_paint_style->set_spread_method(to_painting_spread_method(spread_method()));
-    m_paint_style->set_color_space(color_space());
-    return *m_paint_style;
+    Painting::LinearGradientPaintStyle paint_style { start_point, end_point };
+    add_color_stops(paint_style);
+    paint_style.set_gradient_transform(gradient_paint_transform(paint_context));
+    paint_style.set_spread_method(to_painting_spread_method(spread_method()));
+    paint_style.set_color_space(color_space());
+    return Painting::PaintStyle { move(paint_style) };
 }
 
 GC::Ref<SVGAnimatedLength> SVGLinearGradientElement::x1() const

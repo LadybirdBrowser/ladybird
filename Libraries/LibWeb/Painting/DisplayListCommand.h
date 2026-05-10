@@ -7,10 +7,13 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <AK/Optional.h>
 #include <AK/StdLibExtras.h>
 #include <AK/Types.h>
+#include <LibGfx/AffineTransform.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
+#include <LibGfx/InterpolationColorSpace.h>
 #include <LibGfx/LineStyle.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/Point.h>
@@ -309,6 +312,40 @@ enum class PathPaintKind : u8 {
     PaintStyle,
 };
 
+enum class DisplayListPaintStyleType : u8 {
+    None,
+    LinearGradient,
+    RadialGradient,
+    Pattern,
+};
+
+enum class DisplayListGradientSpreadMethod : u8 {
+    Pad,
+    Repeat,
+    Reflect,
+};
+
+struct DisplayListGradientPaintStyle {
+    Optional<Gfx::AffineTransform> gradient_transform;
+    DisplayListGradientSpreadMethod spread_method { DisplayListGradientSpreadMethod::Pad };
+    Gfx::InterpolationColorSpace color_space { Gfx::InterpolationColorSpace::SRGB };
+    DisplayListGradientColorStops color_stops;
+};
+
+struct DisplayListPaintStyle {
+    DisplayListPaintStyleType type { DisplayListPaintStyleType::None };
+    DisplayListGradientPaintStyle gradient;
+    Gfx::FloatPoint linear_gradient_start_point;
+    Gfx::FloatPoint linear_gradient_end_point;
+    Gfx::FloatPoint radial_gradient_start_center;
+    float radial_gradient_start_radius { 0.0f };
+    Gfx::FloatPoint radial_gradient_end_center;
+    float radial_gradient_end_radius { 0.0f };
+    DisplayListResourceId pattern_tile_display_list_id;
+    Gfx::FloatRect pattern_tile_rect;
+    Optional<Gfx::AffineTransform> pattern_transform;
+};
+
 struct FillPath {
     static constexpr StringView command_name = "FillPath"sv;
     static constexpr DisplayListCommandType command_type = DisplayListCommandType::FillPath;
@@ -318,7 +355,7 @@ struct FillPath {
     float opacity { 1.0f };
     PathPaintKind paint_kind { PathPaintKind::Color };
     Color color;
-    PaintStyleResourceId paint_style_id;
+    DisplayListPaintStyle paint_style;
     Gfx::WindingRule winding_rule;
     ShouldAntiAlias should_anti_alias { ShouldAntiAlias::Yes };
 
@@ -341,7 +378,7 @@ struct StrokePath {
     float opacity;
     PathPaintKind paint_kind { PathPaintKind::Color };
     Color color;
-    PaintStyleResourceId paint_style_id;
+    DisplayListPaintStyle paint_style;
     float thickness;
     ShouldAntiAlias should_anti_alias { ShouldAntiAlias::Yes };
 

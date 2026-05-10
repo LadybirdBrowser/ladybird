@@ -23,7 +23,6 @@
 #include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/ExternalContentSource.h>
-#include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/Painting/ScrollState.h>
 #include <LibWeb/Painting/VideoFrameSource.h>
 

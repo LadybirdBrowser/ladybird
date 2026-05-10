@@ -63,8 +63,6 @@ private:
     Optional<NumberPercentage> m_fy;
     Optional<NumberPercentage> m_fr;
     Optional<NumberPercentage> m_r;
-
-    mutable RefPtr<Painting::SVGRadialGradientPaintStyle> m_paint_style;
 };
 
 }
