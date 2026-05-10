@@ -592,6 +592,8 @@ void BrowserWindow::create_close_button_for_tab(Tab* tab)
     m_tabs_container->set_tab_icon(index, tab->favicon());
 
     auto* button = new TabBarButton(create_tvg_icon_with_theme_colors("close", palette()));
+    button->setToolTip("Close Tab");
+
     auto position = audio_button_position_for_tab(index) == QTabBar::LeftSide ? QTabBar::RightSide : QTabBar::LeftSide;
 
     connect(button, &QPushButton::clicked, this, [this, tab]() {
