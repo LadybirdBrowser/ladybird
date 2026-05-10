@@ -192,6 +192,7 @@ function(_rust_crate_common_setup)
         ${cargo_profile_flag}
         --
         -Cdefault-linker-libraries=yes
+        -D warnings
         --emit=dep-info
     )
 
