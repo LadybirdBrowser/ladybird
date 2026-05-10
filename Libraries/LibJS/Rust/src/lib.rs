@@ -243,11 +243,6 @@ pub type ParseErrorCallback = Option<
     unsafe extern "C" fn(ctx: *mut c_void, message: *const u8, message_len: usize, line: u32, column: u32) -> (),
 >;
 
-/// Log parser and scope collector errors, returning true if any were found.
-fn check_errors(parser: &mut Parser) -> bool {
-    check_errors_with_callback(parser, std::ptr::null_mut(), None)
-}
-
 /// Check for errors, optionally reporting them via a C++ callback.
 fn check_errors_with_callback(
     parser: &mut Parser,
