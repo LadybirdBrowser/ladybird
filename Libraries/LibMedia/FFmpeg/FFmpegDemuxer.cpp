@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/BinarySearch.h>
 #include <AK/Math.h>
 #include <AK/MemoryStream.h>
 #include <AK/Stream.h>
@@ -228,11 +229,65 @@ Optional<AK::UnixDateTime> FFmpegDemuxer::start_time_realtime() const
 
 TimeRanges FFmpegDemuxer::buffered_time_ranges() const
 {
-    // FIXME: Use the format context's index to determine the buffered ranges from the underlying stream.
-    TimeRanges ranges;
-    if (!m_total_duration.is_zero())
-        ranges.add_range(AK::Duration::zero(), m_total_duration);
-    return ranges;
+    auto byte_ranges = m_stream->available_byte_ranges();
+
+    auto full_duration_range = [&]() {
+        TimeRanges ranges;
+        if (!m_total_duration.is_zero())
+            ranges.add_range(AK::Duration::zero(), m_total_duration);
+        return ranges;
+    };
+
+    if (byte_ranges.is_empty())
+        return full_duration_range();
+
+    auto is_available = [&](u64 pos) {
+        return binary_search(byte_ranges, pos, nullptr, [](u64 needle, MediaStream::ByteRange const& range) -> int {
+            if (needle < range.begin)
+                return -1;
+            if (needle >= range.end)
+                return 1;
+            return 0;
+        }) != nullptr;
+    };
+
+    if (m_track_contexts.is_empty())
+        return full_duration_range();
+
+    Optional<TimeRanges> intersection;
+    for (auto const& [track, context] : m_track_contexts) {
+        if (!context->format_context)
+            continue;
+        VERIFY(track.identifier() < context->format_context->nb_streams);
+        auto* av_stream = context->format_context->streams[track.identifier()];
+
+        int index_count = avformat_index_get_entries_count(av_stream);
+        if (index_count == 0)
+            continue;
+
+        TimeRanges track_ranges;
+        for (int i = 0; i < index_count; i++) {
+            auto const* entry = avformat_index_get_entry(av_stream, i);
+            if (entry->pos < 0 || !is_available(static_cast<u64>(entry->pos)))
+                continue;
+
+            auto start = time_units_to_duration(entry->timestamp, av_stream->time_base);
+            AK::Duration end;
+            if (auto const* next = avformat_index_get_entry(av_stream, i + 1))
+                end = time_units_to_duration(next->timestamp, av_stream->time_base);
+            else
+                end = m_total_duration;
+
+            track_ranges.add_range(start, end);
+        }
+
+        if (!intersection.has_value())
+            intersection = track_ranges;
+        else
+            intersection = intersection->intersection(track_ranges);
+    }
+
+    return intersection.value_or(full_duration_range());
 }
 
 DecoderErrorOr<AK::Duration> FFmpegDemuxer::duration_of_track(Track const& track)

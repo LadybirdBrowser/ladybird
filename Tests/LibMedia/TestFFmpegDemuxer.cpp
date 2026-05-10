@@ -12,6 +12,42 @@
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
 
+TEST_CASE(buffered_time_ranges_no_track_contexts)
+{
+    // With no track contexts opened, buffered_time_ranges() should fall back to the full duration.
+    auto file = MUST(Core::File::open("./avc.mp4"sv, Core::File::OpenMode::Read));
+    auto file_data = MUST(file->read_until_eof());
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(file_data);
+
+    auto demuxer = MUST(Media::FFmpeg::FFmpegDemuxer::from_stream(stream));
+    auto total_duration = MUST(demuxer->total_duration());
+
+    auto ranges = demuxer->buffered_time_ranges();
+    EXPECT_EQ(ranges.size(), 1u);
+    EXPECT_EQ(ranges[0].start, AK::Duration::zero());
+    EXPECT_EQ(ranges[0].end, total_duration);
+}
+
+TEST_CASE(buffered_time_ranges_full_stream)
+{
+    // With all data loaded and a track context open, buffered_time_ranges() should cover the full duration.
+    auto file = MUST(Core::File::open("./avc.mp4"sv, Core::File::OpenMode::Read));
+    auto file_data = MUST(file->read_until_eof());
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(file_data);
+
+    auto demuxer = MUST(Media::FFmpeg::FFmpegDemuxer::from_stream(stream));
+    auto total_duration = MUST(demuxer->total_duration());
+
+    auto optional_track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Video));
+    VERIFY(optional_track.has_value());
+    auto track = optional_track.release_value();
+    MUST(demuxer->create_context_for_track(track));
+
+    auto ranges = demuxer->buffered_time_ranges();
+    EXPECT(!ranges.is_empty());
+    EXPECT_EQ(ranges.highest_end_time(), total_duration);
+}
+
 TEST_CASE(read_after_aborted_blocking_read)
 {
     // This is a regression test for an issue that would occur when aborting a blocking read in the AVIOContext
