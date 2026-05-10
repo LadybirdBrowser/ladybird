@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/HashFunctions.h>
+#include <AK/HashMap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/DecodedImageFrameSkiaImageCache.h>
 #include <LibGfx/SkiaBackendContext.h>
@@ -11,6 +13,7 @@
 
 #include <core/SkColorSpace.h>
 #include <core/SkImage.h>
+#include <core/SkRefCnt.h>
 #include <gpu/ganesh/GrDirectContext.h>
 #include <gpu/ganesh/SkImageGanesh.h>
 
@@ -18,10 +21,54 @@ namespace Gfx {
 
 static constexpr u64 image_cache_max_unused_generations = 120;
 
-DecodedImageFrameSkiaImageCache::DecodedImageFrameSkiaImageCache() = default;
+struct DecodedImageFrameSkiaImageCache::Impl {
+    Impl() = default;
+
+    explicit Impl(RefPtr<SkiaBackendContext> skia_backend_context)
+        : skia_backend_context(move(skia_backend_context))
+    {
+    }
+
+    struct DecodedImageFrameKeyTraits : public Traits<DecodedImageFrame> {
+        static unsigned hash(DecodedImageFrame const& frame)
+        {
+            return pair_int_hash(
+                ptr_hash(&frame.bitmap()),
+                ptr_hash(color_space_pointer(frame)));
+        }
+
+        static bool equals(DecodedImageFrame const& a, DecodedImageFrame const& b)
+        {
+            return &a.bitmap() == &b.bitmap()
+                && color_space_pointer(a) == color_space_pointer(b);
+        }
+
+        static constexpr bool may_have_slow_equality_check() { return false; }
+
+    private:
+        static SkColorSpace const* color_space_pointer(DecodedImageFrame const& frame)
+        {
+            return frame.color_space().color_space<sk_sp<SkColorSpace>>().get();
+        }
+    };
+
+    struct CachedImage {
+        sk_sp<SkImage> image;
+        u64 last_used_generation { 0 };
+    };
+
+    RefPtr<SkiaBackendContext> skia_backend_context;
+    HashMap<DecodedImageFrame, CachedImage, DecodedImageFrameKeyTraits> images;
+    u64 generation { 0 };
+};
+
+DecodedImageFrameSkiaImageCache::DecodedImageFrameSkiaImageCache()
+    : m_impl(make<Impl>())
+{
+}
 
 DecodedImageFrameSkiaImageCache::DecodedImageFrameSkiaImageCache(RefPtr<SkiaBackendContext> skia_backend_context)
-    : m_skia_backend_context(move(skia_backend_context))
+    : m_impl(make<Impl>(move(skia_backend_context)))
 {
 }
 
@@ -30,14 +77,14 @@ DecodedImageFrameSkiaImageCache::~DecodedImageFrameSkiaImageCache() = default;
 sk_sp<SkImage> DecodedImageFrameSkiaImageCache::image_for_frame(DecodedImageFrame const& frame)
 {
     auto const& bitmap = frame.bitmap();
-    if (auto it = m_images.find(frame); it != m_images.end()) {
-        it->value.last_used_generation = m_generation;
+    if (auto it = m_impl->images.find(frame); it != m_impl->images.end()) {
+        it->value.last_used_generation = m_impl->generation;
         return it->value.image;
     }
 
     auto raster_image = sk_image_from_bitmap(bitmap, frame.color_space());
     sk_sp<SkImage> image;
-    auto* gr_context = m_skia_backend_context ? m_skia_backend_context->sk_context() : nullptr;
+    auto* gr_context = m_impl->skia_backend_context ? m_impl->skia_backend_context->sk_context() : nullptr;
     if (gr_context) {
         image = SkImages::TextureFromImage(gr_context, raster_image.get(), skgpu::Mipmapped::kNo, skgpu::Budgeted::kYes);
         if (!image)
@@ -49,20 +96,20 @@ sk_sp<SkImage> DecodedImageFrameSkiaImageCache::image_for_frame(DecodedImageFram
     if (!image)
         return nullptr;
 
-    CachedImage cached_image {
+    Impl::CachedImage cached_image {
         .image = image,
-        .last_used_generation = m_generation,
+        .last_used_generation = m_impl->generation,
     };
-    m_images.set(frame, move(cached_image));
+    m_impl->images.set(frame, move(cached_image));
     return image;
 }
 
 void DecodedImageFrameSkiaImageCache::prune()
 {
-    m_images.remove_all_matching([this](auto const&, auto const& cached_image) {
-        return m_generation - cached_image.last_used_generation > image_cache_max_unused_generations;
+    m_impl->images.remove_all_matching([this](auto const&, auto const& cached_image) {
+        return m_impl->generation - cached_image.last_used_generation > image_cache_max_unused_generations;
     });
-    ++m_generation;
+    ++m_impl->generation;
 }
 
 }
