@@ -9,6 +9,7 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Stream.h>
+#include <AK/Vector.h>
 #include <LibMedia/DecoderError.h>
 
 namespace Media {
@@ -30,9 +31,16 @@ public:
 
 class MediaStream : public AtomicRefCounted<MediaStream> {
 public:
+    struct ByteRange {
+        u64 begin;
+        u64 end;
+    };
+
     virtual ~MediaStream() = default;
 
     virtual NonnullRefPtr<MediaStreamCursor> create_cursor() = 0;
+
+    virtual Vector<ByteRange> available_byte_ranges() const { return {}; }
 };
 
 }

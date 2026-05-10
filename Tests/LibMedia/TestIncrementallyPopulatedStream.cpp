@@ -273,6 +273,41 @@ TEST_CASE(redundant_chunk_within_existing_chunk_at_nonzero_offset)
         EXPECT_EQ(buffer[i], static_cast<u8>(100 + i));
 }
 
+TEST_CASE(available_byte_ranges_empty_stream)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    auto ranges = stream->available_byte_ranges();
+    EXPECT(ranges.is_empty());
+}
+
+TEST_CASE(available_byte_ranges_single_chunk)
+{
+    auto data = make_test_data(100);
+    auto stream = Media::IncrementallyPopulatedStream::create_from_data(data.bytes());
+
+    auto ranges = stream->available_byte_ranges();
+    EXPECT_EQ(ranges.size(), 1u);
+    EXPECT_EQ(ranges[0].begin, 0u);
+    EXPECT_EQ(ranges[0].end, 100u);
+}
+
+TEST_CASE(available_byte_ranges_multiple_non_contiguous_chunks)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    stream->set_expected_size(300);
+
+    auto data = make_test_data(300);
+    stream->add_chunk_at(0, data.bytes().trim(100));
+    stream->add_chunk_at(200, data.bytes().slice(200));
+
+    auto ranges = stream->available_byte_ranges();
+    EXPECT_EQ(ranges.size(), 2u);
+    EXPECT_EQ(ranges[0].begin, 0u);
+    EXPECT_EQ(ranges[0].end, 100u);
+    EXPECT_EQ(ranges[1].begin, 200u);
+    EXPECT_EQ(ranges[1].end, 300u);
+}
+
 TEST_CASE(data_request_callback_invoked)
 {
     Core::EventLoop loop;

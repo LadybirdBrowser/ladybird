@@ -33,6 +33,8 @@ public:
 
     virtual NonnullRefPtr<MediaStreamCursor> create_cursor() override;
 
+    virtual Vector<MediaStream::ByteRange> available_byte_ranges() const override;
+
     // Callback invoked when data at a specific offset is needed but not available.
     // The callback receives the desired offset position and is invoked on the provided event loop.
     using DataRequestCallback = Function<void(u64 offset)>;

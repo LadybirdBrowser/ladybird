@@ -246,6 +246,17 @@ NonnullRefPtr<MediaStreamCursor> IncrementallyPopulatedStream::create_cursor()
     return adopt_ref(*new Cursor(NonnullRefPtr { *this }));
 }
 
+Vector<MediaStream::ByteRange> IncrementallyPopulatedStream::available_byte_ranges() const
+{
+    Sync::MutexLocker locker { m_mutex };
+    Vector<MediaStream::ByteRange> byte_ranges;
+
+    for (auto const& chunk : m_chunks)
+        MUST(byte_ranges.try_append({ chunk.offset(), chunk.end() }));
+
+    return byte_ranges;
+}
+
 IncrementallyPopulatedStream::Cursor::Cursor(NonnullRefPtr<IncrementallyPopulatedStream> const& stream)
     : m_stream(stream)
 {
