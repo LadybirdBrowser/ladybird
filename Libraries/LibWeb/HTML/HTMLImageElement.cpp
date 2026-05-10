@@ -692,6 +692,9 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
                 // 2. Set the current request's current URL to urlString.
                 m_current_request->set_current_url(realm(), *url_string);
 
+                set_needs_style_update(true);
+                set_needs_layout_update(DOM::SetNeedsLayoutReason::HTMLImageElementUpdateTheImageData);
+
                 // 3. If maybe omit events is not set or previousURL is not equal to urlString, then fire an event named load at the img element.
                 if (!maybe_omit_events || previous_url != url_string)
                     dispatch_event(DOM::Event::create(realm(), HTML::EventNames::load));
