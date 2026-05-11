@@ -6,10 +6,14 @@
 
 #pragma once
 
+#include <AK/ByteBuffer.h>
+#include <AK/Error.h>
+#include <AK/Function.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Types.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/ScalingMode.h>
@@ -44,6 +48,8 @@ class Filter {
 public:
     Filter(Filter const&);
     Filter& operator=(Filter const&);
+    Filter(Filter&&);
+    Filter& operator=(Filter&&);
 
     ~Filter();
 
@@ -67,12 +73,13 @@ public:
     static Filter turbulence(TurbulenceType turbulence_type, float base_frequency_x, float base_frequency_y, i32 num_octaves, float seed, Gfx::IntSize const& tile_stitch_size);
 
     FilterImpl const& impl() const;
-    u64 id() const { return m_id; }
 
 private:
     Filter(NonnullOwnPtr<FilterImpl>&&);
-    u64 m_id { 0 };
     NonnullOwnPtr<FilterImpl> m_impl;
 };
+
+ByteBuffer serialize_filter(Filter const&, Function<u64(Gfx::DecodedImageFrame const&)> const& encode_image);
+Filter deserialize_filter(ReadonlyBytes, Function<Gfx::DecodedImageFrame(u64)> const& decode_image);
 
 }

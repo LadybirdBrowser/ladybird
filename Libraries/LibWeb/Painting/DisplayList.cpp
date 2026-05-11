@@ -167,7 +167,7 @@ void DisplayListPlayer::execute_impl(
                                       .opacity = effects.opacity,
                                       .compositing_and_blending_operator = effects.blend_mode,
                                       .has_filter = effects.gfx_filter.has_value(),
-                                      .filter_id = {},
+                                      .filter_data = {},
                                   },
                         effects.gfx_filter.has_value() ? &effects.gfx_filter.value() : nullptr);
                 },

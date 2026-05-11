@@ -727,8 +727,10 @@ void DisplayListPlayerSkia::apply_backdrop_filter(ApplyBackdropFilter const& com
     ScopeGuard guard = [&] { canvas.restore(); };
 
     if (command.has_backdrop_filter) {
-        auto image_filter = to_skia_image_filter(
-            active_display_list().resource_storage().filter(command.backdrop_filter_id));
+        auto filter = Gfx::deserialize_filter(inline_data(command.backdrop_filter_data), [&](u64 image_id) {
+            return active_display_list().resource_storage().image_frame(ImageFrameResourceId { image_id });
+        });
+        auto image_filter = to_skia_image_filter(filter);
         canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, nullptr, image_filter.get(), 0));
         canvas.restore();
     }
@@ -863,8 +865,16 @@ void DisplayListPlayerSkia::apply_effects(ApplyEffects const& command, Gfx::Filt
     if (command.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal)
         paint.setBlender(Gfx::to_skia_blender(command.compositing_and_blending_operator));
 
-    if (command.has_filter)
-        paint.setImageFilter(to_skia_image_filter(filter ? *filter : active_display_list().resource_storage().filter(command.filter_id)));
+    Optional<Gfx::Filter> deserialized_filter;
+    if (command.has_filter) {
+        if (!filter) {
+            deserialized_filter = Gfx::deserialize_filter(inline_data(command.filter_data), [&](u64 image_id) {
+                return active_display_list().resource_storage().image_frame(ImageFrameResourceId { image_id });
+            });
+            filter = &deserialized_filter.value();
+        }
+        paint.setImageFilter(to_skia_image_filter(*filter));
+    }
 
     if (command.has_mask_kind && command.mask_kind == Gfx::MaskKind::Luminance)
         paint.setColorFilter(SkLumaColorFilter::Make());

@@ -436,7 +436,7 @@ struct ApplyBackdropFilter {
     Gfx::IntRect backdrop_region;
     CornerRadii corner_radii;
     bool has_backdrop_filter { false };
-    FilterResourceId backdrop_filter_id;
+    DisplayListDataSpan backdrop_filter_data;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return backdrop_region; }
 
@@ -536,7 +536,7 @@ struct ApplyEffects {
     float opacity { 1.0f };
     Gfx::CompositingAndBlendingOperator compositing_and_blending_operator { Gfx::CompositingAndBlendingOperator::Normal };
     bool has_filter { false };
-    FilterResourceId filter_id;
+    DisplayListDataSpan filter_data;
     bool has_mask_kind { false };
     Gfx::MaskKind mask_kind {};
 
