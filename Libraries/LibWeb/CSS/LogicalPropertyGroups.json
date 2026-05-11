@@ -155,6 +155,20 @@
       "inline-start": "padding-inline-start"
     }
   },
+  "scroll-margin": {
+    "physical": {
+      "top": "scroll-margin-top",
+      "right": "scroll-margin-right",
+      "bottom": "scroll-margin-bottom",
+      "left": "scroll-margin-left"
+    },
+    "logical": {
+      "block-start": "scroll-margin-block-start",
+      "inline-end": "scroll-margin-inline-end",
+      "block-end": "scroll-margin-block-end",
+      "inline-start": "scroll-margin-inline-start"
+    }
+  },
   "size": {
     "physical": {
       "width": "width",

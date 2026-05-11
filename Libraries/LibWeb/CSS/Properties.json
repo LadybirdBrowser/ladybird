@@ -3844,6 +3844,101 @@
       "smooth"
     ]
   },
+  "scroll-margin": {
+    "initial": "0",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "scroll-margin-top",
+      "scroll-margin-right",
+      "scroll-margin-bottom",
+      "scroll-margin-left"
+    ],
+    "valid-types": [
+      "length [0,∞]"
+    ]
+  },
+  "scroll-margin-block": {
+    "initial": "0",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "scroll-margin-block-start",
+      "scroll-margin-block-end"
+    ],
+    "valid-types": [
+      "length [0,∞]"
+    ]
+  },
+  "scroll-margin-block-end": {
+    "logical-alias-for": {
+      "group": "scroll-margin",
+      "mapping": "block-end"
+    }
+  },
+  "scroll-margin-block-start": {
+    "logical-alias-for": {
+      "group": "scroll-margin",
+      "mapping": "block-start"
+    }
+  },
+  "scroll-margin-bottom": {
+    "animation-type": "by-computed-value",
+    "initial": "0",
+    "inherited": false,
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "length [0,∞]"
+    ]
+  },
+  "scroll-margin-inline": {
+    "initial": "0",
+    "positional-value-list-shorthand": true,
+    "longhands": [
+      "scroll-margin-inline-start",
+      "scroll-margin-inline-end"
+    ],
+    "valid-types": [
+      "length [0,∞]"
+    ]
+  },
+  "scroll-margin-inline-end": {
+    "logical-alias-for": {
+      "group": "scroll-margin",
+      "mapping": "inline-end"
+    }
+  },
+  "scroll-margin-inline-start": {
+    "logical-alias-for": {
+      "group": "scroll-margin",
+      "mapping": "inline-start"
+    }
+  },
+  "scroll-margin-left": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "length [0,∞]"
+    ]
+  },
+  "scroll-margin-right": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "length [0,∞]"
+    ]
+  },
+  "scroll-margin-top": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "length [0,∞]"
+    ]
+  },
   "scroll-timeline": {
     "affects-layout": false,
     "initial": "none block",

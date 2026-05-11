@@ -2751,6 +2751,19 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
         target_bounding_border_box.translate_by(-scrolling_box.paintable_box()->absolute_rect().top_left());
     }
 
+    // AD-HOC: The spec doesn't specify when to do this, but we need to apply scroll-margin to target bounding border
+    //         box (https://drafts.csswg.org/cssom-view-1/#example-51af1565).
+    auto target_computed_properties = target.computed_properties();
+    auto scroll_margin_top = target_computed_properties->length(CSS::PropertyID::ScrollMarginTop).absolute_length_to_px();
+    auto scroll_margin_right = target_computed_properties->length(CSS::PropertyID::ScrollMarginRight).absolute_length_to_px();
+    auto scroll_margin_bottom = target_computed_properties->length(CSS::PropertyID::ScrollMarginBottom).absolute_length_to_px();
+    auto scroll_margin_left = target_computed_properties->length(CSS::PropertyID::ScrollMarginLeft).absolute_length_to_px();
+
+    target_bounding_border_box.set_top(target_bounding_border_box.top() - scroll_margin_top);
+    target_bounding_border_box.set_right(target_bounding_border_box.right() + scroll_margin_left + scroll_margin_right);
+    target_bounding_border_box.set_bottom(target_bounding_border_box.bottom() + scroll_margin_top + scroll_margin_bottom);
+    target_bounding_border_box.set_left(target_bounding_border_box.left() - scroll_margin_left);
+
     // 2. Let scrolling box edge A be the beginning edge in the block flow direction of scrolling box, and
     //    let element edge A be target bounding border box’s edge on the same physical side as that of
     //    scrolling box edge A.

@@ -273,6 +273,14 @@ rx: auto
 ry: auto
 scale: none
 scroll-behavior: auto
+scroll-margin-block-end: 0px
+scroll-margin-block-start: 0px
+scroll-margin-bottom: 0px
+scroll-margin-inline-end: 0px
+scroll-margin-inline-start: 0px
+scroll-margin-left: 0px
+scroll-margin-right: 0px
+scroll-margin-top: 0px
 scroll-timeline-axis: block
 scroll-timeline-name: none
 scrollbar-gutter: auto
