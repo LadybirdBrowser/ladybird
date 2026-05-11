@@ -18,7 +18,7 @@ KeyEvent KeyEvent::clone_without_browser_data() const
 
 MouseEvent MouseEvent::clone_without_browser_data() const
 {
-    return { type, position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, click_count, nullptr };
+    return { type, position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, click_count, nullptr, async_scroll_performed_default_action };
 }
 
 DragEvent DragEvent::clone_without_browser_data() const
@@ -63,6 +63,7 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::MouseEvent const& event)
     TRY(encoder.encode(event.wheel_delta_x));
     TRY(encoder.encode(event.wheel_delta_y));
     TRY(encoder.encode(event.click_count));
+    TRY(encoder.encode(event.async_scroll_performed_default_action));
     return {};
 }
 
@@ -78,8 +79,9 @@ ErrorOr<Web::MouseEvent> IPC::decode(Decoder& decoder)
     auto wheel_delta_x = TRY(decoder.decode<int>());
     auto wheel_delta_y = TRY(decoder.decode<int>());
     auto click_count = TRY(decoder.decode<int>());
+    auto async_scroll_performed_default_action = TRY(decoder.decode<bool>());
 
-    return Web::MouseEvent { type, position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, click_count, nullptr };
+    return Web::MouseEvent { type, position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, click_count, nullptr, async_scroll_performed_default_action };
 }
 
 template<>

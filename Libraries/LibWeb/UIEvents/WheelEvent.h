@@ -19,6 +19,11 @@ enum WheelDeltaMode : WebIDL::UnsignedLong {
     DOM_DELTA_PAGE = 2,
 };
 
+enum class WheelEventIsCancelable : u8 {
+    No,
+    Yes,
+};
+
 class WheelEvent final : public MouseEvent {
     WEB_PLATFORM_OBJECT(WheelEvent, MouseEvent);
     GC_DECLARE_ALLOCATOR(WheelEvent);
@@ -27,7 +32,7 @@ public:
     [[nodiscard]] static GC::Ref<WheelEvent> create(JS::Realm&, FlyString const& event_name, Bindings::WheelEventInit const& = {}, double page_x = 0, double page_y = 0, double offset_x = 0, double offset_y = 0);
     [[nodiscard]] static GC::Ref<WheelEvent> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::WheelEventInit const& = {});
 
-    static WebIDL::ExceptionOr<GC::Ref<WheelEvent>> create_from_platform_event(JS::Realm&, GC::Ptr<HTML::WindowProxy>, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, double delta_x, double delta_y, unsigned button, unsigned buttons, unsigned modifiers);
+    static WebIDL::ExceptionOr<GC::Ref<WheelEvent>> create_from_platform_event(JS::Realm&, GC::Ptr<HTML::WindowProxy>, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, double delta_x, double delta_y, unsigned button, unsigned buttons, unsigned modifiers, WheelEventIsCancelable = WheelEventIsCancelable::Yes);
 
     virtual ~WheelEvent() override;
 

@@ -8,8 +8,10 @@
 
 #include <AK/Noncopyable.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/Optional.h>
 #include <AK/Variant.h>
 #include <LibCore/Forward.h>
+#include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/SharedImage.h>
 #include <LibSync/ConditionVariable.h>
@@ -19,6 +21,8 @@
 #include <LibWeb/Page/Page.h>
 
 namespace Web::Compositor {
+
+struct AsyncScrollingState;
 
 class WEB_API CompositorThread {
     AK_MAKE_NONCOPYABLE(CompositorThread);
@@ -47,6 +51,7 @@ public:
     static void set_frame_presentation_callbacks(NonnullRefPtr<Core::WeakEventLoopReference>, BackingStorePresentationCallback, FramePresentationCallback);
     static void clear_frame_presentation_callbacks();
     static void presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_id);
+    static bool async_scroll_by(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta);
 
     void start(DisplayListPlayerType);
     void stop_presenting_to_client();
@@ -54,6 +59,12 @@ public:
 
     void update_display_list(NonnullRefPtr<Painting::DisplayList>, Painting::ScrollStateSnapshot&&);
     void update_scroll_state(Painting::ScrollStateSnapshot&&);
+    void update_display_list_and_async_scrolling_state(NonnullRefPtr<Painting::DisplayList>, Painting::ScrollStateSnapshot&&, AsyncScrollingState&&);
+    bool async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect);
+    Optional<Gfx::FloatPoint> pending_async_viewport_scroll_offset() const;
+    bool should_defer_async_viewport_scroll_offset_adoption() const;
+    bool should_defer_main_thread_present_for_async_scroll() const;
+    Optional<Gfx::FloatPoint> take_pending_async_viewport_scroll_offset();
     void update_backing_stores(Gfx::IntSize, i32 front_id, i32 back_id);
     u64 present_frame(Gfx::IntRect);
     void wait_for_frame(u64 frame_id);

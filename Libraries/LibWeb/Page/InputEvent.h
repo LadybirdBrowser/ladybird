@@ -62,6 +62,7 @@ struct WEB_API MouseEvent {
     int click_count { 0 };
 
     OwnPtr<BrowserInputData> browser_data;
+    bool async_scroll_performed_default_action { false };
 };
 
 struct WEB_API DragEvent {

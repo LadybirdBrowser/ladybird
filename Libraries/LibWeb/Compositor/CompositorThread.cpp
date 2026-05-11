@@ -11,10 +11,13 @@
 #include <LibGfx/SharedImageBuffer.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibThreading/Thread.h>
+#include <LibWeb/Compositor/AsyncScrollTree.h>
+#include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/Compositor/CompositorThread.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/ExternalContentSource.h>
 
+#include <AK/Debug.h>
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/Queue.h>
@@ -50,6 +53,13 @@ struct BackingStoreState {
 struct UpdateDisplayListCommand {
     NonnullRefPtr<Painting::DisplayList> display_list;
     Painting::ScrollStateSnapshot scroll_state_snapshot;
+    Optional<AsyncScrollingState> async_scrolling_state;
+};
+
+struct AsyncScrollByCommand {
+    Gfx::FloatPoint position;
+    Gfx::FloatPoint delta;
+    Gfx::IntRect viewport_rect;
 };
 
 struct UpdateScrollStateCommand {
@@ -67,7 +77,57 @@ struct ScreenshotCommand {
     Function<void()> callback;
 };
 
-using CompositorCommand = Variant<UpdateDisplayListCommand, UpdateScrollStateCommand, UpdateBackingStoresCommand, ScreenshotCommand>;
+using CompositorCommand = Variant<UpdateDisplayListCommand, AsyncScrollByCommand, UpdateScrollStateCommand, UpdateBackingStoresCommand, ScreenshotCommand>;
+
+static Optional<AsyncScrollNode> viewport_scroll_node(AsyncScrollingState const& state)
+{
+    for (auto const& node : state.scroll_nodes) {
+        if (node.is_viewport)
+            return node;
+    }
+    return {};
+}
+
+enum class WheelRoutingAdmission {
+    Accepted,
+    NoAsyncScrollingState,
+    BlockingWheelEventListeners,
+    NoViewportScrollNode,
+    HasNonViewportScrollNode,
+};
+
+[[maybe_unused]] static StringView wheel_routing_admission_to_string(WheelRoutingAdmission admission)
+{
+    switch (admission) {
+    case WheelRoutingAdmission::Accepted:
+        return "accepted"sv;
+    case WheelRoutingAdmission::NoAsyncScrollingState:
+        return "no async scrolling state"sv;
+    case WheelRoutingAdmission::BlockingWheelEventListeners:
+        return "blocking wheel event listeners"sv;
+    case WheelRoutingAdmission::NoViewportScrollNode:
+        return "no viewport scroll node"sv;
+    case WheelRoutingAdmission::HasNonViewportScrollNode:
+        return "has non-viewport scroll node"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static WheelRoutingAdmission wheel_routing_admission_for(AsyncScrollingState const& state)
+{
+    if (state.has_blocking_wheel_event_listeners)
+        return WheelRoutingAdmission::BlockingWheelEventListeners;
+
+    bool found_viewport_node = false;
+    for (auto const& node : state.scroll_nodes) {
+        if (!node.is_viewport)
+            return WheelRoutingAdmission::HasNonViewportScrollNode;
+        found_viewport_node = true;
+    }
+    if (!found_viewport_node)
+        return WheelRoutingAdmission::NoViewportScrollNode;
+    return WheelRoutingAdmission::Accepted;
+}
 
 struct BackingStorePair {
     RefPtr<Gfx::PaintingSurface> front;
@@ -178,6 +238,8 @@ public:
     {
         Sync::MutexLocker const locker { m_mutex };
         m_command_queue.enqueue(move(command));
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor command queued (queue_size={}, raster_tasks={}, needs_present={}, deferred_async_present={})",
+            m_command_queue.size(), m_queued_rasterization_tasks.load(), m_needs_present, m_has_deferred_async_scroll_present);
         m_command_ready.signal();
     }
 
@@ -205,6 +267,73 @@ public:
             m_frame_completed.wait();
     }
 
+    Optional<Gfx::FloatPoint> take_pending_async_viewport_scroll_offset()
+    {
+        Sync::MutexLocker const locker { m_mutex };
+        auto scroll_offset = m_pending_async_viewport_scroll_offset;
+        m_pending_async_viewport_scroll_offset.clear();
+        return scroll_offset;
+    }
+
+    Optional<Gfx::FloatPoint> pending_async_viewport_scroll_offset() const
+    {
+        Sync::MutexLocker const locker { m_mutex };
+        return m_pending_async_viewport_scroll_offset;
+    }
+
+    bool should_defer_async_viewport_scroll_offset_adoption() const
+    {
+        Sync::MutexLocker const locker { m_mutex };
+        return m_pending_async_viewport_scroll_offset.has_value()
+            && m_is_rasterizing;
+    }
+
+    bool should_defer_main_thread_present_for_async_scroll() const
+    {
+        Sync::MutexLocker const locker { m_mutex };
+        return m_pending_async_viewport_scroll_offset.has_value()
+            && (m_is_rasterizing || m_has_deferred_async_scroll_present || m_queued_rasterization_tasks > 0);
+    }
+
+    bool enqueue_async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect)
+    {
+        if (!m_can_accept_async_wheel_events.load()) {
+            auto wheel_routing_admission = [this] {
+                Sync::MutexLocker const locker { m_mutex };
+                return m_wheel_routing_admission;
+            }();
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: compositor cannot accept async wheel events ({})",
+                wheel_routing_admission_to_string(wheel_routing_admission));
+            return false;
+        }
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor accepted main-thread async scroll enqueue at {},{} delta {},{} viewport={}x{} at {},{}",
+            position.x(), position.y(), delta.x(), delta.y(), viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
+        enqueue_command(AsyncScrollByCommand { position, delta, viewport_rect });
+        return true;
+    }
+
+    bool enqueue_async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta)
+    {
+        if (!m_can_accept_async_wheel_events.load()) {
+            auto wheel_routing_admission = [this] {
+                Sync::MutexLocker const locker { m_mutex };
+                return m_wheel_routing_admission;
+            }();
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: compositor cannot accept async wheel events ({})",
+                wheel_routing_admission_to_string(wheel_routing_admission));
+            return false;
+        }
+
+        auto viewport_rect = [this] {
+            Sync::MutexLocker const locker { m_mutex };
+            return m_async_scrolling_viewport_rect;
+        }();
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor accepted async scroll enqueue at {},{} delta {},{} viewport={}x{} at {},{}",
+            position.x(), position.y(), delta.x(), delta.y(), viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
+        enqueue_command(AsyncScrollByCommand { position, delta, viewport_rect });
+        return true;
+    }
+
     void compositor_loop(DisplayListPlayerType display_list_player_type)
     {
         initialize_skia_player(display_list_player_type);
@@ -212,7 +341,7 @@ public:
         while (true) {
             {
                 Sync::MutexLocker const locker { m_mutex };
-                while (m_command_queue.is_empty() && !m_needs_present && !m_exit) {
+                while (m_command_queue.is_empty() && !has_presentable_work() && !m_exit) {
                     m_command_ready.wait();
                 }
                 if (m_exit)
@@ -228,21 +357,105 @@ public:
                     Sync::MutexLocker const locker { m_mutex };
                     if (m_command_queue.is_empty())
                         return {};
-                    return m_command_queue.dequeue();
+                    auto command = m_command_queue.dequeue();
+                    return command;
                 }();
 
                 if (!command.has_value())
                     break;
 
+                bool should_yield_to_async_scroll_present = false;
                 command->visit(
                     [this](UpdateDisplayListCommand& cmd) {
+                        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor processing display list update (has_async_state={}, raster_tasks={}, deferred_async_present={})",
+                            cmd.async_scrolling_state.has_value(), m_queued_rasterization_tasks.load(), m_has_deferred_async_scroll_present);
                         m_cached_display_list = move(cmd.display_list);
                         m_cached_scroll_state_snapshot = move(cmd.scroll_state_snapshot);
+                        if (cmd.async_scrolling_state.has_value()) {
+                            auto async_scrolling_state = cmd.async_scrolling_state.release_value();
+                            auto wheel_routing_admission = wheel_routing_admission_for(async_scrolling_state);
+                            {
+                                Sync::MutexLocker const locker { m_mutex };
+                                m_wheel_routing_admission = wheel_routing_admission;
+                                m_async_scrolling_viewport_rect = async_scrolling_state.viewport_rect;
+                            }
+                            m_can_accept_async_wheel_events = wheel_routing_admission == WheelRoutingAdmission::Accepted;
+                            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor wheel routing admission: {} (scroll_nodes={}, sticky_areas={}, blocking_regions={})",
+                                wheel_routing_admission_to_string(wheel_routing_admission),
+                                async_scrolling_state.scroll_nodes.size(),
+                                async_scrolling_state.sticky_areas.size(),
+                                async_scrolling_state.blocking_wheel_event_regions.size());
+                            auto viewport_node = viewport_scroll_node(async_scrolling_state);
+                            auto pending_async_viewport_scroll_offset = [this] {
+                                Sync::MutexLocker const locker { m_mutex };
+                                return m_pending_async_viewport_scroll_offset;
+                            }();
+
+                            m_async_scroll_tree.set_state(move(async_scrolling_state));
+                            if (viewport_node.has_value() && pending_async_viewport_scroll_offset.has_value()) {
+                                auto delta = pending_async_viewport_scroll_offset->translated(-viewport_node->scroll_offset.x(), -viewport_node->scroll_offset.y());
+                                if (delta.x() != 0 || delta.y() != 0) {
+                                    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Reapplying pending async viewport offset {},{} to display list update",
+                                        pending_async_viewport_scroll_offset->x(), pending_async_viewport_scroll_offset->y());
+                                    m_async_scroll_tree.apply_scroll_delta(viewport_node->node_id, delta, m_cached_scroll_state_snapshot);
+                                }
+                            }
+                            m_async_scroll_tree.rebuild_wheel_scroll_targets(m_cached_display_list, m_cached_scroll_state_snapshot);
+                            m_has_async_scrolling_state = true;
+                        } else {
+                            m_async_scroll_tree.clear_wheel_scroll_targets();
+                            m_has_async_scrolling_state = false;
+                            m_can_accept_async_wheel_events = false;
+                            {
+                                Sync::MutexLocker const locker { m_mutex };
+                                m_wheel_routing_admission = WheelRoutingAdmission::NoAsyncScrollingState;
+                            }
+                        }
+                    },
+                    [this, &should_yield_to_async_scroll_present](AsyncScrollByCommand& cmd) {
+                        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor processing async scroll command at {},{} delta {},{} (raster_tasks={}, deferred_async_present={})",
+                            cmd.position.x(), cmd.position.y(), cmd.delta.x(), cmd.delta.y(), m_queued_rasterization_tasks.load(), m_has_deferred_async_scroll_present);
+                        auto async_scroll_viewport_rect = cmd.viewport_rect;
+                        auto scroll_target = m_async_scroll_tree.viewport_scroll_node_for_delta(cmd.delta);
+                        if (!scroll_target.has_value()) {
+                            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Dropping async scroll command: no viewport node can scroll by delta {},{}",
+                                cmd.delta.x(), cmd.delta.y());
+                            return;
+                        }
+                        if (!m_async_scroll_tree.apply_scroll_delta(*scroll_target, cmd.delta, m_cached_scroll_state_snapshot)) {
+                            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Dropping async scroll command: scroll tree consumed no delta");
+                            return;
+                        }
+                        if (auto scroll_offset = m_async_scroll_tree.scroll_offset_for_node(*scroll_target); scroll_offset.has_value()) {
+                            async_scroll_viewport_rect.set_location(scroll_offset->to_type<int>());
+                            Sync::MutexLocker const locker { m_mutex };
+                            m_pending_async_viewport_scroll_offset = *scroll_offset;
+                            m_async_scrolling_viewport_rect = async_scroll_viewport_rect;
+                            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Stored pending async viewport offset {},{}",
+                                scroll_offset->x(), scroll_offset->y());
+                        }
+                        m_async_scroll_tree.rebuild_wheel_scroll_targets(m_cached_display_list, m_cached_scroll_state_snapshot);
+                        {
+                            Sync::MutexLocker const locker { m_mutex };
+                            m_has_deferred_async_scroll_present = true;
+                            m_deferred_async_scroll_present_viewport_rect = async_scroll_viewport_rect;
+                        }
+                        should_yield_to_async_scroll_present = can_present_deferred_async_scroll();
+                        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor async scroll command complete (yield_to_present={}, raster_tasks={})",
+                            should_yield_to_async_scroll_present, m_queued_rasterization_tasks.load());
                     },
                     [this](UpdateScrollStateCommand& cmd) {
                         m_cached_scroll_state_snapshot = move(cmd.scroll_state_snapshot);
+                        if (m_has_async_scrolling_state) {
+                            Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
+                            m_async_scroll_tree.rebuild_wheel_scroll_targets(m_cached_display_list, m_cached_scroll_state_snapshot);
+                        }
                     },
                     [this](UpdateBackingStoresCommand& cmd) {
+                        if (m_has_async_scrolling_state) {
+                            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor received backing stores front={} back={} size={}x{}",
+                                cmd.front_bitmap_id, cmd.back_bitmap_id, cmd.size.width(), cmd.size.height());
+                        }
                         allocate_backing_stores(cmd);
                         m_backing_stores.front_bitmap_id = cmd.front_bitmap_id;
                         m_backing_stores.back_bitmap_id = cmd.back_bitmap_id;
@@ -260,6 +473,10 @@ public:
 
                 if (m_exit)
                     break;
+                if (should_yield_to_async_scroll_present) {
+                    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor yielding command drain to present async scroll");
+                    break;
+                }
             }
 
             if (m_exit)
@@ -268,9 +485,22 @@ public:
             bool should_present = false;
             Gfx::IntRect viewport_rect;
             u64 presenting_frame_id = 0;
+            bool should_present_deferred_async_scroll = false;
+            Gfx::IntRect deferred_async_scroll_viewport_rect;
+            Optional<u64> deferred_async_scroll_presenting_frame_id;
             {
                 Sync::MutexLocker const locker { m_mutex };
-                if (m_needs_present) {
+                if (m_has_deferred_async_scroll_present && m_queued_rasterization_tasks == 0) {
+                    should_present_deferred_async_scroll = true;
+                    deferred_async_scroll_viewport_rect = m_deferred_async_scroll_present_viewport_rect;
+                    m_has_deferred_async_scroll_present = false;
+                    if (m_needs_present) {
+                        deferred_async_scroll_presenting_frame_id = m_submitted_frame_id;
+                        m_needs_present = false;
+                    }
+                    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor selected deferred async present (raster_tasks={}, pending_main_thread_present={})",
+                        m_queued_rasterization_tasks.load(), deferred_async_scroll_presenting_frame_id.has_value());
+                } else if (m_needs_present && m_queued_rasterization_tasks == 0) {
                     should_present = true;
                     viewport_rect = m_pending_viewport_rect;
                     presenting_frame_id = m_submitted_frame_id;
@@ -278,53 +508,111 @@ public:
                 }
             }
 
-            if (should_present) {
-                // Block if we already have a frame queued (back pressure).
-                {
-                    Sync::MutexLocker const locker { m_mutex };
-                    while (m_queued_rasterization_tasks > 0 && !m_exit) {
-                        m_ready_to_paint.wait();
-                    }
-                    if (m_exit)
-                        break;
-                }
-
-                auto presentation_mode = [this] {
-                    Sync::MutexLocker const locker { m_mutex };
-                    return m_presentation_mode;
-                }();
-
-                if (m_cached_display_list && m_backing_stores.is_valid()) {
-                    auto should_clear_back_store = presentation_mode.visit(
-                        [](CompositorThread::PresentToUI) { return false; },
-                        [](CompositorThread::PublishToExternalContent const&) { return true; });
-                    if (should_clear_back_store) {
-                        // Embedded navigables leave their PaintConfig canvas unfilled, so double-buffered back stores
-                        // must be cleared before repainting.
-                        m_backing_stores.back_store->canvas().clear(SK_ColorTRANSPARENT);
-                    }
-                    m_skia_player->execute(*m_cached_display_list, m_cached_scroll_state_snapshot, *m_backing_stores.back_store);
-                    i32 rendered_bitmap_id = m_backing_stores.back_bitmap_id;
-                    m_backing_stores.swap();
-
-                    presentation_mode.visit(
-                        [this, viewport_rect, rendered_bitmap_id](CompositorThread::PresentToUI) {
-                            if (m_presents_to_client) {
-                                finish_rasterizing(rendered_bitmap_id);
-                                VERIFY(CompositorThread::present_frame_to_client(m_page_id, viewport_rect, rendered_bitmap_id));
-                            }
-                        },
-                        [this](CompositorThread::PublishToExternalContent const& mode) {
-                            auto snapshot = Gfx::DecodedImageFrame { *m_backing_stores.front_store->snapshot_bitmap() };
-                            mode.source->update(move(snapshot));
-                        });
-                }
-                mark_frame_complete(presenting_frame_id);
-            }
+            if (should_present_deferred_async_scroll)
+                present_frame(deferred_async_scroll_viewport_rect, deferred_async_scroll_presenting_frame_id, PresentFrameDelivery::AsyncScroll);
+            else if (should_present)
+                present_frame(viewport_rect, presenting_frame_id, PresentFrameDelivery::MainThread);
         }
     }
 
 private:
+    enum class PresentFrameDelivery {
+        MainThread,
+        AsyncScroll,
+    };
+
+    bool has_presentable_work() const
+    {
+        return (m_has_deferred_async_scroll_present && m_queued_rasterization_tasks == 0)
+            || (m_needs_present && m_queued_rasterization_tasks == 0);
+    }
+
+    bool can_present_deferred_async_scroll() const
+    {
+        Sync::MutexLocker const locker { m_mutex };
+        return m_has_deferred_async_scroll_present && m_queued_rasterization_tasks == 0;
+    }
+
+    void present_frame(Gfx::IntRect viewport_rect, Optional<u64> presenting_frame_id = {}, PresentFrameDelivery delivery = PresentFrameDelivery::MainThread)
+    {
+        auto delivery_name = delivery == PresentFrameDelivery::AsyncScroll ? "compositor-thread"sv : "main-thread"sv;
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Begin {} present (frame={}, raster_tasks={}, viewport={}x{} at {},{})",
+            delivery_name, presenting_frame_id.value_or(0), m_queued_rasterization_tasks.load(), viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
+
+        {
+            Sync::MutexLocker const locker { m_mutex };
+            if (delivery == PresentFrameDelivery::AsyncScroll && m_queued_rasterization_tasks > 0) {
+                m_has_deferred_async_scroll_present = true;
+                m_deferred_async_scroll_present_viewport_rect = viewport_rect;
+                dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Deferring async scroll present until a backing store is ready (raster_tasks={})",
+                    m_queued_rasterization_tasks.load());
+                return;
+            }
+            VERIFY(m_queued_rasterization_tasks == 0);
+            if (m_exit)
+                return;
+            m_is_rasterizing = true;
+        }
+
+        auto presentation_mode = [this] {
+            Sync::MutexLocker const locker { m_mutex };
+            return m_presentation_mode;
+        }();
+
+        if (m_cached_display_list && m_backing_stores.is_valid()) {
+            auto should_clear_back_store = presentation_mode.visit(
+                [](CompositorThread::PresentToUI) { return false; },
+                [](CompositorThread::PublishToExternalContent const&) { return true; });
+            if (should_clear_back_store) {
+                // Embedded navigables leave their PaintConfig canvas unfilled, so double-buffered back stores must be
+                // cleared before repainting.
+                m_backing_stores.back_store->canvas().clear(SK_ColorTRANSPARENT);
+            }
+            m_skia_player->execute(*m_cached_display_list, m_cached_scroll_state_snapshot, *m_backing_stores.back_store);
+            i32 rendered_bitmap_id = m_backing_stores.back_bitmap_id;
+            m_backing_stores.swap();
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Finished {} display-list replay into bitmap {}",
+                delivery_name, rendered_bitmap_id);
+
+            presentation_mode.visit(
+                [this, viewport_rect, rendered_bitmap_id, delivery](CompositorThread::PresentToUI) {
+                    if (m_presents_to_client) {
+                        finish_rasterizing(rendered_bitmap_id);
+                        if (delivery == PresentFrameDelivery::AsyncScroll) {
+                            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Finished async scroll raster into bitmap {} (raster_tasks={})",
+                                rendered_bitmap_id, m_queued_rasterization_tasks.load());
+                        }
+                        VERIFY(CompositorThread::present_frame_to_client(m_page_id, viewport_rect, rendered_bitmap_id));
+                    } else {
+                        Sync::MutexLocker const locker { m_mutex };
+                        m_is_rasterizing = false;
+                    }
+                },
+                [this](CompositorThread::PublishToExternalContent const& mode) {
+                    {
+                        Sync::MutexLocker const locker { m_mutex };
+                        m_is_rasterizing = false;
+                    }
+                    if (m_has_async_scrolling_state)
+                        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Publishing present to external content source");
+                    auto snapshot = Gfx::DecodedImageFrame { *m_backing_stores.front_store->snapshot_bitmap() };
+                    mode.source->update(move(snapshot));
+                });
+        } else {
+            {
+                Sync::MutexLocker const locker { m_mutex };
+                m_is_rasterizing = false;
+            }
+            if (m_has_async_scrolling_state) {
+                dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Skipping {} present: cached_display_list={}, backing_stores_valid={}",
+                    delivery_name, !!m_cached_display_list, m_backing_stores.is_valid());
+            }
+        }
+
+        if (presenting_frame_id.has_value())
+            mark_frame_complete(*presenting_frame_id);
+    }
+
     void initialize_skia_player(DisplayListPlayerType display_list_player_type)
     {
         switch (display_list_player_type) {
@@ -368,6 +656,10 @@ private:
         m_backing_stores.front_store = move(backing_store_pair.front);
         m_backing_stores.back_store = move(backing_store_pair.back);
         publish_backing_store_pair(cmd, move(front_shared_image), move(back_shared_image));
+        if (m_has_async_scrolling_state) {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Allocated bitmap backing stores front={} back={} size={}x{}",
+                cmd.front_bitmap_id, cmd.back_bitmap_id, cmd.size.width(), cmd.size.height());
+        }
     }
 
     template<typename Invokee>
@@ -397,24 +689,34 @@ private:
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     RefPtr<Painting::DisplayList> m_cached_display_list;
     Painting::ScrollStateSnapshot m_cached_scroll_state_snapshot;
+    AsyncScrollTree m_async_scroll_tree;
     BackingStoreState m_backing_stores;
     CompositorThread::PresentationMode m_presentation_mode { CompositorThread::PresentToUI {} };
 
     Atomic<i32> m_queued_rasterization_tasks { 0 };
     Optional<i32> m_presented_bitmap_id_awaiting_ack;
     mutable Sync::ConditionVariable m_ready_to_paint { m_mutex };
+    bool m_is_rasterizing { false };
 
     bool m_needs_present { false };
     Gfx::IntRect m_pending_viewport_rect;
+    bool m_has_deferred_async_scroll_present { false };
+    Gfx::IntRect m_deferred_async_scroll_present_viewport_rect;
 
     u64 m_submitted_frame_id { 0 };
     u64 m_completed_frame_id { 0 };
     mutable Sync::ConditionVariable m_frame_completed { m_mutex };
+    Optional<Gfx::FloatPoint> m_pending_async_viewport_scroll_offset;
+    Gfx::IntRect m_async_scrolling_viewport_rect;
+    Atomic<bool> m_has_async_scrolling_state { false };
+    Atomic<bool> m_can_accept_async_wheel_events { false };
+    WheelRoutingAdmission m_wheel_routing_admission { WheelRoutingAdmission::NoAsyncScrollingState };
 
 public:
     void finish_rasterizing(i32 bitmap_id)
     {
         Sync::MutexLocker const locker { m_mutex };
+        m_is_rasterizing = false;
         VERIFY(!m_presented_bitmap_id_awaiting_ack.has_value());
         m_presented_bitmap_id_awaiting_ack = bitmap_id;
         m_queued_rasterization_tasks++;
@@ -424,8 +726,11 @@ public:
     void decrement_queued_tasks(i32 bitmap_id)
     {
         Sync::MutexLocker const locker { m_mutex };
-        if (m_presented_bitmap_id_awaiting_ack != bitmap_id)
+        if (m_presented_bitmap_id_awaiting_ack != bitmap_id) {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Ignoring stale ready_to_paint for bitmap {} while awaiting bitmap {} (raster_tasks={})",
+                bitmap_id, m_presented_bitmap_id_awaiting_ack.value_or(-1), m_queued_rasterization_tasks.load());
             return;
+        }
 
         VERIFY(m_queued_rasterization_tasks == 1);
         m_presented_bitmap_id_awaiting_ack.clear();
@@ -586,6 +891,21 @@ void CompositorThread::presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_i
     thread_data->decrement_queued_tasks(bitmap_id);
 }
 
+bool CompositorThread::async_scroll_by(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta)
+{
+    RefPtr<ThreadData> thread_data;
+    {
+        Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
+        auto compositor = page_compositors().find(page_id);
+        if (compositor == page_compositors().end()) {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Async scroll cannot scroll page {}: no compositor registered", page_id);
+            return false;
+        }
+        thread_data = compositor->value;
+    }
+    return thread_data->enqueue_async_scroll_by(position, delta);
+}
+
 void CompositorThread::start(DisplayListPlayerType display_list_player_type)
 {
     m_thread = Threading::Thread::construct("Compositor"sv, [thread_data = m_thread_data, display_list_player_type] {
@@ -609,7 +929,37 @@ void CompositorThread::stop_presenting_to_client()
 
 void CompositorThread::update_display_list(NonnullRefPtr<Painting::DisplayList> display_list, Painting::ScrollStateSnapshot&& scroll_state_snapshot)
 {
-    m_thread_data->enqueue_command(UpdateDisplayListCommand { move(display_list), move(scroll_state_snapshot) });
+    m_thread_data->enqueue_command(UpdateDisplayListCommand { move(display_list), move(scroll_state_snapshot), {} });
+}
+
+void CompositorThread::update_display_list_and_async_scrolling_state(NonnullRefPtr<Painting::DisplayList> display_list, Painting::ScrollStateSnapshot&& scroll_state_snapshot, AsyncScrollingState&& async_scrolling_state)
+{
+    m_thread_data->enqueue_command(UpdateDisplayListCommand { move(display_list), move(scroll_state_snapshot), Optional<AsyncScrollingState> { move(async_scrolling_state) } });
+}
+
+bool CompositorThread::async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect)
+{
+    return m_thread_data->enqueue_async_scroll_by(position, delta, viewport_rect);
+}
+
+Optional<Gfx::FloatPoint> CompositorThread::pending_async_viewport_scroll_offset() const
+{
+    return m_thread_data->pending_async_viewport_scroll_offset();
+}
+
+bool CompositorThread::should_defer_async_viewport_scroll_offset_adoption() const
+{
+    return m_thread_data->should_defer_async_viewport_scroll_offset_adoption();
+}
+
+bool CompositorThread::should_defer_main_thread_present_for_async_scroll() const
+{
+    return m_thread_data->should_defer_main_thread_present_for_async_scroll();
+}
+
+Optional<Gfx::FloatPoint> CompositorThread::take_pending_async_viewport_scroll_offset()
+{
+    return m_thread_data->take_pending_async_viewport_scroll_offset();
 }
 
 void CompositorThread::update_scroll_state(Painting::ScrollStateSnapshot&& scroll_state_snapshot)

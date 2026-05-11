@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Debug.h>
 #include <AK/TemporaryChange.h>
 #include <LibCore/EventLoop.h>
 #include <LibJS/Runtime/VM.h>
@@ -261,6 +262,10 @@ void EventLoop::process_input_events() const
                     case MouseEvent::Type::MouseLeave:
                         return page.handle_mouseleave();
                     case MouseEvent::Type::MouseWheel:
+                        if (mouse_event.async_scroll_performed_default_action) {
+                            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread handling DOM wheel after async default action");
+                            return page.handle_mousewheel(mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers, mouse_event.wheel_delta_x, mouse_event.wheel_delta_y, true);
+                        }
                         return page.handle_mousewheel(mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers, mouse_event.wheel_delta_x, mouse_event.wheel_delta_y);
                     }
                     VERIFY_NOT_REACHED();

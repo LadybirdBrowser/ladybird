@@ -9,6 +9,7 @@
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/CSS/VisualViewport.h>
+#include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/DirectiveOperations.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
@@ -60,6 +61,8 @@
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/InputTypes.h>
 #include <LibWeb/XHR/FormData.h>
+
+#include <AK/Debug.h>
 
 namespace Web::HTML {
 
@@ -3130,6 +3133,22 @@ void Navigable::record_display_list_and_scroll_state(PaintConfig paint_config)
     if (!document)
         return;
 
+    if (page().async_scrolling_enabled()) {
+        // The compositor thread may have already presented newer viewport scroll offsets. Adopt the latest one before
+        // recording so a main-thread repaint catches up to the visible async position.
+        if (m_rendering_thread.should_defer_async_viewport_scroll_offset_adoption()) {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread deferred async viewport offset adoption before recording display list");
+        } else if (auto async_scroll_offset = m_rendering_thread.take_pending_async_viewport_scroll_offset(); async_scroll_offset.has_value()) {
+            auto device_pixels_per_css_pixel = page().client().device_pixels_per_css_pixel();
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread adopting async viewport offset {},{} before recording display list",
+                async_scroll_offset->x(), async_scroll_offset->y());
+            perform_scroll_of_viewport_scrolling_box({
+                CSSPixels { async_scroll_offset->x() / device_pixels_per_css_pixel },
+                CSSPixels { async_scroll_offset->y() / device_pixels_per_css_pixel },
+            });
+        }
+    }
+
     auto should_record_display_list = m_needs_to_record_display_list
         || !m_rendering_thread_display_list_paint_config.has_value()
         || !(m_rendering_thread_display_list_paint_config.value() == paint_config);
@@ -3147,7 +3166,16 @@ void Navigable::record_display_list_and_scroll_state(PaintConfig paint_config)
 
     Painting::ScrollStateSnapshot scroll_state_snapshot { document_paintable->scroll_state_snapshot() };
     if (should_record_display_list) {
-        m_rendering_thread.update_display_list(*display_list, move(scroll_state_snapshot));
+        if (page().async_scrolling_enabled()) {
+            auto viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
+            auto async_scrolling_state = Compositor::collect_async_scrolling_state(*this, *document_paintable, viewport_rect);
+            m_rendering_thread.update_display_list_and_async_scrolling_state(
+                *display_list,
+                move(scroll_state_snapshot),
+                move(async_scrolling_state));
+        } else {
+            m_rendering_thread.update_display_list(*display_list, move(scroll_state_snapshot));
+        }
         m_needs_to_record_display_list = false;
         m_rendering_thread_display_list_paint_config = paint_config;
     } else {
@@ -3168,6 +3196,11 @@ void Navigable::paint_next_frame()
     }
 
     record_display_list_and_scroll_state(paint_config);
+
+    if (page().async_scrolling_enabled() && m_rendering_thread.should_defer_main_thread_present_for_async_scroll()) {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread deferred present while async scroll is pending");
+        return;
+    }
 
     auto frame_id = m_rendering_thread.present_frame(viewport_rect);
     if (!is_top_level_traversable())

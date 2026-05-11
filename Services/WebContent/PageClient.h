@@ -42,6 +42,8 @@ public:
     virtual bool is_headless() const override;
     static void set_is_headless(bool);
 
+    static void set_async_scrolling_enabled(bool);
+
     virtual Web::Page& page() override { return *m_page; }
     virtual Web::Page const& page() const override { return *m_page; }
 

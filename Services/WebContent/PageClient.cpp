@@ -47,6 +47,7 @@ namespace WebContent {
 
 static PageClient::UseSkiaPainter s_use_skia_painter = PageClient::UseSkiaPainter::GPUBackendIfAvailable;
 static bool s_is_headless { false };
+static bool s_async_scrolling_enabled { false };
 
 GC_DEFINE_ALLOCATOR(PageClient);
 
@@ -65,6 +66,11 @@ void PageClient::set_is_headless(bool is_headless)
     s_is_headless = is_headless;
 }
 
+void PageClient::set_async_scrolling_enabled(bool enabled)
+{
+    s_async_scrolling_enabled = enabled;
+}
+
 GC::Ref<PageClient> PageClient::create(JS::VM& vm, PageHost& page_host, u64 id)
 {
     return vm.heap().allocate<PageClient>(page_host, id);
@@ -75,6 +81,7 @@ PageClient::PageClient(PageHost& owner, u64 id)
     , m_page(Web::Page::create(Web::Bindings::main_thread_vm(), *this))
     , m_id(id)
 {
+    m_page->set_async_scrolling_enabled(s_async_scrolling_enabled);
     setup_palette();
 
     m_frame_timer = Core::Timer::create_single_shot(0, [this] {
