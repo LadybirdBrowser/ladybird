@@ -140,6 +140,12 @@ static NSImage* literal_url_suggestion_icon()
     return image;
 }
 
+static CGFloat autocomplete_visible_width(NSView* view)
+{
+    auto* scroll_view = view.enclosingScrollView;
+    return scroll_view ? scroll_view.contentSize.width : NSWidth(view.bounds);
+}
+
 @protocol AutocompleteTableViewHoverObserver <NSObject>
 
 - (void)autocompleteTableViewHoveredRowChanged:(NSInteger)row;
@@ -153,7 +159,8 @@ static NSImage* literal_url_suggestion_icon()
 
 - (void)drawSelectionInRect:(NSRect)dirtyRect
 {
-    auto selection_rect = NSInsetRect(self.bounds, 2, 3);
+    auto visible_bounds = NSMakeRect(0, 0, autocomplete_visible_width(self), NSHeight(self.bounds));
+    auto selection_rect = NSInsetRect(visible_bounds, 2, 3);
     auto* selection_path = [NSBezierPath bezierPathWithRoundedRect:selection_rect xRadius:6 yRadius:6];
 
     [[[NSColor controlAccentColor] colorWithAlphaComponent:0.25] setFill];
@@ -623,13 +630,16 @@ static NSImage* literal_url_suggestion_icon()
 - (NSTableRowView*)tableView:(NSTableView*)tableView
                rowViewForRow:(NSInteger)row
 {
-    return [[AutocompleteRowView alloc] initWithFrame:NSMakeRect(0, 0, NSWidth(tableView.bounds), [self tableView:tableView heightOfRow:row])];
+    auto visible_width = autocomplete_visible_width(tableView);
+    return [[AutocompleteRowView alloc] initWithFrame:NSMakeRect(0, 0, visible_width, [self tableView:tableView heightOfRow:row])];
 }
 
 - (NSView*)tableView:(NSTableView*)table_view
     viewForTableColumn:(NSTableColumn*)table_column
                    row:(NSInteger)row
 {
+    auto visible_width = autocomplete_visible_width(table_view);
+
     auto const& row_model = m_rows[row];
     if (row_model.kind == AutocompleteRowKind::SectionHeader) {
         AutocompleteSectionHeaderView* view = (AutocompleteSectionHeaderView*)[table_view makeViewWithIdentifier:AUTOCOMPLETE_SECTION_HEADER_IDENTIFIER owner:self];
@@ -650,7 +660,7 @@ static NSImage* literal_url_suggestion_icon()
 
         auto* header_text = Ladybird::string_to_ns_string(row_model.text);
         auto header_height = autocomplete_text_field_height(autocomplete_section_header_font());
-        [view setFrame:NSMakeRect(0, 0, NSWidth(table_view.bounds), [self tableView:table_view heightOfRow:row])];
+        [view setFrame:NSMakeRect(0, 0, visible_width, [self tableView:table_view heightOfRow:row])];
         [view.text_field setStringValue:header_text];
         [view.text_field setTextColor:[NSColor tertiaryLabelColor]];
         [view.text_field setFrame:NSMakeRect(
@@ -703,7 +713,7 @@ static NSImage* literal_url_suggestion_icon()
         : suggestion.source == WebView::AutocompleteSuggestionSource::Search ? search_suggestion_icon()
                                                                              : favicon;
 
-    [view setFrame:NSMakeRect(0, 0, NSWidth(table_view.bounds), [self tableView:table_view heightOfRow:row])];
+    [view setFrame:NSMakeRect(0, 0, visible_width, [self tableView:table_view heightOfRow:row])];
 
     auto primary_text_height = autocomplete_text_field_height(autocomplete_primary_font());
     auto secondary_text_height = autocomplete_text_field_height(autocomplete_secondary_font());
