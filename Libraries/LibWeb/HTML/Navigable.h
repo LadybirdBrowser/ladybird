@@ -229,7 +229,6 @@ public:
     bool has_pending_navigations() const { return !m_pending_navigations.is_empty(); }
     void clear_pending_navigations() { m_pending_navigations.clear(); }
 
-    void ready_to_paint();
     void record_display_list_and_scroll_state(PaintConfig);
     void paint_next_frame();
     void render_screenshot(Gfx::PaintingSurface&, PaintConfig, Function<void()>&& callback);
@@ -259,7 +258,10 @@ public:
     void reset_zoom();
 
 protected:
-    explicit Navigable(GC::Ref<Page>, bool is_svg_page);
+    explicit Navigable(
+        GC::Ref<Page>,
+        bool is_svg_page,
+        Compositor::CompositorThread::PagePresentationRegistration = Compositor::CompositorThread::PagePresentationRegistration::No);
 
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;

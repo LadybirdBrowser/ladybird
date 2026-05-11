@@ -15,6 +15,8 @@ class WEB_API BackingStoreManager : public JS::Cell {
     GC_DECLARE_ALLOCATOR(BackingStoreManager);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     enum class WindowResizingInProgress {
         No,
         Yes
@@ -23,6 +25,7 @@ public:
     void reallocate_backing_stores(Gfx::IntSize);
     void restart_resize_timer();
 
+    virtual void finalize() override;
     virtual void visit_edges(Cell::Visitor& visitor) override;
 
     BackingStoreManager(HTML::Navigable&);

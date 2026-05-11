@@ -2,7 +2,6 @@
 #include <LibGfx/Color.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibGfx/Cursor.h>
-#include <LibGfx/SharedImage.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
@@ -38,7 +37,6 @@ endpoint WebContentClient
     did_start_loading(u64 page_id, URL::URL url, bool is_redirect) =|
     did_finish_loading(u64 page_id, URL::URL url) =|
     did_request_refresh(u64 page_id) =|
-    did_paint(u64 page_id, Gfx::IntRect content_rect, i32 bitmap_id) =|
     did_request_cursor_change(u64 page_id, Gfx::Cursor cursor) =|
     did_change_title(u64 page_id, Utf16String title) =|
     did_change_url(u64 page_id, URL::URL url) =|
@@ -117,7 +115,6 @@ endpoint WebContentClient
     did_request_clipboard_entries(u64 page_id, u64 request_id) =|
 
     did_update_navigation_buttons_state(u64 page_id, bool back_enabled, bool forward_enabled) =|
-    did_allocate_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store) =|
 
     did_change_audio_play_state(u64 page_id, Web::HTML::AudioPlayState play_state) =|
 

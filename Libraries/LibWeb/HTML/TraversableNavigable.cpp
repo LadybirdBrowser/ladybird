@@ -35,7 +35,10 @@ namespace Web::HTML {
 GC_DEFINE_ALLOCATOR(TraversableNavigable);
 
 TraversableNavigable::TraversableNavigable(GC::Ref<Page> page)
-    : Navigable(page, page->client().is_svg_page_client())
+    : Navigable(
+          page,
+          page->client().is_svg_page_client(),
+          Compositor::CompositorThread::PagePresentationRegistration::Yes)
     , m_storage_shed(StorageAPI::StorageShed::create(page->heap()))
     , m_session_history_traversal_queue(vm().heap().allocate<SessionHistoryTraversalQueue>())
 {

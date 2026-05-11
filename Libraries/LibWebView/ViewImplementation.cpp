@@ -147,16 +147,19 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
 
 void ViewImplementation::server_did_paint(Badge<WebContentClient>, i32 bitmap_id, Gfx::IntSize size)
 {
+    bool did_swap_bitmap = false;
     if (m_client_state.back_bitmap.id == bitmap_id) {
         m_client_state.has_usable_bitmap = true;
         m_client_state.back_bitmap.last_painted_size = size.to_type<Web::DevicePixels>();
         swap(m_client_state.back_bitmap, m_client_state.front_bitmap);
         m_backup_shared_image_buffer = nullptr;
-        if (on_ready_to_paint)
-            on_ready_to_paint();
+        did_swap_bitmap = true;
     }
 
-    client().async_ready_to_paint(page_id());
+    client().notify_presented_bitmap_ready_to_paint(page_id(), bitmap_id);
+
+    if (did_swap_bitmap && on_ready_to_paint)
+        on_ready_to_paint();
 }
 
 void ViewImplementation::set_window_position(Gfx::IntPoint position)

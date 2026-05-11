@@ -20,7 +20,6 @@
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/ShareableBitmap.h>
-#include <LibGfx/SharedImage.h>
 #include <LibGfx/Size.h>
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/Forward.h>
@@ -450,7 +449,6 @@ public:
     virtual void page_did_request_activate_tab() { }
     virtual void page_did_close_top_level_traversable() { }
     virtual void page_did_update_navigation_buttons_state([[maybe_unused]] bool back_enabled, [[maybe_unused]] bool forward_enabled) { }
-    virtual void page_did_allocate_backing_stores([[maybe_unused]] i32 front_bitmap_id, [[maybe_unused]] Gfx::SharedImage front_backing_store, [[maybe_unused]] i32 back_bitmap_id, [[maybe_unused]] Gfx::SharedImage back_backing_store) { }
 
     virtual void request_file(FileRequest) = 0;
 
@@ -490,7 +488,6 @@ public:
 
     virtual void page_did_mutate_dom([[maybe_unused]] FlyString const& type, [[maybe_unused]] DOM::Node const& target, [[maybe_unused]] DOM::NodeList& added_nodes, [[maybe_unused]] DOM::NodeList& removed_nodes, [[maybe_unused]] GC::Ptr<DOM::Node> previous_sibling, [[maybe_unused]] GC::Ptr<DOM::Node> next_sibling, [[maybe_unused]] Optional<String> const& attribute_name) { }
 
-    virtual void page_did_paint([[maybe_unused]] Gfx::IntRect const& content_rect, [[maybe_unused]] i32 bitmap_id) { }
     virtual void page_did_take_screenshot(Gfx::ShareableBitmap const&) { }
 
     virtual void received_message_from_web_ui([[maybe_unused]] String const& name, [[maybe_unused]] JS::Value data) { }

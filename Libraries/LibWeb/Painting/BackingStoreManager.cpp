@@ -26,6 +26,14 @@ void BackingStoreManager::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_navigable);
 }
 
+void BackingStoreManager::finalize()
+{
+    Base::finalize();
+    m_backing_store_shrink_timer->on_timeout = {};
+    m_backing_store_shrink_timer->stop();
+    m_backing_store_shrink_timer.clear();
+}
+
 void BackingStoreManager::restart_resize_timer()
 {
     m_backing_store_shrink_timer->restart();
@@ -37,15 +45,7 @@ void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
     m_back_bitmap_id = m_next_bitmap_id++;
     m_allocated_size = size;
 
-    Function<void(i32, Gfx::SharedImage, i32, Gfx::SharedImage)> allocation_callback;
-    if (m_navigable->is_top_level_traversable()) {
-        auto* page_client = &m_navigable->top_level_traversable()->page().client();
-        allocation_callback = [page_client](i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store) mutable {
-            page_client->page_did_allocate_backing_stores(front_bitmap_id, move(front_backing_store), back_bitmap_id, move(back_backing_store));
-        };
-    }
-
-    m_navigable->rendering_thread().update_backing_stores(size, m_front_bitmap_id, m_back_bitmap_id, move(allocation_callback));
+    m_navigable->rendering_thread().update_backing_stores(size, m_front_bitmap_id, m_back_bitmap_id);
 }
 
 void BackingStoreManager::resize_backing_stores_if_needed(WindowResizingInProgress window_resize_in_progress)

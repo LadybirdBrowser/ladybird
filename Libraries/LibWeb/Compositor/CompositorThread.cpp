@@ -15,6 +15,10 @@
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/ExternalContentSource.h>
 
+#include <AK/HashMap.h>
+#include <AK/NeverDestroyed.h>
+#include <AK/Queue.h>
+
 #ifdef USE_VULKAN_DMABUF_IMAGES
 #    include <AK/Array.h>
 #    include <LibGfx/VulkanImage.h>
@@ -56,7 +60,6 @@ struct UpdateBackingStoresCommand {
     Gfx::IntSize size;
     i32 front_bitmap_id;
     i32 back_bitmap_id;
-    Function<void(i32, Gfx::SharedImage, i32, Gfx::SharedImage)> allocation_callback;
 };
 
 struct ScreenshotCommand {
@@ -139,13 +142,22 @@ static ErrorOr<DMABufBackingStorePair> create_linear_dmabuf_backing_stores(Gfx::
 
 class CompositorThread::ThreadData final : public AtomicRefCounted<ThreadData> {
 public:
-    ThreadData(NonnullRefPtr<Core::WeakEventLoopReference>&& main_thread_event_loop, CompositorThread::PresentationCallback presentation_callback)
-        : m_main_thread_event_loop(move(main_thread_event_loop))
-        , m_presentation_callback(move(presentation_callback))
+    ThreadData(u64 page_id, NonnullRefPtr<Core::WeakEventLoopReference>&& main_thread_event_loop, CompositorThread::PagePresentationRegistration page_presentation_registration)
+        : m_page_id(page_id)
+        , m_main_thread_event_loop(move(main_thread_event_loop))
+        , m_presents_to_client(page_presentation_registration == CompositorThread::PagePresentationRegistration::Yes)
     {
     }
 
     ~ThreadData() = default;
+
+    u64 page_id() const { return m_page_id; }
+    bool presents_to_client() const { return m_presents_to_client; }
+    void stop_presenting_to_client()
+    {
+        Sync::MutexLocker const locker { m_mutex };
+        m_presents_to_client = false;
+    }
 
     void set_presentation_mode(CompositorThread::PresentationMode mode)
     {
@@ -267,10 +279,10 @@ public:
             }
 
             if (should_present) {
-                // Block if we already have a frame queued (back pressure)
+                // Block if we already have a frame queued (back pressure).
                 {
                     Sync::MutexLocker const locker { m_mutex };
-                    while (m_queued_rasterization_tasks > 1 && !m_exit) {
+                    while (m_queued_rasterization_tasks > 0 && !m_exit) {
                         m_ready_to_paint.wait();
                     }
                     if (m_exit)
@@ -297,10 +309,10 @@ public:
 
                     presentation_mode.visit(
                         [this, viewport_rect, rendered_bitmap_id](CompositorThread::PresentToUI) {
-                            m_queued_rasterization_tasks++;
-                            invoke_on_main_thread([this, viewport_rect, rendered_bitmap_id]() {
-                                m_presentation_callback(viewport_rect, rendered_bitmap_id);
-                            });
+                            if (m_presents_to_client) {
+                                finish_rasterizing(rendered_bitmap_id);
+                                VERIFY(CompositorThread::present_frame_to_client(m_page_id, viewport_rect, rendered_bitmap_id));
+                            }
                         },
                         [this](CompositorThread::PublishToExternalContent const& mode) {
                             auto snapshot = Gfx::DecodedImageFrame { *m_backing_stores.front_store->snapshot_bitmap() };
@@ -327,17 +339,16 @@ private:
 
     void publish_backing_store_pair(UpdateBackingStoresCommand& cmd, Gfx::SharedImage front_shared_image, Gfx::SharedImage back_shared_image)
     {
-        if (!cmd.allocation_callback)
+        if (!m_presents_to_client)
             return;
-        invoke_on_main_thread([callback = move(cmd.allocation_callback), front_bitmap_id = cmd.front_bitmap_id, front_shared_image = move(front_shared_image), back_bitmap_id = cmd.back_bitmap_id, back_shared_image = move(back_shared_image)]() mutable {
-            callback(front_bitmap_id, move(front_shared_image), back_bitmap_id, move(back_shared_image));
-        });
+
+        VERIFY(CompositorThread::present_backing_stores_to_client(m_page_id, cmd.front_bitmap_id, move(front_shared_image), cmd.back_bitmap_id, move(back_shared_image)));
     }
 
     void allocate_backing_stores(UpdateBackingStoresCommand& cmd)
     {
 #ifdef USE_VULKAN_DMABUF_IMAGES
-        if (m_skia_backend_context && cmd.allocation_callback) {
+        if (m_skia_backend_context && m_presents_to_client) {
             auto backing_stores = create_linear_dmabuf_backing_stores(cmd.size, *m_skia_backend_context);
             if (!backing_stores.is_error()) {
                 auto backing_store_pair = backing_stores.release_value();
@@ -372,8 +383,9 @@ private:
         });
     }
 
+    u64 m_page_id { 0 };
     NonnullRefPtr<Core::WeakEventLoopReference> m_main_thread_event_loop;
-    CompositorThread::PresentationCallback m_presentation_callback;
+    bool m_presents_to_client { false };
 
     mutable Sync::Mutex m_mutex;
     mutable Sync::ConditionVariable m_command_ready { m_mutex };
@@ -389,6 +401,7 @@ private:
     CompositorThread::PresentationMode m_presentation_mode { CompositorThread::PresentToUI {} };
 
     Atomic<i32> m_queued_rasterization_tasks { 0 };
+    Optional<i32> m_presented_bitmap_id_awaiting_ack;
     mutable Sync::ConditionVariable m_ready_to_paint { m_mutex };
 
     bool m_needs_present { false };
@@ -399,23 +412,178 @@ private:
     mutable Sync::ConditionVariable m_frame_completed { m_mutex };
 
 public:
-    void decrement_queued_tasks()
+    void finish_rasterizing(i32 bitmap_id)
     {
         Sync::MutexLocker const locker { m_mutex };
-        VERIFY(m_queued_rasterization_tasks >= 1 && m_queued_rasterization_tasks <= 2);
+        VERIFY(!m_presented_bitmap_id_awaiting_ack.has_value());
+        m_presented_bitmap_id_awaiting_ack = bitmap_id;
+        m_queued_rasterization_tasks++;
+        VERIFY(m_queued_rasterization_tasks == 1);
+    }
+
+    void decrement_queued_tasks(i32 bitmap_id)
+    {
+        Sync::MutexLocker const locker { m_mutex };
+        if (m_presented_bitmap_id_awaiting_ack != bitmap_id)
+            return;
+
+        VERIFY(m_queued_rasterization_tasks == 1);
+        m_presented_bitmap_id_awaiting_ack.clear();
         m_queued_rasterization_tasks--;
         m_ready_to_paint.signal();
+        m_command_ready.signal();
     }
 };
 
-CompositorThread::CompositorThread(PresentationCallback presentation_callback)
-    : m_thread_data(adopt_ref(*new ThreadData(Core::EventLoop::current_weak(), move(presentation_callback))))
+struct FramePresentationState {
+    RefPtr<Core::WeakEventLoopReference> event_loop;
+    CompositorThread::BackingStorePresentationCallback backing_store_callback;
+    CompositorThread::FramePresentationCallback frame_callback;
+};
+
+static Sync::Mutex& compositor_presentation_state_mutex()
 {
+    static NeverDestroyed<Sync::Mutex> mutex;
+    return *mutex;
+}
+
+static HashMap<u64, NonnullRefPtr<CompositorThread::ThreadData>>& page_compositors()
+{
+    static NeverDestroyed<HashMap<u64, NonnullRefPtr<CompositorThread::ThreadData>>> compositors;
+    return *compositors;
+}
+
+static FramePresentationState& frame_presentation_state()
+{
+    static NeverDestroyed<FramePresentationState> state;
+    return *state;
+}
+
+CompositorThread::CompositorThread(u64 page_id, PagePresentationRegistration page_presentation_registration)
+    : m_thread_data(adopt_ref(*new ThreadData(page_id, Core::EventLoop::current_weak(), page_presentation_registration)))
+{
+    if (page_presentation_registration == PagePresentationRegistration::Yes)
+        register_page_compositor(page_id, m_thread_data);
 }
 
 CompositorThread::~CompositorThread()
 {
+    unregister_page_compositor(m_thread_data->page_id(), *m_thread_data);
     m_thread_data->exit();
+}
+
+void CompositorThread::register_page_compositor(u64 page_id, NonnullRefPtr<ThreadData> thread_data)
+{
+    Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
+    page_compositors().set(page_id, move(thread_data));
+}
+
+void CompositorThread::unregister_page_compositor(u64 page_id, ThreadData& thread_data)
+{
+    Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
+    auto compositor = page_compositors().find(page_id);
+    if (compositor == page_compositors().end())
+        return;
+    if (compositor->value.ptr() != &thread_data)
+        return;
+    page_compositors().remove(compositor);
+}
+
+void CompositorThread::set_frame_presentation_callbacks(NonnullRefPtr<Core::WeakEventLoopReference> event_loop, BackingStorePresentationCallback backing_store_callback, FramePresentationCallback frame_callback)
+{
+    Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
+    auto& state = frame_presentation_state();
+    state.event_loop = move(event_loop);
+    state.backing_store_callback = move(backing_store_callback);
+    state.frame_callback = move(frame_callback);
+}
+
+void CompositorThread::clear_frame_presentation_callbacks()
+{
+    Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
+    auto& state = frame_presentation_state();
+    state.event_loop = nullptr;
+    state.backing_store_callback = {};
+    state.frame_callback = {};
+}
+
+bool CompositorThread::present_backing_stores_to_client(u64 page_id, i32 front_bitmap_id, Gfx::SharedImage&& front_shared_image, i32 back_bitmap_id, Gfx::SharedImage&& back_shared_image)
+{
+    RefPtr<Core::WeakEventLoopReference> event_loop_reference;
+    {
+        Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
+        if (!page_compositors().contains(page_id))
+            return false;
+        auto& state = frame_presentation_state();
+        if (!state.backing_store_callback)
+            return false;
+        event_loop_reference = state.event_loop;
+    }
+
+    if (!event_loop_reference)
+        return false;
+    auto event_loop = event_loop_reference->take();
+    if (!event_loop)
+        return false;
+
+    event_loop->deferred_invoke([page_id, front_bitmap_id, front_shared_image = move(front_shared_image), back_bitmap_id, back_shared_image = move(back_shared_image)]() mutable {
+        Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
+        if (!page_compositors().contains(page_id)) {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Dropping queued UI backing stores for page {} front={} back={}: page unregistered",
+                page_id, front_bitmap_id, back_bitmap_id);
+            return;
+        }
+        auto& state = frame_presentation_state();
+        if (state.backing_store_callback)
+            state.backing_store_callback(page_id, front_bitmap_id, move(front_shared_image), back_bitmap_id, move(back_shared_image));
+    });
+    return true;
+}
+
+bool CompositorThread::present_frame_to_client(u64 page_id, Gfx::IntRect const& viewport_rect, i32 bitmap_id)
+{
+    RefPtr<Core::WeakEventLoopReference> event_loop_reference;
+    {
+        Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
+        if (!page_compositors().contains(page_id))
+            return false;
+        auto& state = frame_presentation_state();
+        if (!state.frame_callback)
+            return false;
+        event_loop_reference = state.event_loop;
+    }
+
+    if (!event_loop_reference)
+        return false;
+    auto event_loop = event_loop_reference->take();
+    if (!event_loop)
+        return false;
+
+    event_loop->deferred_invoke([page_id, viewport_rect, bitmap_id] {
+        Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
+        if (!page_compositors().contains(page_id)) {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Dropping queued UI present for page {} bitmap {}: page unregistered",
+                page_id, bitmap_id);
+            return;
+        }
+        auto& state = frame_presentation_state();
+        if (state.frame_callback)
+            state.frame_callback(page_id, viewport_rect, bitmap_id);
+    });
+    return true;
+}
+
+void CompositorThread::presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_id)
+{
+    RefPtr<ThreadData> thread_data;
+    {
+        Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
+        auto compositor = page_compositors().find(page_id);
+        if (compositor == page_compositors().end())
+            return;
+        thread_data = compositor->value;
+    }
+    thread_data->decrement_queued_tasks(bitmap_id);
 }
 
 void CompositorThread::start(DisplayListPlayerType display_list_player_type)
@@ -433,6 +601,12 @@ void CompositorThread::set_presentation_mode(PresentationMode mode)
     m_thread_data->set_presentation_mode(move(mode));
 }
 
+void CompositorThread::stop_presenting_to_client()
+{
+    m_thread_data->stop_presenting_to_client();
+    unregister_page_compositor(m_thread_data->page_id(), *m_thread_data);
+}
+
 void CompositorThread::update_display_list(NonnullRefPtr<Painting::DisplayList> display_list, Painting::ScrollStateSnapshot&& scroll_state_snapshot)
 {
     m_thread_data->enqueue_command(UpdateDisplayListCommand { move(display_list), move(scroll_state_snapshot) });
@@ -443,9 +617,9 @@ void CompositorThread::update_scroll_state(Painting::ScrollStateSnapshot&& scrol
     m_thread_data->enqueue_command(UpdateScrollStateCommand { move(scroll_state_snapshot) });
 }
 
-void CompositorThread::update_backing_stores(Gfx::IntSize size, i32 front_id, i32 back_id, Function<void(i32, Gfx::SharedImage, i32, Gfx::SharedImage)>&& allocation_callback)
+void CompositorThread::update_backing_stores(Gfx::IntSize size, i32 front_id, i32 back_id)
 {
-    m_thread_data->enqueue_command(UpdateBackingStoresCommand { size, front_id, back_id, move(allocation_callback) });
+    m_thread_data->enqueue_command(UpdateBackingStoresCommand { size, front_id, back_id });
 }
 
 u64 CompositorThread::present_frame(Gfx::IntRect viewport_rect)
@@ -461,11 +635,6 @@ void CompositorThread::wait_for_frame(u64 frame_id)
 void CompositorThread::request_screenshot(NonnullRefPtr<Gfx::PaintingSurface> target_surface, Function<void()>&& callback)
 {
     m_thread_data->enqueue_command(ScreenshotCommand { move(target_surface), move(callback) });
-}
-
-void CompositorThread::ready_to_paint()
-{
-    m_thread_data->decrement_queued_tasks();
 }
 
 }

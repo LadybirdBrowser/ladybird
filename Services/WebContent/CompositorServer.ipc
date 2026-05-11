@@ -1,0 +1,4 @@
+endpoint CompositorServer
+{
+    ready_to_paint(u64 page_id, i32 bitmap_id) =|
+}

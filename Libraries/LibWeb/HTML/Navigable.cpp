@@ -273,15 +273,17 @@ bool Navigable::is_ancestor_of(GC::Ref<Navigable> other) const
     return false;
 }
 
-Navigable::Navigable(GC::Ref<Page> page, bool is_svg_page)
+Navigable::Navigable(
+    GC::Ref<Page> page,
+    bool is_svg_page,
+    Compositor::CompositorThread::PagePresentationRegistration page_presentation_registration)
     : m_page(page)
     , m_event_handler({}, *this)
     , m_is_svg_page(is_svg_page)
     , m_backing_store_manager(heap().allocate<Painting::BackingStoreManager>(*this))
-    , m_rendering_thread([page_client = &page->client()](Gfx::IntRect const& viewport_rect, i32 bitmap_id) {
-        if (page_client)
-            page_client->page_did_paint(viewport_rect, bitmap_id);
-    })
+    , m_rendering_thread(
+          is_svg_page ? 0 : page->client().id(),
+          is_svg_page ? Compositor::CompositorThread::PagePresentationRegistration::No : page_presentation_registration)
 {
     all_navigables().set(*this);
 
@@ -3104,11 +3106,6 @@ void Navigable::set_has_session_history_entry_and_ready_for_navigation()
         auto navigation_params = m_pending_navigations.take_first();
         begin_navigation(navigation_params);
     }
-}
-
-void Navigable::ready_to_paint()
-{
-    m_rendering_thread.ready_to_paint();
 }
 
 NonnullRefPtr<Painting::ExternalContentSource> Navigable::external_content_source() const

@@ -8,24 +8,32 @@
 
 #include <AK/Noncopyable.h>
 #include <AK/NonnullRefPtr.h>
-#include <AK/Queue.h>
 #include <AK/Variant.h>
+#include <LibCore/Forward.h>
+#include <LibGfx/Rect.h>
 #include <LibGfx/SharedImage.h>
 #include <LibSync/ConditionVariable.h>
 #include <LibThreading/Forward.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Page/Page.h>
 
 namespace Web::Compositor {
 
-class CompositorThread {
+class WEB_API CompositorThread {
     AK_MAKE_NONCOPYABLE(CompositorThread);
     AK_MAKE_NONMOVABLE(CompositorThread);
 
+public:
     class ThreadData;
 
-public:
-    using PresentationCallback = Function<void(Gfx::IntRect const&, i32)>;
+    enum class PagePresentationRegistration {
+        No,
+        Yes,
+    };
+
+    using BackingStorePresentationCallback = Function<void(u64 page_id, i32 front_bitmap_id, Gfx::SharedImage, i32 back_bitmap_id, Gfx::SharedImage)>;
+    using FramePresentationCallback = Function<void(u64 page_id, Gfx::IntRect const&, i32 bitmap_id)>;
     struct PresentToUI {
     };
     struct PublishToExternalContent {
@@ -33,24 +41,32 @@ public:
     };
     using PresentationMode = Variant<PresentToUI, PublishToExternalContent>;
 
-    explicit CompositorThread(PresentationCallback);
+    CompositorThread(u64 page_id, PagePresentationRegistration);
     ~CompositorThread();
 
+    static void set_frame_presentation_callbacks(NonnullRefPtr<Core::WeakEventLoopReference>, BackingStorePresentationCallback, FramePresentationCallback);
+    static void clear_frame_presentation_callbacks();
+    static void presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_id);
+
     void start(DisplayListPlayerType);
+    void stop_presenting_to_client();
     void set_presentation_mode(PresentationMode);
 
     void update_display_list(NonnullRefPtr<Painting::DisplayList>, Painting::ScrollStateSnapshot&&);
     void update_scroll_state(Painting::ScrollStateSnapshot&&);
-    void update_backing_stores(Gfx::IntSize, i32 front_id, i32 back_id, Function<void(i32, Gfx::SharedImage, i32, Gfx::SharedImage)>&& = {});
+    void update_backing_stores(Gfx::IntSize, i32 front_id, i32 back_id);
     u64 present_frame(Gfx::IntRect);
     void wait_for_frame(u64 frame_id);
     void request_screenshot(NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&& callback);
 
-    void ready_to_paint();
-
 private:
     NonnullRefPtr<ThreadData> m_thread_data;
     RefPtr<Threading::Thread> m_thread;
+
+    static void register_page_compositor(u64 page_id, NonnullRefPtr<ThreadData>);
+    static void unregister_page_compositor(u64 page_id, ThreadData&);
+    static bool present_backing_stores_to_client(u64 page_id, i32 front_bitmap_id, Gfx::SharedImage&&, i32 back_bitmap_id, Gfx::SharedImage&&);
+    static bool present_frame_to_client(u64 page_id, Gfx::IntRect const&, i32 bitmap_id);
 };
 
 }

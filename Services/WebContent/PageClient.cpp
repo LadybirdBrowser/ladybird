@@ -188,11 +188,6 @@ void PageClient::set_window_size(Web::DevicePixelSize size)
     page().set_window_size(size);
 }
 
-void PageClient::ready_to_paint()
-{
-    page().top_level_traversable()->ready_to_paint();
-}
-
 Queue<Web::QueuedInputEvent>& PageClient::input_event_queue()
 {
     return client().input_event_queue();
@@ -681,6 +676,8 @@ void PageClient::page_did_request_activate_tab()
 
 void PageClient::page_did_close_top_level_traversable()
 {
+    page().top_level_traversable()->rendering_thread().stop_presenting_to_client();
+
     // FIXME: Rename this IPC call
     client().async_did_close_browsing_context(m_id);
 
@@ -734,11 +731,6 @@ void PageClient::page_did_change_audio_play_state(Web::HTML::AudioPlayState play
     client().async_did_change_audio_play_state(m_id, play_state);
 }
 
-void PageClient::page_did_allocate_backing_stores(i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store)
-{
-    client().async_did_allocate_backing_stores(m_id, front_bitmap_id, move(front_backing_store), back_bitmap_id, move(back_backing_store));
-}
-
 Web::PageClient::WorkerAgentResponse PageClient::request_worker_agent(Web::Bindings::AgentType type)
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::RequestWorkerAgent>(m_id, type);
@@ -786,11 +778,6 @@ void PageClient::page_did_mutate_dom(FlyString const& type, Web::DOM::Node const
     auto serialized_target = MUST(builder.to_string());
 
     client().async_did_mutate_dom(m_id, { type.to_string(), target.unique_id(), move(serialized_target), mutation.release_value() });
-}
-
-void PageClient::page_did_paint(Gfx::IntRect const& content_rect, i32 bitmap_id)
-{
-    client().async_did_paint(m_id, content_rect, bitmap_id);
 }
 
 void PageClient::page_did_take_screenshot(Gfx::ShareableBitmap const& screenshot)

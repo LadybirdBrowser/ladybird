@@ -10,6 +10,7 @@
  */
 
 #include <AK/JsonObject.h>
+#include <AK/OwnPtr.h>
 #include <AK/QuickSort.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/System.h>
@@ -19,6 +20,8 @@
 #include <LibGfx/SystemTheme.h>
 #include <LibJS/Runtime/ConsoleObject.h>
 #include <LibJS/Runtime/Date.h>
+#include <LibSync/ConditionVariable.h>
+#include <LibThreading/Thread.h>
 #include <LibUnicode/TimeZone.h>
 #include <LibWeb/ARIA/RoleType.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
@@ -27,6 +30,7 @@
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleSheetList.h>
+#include <LibWeb/Compositor/CompositorThread.h>
 #include <LibWeb/CookieStore/CookieStore.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/CharacterData.h>
@@ -59,12 +63,39 @@
 #include <LibWeb/Worker/WebWorkerClient.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/ViewImplementation.h>
+#include <WebContent/CompositorClientEndpoint.h>
+#include <WebContent/CompositorServerEndpoint.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/PageClient.h>
 #include <WebContent/PageHost.h>
 #include <WebContent/WebContentClientEndpoint.h>
 
 namespace WebContent {
+
+class CompositorConnectionFromClient final
+    : public IPC::ConnectionFromClient<CompositorClientEndpoint, CompositorServerEndpoint> {
+    C_OBJECT(CompositorConnectionFromClient)
+
+public:
+    virtual void die() override { }
+
+private:
+    explicit CompositorConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport)
+        : IPC::ConnectionFromClient<CompositorClientEndpoint, CompositorServerEndpoint>(*this, move(transport), 1)
+    {
+    }
+
+    virtual void ready_to_paint(u64 page_id, i32 bitmap_id) override
+    {
+        Web::Compositor::CompositorThread::presented_bitmap_ready_to_paint(page_id, bitmap_id);
+    }
+};
+
+struct CompositorIPCStartupState {
+    Sync::Mutex mutex;
+    Sync::ConditionVariable ready { mutex };
+    bool did_install_presentation_callbacks { false };
+};
 
 ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionFromClient<WebContentClientEndpoint, WebContentServerEndpoint>(*this, move(transport), 1)
@@ -148,6 +179,40 @@ void ConnectionFromClient::connect_to_image_decoder(IPC::TransportHandle handle)
         on_image_decoder_connection(handle);
 }
 
+void ConnectionFromClient::connect_to_compositor(IPC::TransportHandle handle)
+{
+    auto startup_state = make<CompositorIPCStartupState>();
+
+    auto thread = Threading::Thread::construct("CompositorIPC"sv, [handle = move(handle), startup_state = startup_state.ptr()]() mutable {
+        Core::EventLoop event_loop;
+        auto transport = MUST(handle.create_transport());
+        auto connection = CompositorConnectionFromClient::construct(move(transport));
+        Web::Compositor::CompositorThread::set_frame_presentation_callbacks(
+            Core::EventLoop::current_weak(),
+            [connection = connection.ptr()](u64 page_id, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store) {
+                connection->async_did_allocate_backing_stores(page_id, front_bitmap_id, move(front_backing_store), back_bitmap_id, move(back_backing_store));
+            },
+            [connection = connection.ptr()](u64 page_id, Gfx::IntRect const& viewport_rect, i32 bitmap_id) {
+                connection->async_did_paint(page_id, viewport_rect, bitmap_id);
+            });
+        {
+            Sync::MutexLocker const locker { startup_state->mutex };
+            startup_state->did_install_presentation_callbacks = true;
+            startup_state->ready.signal();
+        }
+        auto result = event_loop.exec();
+        Web::Compositor::CompositorThread::clear_frame_presentation_callbacks();
+        return result;
+    });
+    thread->start();
+    {
+        Sync::MutexLocker const locker { startup_state->mutex };
+        while (!startup_state->did_install_presentation_callbacks)
+            startup_state->ready.wait();
+    }
+    thread->detach();
+}
+
 void ConnectionFromClient::connect_to_request_server(IPC::TransportHandle handle)
 {
     if (on_request_server_connection)
@@ -204,12 +269,6 @@ void ConnectionFromClient::set_viewport(u64 page_id, Web::DevicePixelSize size, 
         page->set_viewport(size, device_pixel_ratio);
         page->page().set_viewport_is_fullscreen(is_fullscreen);
     }
-}
-
-void ConnectionFromClient::ready_to_paint(u64 page_id)
-{
-    if (auto page = this->page(page_id); page.has_value())
-        page->ready_to_paint();
 }
 
 void ConnectionFromClient::key_event(u64 page_id, Web::KeyEvent event)
