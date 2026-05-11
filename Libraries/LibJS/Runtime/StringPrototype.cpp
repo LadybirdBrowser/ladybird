@@ -82,17 +82,10 @@ Optional<size_t> string_index_of(Utf16View const& string, Utf16View const& searc
         return {};
 
     // 4. For each integer i such that fromIndex ≤ i ≤ len - searchLen, in ascending order, do
-    for (size_t i = from_index; i <= string_length - search_length; ++i) {
-        // a. Let candidate be the substring of string from i to i + searchLen.
-        auto candidate = string.substring_view(i, search_length);
-
-        // b. If candidate is searchValue, return i.
-        if (candidate == search_value)
-            return i;
-    }
-
+    //    a. Let candidate be the substring of string from i to i + searchLen.
+    //    b. If candidate is searchValue, return i.
     // 5. Return -1.
-    return {};
+    return string.find_code_unit_offset(search_value, from_index);
 }
 
 // 6.1.4.2 StringLastIndexOf ( string, searchValue, fromIndex ),
