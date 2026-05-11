@@ -1653,7 +1653,7 @@ void Document::update_layout(UpdateLayoutReason reason)
             relayout_svg_root(*svg_root);
 
         invalidate_stacking_context_tree();
-        invalidate_display_list();
+        set_needs_to_record_display_list();
 
         set_needs_accumulated_visual_contexts_update(true);
         update_paint_and_hit_testing_properties_if_needed();
@@ -1665,7 +1665,7 @@ void Document::update_layout(UpdateLayoutReason reason)
     if (m_layout_root)
         m_layout_root->invalidate_text_blocks_cache();
 
-    invalidate_display_list();
+    set_needs_to_record_display_list();
 
     auto* document_element = this->document_element();
     auto viewport_rect = navigable->viewport_rect();
@@ -1935,7 +1935,7 @@ void Document::update_style()
 
     auto invalidation = update_style_recursively(*this, style_computer(), false, false, false);
     if (!invalidation.is_none())
-        invalidate_display_list();
+        set_needs_to_record_display_list();
 
     if (invalidation.rebuild_accumulated_visual_contexts)
         set_needs_accumulated_visual_contexts_update(true);
@@ -7553,7 +7553,7 @@ void Document::set_needs_repaint(InvalidateDisplayList should_invalidate_display
         return;
 
     if (should_invalidate_display_list == InvalidateDisplayList::Yes) {
-        invalidate_display_list();
+        set_needs_to_record_display_list();
     }
 
     if (!navigable)
@@ -7571,21 +7571,14 @@ void Document::set_needs_repaint(InvalidateDisplayList should_invalidate_display
     }
 }
 
-void Document::invalidate_display_list()
+void Document::set_needs_to_record_display_list()
 {
-    m_cached_display_list.clear();
-}
-
-RefPtr<Painting::DisplayList> Document::cached_display_list() const
-{
-    return m_cached_display_list;
+    if (auto navigable = this->navigable())
+        navigable->set_needs_to_record_display_list();
 }
 
 RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig config)
 {
-    if (m_cached_display_list && m_cached_display_list_paint_config == config)
-        return m_cached_display_list;
-
     update_paint_and_hit_testing_properties_if_needed();
     VERIFY(paintable());
 
@@ -7638,9 +7631,6 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
     if (highlighted_node() && highlighted_node()->paintable()) {
         highlighted_node()->paintable()->paint_inspector_overlay(context);
     }
-
-    m_cached_display_list = display_list;
-    m_cached_display_list_paint_config = config;
 
     return display_list;
 }

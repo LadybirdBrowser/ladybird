@@ -6,6 +6,9 @@
 
 #pragma once
 
+#include <AK/Optional.h>
+#include <LibGfx/Rect.h>
+
 namespace Web::HTML {
 
 struct PaintConfig {

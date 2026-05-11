@@ -40,6 +40,7 @@ public:
     void set_presentation_mode(PresentationMode);
 
     void update_display_list(NonnullRefPtr<Painting::DisplayList>, Painting::ScrollStateSnapshot&&);
+    void update_scroll_state(Painting::ScrollStateSnapshot&&);
     void update_backing_stores(Gfx::IntSize, i32 front_id, i32 back_id, Function<void(i32, Gfx::SharedImage, i32, Gfx::SharedImage)>&& = {});
     u64 present_frame(Gfx::IntRect);
     void wait_for_frame(u64 frame_id);

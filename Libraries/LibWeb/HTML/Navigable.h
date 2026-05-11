@@ -22,6 +22,7 @@
 #include <LibWeb/HTML/NavigationObserver.h>
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/POSTResource.h>
+#include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/HTML/RenderingThread.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/SourceSnapshotParams.h>
@@ -235,6 +236,7 @@ public:
 
     bool needs_repaint() const { return m_needs_repaint; }
     void set_needs_repaint() { m_needs_repaint = true; }
+    void set_needs_to_record_display_list() { m_needs_to_record_display_list = true; }
 
     [[nodiscard]] bool has_inclusive_ancestor_with_visibility_hidden() const;
 
@@ -321,8 +323,10 @@ private:
 
     bool m_is_svg_page { false };
     bool m_needs_repaint { true };
+    bool m_needs_to_record_display_list { true };
     bool m_pending_set_browser_zoom_request { false };
     bool m_should_show_line_box_borders { false };
+    Optional<PaintConfig> m_rendering_thread_display_list_paint_config;
     GC::Ref<Painting::BackingStoreManager> m_backing_store_manager;
     RenderingThread m_rendering_thread;
     RefPtr<Painting::ExternalContentSource> m_external_content_source;

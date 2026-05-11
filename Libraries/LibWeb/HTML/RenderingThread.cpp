@@ -48,6 +48,10 @@ struct UpdateDisplayListCommand {
     Painting::ScrollStateSnapshot scroll_state_snapshot;
 };
 
+struct UpdateScrollStateCommand {
+    Painting::ScrollStateSnapshot scroll_state_snapshot;
+};
+
 struct UpdateBackingStoresCommand {
     Gfx::IntSize size;
     i32 front_bitmap_id;
@@ -60,7 +64,7 @@ struct ScreenshotCommand {
     Function<void()> callback;
 };
 
-using CompositorCommand = Variant<UpdateDisplayListCommand, UpdateBackingStoresCommand, ScreenshotCommand>;
+using CompositorCommand = Variant<UpdateDisplayListCommand, UpdateScrollStateCommand, UpdateBackingStoresCommand, ScreenshotCommand>;
 
 struct BackingStorePair {
     RefPtr<Gfx::PaintingSurface> front;
@@ -221,6 +225,9 @@ public:
                 command->visit(
                     [this](UpdateDisplayListCommand& cmd) {
                         m_cached_display_list = move(cmd.display_list);
+                        m_cached_scroll_state_snapshot = move(cmd.scroll_state_snapshot);
+                    },
+                    [this](UpdateScrollStateCommand& cmd) {
                         m_cached_scroll_state_snapshot = move(cmd.scroll_state_snapshot);
                     },
                     [this](UpdateBackingStoresCommand& cmd) {
@@ -429,6 +436,11 @@ void RenderingThread::set_presentation_mode(PresentationMode mode)
 void RenderingThread::update_display_list(NonnullRefPtr<Painting::DisplayList> display_list, Painting::ScrollStateSnapshot&& scroll_state_snapshot)
 {
     m_thread_data->enqueue_command(UpdateDisplayListCommand { move(display_list), move(scroll_state_snapshot) });
+}
+
+void RenderingThread::update_scroll_state(Painting::ScrollStateSnapshot&& scroll_state_snapshot)
+{
+    m_thread_data->enqueue_command(UpdateScrollStateCommand { move(scroll_state_snapshot) });
 }
 
 void RenderingThread::update_backing_stores(Gfx::IntSize size, i32 front_id, i32 back_id, Function<void(i32, Gfx::SharedImage, i32, Gfx::SharedImage)>&& allocation_callback)

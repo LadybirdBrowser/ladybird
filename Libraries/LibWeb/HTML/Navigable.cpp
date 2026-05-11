@@ -470,6 +470,7 @@ void Navigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, GC::Re
         m_active_document->set_navigable(nullptr);
     m_active_document = new_document;
     new_document->set_navigable(this);
+    set_needs_to_record_display_list();
 
     // 5. Make active newDocument.
     new_document->make_active();
@@ -521,6 +522,7 @@ void Navigable::set_active_document(GC::Ptr<DOM::Document> document)
     m_active_document = document;
     if (document)
         document->set_navigable(this);
+    set_needs_to_record_display_list();
 
     VERIFY(m_active_session_history_entry);
     Optional<UniqueNodeID> document_id;
@@ -3131,14 +3133,29 @@ void Navigable::record_display_list_and_scroll_state(PaintConfig paint_config)
     if (!document)
         return;
 
-    auto display_list = document->record_display_list(paint_config);
-    if (!display_list)
-        return;
+    auto should_record_display_list = m_needs_to_record_display_list
+        || !m_rendering_thread_display_list_paint_config.has_value()
+        || !(m_rendering_thread_display_list_paint_config.value() == paint_config);
 
-    auto& document_paintable = *document->paintable();
-    document_paintable.refresh_scroll_state();
+    RefPtr<Painting::DisplayList> display_list;
+    if (should_record_display_list) {
+        display_list = document->record_display_list(paint_config);
+        if (!display_list)
+            return;
+    }
 
-    m_rendering_thread.update_display_list(*display_list, Painting::ScrollStateSnapshot(document_paintable.scroll_state_snapshot()));
+    auto document_paintable = document->paintable();
+    VERIFY(document_paintable);
+    document_paintable->refresh_scroll_state();
+
+    Painting::ScrollStateSnapshot scroll_state_snapshot { document_paintable->scroll_state_snapshot() };
+    if (should_record_display_list) {
+        m_rendering_thread.update_display_list(*display_list, move(scroll_state_snapshot));
+        m_needs_to_record_display_list = false;
+        m_rendering_thread_display_list_paint_config = paint_config;
+    } else {
+        m_rendering_thread.update_scroll_state(move(scroll_state_snapshot));
+    }
 }
 
 void Navigable::paint_next_frame()
