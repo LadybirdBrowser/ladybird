@@ -16,11 +16,11 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/Page/Page.h>
 
-namespace Web::HTML {
+namespace Web::Compositor {
 
-class RenderingThread {
-    AK_MAKE_NONCOPYABLE(RenderingThread);
-    AK_MAKE_NONMOVABLE(RenderingThread);
+class CompositorThread {
+    AK_MAKE_NONCOPYABLE(CompositorThread);
+    AK_MAKE_NONMOVABLE(CompositorThread);
 
     class ThreadData;
 
@@ -33,8 +33,8 @@ public:
     };
     using PresentationMode = Variant<PresentToUI, PublishToExternalContent>;
 
-    explicit RenderingThread(PresentationCallback);
-    ~RenderingThread();
+    explicit CompositorThread(PresentationCallback);
+    ~CompositorThread();
 
     void start(DisplayListPlayerType);
     void set_presentation_mode(PresentationMode);

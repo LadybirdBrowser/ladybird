@@ -38,6 +38,10 @@
 #    cmakedefine01 CRYPTO_DEBUG
 #endif
 
+#ifndef COMPOSITOR_DEBUG
+#    cmakedefine01 COMPOSITOR_DEBUG
+#endif
+
 #ifndef CSS_LOADER_DEBUG
 #    cmakedefine01 CSS_LOADER_DEBUG
 #endif

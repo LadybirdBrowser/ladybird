@@ -11,7 +11,7 @@
 #include <LibGfx/SharedImageBuffer.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibThreading/Thread.h>
-#include <LibWeb/HTML/RenderingThread.h>
+#include <LibWeb/Compositor/CompositorThread.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/ExternalContentSource.h>
 
@@ -26,7 +26,7 @@
 
 #include <LibCore/Platform/ScopedAutoreleasePool.h>
 
-namespace Web::HTML {
+namespace Web::Compositor {
 
 struct BackingStoreState {
     RefPtr<Gfx::PaintingSurface> front_store;
@@ -137,9 +137,9 @@ static ErrorOr<DMABufBackingStorePair> create_linear_dmabuf_backing_stores(Gfx::
 }
 #endif
 
-class RenderingThread::ThreadData final : public AtomicRefCounted<ThreadData> {
+class CompositorThread::ThreadData final : public AtomicRefCounted<ThreadData> {
 public:
-    ThreadData(NonnullRefPtr<Core::WeakEventLoopReference>&& main_thread_event_loop, RenderingThread::PresentationCallback presentation_callback)
+    ThreadData(NonnullRefPtr<Core::WeakEventLoopReference>&& main_thread_event_loop, CompositorThread::PresentationCallback presentation_callback)
         : m_main_thread_event_loop(move(main_thread_event_loop))
         , m_presentation_callback(move(presentation_callback))
     {
@@ -147,7 +147,7 @@ public:
 
     ~ThreadData() = default;
 
-    void set_presentation_mode(RenderingThread::PresentationMode mode)
+    void set_presentation_mode(CompositorThread::PresentationMode mode)
     {
         Sync::MutexLocker const locker { m_mutex };
         m_presentation_mode = move(mode);
@@ -284,8 +284,8 @@ public:
 
                 if (m_cached_display_list && m_backing_stores.is_valid()) {
                     auto should_clear_back_store = presentation_mode.visit(
-                        [](RenderingThread::PresentToUI) { return false; },
-                        [](RenderingThread::PublishToExternalContent const&) { return true; });
+                        [](CompositorThread::PresentToUI) { return false; },
+                        [](CompositorThread::PublishToExternalContent const&) { return true; });
                     if (should_clear_back_store) {
                         // Embedded navigables leave their PaintConfig canvas unfilled, so double-buffered back stores
                         // must be cleared before repainting.
@@ -296,13 +296,13 @@ public:
                     m_backing_stores.swap();
 
                     presentation_mode.visit(
-                        [this, viewport_rect, rendered_bitmap_id](RenderingThread::PresentToUI) {
+                        [this, viewport_rect, rendered_bitmap_id](CompositorThread::PresentToUI) {
                             m_queued_rasterization_tasks++;
                             invoke_on_main_thread([this, viewport_rect, rendered_bitmap_id]() {
                                 m_presentation_callback(viewport_rect, rendered_bitmap_id);
                             });
                         },
-                        [this](RenderingThread::PublishToExternalContent const& mode) {
+                        [this](CompositorThread::PublishToExternalContent const& mode) {
                             auto snapshot = Gfx::DecodedImageFrame { *m_backing_stores.front_store->snapshot_bitmap() };
                             mode.source->update(move(snapshot));
                         });
@@ -373,7 +373,7 @@ private:
     }
 
     NonnullRefPtr<Core::WeakEventLoopReference> m_main_thread_event_loop;
-    RenderingThread::PresentationCallback m_presentation_callback;
+    CompositorThread::PresentationCallback m_presentation_callback;
 
     mutable Sync::Mutex m_mutex;
     mutable Sync::ConditionVariable m_command_ready { m_mutex };
@@ -386,7 +386,7 @@ private:
     RefPtr<Painting::DisplayList> m_cached_display_list;
     Painting::ScrollStateSnapshot m_cached_scroll_state_snapshot;
     BackingStoreState m_backing_stores;
-    RenderingThread::PresentationMode m_presentation_mode { RenderingThread::PresentToUI {} };
+    CompositorThread::PresentationMode m_presentation_mode { CompositorThread::PresentToUI {} };
 
     Atomic<i32> m_queued_rasterization_tasks { 0 };
     mutable Sync::ConditionVariable m_ready_to_paint { m_mutex };
@@ -408,19 +408,19 @@ public:
     }
 };
 
-RenderingThread::RenderingThread(PresentationCallback presentation_callback)
+CompositorThread::CompositorThread(PresentationCallback presentation_callback)
     : m_thread_data(adopt_ref(*new ThreadData(Core::EventLoop::current_weak(), move(presentation_callback))))
 {
 }
 
-RenderingThread::~RenderingThread()
+CompositorThread::~CompositorThread()
 {
     m_thread_data->exit();
 }
 
-void RenderingThread::start(DisplayListPlayerType display_list_player_type)
+void CompositorThread::start(DisplayListPlayerType display_list_player_type)
 {
-    m_thread = Threading::Thread::construct("Renderer"sv, [thread_data = m_thread_data, display_list_player_type] {
+    m_thread = Threading::Thread::construct("Compositor"sv, [thread_data = m_thread_data, display_list_player_type] {
         thread_data->compositor_loop(display_list_player_type);
         return static_cast<intptr_t>(0);
     });
@@ -428,42 +428,42 @@ void RenderingThread::start(DisplayListPlayerType display_list_player_type)
     m_thread->detach();
 }
 
-void RenderingThread::set_presentation_mode(PresentationMode mode)
+void CompositorThread::set_presentation_mode(PresentationMode mode)
 {
     m_thread_data->set_presentation_mode(move(mode));
 }
 
-void RenderingThread::update_display_list(NonnullRefPtr<Painting::DisplayList> display_list, Painting::ScrollStateSnapshot&& scroll_state_snapshot)
+void CompositorThread::update_display_list(NonnullRefPtr<Painting::DisplayList> display_list, Painting::ScrollStateSnapshot&& scroll_state_snapshot)
 {
     m_thread_data->enqueue_command(UpdateDisplayListCommand { move(display_list), move(scroll_state_snapshot) });
 }
 
-void RenderingThread::update_scroll_state(Painting::ScrollStateSnapshot&& scroll_state_snapshot)
+void CompositorThread::update_scroll_state(Painting::ScrollStateSnapshot&& scroll_state_snapshot)
 {
     m_thread_data->enqueue_command(UpdateScrollStateCommand { move(scroll_state_snapshot) });
 }
 
-void RenderingThread::update_backing_stores(Gfx::IntSize size, i32 front_id, i32 back_id, Function<void(i32, Gfx::SharedImage, i32, Gfx::SharedImage)>&& allocation_callback)
+void CompositorThread::update_backing_stores(Gfx::IntSize size, i32 front_id, i32 back_id, Function<void(i32, Gfx::SharedImage, i32, Gfx::SharedImage)>&& allocation_callback)
 {
     m_thread_data->enqueue_command(UpdateBackingStoresCommand { size, front_id, back_id, move(allocation_callback) });
 }
 
-u64 RenderingThread::present_frame(Gfx::IntRect viewport_rect)
+u64 CompositorThread::present_frame(Gfx::IntRect viewport_rect)
 {
     return m_thread_data->set_needs_present(viewport_rect);
 }
 
-void RenderingThread::wait_for_frame(u64 frame_id)
+void CompositorThread::wait_for_frame(u64 frame_id)
 {
     m_thread_data->wait_for_frame(frame_id);
 }
 
-void RenderingThread::request_screenshot(NonnullRefPtr<Gfx::PaintingSurface> target_surface, Function<void()>&& callback)
+void CompositorThread::request_screenshot(NonnullRefPtr<Gfx::PaintingSurface> target_surface, Function<void()>&& callback)
 {
     m_thread_data->enqueue_command(ScreenshotCommand { move(target_surface), move(callback) });
 }
 
-void RenderingThread::ready_to_paint()
+void CompositorThread::ready_to_paint()
 {
     m_thread_data->decrement_queued_tasks();
 }

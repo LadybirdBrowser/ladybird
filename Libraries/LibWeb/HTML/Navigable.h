@@ -12,6 +12,7 @@
 #include <AK/Tuple.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Bindings/Navigation.h>
+#include <LibWeb/Compositor/CompositorThread.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -23,7 +24,6 @@
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/POSTResource.h>
 #include <LibWeb/HTML/PaintConfig.h>
-#include <LibWeb/HTML/RenderingThread.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/SourceSnapshotParams.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
@@ -240,7 +240,7 @@ public:
 
     [[nodiscard]] bool has_inclusive_ancestor_with_visibility_hidden() const;
 
-    RenderingThread& rendering_thread() { return m_rendering_thread; }
+    Compositor::CompositorThread& rendering_thread() { return m_rendering_thread; }
 
     NonnullRefPtr<Painting::ExternalContentSource> external_content_source() const;
 
@@ -328,7 +328,7 @@ private:
     bool m_should_show_line_box_borders { false };
     Optional<PaintConfig> m_rendering_thread_display_list_paint_config;
     GC::Ref<Painting::BackingStoreManager> m_backing_store_manager;
-    RenderingThread m_rendering_thread;
+    Compositor::CompositorThread m_rendering_thread;
     RefPtr<Painting::ExternalContentSource> m_external_content_source;
 };
 

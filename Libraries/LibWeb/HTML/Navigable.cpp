@@ -424,7 +424,7 @@ void Navigable::initialize_navigable(NonnullRefPtr<DocumentState> document_state
         m_should_show_line_box_borders = parent->m_should_show_line_box_borders;
     if (parent && !m_is_svg_page) {
         m_external_content_source = Painting::ExternalContentSource::create();
-        m_rendering_thread.set_presentation_mode(RenderingThread::PublishToExternalContent { external_content_source() });
+        m_rendering_thread.set_presentation_mode(Compositor::CompositorThread::PublishToExternalContent { external_content_source() });
     }
 
     // 6. Set the initial visibility state of documentState's document to navigable's traversable navigable's system visibility state.
