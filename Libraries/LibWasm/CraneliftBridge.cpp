@@ -912,6 +912,10 @@ static void try_cranelift_compile_batch(Vector<BatchInput>& batch)
     if (fd < 0)
         return;
     shm_unlink(shm_name);
+    // POSIX shm_open sets FD_CLOEXEC on the returned fd, which would close it
+    // in the spawned cranelift-compiler child. Clear it so the child inherits.
+    if (auto flags = fcntl(fd, F_GETFD); flags >= 0)
+        fcntl(fd, F_SETFD, flags & ~FD_CLOEXEC);
     ScopeGuard close_fd = [fd] { close(fd); };
     if (ftruncate(fd, static_cast<off_t>(total_size)) < 0)
         return;
