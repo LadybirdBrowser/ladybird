@@ -17,6 +17,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/Result.h>
 #include <AK/String.h>
+#include <AK/Time.h>
 #include <AK/UFixedBigInt.h>
 #include <AK/Variant.h>
 #include <AK/WeakPtr.h>
@@ -1555,11 +1556,33 @@ void flush_cranelift_batch();
 //     to install it before falling through to cranelift.
 //   - `on_compiled` is invoked exactly once if a fresh blob was produced; never
 //     invoked on a cache hit nor when no cranelift output was captured.
+//   - The `out_*` fields, if non-null, receive measurements taken during
+//     validate(CodeSection). Used by the LibWeb side to populate ModuleStats.
 struct CompileCacheConfig {
     Array<u8, 32> wasm_hash {};
     ReadonlyBytes existing_blob;
     AK::Function<void(ByteBuffer)> on_compiled;
+
+    AK::Duration* out_cranelift_time { nullptr };
+    size_t* out_function_count { nullptr };
+    size_t* out_cranelift_blob_size_bytes { nullptr };
+    bool* out_cache_hit { nullptr };
 };
+
+// Lightweight per-module compile stats accumulator. Exposed to embedders via record_module_stats() below.
+struct ModuleStats {
+    Array<u8, 32> wasm_hash {};
+    size_t input_size_bytes { 0 };
+    AK::Duration parse_time;
+    AK::Duration validate_time;
+    AK::Duration cranelift_time;
+    size_t cranelift_blob_size_bytes { 0 };
+    size_t function_count { 0 };
+    bool cache_hit { false };
+};
+
+WASM_API void record_module_stats(ModuleStats);
+WASM_API void dump_module_stats();
 
 // Cranelift disk-cache plumbing. Validator drives these around CodeSection validation:
 //   1. set_cranelift_active_function_index() before each function so cache-hit installs

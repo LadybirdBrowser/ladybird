@@ -98,6 +98,7 @@ enum class ActionID {
     DumpCookies,
     DumpLocalStorage,
     DumpGCGraph,
+    DumpWasmStats,
     ShowLineBoxBorders,
     CollectGarbage,
     SpoofUserAgent,
