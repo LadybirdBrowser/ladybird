@@ -255,6 +255,15 @@ public:
             && (m_is_rasterizing || m_has_deferred_async_scroll_present || m_queued_rasterization_tasks > 0);
     }
 
+    void invalidate_wheel_event_listener_state(u64 generation)
+    {
+        Sync::MutexLocker const locker { m_mutex };
+        m_wheel_event_listener_state_generation = max(m_wheel_event_listener_state_generation, generation);
+        m_wheel_routing_admission = WheelRoutingAdmission::StaleWheelEventListeners;
+        m_can_accept_async_wheel_events = false;
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Invalidated compositor wheel listener state (generation={})", generation);
+    }
+
     struct ViewportWheelTarget {
         Optional<AsyncScrollNodeID> node_id;
         bool rejected_non_viewport_target { false };
@@ -373,9 +382,14 @@ public:
                         m_cached_scroll_state_snapshot = move(cmd.scroll_state_snapshot);
                         if (cmd.async_scrolling_state.has_value()) {
                             auto async_scrolling_state = cmd.async_scrolling_state.release_value();
+                            auto const wheel_event_listener_state_generation = async_scrolling_state.wheel_event_listener_state_generation;
                             auto wheel_routing_admission = wheel_routing_admission_for(async_scrolling_state);
                             {
                                 Sync::MutexLocker const locker { m_mutex };
+                                if (wheel_event_listener_state_generation < m_wheel_event_listener_state_generation)
+                                    wheel_routing_admission = WheelRoutingAdmission::StaleWheelEventListeners;
+                                else
+                                    m_wheel_event_listener_state_generation = wheel_event_listener_state_generation;
                                 m_wheel_routing_admission = wheel_routing_admission;
                                 m_async_scrolling_viewport_rect = async_scrolling_state.viewport_rect;
                             }
@@ -716,6 +730,7 @@ private:
     Gfx::IntRect m_async_scrolling_viewport_rect;
     Atomic<bool> m_has_async_scrolling_state { false };
     Atomic<bool> m_can_accept_async_wheel_events { false };
+    u64 m_wheel_event_listener_state_generation { 0 };
     WheelRoutingAdmission m_wheel_routing_admission { WheelRoutingAdmission::NoAsyncScrollingState };
 
 public:
@@ -1002,6 +1017,11 @@ void CompositorThread::update_display_list(NonnullRefPtr<Painting::DisplayList> 
 void CompositorThread::update_display_list_and_async_scrolling_state(NonnullRefPtr<Painting::DisplayList> display_list, Painting::ScrollStateSnapshot&& scroll_state_snapshot, AsyncScrollingState&& async_scrolling_state)
 {
     m_thread_data->enqueue_command(UpdateDisplayListCommand { move(display_list), move(scroll_state_snapshot), Optional<AsyncScrollingState> { move(async_scrolling_state) } });
+}
+
+void CompositorThread::invalidate_wheel_event_listener_state(u64 generation)
+{
+    m_thread_data->invalidate_wheel_event_listener_state(generation);
 }
 
 bool CompositorThread::async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect)

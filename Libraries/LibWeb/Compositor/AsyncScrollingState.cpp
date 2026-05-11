@@ -124,6 +124,7 @@ AsyncScrollingState collect_async_scrolling_state(HTML::Navigable& navigable, Pa
     AsyncScrollingState async_scrolling_state;
     Vector<Painting::ScrollFrameIndex> parent_scroll_frame_indices;
     async_scrolling_state.viewport_rect = viewport_rect;
+    async_scrolling_state.wheel_event_listener_state_generation = navigable.page().wheel_event_listener_state_generation();
     collect_root_blocking_wheel_event_regions(async_scrolling_state, document_paintable.document());
 
     document_paintable.for_each_in_inclusive_subtree_of_type<Painting::PaintableBox>([&](auto& paintable_box) {
@@ -222,6 +223,8 @@ StringView wheel_routing_admission_to_string(WheelRoutingAdmission admission)
         return "blocking wheel event listeners"sv;
     case WheelRoutingAdmission::NoViewportScrollNode:
         return "no viewport scroll node"sv;
+    case WheelRoutingAdmission::StaleWheelEventListeners:
+        return "stale wheel event listeners"sv;
     }
     VERIFY_NOT_REACHED();
 }

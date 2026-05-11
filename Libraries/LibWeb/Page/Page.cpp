@@ -297,6 +297,16 @@ void Page::handle_sdl_input_events()
     top_level_traversable()->event_handler().handle_sdl_input_events();
 }
 
+void Page::invalidate_compositor_wheel_event_listener_state()
+{
+    ++m_wheel_event_listener_state_generation;
+
+    if (!m_async_scrolling_enabled || !top_level_traversable_is_initialized())
+        return;
+
+    top_level_traversable()->rendering_thread().invalidate_wheel_event_listener_state(m_wheel_event_listener_state_generation);
+}
+
 void Page::set_top_level_traversable(GC::Ref<HTML::TraversableNavigable> navigable)
 {
     VERIFY(!m_top_level_traversable); // Replacement is not allowed!

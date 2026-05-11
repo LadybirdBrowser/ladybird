@@ -134,6 +134,8 @@ public:
 
     bool async_scrolling_enabled() const { return m_async_scrolling_enabled; }
     void set_async_scrolling_enabled(bool b) { m_async_scrolling_enabled = b; }
+    u64 wheel_event_listener_state_generation() const { return m_wheel_event_listener_state_generation; }
+    void invalidate_compositor_wheel_event_listener_state();
 
     bool is_webdriver_active() const { return m_is_webdriver_active; }
     void set_is_webdriver_active(bool b) { m_is_webdriver_active = b; }
@@ -294,6 +296,7 @@ private:
     bool m_should_block_pop_ups { true };
     bool m_enable_autoscroll { true };
     bool m_async_scrolling_enabled { false };
+    u64 m_wheel_event_listener_state_generation { 0 };
 
     // https://w3c.github.io/webdriver/#dfn-webdriver-active-flag
     // The webdriver-active flag is set to true when the user agent is under remote control. It is initially false.

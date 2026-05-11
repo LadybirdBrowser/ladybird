@@ -79,6 +79,11 @@ struct AsyncScrollingState {
     // async scrolling elsewhere.
     Vector<BlockingWheelEventRegion> blocking_wheel_event_regions;
     Gfx::IntRect viewport_rect;
+
+    // Bumped whenever wheel listener state changes so queued compositor snapshots
+    // cannot re-enable async wheel routing after a non-passive listener has been
+    // added.
+    u64 wheel_event_listener_state_generation { 0 };
     bool has_blocking_wheel_event_listeners { false };
     bool blocking_wheel_event_regions_are_current { false };
     bool has_blocking_wheel_event_region_covering_viewport { false };
@@ -89,6 +94,7 @@ enum class WheelRoutingAdmission {
     NoAsyncScrollingState,
     BlockingWheelEventListeners,
     NoViewportScrollNode,
+    StaleWheelEventListeners,
 };
 
 enum class WheelScrollAdmission {

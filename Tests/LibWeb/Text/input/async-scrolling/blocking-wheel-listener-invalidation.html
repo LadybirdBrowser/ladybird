@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #spacer {
+        height: 2000px;
+    }
+</style>
+<div id="spacer"></div>
+<script>
+    test(() => {
+        const before = internals.asyncScrollingState();
+        println(`before routing admission: ${internals.asyncScrollingStateWheelRoutingAdmission()}`);
+
+        document.addEventListener("wheel", event => event.preventDefault(), { passive: false });
+
+        const after = internals.asyncScrollingState();
+        println(`listener generation increased: ${after.wheelEventListenerStateGeneration > before.wheelEventListenerStateGeneration}`);
+        println(`after routing admission: ${internals.asyncScrollingStateWheelRoutingAdmission()}`);
+    });
+</script>

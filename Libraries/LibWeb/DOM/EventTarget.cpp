@@ -39,6 +39,7 @@
 #include <LibWeb/HTML/HTMLFrameSetElement.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/UIEvents/KeyboardEvent.h>
@@ -186,6 +187,25 @@ static bool default_passive_value(FlyString const& type, EventTarget* event_targ
     return false;
 }
 
+static bool is_blocking_wheel_event_listener(DOMEventListener const& listener)
+{
+    return AK::first_is_one_of(listener.type, "wheel"sv, "mousewheel"sv) && listener.passive != true;
+}
+
+static void invalidate_compositor_wheel_event_listener_state(EventTarget& event_target, DOMEventListener const& listener)
+{
+    if (!is_blocking_wheel_event_listener(listener))
+        return;
+
+    if (auto* window = as_if<HTML::Window>(event_target)) {
+        window->associated_document().page().invalidate_compositor_wheel_event_listener_state();
+        return;
+    }
+
+    if (auto* node = as_if<Node>(event_target))
+        node->document().page().invalidate_compositor_wheel_event_listener_state();
+}
+
 // https://dom.spec.whatwg.org/#dom-eventtarget-addeventlistener
 void EventTarget::add_event_listener(FlyString const& type, IDLEventListener* callback, Variant<Bindings::AddEventListenerOptions, bool> const& options)
 {
@@ -239,8 +259,10 @@ void EventTarget::add_an_event_listener(DOMEventListener& listener)
             && entry->callback->callback().callback == listener.callback->callback().callback
             && entry->capture == listener.capture;
     });
-    if (it == event_listener_list.end())
+    if (it == event_listener_list.end()) {
         event_listener_list.append(listener);
+        invalidate_compositor_wheel_event_listener_state(*this, listener);
+    }
 
     // 6. If listener’s signal is not null, then add the following abort steps to it:
     if (listener.signal) {
@@ -292,7 +314,9 @@ void EventTarget::remove_an_event_listener(DOMEventListener& listener)
     // 2. Set listener’s removed to true and remove listener from eventTarget’s event listener list.
     listener.removed = true;
     VERIFY(m_data);
-    m_data->event_listener_list.remove_first_matching([&](auto& entry) { return entry.ptr() == &listener; });
+    auto did_remove = m_data->event_listener_list.remove_first_matching([&](auto& entry) { return entry.ptr() == &listener; });
+    if (did_remove)
+        invalidate_compositor_wheel_event_listener_state(*this, listener);
 }
 
 // https://dom.spec.whatwg.org/#dom-eventtarget-dispatchevent
