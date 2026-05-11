@@ -491,6 +491,19 @@ Messages::RequestServer::RetrieveCacheAssociatedDataResponse ConnectionFromClien
     return Optional<Core::AnonymousBuffer> { buffer.release_value() };
 }
 
+Messages::RequestServer::CreateSyntheticCacheEntryResponse ConnectionFromClient::create_synthetic_cache_entry(URL::URL url, ByteString method)
+{
+    if (!m_disk_cache.has_value())
+        return false;
+
+    auto result = m_disk_cache->create_synthetic_entry(url, method);
+    if (result.is_error()) {
+        dbgln("Failed to create synthetic cache entry for {}: {}", url, result.error());
+        return false;
+    }
+    return result.value();
+}
+
 void ConnectionFromClient::websocket_connect(u64 websocket_id, URL::URL url, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers)
 {
     auto host = url.serialized_host().to_byte_string();

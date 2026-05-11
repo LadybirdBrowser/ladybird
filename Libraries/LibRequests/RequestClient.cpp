@@ -102,6 +102,11 @@ ErrorOr<Optional<Core::AnonymousBuffer>> RequestClient::retrieve_cache_associate
     return IPCProxy::retrieve_cache_associated_data(url, method, headers, vary_key, associated_data);
 }
 
+ErrorOr<bool> RequestClient::create_synthetic_cache_entry(URL::URL const& url, ByteString const& method)
+{
+    return IPCProxy::create_synthetic_cache_entry(url, method);
+}
+
 bool RequestClient::stop_request(Badge<Request>, Request& request)
 {
     if (!m_requests.contains(request.id()))

@@ -68,6 +68,7 @@ private:
     virtual void remove_cache_entries_accessed_since(UnixDateTime since) override;
     virtual Messages::RequestServer::StoreCacheAssociatedDataResponse store_cache_associated_data(URL::URL, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData, Core::AnonymousBuffer) override;
     virtual Messages::RequestServer::RetrieveCacheAssociatedDataResponse retrieve_cache_associated_data(URL::URL, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData) override;
+    virtual Messages::RequestServer::CreateSyntheticCacheEntryResponse create_synthetic_cache_entry(URL::URL, ByteString method) override;
 
     virtual void websocket_connect(u64 websocket_id, URL::URL, ByteString, Vector<ByteString>, Vector<ByteString>, Vector<HTTP::Header>) override;
     virtual void websocket_send(u64 websocket_id, bool, ByteBuffer) override;

@@ -46,6 +46,7 @@ public:
     NonnullRefPtr<Core::Promise<CacheSizes>> estimate_cache_size_accessed_since(UnixDateTime since);
     ErrorOr<bool> store_cache_associated_data(URL::URL const&, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData, ReadonlyBytes);
     ErrorOr<Optional<Core::AnonymousBuffer>> retrieve_cache_associated_data(URL::URL const&, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData);
+    ErrorOr<bool> create_synthetic_cache_entry(URL::URL const&, ByteString const& method);
 
     Function<String(URL::URL const&)> on_retrieve_http_cookie;
     Function<void()> on_request_server_died;
