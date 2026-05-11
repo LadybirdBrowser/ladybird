@@ -6,6 +6,7 @@
 
 #include <AK/Debug.h>
 #include <AK/NeverDestroyed.h>
+#include <LibCore/ElapsedTimer.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibIPC/Transport.h>
 #include <LibIPC/TransportHandle.h>
@@ -155,6 +156,22 @@ void WebContentClient::notify_all_views_of_crash()
                 view->on_web_content_crashed();
         });
     }
+}
+
+bool WebContentClient::send_mouse_event_to_compositor(u64 page_id, Web::MouseEvent const& event)
+{
+    auto connection = compositor_connections().get(this);
+    if (!connection.has_value() || !connection.value()->is_open()) {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC unavailable for page {} (connection={}, open={})",
+            page_id, connection.has_value(), connection.has_value() && connection.value()->is_open());
+        return false;
+    }
+
+    auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
+    auto handled = connection.value()->mouse_event(page_id, event.clone_without_browser_data());
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC mouse_event page {} returned {} in {} us",
+        page_id, handled, timer.elapsed_time().to_microseconds());
+    return handled;
 }
 
 void WebContentClient::notify_presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_id)

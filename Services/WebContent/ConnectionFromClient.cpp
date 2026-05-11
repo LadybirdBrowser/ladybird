@@ -9,6 +9,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Debug.h>
 #include <AK/JsonObject.h>
 #include <AK/OwnPtr.h>
 #include <AK/QuickSort.h>
@@ -83,6 +84,32 @@ private:
     explicit CompositorConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport)
         : IPC::ConnectionFromClient<CompositorClientEndpoint, CompositorServerEndpoint>(*this, move(transport), 1)
     {
+    }
+
+    virtual Messages::CompositorServer::MouseEventResponse mouse_event(u64 page_id, Web::MouseEvent event) override
+    {
+        if (event.type != Web::MouseEvent::Type::MouseWheel) {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor IPC rejected non-wheel mouse event for page {}", page_id);
+            return false;
+        }
+
+        if (event.modifiers & Web::UIEvents::KeyModifier::Mod_Shift)
+            swap(event.wheel_delta_x, event.wheel_delta_y);
+
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor IPC received wheel for page {} at {},{} delta {},{}",
+            page_id, event.position.x().value(), event.position.y().value(), event.wheel_delta_x, event.wheel_delta_y);
+
+        auto position = Gfx::FloatPoint {
+            static_cast<float>(event.position.x().value()),
+            static_cast<float>(event.position.y().value()),
+        };
+        auto delta = Gfx::FloatPoint {
+            static_cast<float>(event.wheel_delta_x),
+            static_cast<float>(event.wheel_delta_y),
+        };
+        auto handled = Web::Compositor::CompositorThread::async_scroll_by(page_id, position, delta);
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor IPC wheel for page {} returned {}", page_id, handled);
+        return handled;
     }
 
     virtual void ready_to_paint(u64 page_id, i32 bitmap_id) override

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Debug.h>
 #include <AK/Error.h>
 #include <AK/ScopeGuard.h>
 #include <AK/String.h>
@@ -249,6 +250,19 @@ void ViewImplementation::reset_zoom()
 
 void ViewImplementation::enqueue_input_event(Web::InputEvent event)
 {
+    if (auto* mouse_event = event.get_pointer<Web::MouseEvent>();
+        Application::web_content_options().enable_async_scrolling == EnableAsyncScrolling::Yes
+        && m_client_state.has_usable_bitmap
+        && mouse_event
+        && mouse_event->type == Web::MouseEvent::Type::MouseWheel) {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI attempting compositor wheel bypass for page {} at {},{} delta {},{}",
+            m_client_state.page_index, mouse_event->position.x().value(), mouse_event->position.y().value(), mouse_event->wheel_delta_x, mouse_event->wheel_delta_y);
+        if (client().send_mouse_event_to_compositor(m_client_state.page_index, *mouse_event))
+            mouse_event->async_scroll_performed_default_action = true;
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor wheel bypass result for page {}: {}",
+            m_client_state.page_index, mouse_event->async_scroll_performed_default_action ? "accepted"sv : "rejected"sv);
+    }
+
     // Send the next event over to the WebContent to be handled by JS. We'll later get a message to say whether JS
     // prevented the default event behavior, at which point we either discard or handle that event, and then try to
     // process the next one.

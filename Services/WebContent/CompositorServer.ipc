@@ -1,4 +1,7 @@
+#include <LibWeb/Page/InputEvent.h>
+
 endpoint CompositorServer
 {
+    mouse_event(u64 page_id, Web::MouseEvent event) => (bool handled)
     ready_to_paint(u64 page_id, i32 bitmap_id) =|
 }
