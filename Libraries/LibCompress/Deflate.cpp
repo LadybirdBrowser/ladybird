@@ -14,31 +14,17 @@
 
 namespace Compress {
 
+static constexpr u8 MAX_HUFFMAN_BITS = 15;
+
 CanonicalCode const& CanonicalCode::fixed_literal_codes()
 {
-    static CanonicalCode code;
-    static bool initialized = false;
-
-    if (initialized)
-        return code;
-
-    code = MUST(CanonicalCode::from_bytes(fixed_literal_bit_lengths));
-    initialized = true;
-
+    static CanonicalCode code = MUST(CanonicalCode::from_bytes(fixed_literal_bit_lengths));
     return code;
 }
 
 CanonicalCode const& CanonicalCode::fixed_distance_codes()
 {
-    static CanonicalCode code;
-    static bool initialized = false;
-
-    if (initialized)
-        return code;
-
-    code = MUST(CanonicalCode::from_bytes(fixed_distance_bit_lengths));
-    initialized = true;
-
+    static CanonicalCode code = MUST(CanonicalCode::from_bytes(fixed_distance_bit_lengths));
     return code;
 }
 
@@ -55,7 +41,7 @@ ErrorOr<CanonicalCode> CanonicalCode::from_bytes(ReadonlyBytes bytes)
         }
     }
 
-    if (non_zero_symbols == 1) { // special case - only 1 symbol
+    if (non_zero_symbols == 1) {
         code.m_prefix_table[0] = PrefixTableEntry { static_cast<u16>(last_non_zero), 1u };
         code.m_prefix_table[1] = code.m_prefix_table[0];
         code.m_max_prefixed_code_length = 1;
@@ -75,11 +61,11 @@ ErrorOr<CanonicalCode> CanonicalCode::from_bytes(ReadonlyBytes bytes)
         u16 symbol_value { 0 };
         u16 code_length { 0 };
     };
-    Array<PrefixCode, 1 << CanonicalCode::max_allowed_prefixed_code_length> prefix_codes;
+    Array<PrefixCode, 1 << MAX_HUFFMAN_BITS> prefix_codes;
     size_t number_of_prefix_codes = 0;
 
     auto next_code = 0;
-    for (size_t code_length = 1; code_length <= 15; ++code_length) {
+    for (size_t code_length = 1; code_length <= MAX_HUFFMAN_BITS; ++code_length) {
         next_code <<= 1;
         auto start_bit = 1 << code_length;
 
@@ -90,7 +76,7 @@ ErrorOr<CanonicalCode> CanonicalCode::from_bytes(ReadonlyBytes bytes)
             if (next_code > start_bit)
                 return Error::from_string_literal("Failed to decode code lengths");
 
-            if (code_length <= CanonicalCode::max_allowed_prefixed_code_length) {
+            if (code_length <= MAX_HUFFMAN_BITS) {
                 if (number_of_prefix_codes >= prefix_codes.size())
                     return Error::from_string_literal("Invalid canonical Huffman code");
 
@@ -109,26 +95,27 @@ ErrorOr<CanonicalCode> CanonicalCode::from_bytes(ReadonlyBytes bytes)
                 TRY(code.m_bit_codes.try_resize(symbol + 1));
                 TRY(code.m_bit_code_lengths.try_resize(symbol + 1));
             }
-            code.m_bit_codes[symbol] = fast_reverse16(start_bit | next_code, code_length); // DEFLATE writes huffman encoded symbols as lsb-first
+            code.m_bit_codes[symbol] = fast_reverse16(start_bit | next_code, code_length);
             code.m_bit_code_lengths[symbol] = code_length;
 
             next_code++;
         }
     }
 
-    if (next_code != (1 << 15))
+    if (next_code != (1 << MAX_HUFFMAN_BITS))
         return Error::from_string_literal("Failed to decode code lengths");
 
-    for (auto [symbol_code, symbol_value, code_length] : prefix_codes) {
-        if (code_length == 0 || code_length > CanonicalCode::max_allowed_prefixed_code_length)
-            break;
+    for (size_t i = 0; i < number_of_prefix_codes; ++i) {
+        auto& entry = prefix_codes[i];
+        if (entry.code_length == 0 || entry.code_length > code.m_max_prefixed_code_length)
+            continue;
 
-        auto shift = code.m_max_prefixed_code_length - code_length;
-        symbol_code <<= shift;
+        auto shift = code.m_max_prefixed_code_length - entry.code_length;
+        u32 base_code = entry.symbol_code << shift;
 
         for (size_t j = 0; j < (1u << shift); ++j) {
-            auto index = fast_reverse16(symbol_code + j, code.m_max_prefixed_code_length);
-            code.m_prefix_table[index] = PrefixTableEntry { symbol_value, code_length };
+            auto index = fast_reverse16(base_code + j, code.m_max_prefixed_code_length);
+            code.m_prefix_table[index] = PrefixTableEntry { entry.symbol_value, entry.code_length };
         }
     }
 
@@ -137,6 +124,9 @@ ErrorOr<CanonicalCode> CanonicalCode::from_bytes(ReadonlyBytes bytes)
 
 ErrorOr<u32> CanonicalCode::read_symbol(LittleEndianInputBitStream& stream) const
 {
+    if (m_max_prefixed_code_length == 0)
+        return Error::from_string_literal("Cannot read symbol with zero code length");
+
     auto prefix = TRY(stream.peek_bits<size_t>(m_max_prefixed_code_length));
 
     if (auto [symbol_value, code_length] = m_prefix_table[prefix]; code_length != 0) {
@@ -148,7 +138,7 @@ ErrorOr<u32> CanonicalCode::read_symbol(LittleEndianInputBitStream& stream) cons
     code_bits = fast_reverse16(code_bits, m_max_prefixed_code_length);
     code_bits |= 1 << m_max_prefixed_code_length;
 
-    for (size_t i = m_max_prefixed_code_length; i < 16; ++i) {
+    for (size_t i = m_max_prefixed_code_length; i < MAX_HUFFMAN_BITS; ++i) {
         size_t index;
         if (binary_search(m_symbol_codes.span(), code_bits, &index))
             return m_symbol_values[index];
@@ -183,4 +173,4 @@ ErrorOr<ByteBuffer> DeflateCompressor::compress_all(ReadonlyBytes bytes, Generic
     return ::Compress::compress_all<DeflateCompressor>(bytes, compression_level);
 }
 
-}
+} // namespace Compress
