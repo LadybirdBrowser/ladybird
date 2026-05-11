@@ -1,0 +1,13 @@
+diff --git a/gn/toolchain/BUILD.gn b/gn/toolchain/BUILD.gn
+index 8eace39..67d7b00 100644
+--- a/gn/toolchain/BUILD.gn
++++ b/gn/toolchain/BUILD.gn
+@@ -305,7 +305,7 @@ template("gcc_like_toolchain") {
+         rspfile = "{{output}}.rsp"
+         rspfile_content = "{{inputs}}"
+         rm_py = rebase_path("../rm.py")
+-        command = "$shell python3 \"$rm_py\" \"{{output}}\" && $ar rcs {{output}} @$rspfile"
++        command = "$shell python3 \"$rm_py\" \"{{output}}\" && $ar rcs {{output}} `cat $rspfile`"
+       }
+ 
+       outputs =

@@ -1,0 +1,24 @@
+diff --git a/BUILD.gn b/BUILD.gn
+index b45e6e6f05..bff5f26669 100644
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -15,7 +15,6 @@ if (defined(skia_settings)) {
+ }
+ 
+ import("gn/ios.gni")
+-import("third_party/dawn/args.gni")
+ 
+ # Skia public API, generally provided by :skia.
+ config("skia_public") {
+diff --git a/tools/window/BUILD.gn b/tools/window/BUILD.gn
+index b532490b97..06f397a28c 100644
+--- a/tools/window/BUILD.gn
++++ b/tools/window/BUILD.gn
+@@ -4,7 +4,6 @@
+ # found in the LICENSE file.
+ 
+ import("../../gn/skia.gni")
+-import("../../third_party/dawn/args.gni")
+ 
+ config("public_config") {
+   defines = []

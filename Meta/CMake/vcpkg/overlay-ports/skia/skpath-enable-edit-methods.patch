@@ -1,0 +1,14 @@
+diff --git a/BUILD.gn b/BUILD.gn
+index b45e6e6f05..fba779ffba 100644
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -24,9 +24,6 @@ config("skia_public") {
+   defines = [
+     "SK_CODEC_DECODES_BMP",
+     "SK_CODEC_DECODES_WBMP",
+-
+-    # TODO(kjlubick,fmalita) Remove when clients updated and APIs deleted.
+-    "SK_HIDE_PATH_EDIT_METHODS",
+   ]
+   cflags_objcc = []
+   if (is_component_build) {

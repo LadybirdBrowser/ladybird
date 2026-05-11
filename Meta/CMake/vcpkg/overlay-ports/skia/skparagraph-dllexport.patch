@@ -1,0 +1,194 @@
+diff --git a/modules/skparagraph/BUILD.gn b/modules/skparagraph/BUILD.gn
+index dedc68fa4a..d748247c19 100644
+--- a/modules/skparagraph/BUILD.gn
++++ b/modules/skparagraph/BUILD.gn
+@@ -20,6 +20,9 @@ if (skia_enable_skparagraph && skia_enable_skshaper && skia_enable_skunicode &&
+       "include",
+       "utils",
+     ]
++    if (is_component_build) {
++      defines += [ "SKPARAGRAPH_DLL" ]
++    }
+   }
+ 
+   skia_component("skparagraph") {
+@@ -27,6 +30,7 @@ if (skia_enable_skparagraph && skia_enable_skshaper && skia_enable_skunicode &&
+     public_configs = [ ":public_config" ]
+     public = skparagraph_core_public
+     sources = skparagraph_core_sources
++    defines = [ "SKPARAGRAPH_IMPLEMENTATION=1" ]
+     public_deps = [
+       "../..:skia",
+       "../skunicode",
+diff --git a/modules/skparagraph/include/FontCollection.h b/modules/skparagraph/include/FontCollection.h
+index a6b36efabe..5c210c5ae5 100644
+--- a/modules/skparagraph/include/FontCollection.h
++++ b/modules/skparagraph/include/FontCollection.h
+@@ -8,6 +8,7 @@
+ #include "include/core/SkFontMgr.h"
+ #include "include/core/SkRefCnt.h"
+ #include "include/core/SkSpan.h"
++#include "modules/skparagraph/include/skparagraph_export.h"
+ #include "modules/skparagraph/include/FontArguments.h"
+ #include "modules/skparagraph/include/ParagraphCache.h"
+ #include "modules/skparagraph/include/TextStyle.h"
+@@ -18,7 +19,7 @@ namespace textlayout {
+ 
+ class TextStyle;
+ class Paragraph;
+-class FontCollection : public SkRefCnt {
++class SKPARAGRAPH_API FontCollection : public SkRefCnt {
+ public:
+     FontCollection();
+ 
+diff --git a/modules/skparagraph/include/ParagraphBuilder.h b/modules/skparagraph/include/ParagraphBuilder.h
+index feac5622bb..8b1576fdfc 100644
+--- a/modules/skparagraph/include/ParagraphBuilder.h
++++ b/modules/skparagraph/include/ParagraphBuilder.h
+@@ -7,6 +7,7 @@
+ #include <string>
+ #include <tuple>
+ #include <vector>
++#include "modules/skparagraph/include/skparagraph_export.h"
+ #include "modules/skparagraph/include/FontCollection.h"
+ #include "modules/skparagraph/include/Paragraph.h"
+ #include "modules/skparagraph/include/ParagraphStyle.h"
+@@ -16,7 +17,7 @@
+ namespace skia {
+ namespace textlayout {
+ 
+-class ParagraphBuilder {
++class SKPARAGRAPH_API ParagraphBuilder {
+ protected:
+     ParagraphBuilder() {}
+ 
+diff --git a/modules/skparagraph/include/ParagraphStyle.h b/modules/skparagraph/include/ParagraphStyle.h
+index 77e17da981..3f46f8e1f4 100644
+--- a/modules/skparagraph/include/ParagraphStyle.h
++++ b/modules/skparagraph/include/ParagraphStyle.h
+@@ -5,6 +5,7 @@
+ #include "include/core/SkFontStyle.h"
+ #include "include/core/SkScalar.h"
+ #include "include/core/SkString.h"
++#include "modules/skparagraph/include/skparagraph_export.h"
+ #include "modules/skparagraph/include/DartTypes.h"
+ #include "modules/skparagraph/include/TextStyle.h"
+ 
+@@ -75,7 +76,7 @@ private:
+     bool fHalfLeading;
+ };
+ 
+-struct ParagraphStyle {
++struct SKPARAGRAPH_API ParagraphStyle {
+     ParagraphStyle();
+ 
+     bool operator==(const ParagraphStyle& rhs) const {
+diff --git a/modules/skparagraph/include/TextStyle.h b/modules/skparagraph/include/TextStyle.h
+index 24b1fc679b..d08a9b5142 100644
+--- a/modules/skparagraph/include/TextStyle.h
++++ b/modules/skparagraph/include/TextStyle.h
+@@ -10,6 +10,7 @@
+ #include "include/core/SkFontStyle.h"
+ #include "include/core/SkPaint.h"
+ #include "include/core/SkScalar.h"
++#include "modules/skparagraph/include/skparagraph_export.h"
+ #include "modules/skparagraph/include/DartTypes.h"
+ #include "modules/skparagraph/include/FontArguments.h"
+ #include "modules/skparagraph/include/ParagraphPainter.h"
+@@ -148,9 +149,9 @@ struct PlaceholderStyle {
+     SkScalar fBaselineOffset = 0;
+ };
+ 
+-class TextStyle {
++class SKPARAGRAPH_API TextStyle {
+ public:
+-    TextStyle() = default;
++    TextStyle();
+     TextStyle(const TextStyle& other) = default;
+     TextStyle& operator=(const TextStyle& other) = default;
+ 
+@@ -297,8 +298,6 @@ public:
+     SkFontHinting getFontHinting() const { return fHinting; }
+ 
+ private:
+-    static const std::vector<SkString>* kDefaultFontFamilies;
+-
+     Decoration fDecoration = {
+             TextDecoration::kNoDecoration,
+             // TODO: switch back to kGaps when (if) switching flutter to skparagraph
+@@ -311,7 +310,7 @@ private:
+ 
+     SkFontStyle fFontStyle;
+ 
+-    std::vector<SkString> fFontFamilies = *kDefaultFontFamilies;
++    std::vector<SkString> fFontFamilies;
+ 
+     SkScalar fFontSize = 14.0;
+     SkFont::Edging fEdging = SkFont::Edging::kAntiAlias;
+diff --git a/modules/skparagraph/include/skparagraph_export.h b/modules/skparagraph/include/skparagraph_export.h
+new file mode 100644
+index 0000000000..a19b83df57
+--- /dev/null
++++ b/modules/skparagraph/include/skparagraph_export.h
+@@ -0,0 +1,21 @@
++#pragma once
++
++#if !defined(SKPARAGRAPH_IMPLEMENTATION)
++    #define SKPARAGRAPH_IMPLEMENTATION 0
++#endif
++
++#if !defined(SKPARAGRAPH_API)
++    #if defined(SKPARAGRAPH_DLL)
++        #if defined(_MSC_VER)
++            #if SKPARAGRAPH_IMPLEMENTATION
++                #define SKPARAGRAPH_API __declspec(dllexport)
++            #else
++                #define SKPARAGRAPH_API __declspec(dllimport)
++            #endif
++        #else
++            #define SKPARAGRAPH_API __attribute__((visibility("default")))
++        #endif
++    #else
++        #define SKPARAGRAPH_API
++    #endif
++#endif
+diff --git a/modules/skparagraph/src/TextStyle.cpp b/modules/skparagraph/src/TextStyle.cpp
+index 26a7a9eb59..3e6881bde3 100644
+--- a/modules/skparagraph/src/TextStyle.cpp
++++ b/modules/skparagraph/src/TextStyle.cpp
+@@ -6,9 +6,13 @@
+ namespace skia {
+ namespace textlayout {
+ 
+-const std::vector<SkString>* TextStyle::kDefaultFontFamilies =
++static const std::vector<SkString>* kDefaultFontFamilies =
+         new std::vector<SkString>{SkString(DEFAULT_FONT_FAMILY)};
+ 
++TextStyle::TextStyle() : fFontFamilies(*kDefaultFontFamilies)
++{
++}
++
+ TextStyle TextStyle::cloneForPlaceholder() {
+     TextStyle result;
+     result.fColor = fColor;
+diff --git a/modules/skparagraph/utils/TestFontCollection.cpp b/modules/skparagraph/utils/TestFontCollection.cpp
+index b74a3b99cf..3fe2b129da 100644
+--- a/modules/skparagraph/utils/TestFontCollection.cpp
++++ b/modules/skparagraph/utils/TestFontCollection.cpp
+@@ -57,6 +57,8 @@ bool TestFontCollection::addFontFromFile(const std::string& path, const std::str
+     if (!file) {
+         return false;
+     }
++
++#if 0
+ #if defined(SK_TYPEFACE_FACTORY_FREETYPE)
+     sk_sp<SkTypeface> face =
+             SkTypeface_FreeType::MakeFromStream(std::move(file), SkFontArguments());
+@@ -72,6 +74,7 @@ bool TestFontCollection::addFontFromFile(const std::string& path, const std::str
+     } else {
+         fFontProvider->registerTypeface(std::move(face), SkString(familyName.c_str()));
+     }
++#endif
+ 
+     return true;
+ }

@@ -1,0 +1,43 @@
+diff --git a/BUILD.gn b/BUILD.gn
+index c6966d249d..d795e2b783 100644
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -906,6 +906,7 @@ optional("gpu_shared") {
+   }
+
+   if (skia_use_vulkan) {
++    public_deps += [ "//third_party/externals/vulkan-headers:vulkan_headers" ]
+     public_defines += [ "SK_VULKAN" ]
+     sources += skia_shared_vk_sources
+     configs += [ ":use_skia_vulkan_headers" ]
+diff --git a/include/private/gpu/vk/SkiaVulkan.h b/include/private/gpu/vk/SkiaVulkan.h
+index 1e962ad60a..535ac6b88f 100644
+--- a/include/private/gpu/vk/SkiaVulkan.h
++++ b/include/private/gpu/vk/SkiaVulkan.h
+@@ -12,6 +12,10 @@
+
+ // IWYU pragma: begin_exports
+
++#ifdef SK_USE_INTERNAL_VULKAN_HEADERS
++# undef SK_USE_INTERNAL_VULKAN_HEADERS
++#endif
++
+ #if defined(SK_USE_INTERNAL_VULKAN_HEADERS) && !defined(SK_BUILD_FOR_GOOGLE3)
+ #include "include/third_party/vulkan/vulkan/vulkan_core.h"
+ #else
+diff --git a/src/gpu/vk/vulkanmemoryallocator/VulkanMemoryAllocatorWrapper.h b/src/gpu/vk/vulkanmemoryallocator/VulkanMemoryAllocatorWrapper.h
+index 4f7120200f..067c1dc154 100644
+--- a/src/gpu/vk/vulkanmemoryallocator/VulkanMemoryAllocatorWrapper.h
++++ b/src/gpu/vk/vulkanmemoryallocator/VulkanMemoryAllocatorWrapper.h
+@@ -45,7 +45,11 @@
+ #pragma clang diagnostic ignored "-Wc++98-compat-extra-semi"
+ #endif
+ 
++#ifdef _WIN32
++#include "vma/vk_mem_alloc.h"  // NO_G3_REWRITE
++#else
+ #include "vk_mem_alloc.h"  // NO_G3_REWRITE
++#endif
+ 
+ #if defined(__clang__)
+ #pragma clang diagnostic pop
