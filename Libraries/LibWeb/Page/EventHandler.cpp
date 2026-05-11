@@ -229,6 +229,23 @@ static Optional<EventResult> dispatch_event_to_nested_navigable(Painting::Painta
     return {};
 }
 
+void EventHandler::update_hovered_nested_navigable(GC::Ptr<Painting::Paintable> paintable)
+{
+    GC::Ptr<HTML::Navigable> navigable;
+    if (paintable && is<Painting::NavigableContainerViewportPaintable>(*paintable)) {
+        if (auto node = dom_node_for_event_dispatch(*paintable); node)
+            navigable = as<HTML::NavigableContainer>(*node).content_navigable();
+    }
+    if (m_hovered_nested_navigable.ptr() == navigable)
+        return;
+
+    GC::Ptr<HTML::Navigable> previously_hovered_nested_navigable = m_hovered_nested_navigable.ptr();
+    m_hovered_nested_navigable = navigable;
+
+    if (previously_hovered_nested_navigable)
+        previously_hovered_nested_navigable->event_handler().handle_mouseleave();
+}
+
 // Find paragraph boundaries for triple-click selection. A paragraph is delimited by block nodes or <br> elements.
 static GC::Ref<DOM::Range> find_paragraph_range(DOM::Text& text_node, WebIDL::UnsignedLong offset)
 {
@@ -1005,6 +1022,7 @@ void EventHandler::clear_per_test_input_state(Badge<Internals::Internals>)
     m_hovered_chrome_widget = nullptr;
     m_captured_chrome_widget = nullptr;
     m_effective_legacy_mouse_pointer_position = nullptr;
+    m_hovered_nested_navigable = nullptr;
     m_drag_and_drop_event_handler->reset();
     m_mousemove_previous_screen_position.clear();
 }
@@ -1444,6 +1462,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
         start_index = result->index_in_node;
     }
 
+    update_hovered_nested_navigable(paintable);
     ArmedScopeGuard clear_cursor = [&] {
         update_cursor(nullptr, nullptr, nullptr);
     };
@@ -1540,6 +1559,7 @@ EventResult EventHandler::handle_mouseleave()
     if (!paint_root())
         return EventResult::Dropped;
 
+    update_hovered_nested_navigable(nullptr);
     update_hovered_chrome_widget(nullptr);
     update_cursor(nullptr, nullptr, nullptr);
 

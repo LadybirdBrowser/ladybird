@@ -120,6 +120,7 @@ private:
     bool fire_click_events(GC::Ref<DOM::Node>, MouseEventCoordinates const&, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count);
     void run_activation_behavior(GC::Ref<DOM::Node>, unsigned button, unsigned modifiers);
     void maybe_show_context_menu(GC::Ref<DOM::Node>, MouseEventCoordinates const&, CSSPixelPoint screen_position, CSSPixelPoint viewport_position, unsigned buttons, unsigned modifiers);
+    void update_hovered_nested_navigable(GC::Ptr<Painting::Paintable>);
 
     void run_mousedown_default_actions(DOM::Document&, CSSPixelPoint visual_viewport_position, CSSPixelPoint viewport_position, unsigned button, unsigned modifiers, int click_count);
 
@@ -147,6 +148,7 @@ private:
     NonnullOwnPtr<DragAndDropEventHandler> m_drag_and_drop_event_handler;
 
     GC::Weak<DOM::Node> m_effective_legacy_mouse_pointer_position;
+    GC::Weak<HTML::Navigable> m_hovered_nested_navigable;
 
     GC::Weak<DOM::Node> m_mousedown_target;
     Optional<CSSPixelPoint> m_mousedown_visual_viewport_position;
