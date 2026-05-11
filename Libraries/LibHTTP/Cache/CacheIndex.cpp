@@ -50,8 +50,6 @@ static NonnullRefPtr<HeaderList> deserialize_headers(StringView serialized_heade
     return headers;
 }
 
-#if HTTP_DISK_CACHE_DEBUG
-
 template<typename Callback>
 static void for_each_cache_entry_file(Database::Database& database, Callback&& callback)
 {
@@ -74,6 +72,8 @@ static void for_each_cache_entry_file(Database::Database& database, Callback&& c
             return IterationDecision::Continue;
         });
 }
+
+#if HTTP_DISK_CACHE_DEBUG
 
 static void log_orphaned_disk_cache_entries(Database::Database& database)
 {
@@ -127,6 +127,10 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database, LexicalPath
 
         auto set_cache_version = TRY(database.prepare_statement("INSERT OR REPLACE INTO CacheMetadata VALUES (?, ?);"sv));
         database.execute_statement(set_cache_version, {}, CACHE_METADATA_KEY, CACHE_VERSION);
+
+        for_each_cache_entry_file(database, [&](LexicalPath const& cache_entry) {
+            (void)FileSystem::remove(cache_entry.string(), FileSystem::RecursionMode::Disallowed);
+        });
     }
 
     auto create_cache_index_table = TRY(database.prepare_statement(R"#(
