@@ -58,6 +58,9 @@ public:
     ErrorOr<Optional<ByteBuffer>> retrieve_associated_data(URL::URL const&, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData);
     ErrorOr<Optional<CacheEntryBodyFile>> retrieve_associated_data_file(URL::URL const&, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData);
 
+    // Ensure an index row exists for url+method so the shelf has something to attach to even if there are no real HTTP requests in flight.
+    ErrorOr<bool> create_synthetic_entry(URL::URL const&, StringView method);
+
     void remove_entries_exceeding_cache_limit();
     void set_maximum_disk_cache_size(u64 maximum_disk_cache_size);
 

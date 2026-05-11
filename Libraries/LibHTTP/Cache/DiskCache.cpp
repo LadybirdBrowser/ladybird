@@ -223,6 +223,25 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
     return Optional<CacheEntryReader&> { *cache_entry_pointer };
 }
 
+ErrorOr<bool> DiskCache::create_synthetic_entry(URL::URL const& url, StringView method)
+{
+    auto request_headers = HeaderList::create();
+    if (!is_cacheable(method, *request_headers))
+        return false;
+
+    auto serialized_url = serialize_url_for_cache_storage(url);
+    auto cache_key = create_cache_key(serialized_url, method, m_partitioned_cache_key);
+    constexpr u64 synthetic_vary_key = 0;
+
+    if (m_index.has_entry(cache_key, synthetic_vary_key))
+        return true;
+
+    auto response_headers = HeaderList::create();
+    auto now = UnixDateTime::now();
+    TRY(m_index.create_entry(cache_key, synthetic_vary_key, serialized_url, request_headers, response_headers, 0, now, now));
+    return true;
+}
+
 ErrorOr<bool> DiskCache::store_associated_data(URL::URL const& url, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData associated_data, ReadonlyBytes data)
 {
     if (!is_cacheable(method, request_headers))
