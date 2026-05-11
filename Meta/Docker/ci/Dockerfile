@@ -63,7 +63,6 @@ RUN apt-get update -o APT::Update::Error-Mode=any \
         nodejs \
         npm \
         openssl \
-        optipng \
         pkg-config \
         pulseaudio \
         python3 \

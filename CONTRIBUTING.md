@@ -84,7 +84,6 @@ Nobody is perfect, and sometimes we mess things up. That said, here are some goo
 * Mark each review comment as "resolved" after pushing a fix with the requested changes.
 * Add your personal copyright line to files when making substantive changes. (Optional but encouraged!)
 * Check the spelling of your code, comments and commit messages.
-* If you have images that go along with your code, run `optipng -strip all` on them to optimize and strip away useless metadata - this can reduce file size from multiple kilobytes to a couple hundred bytes.
 
 **Don't:**
 
