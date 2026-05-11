@@ -165,11 +165,7 @@ bool StringView::matches(StringView mask, CaseSensitivity case_sensitivity) cons
 
 bool StringView::contains(char needle) const
 {
-    for (char current : *this) {
-        if (current == needle)
-            return true;
-    }
-    return false;
+    return memchr(m_characters, static_cast<unsigned char>(needle), m_length) != nullptr;
 }
 
 bool StringView::contains(u32 needle) const
