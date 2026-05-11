@@ -32,7 +32,7 @@ public:
     void begin_test_output_capture(TestWebView&, Test const&);
     void rebind_test_output_capture(TestWebView&);
     void write_test_output(TestWebView const&);
-    bool write_helper_process_output();
+    void write_helper_process_output();
 
     TestRunCapture(TestRunCapture const&) = delete;
     TestRunCapture& operator=(TestRunCapture const&) = delete;

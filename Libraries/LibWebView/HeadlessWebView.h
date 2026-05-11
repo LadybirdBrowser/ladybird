@@ -21,6 +21,7 @@ public:
     static NonnullOwnPtr<HeadlessWebView> create_child(HeadlessWebView&, u64 page_index);
 
     void reset_viewport_size(Web::DevicePixelSize);
+    void respawn_web_content_process();
 
     void disconnect_child_crash_handlers()
     {
@@ -38,6 +39,7 @@ protected:
 
     void initialize_client(CreateNewClient) override;
     void update_zoom() override;
+    void detach_view_tree_from_web_content_process();
 
     virtual Web::DevicePixelSize viewport_size() const override { return m_viewport_size; }
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const override { return widget_position; }

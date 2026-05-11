@@ -156,14 +156,18 @@ void TestRunCapture::write_test_output(TestWebView const& view)
     if (!capture)
         return;
 
-    (void)capture->output.transfer_to_output_file();
+    auto maybe_error = capture->output.transfer_to_output_file();
     destroy_view_capture_of(view);
+    if (maybe_error.is_error())
+        warnln("Failed to write test output: {}", maybe_error.error());
 }
 
-bool TestRunCapture::write_helper_process_output()
+void TestRunCapture::write_helper_process_output()
 {
     restore_stderr();
-    return m_helper_output.transfer_to_output_file().value_or(false);
+    auto maybe_error = m_helper_output.transfer_to_output_file();
+    if (maybe_error.is_error())
+        warnln("Failed to write helper process output: {}", maybe_error.error());
 }
 
 void TestRunCapture::restore_stderr()

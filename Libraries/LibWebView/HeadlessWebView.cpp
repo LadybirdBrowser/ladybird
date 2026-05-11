@@ -186,6 +186,32 @@ void HeadlessWebView::reset_viewport_size(Web::DevicePixelSize size)
     client().async_did_update_window_rect(m_client_state.page_index);
 }
 
+void HeadlessWebView::respawn_web_content_process()
+{
+    disconnect_child_crash_handlers();
+    detach_view_tree_from_web_content_process();
+
+    m_pending_dialog = Web::Page::PendingDialog::None;
+    m_pending_prompt_text.clear();
+    m_is_fullscreen = Web::ViewportIsFullscreen::No;
+
+    initialize_client(CreateNewClient::Yes);
+}
+
+void HeadlessWebView::detach_view_tree_from_web_content_process()
+{
+    for (auto& child : m_child_web_views)
+        child->detach_view_tree_from_web_content_process();
+
+    m_child_web_views.clear();
+    m_pending_screenshot.clear();
+
+    if (m_client_state.client)
+        m_client_state.client->unregister_view(m_client_state.page_index);
+
+    m_client_state = {};
+}
+
 void HeadlessWebView::update_zoom()
 {
     ViewImplementation::update_zoom();
