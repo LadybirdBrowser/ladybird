@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    iframe {
+        position: absolute;
+        left: 40px;
+        top: 40px;
+        width: 160px;
+        height: 120px;
+        border: 0;
+    }
+
+    #spacer {
+        height: 2000px;
+    }
+</style>
+<iframe id="frame" srcdoc="<body style='height: 1000px'></body>"></iframe>
+<div id="spacer"></div>
+<script>
+    promiseTest(async () => {
+        await new Promise(resolve => {
+            if (frame.contentDocument && frame.contentDocument.readyState === "complete") {
+                resolve();
+                return;
+            }
+            frame.onload = resolve;
+        });
+        await animationFrame();
+
+        const state = internals.asyncScrollingState();
+        println(`main thread regions: ${state.mainThreadWheelEventRegionCount}`);
+        println(`over iframe: ${internals.asyncScrollingStateWheelScrollAdmissionAt(60, 60, 0, 100)}`);
+        println(`outside iframe: ${internals.asyncScrollingStateWheelScrollAdmissionAt(250, 60, 0, 100)}`);
+    });
+</script>

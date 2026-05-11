@@ -60,11 +60,18 @@ struct BlockingWheelEventRegion {
     Gfx::FloatRect rect;
 };
 
+// A region that must always use main-thread wheel routing even without a blocking listener, such as a nested navigable.
+struct MainThreadWheelEventRegion {
+    Painting::VisualContextIndex visual_context_index;
+    Gfx::FloatRect rect;
+};
+
 // Snapshot of scroll-related paint data that the compositor can read without touching DOM, layout, or paintables.
 // It is immutable once collected on the main thread; AsyncScrollTree keeps the mutable compositor-side scroll offsets.
 struct AsyncScrollingState {
     Vector<AsyncScrollNode> scroll_nodes;
     Vector<AsyncStickyArea> sticky_areas;
+    Vector<MainThreadWheelEventRegion> main_thread_wheel_event_regions;
 
     // Non-passive wheel listeners can cancel scrolling, so async scrolling must treat them as hard barriers.
     // Viewport-wide barriers cover listeners on the root targets; element regions let input hit-testing accept
@@ -79,12 +86,14 @@ struct AsyncScrollingState {
 enum class WheelScrollAdmission {
     Accepted,
     NoScrollableTarget,
+    BlockedByMainThreadRegion,
     StaleBlockingWheelEventRegions,
     BlockedByWheelEventRegion,
 };
 
 AsyncScrollingState collect_async_scrolling_state(HTML::Navigable&, Painting::ViewportPaintable&, Gfx::IntRect viewport_rect);
 bool blocks_wheel_event_at_position(AsyncScrollingState const&, RefPtr<Painting::DisplayList> const&, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position);
+bool requires_main_thread_wheel_event_at_position(AsyncScrollingState const&, RefPtr<Painting::DisplayList> const&, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position);
 WheelScrollAdmission admit_wheel_scroll(AsyncScrollingState const&, RefPtr<Painting::DisplayList> const&, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position, Gfx::FloatPoint delta, bool has_blocking_wheel_event_listeners, bool blocking_wheel_event_regions_are_current);
 
 }

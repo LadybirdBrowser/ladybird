@@ -15,7 +15,9 @@ void AsyncScrollTree::set_state(AsyncScrollingState&& state)
 {
     m_scroll_nodes = move(state.scroll_nodes);
     m_sticky_areas = move(state.sticky_areas);
+    m_main_thread_wheel_event_regions = move(state.main_thread_wheel_event_regions);
     m_viewport_rect = state.viewport_rect;
+    m_main_thread_wheel_event_targets.clear();
     m_wheel_scroll_targets.clear();
 }
 
@@ -246,6 +248,7 @@ bool AsyncScrollTree::apply_scroll_delta(AsyncScrollNodeID node_id, Gfx::FloatPo
 void AsyncScrollTree::rebuild_wheel_scroll_targets(RefPtr<Painting::DisplayList> const& display_list, Painting::ScrollStateSnapshot const& scroll_state_snapshot)
 {
     m_wheel_scroll_targets.clear();
+    m_main_thread_wheel_event_targets.clear();
     if (!display_list)
         return;
 
@@ -264,20 +267,18 @@ void AsyncScrollTree::rebuild_wheel_scroll_targets(RefPtr<Painting::DisplayList>
             .can_scroll_down = node.scroll_offset.y() < node.max_scroll_offset.y(),
         });
     }
+
+    for (auto const& region : m_main_thread_wheel_event_regions) {
+        m_main_thread_wheel_event_targets.append({
+            .viewport_rect = visual_context_tree.transform_rect_to_viewport(region.visual_context_index, region.rect, scroll_state_snapshot),
+        });
+    }
 }
 
 void AsyncScrollTree::clear_wheel_scroll_targets()
 {
     m_wheel_scroll_targets.clear();
-}
-
-Optional<AsyncScrollNodeID> AsyncScrollTree::viewport_scroll_node_for_delta(Gfx::FloatPoint delta) const
-{
-    for (auto const& node : m_scroll_nodes) {
-        if (node.is_viewport && can_scroll_node_by_delta(node, delta))
-            return node.node_id;
-    }
-    return {};
+    m_main_thread_wheel_event_targets.clear();
 }
 
 Optional<Gfx::FloatPoint> AsyncScrollTree::scroll_offset_for_node(AsyncScrollNodeID node_id) const
@@ -289,6 +290,11 @@ Optional<Gfx::FloatPoint> AsyncScrollTree::scroll_offset_for_node(AsyncScrollNod
 
 Optional<AsyncScrollNodeID> AsyncScrollTree::hit_test_scroll_node_for_wheel(Gfx::FloatPoint position, Gfx::FloatPoint delta) const
 {
+    for (auto const& target : m_main_thread_wheel_event_targets) {
+        if (target.viewport_rect.contains(position))
+            return {};
+    }
+
     Optional<AsyncScrollNodeID> scroll_target;
     for (auto const& target : m_wheel_scroll_targets) {
         if (!target.viewport_rect.contains(position))

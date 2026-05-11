@@ -9,6 +9,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayList.h>
@@ -136,6 +137,13 @@ AsyncScrollingState collect_async_scrolling_state(HTML::Navigable& navigable, Pa
             }
         }
 
+        if (auto node = paintable_box.dom_node(); node && node->is_navigable_container() && as<HTML::NavigableContainer>(*node).content_navigable()) {
+            async_scrolling_state.main_thread_wheel_event_regions.append({
+                .visual_context_index = paintable_box.accumulated_visual_context_index(),
+                .rect = css_rect_to_device_rect(paintable_box.absolute_united_border_box_rect(), device_pixels_per_css_pixel),
+            });
+        }
+
         auto sticky_frame_index = paintable_box.enclosing_scroll_frame_index();
         if (paintable_box.is_sticky_position() && sticky_frame_index.value()) {
             auto const& frame = scroll_state.frame_at(sticky_frame_index);
@@ -206,6 +214,23 @@ bool blocks_wheel_event_at_position(AsyncScrollingState const& async_scrolling_s
     return false;
 }
 
+bool requires_main_thread_wheel_event_at_position(AsyncScrollingState const& async_scrolling_state, RefPtr<Painting::DisplayList> const& display_list, Painting::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint position)
+{
+    if (async_scrolling_state.main_thread_wheel_event_regions.is_empty())
+        return false;
+
+    if (!display_list)
+        return true;
+
+    auto const& visual_context_tree = display_list->visual_context_tree();
+    for (auto const& region : async_scrolling_state.main_thread_wheel_event_regions) {
+        auto position_in_context = visual_context_tree.transform_point_for_hit_test(region.visual_context_index, position, scroll_state_snapshot);
+        if (position_in_context.has_value() && region.rect.contains(*position_in_context))
+            return true;
+    }
+    return false;
+}
+
 static bool scroll_node_can_scroll_by_delta(AsyncScrollNode const& node, Gfx::FloatPoint delta)
 {
     if (delta.x() < 0 && node.scroll_offset.x() > 0)
@@ -240,6 +265,9 @@ static bool has_scroll_node_at_position(AsyncScrollingState const& async_scrolli
 
 WheelScrollAdmission admit_wheel_scroll(AsyncScrollingState const& async_scrolling_state, RefPtr<Painting::DisplayList> const& display_list, Painting::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint position, Gfx::FloatPoint delta, bool has_blocking_wheel_event_listeners, bool blocking_wheel_event_regions_are_current)
 {
+    if (requires_main_thread_wheel_event_at_position(async_scrolling_state, display_list, scroll_state_snapshot, position))
+        return WheelScrollAdmission::BlockedByMainThreadRegion;
+
     // Async scrolling may only start when the snapshot can prove that the wheel event cannot be canceled by script
     // at this position. Stale or missing blocker information sends the event back to the main thread.
     if (has_blocking_wheel_event_listeners) {

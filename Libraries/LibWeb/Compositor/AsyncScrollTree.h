@@ -27,6 +27,11 @@ struct WheelScrollTarget {
     bool can_scroll_down { false };
 };
 
+// Viewport-space cache of regions that force main-thread wheel routing.
+struct MainThreadWheelEventTarget {
+    Gfx::FloatRect viewport_rect;
+};
+
 // Mutable compositor-side copy of AsyncScrollingState. The main thread owns the source snapshot; this tree owns only
 // compositor scroll offsets and derived hit-test targets.
 class AsyncScrollTree {
@@ -36,7 +41,6 @@ public:
     void rebuild_wheel_scroll_targets(RefPtr<Painting::DisplayList> const&, Painting::ScrollStateSnapshot const&);
     void clear_wheel_scroll_targets();
 
-    Optional<AsyncScrollNodeID> viewport_scroll_node_for_delta(Gfx::FloatPoint delta) const;
     Optional<Gfx::FloatPoint> scroll_offset_for_node(AsyncScrollNodeID) const;
     Optional<AsyncScrollNodeID> hit_test_scroll_node_for_wheel(Gfx::FloatPoint position, Gfx::FloatPoint delta) const;
     bool apply_scroll_delta(AsyncScrollNodeID, Gfx::FloatPoint delta, Painting::ScrollStateSnapshot&);
@@ -58,6 +62,8 @@ private:
 
     Vector<AsyncScrollNode> m_scroll_nodes;
     Vector<AsyncStickyArea> m_sticky_areas;
+    Vector<MainThreadWheelEventRegion> m_main_thread_wheel_event_regions;
+    Vector<MainThreadWheelEventTarget> m_main_thread_wheel_event_targets;
     Vector<WheelScrollTarget> m_wheel_scroll_targets;
     Gfx::IntRect m_viewport_rect;
 };

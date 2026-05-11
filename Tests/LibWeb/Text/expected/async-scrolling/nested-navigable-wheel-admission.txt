@@ -1,0 +1,3 @@
+main thread regions: 1
+over iframe: blocked-by-main-thread-region
+outside iframe: accepted

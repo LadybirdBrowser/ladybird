@@ -640,6 +640,7 @@ JS::Object* Internals::async_scrolling_state()
         object->define_direct_property("stickyAreas"_utf16_fly_string, sticky_areas, JS::default_attributes);
         object->define_direct_property("hasBlockingWheelEventListeners"_utf16_fly_string, JS::Value(false), JS::default_attributes);
         object->define_direct_property("blockingWheelEventRegionCount"_utf16_fly_string, JS::Value(0), JS::default_attributes);
+        object->define_direct_property("mainThreadWheelEventRegionCount"_utf16_fly_string, JS::Value(0), JS::default_attributes);
         object->define_direct_property("blockingWheelEventRegionsAreCurrent"_utf16_fly_string, JS::Value(false), JS::default_attributes);
         object->define_direct_property("hasBlockingWheelEventRegionCoveringViewport"_utf16_fly_string, JS::Value(false), JS::default_attributes);
         return object;
@@ -682,6 +683,7 @@ JS::Object* Internals::async_scrolling_state()
     object->define_direct_property("stickyAreas"_utf16_fly_string, sticky_areas, JS::default_attributes);
     object->define_direct_property("hasBlockingWheelEventListeners"_utf16_fly_string, JS::Value(state.has_blocking_wheel_event_listeners), JS::default_attributes);
     object->define_direct_property("blockingWheelEventRegionCount"_utf16_fly_string, JS::Value(state.blocking_wheel_event_regions.size()), JS::default_attributes);
+    object->define_direct_property("mainThreadWheelEventRegionCount"_utf16_fly_string, JS::Value(state.main_thread_wheel_event_regions.size()), JS::default_attributes);
     object->define_direct_property("blockingWheelEventRegionsAreCurrent"_utf16_fly_string, JS::Value(state.blocking_wheel_event_regions_are_current), JS::default_attributes);
     object->define_direct_property("hasBlockingWheelEventRegionCoveringViewport"_utf16_fly_string, JS::Value(state.has_blocking_wheel_event_region_covering_viewport), JS::default_attributes);
     return object;
@@ -716,6 +718,8 @@ static String wheel_scroll_admission_to_string(Compositor::WheelScrollAdmission 
         return "accepted"_string;
     case Compositor::WheelScrollAdmission::NoScrollableTarget:
         return "no-scrollable-target"_string;
+    case Compositor::WheelScrollAdmission::BlockedByMainThreadRegion:
+        return "blocked-by-main-thread-region"_string;
     case Compositor::WheelScrollAdmission::StaleBlockingWheelEventRegions:
         return "stale-blocking-wheel-event-regions"_string;
     case Compositor::WheelScrollAdmission::BlockedByWheelEventRegion:
