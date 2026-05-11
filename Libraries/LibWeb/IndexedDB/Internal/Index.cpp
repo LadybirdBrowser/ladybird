@@ -61,11 +61,9 @@ void Index::set_name(String name)
 
 bool Index::has_record_with_key(GC::Ref<Key> key)
 {
-    auto index = m_records.find_if([&key](auto const& record) {
-        return Key::equals(record.key, key);
-    });
-
-    return index != m_records.end();
+    return AK::binary_search(m_records, key, nullptr, [](auto const& needle, auto const& record) {
+        return Key::compare_two_keys(needle, record.key);
+    }) != nullptr;
 }
 
 // https://w3c.github.io/IndexedDB/#index-referenced-value
@@ -73,13 +71,11 @@ HTML::SerializationRecord const& Index::referenced_value(IndexRecord const& inde
 {
     // Records in an index are said to have a referenced value.
     // This is the value of the record in the index’s referenced object store which has a key equal to the index’s record’s value.
-    return *m_object_store
-                ->records()
-                .first_matching([&](auto const& store_record) {
-                    return Key::equals(store_record.key, index_record.value);
-                })
-                .value()
-                .value;
+    auto* store_record = AK::binary_search(m_object_store->records(), index_record.value, nullptr, [](auto const& needle, auto const& record) {
+        return Key::compare_two_keys(needle, record.key);
+    });
+    VERIFY(store_record);
+    return *store_record->value;
 }
 
 void Index::clear_records()
@@ -150,9 +146,9 @@ void Index::store_a_record(IndexRecord const& record)
 
 void Index::remove_record(IndexRecord const& record)
 {
-    m_records.remove_first_matching([&](auto const& existing) {
-        return Key::equals(existing.key, record.key) && Key::equals(existing.value, record.value);
-    });
+    auto index = AK::lower_bound_index(m_records, record, compare_index_records);
+    if (index < m_records.size() && compare_index_records(m_records[index], record) == 0)
+        m_records.remove(index);
 }
 
 void Index::remove_records_with_value_in_range(GC::Ref<IDBKeyRange> range)

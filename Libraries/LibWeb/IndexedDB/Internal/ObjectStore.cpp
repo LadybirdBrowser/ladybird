@@ -111,9 +111,12 @@ void ObjectStore::remove_records_in_range(GC::Ref<IDBKeyRange> range)
 
 void ObjectStore::remove_record_with_key(GC::Ref<Key> key)
 {
-    m_records.remove_first_matching([&](auto const& record) {
-        return Key::equals(record.key, key);
+    size_t index = 0;
+    auto* record = AK::binary_search(m_records, key, &index, [](auto const& needle, auto const& record) {
+        return Key::compare_two_keys(needle, record.key);
     });
+    if (record)
+        m_records.remove(index);
 }
 
 bool ObjectStore::has_record_with_key(GC::Ref<Key> key)
