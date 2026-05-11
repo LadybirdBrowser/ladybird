@@ -205,7 +205,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(disable_sql_database, "Disable SQL database", "disable-sql-database");
     args_parser.add_option(file_scheme_urls_have_tuple_origins, "Treat file:// URLs as having tuple origins", "tuple-file-origins");
     args_parser.add_option(Core::ArgsParser::Option {
-        .argument_mode = Core::ArgsParser::OptionArgumentMode::Optional,
+        .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
         .help_string = "Wait for a debugger to attach to the given process name (WebContent, RequestServer, etc.)",
         .long_name = "debug-process",
         .value_name = "process-name",
