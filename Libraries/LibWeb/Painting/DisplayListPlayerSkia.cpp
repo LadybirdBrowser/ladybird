@@ -38,7 +38,6 @@
 #include <LibGfx/SkiaUtils.h>
 #include <LibGfx/YUVData.h>
 #include <LibMedia/VideoFrame.h>
-#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/VideoFrameSource.h>
 
@@ -837,15 +836,11 @@ void DisplayListPlayerSkia::paint_scrollbar(PaintScrollBar const& command)
     gutter_fill_paint.setColor(to_skia_color(gutter_fill_color));
     canvas.drawRect(gutter_rect, gutter_fill_paint);
 
-    auto thumb_fill_color = command.thumb_color;
-    if (command.gutter_rect.is_empty() && thumb_fill_color == CSS::InitialValues::scrollbar_color().thumb_color)
-        thumb_fill_color = thumb_fill_color.with_alpha(128);
-
     SkPaint thumb_fill_paint;
-    thumb_fill_paint.setColor(to_skia_color(thumb_fill_color));
+    thumb_fill_paint.setColor(to_skia_color(command.thumb_color));
     canvas.drawRRect(thumb_rrect, thumb_fill_paint);
 
-    auto stroke_color = thumb_fill_color.lightened();
+    auto stroke_color = command.thumb_color.lightened();
     SkPaint stroke_paint;
     stroke_paint.setStroke(true);
     stroke_paint.setStrokeWidth(1);

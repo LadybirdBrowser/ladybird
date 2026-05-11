@@ -9,6 +9,7 @@
 
 #include <AK/GenericShorthands.h>
 #include <LibGfx/Font/Font.h>
+#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
@@ -664,12 +665,16 @@ void PaintableBox::paint(DisplayListRecordingContext& context, PaintPhase phase)
                 auto scrollbar_data = compute_scrollbar_data(direction, metrics);
                 if (!scrollbar_data.has_value())
                     continue;
+                auto gutter_rect = context.rounded_device_rect(scrollbar_data->gutter_rect).to_type<int>();
+                auto thumb_color = scrollbar_colors.thumb_color;
+                if (gutter_rect.is_empty() && thumb_color == CSS::InitialValues::scrollbar_color().thumb_color)
+                    thumb_color = thumb_color.with_alpha(128);
                 context.display_list_recorder().paint_scrollbar(
                     m_own_scroll_frame_index,
-                    context.rounded_device_rect(scrollbar_data->gutter_rect).to_type<int>(),
+                    gutter_rect,
                     context.rounded_device_rect(scrollbar_data->thumb_rect).to_type<int>(),
                     scrollbar_data->thumb_travel_to_scroll_ratio.to_double(),
-                    scrollbar_colors.thumb_color,
+                    thumb_color,
                     scrollbar_colors.track_color,
                     direction == ScrollDirection::Vertical);
             }
