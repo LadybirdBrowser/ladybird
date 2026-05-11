@@ -721,6 +721,8 @@ public:
         m_presented_bitmap_id_awaiting_ack = bitmap_id;
         m_queued_rasterization_tasks++;
         VERIFY(m_queued_rasterization_tasks == 1);
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rasterized bitmap {} waiting for ready_to_paint (raster_tasks={})",
+            bitmap_id, m_queued_rasterization_tasks.load());
     }
 
     void decrement_queued_tasks(i32 bitmap_id)
@@ -735,6 +737,8 @@ public:
         VERIFY(m_queued_rasterization_tasks == 1);
         m_presented_bitmap_id_awaiting_ack.clear();
         m_queued_rasterization_tasks--;
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor ready_to_paint released bitmap {} (raster_tasks={})",
+            bitmap_id, m_queued_rasterization_tasks.load());
         m_ready_to_paint.signal();
         m_command_ready.signal();
     }
@@ -780,18 +784,28 @@ CompositorThread::~CompositorThread()
 void CompositorThread::register_page_compositor(u64 page_id, NonnullRefPtr<ThreadData> thread_data)
 {
     Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
+    auto replaced_existing_compositor = page_compositors().contains(page_id);
     page_compositors().set(page_id, move(thread_data));
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Registered page {} for compositor presentation (replaced_existing={})",
+        page_id, replaced_existing_compositor);
 }
 
 void CompositorThread::unregister_page_compositor(u64 page_id, ThreadData& thread_data)
 {
     Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
     auto compositor = page_compositors().find(page_id);
-    if (compositor == page_compositors().end())
+    if (compositor == page_compositors().end()) {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Skipping compositor unregister for page {}: no compositor registered",
+            page_id);
         return;
-    if (compositor->value.ptr() != &thread_data)
+    }
+    if (compositor->value.ptr() != &thread_data) {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Skipping compositor unregister for page {}: compositor changed",
+            page_id);
         return;
+    }
     page_compositors().remove(compositor);
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Unregistered page {} from compositor presentation", page_id);
 }
 
 void CompositorThread::set_frame_presentation_callbacks(NonnullRefPtr<Core::WeakEventLoopReference> event_loop, BackingStorePresentationCallback backing_store_callback, FramePresentationCallback frame_callback)
@@ -801,6 +815,7 @@ void CompositorThread::set_frame_presentation_callbacks(NonnullRefPtr<Core::Weak
     state.event_loop = move(event_loop);
     state.backing_store_callback = move(backing_store_callback);
     state.frame_callback = move(frame_callback);
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Installed compositor presentation callbacks");
 }
 
 void CompositorThread::clear_frame_presentation_callbacks()
@@ -810,6 +825,7 @@ void CompositorThread::clear_frame_presentation_callbacks()
     state.event_loop = nullptr;
     state.backing_store_callback = {};
     state.frame_callback = {};
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Cleared compositor presentation callbacks");
 }
 
 bool CompositorThread::present_backing_stores_to_client(u64 page_id, i32 front_bitmap_id, Gfx::SharedImage&& front_shared_image, i32 back_bitmap_id, Gfx::SharedImage&& back_shared_image)
@@ -817,20 +833,34 @@ bool CompositorThread::present_backing_stores_to_client(u64 page_id, i32 front_b
     RefPtr<Core::WeakEventLoopReference> event_loop_reference;
     {
         Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
-        if (!page_compositors().contains(page_id))
+        if (!page_compositors().contains(page_id)) {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Cannot present backing stores front={} back={} for page {}: no compositor registered",
+                front_bitmap_id, back_bitmap_id, page_id);
             return false;
+        }
         auto& state = frame_presentation_state();
-        if (!state.backing_store_callback)
+        if (!state.backing_store_callback) {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Cannot present backing stores front={} back={} for page {}: no presentation callback",
+                front_bitmap_id, back_bitmap_id, page_id);
             return false;
+        }
         event_loop_reference = state.event_loop;
     }
 
-    if (!event_loop_reference)
+    if (!event_loop_reference) {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Cannot present backing stores front={} back={} for page {}: no presentation event loop",
+            front_bitmap_id, back_bitmap_id, page_id);
         return false;
+    }
     auto event_loop = event_loop_reference->take();
-    if (!event_loop)
+    if (!event_loop) {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Cannot present backing stores front={} back={} for page {}: presentation event loop is gone",
+            front_bitmap_id, back_bitmap_id, page_id);
         return false;
+    }
 
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Queueing UI backing stores for page {} front={} back={}",
+        page_id, front_bitmap_id, back_bitmap_id);
     event_loop->deferred_invoke([page_id, front_bitmap_id, front_shared_image = move(front_shared_image), back_bitmap_id, back_shared_image = move(back_shared_image)]() mutable {
         Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
         if (!page_compositors().contains(page_id)) {
@@ -839,8 +869,14 @@ bool CompositorThread::present_backing_stores_to_client(u64 page_id, i32 front_b
             return;
         }
         auto& state = frame_presentation_state();
-        if (state.backing_store_callback)
+        if (state.backing_store_callback) {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Delivering UI backing stores for page {} front={} back={}",
+                page_id, front_bitmap_id, back_bitmap_id);
             state.backing_store_callback(page_id, front_bitmap_id, move(front_shared_image), back_bitmap_id, move(back_shared_image));
+        } else {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Dropping queued UI backing stores for page {} front={} back={}: callback cleared",
+                page_id, front_bitmap_id, back_bitmap_id);
+        }
     });
     return true;
 }
@@ -850,20 +886,34 @@ bool CompositorThread::present_frame_to_client(u64 page_id, Gfx::IntRect const& 
     RefPtr<Core::WeakEventLoopReference> event_loop_reference;
     {
         Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
-        if (!page_compositors().contains(page_id))
+        if (!page_compositors().contains(page_id)) {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Cannot present bitmap {} for page {}: no compositor registered",
+                bitmap_id, page_id);
             return false;
+        }
         auto& state = frame_presentation_state();
-        if (!state.frame_callback)
+        if (!state.frame_callback) {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Cannot present bitmap {} for page {}: no presentation callback",
+                bitmap_id, page_id);
             return false;
+        }
         event_loop_reference = state.event_loop;
     }
 
-    if (!event_loop_reference)
+    if (!event_loop_reference) {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Cannot present bitmap {} for page {}: no presentation event loop",
+            bitmap_id, page_id);
         return false;
+    }
     auto event_loop = event_loop_reference->take();
-    if (!event_loop)
+    if (!event_loop) {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Cannot present bitmap {} for page {}: presentation event loop is gone",
+            bitmap_id, page_id);
         return false;
+    }
 
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Queueing UI present for page {} bitmap {} viewport={}x{} at {},{}",
+        page_id, bitmap_id, viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
     event_loop->deferred_invoke([page_id, viewport_rect, bitmap_id] {
         Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
         if (!page_compositors().contains(page_id)) {
@@ -872,20 +922,31 @@ bool CompositorThread::present_frame_to_client(u64 page_id, Gfx::IntRect const& 
             return;
         }
         auto& state = frame_presentation_state();
-        if (state.frame_callback)
+        if (state.frame_callback) {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Delivering UI present for page {} bitmap {} viewport={}x{} at {},{}",
+                page_id, bitmap_id, viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
             state.frame_callback(page_id, viewport_rect, bitmap_id);
+        } else {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Dropping queued UI present for page {} bitmap {}: callback cleared",
+                page_id, bitmap_id);
+        }
     });
     return true;
 }
 
 void CompositorThread::presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_id)
 {
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Received compositor ready_to_paint for page {} bitmap {}",
+        page_id, bitmap_id);
     RefPtr<ThreadData> thread_data;
     {
         Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
         auto compositor = page_compositors().find(page_id);
-        if (compositor == page_compositors().end())
+        if (compositor == page_compositors().end()) {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Ignoring compositor ready_to_paint for page {} bitmap {}: no compositor registered",
+                page_id, bitmap_id);
             return;
+        }
         thread_data = compositor->value;
     }
     thread_data->decrement_queued_tasks(bitmap_id);

@@ -217,9 +217,13 @@ void ConnectionFromClient::connect_to_compositor(IPC::TransportHandle handle)
         Web::Compositor::CompositorThread::set_frame_presentation_callbacks(
             Core::EventLoop::current_weak(),
             [connection = connection.ptr()](u64 page_id, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store) {
+                dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor IPC sending backing stores for page {} front={} back={}",
+                    page_id, front_bitmap_id, back_bitmap_id);
                 connection->async_did_allocate_backing_stores(page_id, front_bitmap_id, move(front_backing_store), back_bitmap_id, move(back_backing_store));
             },
             [connection = connection.ptr()](u64 page_id, Gfx::IntRect const& viewport_rect, i32 bitmap_id) {
+                dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor IPC sending did_paint for page {} bitmap {} rect={}x{} at {},{}",
+                    page_id, bitmap_id, viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
                 connection->async_did_paint(page_id, viewport_rect, bitmap_id);
             });
         {

@@ -157,6 +157,9 @@ void ViewImplementation::server_did_paint(Badge<WebContentClient>, i32 bitmap_id
         did_swap_bitmap = true;
     }
 
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI received presented bitmap {} for page {} size={}x{} did_swap={} front={} back={}",
+        bitmap_id, page_id(), size.width(), size.height(), did_swap_bitmap, m_client_state.front_bitmap.id, m_client_state.back_bitmap.id);
+
     client().notify_presented_bitmap_ready_to_paint(page_id(), bitmap_id);
 
     if (did_swap_bitmap && on_ready_to_paint)
@@ -633,6 +636,8 @@ void ViewImplementation::did_update_navigation_buttons_state(Badge<WebContentCli
 
 void ViewImplementation::did_allocate_backing_stores(Badge<WebContentClient>, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store)
 {
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI installing backing stores for page {} front={} back={} had_usable_bitmap={}",
+        page_id(), front_bitmap_id, back_bitmap_id, m_client_state.has_usable_bitmap);
     if (m_client_state.has_usable_bitmap) {
         // NOTE: We keep the outgoing front bitmap as a backup so we have something to paint until we get a new one.
         m_backup_shared_image_buffer = move(m_client_state.front_bitmap.shared_image_buffer);

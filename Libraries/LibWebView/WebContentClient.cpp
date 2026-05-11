@@ -182,12 +182,16 @@ void WebContentClient::notify_presented_bitmap_ready_to_paint(u64 page_id, i32 b
             page_id, bitmap_id, connection.has_value(), connection.has_value() && connection.value()->is_open());
         return;
     }
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI sending compositor ready_to_paint for page {} bitmap {}",
+        page_id, bitmap_id);
     connection.value()->async_ready_to_paint(page_id, bitmap_id);
 }
 
 void WebContentClient::did_present_bitmap(u64 page_id, Gfx::IntRect rect, i32 bitmap_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC did_paint for page {} bitmap {} rect={}x{} at {},{}",
+        page_id, bitmap_id, rect.width(), rect.height(), rect.x(), rect.y());
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
         view->server_did_paint({}, bitmap_id, rect.size());
     } else {
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI dropping did_paint for page {} bitmap {}: no view",
@@ -935,8 +939,14 @@ void WebContentClient::did_update_navigation_buttons_state(u64 page_id, bool bac
 
 void WebContentClient::did_present_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI received backing stores for page {} front={} back={}",
+        page_id, front_bitmap_id, back_bitmap_id);
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
         view->did_allocate_backing_stores({}, front_bitmap_id, move(front_backing_store), back_bitmap_id, move(back_backing_store));
+    } else {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI dropping backing stores for page {} front={} back={}: no view",
+            page_id, front_bitmap_id, back_bitmap_id);
+    }
 }
 
 Messages::WebContentClient::RequestWorkerAgentResponse WebContentClient::request_worker_agent(u64 page_id, Web::Bindings::AgentType worker_type)
