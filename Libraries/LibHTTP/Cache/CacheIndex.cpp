@@ -6,6 +6,7 @@
 
 #include <AK/Debug.h>
 #include <AK/StringBuilder.h>
+#include <LibCore/Directory.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibHTTP/Cache/CacheIndex.h>
 #include <LibHTTP/Cache/Utilities.h>
@@ -48,6 +49,54 @@ static NonnullRefPtr<HeaderList> deserialize_headers(StringView serialized_heade
 
     return headers;
 }
+
+#if HTTP_DISK_CACHE_DEBUG
+
+template<typename Callback>
+static void for_each_cache_entry_file(Database::Database& database, Callback&& callback)
+{
+    auto const& index_path = database.database_path();
+    if (!index_path.has_value())
+        return;
+
+    (void)Core::Directory::for_each_entry(
+        index_path->parent().string(),
+        static_cast<Core::DirIterator::Flags>(Core::DirIterator::SkipDots | Core::DirIterator::NoStat),
+        [&](Core::DirectoryEntry const& entry, Core::Directory const& parent) -> ErrorOr<IterationDecision> {
+            if (entry.type != Core::DirectoryEntry::Type::File)
+                return IterationDecision::Continue;
+
+            // Ignore INDEX.db and related files (e.g. the WAL file, INDEX.db-wal).
+            if (entry.name.starts_with(index_path->basename()))
+                return IterationDecision::Continue;
+
+            callback(parent.path().append(entry.name));
+            return IterationDecision::Continue;
+        });
+}
+
+static void log_orphaned_disk_cache_entries(Database::Database& database)
+{
+    auto check_entry = MUST(database.prepare_statement(R"#(
+        SELECT 1 FROM CacheIndex WHERE cache_key = ? AND vary_key = ? LIMIT 1;
+    )#"sv));
+
+    for_each_cache_entry_file(database, [&](LexicalPath const& cache_entry) {
+        auto cache_entry_data = cache_entry_data_for_file(cache_entry);
+        if (!cache_entry_data.has_value()) {
+            dbgln("Unrecognized cache file: {}", cache_entry);
+            return;
+        }
+
+        bool has_entry = false;
+        database.execute_statement(check_entry, [&](auto) { has_entry = true; }, cache_entry_data->cache_key, cache_entry_data->vary_key);
+
+        if (!has_entry)
+            dbgln("Cache file missing from cache index: {}", cache_entry);
+    });
+}
+
+#endif
 
 ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database, LexicalPath const& cache_directory)
 {
@@ -96,6 +145,10 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database, LexicalPath
         );
     )#"sv));
     database.execute_statement(create_cache_index_table, {});
+
+#if HTTP_DISK_CACHE_DEBUG
+    log_orphaned_disk_cache_entries(database);
+#endif
 
     Statements statements {};
     statements.insert_entry = TRY(database.prepare_statement("INSERT OR REPLACE INTO CacheIndex VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"sv));
