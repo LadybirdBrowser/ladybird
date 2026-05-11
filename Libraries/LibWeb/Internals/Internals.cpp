@@ -16,6 +16,7 @@
 #include <LibWeb/Bindings/Internals.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Compositor/AsyncScrollTree.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
@@ -711,6 +712,24 @@ bool Internals::async_scrolling_state_can_wheel_scroll_at(double x, double y, do
     return async_scrolling_state_wheel_scroll_admission_at(x, y, delta_x, delta_y, force_stale_wheel_event_regions) == "accepted"sv;
 }
 
+String Internals::async_scrolling_state_wheel_routing_admission()
+{
+    auto& document = window().associated_document();
+    document.update_layout(DOM::UpdateLayoutReason::InternalsHitTest);
+
+    auto navigable = document.navigable();
+    auto document_paintable = document.paintable();
+    if (!navigable || !document_paintable)
+        return String::from_utf8_without_validation(
+            Compositor::wheel_routing_admission_to_string(Compositor::WheelRoutingAdmission::NoAsyncScrollingState).bytes());
+
+    document_paintable->refresh_scroll_state();
+    auto viewport_rect = page().css_to_device_rect(navigable->viewport_rect()).to_type<int>();
+    auto state = Compositor::collect_async_scrolling_state(*navigable, *document_paintable, viewport_rect);
+    return String::from_utf8_without_validation(
+        Compositor::wheel_routing_admission_to_string(Compositor::wheel_routing_admission_for(state)).bytes());
+}
+
 static String wheel_scroll_admission_to_string(Compositor::WheelScrollAdmission admission)
 {
     switch (admission) {
@@ -751,6 +770,36 @@ String Internals::async_scrolling_state_wheel_scroll_admission_at(double x, doub
         state.has_blocking_wheel_event_listeners,
         state.blocking_wheel_event_regions_are_current && !force_stale_wheel_event_regions);
     return wheel_scroll_admission_to_string(admission);
+}
+
+String Internals::async_scrolling_state_wheel_target_at(double x, double y, double delta_x, double delta_y)
+{
+    auto& document = window().associated_document();
+    document.update_layout(DOM::UpdateLayoutReason::InternalsHitTest);
+
+    auto navigable = document.navigable();
+    auto document_paintable = document.paintable();
+    if (!navigable || !document_paintable)
+        return "none"_string;
+
+    auto display_list = document.record_display_list(HTML::PaintConfig {});
+    document_paintable->refresh_scroll_state();
+    auto scroll_state_snapshot = document_paintable->scroll_state_snapshot();
+    auto viewport_rect = page().css_to_device_rect(navigable->viewport_rect()).to_type<int>();
+    auto state = Compositor::collect_async_scrolling_state(*navigable, *document_paintable, viewport_rect);
+
+    Compositor::AsyncScrollTree scroll_tree;
+    scroll_tree.set_state(move(state));
+    scroll_tree.rebuild_wheel_scroll_targets(display_list, scroll_state_snapshot);
+
+    auto target = scroll_tree.hit_test_scroll_node_for_wheel(
+        { static_cast<float>(x), static_cast<float>(y) },
+        { static_cast<float>(delta_x), static_cast<float>(delta_y) });
+    if (!target.has_value())
+        return "none"_string;
+    if (scroll_tree.scroll_node_is_viewport(*target))
+        return "viewport"_string;
+    return "non-viewport"_string;
 }
 
 }

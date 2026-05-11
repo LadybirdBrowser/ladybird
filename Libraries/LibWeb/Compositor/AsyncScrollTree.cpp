@@ -306,4 +306,10 @@ Optional<AsyncScrollNodeID> AsyncScrollTree::hit_test_scroll_node_for_wheel(Gfx:
     return scroll_target;
 }
 
+bool AsyncScrollTree::scroll_node_is_viewport(AsyncScrollNodeID node_id) const
+{
+    auto const* node = scroll_node_for_id(node_id);
+    return node && node->is_viewport;
+}
+
 }

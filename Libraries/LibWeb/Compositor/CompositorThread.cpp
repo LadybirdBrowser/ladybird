@@ -89,47 +89,6 @@ static Optional<AsyncScrollNode> viewport_scroll_node(AsyncScrollingState const&
     return {};
 }
 
-enum class WheelRoutingAdmission {
-    Accepted,
-    NoAsyncScrollingState,
-    BlockingWheelEventListeners,
-    NoViewportScrollNode,
-    HasNonViewportScrollNode,
-};
-
-[[maybe_unused]] static StringView wheel_routing_admission_to_string(WheelRoutingAdmission admission)
-{
-    switch (admission) {
-    case WheelRoutingAdmission::Accepted:
-        return "accepted"sv;
-    case WheelRoutingAdmission::NoAsyncScrollingState:
-        return "no async scrolling state"sv;
-    case WheelRoutingAdmission::BlockingWheelEventListeners:
-        return "blocking wheel event listeners"sv;
-    case WheelRoutingAdmission::NoViewportScrollNode:
-        return "no viewport scroll node"sv;
-    case WheelRoutingAdmission::HasNonViewportScrollNode:
-        return "has non-viewport scroll node"sv;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-static WheelRoutingAdmission wheel_routing_admission_for(AsyncScrollingState const& state)
-{
-    if (state.has_blocking_wheel_event_listeners)
-        return WheelRoutingAdmission::BlockingWheelEventListeners;
-
-    bool found_viewport_node = false;
-    for (auto const& node : state.scroll_nodes) {
-        if (!node.is_viewport)
-            return WheelRoutingAdmission::HasNonViewportScrollNode;
-        found_viewport_node = true;
-    }
-    if (!found_viewport_node)
-        return WheelRoutingAdmission::NoViewportScrollNode;
-    return WheelRoutingAdmission::Accepted;
-}
-
 struct BackingStorePair {
     RefPtr<Gfx::PaintingSurface> front;
     RefPtr<Gfx::PaintingSurface> back;
@@ -296,6 +255,22 @@ public:
             && (m_is_rasterizing || m_has_deferred_async_scroll_present || m_queued_rasterization_tasks > 0);
     }
 
+    struct ViewportWheelTarget {
+        Optional<AsyncScrollNodeID> node_id;
+        bool rejected_non_viewport_target { false };
+    };
+
+    ViewportWheelTarget hit_test_viewport_scroll_node_for_wheel(Gfx::FloatPoint position, Gfx::FloatPoint delta) const
+    {
+        Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
+        auto scroll_target = m_async_scroll_tree.hit_test_scroll_node_for_wheel(position, delta);
+        if (!scroll_target.has_value())
+            return {};
+        if (!m_async_scroll_tree.scroll_node_is_viewport(*scroll_target))
+            return { {}, true };
+        return { scroll_target, false };
+    }
+
     bool enqueue_async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect)
     {
         if (!m_can_accept_async_wheel_events.load()) {
@@ -307,11 +282,13 @@ public:
                 wheel_routing_admission_to_string(wheel_routing_admission));
             return false;
         }
-        auto scroll_target = [this, position, delta] {
-            Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
-            return m_async_scroll_tree.hit_test_scroll_node_for_wheel(position, delta);
-        }();
-        if (!scroll_target.has_value()) {
+        auto scroll_target = hit_test_viewport_scroll_node_for_wheel(position, delta);
+        if (scroll_target.rejected_non_viewport_target) {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: non-viewport target at {},{} delta {},{}",
+                position.x(), position.y(), delta.x(), delta.y());
+            return false;
+        }
+        if (!scroll_target.node_id.has_value()) {
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: no wheel target at {},{} for delta {},{}",
                 position.x(), position.y(), delta.x(), delta.y());
             return false;
@@ -319,7 +296,7 @@ public:
 
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor accepted main-thread async scroll enqueue at {},{} delta {},{} viewport={}x{} at {},{}",
             position.x(), position.y(), delta.x(), delta.y(), viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
-        enqueue_command(AsyncScrollByCommand { position, delta, viewport_rect, *scroll_target });
+        enqueue_command(AsyncScrollByCommand { position, delta, viewport_rect, *scroll_target.node_id });
         return true;
     }
 
@@ -339,11 +316,13 @@ public:
             Sync::MutexLocker const locker { m_mutex };
             return m_async_scrolling_viewport_rect;
         }();
-        auto scroll_target = [this, position, delta] {
-            Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
-            return m_async_scroll_tree.hit_test_scroll_node_for_wheel(position, delta);
-        }();
-        if (!scroll_target.has_value()) {
+        auto scroll_target = hit_test_viewport_scroll_node_for_wheel(position, delta);
+        if (scroll_target.rejected_non_viewport_target) {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: non-viewport target at {},{} delta {},{}",
+                position.x(), position.y(), delta.x(), delta.y());
+            return false;
+        }
+        if (!scroll_target.node_id.has_value()) {
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: no wheel target at {},{} for delta {},{}",
                 position.x(), position.y(), delta.x(), delta.y());
             return false;
@@ -351,7 +330,7 @@ public:
 
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor accepted async scroll enqueue at {},{} delta {},{} viewport={}x{} at {},{}",
             position.x(), position.y(), delta.x(), delta.y(), viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
-        enqueue_command(AsyncScrollByCommand { position, delta, viewport_rect, *scroll_target });
+        enqueue_command(AsyncScrollByCommand { position, delta, viewport_rect, *scroll_target.node_id });
         return true;
     }
 

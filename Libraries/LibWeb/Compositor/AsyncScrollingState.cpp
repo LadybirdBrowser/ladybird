@@ -194,6 +194,38 @@ AsyncScrollingState collect_async_scrolling_state(HTML::Navigable& navigable, Pa
     return async_scrolling_state;
 }
 
+WheelRoutingAdmission wheel_routing_admission_for(AsyncScrollingState const& state)
+{
+    if (state.has_blocking_wheel_event_listeners)
+        return WheelRoutingAdmission::BlockingWheelEventListeners;
+
+    bool found_viewport_node = false;
+    for (auto const& node : state.scroll_nodes) {
+        if (node.is_viewport) {
+            found_viewport_node = true;
+            break;
+        }
+    }
+    if (!found_viewport_node)
+        return WheelRoutingAdmission::NoViewportScrollNode;
+    return WheelRoutingAdmission::Accepted;
+}
+
+StringView wheel_routing_admission_to_string(WheelRoutingAdmission admission)
+{
+    switch (admission) {
+    case WheelRoutingAdmission::Accepted:
+        return "accepted"sv;
+    case WheelRoutingAdmission::NoAsyncScrollingState:
+        return "no async scrolling state"sv;
+    case WheelRoutingAdmission::BlockingWheelEventListeners:
+        return "blocking wheel event listeners"sv;
+    case WheelRoutingAdmission::NoViewportScrollNode:
+        return "no viewport scroll node"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 bool blocks_wheel_event_at_position(AsyncScrollingState const& async_scrolling_state, RefPtr<Painting::DisplayList> const& display_list, Painting::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint position)
 {
     if (async_scrolling_state.has_blocking_wheel_event_region_covering_viewport)

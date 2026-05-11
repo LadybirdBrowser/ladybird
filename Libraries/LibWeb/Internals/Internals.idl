@@ -93,6 +93,8 @@ interface Internals {
     object asyncScrollingState();
     boolean asyncScrollingStateBlocksWheelEventAt(double x, double y);
     boolean asyncScrollingStateCanWheelScrollAt(double x, double y, double deltaX, double deltaY, optional boolean forceStaleWheelEventRegions = false);
+    DOMString asyncScrollingStateWheelRoutingAdmission();
     DOMString asyncScrollingStateWheelScrollAdmissionAt(double x, double y, double deltaX, double deltaY, optional boolean forceStaleWheelEventRegions = false);
+    DOMString asyncScrollingStateWheelTargetAt(double x, double y, double deltaX, double deltaY);
 
 };

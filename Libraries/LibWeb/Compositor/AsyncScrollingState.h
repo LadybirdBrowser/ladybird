@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <AK/StringView.h>
 #include <AK/Vector.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
@@ -83,6 +84,13 @@ struct AsyncScrollingState {
     bool has_blocking_wheel_event_region_covering_viewport { false };
 };
 
+enum class WheelRoutingAdmission {
+    Accepted,
+    NoAsyncScrollingState,
+    BlockingWheelEventListeners,
+    NoViewportScrollNode,
+};
+
 enum class WheelScrollAdmission {
     Accepted,
     NoScrollableTarget,
@@ -92,6 +100,8 @@ enum class WheelScrollAdmission {
 };
 
 AsyncScrollingState collect_async_scrolling_state(HTML::Navigable&, Painting::ViewportPaintable&, Gfx::IntRect viewport_rect);
+WheelRoutingAdmission wheel_routing_admission_for(AsyncScrollingState const&);
+StringView wheel_routing_admission_to_string(WheelRoutingAdmission);
 bool blocks_wheel_event_at_position(AsyncScrollingState const&, RefPtr<Painting::DisplayList> const&, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position);
 bool requires_main_thread_wheel_event_at_position(AsyncScrollingState const&, RefPtr<Painting::DisplayList> const&, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position);
 WheelScrollAdmission admit_wheel_scroll(AsyncScrollingState const&, RefPtr<Painting::DisplayList> const&, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position, Gfx::FloatPoint delta, bool has_blocking_wheel_event_listeners, bool blocking_wheel_event_regions_are_current);
