@@ -8,6 +8,7 @@
 #include <LibWeb/IndexedDB/Internal/Index.h>
 #include <LibWeb/IndexedDB/Internal/MutationLog.h>
 #include <LibWeb/IndexedDB/Internal/ObjectStore.h>
+#include <LibWeb/IndexedDB/Internal/RecordRange.h>
 
 namespace Web::IndexedDB {
 
@@ -87,17 +88,18 @@ void Index::clear_records()
 
 Optional<IndexRecord&> Index::first_in_range(GC::Ref<IDBKeyRange> range)
 {
-    return m_records.first_matching([&](auto const& record) {
-        return range->is_in_range(record.key);
-    });
+    auto record_range = record_range_for_key_range(m_records, range);
+    if (record_range.start == record_range.end)
+        return {};
+    return m_records[record_range.start];
 }
 
 GC::ConservativeVector<IndexRecord> Index::first_n_in_range(GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count)
 {
     GC::ConservativeVector<IndexRecord> records(range->heap());
-    for (auto const& record : m_records) {
-        if (range->is_in_range(record.key))
-            records.append(record);
+    auto record_range = record_range_for_key_range(m_records, range);
+    for (size_t i = record_range.start; i < record_range.end; ++i) {
+        records.append(m_records[i]);
 
         if (count.has_value() && records.size() >= *count)
             break;
@@ -109,9 +111,10 @@ GC::ConservativeVector<IndexRecord> Index::first_n_in_range(GC::Ref<IDBKeyRange>
 GC::ConservativeVector<IndexRecord> Index::last_n_in_range(GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count)
 {
     GC::ConservativeVector<IndexRecord> records(range->heap());
-    for (auto const& record : m_records.in_reverse()) {
-        if (range->is_in_range(record.key))
-            records.append(record);
+    auto record_range = record_range_for_key_range(m_records, range);
+    for (size_t i = record_range.end; i > record_range.start;) {
+        --i;
+        records.append(m_records[i]);
 
         if (count.has_value() && records.size() >= *count)
             break;
@@ -122,12 +125,8 @@ GC::ConservativeVector<IndexRecord> Index::last_n_in_range(GC::Ref<IDBKeyRange> 
 
 u64 Index::count_records_in_range(GC::Ref<IDBKeyRange> range)
 {
-    u64 count = 0;
-    for (auto const& record : m_records) {
-        if (range->is_in_range(record.key))
-            ++count;
-    }
-    return count;
+    auto record_range = record_range_for_key_range(m_records, range);
+    return record_range.end - record_range.start;
 }
 
 void Index::store_a_record(IndexRecord const& record)
