@@ -108,6 +108,52 @@ TEST_CASE(constexpr_array_search)
     static_assert(binary_search(array, 3) == nullptr);
 }
 
+TEST_CASE(lower_bound_index)
+{
+    Array<int, 7> array { 1, 3, 3, 3, 7, 9, 11 };
+
+    EXPECT_EQ(lower_bound_index(array, 0), 0u);
+    EXPECT_EQ(lower_bound_index(array, 1), 0u);
+    EXPECT_EQ(lower_bound_index(array, 2), 1u);
+    EXPECT_EQ(lower_bound_index(array, 3), 1u);
+    EXPECT_EQ(lower_bound_index(array, 4), 4u);
+    EXPECT_EQ(lower_bound_index(array, 12), 7u);
+}
+
+TEST_CASE(lower_bound_index_empty)
+{
+    Vector<int> vector;
+
+    EXPECT_EQ(lower_bound_index(vector, 1), 0u);
+}
+
+TEST_CASE(lower_bound_index_custom_comparator)
+{
+    Vector<ByteString> strings;
+    strings.append("bat");
+    strings.append("cat");
+    strings.append("dog");
+
+    auto string_compare = [](ByteString const& a, ByteString const& b) -> int {
+        return strcmp(a.characters(), b.characters());
+    };
+
+    EXPECT_EQ(lower_bound_index(strings, ByteString("ant"), string_compare), 0u);
+    EXPECT_EQ(lower_bound_index(strings, ByteString("cat"), string_compare), 1u);
+    EXPECT_EQ(lower_bound_index(strings, ByteString("cow"), string_compare), 2u);
+    EXPECT_EQ(lower_bound_index(strings, ByteString("elk"), string_compare), 3u);
+}
+
+TEST_CASE(constexpr_lower_bound_index)
+{
+    constexpr Array<int, 3> array = { 1, 17, 42 };
+
+    static_assert(lower_bound_index(array, 0) == 0);
+    static_assert(lower_bound_index(array, 17) == 1);
+    static_assert(lower_bound_index(array, 18) == 2);
+    static_assert(lower_bound_index(array, 43) == 3);
+}
+
 TEST_CASE(unsigned_to_signed_regression)
 {
     Array<u32, 5> const input { 0, 1, 2, 3, 4 };

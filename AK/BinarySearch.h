@@ -26,6 +26,27 @@ struct DefaultComparator {
 };
 
 template<typename Container, typename Needle, typename Comparator = DefaultComparator>
+[[nodiscard]] constexpr size_t lower_bound_index(
+    Container&& haystack,
+    Needle&& needle,
+    Comparator comparator = Comparator {})
+{
+    size_t low = 0;
+    size_t high = haystack.size();
+
+    while (low < high) {
+        size_t middle = low + (high - low) / 2;
+
+        if (comparator(haystack[middle], needle) < 0)
+            low = middle + 1;
+        else
+            high = middle;
+    }
+
+    return low;
+}
+
+template<typename Container, typename Needle, typename Comparator = DefaultComparator>
 constexpr auto binary_search(
     Container&& haystack,
     Needle&& needle,
@@ -69,4 +90,5 @@ constexpr auto binary_search(
 
 #if USING_AK_GLOBALLY
 using AK::binary_search;
+using AK::lower_bound_index;
 #endif
