@@ -4,12 +4,21 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/QuickSort.h>
+#include <AK/BinarySearch.h>
 #include <LibWeb/IndexedDB/Internal/Index.h>
 #include <LibWeb/IndexedDB/Internal/MutationLog.h>
 #include <LibWeb/IndexedDB/Internal/ObjectStore.h>
 
 namespace Web::IndexedDB {
+
+static int compare_index_records(IndexRecord const& a, IndexRecord const& b)
+{
+    auto key_comparison = Key::compare_two_keys(a.key, b.key);
+    if (key_comparison != 0)
+        return key_comparison;
+
+    return Key::compare_two_keys(a.value, b.value);
+}
 
 GC_DEFINE_ALLOCATOR(Index);
 
@@ -130,16 +139,13 @@ void Index::store_a_record(IndexRecord const& record)
     if (auto log = m_object_store->mutation_log())
         log->note_index_record_stored(*this, record);
 
-    m_records.append(record);
-
     // NOTE: The record is stored in index’s list of records such that the list is sorted primarily on the records keys, and secondarily on the records values, in ascending order.
-    AK::quick_sort(m_records, [](auto const& a, auto const& b) {
-        auto key_comparison = Key::compare_two_keys(a.key, b.key);
-        if (key_comparison != 0)
-            return key_comparison < 0;
+    if (m_records.is_empty() || compare_index_records(m_records.last(), record) <= 0) {
+        m_records.append(record);
+        return;
+    }
 
-        return Key::compare_two_keys(a.value, b.value) < 0;
-    });
+    m_records.insert(AK::lower_bound_index(m_records, record, compare_index_records), record);
 }
 
 void Index::remove_record(IndexRecord const& record)

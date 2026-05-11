@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    setTimeout(() => {
+        spoofCurrentURL("https://example.com/indexeddb-index-record-ordering.html");
+
+        const dbName = "test-index-record-ordering-" + Date.now() + Math.random();
+        const request = indexedDB.open(dbName, 1);
+
+        request.onupgradeneeded = event => {
+            const store = event.target.result.createObjectStore("store", { keyPath: "id" });
+            store.createIndex("byGroup", "group");
+        };
+
+        request.onsuccess = event => {
+            const db = event.target.result;
+            const writeTransaction = db.transaction("store", "readwrite");
+            const store = writeTransaction.objectStore("store");
+
+            store.put({ id: 3, group: "a" });
+            store.put({ id: 1, group: "b" });
+            store.put({ id: 2, group: "a" });
+            store.put({ id: 4, group: "a" });
+
+            writeTransaction.oncomplete = () => {
+                const readTransaction = db.transaction("store", "readonly");
+                const index = readTransaction.objectStore("store").index("byGroup");
+                const seen = [];
+
+                index.openCursor().onsuccess = event => {
+                    const cursor = event.target.result;
+                    if (!cursor) {
+                        println(seen.join(","));
+                        db.close();
+                        indexedDB.deleteDatabase(dbName);
+                        done();
+                        return;
+                    }
+
+                    seen.push(`${cursor.key}:${cursor.primaryKey}`);
+                    cursor.continue();
+                };
+            };
+        };
+    }, 0);
+});
+</script>
