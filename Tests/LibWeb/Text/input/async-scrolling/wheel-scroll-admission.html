@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+    }
+
+    #target {
+        width: 100px;
+        height: 100px;
+    }
+
+    #spacer {
+        width: 1000px;
+        height: 1000px;
+    }
+
+    #not-scrollable {
+        position: absolute;
+        left: 250px;
+        top: 0;
+        width: 100px;
+        height: 100px;
+    }
+</style>
+<div id="scroller">
+    <div id="target"></div>
+    <div id="spacer"></div>
+</div>
+<div id="not-scrollable"></div>
+<script>
+    function canWheel(label, x, y, forceStaleWheelEventRegions = false) {
+        const canScroll = internals.asyncScrollingStateCanWheelScrollAt(x, y, 0, 100, forceStaleWheelEventRegions);
+        println(`${label}: ${canScroll}`);
+    }
+
+    test(() => {
+        canWheel("no listener over scroller", 150, 150);
+        canWheel("no scrollable target", 275, 50);
+
+        target.addEventListener("wheel", event => {}, { passive: true });
+        canWheel("passive listener over target", 50, 50);
+
+        const blockingElementListener = event => {};
+        target.addEventListener("wheel", blockingElementListener, { passive: false });
+        canWheel("blocking element listener inside", 50, 50);
+        canWheel("blocking element listener outside", 150, 150);
+        canWheel("stale blocking element regions", 150, 150, true);
+
+        target.removeEventListener("wheel", blockingElementListener);
+        const blockingWindowListener = event => {};
+        window.addEventListener("wheel", blockingWindowListener, { passive: false });
+        canWheel("blocking window listener", 150, 150);
+        canWheel("stale blocking window regions", 150, 150, true);
+    });
+</script>

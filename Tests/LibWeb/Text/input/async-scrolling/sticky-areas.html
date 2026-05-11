@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #outer {
+        position: sticky;
+        top: 0;
+    }
+
+    #inner {
+        position: sticky;
+        top: 20px;
+    }
+
+    #spacer {
+        height: 2000px;
+    }
+</style>
+<div id="outer">
+    <div id="inner">sticky</div>
+</div>
+<div id="spacer"></div>
+<script>
+    test(() => {
+        const state = internals.asyncScrollingState();
+        const viewportNode = state.scrollNodes.find(node => node.isViewport);
+        const outerArea = state.stickyAreas.find(area => area.parentScrollFrameIndex === viewportNode.scrollFrameIndex);
+        const innerArea = state.stickyAreas.find(area => area.parentScrollFrameIndex === outerArea.scrollFrameIndex);
+
+        println(`scroll nodes: ${state.scrollNodeCount}`);
+        println(`sticky areas: ${state.stickyAreaCount}`);
+        println(`outer parent is viewport: ${outerArea.parentScrollFrameIndex === viewportNode.scrollFrameIndex}`);
+        println(`inner parent is outer: ${innerArea.parentScrollFrameIndex === outerArea.scrollFrameIndex}`);
+        println(`outer ancestor is viewport: ${outerArea.nearestScrollingAncestorIndex === viewportNode.scrollFrameIndex}`);
+        println(`inner ancestor is viewport: ${innerArea.nearestScrollingAncestorIndex === viewportNode.scrollFrameIndex}`);
+        println(`outer has top inset only: ${outerArea.hasTopInset && !outerArea.hasRightInset && !outerArea.hasBottomInset && !outerArea.hasLeftInset}`);
+        println(`inner has top inset only: ${innerArea.hasTopInset && !innerArea.hasRightInset && !innerArea.hasBottomInset && !innerArea.hasLeftInset}`);
+    });
+</script>

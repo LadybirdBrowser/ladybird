@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+    }
+
+    #target {
+        width: 100px;
+        height: 100px;
+    }
+
+    #spacer {
+        width: 1000px;
+        height: 1000px;
+    }
+</style>
+<div id="scroller">
+    <div id="target"></div>
+    <div id="spacer"></div>
+</div>
+<script>
+    function dump(label) {
+        const state = internals.asyncScrollingState();
+        println(`${label}:`);
+        println(`  regions current: ${state.blockingWheelEventRegionsAreCurrent}`);
+        println(`  viewport blocked: ${state.hasBlockingWheelEventRegionCoveringViewport}`);
+        println(`  blocking regions: ${state.blockingWheelEventRegionCount}`);
+    }
+
+    test(() => {
+        dump("initial");
+
+        const passiveElementListener = event => {};
+        target.addEventListener("wheel", passiveElementListener, { passive: true });
+        dump("passive element listener");
+
+        const blockingElementListener = event => {};
+        target.addEventListener("wheel", blockingElementListener, { passive: false });
+        dump("blocking element listener");
+
+        target.removeEventListener("wheel", blockingElementListener);
+        dump("removed element listener");
+
+        const blockingWindowListener = event => {};
+        window.addEventListener("wheel", blockingWindowListener, { passive: false });
+        dump("blocking window listener");
+
+        window.removeEventListener("wheel", blockingWindowListener);
+        dump("removed window listener");
+    });
+</script>

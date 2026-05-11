@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #sticky {
+        position: sticky;
+        top: 0;
+    }
+
+    #scroller {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+
+    #spacer {
+        width: 500px;
+        height: 500px;
+    }
+</style>
+<div id="sticky">
+    <div id="scroller"><div id="spacer"></div></div>
+</div>
+<div style="height: 2000px"></div>
+<script>
+    test(() => {
+        const state = internals.asyncScrollingState();
+        const scrollNodeIDs = new Set(state.scrollNodes.map(node => `${node.documentID}:${node.scrollFrameIndex}`));
+        const viewportNode = state.scrollNodes.find(node => node.isViewport);
+        const childNodes = state.scrollNodes.filter(node => !node.isViewport);
+        const danglingParentNodes = state.scrollNodes.filter(node => node.parentScrollFrameIndex !== 0 && !scrollNodeIDs.has(`${node.parentDocumentID}:${node.parentScrollFrameIndex}`));
+
+        println(`scroll nodes: ${state.scrollNodes.length}`);
+        println(`child nodes: ${childNodes.length}`);
+        println(`dangling parent nodes: ${danglingParentNodes.length}`);
+        for (const node of childNodes)
+            println(`child parent is viewport: ${node.parentScrollFrameIndex === viewportNode.scrollFrameIndex}`);
+    });
+</script>

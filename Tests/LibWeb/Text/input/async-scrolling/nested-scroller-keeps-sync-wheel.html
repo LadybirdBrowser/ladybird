@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #scroller {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+
+    #spacer {
+        height: 500px;
+    }
+
+    #page-spacer {
+        height: 2000px;
+    }
+</style>
+<div id="scroller"><div id="spacer"></div></div>
+<div id="page-spacer"></div>
+<script>
+    promiseTest(async () => {
+        internals.wheel(50, 50, 0, 100);
+        await animationFrame();
+
+        println(`scroller scrollTop: ${scroller.scrollTop}`);
+        println(`window scrollY: ${window.scrollY}`);
+    });
+</script>

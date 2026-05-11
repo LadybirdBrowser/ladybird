@@ -1,0 +1,5 @@
+blocking regions: 2
+transformed visual inside: true
+transformed original position: false
+clipped visible inside: true
+clipped overflow outside clip: false

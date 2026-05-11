@@ -1,0 +1,8 @@
+scroll nodes: 1
+sticky areas: 2
+outer parent is viewport: true
+inner parent is outer: true
+outer ancestor is viewport: true
+inner ancestor is viewport: true
+outer has top inset only: true
+inner has top inset only: true

@@ -162,6 +162,11 @@ enum class PaintViewportScrollbars {
     No,
 };
 
+enum class EnableAsyncScrolling {
+    No,
+    Yes,
+};
+
 enum class FileSchemeUrlsHaveTupleOrigins {
     No,
     Yes,
@@ -183,6 +188,7 @@ struct WebContentOptions {
     CollectGarbageOnEveryAllocation collect_garbage_on_every_allocation { CollectGarbageOnEveryAllocation::No };
     Optional<u16> echo_server_port {};
     PaintViewportScrollbars paint_viewport_scrollbars { PaintViewportScrollbars::Yes };
+    EnableAsyncScrolling enable_async_scrolling { EnableAsyncScrolling::No };
     FileSchemeUrlsHaveTupleOrigins file_scheme_urls_have_tuple_origins { FileSchemeUrlsHaveTupleOrigins::No };
     Optional<StringView> default_time_zone {};
     Optional<u64> style_invalidation_counter_dump_interval {};

@@ -1,0 +1,8 @@
+no listener over scroller: true
+no scrollable target: false
+passive listener over target: true
+blocking element listener inside: false
+blocking element listener outside: true
+stale blocking element regions: false
+blocking window listener: false
+stale blocking window regions: false

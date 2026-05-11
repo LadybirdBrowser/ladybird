@@ -22,6 +22,13 @@ public:
         return m_device_offsets[index.value()];
     }
 
+    void set_device_offset_for_index(ScrollFrameIndex index, Gfx::FloatPoint offset)
+    {
+        if (index.value() >= m_device_offsets.size())
+            m_device_offsets.resize(index.value() + 1);
+        m_device_offsets[index.value()] = offset;
+    }
+
 private:
     Vector<Gfx::FloatPoint> m_device_offsets;
 };

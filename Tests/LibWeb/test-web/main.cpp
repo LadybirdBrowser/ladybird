@@ -146,6 +146,17 @@ static ErrorOr<void> load_test_config(StringView test_root_path)
     return {};
 }
 
+static ErrorOr<void> skip_async_scrolling_tests_unless_enabled(Application const& app)
+{
+    if (WebView::Application::web_content_options().enable_async_scrolling == WebView::EnableAsyncScrolling::Yes)
+        return {};
+
+    auto path = LexicalPath::join(app.test_root_path, "Text/input/async-scrolling/"sv).string();
+    if (!FileSystem::exists(path))
+        return {};
+    return enumerate_test_files_recursively(path, s_skipped_tests);
+}
+
 static ErrorOr<void> collect_dump_tests(Application const& app, Vector<Test>& tests, StringView path, StringView trail, TestMode mode)
 {
     Core::DirIterator it(ByteString::formatted("{}/input/{}", path, trail), Core::DirIterator::Flags::SkipDots);
@@ -1064,6 +1075,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     auto& display = Display::the();
 
     TRY(load_test_config(app.test_root_path));
+    TRY(skip_async_scrolling_tests_unless_enabled(app));
 
     Vector<Test> tests;
 

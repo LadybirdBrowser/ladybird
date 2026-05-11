@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #scroller {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+
+    #spacer {
+        width: 500px;
+        height: 500px;
+    }
+</style>
+<div id="scroller"><div id="spacer"></div></div>
+<div style="height: 2000px"></div>
+<script>
+    test(() => {
+        const state = internals.asyncScrollingState();
+        println(`scroll node count: ${state.scrollNodeCount}`);
+        println(`scroll nodes: ${state.scrollNodes.length}`);
+
+        const viewportNode = state.scrollNodes.find(node => node.isViewport);
+        println(`has viewport node: ${!!viewportNode}`);
+        println(`viewport parent: ${viewportNode?.parentScrollFrameIndex ?? "missing"}`);
+
+        const childNodes = state.scrollNodes.filter(node => !node.isViewport);
+        println(`child nodes: ${childNodes.length}`);
+        for (const node of childNodes) {
+            println(`child has same document as viewport: ${node.documentID === viewportNode.documentID}`);
+            println(`child parent is viewport: ${node.parentScrollFrameIndex === viewportNode.scrollFrameIndex}`);
+        }
+    });
+</script>

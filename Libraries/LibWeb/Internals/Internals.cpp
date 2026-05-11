@@ -16,6 +16,7 @@
 #include <LibWeb/Bindings/Internals.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -38,6 +39,7 @@
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Internals {
@@ -619,6 +621,132 @@ JS::Object* Internals::get_style_invalidation_counters()
 void Internals::reset_style_invalidation_counters()
 {
     window().associated_document().reset_style_invalidation_counters();
+}
+
+JS::Object* Internals::async_scrolling_state()
+{
+    auto& document = window().associated_document();
+    document.update_layout(DOM::UpdateLayoutReason::InternalsHitTest);
+
+    auto object = JS::Object::create(realm(), nullptr);
+    auto navigable = document.navigable();
+    auto document_paintable = document.paintable();
+    if (!navigable || !document_paintable) {
+        auto scroll_nodes = MUST(JS::Array::create(realm(), 0));
+        auto sticky_areas = MUST(JS::Array::create(realm(), 0));
+        object->define_direct_property("scrollNodeCount"_utf16_fly_string, JS::Value(0), JS::default_attributes);
+        object->define_direct_property("scrollNodes"_utf16_fly_string, scroll_nodes, JS::default_attributes);
+        object->define_direct_property("stickyAreaCount"_utf16_fly_string, JS::Value(0), JS::default_attributes);
+        object->define_direct_property("stickyAreas"_utf16_fly_string, sticky_areas, JS::default_attributes);
+        object->define_direct_property("hasBlockingWheelEventListeners"_utf16_fly_string, JS::Value(false), JS::default_attributes);
+        object->define_direct_property("blockingWheelEventRegionCount"_utf16_fly_string, JS::Value(0), JS::default_attributes);
+        object->define_direct_property("blockingWheelEventRegionsAreCurrent"_utf16_fly_string, JS::Value(false), JS::default_attributes);
+        object->define_direct_property("hasBlockingWheelEventRegionCoveringViewport"_utf16_fly_string, JS::Value(false), JS::default_attributes);
+        return object;
+    }
+
+    document_paintable->refresh_scroll_state();
+    auto viewport_rect = page().css_to_device_rect(navigable->viewport_rect()).to_type<int>();
+    auto state = Compositor::collect_async_scrolling_state(*navigable, *document_paintable, viewport_rect);
+
+    auto scroll_nodes = MUST(JS::Array::create(realm(), state.scroll_nodes.size()));
+    for (size_t i = 0; i < state.scroll_nodes.size(); ++i) {
+        auto const& scroll_node = state.scroll_nodes[i];
+        auto node = JS::Object::create(realm(), nullptr);
+        node->define_direct_property("documentID"_utf16_fly_string, JS::Value(static_cast<double>(scroll_node.node_id.document_id.value())), JS::default_attributes);
+        node->define_direct_property("scrollFrameIndex"_utf16_fly_string, JS::Value(scroll_node.node_id.scroll_frame_index.value()), JS::default_attributes);
+        node->define_direct_property("parentDocumentID"_utf16_fly_string, JS::Value(scroll_node.parent_node_id.has_value() ? static_cast<double>(scroll_node.parent_node_id->document_id.value()) : 0), JS::default_attributes);
+        node->define_direct_property("parentScrollFrameIndex"_utf16_fly_string, JS::Value(scroll_node.parent_node_id.has_value() ? scroll_node.parent_node_id->scroll_frame_index.value() : 0), JS::default_attributes);
+        node->define_direct_property("isViewport"_utf16_fly_string, JS::Value(scroll_node.is_viewport), JS::default_attributes);
+        MUST(scroll_nodes->create_data_property_or_throw(i, node));
+    }
+
+    auto sticky_areas = MUST(JS::Array::create(realm(), state.sticky_areas.size()));
+    for (size_t i = 0; i < state.sticky_areas.size(); ++i) {
+        auto const& sticky_area = state.sticky_areas[i];
+        auto area = JS::Object::create(realm(), nullptr);
+        area->define_direct_property("documentID"_utf16_fly_string, JS::Value(static_cast<double>(sticky_area.document_id.value())), JS::default_attributes);
+        area->define_direct_property("scrollFrameIndex"_utf16_fly_string, JS::Value(sticky_area.scroll_frame_index.value()), JS::default_attributes);
+        area->define_direct_property("parentScrollFrameIndex"_utf16_fly_string, JS::Value(sticky_area.parent_scroll_frame_index.value()), JS::default_attributes);
+        area->define_direct_property("nearestScrollingAncestorIndex"_utf16_fly_string, JS::Value(sticky_area.nearest_scrolling_ancestor_index.value()), JS::default_attributes);
+        area->define_direct_property("hasTopInset"_utf16_fly_string, JS::Value(sticky_area.inset_top.has_value()), JS::default_attributes);
+        area->define_direct_property("hasRightInset"_utf16_fly_string, JS::Value(sticky_area.inset_right.has_value()), JS::default_attributes);
+        area->define_direct_property("hasBottomInset"_utf16_fly_string, JS::Value(sticky_area.inset_bottom.has_value()), JS::default_attributes);
+        area->define_direct_property("hasLeftInset"_utf16_fly_string, JS::Value(sticky_area.inset_left.has_value()), JS::default_attributes);
+        MUST(sticky_areas->create_data_property_or_throw(i, area));
+    }
+
+    object->define_direct_property("scrollNodeCount"_utf16_fly_string, JS::Value(state.scroll_nodes.size()), JS::default_attributes);
+    object->define_direct_property("scrollNodes"_utf16_fly_string, scroll_nodes, JS::default_attributes);
+    object->define_direct_property("stickyAreaCount"_utf16_fly_string, JS::Value(state.sticky_areas.size()), JS::default_attributes);
+    object->define_direct_property("stickyAreas"_utf16_fly_string, sticky_areas, JS::default_attributes);
+    object->define_direct_property("hasBlockingWheelEventListeners"_utf16_fly_string, JS::Value(state.has_blocking_wheel_event_listeners), JS::default_attributes);
+    object->define_direct_property("blockingWheelEventRegionCount"_utf16_fly_string, JS::Value(state.blocking_wheel_event_regions.size()), JS::default_attributes);
+    object->define_direct_property("blockingWheelEventRegionsAreCurrent"_utf16_fly_string, JS::Value(state.blocking_wheel_event_regions_are_current), JS::default_attributes);
+    object->define_direct_property("hasBlockingWheelEventRegionCoveringViewport"_utf16_fly_string, JS::Value(state.has_blocking_wheel_event_region_covering_viewport), JS::default_attributes);
+    return object;
+}
+
+bool Internals::async_scrolling_state_blocks_wheel_event_at(double x, double y)
+{
+    auto& document = window().associated_document();
+    document.update_layout(DOM::UpdateLayoutReason::InternalsHitTest);
+
+    auto navigable = document.navigable();
+    auto document_paintable = document.paintable();
+    if (!navigable || !document_paintable)
+        return false;
+
+    auto display_list = document.record_display_list(HTML::PaintConfig {});
+    document_paintable->refresh_scroll_state();
+    auto viewport_rect = page().css_to_device_rect(navigable->viewport_rect()).to_type<int>();
+    auto state = Compositor::collect_async_scrolling_state(*navigable, *document_paintable, viewport_rect);
+    return Compositor::blocks_wheel_event_at_position(state, display_list, document_paintable->scroll_state_snapshot(), { static_cast<float>(x), static_cast<float>(y) });
+}
+
+bool Internals::async_scrolling_state_can_wheel_scroll_at(double x, double y, double delta_x, double delta_y, bool force_stale_wheel_event_regions)
+{
+    return async_scrolling_state_wheel_scroll_admission_at(x, y, delta_x, delta_y, force_stale_wheel_event_regions) == "accepted"sv;
+}
+
+static String wheel_scroll_admission_to_string(Compositor::WheelScrollAdmission admission)
+{
+    switch (admission) {
+    case Compositor::WheelScrollAdmission::Accepted:
+        return "accepted"_string;
+    case Compositor::WheelScrollAdmission::NoScrollableTarget:
+        return "no-scrollable-target"_string;
+    case Compositor::WheelScrollAdmission::StaleBlockingWheelEventRegions:
+        return "stale-blocking-wheel-event-regions"_string;
+    case Compositor::WheelScrollAdmission::BlockedByWheelEventRegion:
+        return "blocked-by-wheel-event-region"_string;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+String Internals::async_scrolling_state_wheel_scroll_admission_at(double x, double y, double delta_x, double delta_y, bool force_stale_wheel_event_regions)
+{
+    auto& document = window().associated_document();
+    document.update_layout(DOM::UpdateLayoutReason::InternalsHitTest);
+
+    auto navigable = document.navigable();
+    auto document_paintable = document.paintable();
+    if (!navigable || !document_paintable)
+        return "no-scrollable-target"_string;
+
+    auto display_list = document.record_display_list(HTML::PaintConfig {});
+    document_paintable->refresh_scroll_state();
+    auto viewport_rect = page().css_to_device_rect(navigable->viewport_rect()).to_type<int>();
+    auto state = Compositor::collect_async_scrolling_state(*navigable, *document_paintable, viewport_rect);
+    auto admission = Compositor::admit_wheel_scroll(
+        state,
+        display_list,
+        document_paintable->scroll_state_snapshot(),
+        { static_cast<float>(x), static_cast<float>(y) },
+        { static_cast<float>(delta_x), static_cast<float>(delta_y) },
+        state.has_blocking_wheel_event_listeners,
+        state.blocking_wheel_event_regions_are_current && !force_stale_wheel_event_regions);
+    return wheel_scroll_admission_to_string(admission);
 }
 
 }

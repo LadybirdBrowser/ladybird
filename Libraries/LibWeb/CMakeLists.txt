@@ -30,6 +30,8 @@ set(SOURCES
     Clipboard/ClipboardEvent.cpp
     Clipboard/ClipboardItem.cpp
     Clipboard/SystemClipboard.cpp
+    Compositor/AsyncScrollTree.cpp
+    Compositor/AsyncScrollingState.cpp
     Compositor/CompositorThread.cpp
     Compression/CompressionStream.cpp
     Compression/DecompressionStream.cpp

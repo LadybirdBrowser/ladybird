@@ -1,0 +1,24 @@
+initial:
+  regions current: false
+  viewport blocked: false
+  blocking regions: 0
+passive element listener:
+  regions current: false
+  viewport blocked: false
+  blocking regions: 0
+blocking element listener:
+  regions current: true
+  viewport blocked: false
+  blocking regions: 1
+removed element listener:
+  regions current: false
+  viewport blocked: false
+  blocking regions: 0
+blocking window listener:
+  regions current: true
+  viewport blocked: true
+  blocking regions: 0
+removed window listener:
+  regions current: false
+  viewport blocked: false
+  blocking regions: 0
