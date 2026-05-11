@@ -49,21 +49,6 @@ static ThrowCompletionOr<GC::Ref<PrimitiveString>> primitive_string_from(VM& vm)
     return TRY(this_value.to_primitive_string(vm));
 }
 
-// 22.1.3.21.1 SplitMatch ( S, q, R ), https://tc39.es/ecma262/#sec-splitmatch
-// FIXME: This no longer exists in the spec!
-static Optional<size_t> split_match(Utf16View const& haystack, size_t start, Utf16View const& needle)
-{
-    auto r = needle.length_in_code_units();
-    auto s = haystack.length_in_code_units();
-    if (start + r > s)
-        return {};
-    for (size_t i = 0; i < r; ++i) {
-        if (haystack.code_unit_at(start + i) != needle.code_unit_at(i))
-            return {};
-    }
-    return start + r;
-}
-
 // 6.1.4.1 StringIndexOf ( string, searchValue, fromIndex ), https://tc39.es/ecma262/#sec-stringindexof
 Optional<size_t> string_index_of(Utf16View const& string, Utf16View const& search_value, size_t from_index)
 {
@@ -1150,10 +1135,13 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::split)
     auto separator_argument = vm.argument(0);
     auto limit_argument = vm.argument(1);
 
-    // 1. Let O be ? RequireObjectCoercible(this value).
-    auto object = TRY(require_object_coercible(vm, vm.this_value()));
+    // 1. Let thisValue be the this value.
+    auto this_value = vm.this_value();
 
-    // 2. If separator is an Object, then
+    // 2. Perform ? RequireObjectCoercible(thisValue).
+    TRY(require_object_coercible(vm, this_value));
+
+    // 3. If separator is an Object, then
     if (separator_argument.is_object()) {
         // a. Let splitter be ? GetMethod(separator, @@split).
         static Bytecode::StaticPropertyLookupCache cache;
@@ -1163,30 +1151,30 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::split)
             if (splitter->builtin() == Bytecode::Builtin::RegExpPrototypeSplit) {
                 // OPTIMIZATION: The common case of RegExp.prototype[@@split]
                 auto& rx = separator_argument.as_object();
-                auto string = TRY(object.to_primitive_string(vm));
+                auto string = TRY(this_value.to_primitive_string(vm));
                 return TRY(RegExpPrototype::symbol_split_impl(vm, rx, *string, limit_argument));
             }
-            // i. Return ? Call(splitter, separator, « O, limit »).
-            return TRY(call(vm, *splitter, separator_argument, object, limit_argument));
+            // i. Return ? Call(splitter, separator, « thisValue, limit »).
+            return TRY(call(vm, *splitter, separator_argument, this_value, limit_argument));
         }
     }
 
-    // 3. Let S be ? ToString(O).
-    auto string = TRY(object.to_primitive_string(vm));
+    // 4. Let str be ? ToString(thisValue).
+    auto string = TRY(this_value.to_primitive_string(vm));
 
-    // 11. Let substrings be a new empty List.
+    // 12. Let substrings be a new empty List.
     auto array = MUST(Array::create(realm, 0));
     size_t array_length = 0;
 
-    // 4. If limit is undefined, let lim be 232 - 1; else let lim be ℝ(? ToUint32(limit)).
+    // 5. If limit is undefined, let lim be 232 - 1; else let lim be ℝ(? ToUint32(limit)).
     auto limit = NumericLimits<u32>::max();
     if (!limit_argument.is_undefined())
         limit = TRY(limit_argument.to_u32(vm));
 
-    // 5. Let R be ? ToString(separator).
+    // 6. Let separatorStr be ? ToString(separator).
     auto separator = TRY(separator_argument.to_primitive_string(vm));
 
-    // 6. If lim = 0, then
+    // 7. If lim = 0, then
     if (limit == 0) {
         // a. Return CreateArrayFromList(« »).
         return array;
@@ -1194,57 +1182,68 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::split)
 
     auto string_length = string->length_in_utf16_code_units();
 
-    // 7. If separator is undefined, then
+    // 8. If separator is undefined, then
     if (separator_argument.is_undefined()) {
         // a. Return CreateArrayFromList(« S »).
         MUST(array->create_data_property_or_throw(0, string));
         return array;
     }
 
-    // 8. Let separatorLength be the length of R.
+    // 9. Let separatorLength be the length of separatorStr.
     auto separator_length = separator->length_in_utf16_code_units();
 
-    // 10. If S is the empty String, return CreateArrayFromList(« S »).
-    if (string_length == 0) {
-        if (separator_length > 0)
-            MUST(array->create_data_property_or_throw(0, string));
+    // 10. If separatorLength = 0, then
+    if (separator_length == 0) {
+        // a. Let strLen be the length of str.
+        // NB: Declared above
+        // b. Let outLen be the result of clamping lim between 0 and strLen.
+        auto out_length = min(limit, string_length);
+        // c. Let head be the substring of str from 0 to outLen.
+        // d. Let codeUnits be a List consisting of the sequence of code units that are the elements of head.
+        // e. Return CreateArrayFromList(codeUnits).
+        for (size_t index = 0; index < out_length; ++index)
+            MUST(array->create_data_property_or_throw(index, PrimitiveString::create(vm, *string, index, 1)));
         return array;
     }
 
-    // 12. Let i be 0.
-    size_t start = 0;
+    // 11. If str is the empty String, return CreateArrayFromList(« str »).
+    if (string_length == 0) {
+        MUST(array->create_data_property_or_throw(0, string));
+        return array;
+    }
 
-    // 13. Let j be StringIndexOf(S, R, 0).
-    auto position = start;
+    auto string_view = string->utf16_string_view();
+    auto separator_view = separator->utf16_string_view();
 
-    // 14. Repeat, while j ≠ -1,
-    while (position != string_length) {
-        // a. Let T be the substring of S from i to j.
-        auto match = split_match(string->utf16_string_view(), position, separator->utf16_string_view());
-        if (!match.has_value() || match.value() == start) {
-            ++position;
-            continue;
-        }
-        // b. Append T to substrings.
-        MUST(array->create_data_property_or_throw(array_length, PrimitiveString::create(vm, *string, start, position - start)));
+    // 13. Let searchStart be 0.
+    size_t search_start = 0;
+
+    // 14. Let matchIndex be StringIndexOf(str, separatorStr, 0).
+    auto match_index = string_view.find_code_unit_offset(separator_view, search_start);
+
+    // 15. Repeat, while matchIndex is not not-found
+    while (match_index.has_value()) {
+        // a. Let substring be the substring of str from searchStart to matchIndex.
+        // b. Append substring to substrings.
+        MUST(array->create_data_property_or_throw(array_length, PrimitiveString::create(vm, *string, search_start, *match_index - search_start)));
         ++array_length;
 
         // c. If the number of elements in substrings is lim, return CreateArrayFromList(substrings).
         if (array_length == limit)
             return array;
 
-        // d. Set i to j + separatorLength.
-        start = match.value();
+        // d. Set searchStart to matchIndex + separatorLength.
+        search_start = *match_index + separator_length;
 
-        // e. Set j to StringIndexOf(S, R, i).
-        position = start;
+        // e. Set matchIndex to StringIndexOf(str, separatorStr, searchStart).
+        match_index = string_view.find_code_unit_offset(separator_view, search_start);
     }
 
-    // 15. Let T be the substring of S from i.
-    // 16. Append T to substrings.
-    MUST(array->create_data_property_or_throw(array_length, PrimitiveString::create(vm, *string, start, string_length - start)));
+    // 16. Let substring be the substring of str from searchStart.
+    // 17. Append substring to substrings.
+    MUST(array->create_data_property_or_throw(array_length, PrimitiveString::create(vm, *string, search_start, string_length - search_start)));
 
-    // 17. Return CreateArrayFromList(substrings).
+    // 18. Return CreateArrayFromList(substrings).
     return array;
 }
 
