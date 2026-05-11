@@ -125,8 +125,19 @@ struct ViewDisplayState {
     bool active { false };
 };
 
+struct TestStats {
+    size_t total_tests { 0 };
+    size_t completed_tests { 0 };
+    size_t pass_count { 0 };
+    size_t fail_count { 0 };
+    size_t timeout_count { 0 };
+    size_t crashed_count { 0 };
+    size_t skipped_count { 0 };
+    size_t current_run { 1 };
+};
+
 Vector<ViewDisplayState>& view_states();
-size_t total_tests();
+TestStats const& test_stats();
 
 using TestPromise = Core::Promise<TestCompletion>;
 

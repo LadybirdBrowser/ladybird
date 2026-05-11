@@ -6,11 +6,10 @@
 
 #include "Display.h"
 #include "Application.h"
+#include "ResourceStats.h"
 
-#include <AK/Enumerate.h>
 #include <AK/QuickSort.h>
 #include <AK/SaturatingMath.h>
-#include <AK/StringBuilder.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
 #include <LibCore/Timer.h>
@@ -27,11 +26,10 @@
 namespace TestWeb {
 
 static constexpr size_t LIVE_DISPLAY_TERMINAL_HEADROOM = 4; // allow for external cruft like tmux panels
-static constexpr size_t LIVE_DISPLAY_STATUS_LINES = 4;      // 2 empty + 1 for status + 1 for progress bar
+static constexpr size_t LIVE_DISPLAY_STATUS_LINES = 5;      // 2 empty + 2 for status + 1 for progress bar
 static size_t s_display_rows = 24;
 
 static ::Test::LiveDisplay s_live_display;
-
 static size_t count_digits(size_t value);
 
 Display& Display::the()
@@ -46,7 +44,7 @@ void Display::begin_run()
     is_tty = ::Test::stdout_is_tty();
     bool const want_live_display = !app.quiet && is_tty && app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT;
 
-    outln("Running {} tests...", total_tests());
+    outln("Running {} tests...", test_stats().total_tests);
 
     if (!want_live_display)
         return;
@@ -80,7 +78,6 @@ void Display::begin_run()
 
 void Display::on_test_started(size_t view_index, Test const& test, pid_t pid)
 {
-    current_run = test.run_index;
     if (view_index < view_states().size()) {
         auto& state = view_states()[view_index];
         state.pid = pid;
@@ -97,36 +94,14 @@ void Display::on_test_started(size_t view_index, Test const& test, pid_t pid)
 
     if (Application::the().verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_DURATION) {
         outln("[{:{}}] {:{}}/{}:  Start {}", view_index, count_digits(view_states().size()), test.index + 1,
-            count_digits(total_tests()), total_tests(), test.relative_path);
+            count_digits(test_stats().total_tests), test_stats().total_tests, test.relative_path);
         return;
     }
-    outln("{}/{}: {}", test.index + 1, total_tests(), test.relative_path);
+    outln("{}/{}: {}", test.index + 1, test_stats().total_tests, test.relative_path);
 }
 
-void Display::on_test_finished(size_t view_index, Test const& test, TestResult result)
+void Display::on_test_finished(size_t view_index, Test const& test)
 {
-    switch (result) {
-    case TestResult::Pass:
-        ++pass_count;
-        break;
-    case TestResult::Fail:
-        ++fail_count;
-        break;
-    case TestResult::Timeout:
-        ++timeout_count;
-        break;
-    case TestResult::Crashed:
-        ++crashed_count;
-        break;
-    case TestResult::Skipped:
-        ++skipped_count;
-        break;
-    case TestResult::Expanded:
-        break;
-    }
-    if (result != TestResult::Expanded)
-        ++completed_tests;
-
     if (view_index >= view_states().size())
         return;
 
@@ -136,17 +111,7 @@ void Display::on_test_finished(size_t view_index, Test const& test, TestResult r
 
     auto duration = test.end_time - test.start_time;
     outln("[{:{}}] {:{}}/{}: Finish {}: {}ms", view_index, count_digits(view_states().size()), test.index + 1,
-        count_digits(total_tests()), total_tests(), test.relative_path, duration.to_milliseconds());
-}
-
-void Display::on_fail_fast(Test const& test, TestResult result, pid_t pid)
-{
-    clear_live_display();
-
-    if (result == TestResult::Timeout)
-        outln("Fail-fast: Timeout: {} (pid {})", test.relative_path, pid);
-    else
-        outln("Fail-fast: {}: {}", test_result_to_string(result), test.relative_path);
+        count_digits(test_stats().total_tests), test_stats().total_tests, test.relative_path, duration.to_milliseconds());
 }
 
 void Display::print_run_complete(ReadonlySpan<Test> tests,
@@ -157,8 +122,11 @@ void Display::print_run_complete(ReadonlySpan<Test> tests,
         outln("Halted; {} tests not executed.", tests_remaining);
 
     outln("==========================================================");
-    outln("Pass: {}, Fail: {}, Skipped: {}, Timeout: {}, Crashed: {}", pass_count, fail_count, skipped_count,
-        timeout_count, crashed_count);
+    outln("Pass: {}, Fail: {}, Skipped: {}, Timeout: {}, Crashed: {}",
+        test_stats().pass_count, test_stats().fail_count, test_stats().skipped_count,
+        test_stats().timeout_count, test_stats().crashed_count);
+    auto resources = resource_stats(true);
+    outln("fd: {}, pipe: {}, sock: {}, file: {}, shm: {}, other: {}", resources.open_fds, resources.pipes, resources.sockets, resources.files, resources.shared_memory, resources.other);
     outln("==========================================================");
 
     auto& app = Application::the();
@@ -249,6 +217,7 @@ void Display::render_live_display() const
                 }
             });
         }
+
         if (need_hidden_line) {
             t.line([&] {
                 auto label = ByteString::formatted("... {} more views hidden", view_states().size() - num_view_lines);
@@ -260,21 +229,31 @@ void Display::render_live_display() const
             [] {},
             [&] {
                 t.counter({
-                    { .label = "Pass"sv, .color = ::Test::LiveDisplay::Green, .value = pass_count },
-                    { .label = "Fail"sv, .color = ::Test::LiveDisplay::Red, .value = fail_count },
-                    { .label = "Skipped"sv, .color = ::Test::LiveDisplay::Gray, .value = skipped_count },
-                    { .label = "Timeout"sv, .color = ::Test::LiveDisplay::Yellow, .value = timeout_count },
-                    { .label = "Crashed"sv, .color = ::Test::LiveDisplay::Magenta, .value = crashed_count },
+                    { .label = "Pass"sv, .color = ::Test::LiveDisplay::Green, .value = test_stats().pass_count },
+                    { .label = "Fail"sv, .color = ::Test::LiveDisplay::Red, .value = test_stats().fail_count },
+                    { .label = "Skipped"sv, .color = ::Test::LiveDisplay::Gray, .value = test_stats().skipped_count },
+                    { .label = "Timeout"sv, .color = ::Test::LiveDisplay::Yellow, .value = test_stats().timeout_count },
+                    { .label = "Crashed"sv, .color = ::Test::LiveDisplay::Magenta, .value = test_stats().crashed_count },
+                });
+            },
+            [&] {
+                t.counter({
+                    { .label = "FD"sv, .color = ::Test::LiveDisplay::Gray, .value = resource_stats().open_fds },
+                    { .label = "Pipe"sv, .color = ::Test::LiveDisplay::Gray, .value = resource_stats().pipes },
+                    { .label = "Sock"sv, .color = ::Test::LiveDisplay::Gray, .value = resource_stats().sockets },
+                    { .label = "File"sv, .color = ::Test::LiveDisplay::Gray, .value = resource_stats().files },
+                    { .label = "SHM"sv, .color = ::Test::LiveDisplay::Gray, .value = resource_stats().shared_memory },
+                    { .label = "Other"sv, .color = ::Test::LiveDisplay::Gray, .value = resource_stats().other },
                 });
             },
             [] {},
             [&] {
-                if (total_tests() == 0)
+                if (test_stats().total_tests == 0)
                     return;
                 ByteString suffix;
                 if (Application::the().repeat_count > 1)
-                    suffix = ByteString::formatted("run {}/{}", current_run, Application::the().repeat_count);
-                t.progress_bar(completed_tests, total_tests(), suffix);
+                    suffix = ByteString::formatted("run {}/{}", test_stats().current_run, Application::the().repeat_count);
+                t.progress_bar(test_stats().completed_tests, test_stats().total_tests, suffix);
             });
     });
 }

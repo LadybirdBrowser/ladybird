@@ -5,6 +5,7 @@ set(SOURCES
     Display.cpp
     Fixture.cpp
     Fuzzy.cpp
+    ResourceStats.cpp
     TestRunCapture.cpp
     TestWebView.cpp
     main.cpp
