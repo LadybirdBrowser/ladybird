@@ -10,13 +10,13 @@ use libwasm_cranelift::{CraneliftInsn, RuntimeHelpers, compile_to_bytes};
 use std::env;
 use std::mem::{size_of, size_of_val};
 
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "macos")))]
 use std::fs::File;
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "macos")))]
 use std::io;
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "macos")))]
 use std::os::fd::FromRawFd;
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "macos")))]
 use std::os::unix::fs::FileExt;
 
 #[repr(C)]
@@ -55,14 +55,70 @@ fn read_pod<T: Copy>(base: &[u8], offset: usize) -> Result<T, &'static str> {
     Ok(unsafe { (bytes.as_ptr().cast::<T>()).read_unaligned() })
 }
 
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "macos")))]
 fn read_exact_at_offset(file: &File, buf: &mut [u8], offset: u64) -> io::Result<()> {
     file.read_exact_at(buf, offset)
 }
 
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "macos")))]
 fn write_all_at_offset(file: &File, data: &[u8], offset: u64) -> io::Result<()> {
     file.write_all_at(data, offset)
+}
+
+// macOS POSIX shm objects don't support read/write/pread/pwrite, only mmap and
+// ftruncate. So we mmap the parent's shm fd directly instead of using the
+// file-based path the Linux memfd build takes.
+#[cfg(target_os = "macos")]
+mod mac {
+    use std::ffi::c_void;
+    use std::io;
+
+    pub struct Mapping {
+        ptr: *mut u8,
+        len: usize,
+        fd: i32,
+    }
+
+    impl Mapping {
+        pub fn open(fd: i32) -> Result<Self, Box<dyn std::error::Error>> {
+            let mut st: libc::stat = unsafe { std::mem::zeroed() };
+            if unsafe { libc::fstat(fd, &raw mut st) } != 0 {
+                return Err(io::Error::last_os_error().into());
+            }
+            let len = usize::try_from(st.st_size).map_err(|_| "stat size overflow")?;
+            let ptr = unsafe {
+                libc::mmap(
+                    std::ptr::null_mut(),
+                    len,
+                    libc::PROT_READ | libc::PROT_WRITE,
+                    libc::MAP_SHARED,
+                    fd,
+                    0,
+                )
+            };
+            if ptr == libc::MAP_FAILED {
+                return Err(io::Error::last_os_error().into());
+            }
+            Ok(Mapping {
+                ptr: ptr.cast::<u8>(),
+                len,
+                fd,
+            })
+        }
+
+        pub fn as_slice_mut(&mut self) -> &mut [u8] {
+            unsafe { std::slice::from_raw_parts_mut(self.ptr, self.len) }
+        }
+    }
+
+    impl Drop for Mapping {
+        fn drop(&mut self) {
+            unsafe {
+                libc::munmap(self.ptr.cast::<c_void>(), self.len);
+                libc::close(self.fd);
+            }
+        }
+    }
 }
 
 #[cfg(windows)]
@@ -128,7 +184,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nth(1)
         .ok_or("Usage: cranelift-compiler <shm-fd-or-handle>")?;
 
-    #[cfg(unix)]
+    #[cfg(all(unix, not(target_os = "macos")))]
     let (file, mut owned_mapped): (File, Vec<u8>) = {
         let shmfd = arg.parse::<i32>()?;
         if shmfd < 0 {
@@ -146,11 +202,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         (file, buf)
     };
 
+    #[cfg(target_os = "macos")]
+    let mut mac_mapping = {
+        let shmfd = arg.parse::<i32>()?;
+        if shmfd < 0 {
+            return Err("invalid fd".into());
+        }
+        mac::Mapping::open(shmfd)?
+    };
+
     #[cfg(windows)]
     let mut mapping = win::Mapping::open(&arg)?;
 
-    #[cfg(unix)]
+    #[cfg(all(unix, not(target_os = "macos")))]
     let mapped: &mut [u8] = &mut owned_mapped;
+    #[cfg(target_os = "macos")]
+    let mapped: &mut [u8] = mac_mapping.as_slice_mut();
     #[cfg(windows)]
     let mapped: &mut [u8] = mapping.as_slice_mut();
 
@@ -245,7 +312,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    #[cfg(unix)]
+    #[cfg(all(unix, not(target_os = "macos")))]
     {
         write_all_at_offset(
             &file,
@@ -258,6 +325,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             u64::try_from(code_base_offset)?,
         )?;
         let _ = file.sync_all();
+    }
+    // On macOS we mmap'd the parent's shm fd with MAP_SHARED, so the writes
+    // above are already visible in the parent's mapping. Nothing to flush.
+    #[cfg(target_os = "macos")]
+    {
+        let _ = (out_entries_offset, code_base_offset, code_cursor);
     }
 
     Ok(())
