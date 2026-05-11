@@ -14,6 +14,7 @@
 #include <LibGfx/AffineTransform.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
+#include <LibGfx/GradientInterpolation.h>
 #include <LibGfx/InterpolationColorSpace.h>
 #include <LibGfx/LineStyle.h>
 #include <LibGfx/Path.h>
@@ -21,7 +22,6 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/ScalingMode.h>
 #include <LibGfx/Size.h>
-#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/BorderRadiiData.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
@@ -76,18 +76,6 @@ struct DisplayListDataSpan {
     u32 size { 0 };
 
     [[nodiscard]] bool is_empty() const { return size == 0; }
-};
-
-struct DisplayListColorInterpolationMethod {
-    enum class Type : u8 {
-        Rectangular,
-        Polar,
-    };
-
-    Type type { Type::Rectangular };
-    CSS::RectangularColorSpace rectangular_color_space { CSS::RectangularColorSpace::Oklab };
-    CSS::PolarColorSpace polar_color_space { CSS::PolarColorSpace::Oklch };
-    CSS::HueInterpolationMethod hue_interpolation_method { CSS::HueInterpolationMethod::Shorter };
 };
 
 struct DisplayListGradientColorStops {
@@ -242,7 +230,7 @@ struct PaintLinearGradient {
     DisplayListGradientColorStops color_stops;
     float first_stop_position { 0.0f };
     float repeat_length { 1.0f };
-    DisplayListColorInterpolationMethod interpolation_method;
+    Gfx::GradientInterpolationMethod interpolation_method;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return gradient_rect; }
 
@@ -462,7 +450,7 @@ struct PaintRadialGradient {
 
     Gfx::IntRect rect;
     DisplayListGradientColorStops color_stops;
-    DisplayListColorInterpolationMethod interpolation_method;
+    Gfx::GradientInterpolationMethod interpolation_method;
     Gfx::IntPoint center;
     Gfx::IntSize size;
 
@@ -478,7 +466,7 @@ struct PaintConicGradient {
     Gfx::IntRect rect;
     float start_angle { 0.0f };
     DisplayListGradientColorStops color_stops;
-    DisplayListColorInterpolationMethod interpolation_method;
+    Gfx::GradientInterpolationMethod interpolation_method;
     Gfx::IntPoint position;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }

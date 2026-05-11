@@ -299,72 +299,72 @@ void DisplayListPlayerSkia::translate(Translate const& command)
     canvas.translate(command.delta.x(), command.delta.y());
 }
 
-static SkGradientShader::Interpolation to_skia_interpolation(DisplayListColorInterpolationMethod interpolation_method)
+static SkGradientShader::Interpolation to_skia_interpolation(Gfx::GradientInterpolationMethod interpolation_method)
 {
     SkGradientShader::Interpolation interpolation;
 
-    if (interpolation_method.type == DisplayListColorInterpolationMethod::Type::Rectangular) {
+    if (interpolation_method.type == Gfx::GradientInterpolationMethod::Type::Rectangular) {
         switch (interpolation_method.rectangular_color_space) {
-        case CSS::RectangularColorSpace::Srgb:
+        case Gfx::RectangularColorSpace::Srgb:
             interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kSRGB;
             break;
-        case CSS::RectangularColorSpace::SrgbLinear:
+        case Gfx::RectangularColorSpace::SrgbLinear:
             interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kSRGBLinear;
             break;
-        case CSS::RectangularColorSpace::Lab:
+        case Gfx::RectangularColorSpace::Lab:
             interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kLab;
             break;
-        case CSS::RectangularColorSpace::Oklab:
+        case Gfx::RectangularColorSpace::Oklab:
             interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kOKLab;
             break;
-        case CSS::RectangularColorSpace::DisplayP3:
+        case Gfx::RectangularColorSpace::DisplayP3:
             interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kDisplayP3;
             break;
-        case CSS::RectangularColorSpace::A98Rgb:
+        case Gfx::RectangularColorSpace::A98Rgb:
             interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kA98RGB;
             break;
-        case CSS::RectangularColorSpace::ProphotoRgb:
+        case Gfx::RectangularColorSpace::ProphotoRgb:
             interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kProphotoRGB;
             break;
-        case CSS::RectangularColorSpace::Rec2020:
+        case Gfx::RectangularColorSpace::Rec2020:
             interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kRec2020;
             break;
-        case CSS::RectangularColorSpace::DisplayP3Linear:
-        case CSS::RectangularColorSpace::XyzD50:
-        case CSS::RectangularColorSpace::XyzD65:
+        case Gfx::RectangularColorSpace::DisplayP3Linear:
+        case Gfx::RectangularColorSpace::XyzD50:
+        case Gfx::RectangularColorSpace::XyzD65:
             dbgln("FIXME: Unsupported gradient color space");
             interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kOKLab;
             break;
-        case CSS::RectangularColorSpace::Xyz:
+        case Gfx::RectangularColorSpace::Xyz:
             VERIFY_NOT_REACHED();
         }
     } else {
         switch (interpolation_method.polar_color_space) {
-        case CSS::PolarColorSpace::Hsl:
+        case Gfx::PolarColorSpace::Hsl:
             interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kHSL;
             break;
-        case CSS::PolarColorSpace::Hwb:
+        case Gfx::PolarColorSpace::Hwb:
             interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kHWB;
             break;
-        case CSS::PolarColorSpace::Lch:
+        case Gfx::PolarColorSpace::Lch:
             interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kLCH;
             break;
-        case CSS::PolarColorSpace::Oklch:
+        case Gfx::PolarColorSpace::Oklch:
             interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kOKLCH;
             break;
         }
 
         switch (interpolation_method.hue_interpolation_method) {
-        case CSS::HueInterpolationMethod::Shorter:
+        case Gfx::HueInterpolationMethod::Shorter:
             interpolation.fHueMethod = SkGradientShader::Interpolation::HueMethod::kShorter;
             break;
-        case CSS::HueInterpolationMethod::Longer:
+        case Gfx::HueInterpolationMethod::Longer:
             interpolation.fHueMethod = SkGradientShader::Interpolation::HueMethod::kLonger;
             break;
-        case CSS::HueInterpolationMethod::Increasing:
+        case Gfx::HueInterpolationMethod::Increasing:
             interpolation.fHueMethod = SkGradientShader::Interpolation::HueMethod::kIncreasing;
             break;
-        case CSS::HueInterpolationMethod::Decreasing:
+        case Gfx::HueInterpolationMethod::Decreasing:
             interpolation.fHueMethod = SkGradientShader::Interpolation::HueMethod::kDecreasing;
             break;
         }
