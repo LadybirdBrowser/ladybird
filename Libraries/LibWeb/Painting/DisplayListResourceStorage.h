@@ -6,11 +6,10 @@
 
 #pragma once
 
-#include <AK/AtomicRefCounted.h>
 #include <AK/Forward.h>
 #include <AK/HashMap.h>
+#include <AK/Noncopyable.h>
 #include <AK/NonnullRefPtr.h>
-#include <AK/RefPtr.h>
 #include <AK/Span.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
@@ -21,13 +20,12 @@
 
 namespace Web::Painting {
 
-class DisplayListResourceStorage : public AtomicRefCounted<DisplayListResourceStorage> {
-public:
-    static NonnullRefPtr<DisplayListResourceStorage> create()
-    {
-        return adopt_ref(*new DisplayListResourceStorage);
-    }
+class DisplayListResourceStorage {
+    AK_MAKE_NONCOPYABLE(DisplayListResourceStorage);
+    AK_MAKE_DEFAULT_MOVABLE(DisplayListResourceStorage);
 
+public:
+    DisplayListResourceStorage() = default;
     ~DisplayListResourceStorage();
 
     FontResourceId add_font(Gfx::Font const&);
@@ -44,8 +42,6 @@ public:
     DisplayList const& display_list(DisplayListResourceId id) const { return *m_display_lists.get(id.value()).value(); }
 
 private:
-    DisplayListResourceStorage() = default;
-
     HashMap<u64, NonnullRefPtr<Gfx::Font const>> m_fonts;
     HashMap<u64, Gfx::DecodedImageFrame> m_image_frames;
     HashMap<u64, NonnullRefPtr<ExternalContentSource const>> m_external_content_sources;

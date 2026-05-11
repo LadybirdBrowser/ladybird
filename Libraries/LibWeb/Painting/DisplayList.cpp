@@ -27,14 +27,11 @@ static void set_command_sequence_visual_context(Bytes command_bytes, VisualConte
     }
 }
 
-DisplayListCommandSequence::DisplayListCommandSequence()
-    : m_resource_storage(DisplayListResourceStorage::create())
-{
-}
+DisplayListCommandSequence::DisplayListCommandSequence() = default;
 
 DisplayList::DisplayList(
     NonnullRefPtr<AccumulatedVisualContextTree const> visual_context_tree,
-    NonnullRefPtr<DisplayListResourceStorage> resource_storage)
+    DisplayListResourceStorage resource_storage)
     : m_visual_context_tree(move(visual_context_tree))
     , m_resource_storage(move(resource_storage))
     , m_id(s_next_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
@@ -83,7 +80,7 @@ void DisplayList::append_command_sequence(DisplayListCommandSequence const& sequ
         command_bytes.append(sequence.m_command_bytes.data(), sequence.m_command_bytes.size());
 
     set_command_sequence_visual_context(command_bytes.span(), context_index);
-    m_resource_storage->append_referenced_resources_from(*sequence.m_resource_storage, command_bytes.span());
+    m_resource_storage.append_referenced_resources_from(sequence.m_resource_storage, command_bytes.span());
     VERIFY(m_command_bytes.size() % DisplayListCommandSequence::command_alignment == 0);
     VERIFY(command_bytes.size() % DisplayListCommandSequence::command_alignment == 0);
 
@@ -99,7 +96,7 @@ DisplayListCommandSequence DisplayList::copy_command_sequence_from(size_t comman
         sequence.m_command_bytes.append(
             m_command_bytes.data() + command_start_offset,
             m_command_bytes.size() - command_start_offset);
-    sequence.m_resource_storage->append_referenced_resources_from(*m_resource_storage, sequence.m_command_bytes.span());
+    sequence.m_resource_storage.append_referenced_resources_from(m_resource_storage, sequence.m_command_bytes.span());
     return sequence;
 }
 

@@ -59,7 +59,7 @@ private:
     friend class DisplayList;
     DisplayListCommandSequence();
 
-    NonnullRefPtr<DisplayListResourceStorage> m_resource_storage;
+    DisplayListResourceStorage m_resource_storage;
     Vector<u8> m_command_bytes;
 };
 
@@ -135,12 +135,12 @@ class DisplayList : public AtomicRefCounted<DisplayList> {
 public:
     static NonnullRefPtr<DisplayList> create(NonnullRefPtr<AccumulatedVisualContextTree const> visual_context_tree)
     {
-        return adopt_ref(*new DisplayList(move(visual_context_tree), DisplayListResourceStorage::create()));
+        return adopt_ref(*new DisplayList(move(visual_context_tree), DisplayListResourceStorage {}));
     }
 
     static NonnullRefPtr<DisplayList> create(
         NonnullRefPtr<AccumulatedVisualContextTree const> visual_context_tree,
-        NonnullRefPtr<DisplayListResourceStorage> resource_storage)
+        DisplayListResourceStorage resource_storage)
     {
         return adopt_ref(*new DisplayList(move(visual_context_tree), move(resource_storage)));
     }
@@ -161,8 +161,8 @@ public:
     u64 id() const { return m_id; }
 
     ReadonlyBytes command_bytes() const { return m_command_bytes.span(); }
-    DisplayListResourceStorage& resource_storage() { return *m_resource_storage; }
-    DisplayListResourceStorage const& resource_storage() const { return *m_resource_storage; }
+    DisplayListResourceStorage& resource_storage() { return m_resource_storage; }
+    DisplayListResourceStorage const& resource_storage() const { return m_resource_storage; }
 
     template<typename Callback>
     static void for_each_command_header(ReadonlyBytes command_bytes, Callback callback)
@@ -183,7 +183,7 @@ public:
 private:
     explicit DisplayList(
         NonnullRefPtr<AccumulatedVisualContextTree const> visual_context_tree,
-        NonnullRefPtr<DisplayListResourceStorage> resource_storage);
+        DisplayListResourceStorage resource_storage);
 
     static Optional<Gfx::IntRect> command_bounding_rectangle(auto const& command)
     {
@@ -210,7 +210,7 @@ private:
         bool is_clip);
 
     NonnullRefPtr<AccumulatedVisualContextTree const> const m_visual_context_tree;
-    NonnullRefPtr<DisplayListResourceStorage> m_resource_storage;
+    DisplayListResourceStorage m_resource_storage;
     u64 m_id { 0 };
     Vector<u8> m_command_bytes;
 };
