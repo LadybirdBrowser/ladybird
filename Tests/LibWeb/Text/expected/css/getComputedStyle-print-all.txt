@@ -281,6 +281,14 @@ scroll-margin-inline-start: 0px
 scroll-margin-left: 0px
 scroll-margin-right: 0px
 scroll-margin-top: 0px
+scroll-padding-block-end: 0px
+scroll-padding-block-start: 0px
+scroll-padding-bottom: 0px
+scroll-padding-inline-end: 0px
+scroll-padding-inline-start: 0px
+scroll-padding-left: 0px
+scroll-padding-right: 0px
+scroll-padding-top: 0px
 scroll-timeline-axis: block
 scroll-timeline-name: none
 scrollbar-gutter: auto

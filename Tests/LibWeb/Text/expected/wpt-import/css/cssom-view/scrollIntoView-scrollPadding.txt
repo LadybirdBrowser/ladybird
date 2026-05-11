@@ -2,7 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-3 Fail
-Fail	scrollIntoView({block: "center", inline: "center"})
-Fail	scrollIntoView({block: "start", inline: "start"})
-Fail	scrollIntoView({block: "end", inline: "end"})
+3 Pass
+Pass	scrollIntoView({block: "center", inline: "center"})
+Pass	scrollIntoView({block: "start", inline: "start"})
+Pass	scrollIntoView({block: "end", inline: "end"})

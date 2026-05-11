@@ -2751,8 +2751,8 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
         target_bounding_border_box.translate_by(-scrolling_box.paintable_box()->absolute_rect().top_left());
     }
 
-    // AD-HOC: The spec doesn't specify when to do this, but we need to apply scroll-margin to target bounding border
-    //         box (https://drafts.csswg.org/cssom-view-1/#example-51af1565).
+    // AD-HOC: The spec doesn't specify when to do this, but we need to apply scroll-margin and scroll-margin to target
+    //         bounding border box (https://drafts.csswg.org/cssom-view-1/#example-51af1565).
     auto target_computed_properties = target.computed_properties();
     auto scroll_margin_top = target_computed_properties->length(CSS::PropertyID::ScrollMarginTop).absolute_length_to_px();
     auto scroll_margin_right = target_computed_properties->length(CSS::PropertyID::ScrollMarginRight).absolute_length_to_px();
@@ -2763,6 +2763,42 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
     target_bounding_border_box.set_right(target_bounding_border_box.right() + scroll_margin_left + scroll_margin_right);
     target_bounding_border_box.set_bottom(target_bounding_border_box.bottom() + scroll_margin_top + scroll_margin_bottom);
     target_bounding_border_box.set_left(target_bounding_border_box.left() - scroll_margin_left);
+
+    auto scrolling_box_computed_properties = [&scrolling_box]() -> GC::Ptr<CSS::ComputedProperties const> {
+        if (scrolling_box.is_document()) {
+            return scrolling_box.document().scrolling_element()->computed_properties();
+        }
+
+        if (auto const* element = as_if<DOM::Element>(scrolling_box)) {
+            return element->computed_properties();
+        }
+
+        return nullptr;
+    }();
+
+    auto padding_resolution_context = [&scrolling_box]() -> Optional<CSS::Length::ResolutionContext> {
+        if (scrolling_box.is_document()) {
+            return CSS::Length::ResolutionContext::for_document(scrolling_box.document());
+        }
+
+        if (auto const* element = as_if<DOM::Element>(scrolling_box)) {
+            return CSS::Length::ResolutionContext::for_element(*element);
+        }
+
+        return {};
+    }();
+
+    if (scrolling_box_computed_properties && padding_resolution_context.has_value()) {
+        auto scroll_padding_top = scrolling_box_computed_properties->length(CSS::PropertyID::ScrollPaddingTop).to_px(padding_resolution_context.value());
+        auto scroll_padding_right = scrolling_box_computed_properties->length(CSS::PropertyID::ScrollPaddingRight).to_px(padding_resolution_context.value());
+        auto scroll_padding_bottom = scrolling_box_computed_properties->length(CSS::PropertyID::ScrollPaddingBottom).to_px(padding_resolution_context.value());
+        auto scroll_padding_left = scrolling_box_computed_properties->length(CSS::PropertyID::ScrollPaddingLeft).to_px(padding_resolution_context.value());
+
+        target_bounding_border_box.set_top(target_bounding_border_box.top() - scroll_padding_top);
+        target_bounding_border_box.set_right(target_bounding_border_box.right() + scroll_padding_left + scroll_padding_right);
+        target_bounding_border_box.set_bottom(target_bounding_border_box.bottom() + scroll_padding_top + scroll_padding_bottom);
+        target_bounding_border_box.set_left(target_bounding_border_box.left() - scroll_padding_left);
+    }
 
     // 2. Let scrolling box edge A be the beginning edge in the block flow direction of scrolling box, and
     //    let element edge A be target bounding border box’s edge on the same physical side as that of
