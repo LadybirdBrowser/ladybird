@@ -18,8 +18,6 @@ class SVGLineElement final : public SVGGeometryElement {
 public:
     virtual ~SVGLineElement() override = default;
 
-    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
-
     virtual Gfx::Path get_path(CSSPixelSize viewport_size) override;
 
     GC::Ref<SVGAnimatedLength> x1() const;
@@ -31,11 +29,8 @@ private:
     SVGLineElement(DOM::Document&, DOM::QualifiedName);
 
     virtual void initialize(JS::Realm&) override;
-
-    Optional<NumberPercentage> m_x1;
-    Optional<NumberPercentage> m_y1;
-    Optional<NumberPercentage> m_x2;
-    Optional<NumberPercentage> m_y2;
+    virtual bool is_presentational_hint(FlyString const&) const override;
+    virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 };
 
 }

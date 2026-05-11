@@ -311,5 +311,9 @@ white-space-trim: none
 width: 784px
 will-change: auto
 x: 0px
+x1: 0px
+x2: 0px
 y: 0px
+y1: 0px
+y2: 0px
 z-index: auto

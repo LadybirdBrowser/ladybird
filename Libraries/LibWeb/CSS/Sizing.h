@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web::CSS {
@@ -25,5 +26,8 @@ CSSPixelSize run_default_sizing_algorithm(
     Optional<CSSPixels> specified_height,
     SizeWithAspectRatio const& natural_size,
     CSSPixelSize default_size);
+
+// https://drafts.csswg.org/css-images-3/#the-object-fit
+CSSPixelSize replaced_object_fit_size(ObjectFit, SizeWithAspectRatio const& natural_size, CSSPixelSize default_size);
 
 }

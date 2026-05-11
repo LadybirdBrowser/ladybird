@@ -18,8 +18,6 @@ class SVGRectElement final : public SVGGeometryElement {
 public:
     virtual ~SVGRectElement() override = default;
 
-    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
-
     virtual Gfx::Path get_path(CSSPixelSize viewport_size) override;
 
     GC::Ref<SVGAnimatedLength> x() const;
@@ -34,14 +32,7 @@ private:
 
     virtual void initialize(JS::Realm&) override;
 
-    Gfx::FloatSize calculate_used_corner_radius_values(CSSPixelSize viewport_size) const;
-
-    Optional<NumberPercentage> m_x;
-    Optional<NumberPercentage> m_y;
-    Optional<NumberPercentage> m_width;
-    Optional<NumberPercentage> m_height;
-    Optional<NumberPercentage> m_radius_x;
-    Optional<NumberPercentage> m_radius_y;
+    Gfx::FloatSize calculate_used_corner_radius_values(Layout::Node const&, CSSPixelSize viewport_size, float width, float height) const;
 };
 
 }

@@ -281,7 +281,11 @@ public:
     static LengthPercentageOrAuto rx() { return LengthPercentageOrAuto::make_auto(); }
     static LengthPercentageOrAuto ry() { return LengthPercentageOrAuto::make_auto(); }
     static LengthPercentage x() { return Length::make_px(0); }
+    static LengthPercentage x1() { return Length::make_px(0); }
+    static LengthPercentage x2() { return Length::make_px(0); }
     static LengthPercentage y() { return Length::make_px(0); }
+    static LengthPercentage y1() { return Length::make_px(0); }
+    static LengthPercentage y2() { return Length::make_px(0); }
 
     static MaskType mask_type() { return MaskType::Luminance; }
     static MathShift math_shift() { return MathShift::Normal; }
@@ -719,10 +723,14 @@ public:
     LengthPercentage const& cx() const { return m_noninherited.cx; }
     LengthPercentage const& cy() const { return m_noninherited.cy; }
     LengthPercentage const& r() const { return m_noninherited.r; }
-    LengthPercentageOrAuto const& rx() const { return m_noninherited.ry; }
+    LengthPercentageOrAuto const& rx() const { return m_noninherited.rx; }
     LengthPercentageOrAuto const& ry() const { return m_noninherited.ry; }
     LengthPercentage const& x() const { return m_noninherited.x; }
+    LengthPercentage const& x1() const { return m_noninherited.x1; }
+    LengthPercentage const& x2() const { return m_noninherited.x2; }
     LengthPercentage const& y() const { return m_noninherited.y; }
+    LengthPercentage const& y1() const { return m_noninherited.y1; }
+    LengthPercentage const& y2() const { return m_noninherited.y2; }
 
     Vector<NonnullRefPtr<TransformationStyleValue const>> const& transformations() const { return m_noninherited.transformations; }
     TransformBox const& transform_box() const { return m_noninherited.transform_box; }
@@ -954,7 +962,11 @@ protected:
         LengthPercentageOrAuto rx { InitialValues::rx() };
         LengthPercentageOrAuto ry { InitialValues::ry() };
         LengthPercentage x { InitialValues::x() };
+        LengthPercentage x1 { InitialValues::x1() };
+        LengthPercentage x2 { InitialValues::x2() };
         LengthPercentage y { InitialValues::x() };
+        LengthPercentage y1 { InitialValues::y1() };
+        LengthPercentage y2 { InitialValues::y2() };
         Vector<CounterData, 0> counter_increment;
         Vector<CounterData, 0> counter_reset;
         Vector<CounterData, 0> counter_set;
@@ -1190,7 +1202,11 @@ public:
     void set_rx(LengthPercentageOrAuto rx) { m_noninherited.rx = move(rx); }
     void set_ry(LengthPercentageOrAuto ry) { m_noninherited.ry = move(ry); }
     void set_x(LengthPercentage x) { m_noninherited.x = move(x); }
+    void set_x1(LengthPercentage x1) { m_noninherited.x1 = move(x1); }
+    void set_x2(LengthPercentage x2) { m_noninherited.x2 = move(x2); }
     void set_y(LengthPercentage y) { m_noninherited.y = move(y); }
+    void set_y1(LengthPercentage y1) { m_noninherited.y1 = move(y1); }
+    void set_y2(LengthPercentage y2) { m_noninherited.y2 = move(y2); }
 
     void set_math_shift(MathShift value) { m_inherited.math_shift = value; }
     void set_math_style(MathStyle value) { m_inherited.math_style = value; }

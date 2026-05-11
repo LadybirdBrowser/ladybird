@@ -904,7 +904,11 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_rx(CSS::LengthPercentageOrAuto::from_style_value(computed_style.property(CSS::PropertyID::Rx)));
     computed_values.set_ry(CSS::LengthPercentageOrAuto::from_style_value(computed_style.property(CSS::PropertyID::Ry)));
     computed_values.set_x(CSS::LengthPercentage::from_style_value(computed_style.property(CSS::PropertyID::X)));
+    computed_values.set_x1(CSS::LengthPercentage::from_style_value(computed_style.property(CSS::PropertyID::X1)));
+    computed_values.set_x2(CSS::LengthPercentage::from_style_value(computed_style.property(CSS::PropertyID::X2)));
     computed_values.set_y(CSS::LengthPercentage::from_style_value(computed_style.property(CSS::PropertyID::Y)));
+    computed_values.set_y1(CSS::LengthPercentage::from_style_value(computed_style.property(CSS::PropertyID::Y1)));
+    computed_values.set_y2(CSS::LengthPercentage::from_style_value(computed_style.property(CSS::PropertyID::Y2)));
 
     computed_values.set_fill(computed_style.fill(color_resolution_context));
     computed_values.set_stroke(computed_style.stroke(color_resolution_context));

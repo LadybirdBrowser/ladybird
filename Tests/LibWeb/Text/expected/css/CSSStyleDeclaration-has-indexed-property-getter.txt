@@ -313,7 +313,11 @@ All properties associated with getComputedStyle(document.body):
     "width",
     "will-change",
     "x",
+    "x1",
+    "x2",
     "y",
+    "y1",
+    "y2",
     "z-index"
 ]
 All properties associated with document.body.style by default:

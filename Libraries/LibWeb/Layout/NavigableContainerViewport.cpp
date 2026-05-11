@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLObjectElement.h>
@@ -44,8 +45,13 @@ void NavigableContainerViewport::did_set_content_size()
 {
     ReplacedBox::did_set_content_size();
 
-    if (dom_node().content_navigable())
-        dom_node().content_navigable()->set_viewport_size(paintable_box()->content_size());
+    if (auto content_navigable = dom_node().content_navigable()) {
+        CSSPixelSize viewport_size = paintable_box()->content_size();
+        CSS::SizeWithAspectRatio const natural_size = this->natural_size();
+        if (natural_size.has_width() || natural_size.has_height() || natural_size.has_aspect_ratio())
+            viewport_size = CSS::replaced_object_fit_size(computed_values().object_fit(), natural_size, viewport_size);
+        content_navigable->set_viewport_size(viewport_size);
+    }
 }
 
 RefPtr<Painting::Paintable> NavigableContainerViewport::create_paintable() const

@@ -6,9 +6,8 @@
 
 #include <LibGfx/Path.h>
 #include <LibWeb/Bindings/SVGEllipseElement.h>
-#include <LibWeb/HTML/Window.h>
-#include <LibWeb/SVG/AttributeNames.h>
-#include <LibWeb/SVG/AttributeParser.h>
+#include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/SVGEllipseElement.h>
 
 namespace Web::SVG {
@@ -26,27 +25,18 @@ void SVGEllipseElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-void SVGEllipseElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+Gfx::Path SVGEllipseElement::get_path(CSSPixelSize viewport_size)
 {
-    Base::attribute_changed(name, old_value, value, namespace_);
-
-    if (name == SVG::AttributeNames::cx) {
-        m_center_x = AttributeParser::parse_coordinate(value.value_or(String {}));
-    } else if (name == SVG::AttributeNames::cy) {
-        m_center_y = AttributeParser::parse_coordinate(value.value_or(String {}));
-    } else if (name == SVG::AttributeNames::rx) {
-        m_radius_x = AttributeParser::parse_positive_length(value.value_or(String {}));
-    } else if (name == SVG::AttributeNames::ry) {
-        m_radius_y = AttributeParser::parse_positive_length(value.value_or(String {}));
+    auto node = unsafe_layout_node();
+    if (!node) {
+        dbgln("FIXME: Null layout node in SVGEllipseElement::get_path");
+        return {};
     }
-}
 
-Gfx::Path SVGEllipseElement::get_path(CSSPixelSize)
-{
-    float rx = m_radius_x.value_or(0);
-    float ry = m_radius_y.value_or(0);
-    float cx = m_center_x.value_or(0);
-    float cy = m_center_y.value_or(0);
+    float rx = node->computed_values().rx().to_px_or_zero(*node, viewport_size.width()).to_float();
+    float ry = node->computed_values().ry().to_px_or_zero(*node, viewport_size.height()).to_float();
+    float cx = node->computed_values().cx().to_px(*node, viewport_size.width()).to_float();
+    float cy = node->computed_values().cy().to_px(*node, viewport_size.height()).to_float();
     Gfx::Path path;
 
     // A computed value of zero for either dimension, or a computed value of auto for both dimensions, disables rendering of the element.
@@ -54,7 +44,7 @@ Gfx::Path SVGEllipseElement::get_path(CSSPixelSize)
         return path;
 
     Gfx::FloatSize radii = { rx, ry };
-    double x_axis_rotation = 0;
+    float x_axis_rotation = 0;
     bool large_arc = false;
     bool sweep = true; // Note: Spec says it should be false, but it's wrong. https://github.com/w3c/svgwg/issues/765
 
@@ -79,41 +69,25 @@ Gfx::Path SVGEllipseElement::get_path(CSSPixelSize)
 // https://www.w3.org/TR/SVG11/shapes.html#EllipseElementCXAttribute
 GC::Ref<SVGAnimatedLength> SVGEllipseElement::cx() const
 {
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_center_x.value_or(0), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_center_x.value_or(0), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
+    return svg_animated_length_for_property(CSS::PropertyID::Cx);
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#EllipseElementCYAttribute
 GC::Ref<SVGAnimatedLength> SVGEllipseElement::cy() const
 {
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_center_y.value_or(0), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_center_y.value_or(0), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
+    return svg_animated_length_for_property(CSS::PropertyID::Cy);
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#EllipseElementRXAttribute
 GC::Ref<SVGAnimatedLength> SVGEllipseElement::rx() const
 {
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_radius_x.value_or(0), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_radius_x.value_or(0), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
+    return svg_animated_length_for_property(CSS::PropertyID::Rx);
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#EllipseElementRYAttribute
 GC::Ref<SVGAnimatedLength> SVGEllipseElement::ry() const
 {
-    // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
-    // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_radius_y.value_or(0), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_radius_y.value_or(0), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
+    return svg_animated_length_for_property(CSS::PropertyID::Ry);
 }
 
 }
