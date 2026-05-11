@@ -281,16 +281,24 @@ ErrorOr<void, ValidationError> Validator::validate(CodeSection const& section)
             begin_cranelift_cache_capture();
             capturing = true;
         }
+        if (m_cache_config->out_cache_hit)
+            *m_cache_config->out_cache_hit = installing;
     }
 
     ScopeGuard cleanup = [&] {
+        auto cranelift_start = MonotonicTime::now();
         flush_cranelift_batch();
+        auto cranelift_duration = MonotonicTime::now() - cranelift_start;
+
         if (installing)
             abort_cranelift_cache_install();
+
+        size_t produced_blob_size = 0;
         if (capturing) {
             if (validation_succeeded) {
                 auto hash = ReadonlyBytes { m_cache_config->wasm_hash.data(), 32 };
                 if (auto blob = serialize_cranelift_cache_blob(hash); blob.has_value() && m_cache_config->on_compiled) {
+                    produced_blob_size = blob->size();
                     m_cache_config->on_compiled(blob.release_value());
                 } else {
                     abort_cranelift_cache_capture();
@@ -299,6 +307,22 @@ ErrorOr<void, ValidationError> Validator::validate(CodeSection const& section)
                 abort_cranelift_cache_capture();
             }
         }
+
+        if (m_cache_config.has_value()) {
+            if (m_cache_config->out_cranelift_time)
+                *m_cache_config->out_cranelift_time = cranelift_duration;
+            if (m_cache_config->out_cranelift_blob_size_bytes)
+                *m_cache_config->out_cranelift_blob_size_bytes = produced_blob_size;
+            if (m_cache_config->out_function_count) {
+                size_t count = 0;
+                for (auto& entry : section.functions()) {
+                    if (entry.func().body().compiled_instructions.cranelift_compiled)
+                        ++count;
+                }
+                *m_cache_config->out_function_count = count;
+            }
+        }
+
         set_cranelift_active_function_index(NumericLimits<u32>::max());
     };
 

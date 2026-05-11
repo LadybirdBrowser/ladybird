@@ -1455,6 +1455,7 @@ void Application::initialize_actions()
     m_debug_menu->add_action(Action::create("Dump CSS Errors"sv, ActionID::DumpCSSErrors, debug_request("dump-all-css-errors"sv)));
     m_debug_menu->add_action(Action::create("Dump Cookies"sv, ActionID::DumpCookies, [this]() { m_cookie_jar->dump_cookies(); }));
     m_debug_menu->add_action(Action::create("Dump Local Storage"sv, ActionID::DumpLocalStorage, debug_request("dump-local-storage"sv)));
+    m_debug_menu->add_action(Action::create("Dump WASM Stats"sv, ActionID::DumpWasmStats, debug_request("dump-wasm-stats"sv)));
     m_debug_menu->add_action(Action::create("Dump GC graph"sv, ActionID::DumpGCGraph, [this]() {
         if (auto view = active_web_view(); view.has_value()) {
             auto gc_graph_path = view->dump_gc_graph();

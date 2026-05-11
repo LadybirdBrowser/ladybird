@@ -21,6 +21,7 @@
 #include <LibJS/Runtime/ConsoleObject.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibUnicode/TimeZone.h>
+#include <LibWasm/Types.h>
 #include <LibWeb/ARIA/RoleType.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/ComputedProperties.h>
@@ -425,6 +426,11 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
 
     if (request == "dump-all-css-errors") {
         Web::CSS::Parser::ErrorReporter::the().dump();
+        return;
+    }
+
+    if (request == "dump-wasm-stats") {
+        Wasm::dump_module_stats();
         return;
     }
 

@@ -432,8 +432,13 @@ JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webass
 {
     TRY(host_ensure_can_compile_wasm_bytes(vm));
 
+    Wasm::ModuleStats stats;
+    stats.input_size_bytes = data.size();
+
+    auto parse_start = MonotonicTime::now();
     FixedMemoryStream stream { data.bytes() };
     auto module_result = Wasm::Module::parse(stream);
+    stats.parse_time = MonotonicTime::now() - parse_start;
     if (module_result.is_error()) {
         return vm.throw_completion<CompileError>(Wasm::parse_error_to_byte_string(module_result.error()));
     }
@@ -447,6 +452,7 @@ JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webass
     Optional<Wasm::CompileCacheConfig> wasm_cache_config;
     if (ResourceLoader::is_initialized() && ResourceLoader::the().request_client()) {
         auto digest = ::Crypto::Hash::SHA256::hash(data.data(), data.size());
+        __builtin_memcpy(stats.wasm_hash.data(), digest.bytes().data(), 32);
 
         StringBuilder hex_builder;
         for (auto byte : digest.bytes())
@@ -476,12 +482,22 @@ JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webass
                     url, method, OptionalNone {}, 0u,
                     HTTP::CacheEntryAssociatedData::WebAssemblyCompiledCode, blob.bytes());
             };
+
+            config.out_cranelift_time = &stats.cranelift_time;
+            config.out_function_count = &stats.function_count;
+            config.out_cranelift_blob_size_bytes = &stats.cranelift_blob_size_bytes;
+            config.out_cache_hit = &stats.cache_hit;
             wasm_cache_config = move(config);
         }
     }
 
     auto& cache = get_cache(*vm.current_realm());
-    if (auto validation_result = cache.abstract_machine().validate(module_result.value(), move(wasm_cache_config)); validation_result.is_error()) {
+    auto validate_start = MonotonicTime::now();
+    auto validation_result = cache.abstract_machine().validate(module_result.value(), move(wasm_cache_config));
+    stats.validate_time = MonotonicTime::now() - validate_start;
+    Wasm::record_module_stats(stats);
+
+    if (validation_result.is_error()) {
         return vm.throw_completion<CompileError>(validation_result.error().error_string);
     }
     auto compiled_module = make_ref_counted<CompiledWebAssemblyModule>(module_result.release_value());
