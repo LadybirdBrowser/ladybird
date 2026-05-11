@@ -10,6 +10,7 @@
 #include <LibCore/ArgsParser.h>
 #include <LibCore/Environment.h>
 #include <LibCore/System.h>
+#include <LibFileSystem/FileSystem.h>
 
 namespace TestWeb {
 
@@ -18,8 +19,10 @@ Application::Application(Optional<ByteString> ladybird_binary_path)
     , test_concurrency(Core::System::hardware_concurrency())
     , python_executable_path("python3")
 {
-    if (auto ladybird_source_dir = Core::Environment::get("LADYBIRD_SOURCE_DIR"sv); ladybird_source_dir.has_value())
+    if (auto ladybird_source_dir = Core::Environment::get("LADYBIRD_SOURCE_DIR"sv); ladybird_source_dir.has_value()) {
         test_root_path = LexicalPath::join(*ladybird_source_dir, "Tests"sv, "LibWeb"sv).string();
+        wpt_path = LexicalPath::join(test_root_path, "WPT"sv, "wpt"sv).string();
+    }
 
     if (Core::Environment::has("CLAUDECODE"sv) || Core::Environment::has("CODEX_SANDBOX"sv))
         quiet = true;
@@ -36,7 +39,8 @@ void Application::create_platform_arguments(Core::ArgsParser& args_parser)
     args_parser.add_option(test_root_path, "Path containing the tests to run", "test-path", 0, "path");
     args_parser.add_option(results_directory, "Directory to store test results", "results-dir", 'R', "path");
     args_parser.add_option(test_concurrency, "Maximum number of tests to run at once", "test-concurrency", 'j', "jobs");
-    args_parser.add_option(test_globs, "Only run tests matching the given glob", "filter", 'f', "glob");
+    args_parser.add_option(test_globs, "Run tests matching the given glob", "filter", 'f', "glob");
+    args_parser.add_option(wpt_filters, "Run matched, unimported WPT tests (no expectations)", "wpt", 'w', "glob");
     args_parser.add_option(python_executable_path, "Path to python3", "python-executable", 'P', "path");
     args_parser.add_option(dump_gc_graph, "Dump GC graph", "dump-gc-graph", 'G');
     args_parser.add_option(fail_fast, "Abort on first failure/timeout/crash (offers debugger attach on timeout)", "fail-fast");
@@ -71,6 +75,12 @@ void Application::create_platform_options(WebView::BrowserOptions& browser_optio
 
     request_server_options.http_disk_cache_mode = WebView::HTTPDiskCacheMode::Testing;
 
+    if (wpt_filters.size() > 0) {
+        auto certificate_path = wpt_certificates_path();
+        if (!certificate_path.is_empty() && FileSystem::exists(certificate_path))
+            request_server_options.certificates.append(move(certificate_path));
+    }
+
     web_content_options.is_test_mode = WebView::IsTestMode::Yes;
 
     // Allow window.open() to succeed for tests.
@@ -103,6 +113,11 @@ ErrorOr<void> Application::launch_test_fixtures()
     }
 
     return {};
+}
+
+ByteString Application::wpt_certificates_path() const
+{
+    return LexicalPath::join(wpt_path, "tools"sv, "certs"sv, "cacert.pem"sv).string();
 }
 
 }
