@@ -419,11 +419,6 @@ public:
         return Color(out_r, out_g, out_b);
     }
 
-    constexpr Color suggested_foreground_color() const
-    {
-        return luminosity() < 128 ? Color::White : Color::Black;
-    }
-
 private:
     constexpr explicit Color(BGRA8888 argb)
         : m_value(argb)
