@@ -43,12 +43,6 @@ struct HSV {
     double value { 0 };
 };
 
-struct Oklab {
-    float L { 0 };
-    float a { 0 };
-    float b { 0 };
-};
-
 class Color {
 public:
     enum class NamedColor {
@@ -453,11 +447,6 @@ struct Formatter<Gfx::Color> : public Formatter<StringView> {
 template<>
 struct Formatter<Gfx::HSV> : public Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder&, Gfx::HSV);
-};
-
-template<>
-struct Formatter<Gfx::Oklab> : public Formatter<FormatString> {
-    ErrorOr<void> format(FormatBuilder&, Gfx::Oklab);
 };
 
 }

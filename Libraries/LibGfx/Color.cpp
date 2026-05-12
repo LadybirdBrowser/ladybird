@@ -516,8 +516,3 @@ ErrorOr<void> AK::Formatter<Gfx::HSV>::format(FormatBuilder& builder, Gfx::HSV v
 {
     return Formatter<FormatString>::format(builder, "{} {} {}"sv, value.hue, value.saturation, value.value);
 }
-
-ErrorOr<void> AK::Formatter<Gfx::Oklab>::format(FormatBuilder& builder, Gfx::Oklab value)
-{
-    return Formatter<FormatString>::format(builder, "{} {} {}"sv, value.L, value.a, value.b);
-}
