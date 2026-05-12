@@ -344,33 +344,6 @@ public:
         return Color(gray, gray, gray, alpha());
     }
 
-    constexpr Color sepia(float amount = 1.0f) const
-    {
-        auto blend_factor = 1.0f - amount;
-
-        auto r1 = 0.393f + 0.607f * blend_factor;
-        auto r2 = 0.769f - 0.769f * blend_factor;
-        auto r3 = 0.189f - 0.189f * blend_factor;
-
-        auto g1 = 0.349f - 0.349f * blend_factor;
-        auto g2 = 0.686f + 0.314f * blend_factor;
-        auto g3 = 0.168f - 0.168f * blend_factor;
-
-        auto b1 = 0.272f - 0.272f * blend_factor;
-        auto b2 = 0.534f - 0.534f * blend_factor;
-        auto b3 = 0.131f + 0.869f * blend_factor;
-
-        auto r = red();
-        auto g = green();
-        auto b = blue();
-
-        return Color(
-            clamp(lroundf(r * r1 + g * r2 + b * r3), 0, 255),
-            clamp(lroundf(r * g1 + g * g2 + b * g3), 0, 255),
-            clamp(lroundf(r * b1 + g * b2 + b * b3), 0, 255),
-            alpha());
-    }
-
     constexpr Color with_opacity(float opacity) const
     {
         VERIFY(opacity >= 0 && opacity <= 1);
