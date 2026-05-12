@@ -312,16 +312,6 @@ public:
         translate_by(0, delta);
     }
 
-    [[nodiscard]] bool intersects_vertically(Rect<T> const& other) const
-    {
-        return top() < other.bottom() && other.top() < bottom();
-    }
-
-    [[nodiscard]] bool intersects_horizontally(Rect<T> const& other) const
-    {
-        return left() < other.right() && other.left() < right();
-    }
-
     [[nodiscard]] bool intersects(Rect<T> const& other) const
     {
         return left() < other.right()
