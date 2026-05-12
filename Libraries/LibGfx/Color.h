@@ -61,14 +61,6 @@ public:
         WarmGray,
         DarkCyan,
         DarkGreen,
-        DarkBlue,
-        DarkRed,
-        MidCyan,
-        MidGreen,
-        MidRed,
-        MidBlue,
-        MidMagenta,
-        LightBlue,
     };
 
     using enum NamedColor;
@@ -368,9 +360,6 @@ constexpr Color::Color(NamedColor named)
     case DarkCyan:
         rgb = { 0, 127, 127 };
         break;
-    case MidCyan:
-        rgb = { 0, 192, 192 };
-        break;
     case Blue:
         rgb = { 0, 0, 255 };
         break;
@@ -389,32 +378,11 @@ constexpr Color::Color(NamedColor named)
     case LightGray:
         rgb = { 192, 192, 192 };
         break;
-    case MidGreen:
-        rgb = { 0, 192, 0 };
-        break;
-    case MidBlue:
-        rgb = { 0, 0, 192 };
-        break;
-    case MidRed:
-        rgb = { 192, 0, 0 };
-        break;
-    case MidMagenta:
-        rgb = { 192, 0, 192 };
-        break;
     case DarkGreen:
         rgb = { 0, 128, 0 };
         break;
-    case DarkBlue:
-        rgb = { 0, 0, 128 };
-        break;
-    case DarkRed:
-        rgb = { 128, 0, 0 };
-        break;
     case WarmGray:
         rgb = { 212, 208, 200 };
-        break;
-    case LightBlue:
-        rgb = { 173, 216, 230 };
         break;
     default:
         VERIFY_NOT_REACHED();
