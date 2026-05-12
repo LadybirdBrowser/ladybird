@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const align of ["center", "middle"]) {
+            for (const [label, element] of [
+                ["object", document.createElement("object")],
+                ["embed", document.createElement("embed")],
+                ["input image", document.createElement("input")],
+            ]) {
+                element.setAttribute("align", align);
+                if (element.localName === "input")
+                    element.type = "image";
+
+                document.body.appendChild(element);
+
+                const style = getComputedStyle(element);
+                println(`${label} align=${align}: ${style.verticalAlign}`);
+            }
+        }
+    });
+</script>
