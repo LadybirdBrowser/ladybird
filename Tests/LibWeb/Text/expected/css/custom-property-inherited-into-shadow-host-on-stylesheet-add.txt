@@ -1,0 +1,5 @@
+case 1 initial display: inline
+case 1 final display: inline-flex
+case 1 final size: 24x24
+case 2 width: 20px
+case 2 color: rgb(0, 128, 0)

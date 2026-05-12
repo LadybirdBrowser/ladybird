@@ -32,8 +32,8 @@ pseudo::before --pseudo-var: from-pseudo
 pseudo::before --inherited-var: from-element
 === Dynamic update ===
 before: (empty)
-after: 
-changed: 
+after: hello
+changed: world
 removed: (empty)
 === Nonexistent ===
 nonexistent: (empty)

@@ -28,6 +28,7 @@
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/CountersSet.h>
+#include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/Invalidation/AttributeInvalidator.h>
 #include <LibWeb/CSS/Invalidation/CustomElementInvalidator.h>
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
@@ -3559,6 +3560,20 @@ RefPtr<CSS::CustomPropertyData const> Element::custom_property_data(Optional<CSS
         return nullptr;
 
     return ensure_pseudo_element(pseudo_element.value()).custom_property_data();
+}
+
+bool Element::refresh_inherited_custom_property_data()
+{
+    RefPtr<CSS::CustomPropertyData const> parent_data;
+    if (auto inherit_from = element_to_inherit_style_from({})) {
+        if (auto data = inherit_from->custom_property_data({}))
+            parent_data = data->inheritable(document());
+    }
+
+    if (m_custom_property_data == parent_data)
+        return false;
+    m_custom_property_data = move(parent_data);
+    return true;
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scroll
