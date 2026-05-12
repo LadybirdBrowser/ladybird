@@ -168,6 +168,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     Optional<int> window_width;
     Optional<int> window_height;
     Optional<u32> screenshot_delay;
+    Optional<StringView> screenshot_path;
     bool new_window = false;
     bool force_new_process = false;
     bool allow_popups = false;
@@ -230,6 +231,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     });
 
     args_parser.add_option(screenshot_delay, "Set the number of seconds to wait before taking a screenshot (only supported for headless screenshot mode)", "screenshot-delay", 0, "seconds");
+    args_parser.add_option(screenshot_path, "Save screenshots to the given location (only supported for headless screenshot mode)", "screenshot-path", 0, "path");
     args_parser.add_option(window_width, "Set viewport width in pixels (default: 800) (currently only supported for headless mode)", "window-width", 0, "pixels");
     args_parser.add_option(window_height, "Set viewport height in pixels (default: 600) (currently only supported for headless mode)", "window-height", 0, "pixels");
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
@@ -392,6 +394,8 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     if (screenshot_delay.has_value())
         m_browser_options.screenshot_delay = *screenshot_delay;
+    if (screenshot_path.has_value())
+        m_browser_options.screenshot_path = *screenshot_path;
     if (window_width.has_value())
         m_browser_options.window_width = *window_width;
     if (window_height.has_value())
