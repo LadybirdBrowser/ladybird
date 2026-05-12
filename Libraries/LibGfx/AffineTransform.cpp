@@ -26,21 +26,6 @@ FloatPoint AffineTransform::scale() const
     return { x_scale(), y_scale() };
 }
 
-float AffineTransform::x_translation() const
-{
-    return e();
-}
-
-float AffineTransform::y_translation() const
-{
-    return f();
-}
-
-FloatPoint AffineTransform::translation() const
-{
-    return { x_translation(), y_translation() };
-}
-
 AffineTransform& AffineTransform::scale(float sx, float sy)
 {
     m_values[0] *= sx;

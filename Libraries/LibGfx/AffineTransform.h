@@ -62,10 +62,6 @@ public:
     [[nodiscard]] float x_scale() const;
     [[nodiscard]] float y_scale() const;
     [[nodiscard]] FloatPoint scale() const;
-    [[nodiscard]] float x_translation() const;
-    [[nodiscard]] float y_translation() const;
-    [[nodiscard]] FloatPoint translation() const;
-
     AffineTransform& scale(float sx, float sy);
     AffineTransform& scale(FloatPoint s);
     AffineTransform& set_scale(float sx, float sy);
