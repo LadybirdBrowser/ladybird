@@ -64,18 +64,13 @@ float Font::glyph_width(u32 code_point) const
     return measure_text_width(string.utf16_view(), *this);
 }
 
-NonnullRefPtr<Font> Font::scaled_with_size(float point_size) const
+NonnullRefPtr<Font> Font::with_size(float point_size) const
 {
     if (point_size == m_point_height && point_size == m_point_width)
         return *const_cast<Font*>(this);
 
     // FIXME: Should we be discarding m_font_variation_settings and m_shape_features here?
     return m_typeface->font(point_size);
-}
-
-NonnullRefPtr<Font> Font::with_size(float point_size) const
-{
-    return scaled_with_size(point_size);
 }
 
 float Font::pixel_size() const
