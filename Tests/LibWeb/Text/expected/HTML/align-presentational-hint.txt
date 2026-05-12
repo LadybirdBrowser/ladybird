@@ -1,0 +1,6 @@
+object align=center: middle
+embed align=center: middle
+input image align=center: middle
+object align=middle: middle
+embed align=middle: middle
+input image align=middle: middle
