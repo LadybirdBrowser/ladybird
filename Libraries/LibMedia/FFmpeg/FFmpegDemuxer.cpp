@@ -12,6 +12,7 @@
 #include <LibMedia/Containers/ConstantBitrateContainerNavigator.h>
 #include <LibMedia/Containers/FLACNavigator.h>
 #include <LibMedia/Containers/IndexedContainerNavigator.h>
+#include <LibMedia/Containers/MP3Navigator.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/FFmpeg/FFmpegHelpers.h>
 #include <LibMedia/MediaStream.h>
@@ -175,7 +176,7 @@ DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_stream(NonnullR
             demuxer->m_preferred_track_for_type[type_index] = static_cast<int>(i);
     }
 
-    demuxer->m_container_navigator = create_container_navigator(*format_context, stream);
+    demuxer->m_container_navigator = create_container_navigator(*format_context, demuxer->m_total_duration, stream);
 
     avformat_close_input(&format_context);
     return demuxer;
@@ -195,7 +196,7 @@ static inline i64 duration_to_time_units(AK::Duration duration, AVRational const
     return duration.to_time_units(time_base.num, time_base.den);
 }
 
-OwnPtr<ContainerNavigator> FFmpegDemuxer::create_container_navigator(AVFormatContext& context, NonnullRefPtr<MediaStream> const& stream)
+OwnPtr<ContainerNavigator> FFmpegDemuxer::create_container_navigator(AVFormatContext& context, AK::Duration total_duration, NonnullRefPtr<MediaStream> const& stream)
 {
     auto format_name = StringView(context.iformat->name, strlen(context.iformat->name));
 
@@ -230,6 +231,14 @@ OwnPtr<ContainerNavigator> FFmpegDemuxer::create_container_navigator(AVFormatCon
             return nullptr;
         auto data_offset = avformat_index_get_entry(stream, 0)->pos;
         return make<ConstantBitrateContainerNavigator>(data_offset, bytes_per_second, codec_par->block_align);
+    }
+
+    if (format_name == "mp3"sv && context.nb_streams == 1) {
+        AVPacket* packet = av_packet_alloc();
+        ScopeGuard free_packet = [&] { av_packet_free(&packet); };
+
+        if (av_read_frame(&context, packet) >= 0 && packet->pos >= 0)
+            return make<MP3Navigator>(stream, static_cast<size_t>(packet->pos), total_duration);
     }
 
     return create_container_navigator_from_index(context);
@@ -390,7 +399,7 @@ DecoderErrorOr<DemuxerSeekResult> FFmpegDemuxer::seek_to_most_recent_keyframe(Tr
             return DemuxerSeekResult::KeptCurrentPosition;
         }
         if (auto const* seeked = seek_result.get_pointer<SeekedPosition>()) {
-            if (av_seek_frame(&format_context, stream.index, seeked->byte_position, AVSEEK_FLAG_BYTE | AVSEEK_FLAG_BACKWARD) >= 0) {
+            if (av_seek_frame(&format_context, stream.index, seeked->byte_position, AVSEEK_FLAG_BYTE) >= 0) {
                 seek_succeeded = true;
                 track_context.pending_timestamp_offset = seeked->timestamp;
                 track_context.timestamp_offset = AK::Duration::zero();

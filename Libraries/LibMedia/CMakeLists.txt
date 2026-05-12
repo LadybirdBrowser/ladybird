@@ -6,6 +6,7 @@ set(SOURCES
     Containers/ConstantBitrateContainerNavigator.cpp
     Containers/FLACNavigator.cpp
     Containers/IndexedContainerNavigator.cpp
+    Containers/MP3Navigator.cpp
     Containers/Matroska/MatroskaDemuxer.cpp
     Containers/Matroska/Reader.cpp
     Containers/Matroska/SampleIterator.cpp
