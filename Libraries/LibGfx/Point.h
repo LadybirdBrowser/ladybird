@@ -214,20 +214,6 @@ public:
         return Point<U>(roundf(x()), roundf(y()));
     }
 
-    template<typename U>
-    requires FloatingPoint<T>
-    [[nodiscard]] Point<U> to_ceiled() const
-    {
-        return Point<U>(ceil(x()), ceil(y()));
-    }
-
-    template<typename U>
-    requires FloatingPoint<T>
-    [[nodiscard]] Point<U> to_floored() const
-    {
-        return Point<U>(AK::floor(x()), AK::floor(y()));
-    }
-
     [[nodiscard]] ByteString to_byte_string() const;
 
 private:
