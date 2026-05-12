@@ -48,7 +48,7 @@ public:
 
     u64 size();
     void set_expected_size(u64);
-    Optional<u64> expected_size() const;
+    virtual Optional<u64> expected_size() const override;
 
     class MEDIA_API Cursor : public MediaStreamCursor {
     public:

@@ -79,6 +79,8 @@ public:
     virtual NonnullRefPtr<MediaStreamCursor> create_cursor() = 0;
 
     virtual Vector<ByteRange> available_byte_ranges() const = 0;
+
+    virtual Optional<u64> expected_size() const = 0;
 };
 
 }
