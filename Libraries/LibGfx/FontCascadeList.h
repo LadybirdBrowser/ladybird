@@ -97,14 +97,6 @@ public:
     void set_last_resort_font(NonnullRefPtr<Font> font) { m_last_resort_font = move(font); }
     void set_system_font_fallback_callback(SystemFontFallbackCallback callback) { m_system_font_fallback_callback = move(callback); }
 
-    Font const& first_text_face() const
-    {
-        for (auto const& entry : m_fonts)
-            if (!entry.font->is_emoji_font())
-                return *entry.font;
-        return first();
-    }
-
 private:
     RefPtr<Font const> m_last_resort_font;
     mutable Vector<Entry> m_fonts;
