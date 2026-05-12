@@ -70,7 +70,6 @@ public:
     float glyph_width(u32 code_point) const;
     u32 glyph_id_for_code_point(u32 code_point) const { return m_typeface->glyph_id_for_code_point(code_point); }
     int x_height() const { return m_point_height; } // FIXME: Read from font
-    u8 baseline() const { return m_point_height; }  // FIXME: Read from font
     float width(Utf16View const&) const;
     FlyString const& family() const { return m_typeface->family(); }
 
