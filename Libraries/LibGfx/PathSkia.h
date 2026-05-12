@@ -32,7 +32,6 @@ public:
     virtual void offset(Gfx::FloatPoint const&) override;
 
     virtual void append_path(Gfx::Path const&) override;
-    virtual void intersect(Gfx::Path const&) override;
 
     [[nodiscard]] virtual Vector<u8> serialize_to_bytes() const override;
     virtual void deserialize_from_bytes(ReadonlyBytes) override;

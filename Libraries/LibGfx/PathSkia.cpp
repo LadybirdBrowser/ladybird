@@ -20,7 +20,6 @@
 #include <core/SkPath.h>
 #include <core/SkPathMeasure.h>
 #include <core/SkTextBlob.h>
-#include <pathops/SkPathOps.h>
 #include <utils/SkParsePath.h>
 #include <utils/SkTextUtils.h>
 
@@ -202,11 +201,6 @@ NonnullOwnPtr<PathImpl> PathImplSkia::place_text_along(Utf16View const& text, Fo
 void PathImplSkia::append_path(Gfx::Path const& other)
 {
     m_path->addPath(static_cast<PathImplSkia const&>(other.impl()).sk_path());
-}
-
-void PathImplSkia::intersect(Gfx::Path const& other)
-{
-    Op(*m_path, static_cast<PathImplSkia const&>(other.impl()).sk_path(), SkPathOp::kIntersect_SkPathOp, m_path.ptr());
 }
 
 Vector<u8> PathImplSkia::serialize_to_bytes() const
