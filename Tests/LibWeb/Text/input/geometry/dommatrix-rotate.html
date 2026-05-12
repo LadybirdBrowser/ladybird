@@ -30,5 +30,11 @@
 
         // 9. Rotate from Axis Angle DOMMatrix with multiply
         testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60]).multiply(new DOMMatrix().rotateAxisAngle(0, 1, 0, 10)));
+
+        // Rotate from Axis Angle DOMMatrix with a zero-length axis
+        testPart(() => new DOMMatrix([10, 20, 30, 40, 50, 60]).rotateAxisAngle(0, 0, 0, 45));
+
+        // Rotate from Axis Angle DOMMatrix with default arguments
+        testPart(() => new DOMMatrix().rotateAxisAngle());
     });
 </script>

@@ -526,7 +526,11 @@ GC::Ref<DOMMatrix> DOMMatrix::rotate_from_vector_self(Optional<double> x, Option
 GC::Ref<DOMMatrix> DOMMatrix::rotate_axis_angle_self(Optional<double> x, Optional<double> y, Optional<double> z, Optional<double> angle)
 {
     // 1. Post-multiply a rotation transformation on the current matrix around the specified vector x, y, z by the specified rotation angle in degrees. The 3D rotation matrix is described in CSS Transforms with alpha = angle in degrees. [CSS3-TRANSFORMS]
-    m_matrix = m_matrix * Gfx::rotation_matrix<double>(Vector3<double> { x.value_or(0), y.value_or(0), z.value_or(0) }.normalized(), AK::to_radians(angle.value()));
+    auto axis = Vector3<double> { x.value_or(0), y.value_or(0), z.value_or(0) };
+    // https://drafts.csswg.org/css-transforms-2/#funcdef-rotate3d
+    // "A direction vector that cannot be normalized, such as [0,0,0], will cause the rotation to not be applied."
+    if (axis.length() != 0)
+        m_matrix = m_matrix * Gfx::rotation_matrix<double>(axis.normalized(), AK::to_radians(angle.value()));
 
     // 2. If x or y are not 0 or -0, set is 2D of the current matrix to false.
     if ((x != 0 && x != -0) || (y != 0 && y != -0))
