@@ -171,7 +171,7 @@ protected:
 
     ErrorOr<void> initialize(Main::Arguments const&);
 
-    virtual void process_did_exit(Process&&);
+    virtual void process_did_exit(Process&&, Optional<int> exit_status);
 
     virtual void create_platform_arguments(Core::ArgsParser&) { }
     virtual void create_platform_options(BrowserOptions&, RequestServerOptions&, WebContentOptions&) { }

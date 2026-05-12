@@ -78,7 +78,10 @@ class CompositorConnectionFromClient final
     C_OBJECT(CompositorConnectionFromClient)
 
 public:
-    virtual void die() override { }
+    virtual void die() override
+    {
+        _exit(0);
+    }
 
 private:
     explicit CompositorConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport)
@@ -134,7 +137,7 @@ ConnectionFromClient::~ConnectionFromClient() = default;
 
 void ConnectionFromClient::die()
 {
-    Web::Platform::EventLoopPlugin::the().quit();
+    _exit(0);
 }
 
 Messages::WebContentServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)

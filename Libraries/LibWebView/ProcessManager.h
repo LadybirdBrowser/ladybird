@@ -40,7 +40,7 @@ public:
     JsonValue serialize_json();
 
     Function<void(Process&)> on_process_added; // test-web
-    Function<void(Process&&)> on_process_exited;
+    Function<void(Process&&, Optional<int> exit_status)> on_process_exited;
 
 private:
     void verify_event_loop() const;

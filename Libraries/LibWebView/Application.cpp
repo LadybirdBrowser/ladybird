@@ -35,6 +35,10 @@
 #    include <LibIPC/TransportBootstrapMach.h>
 #endif
 
+#if !defined(AK_OS_WINDOWS)
+#    include <sys/wait.h>
+#endif
+
 namespace WebView {
 
 Application* Application::s_the = nullptr;
@@ -472,8 +476,8 @@ ErrorOr<void> Application::launch_services()
     m_bookmark_store_observer = make<ApplicationBookmarkStoreObserver>();
 
     m_process_manager = make<ProcessManager>();
-    m_process_manager->on_process_exited = [this](Process&& process) {
-        process_did_exit(move(process));
+    m_process_manager->on_process_exited = [this](Process&& process, Optional<int> exit_status) {
+        process_did_exit(move(process), exit_status);
     };
 
     if (m_browser_options.disable_sql_database == DisableSQLDatabase::No) {
@@ -727,7 +731,7 @@ Optional<Process&> Application::find_process(pid_t pid)
     return m_process_manager->find_process(pid);
 }
 
-void Application::process_did_exit(Process&& process)
+void Application::process_did_exit(Process&& process, Optional<int> exit_status)
 {
     if (m_event_loop->was_exit_requested())
         return;
@@ -751,6 +755,10 @@ void Application::process_did_exit(Process&& process)
         }
         break;
     case ProcessType::WebContent:
+#if !defined(AK_OS_WINDOWS)
+        if (exit_status.has_value() && WIFEXITED(*exit_status) && WEXITSTATUS(*exit_status) == 0)
+            break;
+#endif
         if (auto client = process.client<WebContentClient>(); client.has_value())
             client->notify_all_views_of_crash();
         break;

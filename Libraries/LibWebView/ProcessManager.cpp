@@ -49,10 +49,10 @@ StringView process_name_from_type(ProcessType type)
 
 ProcessManager::ProcessManager()
     : on_process_added([](Process&) {})
-    , on_process_exited([](Process&&) {})
-    , m_process_monitor(ProcessMonitor([this](pid_t pid) {
+    , on_process_exited([](Process&&, Optional<int>) {})
+    , m_process_monitor(ProcessMonitor([this](pid_t pid, Optional<int> exit_status) {
         if (auto process = remove_process(pid); process.has_value())
-            on_process_exited(process.release_value());
+            on_process_exited(process.release_value(), exit_status);
     }))
 {
     add_process(Process(WebView::ProcessType::Browser, nullptr, Core::Process::current()));

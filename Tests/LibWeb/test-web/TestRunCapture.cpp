@@ -29,9 +29,9 @@ TestRunCapture::TestRunCapture()
         setup_output_capture_for_helper_process(process);
     };
     m_previous_on_process_exited = move(process_manager.on_process_exited);
-    process_manager.on_process_exited = [this](WebView::Process&& process) {
+    process_manager.on_process_exited = [this](WebView::Process&& process, Optional<int> exit_status) {
         consume_helper_capture(process.pid());
-        m_previous_on_process_exited(move(process));
+        m_previous_on_process_exited(move(process), exit_status);
     };
 
     process_manager.for_each_process([this](WebView::Process& process) {
