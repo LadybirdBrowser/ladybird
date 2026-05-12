@@ -49,11 +49,6 @@ AffineTransform& AffineTransform::set_scale(float sx, float sy)
     return *this;
 }
 
-AffineTransform& AffineTransform::set_scale(FloatPoint s)
-{
-    return set_scale(s.x(), s.y());
-}
-
 AffineTransform& AffineTransform::skew_radians(float x_radians, float y_radians)
 {
     AffineTransform skew_transform(1, AK::tan(y_radians), AK::tan(x_radians), 1, 0, 0);
