@@ -156,12 +156,13 @@ void StackingContext::paint_descendants(DisplayListRecordingContext& context, Pa
             return IterationDecision::Continue;
         }
 
-        // NOTE: Grid specification https://www.w3.org/TR/css-grid-2/#z-order says that grid items should be treated
-        //       the same way as CSS2 defines for inline-blocks:
+        // NOTE: Flex and grid items should be treated the same way as CSS2 defines for inline-blocks:
+        //       - https://drafts.csswg.org/css-flexbox-1/#painting
+        //       - https://www.w3.org/TR/css-grid-2/#z-order
         //       "For each one of these, treat the element as if it created a new stacking context, but any positioned
         //       descendants and descendants which actually create a new stacking context should be considered part of
         //       the parent stacking context, not this new one."
-        if (child.layout_node().is_grid_item() && !z_index().has_value()) {
+        if ((child.layout_node().is_flex_item() || child.layout_node().is_grid_item()) && !z_index().has_value()) {
             // FIXME: This may not be fully correct with respect to the paint phases.
             if (phase == StackingContextPaintPhase::Foreground)
                 paint_node_as_stacking_context(child, context);
