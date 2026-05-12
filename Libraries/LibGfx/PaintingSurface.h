@@ -64,9 +64,6 @@ public:
     SkCanvas& canvas() const;
     SkSurface& sk_surface() const;
 
-    template<typename T>
-    T sk_image_snapshot() const;
-
     RefPtr<SkiaBackendContext> skia_backend_context() const;
 
     void flush();
