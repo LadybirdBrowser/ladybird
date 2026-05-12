@@ -216,18 +216,6 @@ public:
         return result;
     }
 
-    template<size_t U>
-    [[nodiscard]] constexpr Matrix<U, T> submatrix_from_topleft() const
-    requires(U > 0 && U < N)
-    {
-        Matrix<U, T> result;
-        for (size_t i = 0; i < U; ++i) {
-            for (size_t j = 0; j < U; ++j)
-                result[i, j] = (*this)[i, j];
-        }
-        return result;
-    }
-
     constexpr bool is_invertible() const
     {
         return determinant() != static_cast<T>(0.0);
