@@ -6,10 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/LexicalPath.h>
-#include <AK/QuickSort.h>
 #include <LibCore/ConfigFile.h>
-#include <LibCore/DirIterator.h>
 #include <LibGfx/SystemTheme.h>
 
 namespace Gfx {
@@ -185,21 +182,6 @@ ErrorOr<Core::AnonymousBuffer> load_system_theme(ByteString const& path, Optiona
 {
     auto config_file = TRY(Core::ConfigFile::open(path));
     return TRY(load_system_theme(config_file, color_scheme));
-}
-
-ErrorOr<Vector<SystemThemeMetaData>> list_installed_system_themes()
-{
-    Vector<SystemThemeMetaData> system_themes;
-    Core::DirIterator dt("/res/themes", Core::DirIterator::SkipDots);
-    while (dt.has_next()) {
-        auto theme_name = dt.next_path();
-        auto theme_path = ByteString::formatted("/res/themes/{}", theme_name);
-        auto config_file = TRY(Core::ConfigFile::open(theme_path));
-        auto menu_name = config_file->read_entry("Menu", "Name", theme_name);
-        TRY(system_themes.try_append({ LexicalPath::title(theme_name), menu_name, theme_path }));
-    }
-    quick_sort(system_themes, [](auto& a, auto& b) { return a.name < b.name; });
-    return system_themes;
 }
 
 }
