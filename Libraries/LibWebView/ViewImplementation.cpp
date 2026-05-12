@@ -1062,8 +1062,13 @@ static ErrorOr<LexicalPath> save_screenshot(Gfx::Bitmap const* bitmap)
     if (!bitmap)
         return Error::from_string_literal("Failed to take a screenshot");
 
-    auto file = AK::UnixDateTime::now().to_byte_string("screenshot-%Y-%m-%d-%H-%M-%S.png"sv);
-    auto path = TRY(Application::the().path_for_downloaded_file(file));
+    auto path = TRY([] -> ErrorOr<LexicalPath> {
+        if (auto const& screenshot_path = Application::browser_options().screenshot_path; screenshot_path.has_value())
+            return LexicalPath { *screenshot_path };
+
+        auto file = AK::UnixDateTime::now().to_byte_string("screenshot-%Y-%m-%d-%H-%M-%S.png"sv);
+        return Application::the().path_for_downloaded_file(file);
+    }());
 
     auto encoded = TRY(Gfx::PNGWriter::encode(*bitmap));
 
