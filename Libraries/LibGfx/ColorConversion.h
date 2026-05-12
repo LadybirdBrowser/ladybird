@@ -165,25 +165,6 @@ constexpr ColorComponents oklab_to_linear_srgb(ColorComponents const& oklab)
     return { red, green, blue, oklab.alpha() };
 }
 
-// https://bottosson.github.io/posts/oklab/
-constexpr ColorComponents linear_srgb_to_oklab(ColorComponents const& rgb)
-{
-    float r = rgb[0];
-    float g = rgb[1];
-    float b = rgb[2];
-
-    float l = cbrtf(0.4122214708f * r + 0.5363325363f * g + 0.0514459929f * b);
-    float m = cbrtf(0.2119034982f * r + 0.6806995451f * g + 0.1073969566f * b);
-    float s = cbrtf(0.0883024619f * r + 0.2817188376f * g + 0.6299787005f * b);
-
-    return {
-        0.2104542553f * l + 0.7936177850f * m - 0.0040720468f * s,
-        1.9779984951f * l - 2.4285922050f * m + 0.4505937099f * s,
-        0.0259040371f * l + 0.7827717662f * m - 0.8086757660f * s,
-        rgb.alpha(),
-    };
-}
-
 ColorComponents linear_display_p3_to_xyz65(ColorComponents const&);
 ColorComponents display_p3_to_linear_display_p3(ColorComponents const&);
 ColorComponents a98rgb_to_xyz65(ColorComponents const&);

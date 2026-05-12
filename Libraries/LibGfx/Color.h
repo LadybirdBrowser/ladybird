@@ -129,24 +129,6 @@ public:
         return from_linear_srgb(linear[0], linear[1], linear[2], linear.alpha());
     }
 
-    constexpr Oklab to_premultiplied_oklab()
-    {
-        auto oklab = to_oklab();
-        return {
-            oklab.L * alpha() / 255,
-            oklab.a * alpha() / 255,
-            oklab.b * alpha() / 255,
-        };
-    }
-
-    // https://bottosson.github.io/posts/oklab/
-    constexpr Oklab to_oklab()
-    {
-        auto linear = srgb_to_linear_srgb({ red() / 255.0f, green() / 255.0f, blue() / 255.0f });
-        auto oklab = linear_srgb_to_oklab(linear);
-        return { oklab[0], oklab[1], oklab[2] };
-    }
-
     constexpr u8 red() const { return (m_value >> 16) & 0xff; }
     constexpr u8 green() const { return (m_value >> 8) & 0xff; }
     constexpr u8 blue() const { return m_value & 0xff; }
