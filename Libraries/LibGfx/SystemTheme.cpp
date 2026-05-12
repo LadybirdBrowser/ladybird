@@ -16,12 +16,6 @@ namespace Gfx {
 
 static Core::AnonymousBuffer theme_buffer;
 
-Core::AnonymousBuffer& current_system_theme_buffer()
-{
-    VERIFY(theme_buffer.is_valid());
-    return theme_buffer;
-}
-
 void set_system_theme(Core::AnonymousBuffer buffer)
 {
     theme_buffer = move(buffer);
