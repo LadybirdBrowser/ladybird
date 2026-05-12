@@ -56,19 +56,6 @@ Font::Font(NonnullRefPtr<Typeface const> typeface, float point_width, float poin
     m_pixel_metrics = metrics;
 }
 
-ScaledFontMetrics Font::metrics() const
-{
-    SkFontMetrics sk_metrics;
-    skia_font(1).getMetrics(&sk_metrics);
-
-    ScaledFontMetrics metrics;
-    metrics.ascender = -sk_metrics.fAscent;
-    metrics.descender = sk_metrics.fDescent;
-    metrics.line_gap = sk_metrics.fLeading;
-    metrics.x_height = sk_metrics.fXHeight;
-    return metrics;
-}
-
 float Font::width(Utf16View const& view) const { return measure_text_width(view, *this); }
 
 float Font::glyph_width(u32 code_point) const
