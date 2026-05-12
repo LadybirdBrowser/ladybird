@@ -65,7 +65,6 @@ public:
     [[nodiscard]] float x_translation() const;
     [[nodiscard]] float y_translation() const;
     [[nodiscard]] FloatPoint translation() const;
-    [[nodiscard]] float rotation() const;
 
     AffineTransform& scale(float sx, float sy);
     AffineTransform& scale(FloatPoint s);

@@ -227,16 +227,6 @@ IntRect AffineTransform::map(IntRect const& rect) const
     return enclosing_int_rect(map(FloatRect(rect)));
 }
 
-float AffineTransform::rotation() const
-{
-    auto rotation = AK::atan2(b(), a());
-    while (rotation < -AK::Pi<float>)
-        rotation += 2.0f * AK::Pi<float>;
-    while (rotation > AK::Pi<float>)
-        rotation -= 2.0f * AK::Pi<float>;
-    return rotation;
-}
-
 Matrix<4, float> AffineTransform::to_matrix() const
 {
     return {
