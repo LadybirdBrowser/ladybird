@@ -155,15 +155,6 @@ FloatPoint AffineTransform::map(FloatPoint point) const
 }
 
 template<>
-IntSize AffineTransform::map(IntSize size) const
-{
-    return {
-        round_to<int>(static_cast<float>(size.width()) * x_scale()),
-        round_to<int>(static_cast<float>(size.height()) * y_scale()),
-    };
-}
-
-template<>
 FloatSize AffineTransform::map(FloatSize size) const
 {
     return { size.width() * x_scale(), size.height() * y_scale() };
@@ -199,12 +190,6 @@ FloatRect AffineTransform::map(FloatRect const& rect) const
     float right = largest_of(p1.x(), p2.x(), p3.x(), p4.x());
     float bottom = largest_of(p1.y(), p2.y(), p3.y(), p4.y());
     return { left, top, right - left, bottom - top };
-}
-
-template<>
-IntRect AffineTransform::map(IntRect const& rect) const
-{
-    return enclosing_int_rect(map(FloatRect(rect)));
 }
 
 Matrix<4, float> AffineTransform::to_matrix() const
