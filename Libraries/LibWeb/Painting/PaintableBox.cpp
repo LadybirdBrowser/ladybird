@@ -43,6 +43,11 @@ void set_paint_viewport_scrollbars(bool const enabled)
     g_paint_viewport_scrollbars = enabled;
 }
 
+bool should_paint_viewport_scrollbars()
+{
+    return g_paint_viewport_scrollbars;
+}
+
 ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, PaintableBox const& paintable_box)
 {
     auto const& computed_values = paintable_box.computed_values();
@@ -674,7 +679,7 @@ void PaintableBox::paint(DisplayListRecordingContext& context, PaintPhase phase)
     if (phase == PaintPhase::Overlay) {
         ChromeMetrics const& metrics = context.chrome_metrics();
 
-        if ((g_paint_viewport_scrollbars || !is_viewport_paintable())
+        if (((g_paint_viewport_scrollbars && !document().page().async_scrolling_enabled()) || !is_viewport_paintable())
             && computed_values().scrollbar_width() != CSS::ScrollbarWidth::None) {
             auto scrollbar_colors = computed_values().scrollbar_color();
 

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/DOM/DOMEventListener.h>
 #include <LibWeb/DOM/Document.h>
@@ -79,6 +80,40 @@ static Optional<AsyncScrollNodeID> parent_scroll_node_id_for(AsyncScrollingState
             return node_id;
     }
     return {};
+}
+
+static void collect_viewport_scrollbar_state(AsyncScrollingState& async_scrolling_state, HTML::Navigable& navigable, Painting::PaintableBox const& paintable_box)
+{
+    if (!paintable_box.is_viewport_paintable())
+        return;
+    if (!Painting::should_paint_viewport_scrollbars())
+        return;
+    if (paintable_box.computed_values().scrollbar_width() == CSS::ScrollbarWidth::None)
+        return;
+
+    auto scrollbar_colors = paintable_box.computed_values().scrollbar_color();
+    auto metrics = paintable_box.document().page().chrome_metrics();
+
+    for (auto direction : { Painting::PaintableBox::ScrollDirection::Vertical, Painting::PaintableBox::ScrollDirection::Horizontal }) {
+        auto scrollbar_data = paintable_box.compute_scrollbar_data(direction, metrics);
+        if (!scrollbar_data.has_value())
+            continue;
+
+        auto gutter_rect = navigable.page().css_to_device_rect(scrollbar_data->gutter_rect).to_type<int>();
+        auto thumb_color = scrollbar_colors.thumb_color;
+        if (gutter_rect.is_empty() && thumb_color == CSS::InitialValues::scrollbar_color().thumb_color)
+            thumb_color = thumb_color.with_alpha(128);
+
+        async_scrolling_state.viewport_scrollbars.append({
+            .scroll_frame_index = paintable_box.own_scroll_frame_index(),
+            .gutter_rect = gutter_rect,
+            .thumb_rect = navigable.page().css_to_device_rect(scrollbar_data->thumb_rect).to_type<int>(),
+            .scroll_size = scrollbar_data->thumb_travel_to_scroll_ratio.to_double(),
+            .thumb_color = thumb_color,
+            .track_color = scrollbar_colors.track_color,
+            .vertical = direction == Painting::PaintableBox::ScrollDirection::Vertical,
+        });
+    }
 }
 
 static bool has_blocking_wheel_event_listener(DOM::EventTarget& event_target)
@@ -183,6 +218,8 @@ AsyncScrollingState collect_async_scrolling_state(HTML::Navigable& navigable, Pa
             });
             parent_scroll_frame_indices.append(parent_scroll_frame_index);
         }
+
+        collect_viewport_scrollbar_state(async_scrolling_state, navigable, paintable_box);
 
         return TraversalDecision::Continue;
     });

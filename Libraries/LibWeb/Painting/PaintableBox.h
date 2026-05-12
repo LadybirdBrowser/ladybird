@@ -31,6 +31,7 @@ class ResizeHandle;
 class Scrollbar;
 
 WEB_API void set_paint_viewport_scrollbars(bool enabled);
+bool should_paint_viewport_scrollbars();
 ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, PaintableBox const& paintable_box);
 
 class WEB_API PaintableBox : public Paintable {

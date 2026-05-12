@@ -9,6 +9,7 @@
 #include <AK/Optional.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
+#include <LibGfx/Color.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibWeb/Forward.h>
@@ -67,12 +68,23 @@ struct MainThreadWheelEventRegion {
     Gfx::FloatRect rect;
 };
 
+struct ViewportScrollbar {
+    Painting::ScrollFrameIndex scroll_frame_index;
+    Gfx::IntRect gutter_rect;
+    Gfx::IntRect thumb_rect;
+    double scroll_size { 0 };
+    Color thumb_color;
+    Color track_color;
+    bool vertical { false };
+};
+
 // Snapshot of scroll-related paint data that the compositor can read without touching DOM, layout, or paintables.
 // It is immutable once collected on the main thread; AsyncScrollTree keeps the mutable compositor-side scroll offsets.
 struct AsyncScrollingState {
     Vector<AsyncScrollNode> scroll_nodes;
     Vector<AsyncStickyArea> sticky_areas;
     Vector<MainThreadWheelEventRegion> main_thread_wheel_event_regions;
+    Vector<ViewportScrollbar> viewport_scrollbars;
 
     // Non-passive wheel listeners can cancel scrolling, so async scrolling must treat them as hard barriers.
     // Viewport-wide barriers cover listeners on the root targets; element regions let input hit-testing accept

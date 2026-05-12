@@ -10,6 +10,7 @@
 #include <LibGfx/SharedImage.h>
 #include <LibGfx/SharedImageBuffer.h>
 #include <LibGfx/SkiaBackendContext.h>
+#include <LibGfx/SkiaUtils.h>
 #include <LibThreading/Thread.h>
 #include <LibWeb/Compositor/AsyncScrollTree.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
@@ -30,6 +31,8 @@
 
 #include <core/SkCanvas.h>
 #include <core/SkColor.h>
+#include <core/SkPaint.h>
+#include <core/SkRRect.h>
 
 #include <LibCore/Platform/ScopedAutoreleasePool.h>
 
@@ -87,6 +90,55 @@ static Optional<AsyncScrollNode> viewport_scroll_node(AsyncScrollingState const&
             return node;
     }
     return {};
+}
+
+static SkRect to_skia_rect(Gfx::IntRect const& rect)
+{
+    return SkRect::MakeXYWH(rect.x(), rect.y(), rect.width(), rect.height());
+}
+
+static void paint_viewport_scrollbar(Gfx::PaintingSurface& surface, ViewportScrollbar const& scrollbar, Painting::ScrollStateSnapshot const& scroll_state_snapshot)
+{
+    auto thumb_rect = scrollbar.thumb_rect;
+    auto device_offset = scroll_state_snapshot.device_offset_for_index(scrollbar.scroll_frame_index);
+    if (scrollbar.vertical)
+        thumb_rect.translate_by(0, static_cast<int>(-device_offset.y() * scrollbar.scroll_size));
+    else
+        thumb_rect.translate_by(static_cast<int>(-device_offset.x() * scrollbar.scroll_size), 0);
+
+    auto& canvas = surface.canvas();
+
+    SkPaint gutter_fill_paint;
+    gutter_fill_paint.setColor(to_skia_color(scrollbar.track_color));
+    canvas.drawRect(to_skia_rect(scrollbar.gutter_rect), gutter_fill_paint);
+
+    auto skia_thumb_rect = to_skia_rect(thumb_rect);
+    auto radius = skia_thumb_rect.width() / 2;
+    auto thumb_rrect = SkRRect::MakeRectXY(skia_thumb_rect, radius, radius);
+
+    SkPaint thumb_fill_paint;
+    thumb_fill_paint.setColor(to_skia_color(scrollbar.thumb_color));
+    canvas.drawRRect(thumb_rrect, thumb_fill_paint);
+
+    SkPaint stroke_paint;
+    stroke_paint.setStroke(true);
+    stroke_paint.setStrokeWidth(1);
+    stroke_paint.setAntiAlias(true);
+    stroke_paint.setColor(to_skia_color(scrollbar.thumb_color.lightened()));
+    canvas.drawRRect(thumb_rrect, stroke_paint);
+}
+
+static void paint_viewport_scrollbars(Gfx::PaintingSurface& surface, ReadonlySpan<ViewportScrollbar> scrollbars, Painting::ScrollStateSnapshot const& scroll_state_snapshot)
+{
+    for (auto const& scrollbar : scrollbars)
+        paint_viewport_scrollbar(surface, scrollbar, scroll_state_snapshot);
+}
+
+static void flush_surface(Gfx::PaintingSurface& surface)
+{
+    if (auto context = surface.skia_backend_context())
+        context->flush_and_submit(&surface.sk_surface());
+    surface.flush();
 }
 
 struct BackingStorePair {
@@ -385,6 +437,7 @@ public:
                             auto async_scrolling_viewport_rect = async_scrolling_state.viewport_rect;
                             auto const wheel_event_listener_state_generation = async_scrolling_state.wheel_event_listener_state_generation;
                             auto wheel_routing_admission = wheel_routing_admission_for(async_scrolling_state);
+                            m_viewport_scrollbars = move(async_scrolling_state.viewport_scrollbars);
                             {
                                 Sync::MutexLocker const locker { m_mutex };
                                 if (wheel_event_listener_state_generation < m_wheel_event_listener_state_generation)
@@ -422,6 +475,7 @@ public:
                             }
                             m_has_async_scrolling_state = true;
                         } else {
+                            m_viewport_scrollbars.clear();
                             {
                                 Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
                                 m_async_scroll_tree.clear_wheel_scroll_targets();
@@ -506,6 +560,8 @@ public:
                         if (!m_cached_display_list)
                             return;
                         m_skia_player->execute(*m_cached_display_list, m_cached_scroll_state_snapshot, *cmd.target_surface);
+                        paint_viewport_scrollbars(*cmd.target_surface, m_viewport_scrollbars, m_cached_scroll_state_snapshot);
+                        flush_surface(*cmd.target_surface);
                         if (cmd.callback) {
                             invoke_on_main_thread([callback = move(cmd.callback)]() mutable {
                                 callback();
@@ -611,6 +667,8 @@ private:
                 m_backing_stores.back_store->canvas().clear(SK_ColorTRANSPARENT);
             }
             m_skia_player->execute(*m_cached_display_list, m_cached_scroll_state_snapshot, *m_backing_stores.back_store);
+            paint_viewport_scrollbars(*m_backing_stores.back_store, m_viewport_scrollbars, m_cached_scroll_state_snapshot);
+            flush_surface(*m_backing_stores.back_store);
             i32 rendered_bitmap_id = m_backing_stores.back_bitmap_id;
             m_backing_stores.swap();
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Finished {} display-list replay into bitmap {}",
@@ -731,6 +789,7 @@ private:
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     RefPtr<Painting::DisplayList> m_cached_display_list;
     Painting::ScrollStateSnapshot m_cached_scroll_state_snapshot;
+    Vector<ViewportScrollbar> m_viewport_scrollbars;
     mutable Sync::Mutex m_async_scroll_tree_mutex;
     AsyncScrollTree m_async_scroll_tree;
     BackingStoreState m_backing_stores;
