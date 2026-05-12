@@ -54,7 +54,7 @@ Web::MouseEvent ns_event_to_mouse_event(Web::MouseEvent::Type type, NSEvent* eve
         CGFloat delta_y = -[event scrollingDeltaY];
 
         if (![event hasPreciseScrollingDeltas]) {
-            static constexpr CGFloat imprecise_scroll_multiplier = 24;
+            static constexpr CGFloat imprecise_scroll_multiplier = 40;
 
             delta_x *= imprecise_scroll_multiplier;
             delta_y *= imprecise_scroll_multiplier;

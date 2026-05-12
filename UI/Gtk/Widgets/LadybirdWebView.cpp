@@ -175,7 +175,7 @@ static gboolean on_scroll(GtkEventControllerScroll* controller, gdouble dx, gdou
         wheel_delta_y = static_cast<int>(dy * device_pixel_ratio);
     } else {
         static constexpr double scroll_lines = 3.0;
-        static constexpr double scroll_step_size = 24.0;
+        static constexpr double scroll_step_size = 40.0;
         wheel_delta_x = static_cast<int>(dx * scroll_lines * scroll_step_size * device_pixel_ratio);
         wheel_delta_y = static_cast<int>(dy * scroll_lines * scroll_step_size * device_pixel_ratio);
     }
