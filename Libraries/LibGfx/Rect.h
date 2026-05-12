@@ -142,14 +142,6 @@ public:
         set_height(height() - (top + bottom));
     }
 
-    void shrink(Size<T> const& size)
-    {
-        set_x(x() + size.width() / 2);
-        set_width(width() - size.width());
-        set_y(y() + size.height() / 2);
-        set_height(height() - size.height());
-    }
-
     [[nodiscard]] Rect<T> translated(T dx, T dy) const
     {
         Rect<T> rect = *this;
@@ -203,13 +195,6 @@ public:
     {
         Rect<T> rect = *this;
         rect.shrink(top, right, bottom, left);
-        return rect;
-    }
-
-    [[nodiscard]] Rect<T> shrunken(Size<T> const& size) const
-    {
-        Rect<T> rect = *this;
-        rect.shrink(size);
         return rect;
     }
 
