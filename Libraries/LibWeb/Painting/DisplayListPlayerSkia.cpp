@@ -58,7 +58,7 @@ DisplayListPlayerSkia::~DisplayListPlayerSkia()
 {
 }
 
-static SkRRect to_skia_rrect(auto const& rect, CornerRadii const& corner_radii)
+static SkRRect to_skia_rrect(auto const& rect, Gfx::CornerRadii const& corner_radii)
 {
     SkRRect rrect;
     SkVector radii[4];
@@ -622,7 +622,7 @@ void DisplayListPlayerSkia::fill_path(FillPath const& command)
     } else {
         paint.setColor(to_skia_color(command.color));
     }
-    paint.setAntiAlias(command.should_anti_alias == ShouldAntiAlias::Yes);
+    paint.setAntiAlias(command.should_anti_alias == Gfx::ShouldAntiAlias::Yes);
     surface().canvas().drawPath(path, paint);
 }
 
@@ -636,7 +636,7 @@ void DisplayListPlayerSkia::stroke_path(StrokePath const& command)
     } else {
         paint.setColor(to_skia_color(command.color));
     }
-    paint.setAntiAlias(command.should_anti_alias == ShouldAntiAlias::Yes);
+    paint.setAntiAlias(command.should_anti_alias == Gfx::ShouldAntiAlias::Yes);
     paint.setStyle(SkPaint::Style::kStroke_Style);
     paint.setStrokeWidth(command.thickness);
     paint.setStrokeCap(to_skia_cap(command.cap_style));
@@ -807,7 +807,7 @@ void DisplayListPlayerSkia::add_rounded_rect_clip(AddRoundedRectClip const& comm
 {
     auto rounded_rect = to_skia_rrect(command.border_rect, command.corner_radii);
     auto& canvas = surface().canvas();
-    auto clip_op = command.corner_clip == CornerClip::Inside ? SkClipOp::kDifference : SkClipOp::kIntersect;
+    auto clip_op = command.corner_clip == Gfx::CornerClip::Inside ? SkClipOp::kDifference : SkClipOp::kIntersect;
     canvas.clipRRect(rounded_rect, clip_op, true);
 }
 

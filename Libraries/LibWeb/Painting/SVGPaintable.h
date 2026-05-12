@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibGfx/AntiAliasing.h>
 #include <LibWeb/Layout/SVGBox.h>
 #include <LibWeb/Painting/PaintableBox.h>
 
@@ -26,7 +27,7 @@ protected:
 
     virtual CSSPixelRect compute_absolute_rect() const override;
 
-    ShouldAntiAlias should_anti_alias() const;
+    Gfx::ShouldAntiAlias should_anti_alias() const;
 };
 
 template<>

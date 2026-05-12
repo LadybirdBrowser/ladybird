@@ -12,8 +12,10 @@
 #include <AK/StdLibExtras.h>
 #include <AK/Types.h>
 #include <LibGfx/AffineTransform.h>
+#include <LibGfx/AntiAliasing.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
+#include <LibGfx/CornerRadii.h>
 #include <LibGfx/GradientInterpolation.h>
 #include <LibGfx/InterpolationColorSpace.h>
 #include <LibGfx/LineStyle.h>
@@ -23,11 +25,8 @@
 #include <LibGfx/ScalingMode.h>
 #include <LibGfx/Size.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
-#include <LibWeb/Painting/BorderRadiiData.h>
-#include <LibWeb/Painting/BorderRadiusCornerClipper.h>
 #include <LibWeb/Painting/DisplayListResourceIds.h>
 #include <LibWeb/Painting/ScrollState.h>
-#include <LibWeb/Painting/ShouldAntiAlias.h>
 
 namespace Web::Painting {
 
@@ -244,9 +243,9 @@ struct PaintOuterBoxShadow {
     Gfx::Color color;
     int blur_radius;
     Gfx::IntRect device_content_rect;
-    CornerRadii content_corner_radii;
+    Gfx::CornerRadii content_corner_radii;
     Gfx::IntRect shadow_rect;
-    CornerRadii shadow_corner_radii;
+    Gfx::CornerRadii shadow_corner_radii;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const;
     void dump(StringBuilder&) const;
@@ -259,10 +258,10 @@ struct PaintInnerBoxShadow {
     Gfx::Color color;
     int blur_radius;
     Gfx::IntRect device_content_rect;
-    CornerRadii content_corner_radii;
+    Gfx::CornerRadii content_corner_radii;
     Gfx::IntRect outer_shadow_rect;
     Gfx::IntRect inner_shadow_rect;
-    CornerRadii inner_shadow_corner_radii;
+    Gfx::CornerRadii inner_shadow_corner_radii;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const;
     void dump(StringBuilder&) const;
@@ -291,7 +290,7 @@ struct FillRectWithRoundedCorners {
 
     Gfx::IntRect rect;
     Color color;
-    CornerRadii corner_radii;
+    Gfx::CornerRadii corner_radii;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
     void dump(StringBuilder&) const;
@@ -347,7 +346,7 @@ struct FillPath {
     Color color;
     DisplayListPaintStyle paint_style;
     Gfx::WindingRule winding_rule;
-    ShouldAntiAlias should_anti_alias { ShouldAntiAlias::Yes };
+    Gfx::ShouldAntiAlias should_anti_alias { Gfx::ShouldAntiAlias::Yes };
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return path_bounding_rect; }
 
@@ -370,7 +369,7 @@ struct StrokePath {
     Color color;
     DisplayListPaintStyle paint_style;
     float thickness;
-    ShouldAntiAlias should_anti_alias { ShouldAntiAlias::Yes };
+    Gfx::ShouldAntiAlias should_anti_alias { Gfx::ShouldAntiAlias::Yes };
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return path_bounding_rect; }
 
@@ -422,7 +421,7 @@ struct ApplyBackdropFilter {
     static constexpr DisplayListCommandType command_type = DisplayListCommandType::ApplyBackdropFilter;
 
     Gfx::IntRect backdrop_region;
-    CornerRadii corner_radii;
+    Gfx::CornerRadii corner_radii;
     bool has_backdrop_filter { false };
     DisplayListDataSpan backdrop_filter_data;
 
@@ -478,9 +477,9 @@ struct AddRoundedRectClip {
     static constexpr StringView command_name = "AddRoundedRectClip"sv;
     static constexpr DisplayListCommandType command_type = DisplayListCommandType::AddRoundedRectClip;
 
-    CornerRadii corner_radii;
+    Gfx::CornerRadii corner_radii;
     Gfx::IntRect border_rect;
-    CornerClip corner_clip;
+    Gfx::CornerClip corner_clip;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return border_rect; }
     bool is_clip() const { return true; }

@@ -8,8 +8,10 @@
 
 #include <AK/Forward.h>
 #include <AK/Vector.h>
+#include <LibGfx/AntiAliasing.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
+#include <LibGfx/CornerRadii.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/LineStyle.h>
 #include <LibGfx/PaintStyle.h>
@@ -21,13 +23,10 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
-#include <LibWeb/Painting/BorderRadiiData.h>
-#include <LibWeb/Painting/BorderRadiusCornerClipper.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/GradientData.h>
 #include <LibWeb/Painting/PaintStyle.h>
-#include <LibWeb/Painting/ShouldAntiAlias.h>
 
 namespace Web::Painting {
 
@@ -44,7 +43,7 @@ public:
         float opacity = 1.0f;
         PaintStyleOrColor paint_style_or_color;
         Gfx::WindingRule winding_rule = Gfx::WindingRule::EvenOdd;
-        ShouldAntiAlias should_anti_alias { ShouldAntiAlias::Yes };
+        Gfx::ShouldAntiAlias should_anti_alias { Gfx::ShouldAntiAlias::Yes };
     };
     void fill_path(FillPathParams params);
 
@@ -58,7 +57,7 @@ public:
         float opacity = 1.0f;
         PaintStyleOrColor paint_style_or_color;
         float thickness;
-        ShouldAntiAlias should_anti_alias { ShouldAntiAlias::Yes };
+        Gfx::ShouldAntiAlias should_anti_alias { Gfx::ShouldAntiAlias::Yes };
     };
     void stroke_path(StrokePathParams);
 
@@ -119,7 +118,7 @@ public:
 
     void paint_nested_display_list(RefPtr<DisplayList> display_list, Gfx::IntRect rect);
 
-    void add_rounded_rect_clip(CornerRadii corner_radii, Gfx::IntRect border_rect, CornerClip corner_clip);
+    void add_rounded_rect_clip(Gfx::CornerRadii corner_radii, Gfx::IntRect border_rect, Gfx::CornerClip corner_clip);
 
     struct MaskInfo {
         RefPtr<DisplayList> display_list;
@@ -129,13 +128,13 @@ public:
     void begin_masks(ReadonlySpan<MaskInfo>);
     void end_masks(ReadonlySpan<MaskInfo>);
 
-    void apply_backdrop_filter(Gfx::IntRect const& backdrop_region, CornerRadii const& corner_radii, Gfx::Filter const& backdrop_filter);
+    void apply_backdrop_filter(Gfx::IntRect const& backdrop_region, Gfx::CornerRadii const& corner_radii, Gfx::Filter const& backdrop_filter);
 
     void paint_outer_box_shadow(PaintOuterBoxShadow);
     void paint_inner_box_shadow(PaintInnerBoxShadow);
     void paint_text_shadow(int blur_radius, Gfx::IntRect bounding_rect, Gfx::IntRect text_rect, Gfx::GlyphRun const&, double glyph_run_scale, Color color, Gfx::FloatPoint draw_location);
 
-    void fill_rect_with_rounded_corners(Gfx::IntRect const& rect, Color color, CornerRadii const&);
+    void fill_rect_with_rounded_corners(Gfx::IntRect const& rect, Color color, Gfx::CornerRadii const&);
     void fill_rect_with_rounded_corners(Gfx::IntRect const& a_rect, Color color, int radius);
     void fill_rect_with_rounded_corners(Gfx::IntRect const& a_rect, Color color, int top_left_radius, int top_right_radius, int bottom_right_radius, int bottom_left_radius);
 

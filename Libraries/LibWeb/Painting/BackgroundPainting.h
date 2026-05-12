@@ -9,6 +9,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/BorderPainting.h>
+#include <LibWeb/Painting/BorderRadiiData.h>
 
 namespace Web::Painting {
 

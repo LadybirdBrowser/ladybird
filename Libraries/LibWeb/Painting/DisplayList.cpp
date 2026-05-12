@@ -189,7 +189,7 @@ void DisplayListPlayer::execute_impl(
                         add_rounded_rect_clip({
                             .corner_radii = clip.corner_radii,
                             .border_rect = clip.rect.to_type<int>(),
-                            .corner_clip = CornerClip::Outside,
+                            .corner_clip = Gfx::CornerClip::Outside,
                         });
                     } else {
                         add_clip_rect({ .rect = clip.rect.to_type<int>() });

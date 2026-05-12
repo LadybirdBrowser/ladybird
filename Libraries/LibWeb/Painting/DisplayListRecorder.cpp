@@ -295,7 +295,7 @@ void DisplayListRecorder::paint_nested_display_list(RefPtr<DisplayList> display_
         payload_builder.inline_data());
 }
 
-void DisplayListRecorder::add_rounded_rect_clip(CornerRadii corner_radii, Gfx::IntRect border_rect, CornerClip corner_clip)
+void DisplayListRecorder::add_rounded_rect_clip(Gfx::CornerRadii corner_radii, Gfx::IntRect border_rect, Gfx::CornerClip corner_clip)
 {
     append_command(AddRoundedRectClip { corner_radii, border_rect, corner_clip });
 }
@@ -624,7 +624,7 @@ void DisplayListRecorder::restore()
     append_command(Restore {});
 }
 
-void DisplayListRecorder::apply_backdrop_filter(Gfx::IntRect const& backdrop_region, CornerRadii const& corner_radii, Gfx::Filter const& backdrop_filter)
+void DisplayListRecorder::apply_backdrop_filter(Gfx::IntRect const& backdrop_region, Gfx::CornerRadii const& corner_radii, Gfx::Filter const& backdrop_filter)
 {
     if (backdrop_region.is_empty())
         return;
@@ -669,7 +669,7 @@ void DisplayListRecorder::paint_text_shadow(int blur_radius, Gfx::IntRect boundi
         payload_builder.inline_data());
 }
 
-void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& rect, Color color, CornerRadii const& corner_radii)
+void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& rect, Color color, Gfx::CornerRadii const& corner_radii)
 {
     if (rect.is_empty() || color.alpha() == 0)
         return;

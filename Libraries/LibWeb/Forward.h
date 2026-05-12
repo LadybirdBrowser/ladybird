@@ -1026,8 +1026,6 @@ class VideoPaintable;
 class ViewportPaintable;
 
 enum class PaintPhase;
-enum class ShouldAntiAlias : bool;
-
 struct BorderRadiiData;
 struct BorderRadiusData;
 struct LinearGradientData;

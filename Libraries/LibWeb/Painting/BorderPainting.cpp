@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Painting/BorderPainting.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 
 namespace Web::Painting {
@@ -54,7 +55,7 @@ Gfx::Color border_color(BorderEdge edge, BordersDataDevicePixels const& borders_
     return border_data.color;
 }
 
-void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect const& rect, CornerRadius const& radius, CornerRadius const& opposite_radius, BordersDataDevicePixels const& borders_data, Gfx::Path& path, bool last)
+void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect const& rect, Gfx::CornerRadius const& radius, Gfx::CornerRadius const& opposite_radius, BordersDataDevicePixels const& borders_data, Gfx::Path& path, bool last)
 {
     auto const& border_data = borders_data.for_edge(edge);
 
@@ -98,8 +99,8 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
         paint_border(painter, edge, modified_rect, radius, opposite_radius, modified_borders_data, path, true);
 
         // Inner border, with smaller rect and radii
-        CornerRadius modified_radius = radius;
-        CornerRadius modified_opposite_radius = opposite_radius;
+        Gfx::CornerRadius modified_radius = radius;
+        Gfx::CornerRadius modified_opposite_radius = opposite_radius;
         switch (edge) {
         case BorderEdge::Top: {
             auto top_inset = borders_data.top.width - modified_borders_data.top.width;
@@ -585,7 +586,7 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
     }
 }
 
-void paint_all_borders(DisplayListRecorder& painter, DevicePixelRect const& border_rect, CornerRadii const& corner_radii, BordersDataDevicePixels const& borders_data)
+void paint_all_borders(DisplayListRecorder& painter, DevicePixelRect const& border_rect, Gfx::CornerRadii const& corner_radii, BordersDataDevicePixels const& borders_data)
 {
     if (borders_data.top.width <= 0 && borders_data.right.width <= 0 && borders_data.left.width <= 0 && borders_data.bottom.width <= 0)
         return;

@@ -6,7 +6,7 @@
 
 #pragma once
 
-namespace Web::Painting {
+namespace Gfx {
 
 enum class ShouldAntiAlias : bool {
     Yes,
