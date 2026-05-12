@@ -84,9 +84,6 @@ public:
     virtual IntSize size() override;
     virtual ErrorOr<ImageFrameDescriptor> frame(size_t index, Optional<IntSize> ideal_size = {}) override;
 
-    virtual NaturalFrameFormat natural_frame_format() const override { return NaturalFrameFormat::Vector; }
-    virtual ErrorOr<VectorImageFrameDescriptor> vector_frame(size_t index) override;
-
     virtual ~TinyVGImageDecoderPlugin() override;
 
 private:
