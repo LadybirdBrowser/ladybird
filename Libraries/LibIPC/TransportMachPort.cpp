@@ -25,9 +25,13 @@ static void set_mach_port_queue_limit(mach_port_t port)
         reinterpret_cast<mach_port_info_t>(&limits), MACH_PORT_LIMITS_INFO_COUNT);
 }
 
-static Attachment attachment_from_descriptor(mach_msg_port_descriptor_t const& descriptor)
+static ErrorOr<Attachment> attachment_from_descriptor(mach_msg_port_descriptor_t const& descriptor)
 {
-    VERIFY(descriptor.type == MACH_MSG_PORT_DESCRIPTOR);
+    if (descriptor.type != MACH_MSG_PORT_DESCRIPTOR)
+        return Error::from_string_literal("Invalid Mach message descriptor type");
+
+    if (!MACH_PORT_VALID(descriptor.name))
+        return Error::from_string_literal("Invalid Mach port descriptor name");
 
     switch (descriptor.disposition) {
     case MACH_MSG_TYPE_MOVE_SEND:
@@ -43,7 +47,7 @@ static Attachment attachment_from_descriptor(mach_msg_port_descriptor_t const& d
             Core::MachPort::adopt_right(descriptor.name, Core::MachPort::PortRight::SendOnce),
             Core::MachPort::MessageRight::MoveSendOnce);
     default:
-        VERIFY_NOT_REACHED();
+        return Error::from_string_literal("Invalid Mach port descriptor disposition");
     }
 }
 
@@ -294,8 +298,18 @@ void TransportMachPort::process_received_message(u8* buffer)
     auto const* payload = reinterpret_cast<mach_msg_ool_descriptor_t const*>(&descriptors[attachment_count]);
 
     auto message = make<Message>();
-    for (unsigned int i = 0; i < attachment_count; ++i)
-        message->attachments.enqueue(attachment_from_descriptor(descriptors[i]));
+    for (unsigned int i = 0; i < attachment_count; ++i) {
+        auto attachment = attachment_from_descriptor(descriptors[i]);
+        if (attachment.is_error()) {
+            dbgln("TransportMachPort: dropping message with invalid port descriptor {} of {}: {} (name={:x}, disposition={}, type={})",
+                i + 1, attachment_count, attachment.error(), descriptors[i].name, descriptors[i].disposition, descriptors[i].type);
+            if (payload->type == MACH_MSG_OOL_DESCRIPTOR && payload->size > 0)
+                vm_deallocate(mach_task_self(), reinterpret_cast<vm_address_t>(payload->address), payload->size);
+            mark_peer_eof();
+            return;
+        }
+        message->attachments.enqueue(attachment.release_value());
+    }
 
     VERIFY(payload->type == MACH_MSG_OOL_DESCRIPTOR);
     if (payload->size > 0) {
