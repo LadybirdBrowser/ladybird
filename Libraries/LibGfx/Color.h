@@ -206,15 +206,6 @@ public:
         };
     }
 
-    constexpr Color multiply(Color other) const
-    {
-        return Color(
-            red() * other.red() / 255,
-            green() * other.green() / 255,
-            blue() * other.blue() / 255,
-            alpha() * other.alpha() / 255);
-    }
-
     constexpr float distance_squared_to(Color other) const
     {
         int delta_red = other.red() - red();
