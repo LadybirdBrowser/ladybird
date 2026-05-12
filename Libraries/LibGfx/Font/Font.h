@@ -36,8 +36,6 @@ struct FontPixelMetrics {
 
     // Line gap specified by font.
     float line_gap { 0 };
-
-    float line_spacing() const { return ascent + descent + line_gap; }
 };
 
 // https://learn.microsoft.com/en-us/typography/opentype/spec/os2#uswidthclass
