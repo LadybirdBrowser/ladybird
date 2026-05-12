@@ -158,7 +158,7 @@ void WebContentClient::notify_all_views_of_crash()
     }
 }
 
-bool WebContentClient::send_mouse_event_to_compositor(u64 page_id, Web::MouseEvent const& event)
+bool WebContentClient::send_async_scroll_to_compositor(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels)
 {
     auto connection = compositor_connections().get(this);
     if (!connection.has_value() || !connection.value()->is_open()) {
@@ -168,8 +168,8 @@ bool WebContentClient::send_mouse_event_to_compositor(u64 page_id, Web::MouseEve
     }
 
     auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-    auto handled = connection.value()->mouse_event(page_id, event.clone_without_browser_data());
-    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC mouse_event page {} returned {} in {} us",
+    auto handled = connection.value()->async_scroll_by(page_id, position, delta_in_device_pixels);
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC async_scroll_by page {} returned {} in {} us",
         page_id, handled, timer.elapsed_time().to_microseconds());
     return handled;
 }

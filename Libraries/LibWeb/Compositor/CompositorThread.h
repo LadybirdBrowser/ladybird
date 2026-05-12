@@ -51,7 +51,7 @@ public:
     static void set_frame_presentation_callbacks(NonnullRefPtr<Core::WeakEventLoopReference>, BackingStorePresentationCallback, FramePresentationCallback);
     static void clear_frame_presentation_callbacks();
     static void presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_id);
-    static bool async_scroll_by(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta);
+    static bool async_scroll_by(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels);
 
     void start(DisplayListPlayerType);
     void stop_presenting_to_client();
@@ -61,7 +61,7 @@ public:
     void update_scroll_state(Painting::ScrollStateSnapshot&&);
     void update_display_list_and_async_scrolling_state(NonnullRefPtr<Painting::DisplayList>, Painting::ScrollStateSnapshot&&, AsyncScrollingState&&);
     void invalidate_wheel_event_listener_state(u64 generation);
-    bool async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect);
+    bool async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect);
     Optional<Gfx::FloatPoint> pending_async_viewport_scroll_offset() const;
     bool should_defer_async_viewport_scroll_offset_adoption() const;
     bool should_defer_main_thread_present_for_async_scroll() const;

@@ -646,11 +646,13 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
         if (can_try_async_viewport_scroll) {
             auto device_position = m_navigable->page().css_to_device_point(visual_viewport_position);
             auto async_scroll_position = Gfx::FloatPoint { static_cast<float>(device_position.x().value()), static_cast<float>(device_position.y().value()) };
-            async_scroll_performed_default_action = m_navigable->rendering_thread().async_scroll_by(async_scroll_position, async_scroll_delta, viewport_rect);
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] {} wheel async scroll for viewport at {},{} with delta {},{}",
+            auto device_pixels_per_css_pixel = static_cast<float>(m_navigable->page().client().device_pixels_per_css_pixel());
+            auto async_scroll_delta_in_device_pixels = async_scroll_delta.scaled(device_pixels_per_css_pixel);
+            async_scroll_performed_default_action = m_navigable->rendering_thread().async_scroll_by(async_scroll_position, async_scroll_delta_in_device_pixels, viewport_rect);
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] {} wheel async scroll for viewport at {},{} with device delta {},{}",
                 async_scroll_performed_default_action ? "Enqueued"sv : "Could not enqueue"sv,
                 async_scroll_position.x(), async_scroll_position.y(),
-                async_scroll_delta.x(), async_scroll_delta.y());
+                async_scroll_delta_in_device_pixels.x(), async_scroll_delta_in_device_pixels.y());
         } else if (!paintable) {
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Not attempting wheel async scroll: no paintable target");
         } else if (is<Painting::NavigableContainerViewportPaintable>(*paintable)) {

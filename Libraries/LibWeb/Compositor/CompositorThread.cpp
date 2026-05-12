@@ -58,7 +58,7 @@ struct UpdateDisplayListCommand {
 
 struct AsyncScrollByCommand {
     Gfx::FloatPoint position;
-    Gfx::FloatPoint delta;
+    Gfx::FloatPoint delta_in_device_pixels;
     Gfx::IntRect viewport_rect;
     AsyncScrollNodeID scroll_target;
 };
@@ -280,7 +280,7 @@ public:
         return { scroll_target, false };
     }
 
-    bool enqueue_async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect)
+    bool enqueue_async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect)
     {
         if (!m_can_accept_async_wheel_events.load()) {
             auto wheel_routing_admission = [this] {
@@ -291,25 +291,25 @@ public:
                 wheel_routing_admission_to_string(wheel_routing_admission));
             return false;
         }
-        auto scroll_target = hit_test_viewport_scroll_node_for_wheel(position, delta);
+        auto scroll_target = hit_test_viewport_scroll_node_for_wheel(position, delta_in_device_pixels);
         if (scroll_target.rejected_non_viewport_target) {
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: non-viewport target at {},{} delta {},{}",
-                position.x(), position.y(), delta.x(), delta.y());
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: non-viewport target at {},{} device delta {},{}",
+                position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y());
             return false;
         }
         if (!scroll_target.node_id.has_value()) {
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: no wheel target at {},{} for delta {},{}",
-                position.x(), position.y(), delta.x(), delta.y());
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: no wheel target at {},{} for device delta {},{}",
+                position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y());
             return false;
         }
 
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor accepted main-thread async scroll enqueue at {},{} delta {},{} viewport={}x{} at {},{}",
-            position.x(), position.y(), delta.x(), delta.y(), viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
-        enqueue_command(AsyncScrollByCommand { position, delta, viewport_rect, *scroll_target.node_id });
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor accepted main-thread async scroll enqueue at {},{} device delta {},{} viewport={}x{} at {},{}",
+            position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y(), viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
+        enqueue_command(AsyncScrollByCommand { position, delta_in_device_pixels, viewport_rect, *scroll_target.node_id });
         return true;
     }
 
-    bool enqueue_async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta)
+    bool enqueue_async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels)
     {
         if (!m_can_accept_async_wheel_events.load()) {
             auto wheel_routing_admission = [this] {
@@ -325,21 +325,21 @@ public:
             Sync::MutexLocker const locker { m_mutex };
             return m_async_scrolling_viewport_rect;
         }();
-        auto scroll_target = hit_test_viewport_scroll_node_for_wheel(position, delta);
+        auto scroll_target = hit_test_viewport_scroll_node_for_wheel(position, delta_in_device_pixels);
         if (scroll_target.rejected_non_viewport_target) {
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: non-viewport target at {},{} delta {},{}",
-                position.x(), position.y(), delta.x(), delta.y());
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: non-viewport target at {},{} device delta {},{}",
+                position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y());
             return false;
         }
         if (!scroll_target.node_id.has_value()) {
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: no wheel target at {},{} for delta {},{}",
-                position.x(), position.y(), delta.x(), delta.y());
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: no wheel target at {},{} for device delta {},{}",
+                position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y());
             return false;
         }
 
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor accepted async scroll enqueue at {},{} delta {},{} viewport={}x{} at {},{}",
-            position.x(), position.y(), delta.x(), delta.y(), viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
-        enqueue_command(AsyncScrollByCommand { position, delta, viewport_rect, *scroll_target.node_id });
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor accepted async scroll enqueue at {},{} device delta {},{} viewport={}x{} at {},{}",
+            position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y(), viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
+        enqueue_command(AsyncScrollByCommand { position, delta_in_device_pixels, viewport_rect, *scroll_target.node_id });
         return true;
     }
 
@@ -433,13 +433,13 @@ public:
                         }
                     },
                     [this, &should_yield_to_async_scroll_present](AsyncScrollByCommand& cmd) {
-                        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor processing async scroll command at {},{} delta {},{} (raster_tasks={}, deferred_async_present={})",
-                            cmd.position.x(), cmd.position.y(), cmd.delta.x(), cmd.delta.y(), m_queued_rasterization_tasks.load(), m_has_deferred_async_scroll_present);
+                        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor processing async scroll command at {},{} device delta {},{} (raster_tasks={}, deferred_async_present={})",
+                            cmd.position.x(), cmd.position.y(), cmd.delta_in_device_pixels.x(), cmd.delta_in_device_pixels.y(), m_queued_rasterization_tasks.load(), m_has_deferred_async_scroll_present);
                         auto async_scroll_viewport_rect = cmd.viewport_rect;
                         Optional<Gfx::FloatPoint> scroll_offset;
                         {
                             Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
-                            if (!m_async_scroll_tree.apply_scroll_delta(cmd.scroll_target, cmd.delta, m_cached_scroll_state_snapshot)) {
+                            if (!m_async_scroll_tree.apply_scroll_delta(cmd.scroll_target, cmd.delta_in_device_pixels, m_cached_scroll_state_snapshot)) {
                                 dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Dropping async scroll command: scroll tree consumed no delta");
                                 return;
                             }
@@ -973,7 +973,7 @@ void CompositorThread::presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_i
     thread_data->decrement_queued_tasks(bitmap_id);
 }
 
-bool CompositorThread::async_scroll_by(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta)
+bool CompositorThread::async_scroll_by(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels)
 {
     RefPtr<ThreadData> thread_data;
     {
@@ -985,7 +985,7 @@ bool CompositorThread::async_scroll_by(u64 page_id, Gfx::FloatPoint position, Gf
         }
         thread_data = compositor->value;
     }
-    return thread_data->enqueue_async_scroll_by(position, delta);
+    return thread_data->enqueue_async_scroll_by(position, delta_in_device_pixels);
 }
 
 void CompositorThread::start(DisplayListPlayerType display_list_player_type)
@@ -1024,9 +1024,9 @@ void CompositorThread::invalidate_wheel_event_listener_state(u64 generation)
     m_thread_data->invalidate_wheel_event_listener_state(generation);
 }
 
-bool CompositorThread::async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect)
+bool CompositorThread::async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect)
 {
-    return m_thread_data->enqueue_async_scroll_by(position, delta, viewport_rect);
+    return m_thread_data->enqueue_async_scroll_by(position, delta_in_device_pixels, viewport_rect);
 }
 
 Optional<Gfx::FloatPoint> CompositorThread::pending_async_viewport_scroll_offset() const

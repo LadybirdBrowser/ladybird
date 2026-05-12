@@ -89,29 +89,13 @@ private:
     {
     }
 
-    virtual Messages::CompositorServer::MouseEventResponse mouse_event(u64 page_id, Web::MouseEvent event) override
+    virtual Messages::CompositorServer::AsyncScrollByResponse async_scroll_by(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels) override
     {
-        if (event.type != Web::MouseEvent::Type::MouseWheel) {
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor IPC rejected non-wheel mouse event for page {}", page_id);
-            return false;
-        }
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor IPC received async scroll for page {} at {},{} device delta {},{}",
+            page_id, position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y());
 
-        if (event.modifiers & Web::UIEvents::KeyModifier::Mod_Shift)
-            swap(event.wheel_delta_x, event.wheel_delta_y);
-
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor IPC received wheel for page {} at {},{} delta {},{}",
-            page_id, event.position.x().value(), event.position.y().value(), event.wheel_delta_x, event.wheel_delta_y);
-
-        auto position = Gfx::FloatPoint {
-            static_cast<float>(event.position.x().value()),
-            static_cast<float>(event.position.y().value()),
-        };
-        auto delta = Gfx::FloatPoint {
-            static_cast<float>(event.wheel_delta_x),
-            static_cast<float>(event.wheel_delta_y),
-        };
-        auto handled = Web::Compositor::CompositorThread::async_scroll_by(page_id, position, delta);
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor IPC wheel for page {} returned {}", page_id, handled);
+        auto handled = Web::Compositor::CompositorThread::async_scroll_by(page_id, position, delta_in_device_pixels);
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor IPC async scroll for page {} returned {}", page_id, handled);
         return handled;
     }
 

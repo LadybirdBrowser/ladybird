@@ -1,7 +1,7 @@
-#include <LibWeb/Page/InputEvent.h>
+#include <LibGfx/Point.h>
 
 endpoint CompositorServer
 {
-    mouse_event(u64 page_id, Web::MouseEvent event) => (bool handled)
+    async_scroll_by(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels) => (bool handled)
     ready_to_paint(u64 page_id, i32 bitmap_id) =|
 }
