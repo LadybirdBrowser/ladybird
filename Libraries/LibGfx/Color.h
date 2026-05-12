@@ -404,11 +404,6 @@ public:
         return Color(~red(), ~green(), ~blue(), alpha());
     }
 
-    constexpr Color xored(Color other) const
-    {
-        return Color(((other.m_value ^ m_value) & 0x00ffffff) | (m_value & 0xff000000));
-    }
-
     constexpr BGRA8888 value() const { return m_value; }
 
     constexpr bool operator==(Color other) const
