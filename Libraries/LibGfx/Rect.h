@@ -234,28 +234,6 @@ public:
         return rect;
     }
 
-    Rect<T> take_from_right(T w)
-    {
-        if (w > width())
-            w = width();
-        Rect<T> rect = *this;
-        set_width(width() - w);
-        rect.set_x(x() + width());
-        rect.set_width(w);
-        return rect;
-    }
-
-    Rect<T> take_from_left(T w)
-    {
-        if (w > width())
-            w = width();
-        Rect<T> rect = *this;
-        set_x(x() + w);
-        set_width(width() - w);
-        rect.set_width(w);
-        return rect;
-    }
-
     Rect<T> take_from_top(T h)
     {
         if (h > height())
@@ -263,17 +241,6 @@ public:
         Rect<T> rect = *this;
         set_y(y() + h);
         set_height(height() - h);
-        rect.set_height(h);
-        return rect;
-    }
-
-    Rect<T> take_from_bottom(T h)
-    {
-        if (h > height())
-            h = height();
-        Rect<T> rect = *this;
-        set_height(height() - h);
-        rect.set_y(y() + height());
         rect.set_height(h);
         return rect;
     }
@@ -330,34 +297,12 @@ public:
     ALWAYS_INLINE void set_primary_size_for_orientation(Orientation orientation, T value) { m_size.set_primary_size_for_orientation(orientation, value); }
     ALWAYS_INLINE void set_secondary_size_for_orientation(Orientation orientation, T value) { m_size.set_secondary_size_for_orientation(orientation, value); }
 
-    void inflate_primary_for_orientation(Orientation orientation, T before, T after)
-    {
-        if (orientation == Orientation::Horizontal)
-            inflate(0, after, 0, before);
-        else
-            inflate(before, 0, after, 0);
-    }
-
     void inflate_secondary_for_orientation(Orientation orientation, T before, T after)
     {
         if (orientation == Orientation::Horizontal)
             inflate(before, 0, after, 0);
         else
             inflate(0, after, 0, before);
-    }
-
-    [[nodiscard]] T first_edge_for_orientation(Orientation orientation) const
-    {
-        if (orientation == Orientation::Vertical)
-            return top();
-        return left();
-    }
-
-    [[nodiscard]] T last_edge_for_orientation(Orientation orientation) const
-    {
-        if (orientation == Orientation::Vertical)
-            return bottom();
-        return right();
     }
 
     [[nodiscard]] ALWAYS_INLINE T left() const { return x(); }
