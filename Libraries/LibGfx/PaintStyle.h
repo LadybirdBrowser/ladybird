@@ -62,15 +62,7 @@ public:
         return {};
     }
 
-    void set_repeat_length(float repeat_length)
-    {
-        m_repeat_length = repeat_length;
-    }
-
     ReadonlySpan<ColorStop> color_stops() const { return m_color_stops; }
-    void set_color_stops(Vector<ColorStop>&& color_stops) { m_color_stops = move(color_stops); }
-
-    Optional<float> repeat_length() const { return m_repeat_length; }
 
     bool is_visible() const override
     {
@@ -79,7 +71,6 @@ public:
 
 private:
     Vector<ColorStop, 4> m_color_stops;
-    Optional<float> m_repeat_length;
 };
 
 class CanvasPatternPaintStyle : public PaintStyle {
