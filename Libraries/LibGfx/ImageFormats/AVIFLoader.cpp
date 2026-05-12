@@ -163,11 +163,6 @@ size_t AVIFImageDecoderPlugin::frame_count()
     return m_context->image_count;
 }
 
-size_t AVIFImageDecoderPlugin::first_animated_frame_index()
-{
-    return 0;
-}
-
 ErrorOr<ImageFrameDescriptor> AVIFImageDecoderPlugin::frame(size_t index, Optional<IntSize>)
 {
     if (index >= frame_count())

@@ -248,11 +248,6 @@ size_t JPEGXLImageDecoderPlugin::frame_count()
     return m_context->frame_count();
 }
 
-size_t JPEGXLImageDecoderPlugin::first_animated_frame_index()
-{
-    return 0;
-}
-
 ErrorOr<ImageFrameDescriptor> JPEGXLImageDecoderPlugin::frame(size_t index, Optional<IntSize>)
 {
     if (m_context->state() == JPEGXLLoadingContext::State::Error)

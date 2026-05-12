@@ -237,11 +237,6 @@ size_t WebPImageDecoderPlugin::frame_count()
     return m_context->frame_count;
 }
 
-size_t WebPImageDecoderPlugin::first_animated_frame_index()
-{
-    return 0;
-}
-
 ErrorOr<ImageFrameDescriptor> WebPImageDecoderPlugin::frame(size_t index, Optional<IntSize>)
 {
     if (index >= frame_count())

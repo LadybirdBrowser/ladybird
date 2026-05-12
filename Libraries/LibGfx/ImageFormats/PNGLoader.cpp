@@ -79,11 +79,6 @@ PNGImageDecoderPlugin::PNGImageDecoderPlugin(ReadonlyBytes data)
     m_context->data = data;
 }
 
-size_t PNGImageDecoderPlugin::first_animated_frame_index()
-{
-    return 0;
-}
-
 IntSize PNGImageDecoderPlugin::size()
 {
     return m_context->size;
