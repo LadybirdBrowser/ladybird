@@ -74,7 +74,6 @@ public:
     float width(Utf16View const&) const;
     FlyString const& family() const { return m_typeface->family(); }
 
-    NonnullRefPtr<Font> scaled_with_size(float point_size) const;
     NonnullRefPtr<Font> with_size(float point_size) const;
 
     Typeface const& typeface() const { return m_typeface; }
