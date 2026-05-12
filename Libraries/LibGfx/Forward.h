@@ -33,9 +33,6 @@ class SkiaBackendContext;
 struct SystemTheme;
 
 template<typename T>
-class Triangle;
-
-template<typename T>
 class Point;
 
 template<typename T>

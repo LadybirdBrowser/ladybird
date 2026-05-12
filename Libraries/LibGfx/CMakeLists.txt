@@ -57,7 +57,6 @@ set(SOURCES
     SkiaUtils.cpp
     SystemTheme.cpp
     TextLayout.cpp
-    Triangle.cpp
     VectorGraphic.cpp
     YUVData.cpp
 )
