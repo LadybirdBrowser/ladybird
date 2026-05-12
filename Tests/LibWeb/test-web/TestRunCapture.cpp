@@ -12,9 +12,14 @@
 #include <AK/LexicalPath.h>
 #include <LibCore/System.h>
 
+#if !defined(AK_OS_WINDOWS)
+#    include <sys/wait.h>
+#endif
+
 namespace TestWeb {
 
 static ByteString format_elapsed_time(UnixDateTime run_start_time);
+static ByteString format_exit_status(Optional<int> exit_status);
 static void setup_capture_notifier(RefPtr<Core::Notifier>& notifier, int fd, bool drain_available, Function<void(StringView)> on_output);
 static bool drain_capture_output(int fd, bool drain_available, Function<void(StringView)> const& on_output);
 
@@ -30,6 +35,7 @@ TestRunCapture::TestRunCapture()
     };
     m_previous_on_process_exited = move(process_manager.on_process_exited);
     process_manager.on_process_exited = [this](WebView::Process&& process, Optional<int> exit_status) {
+        outln("test-web: observed {} process {} exit: {}", WebView::process_name_from_type(process.type()), process.pid(), format_exit_status(exit_status));
         consume_helper_capture(process.pid());
         m_previous_on_process_exited(move(process), exit_status);
     };
@@ -100,6 +106,24 @@ void TestRunCapture::log_helper_message(HelperOutputSource source, int tee_fd, S
     }
 
     m_helper_output.write(message);
+}
+
+static ByteString format_exit_status(Optional<int> exit_status)
+{
+    if (!exit_status.has_value())
+        return "unknown status"sv;
+
+#if defined(AK_OS_WINDOWS)
+    return ByteString::formatted("status {}", *exit_status);
+#else
+    if (WIFEXITED(*exit_status))
+        return ByteString::formatted("status {}", WEXITSTATUS(*exit_status));
+    if (WIFSIGNALED(*exit_status))
+        return ByteString::formatted("signal {}", WTERMSIG(*exit_status));
+    if (WIFSTOPPED(*exit_status))
+        return ByteString::formatted("stopped by signal {}", WSTOPSIG(*exit_status));
+    return ByteString::formatted("raw wait status {}", *exit_status);
+#endif
 }
 
 void TestRunCapture::setup_output_capture_for_view(TestWebView& view, ViewOutputCapture& view_capture)

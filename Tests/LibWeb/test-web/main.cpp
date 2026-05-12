@@ -52,6 +52,7 @@ namespace TestWeb {
 
 static Vector<ViewDisplayState> s_view_display_states;
 static Vector<Function<void()>> s_view_run_next_test;
+static HashMap<WebView::ViewImplementation const*, size_t> s_view_index_by_view;
 
 static RefPtr<Core::Promise<Empty>> s_all_tests_complete;
 static Vector<ByteString> s_skipped_tests;
@@ -201,6 +202,33 @@ static ErrorOr<void> collect_ref_tests(Application const& app, Vector<Test>& tes
     }
 
     return {};
+}
+
+static void log_active_test_views(StringView reason)
+{
+    outln();
+    outln("test-web: {}", reason);
+    outln("test-web: active views:");
+
+    auto now = UnixDateTime::now();
+    WebView::ViewImplementation::for_each_view([&](WebView::ViewImplementation const& view) {
+        pid_t pid = 0;
+        if (auto view_index = s_view_index_by_view.get(&view); view_index.has_value() && *view_index < s_view_display_states.size())
+            pid = s_view_display_states[*view_index].pid;
+
+        out("  - View {} (pid {}): ", view.view_id(), pid);
+
+        auto maybe_index = s_current_test_index_by_view.get(&view);
+        if (maybe_index.has_value() && s_run_context) {
+            auto const& test = s_run_context->tests[*maybe_index];
+            outln("{} (duration: {})", test.relative_path, human_readable_time(now - test.start_time));
+        } else {
+            outln("{} (no active test)", view.url());
+        }
+
+        return IterationDecision::Continue;
+    });
+    outln();
 }
 
 static ErrorOr<void> collect_screenshot_tests(Application const& app, Vector<Test>& tests, StringView path, StringView trail)
@@ -1194,6 +1222,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     for (auto [i, view] : enumerate(views)) {
         s_view_display_states[i].pid = view->web_content_pid();
         s_view_display_states[i].active = false;
+        s_view_index_by_view.set(view.ptr(), i);
     }
 
     display.begin_run();
@@ -1342,6 +1371,12 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     auto result_or_rejection
         = s_all_tests_complete->await();
     display.clear_live_display();
+
+    if (result_or_rejection.is_error())
+        log_active_test_views(ByteString::formatted("test run stopped early: {}", result_or_rejection.error()));
+    else if (tests_remaining > 0)
+        log_active_test_views(ByteString::formatted("event loop stopped with {} unfinished tests", tests_remaining));
+
     display.print_run_complete(tests, non_passing_tests, result_or_rejection.is_error() ? tests_remaining : 0);
 
     if (app.dump_gc_graph) {
@@ -1370,37 +1405,28 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
 static void handle_signal(int signal)
 {
-    VERIFY(signal == SIGINT || signal == SIGTERM);
-
     // Quit our event loop. This makes `::exec()` return as soon as possible, and signals to WebView::Application that
     // we should no longer automatically restart processes in `::process_did_exit()`.
     Core::EventLoop::current().quit(0);
 
-    // Report current view statuses
-    dbgln();
-    dbgln("{} received. Active test views:", signal == SIGINT ? "SIGINT"sv : "SIGTERM"sv);
-    dbgln();
+    StringView signal_name = "signal received"sv;
+    if (signal == SIGINT)
+        signal_name = "SIGINT received"sv;
+    else if (signal == SIGTERM)
+        signal_name = "SIGTERM received"sv;
 
-    auto now = UnixDateTime::now();
-    WebView::ViewImplementation::for_each_view([&](WebView::ViewImplementation const& view) {
-        dbg("- View {}: ", view.view_id());
-
-        auto maybe_index = s_current_test_index_by_view.get(&view);
-        if (maybe_index.has_value() && s_run_context) {
-            auto const& test = s_run_context->tests[*maybe_index];
-            dbgln("{} (duration: {})", test.relative_path, human_readable_time(now - test.start_time));
-        } else {
-            dbgln("{} (no active test)", view.url());
-        }
-
-        return IterationDecision::Continue;
-    });
-    dbgln();
+    if (signal == SIGINT || signal == SIGTERM)
+        log_active_test_views(signal_name);
+    else
+        log_active_test_views(ByteString::formatted("signal {} received", signal));
 
     // Stop running tests
-    s_all_tests_complete->reject(signal == SIGINT
-            ? Error::from_string_view("SIGINT received"sv)
-            : Error::from_string_view("SIGTERM received"sv));
+    if (signal == SIGINT)
+        s_all_tests_complete->reject(Error::from_string_view("SIGINT received"sv));
+    else if (signal == SIGTERM)
+        s_all_tests_complete->reject(Error::from_string_view("SIGTERM received"sv));
+    else
+        s_all_tests_complete->reject(Error::from_string_literal("Unexpected signal received"));
 }
 
 }
