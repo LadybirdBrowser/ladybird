@@ -173,29 +173,6 @@ private:
 // The following paint styles implement the gradients required for SVGs
 
 class SVGGradientPaintStyle : public GradientPaintStyle {
-public:
-    void set_gradient_transform(Gfx::AffineTransform transform);
-
-    enum class SpreadMethod {
-        Pad,
-        Repeat,
-        Reflect
-    };
-
-    void set_spread_method(SpreadMethod spread_method)
-    {
-        m_spread_method = spread_method;
-    }
-
-protected:
-    Optional<AffineTransform> const& scale_adjusted_inverse_gradient_transform() const { return m_inverse_transform; }
-    float gradient_transform_scale() const { return m_scale; }
-    SpreadMethod spread_method() const { return m_spread_method; }
-
-private:
-    Optional<AffineTransform> m_inverse_transform {};
-    float m_scale = 1.0f;
-    SpreadMethod m_spread_method { SpreadMethod::Pad };
 };
 
 class SVGLinearGradientPaintStyle : public SVGGradientPaintStyle {
