@@ -126,11 +126,6 @@ ByteString Color::to_byte_string() const
     return to_string().to_byte_string();
 }
 
-ByteString Color::to_byte_string_without_alpha() const
-{
-    return to_string_without_alpha().to_byte_string();
-}
-
 static Optional<Color> parse_rgb_color(StringView string)
 {
     VERIFY(string.starts_with("rgb("sv, CaseSensitivity::CaseInsensitive));
