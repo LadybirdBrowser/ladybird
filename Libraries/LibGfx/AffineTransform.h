@@ -52,8 +52,6 @@ public:
     template<Arithmetic T>
     Rect<T> map(Rect<T> const&) const;
 
-    Quad<float> map_to_quad(Rect<float> const&) const;
-
     [[nodiscard]] ALWAYS_INLINE float a() const { return m_values[0]; }
     [[nodiscard]] ALWAYS_INLINE float b() const { return m_values[1]; }
     [[nodiscard]] ALWAYS_INLINE float c() const { return m_values[2]; }
