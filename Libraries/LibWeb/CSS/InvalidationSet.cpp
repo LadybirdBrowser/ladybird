@@ -4,12 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/QuickSort.h>
 #include <LibWeb/CSS/InvalidationSet.h>
 
 namespace Web::CSS {
 
 bool InvalidationSet::operator==(InvalidationSet const& other) const
 {
+    if (hash() != other.hash())
+        return false;
     if (m_needs_invalidate_self != other.m_needs_invalidate_self)
         return false;
     if (m_needs_invalidate_whole_subtree != other.m_needs_invalidate_whole_subtree)
@@ -30,6 +33,7 @@ void InvalidationSet::include_all_from(InvalidationSet const& other)
     m_needs_invalidate_whole_subtree |= other.m_needs_invalidate_whole_subtree;
     for (auto const& property : other.m_properties)
         m_properties.set(property);
+    m_hash = {};
 }
 
 bool InvalidationSet::is_empty() const
@@ -51,6 +55,28 @@ void InvalidationSet::for_each_property(Function<IterationDecision(Property cons
         if (callback(property) == IterationDecision::Break)
             return;
     }
+}
+
+u32 InvalidationSet::hash() const
+{
+    if (m_hash.has_value())
+        return *m_hash;
+
+    u32 hash = 0;
+    hash = pair_int_hash(hash, m_needs_invalidate_self);
+    hash = pair_int_hash(hash, m_needs_invalidate_whole_subtree);
+
+    Vector<u32> property_hashes;
+    property_hashes.ensure_capacity(m_properties.size());
+    for (auto const& property : m_properties)
+        property_hashes.unchecked_append(AK::Traits<Property>::hash(property));
+    quick_sort(property_hashes);
+
+    for (auto property_hash : property_hashes)
+        hash = pair_int_hash(hash, property_hash);
+
+    m_hash = hash;
+    return hash;
 }
 
 }
