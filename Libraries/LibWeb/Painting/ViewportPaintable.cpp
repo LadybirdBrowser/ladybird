@@ -631,7 +631,7 @@ void ViewportPaintable::recompute_selection_states(DOM::Range& range)
     }
 }
 
-bool ViewportPaintable::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, int, int)
+bool ViewportPaintable::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, double, double)
 {
     return false;
 }

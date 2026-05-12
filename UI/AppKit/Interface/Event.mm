@@ -46,22 +46,19 @@ Web::MouseEvent ns_event_to_mouse_event(Web::MouseEvent::Type type, NSEvent* eve
 
     auto modifiers = ns_modifiers_to_key_modifiers(event.modifierFlags);
 
-    int wheel_delta_x = 0;
-    int wheel_delta_y = 0;
+    double wheel_delta_x = 0;
+    double wheel_delta_y = 0;
 
     if (type == Web::MouseEvent::Type::MouseWheel) {
-        CGFloat delta_x = -[event scrollingDeltaX];
-        CGFloat delta_y = -[event scrollingDeltaY];
+        wheel_delta_x = -[event scrollingDeltaX];
+        wheel_delta_y = -[event scrollingDeltaY];
 
         if (![event hasPreciseScrollingDeltas]) {
-            static constexpr CGFloat imprecise_scroll_multiplier = 40;
+            static constexpr double imprecise_scroll_multiplier = 40;
 
-            delta_x *= imprecise_scroll_multiplier;
-            delta_y *= imprecise_scroll_multiplier;
+            wheel_delta_x *= imprecise_scroll_multiplier;
+            wheel_delta_y *= imprecise_scroll_multiplier;
         }
-
-        wheel_delta_x = static_cast<int>(delta_x);
-        wheel_delta_y = static_cast<int>(delta_y);
     }
 
     int click_count = 0;

@@ -601,7 +601,7 @@ RefPtr<Painting::PaintableBox const> EventHandler::paint_root() const
     return m_navigable->active_document()->paintable_box();
 }
 
-EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, int wheel_delta_x, int wheel_delta_y, bool async_scroll_performed_default_action)
+EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, double wheel_delta_x, double wheel_delta_y, bool async_scroll_performed_default_action)
 {
     if (should_ignore_device_input_event())
         return EventResult::Dropped;
@@ -713,7 +713,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
                     handled_event = EventResult::Handled;
                 } else if (could_scroll_viewport) {
                     auto viewport_scroll_position_before = CSSPixelPoint { CSSPixels(document->visual_viewport()->page_left()), CSSPixels(document->visual_viewport()->page_top()) };
-                    m_navigable->scroll_viewport_by_delta({ wheel_delta_x, wheel_delta_y });
+                    m_navigable->scroll_viewport_by_delta({ CSSPixels::nearest_value_for(wheel_delta_x), CSSPixels::nearest_value_for(wheel_delta_y) });
                     auto viewport_scroll_position_after = CSSPixelPoint { CSSPixels(document->visual_viewport()->page_left()), CSSPixels(document->visual_viewport()->page_top()) };
                     handled_event = viewport_scroll_position_before != viewport_scroll_position_after ? EventResult::Handled : EventResult::Accepted;
                 } else {

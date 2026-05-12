@@ -164,20 +164,20 @@ static gboolean on_scroll(GtkEventControllerScroll* controller, gdouble dx, gdou
 
     auto device_pixel_ratio = self->impl->device_pixel_ratio();
 
-    int wheel_delta_x = 0;
-    int wheel_delta_y = 0;
+    double wheel_delta_x = 0;
+    double wheel_delta_y = 0;
 
     auto* gdk_event = gtk_event_controller_get_current_event(GTK_EVENT_CONTROLLER(controller));
     auto unit = gdk_scroll_event_get_unit(gdk_event);
 
     if (unit == GDK_SCROLL_UNIT_SURFACE) {
-        wheel_delta_x = static_cast<int>(dx * device_pixel_ratio);
-        wheel_delta_y = static_cast<int>(dy * device_pixel_ratio);
+        wheel_delta_x = dx * device_pixel_ratio;
+        wheel_delta_y = dy * device_pixel_ratio;
     } else {
         static constexpr double scroll_lines = 3.0;
         static constexpr double scroll_step_size = 40.0;
-        wheel_delta_x = static_cast<int>(dx * scroll_lines * scroll_step_size * device_pixel_ratio);
-        wheel_delta_y = static_cast<int>(dy * scroll_lines * scroll_step_size * device_pixel_ratio);
+        wheel_delta_x = dx * scroll_lines * scroll_step_size * device_pixel_ratio;
+        wheel_delta_y = dy * scroll_lines * scroll_step_size * device_pixel_ratio;
     }
 
     // GDK scroll events on Wayland do not carry reliable pointer coordinates, so we

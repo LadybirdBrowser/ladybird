@@ -808,8 +808,8 @@ void WebContentView::enqueue_native_event(Web::MouseEvent::Type type, QSinglePoi
         return;
     }
 
-    int wheel_delta_x = 0;
-    int wheel_delta_y = 0;
+    double wheel_delta_x = 0;
+    double wheel_delta_y = 0;
 
     if (type == Web::MouseEvent::Type::MouseWheel) {
         auto const& wheel_event = static_cast<QWheelEvent const&>(event);
@@ -819,15 +819,15 @@ void WebContentView::enqueue_native_event(Web::MouseEvent::Type type, QSinglePoi
             wheel_delta_y = pixel_delta.y();
         } else {
             auto angle_delta = -wheel_event.angleDelta();
-            float delta_x = -static_cast<float>(angle_delta.x()) / 120.0f;
-            float delta_y = static_cast<float>(angle_delta.y()) / 120.0f;
+            double delta_x = -static_cast<double>(angle_delta.x()) / 120.0;
+            double delta_y = static_cast<double>(angle_delta.y()) / 120.0;
 
-            static constexpr float scroll_step_size = 40;
-            auto step_x = delta_x * static_cast<float>(QApplication::wheelScrollLines()) * m_device_pixel_ratio;
-            auto step_y = delta_y * static_cast<float>(QApplication::wheelScrollLines()) * m_device_pixel_ratio;
+            static constexpr double scroll_step_size = 40;
+            auto step_x = delta_x * static_cast<double>(QApplication::wheelScrollLines()) * m_device_pixel_ratio;
+            auto step_y = delta_y * static_cast<double>(QApplication::wheelScrollLines()) * m_device_pixel_ratio;
 
-            wheel_delta_x = static_cast<int>(step_x * scroll_step_size);
-            wheel_delta_y = static_cast<int>(step_y * scroll_step_size);
+            wheel_delta_x = step_x * scroll_step_size;
+            wheel_delta_y = step_y * scroll_step_size;
         }
     }
 

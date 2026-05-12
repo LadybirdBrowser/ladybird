@@ -253,9 +253,9 @@ PaintableBox::ScrollHandled PaintableBox::set_scroll_offset(CSSPixelPoint offset
     return ScrollHandled::Yes;
 }
 
-PaintableBox::ScrollHandled PaintableBox::scroll_by(int delta_x, int delta_y)
+PaintableBox::ScrollHandled PaintableBox::scroll_by(double delta_x, double delta_y)
 {
-    return set_scroll_offset(scroll_offset().translated(delta_x, delta_y));
+    return set_scroll_offset(scroll_offset().translated(CSSPixels::nearest_value_for(delta_x), CSSPixels::nearest_value_for(delta_y)));
 }
 
 void PaintableBox::scroll_into_view(CSSPixelRect rect)
@@ -1047,10 +1047,10 @@ NonnullRefPtr<ResizeHandle> PaintableBox::ensure_resize_handle()
     return *m_resize_handle;
 }
 
-bool PaintableBox::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, int wheel_delta_x, int wheel_delta_y)
+bool PaintableBox::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, double wheel_delta_x, double wheel_delta_y)
 {
     // if none of the axes we scrolled with can be accepted by this element, don't handle scroll.
-    if ((!wheel_delta_x || !could_be_scrolled_by_wheel_event(ScrollDirection::Horizontal)) && (!wheel_delta_y || !could_be_scrolled_by_wheel_event(ScrollDirection::Vertical))) {
+    if ((wheel_delta_x == 0 || !could_be_scrolled_by_wheel_event(ScrollDirection::Horizontal)) && (wheel_delta_y == 0 || !could_be_scrolled_by_wheel_event(ScrollDirection::Vertical))) {
         return false;
     }
 

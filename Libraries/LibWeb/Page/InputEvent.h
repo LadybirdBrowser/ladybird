@@ -57,8 +57,8 @@ struct WEB_API MouseEvent {
     UIEvents::MouseButton button { UIEvents::MouseButton::None };
     UIEvents::MouseButton buttons { UIEvents::MouseButton::None };
     UIEvents::KeyModifier modifiers { UIEvents::KeyModifier::Mod_None };
-    int wheel_delta_x { 0 };
-    int wheel_delta_y { 0 };
+    double wheel_delta_x { 0 };
+    double wheel_delta_y { 0 };
     int click_count { 0 };
 
     OwnPtr<BrowserInputData> browser_data;

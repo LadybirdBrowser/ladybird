@@ -78,7 +78,7 @@ public:
 
     CSSPixelPoint scroll_offset() const;
     ScrollHandled set_scroll_offset(CSSPixelPoint);
-    ScrollHandled scroll_by(int delta_x, int delta_y);
+    ScrollHandled scroll_by(double delta_x, double delta_y);
     void scroll_into_view(CSSPixelRect);
 
     void set_offset(CSSPixelPoint);
@@ -156,7 +156,7 @@ public:
     [[nodiscard]] virtual TraversalDecision hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const override;
     Optional<HitTestResult> hit_test(CSSPixelPoint, HitTestType) const;
 
-    virtual bool handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned buttons, unsigned modifiers, int wheel_delta_x, int wheel_delta_y) override;
+    virtual bool handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y) override;
 
     struct ScrollbarData {
         CSSPixelRect gutter_rect;

@@ -76,8 +76,8 @@ ErrorOr<Web::MouseEvent> IPC::decode(Decoder& decoder)
     auto button = TRY(decoder.decode<Web::UIEvents::MouseButton>());
     auto buttons = TRY(decoder.decode<Web::UIEvents::MouseButton>());
     auto modifiers = TRY(decoder.decode<Web::UIEvents::KeyModifier>());
-    auto wheel_delta_x = TRY(decoder.decode<int>());
-    auto wheel_delta_y = TRY(decoder.decode<int>());
+    auto wheel_delta_x = TRY(decoder.decode<double>());
+    auto wheel_delta_y = TRY(decoder.decode<double>());
     auto click_count = TRY(decoder.decode<int>());
     auto async_scroll_performed_default_action = TRY(decoder.decode<bool>());
 

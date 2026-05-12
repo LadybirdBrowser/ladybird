@@ -113,7 +113,7 @@ GC::Ptr<HTML::Navigable> Paintable::navigable() const
     return document().navigable();
 }
 
-bool Paintable::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, int, int)
+bool Paintable::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, double, double)
 {
     return false;
 }
