@@ -23,6 +23,7 @@
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/Queue.h>
+#include <AK/Time.h>
 
 #ifdef USE_VULKAN_DMABUF_IMAGES
 #    include <AK/Array.h>
@@ -135,25 +136,56 @@ static Optional<size_t> find_viewport_scrollbar_index(ReadonlySpan<ViewportScrol
     return {};
 }
 
-static Gfx::IntRect translated_thumb_rect(ViewportScrollbar const& scrollbar, Painting::ScrollStateSnapshot const& scroll_state_snapshot)
+static Gfx::IntRect scrollbar_gutter_rect(ViewportScrollbar const& scrollbar, bool expanded)
 {
-    auto thumb_rect = scrollbar.thumb_rect;
+    return expanded ? scrollbar.expanded_gutter_rect : scrollbar.gutter_rect;
+}
+
+static double scrollbar_scroll_size(ViewportScrollbar const& scrollbar, bool expanded)
+{
+    return expanded ? scrollbar.expanded_scroll_size : scrollbar.scroll_size;
+}
+
+static Gfx::IntRect translated_thumb_rect(ViewportScrollbar const& scrollbar, Painting::ScrollStateSnapshot const& scroll_state_snapshot, bool expanded)
+{
+    auto thumb_rect = expanded ? scrollbar.expanded_thumb_rect : scrollbar.thumb_rect;
+    auto scroll_size = scrollbar_scroll_size(scrollbar, expanded);
     auto device_offset = scroll_state_snapshot.device_offset_for_index(scrollbar.scroll_frame_index);
     if (scrollbar.vertical)
-        thumb_rect.translate_by(0, static_cast<int>(-device_offset.y() * scrollbar.scroll_size));
+        thumb_rect.translate_by(0, static_cast<int>(-device_offset.y() * scroll_size));
     else
-        thumb_rect.translate_by(static_cast<int>(-device_offset.x() * scrollbar.scroll_size), 0);
+        thumb_rect.translate_by(static_cast<int>(-device_offset.x() * scroll_size), 0);
     return thumb_rect;
 }
 
-static void paint_viewport_scrollbar(Gfx::PaintingSurface& surface, ViewportScrollbar const& scrollbar, Painting::ScrollStateSnapshot const& scroll_state_snapshot)
+static Gfx::IntRect translated_thumb_rect(ViewportScrollbar const& scrollbar, Gfx::FloatPoint scroll_offset, bool expanded)
 {
-    auto thumb_rect = translated_thumb_rect(scrollbar, scroll_state_snapshot);
+    auto orientation = orientation_for_scrollbar(scrollbar);
+    auto thumb_rect = expanded ? scrollbar.expanded_thumb_rect : scrollbar.thumb_rect;
+    thumb_rect.translate_primary_offset_for_orientation(orientation, static_cast<int>(scroll_offset.primary_offset_for_orientation(orientation) * scrollbar_scroll_size(scrollbar, expanded)));
+    return thumb_rect;
+}
+
+static Gfx::IntRect scrollbar_hit_rect(ViewportScrollbar const& scrollbar, Gfx::FloatPoint scroll_offset)
+{
+    static constexpr int scrollbar_hit_slop = 4;
+
+    auto rect = translated_thumb_rect(scrollbar, scroll_offset, false).united(translated_thumb_rect(scrollbar, scroll_offset, true));
+    auto expanded_gutter_rect = scrollbar_gutter_rect(scrollbar, true);
+    if (!expanded_gutter_rect.is_empty())
+        rect.unite(expanded_gutter_rect);
+    rect.inflate(scrollbar_hit_slop, scrollbar_hit_slop);
+    return rect;
+}
+
+static void paint_viewport_scrollbar(Gfx::PaintingSurface& surface, ViewportScrollbar const& scrollbar, Painting::ScrollStateSnapshot const& scroll_state_snapshot, bool expanded)
+{
+    auto thumb_rect = translated_thumb_rect(scrollbar, scroll_state_snapshot, expanded);
     auto& canvas = surface.canvas();
 
     SkPaint gutter_fill_paint;
     gutter_fill_paint.setColor(to_skia_color(scrollbar.track_color));
-    canvas.drawRect(to_skia_rect(scrollbar.gutter_rect), gutter_fill_paint);
+    canvas.drawRect(to_skia_rect(scrollbar_gutter_rect(scrollbar, expanded)), gutter_fill_paint);
 
     auto skia_thumb_rect = to_skia_rect(thumb_rect);
     auto radius = skia_thumb_rect.width() / 2;
@@ -171,10 +203,10 @@ static void paint_viewport_scrollbar(Gfx::PaintingSurface& surface, ViewportScro
     canvas.drawRRect(thumb_rrect, stroke_paint);
 }
 
-static void paint_viewport_scrollbars(Gfx::PaintingSurface& surface, ReadonlySpan<ViewportScrollbar> scrollbars, Painting::ScrollStateSnapshot const& scroll_state_snapshot)
+static void paint_viewport_scrollbars(Gfx::PaintingSurface& surface, ReadonlySpan<ViewportScrollbar> scrollbars, Painting::ScrollStateSnapshot const& scroll_state_snapshot, Optional<size_t> hovered_scrollbar_index, Optional<size_t> captured_scrollbar_index)
 {
-    for (auto const& scrollbar : scrollbars)
-        paint_viewport_scrollbar(surface, scrollbar, scroll_state_snapshot);
+    for (size_t i = 0; i < scrollbars.size(); ++i)
+        paint_viewport_scrollbar(surface, scrollbars[i], scroll_state_snapshot, hovered_scrollbar_index == i || captured_scrollbar_index == i);
 }
 
 static void flush_surface(Gfx::PaintingSurface& surface)
@@ -447,14 +479,7 @@ public:
             if (!scroll_offset.has_value())
                 continue;
 
-            auto thumb_rect = scrollbar.thumb_rect;
-            if (scrollbar.vertical)
-                thumb_rect.translate_by(0, static_cast<int>(scroll_offset->y() * scrollbar.scroll_size));
-            else
-                thumb_rect.translate_by(static_cast<int>(scroll_offset->x() * scrollbar.scroll_size), 0);
-            if (thumb_rect.to_type<float>().contains(position))
-                return i;
-            if (!scrollbar.gutter_rect.is_empty() && scrollbar.gutter_rect.to_type<float>().contains(position))
+            if (scrollbar_hit_rect(scrollbar, *scroll_offset).to_type<float>().contains(position))
                 return i;
         }
         return {};
@@ -486,19 +511,20 @@ public:
                     if (!scroll_offset.has_value())
                         continue;
 
+                    auto expanded = m_hovered_viewport_scrollbar_index == i || m_captured_viewport_scrollbar_index == i;
                     auto orientation = orientation_for_scrollbar(scrollbar);
-                    auto thumb_rect = scrollbar.thumb_rect;
-                    thumb_rect.translate_primary_offset_for_orientation(orientation, static_cast<int>(scroll_offset->primary_offset_for_orientation(orientation) * scrollbar.scroll_size));
+                    auto thumb_rect = translated_thumb_rect(scrollbar, *scroll_offset, expanded);
                     primary_position = primary_position_for_scrollbar(scrollbar);
                     if (thumb_rect.to_type<float>().contains(position)) {
                         thumb_grab_position = primary_position - static_cast<float>(thumb_rect.primary_offset_for_orientation(orientation));
                         scrollbar_index = i;
                         break;
                     }
-                    if (!scrollbar.gutter_rect.is_empty() && scrollbar.gutter_rect.to_type<float>().contains(position)) {
+                    if (scrollbar_hit_rect(scrollbar, *scroll_offset).to_type<float>().contains(position)) {
+                        auto gutter_rect = scrollbar_gutter_rect(scrollbar, true);
                         auto thumb_size = static_cast<float>(thumb_rect.primary_size_for_orientation(orientation));
-                        auto gutter_start = static_cast<float>(scrollbar.gutter_rect.primary_offset_for_orientation(orientation));
-                        auto gutter_size = static_cast<float>(scrollbar.gutter_rect.primary_size_for_orientation(orientation));
+                        auto gutter_start = static_cast<float>(gutter_rect.primary_offset_for_orientation(orientation));
+                        auto gutter_size = static_cast<float>(gutter_rect.primary_size_for_orientation(orientation));
                         auto offset_relative_to_gutter = primary_position - gutter_start;
                         thumb_grab_position = max(min(offset_relative_to_gutter, thumb_size / 2), offset_relative_to_gutter - gutter_size + thumb_size);
                         scrollbar_index = i;
@@ -510,9 +536,11 @@ public:
                     return false;
 
                 m_captured_viewport_scrollbar_index = *scrollbar_index;
+                m_hovered_viewport_scrollbar_index = *scrollbar_index;
                 m_viewport_scrollbar_thumb_grab_position = thumb_grab_position;
             }
 
+            schedule_viewport_scrollbar_present();
             enqueue_command(ViewportScrollbarDragCommand { *scrollbar_index, primary_position, thumb_grab_position });
             return true;
         }
@@ -536,7 +564,9 @@ public:
                 enqueue_command(ViewportScrollbarDragCommand { *scrollbar_index, primary_position, thumb_grab_position });
                 return true;
             }
-            return hit_test_viewport_scrollbar(position).has_value();
+            auto hovered_scrollbar_index = hit_test_viewport_scrollbar(position);
+            set_hovered_viewport_scrollbar(hovered_scrollbar_index);
+            return hovered_scrollbar_index.has_value();
         }
         case MouseEvent::Type::MouseUp: {
             Optional<size_t> scrollbar_index;
@@ -555,12 +585,17 @@ public:
                 primary_position = primary_position_for_scrollbar(m_viewport_scrollbars[*scrollbar_index]);
                 m_captured_viewport_scrollbar_index.clear();
             }
+            schedule_viewport_scrollbar_present();
             enqueue_command(ViewportScrollbarDragCommand { *scrollbar_index, primary_position, thumb_grab_position });
             return true;
         }
         case MouseEvent::Type::MouseLeave: {
-            Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
-            return m_captured_viewport_scrollbar_index.has_value();
+            auto has_capture = [this] {
+                Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
+                return m_captured_viewport_scrollbar_index.has_value();
+            }();
+            set_hovered_viewport_scrollbar({});
+            return has_capture;
         }
         case MouseEvent::Type::MouseWheel:
             return false;
@@ -632,8 +667,10 @@ public:
 
                             {
                                 Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
+                                auto hovered_scrollbar_identity = viewport_scrollbar_identity_at(m_viewport_scrollbars, m_hovered_viewport_scrollbar_index);
                                 auto captured_scrollbar_identity = viewport_scrollbar_identity_at(m_viewport_scrollbars, m_captured_viewport_scrollbar_index);
                                 m_viewport_scrollbars = move(async_scrolling_state.viewport_scrollbars);
+                                m_hovered_viewport_scrollbar_index = hovered_scrollbar_identity.has_value() ? find_viewport_scrollbar_index(m_viewport_scrollbars, *hovered_scrollbar_identity) : Optional<size_t> {};
                                 m_captured_viewport_scrollbar_index = captured_scrollbar_identity.has_value() ? find_viewport_scrollbar_index(m_viewport_scrollbars, *captured_scrollbar_identity) : Optional<size_t> {};
                                 m_async_scroll_tree.set_state(move(async_scrolling_state));
                                 if (viewport_node.has_value() && pending_async_viewport_scroll_offset.has_value()) {
@@ -653,6 +690,7 @@ public:
                             {
                                 Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
                                 m_viewport_scrollbars.clear();
+                                m_hovered_viewport_scrollbar_index.clear();
                                 m_captured_viewport_scrollbar_index.clear();
                                 m_async_scroll_tree.clear_wheel_scroll_targets();
                             }
@@ -745,7 +783,7 @@ public:
                         if (!m_cached_display_list)
                             return;
                         m_skia_player->execute(*m_cached_display_list, m_cached_scroll_state_snapshot, *cmd.target_surface);
-                        paint_viewport_scrollbars(*cmd.target_surface, m_viewport_scrollbars, m_cached_scroll_state_snapshot);
+                        paint_viewport_scrollbar_overlay(*cmd.target_surface);
                         flush_surface(*cmd.target_surface);
                         if (cmd.callback) {
                             invoke_on_main_thread([callback = move(cmd.callback)]() mutable {
@@ -804,6 +842,46 @@ private:
         AsyncScroll,
     };
 
+    void paint_viewport_scrollbar_overlay(Gfx::PaintingSurface& surface)
+    {
+        Vector<ViewportScrollbar> scrollbars;
+        Optional<size_t> hovered_scrollbar_index;
+        Optional<size_t> captured_scrollbar_index;
+        {
+            Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
+            scrollbars = m_viewport_scrollbars;
+            hovered_scrollbar_index = m_hovered_viewport_scrollbar_index;
+            captured_scrollbar_index = m_captured_viewport_scrollbar_index;
+        }
+        if (!hovered_scrollbar_index.has_value() && !captured_scrollbar_index.has_value())
+            return;
+        paint_viewport_scrollbars(surface, scrollbars, m_cached_scroll_state_snapshot, hovered_scrollbar_index, captured_scrollbar_index);
+    }
+
+    void schedule_viewport_scrollbar_present()
+    {
+        Sync::MutexLocker const locker { m_mutex };
+        if (m_async_scrolling_viewport_rect.is_empty())
+            return;
+        m_has_deferred_async_scroll_present = true;
+        m_deferred_async_scroll_present_viewport_rect = m_async_scrolling_viewport_rect;
+        m_command_ready.signal();
+    }
+
+    void set_hovered_viewport_scrollbar(Optional<size_t> scrollbar_index)
+    {
+        bool changed = false;
+        {
+            Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
+            if (m_hovered_viewport_scrollbar_index == scrollbar_index)
+                return;
+            changed = true;
+            m_hovered_viewport_scrollbar_index = scrollbar_index;
+        }
+        if (changed)
+            schedule_viewport_scrollbar_present();
+    }
+
     bool apply_viewport_scrollbar_drag(size_t scrollbar_index, float primary_position, float thumb_grab_position)
     {
         Optional<Gfx::FloatPoint> scroll_offset;
@@ -813,7 +891,9 @@ private:
                 return false;
 
             auto const& scrollbar = m_viewport_scrollbars[scrollbar_index];
-            if (scrollbar.scroll_size == 0)
+            auto expanded = m_hovered_viewport_scrollbar_index == scrollbar_index || m_captured_viewport_scrollbar_index == scrollbar_index;
+            auto scroll_size = scrollbar_scroll_size(scrollbar, expanded);
+            if (scroll_size == 0)
                 return false;
 
             auto current_scroll_offset = m_async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id);
@@ -821,10 +901,11 @@ private:
                 return false;
 
             auto orientation = orientation_for_scrollbar(scrollbar);
-            auto min_thumb_position = static_cast<float>(scrollbar.thumb_rect.primary_offset_for_orientation(orientation));
-            auto max_thumb_position = min_thumb_position + scrollbar.max_scroll_offset * static_cast<float>(scrollbar.scroll_size);
+            auto thumb_rect = expanded ? scrollbar.expanded_thumb_rect : scrollbar.thumb_rect;
+            auto min_thumb_position = static_cast<float>(thumb_rect.primary_offset_for_orientation(orientation));
+            auto max_thumb_position = min_thumb_position + scrollbar.max_scroll_offset * static_cast<float>(scroll_size);
             auto target_thumb_position = AK::clamp(primary_position - thumb_grab_position, min_thumb_position, max_thumb_position);
-            auto target_scroll_offset = (target_thumb_position - min_thumb_position) / static_cast<float>(scrollbar.scroll_size);
+            auto target_scroll_offset = (target_thumb_position - min_thumb_position) / static_cast<float>(scroll_size);
 
             Gfx::FloatPoint delta;
             delta.set_primary_offset_for_orientation(orientation, target_scroll_offset - current_scroll_offset->primary_offset_for_orientation(orientation));
@@ -901,7 +982,7 @@ private:
                 m_backing_stores.back_store->canvas().clear(SK_ColorTRANSPARENT);
             }
             m_skia_player->execute(*m_cached_display_list, m_cached_scroll_state_snapshot, *m_backing_stores.back_store);
-            paint_viewport_scrollbars(*m_backing_stores.back_store, m_viewport_scrollbars, m_cached_scroll_state_snapshot);
+            paint_viewport_scrollbar_overlay(*m_backing_stores.back_store);
             flush_surface(*m_backing_stores.back_store);
             i32 rendered_bitmap_id = m_backing_stores.back_bitmap_id;
             m_backing_stores.swap();
@@ -1024,6 +1105,7 @@ private:
     RefPtr<Painting::DisplayList> m_cached_display_list;
     Painting::ScrollStateSnapshot m_cached_scroll_state_snapshot;
     Vector<ViewportScrollbar> m_viewport_scrollbars;
+    Optional<size_t> m_hovered_viewport_scrollbar_index;
     Optional<size_t> m_captured_viewport_scrollbar_index;
     float m_viewport_scrollbar_thumb_grab_position { 0 };
     mutable Sync::Mutex m_async_scroll_tree_mutex;

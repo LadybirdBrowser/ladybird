@@ -168,11 +168,17 @@ public:
         Horizontal,
         Vertical,
     };
+    enum class ScrollbarSizing {
+        Current,
+        Regular,
+        Enlarged,
+    };
 
     Optional<ScrollbarData> compute_scrollbar_data(
         ScrollDirection direction,
         ChromeMetrics const& chrome_metrics,
-        ScrollStateSnapshot const* = nullptr) const;
+        ScrollStateSnapshot const* = nullptr,
+        ScrollbarSizing = ScrollbarSizing::Current) const;
     Optional<CSSPixelRect> absolute_scrollbar_rect(ScrollDirection direction, bool with_gutter, ChromeMetrics const& chrome_metrics) const;
 
     RefPtr<Scrollbar> scrollbar(ScrollDirection) const;

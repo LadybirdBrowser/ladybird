@@ -95,9 +95,11 @@ static void collect_viewport_scrollbar_state(AsyncScrollingState& async_scrollin
     auto metrics = paintable_box.document().page().chrome_metrics();
 
     for (auto direction : { Painting::PaintableBox::ScrollDirection::Vertical, Painting::PaintableBox::ScrollDirection::Horizontal }) {
-        auto scrollbar_data = paintable_box.compute_scrollbar_data(direction, metrics);
+        auto scrollbar_data = paintable_box.compute_scrollbar_data(direction, metrics, nullptr, Painting::PaintableBox::ScrollbarSizing::Regular);
         if (!scrollbar_data.has_value())
             continue;
+        auto expanded_scrollbar_data = paintable_box.compute_scrollbar_data(direction, metrics, nullptr, Painting::PaintableBox::ScrollbarSizing::Enlarged);
+        VERIFY(expanded_scrollbar_data.has_value());
 
         auto gutter_rect = navigable.page().css_to_device_rect(scrollbar_data->gutter_rect).to_type<int>();
         auto max_scroll_offset = css_point_to_device_point(maximum_scroll_offset_for(paintable_box), navigable.page().client().device_pixels_per_css_pixel());
@@ -111,7 +113,10 @@ static void collect_viewport_scrollbar_state(AsyncScrollingState& async_scrollin
             .scroll_frame_index = paintable_box.own_scroll_frame_index(),
             .gutter_rect = gutter_rect,
             .thumb_rect = navigable.page().css_to_device_rect(scrollbar_data->thumb_rect).to_type<int>(),
+            .expanded_gutter_rect = navigable.page().css_to_device_rect(expanded_scrollbar_data->gutter_rect).to_type<int>(),
+            .expanded_thumb_rect = navigable.page().css_to_device_rect(expanded_scrollbar_data->thumb_rect).to_type<int>(),
             .scroll_size = scrollbar_data->thumb_travel_to_scroll_ratio.to_double(),
+            .expanded_scroll_size = expanded_scrollbar_data->thumb_travel_to_scroll_ratio.to_double(),
             .max_scroll_offset = max_scroll_offset.primary_offset_for_orientation(orientation),
             .thumb_color = thumb_color,
             .track_color = scrollbar_colors.track_color,

@@ -567,7 +567,7 @@ Optional<CSSPixelRect> PaintableBox::absolute_scrollbar_rect(ScrollDirection dir
     return scrollbar_rect;
 }
 
-Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(ScrollDirection direction, ChromeMetrics const& metrics, ScrollStateSnapshot const* scroll_state_snapshot) const
+Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(ScrollDirection direction, ChromeMetrics const& metrics, ScrollStateSnapshot const* scroll_state_snapshot, ScrollbarSizing scrollbar_sizing) const
 {
     bool is_horizontal = direction == ScrollDirection::Horizontal;
     auto orientation = is_horizontal ? Gfx::Orientation::Horizontal : Gfx::Orientation::Vertical;
@@ -585,7 +585,17 @@ Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(Scrol
         return {};
 
     auto const& scrollbar = is_horizontal ? m_horizontal_scrollbar : m_vertical_scrollbar;
-    bool with_gutter = scrollbar && scrollbar->is_enlarged();
+    bool with_gutter = [&] {
+        switch (scrollbar_sizing) {
+        case ScrollbarSizing::Current:
+            return scrollbar && scrollbar->is_enlarged();
+        case ScrollbarSizing::Regular:
+            return false;
+        case ScrollbarSizing::Enlarged:
+            return true;
+        }
+        VERIFY_NOT_REACHED();
+    }();
     auto scrollbar_rect = absolute_scrollbar_rect(direction, with_gutter, metrics);
     if (!scrollbar_rect.has_value())
         return {};

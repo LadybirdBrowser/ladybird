@@ -73,7 +73,10 @@ struct ViewportScrollbar {
     Painting::ScrollFrameIndex scroll_frame_index;
     Gfx::IntRect gutter_rect;
     Gfx::IntRect thumb_rect;
+    Gfx::IntRect expanded_gutter_rect;
+    Gfx::IntRect expanded_thumb_rect;
     double scroll_size { 0 };
+    double expanded_scroll_size { 0 };
     float max_scroll_offset { 0 };
     Color thumb_color;
     Color track_color;
