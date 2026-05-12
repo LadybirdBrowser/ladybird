@@ -69,10 +69,12 @@ struct MainThreadWheelEventRegion {
 };
 
 struct ViewportScrollbar {
+    AsyncScrollNodeID scroll_node_id;
     Painting::ScrollFrameIndex scroll_frame_index;
     Gfx::IntRect gutter_rect;
     Gfx::IntRect thumb_rect;
     double scroll_size { 0 };
+    float max_scroll_offset { 0 };
     Color thumb_color;
     Color track_color;
     bool vertical { false };

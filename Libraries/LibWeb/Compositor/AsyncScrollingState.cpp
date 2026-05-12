@@ -100,15 +100,19 @@ static void collect_viewport_scrollbar_state(AsyncScrollingState& async_scrollin
             continue;
 
         auto gutter_rect = navigable.page().css_to_device_rect(scrollbar_data->gutter_rect).to_type<int>();
+        auto max_scroll_offset = css_point_to_device_point(maximum_scroll_offset_for(paintable_box), navigable.page().client().device_pixels_per_css_pixel());
+        auto orientation = direction == Painting::PaintableBox::ScrollDirection::Horizontal ? Gfx::Orientation::Horizontal : Gfx::Orientation::Vertical;
         auto thumb_color = scrollbar_colors.thumb_color;
         if (gutter_rect.is_empty() && thumb_color == CSS::InitialValues::scrollbar_color().thumb_color)
             thumb_color = thumb_color.with_alpha(128);
 
         async_scrolling_state.viewport_scrollbars.append({
+            .scroll_node_id = scroll_node_id_for(paintable_box.document().unique_id(), paintable_box.own_scroll_frame_index()),
             .scroll_frame_index = paintable_box.own_scroll_frame_index(),
             .gutter_rect = gutter_rect,
             .thumb_rect = navigable.page().css_to_device_rect(scrollbar_data->thumb_rect).to_type<int>(),
             .scroll_size = scrollbar_data->thumb_travel_to_scroll_ratio.to_double(),
+            .max_scroll_offset = max_scroll_offset.primary_offset_for_orientation(orientation),
             .thumb_color = thumb_color,
             .track_color = scrollbar_colors.track_color,
             .vertical = direction == Painting::PaintableBox::ScrollDirection::Vertical,

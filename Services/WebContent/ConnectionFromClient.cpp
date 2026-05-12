@@ -99,6 +99,13 @@ private:
         return handled;
     }
 
+    virtual Messages::CompositorServer::MouseEventResponse mouse_event(u64 page_id, Web::MouseEvent event) override
+    {
+        auto handled = Web::Compositor::CompositorThread::handle_mouse_event(page_id, event);
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor IPC mouse event for page {} returned {}", page_id, handled);
+        return handled;
+    }
+
     virtual void ready_to_paint(u64 page_id, i32 bitmap_id) override
     {
         Web::Compositor::CompositorThread::presented_bitmap_ready_to_paint(page_id, bitmap_id);

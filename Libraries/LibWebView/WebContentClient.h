@@ -21,6 +21,7 @@
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/FileFilter.h>
 #include <LibWeb/HTML/SelectItem.h>
@@ -62,6 +63,7 @@ public:
 
     void notify_all_views_of_crash();
     bool send_async_scroll_to_compositor(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels);
+    bool send_mouse_event_to_compositor(u64 page_id, Web::MouseEvent const&);
     void notify_presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_id);
     void did_present_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store);
     void did_present_bitmap(u64 page_id, Gfx::IntRect, i32 bitmap_id);

@@ -256,25 +256,30 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
     if (auto* mouse_event = event.get_pointer<Web::MouseEvent>();
         Application::web_content_options().enable_async_scrolling == EnableAsyncScrolling::Yes
         && m_client_state.has_usable_bitmap
-        && mouse_event
-        && mouse_event->type == Web::MouseEvent::Type::MouseWheel) {
-        auto wheel_delta_x = mouse_event->wheel_delta_x;
-        auto wheel_delta_y = mouse_event->wheel_delta_y;
-        if (mouse_event->modifiers & Web::UIEvents::KeyModifier::Mod_Shift)
-            swap(wheel_delta_x, wheel_delta_y);
+        && mouse_event) {
+        if (mouse_event->type == Web::MouseEvent::Type::MouseWheel) {
+            auto wheel_delta_x = mouse_event->wheel_delta_x;
+            auto wheel_delta_y = mouse_event->wheel_delta_y;
+            if (mouse_event->modifiers & Web::UIEvents::KeyModifier::Mod_Shift)
+                swap(wheel_delta_x, wheel_delta_y);
 
-        auto device_pixels_per_css_pixel = static_cast<float>(device_pixel_ratio() * zoom_level());
-        auto position = Gfx::FloatPoint {
-            static_cast<float>(mouse_event->position.x().value()),
-            static_cast<float>(mouse_event->position.y().value()),
-        };
-        auto delta_in_device_pixels = Gfx::FloatPoint { wheel_delta_x, wheel_delta_y }.scaled(device_pixels_per_css_pixel);
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI attempting compositor wheel bypass for page {} at {},{} device delta {},{}",
-            m_client_state.page_index, position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y());
-        if (client().send_async_scroll_to_compositor(m_client_state.page_index, position, delta_in_device_pixels))
-            mouse_event->async_scroll_performed_default_action = true;
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor wheel bypass result for page {}: {}",
-            m_client_state.page_index, mouse_event->async_scroll_performed_default_action ? "accepted"sv : "rejected"sv);
+            auto device_pixels_per_css_pixel = static_cast<float>(device_pixel_ratio() * zoom_level());
+            auto position = Gfx::FloatPoint {
+                static_cast<float>(mouse_event->position.x().value()),
+                static_cast<float>(mouse_event->position.y().value()),
+            };
+            auto delta_in_device_pixels = Gfx::FloatPoint { wheel_delta_x, wheel_delta_y }.scaled(device_pixels_per_css_pixel);
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI attempting compositor wheel bypass for page {} at {},{} device delta {},{}",
+                m_client_state.page_index, position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y());
+            if (client().send_async_scroll_to_compositor(m_client_state.page_index, position, delta_in_device_pixels))
+                mouse_event->async_scroll_performed_default_action = true;
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor wheel bypass result for page {}: {}",
+                m_client_state.page_index, mouse_event->async_scroll_performed_default_action ? "accepted"sv : "rejected"sv);
+        } else if (client().send_mouse_event_to_compositor(m_client_state.page_index, *mouse_event)) {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor handled mouse event for page {} at {},{}",
+                m_client_state.page_index, mouse_event->position.x().value(), mouse_event->position.y().value());
+            return;
+        }
     }
 
     // Send the next event over to the WebContent to be handled by JS. We'll later get a message to say whether JS

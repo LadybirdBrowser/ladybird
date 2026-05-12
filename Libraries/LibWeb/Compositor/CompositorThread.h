@@ -18,6 +18,7 @@
 #include <LibThreading/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Page/Page.h>
 
 namespace Web::Compositor {
@@ -52,6 +53,7 @@ public:
     static void clear_frame_presentation_callbacks();
     static void presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_id);
     static bool async_scroll_by(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels);
+    static bool handle_mouse_event(u64 page_id, MouseEvent const&);
 
     void start(DisplayListPlayerType);
     void stop_presenting_to_client();
