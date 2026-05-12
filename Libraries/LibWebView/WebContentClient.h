@@ -57,6 +57,8 @@ public:
 
     void web_ui_disconnected(Badge<WebUI>);
 
+    bool has_views() const { return !m_views.is_empty(); }
+
     void notify_all_views_of_crash();
     bool send_mouse_event_to_compositor(u64 page_id, Web::MouseEvent const&);
     void notify_presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_id);

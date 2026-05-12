@@ -733,6 +733,10 @@ Optional<Process&> Application::find_process(pid_t pid)
 
 void Application::process_did_exit(Process&& process, Optional<int> exit_status)
 {
+#if defined(AK_OS_WINDOWS)
+    (void)exit_status;
+#endif
+
     if (m_event_loop->was_exit_requested())
         return;
 
@@ -755,12 +759,13 @@ void Application::process_did_exit(Process&& process, Optional<int> exit_status)
         }
         break;
     case ProcessType::WebContent:
+        if (auto client = process.client<WebContentClient>(); client.has_value()) {
 #if !defined(AK_OS_WINDOWS)
-        if (exit_status.has_value() && WIFEXITED(*exit_status) && WEXITSTATUS(*exit_status) == 0)
-            break;
+            if (exit_status.has_value() && WIFEXITED(*exit_status) && WEXITSTATUS(*exit_status) == 0 && !client->has_views())
+                break;
 #endif
-        if (auto client = process.client<WebContentClient>(); client.has_value())
             client->notify_all_views_of_crash();
+        }
         break;
     case ProcessType::WebWorker:
         dbgln_if(WEBVIEW_PROCESS_DEBUG, "WebWorker {} died, not sure what to do.", process.pid());
