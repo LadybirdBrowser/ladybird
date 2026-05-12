@@ -43,12 +43,6 @@ struct HSV {
     double value { 0 };
 };
 
-struct YUV {
-    float y { 0 };
-    float u { 0 };
-    float v { 0 };
-};
-
 struct Oklab {
     float L { 0 };
     float a { 0 };
@@ -106,23 +100,6 @@ public:
         return Color::from_bgra(bgra);
     }
     static constexpr Color from_rgbx(unsigned rgbx) { return Color::from_rgba(rgbx | 0xff000000); }
-
-    static constexpr Color from_yuv(YUV const& yuv) { return from_yuv(yuv.y, yuv.u, yuv.v); }
-    static constexpr Color from_yuv(float y, float u, float v)
-    {
-        auto srgb = yuv_to_srgb({ y, u, v });
-        return {
-            static_cast<u8>(floorf(srgb[0] * 255.0f)),
-            static_cast<u8>(floorf(srgb[1] * 255.0f)),
-            static_cast<u8>(floorf(srgb[2] * 255.0f)),
-        };
-    }
-
-    constexpr YUV to_yuv() const
-    {
-        auto yuv = srgb_to_yuv({ red() / 255.0f, green() / 255.0f, blue() / 255.0f });
-        return { yuv[0], yuv[1], yuv[2] };
-    }
 
     static constexpr Color from_hsl(float h_degrees, float s, float l) { return from_hsla(h_degrees, s, l, 1.0); }
     static constexpr Color from_hsla(float h_degrees, float s, float l, float a)
@@ -489,11 +466,6 @@ public:
 template<>
 struct Formatter<Gfx::Color> : public Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder&, Gfx::Color);
-};
-
-template<>
-struct Formatter<Gfx::YUV> : public Formatter<FormatString> {
-    ErrorOr<void> format(FormatBuilder&, Gfx::YUV);
 };
 
 template<>

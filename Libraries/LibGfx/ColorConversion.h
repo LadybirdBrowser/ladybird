@@ -143,41 +143,6 @@ constexpr ColorComponents srgb_to_hsv(ColorComponents const& rgb)
     return { hue, saturation, max, rgb.alpha() };
 }
 
-// https://www.itu.int/rec/R-REC-BT.1700-0-200502-I/en Table 4
-constexpr ColorComponents yuv_to_srgb(ColorComponents const& yuv)
-{
-    float y = yuv[0];
-    float u = yuv[1];
-    float v = yuv[2];
-
-    // Table 4, Items 8 and 9 arithmetically inverted
-    float r = y + v / 0.877f;
-    float b = y + u / 0.493f;
-    float g = (y - 0.299f * r - 0.114f * b) / 0.587f;
-    r = clamp(r, 0.0f, 1.0f);
-    g = clamp(g, 0.0f, 1.0f);
-    b = clamp(b, 0.0f, 1.0f);
-
-    return { r, g, b, yuv.alpha() };
-}
-
-// https://www.itu.int/rec/R-REC-BT.1700-0-200502-I/en Table 4
-constexpr ColorComponents srgb_to_yuv(ColorComponents const& rgb)
-{
-    float r = rgb[0];
-    float g = rgb[1];
-    float b = rgb[2];
-    // Item 8
-    float y = 0.299f * r + 0.587f * g + 0.114f * b;
-    // Item 9
-    float u = 0.493f * (b - y);
-    float v = 0.877f * (r - y);
-    y = clamp(y, 0.0f, 1.0f);
-    u = clamp(u, -1.0f, 1.0f);
-    v = clamp(v, -1.0f, 1.0f);
-    return { y, u, v, rgb.alpha() };
-}
-
 // https://bottosson.github.io/posts/oklab/
 constexpr ColorComponents oklab_to_linear_srgb(ColorComponents const& oklab)
 {
