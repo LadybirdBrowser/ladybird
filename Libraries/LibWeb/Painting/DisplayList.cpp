@@ -69,15 +69,13 @@ bool DisplayList::append_bytes(
     m_command_bytes.append(payload.data(), payload.size());
     if (!inline_data.is_empty())
         m_command_bytes.append(inline_data.data(), inline_data.size());
-    m_command_bytes.resize(m_command_bytes.size() + trailing_padding);
+    m_command_bytes.resize(m_command_bytes.size() + trailing_padding, ByteBuffer::ZeroFillNewElements::Yes);
     return true;
 }
 
 void DisplayList::append_command_sequence(DisplayListCommandSequence const& sequence, VisualContextIndex context_index)
 {
-    Vector<u8> command_bytes;
-    if (!sequence.m_command_bytes.is_empty())
-        command_bytes.append(sequence.m_command_bytes.data(), sequence.m_command_bytes.size());
+    auto command_bytes = MUST(ByteBuffer::copy(sequence.m_command_bytes.span()));
 
     set_command_sequence_visual_context(command_bytes.span(), context_index);
     m_resource_storage.append_referenced_resources_from(sequence.m_resource_storage, command_bytes.span());
@@ -92,10 +90,7 @@ DisplayListCommandSequence DisplayList::copy_command_sequence_from(size_t comman
 {
     VERIFY(command_start_offset <= m_command_bytes.size());
     DisplayListCommandSequence sequence;
-    if (command_start_offset < m_command_bytes.size())
-        sequence.m_command_bytes.append(
-            m_command_bytes.data() + command_start_offset,
-            m_command_bytes.size() - command_start_offset);
+    sequence.m_command_bytes = MUST(m_command_bytes.slice(command_start_offset, m_command_bytes.size() - command_start_offset));
     sequence.m_resource_storage.append_referenced_resources_from(m_resource_storage, sequence.m_command_bytes.span());
     return sequence;
 }

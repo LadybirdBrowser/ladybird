@@ -7,11 +7,11 @@
 
 #pragma once
 
+#include <AK/ByteBuffer.h>
 #include <AK/Forward.h>
 #include <AK/HashMap.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Span.h>
-#include <AK/Vector.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Filter.h>
@@ -60,7 +60,7 @@ private:
     DisplayListCommandSequence();
 
     DisplayListResourceStorage m_resource_storage;
-    Vector<u8> m_command_bytes;
+    ByteBuffer m_command_bytes;
 };
 
 class DisplayListPlayer {
@@ -212,7 +212,7 @@ private:
     NonnullRefPtr<AccumulatedVisualContextTree const> const m_visual_context_tree;
     DisplayListResourceStorage m_resource_storage;
     u64 m_id { 0 };
-    Vector<u8> m_command_bytes;
+    ByteBuffer m_command_bytes;
 };
 
 }
