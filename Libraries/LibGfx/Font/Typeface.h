@@ -29,18 +29,6 @@ namespace Gfx {
 
 class Font;
 
-struct ScaledFontMetrics {
-    float ascender { 0 };
-    float descender { 0 };
-    float line_gap { 0 };
-    float x_height { 0 };
-
-    float height() const
-    {
-        return ascender + descender;
-    }
-};
-
 struct FontCacheKey {
     float point_size;
     Vector<FontVariationAxis> axes;

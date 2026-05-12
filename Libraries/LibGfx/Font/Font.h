@@ -58,7 +58,6 @@ constexpr float text_shaping_resolution = 64;
 class Font : public AtomicRefCounted<Font> {
 public:
     Font(NonnullRefPtr<Typeface const>, float point_width, float point_height, unsigned dpi_x, unsigned dpi_y, FontVariationSettings const variations, ShapeFeatures const& features);
-    ScaledFontMetrics metrics() const;
     ~Font();
 
     u64 id() const { return m_id; }
@@ -70,7 +69,6 @@ public:
     bool contains_glyph(u32 code_point) const { return m_typeface->glyph_id_for_code_point(code_point) > 0; }
     float glyph_width(u32 code_point) const;
     u32 glyph_id_for_code_point(u32 code_point) const { return m_typeface->glyph_id_for_code_point(code_point); }
-    float preferred_line_height() const { return metrics().height() + metrics().line_gap; }
     int x_height() const { return m_point_height; } // FIXME: Read from font
     u8 baseline() const { return m_point_height; }  // FIXME: Read from font
     float width(Utf16View const&) const;
