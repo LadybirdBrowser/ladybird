@@ -19,50 +19,34 @@
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/Time.h>
 
-// FIXME: LengthPercentage is the only remaining derived class of PercentageOr so we can just merge them together. It
-//        should also probably instead be CSSPixelsPercentage since it is only used after computation where we resolve
-//        all relative lengths.
 namespace Web::CSS {
 
-template<typename T>
-class PercentageOr {
+// FIXME: This should probably instead be CSSPixelsPercentage since it is only used after computation where we resolve
+//        all relative lengths.
+
+class LengthPercentage {
 public:
-    PercentageOr(T t)
+    LengthPercentage(Length t)
         : m_value(move(t))
     {
     }
 
-    PercentageOr(Percentage percentage)
+    LengthPercentage(Percentage percentage)
         : m_value(move(percentage))
     {
     }
 
-    PercentageOr(NonnullRefPtr<CalculatedStyleValue const> calculated)
+    LengthPercentage(NonnullRefPtr<CalculatedStyleValue const> calculated)
         : m_value(move(calculated))
     {
     }
 
-    ~PercentageOr() = default;
-
-    PercentageOr<T>& operator=(T t)
-    {
-        m_value = move(t);
-        return *this;
-    }
-
-    PercentageOr<T>& operator=(Percentage percentage)
-    {
-        m_value = move(percentage);
-        return *this;
-    }
-
-    bool is_percentage() const { return m_value.template has<Percentage>(); }
-    bool is_calculated() const { return m_value.template has<NonnullRefPtr<CalculatedStyleValue const>>(); }
+    ~LengthPercentage() = default;
 
     bool contains_percentage() const
     {
         return m_value.visit(
-            [&](T const&) {
+            [&](Length const&) {
                 return false;
             },
             [&](Percentage const&) {
@@ -87,41 +71,25 @@ public:
 
     CSSPixels to_px(Layout::Node const& layout_node, CSSPixels reference_value) const
     {
-        if constexpr (IsSame<T, Length>) {
-            if (auto const* length = m_value.template get_pointer<Length>()) {
-                if (length->is_absolute())
-                    return length->absolute_length_to_px();
-            }
+        if (auto const* length = m_value.template get_pointer<Length>()) {
+            if (length->is_absolute())
+                return length->absolute_length_to_px();
         }
+
         return resolved(layout_node, reference_value).to_px(layout_node);
     }
 
-    T resolved(Layout::Node const& layout_node, T reference_value) const
-    requires(!IsSame<T, Length>)
+    Length resolved(Layout::Node const& layout_node, CSSPixels reference_value) const
     {
         return m_value.visit(
-            [&](T const& t) {
-                return t;
-            },
-            [&](Percentage const& percentage) {
-                return reference_value.percentage_of(percentage);
-            },
-            [&](NonnullRefPtr<CalculatedStyleValue const> const& calculated) {
-                return T::resolve_calculated(calculated, layout_node, reference_value);
-            });
-    }
-
-    T resolved(Layout::Node const& layout_node, CSSPixels reference_value) const
-    {
-        return m_value.visit(
-            [&](T const& t) {
+            [&](Length const& t) {
                 return t;
             },
             [&](Percentage const& percentage) {
                 return Length::make_px(CSSPixels::truncated_value_for(reference_value.to_double() * percentage.as_fraction()));
             },
             [&](NonnullRefPtr<CalculatedStyleValue const> const& calculated) {
-                return T::resolve_calculated(calculated, layout_node, reference_value);
+                return Length::resolve_calculated(calculated, layout_node, reference_value);
             });
     }
 
@@ -132,7 +100,7 @@ public:
         } else if (is_percentage()) {
             m_value.template get<Percentage>().serialize(builder, mode);
         } else {
-            m_value.template get<T>().serialize(builder, mode);
+            m_value.template get<Length>().serialize(builder, mode);
         }
     }
 
@@ -142,55 +110,6 @@ public:
         serialize(builder, mode);
         return builder.to_string_without_validation();
     }
-
-    bool operator==(PercentageOr<T> const& other) const
-    {
-        if (is_calculated() != other.is_calculated())
-            return false;
-        if (is_percentage() != other.is_percentage())
-            return false;
-        if (is_calculated())
-            return (*m_value.template get<NonnullRefPtr<CalculatedStyleValue const>>() == *other.m_value.template get<NonnullRefPtr<CalculatedStyleValue const>>());
-        if (is_percentage())
-            return (m_value.template get<Percentage>() == other.m_value.template get<Percentage>());
-        return (m_value.template get<T>() == other.m_value.template get<T>());
-    }
-
-protected:
-    bool is_t() const { return m_value.template has<T>(); }
-    T const& get_t() const { return m_value.template get<T>(); }
-
-private:
-    Variant<T, Percentage, NonnullRefPtr<CalculatedStyleValue const>> m_value;
-};
-
-template<typename T>
-bool operator==(PercentageOr<T> const& percentage_or, T const& t)
-{
-    return percentage_or == PercentageOr<T> { t };
-}
-
-template<typename T>
-bool operator==(T const& t, PercentageOr<T> const& percentage_or)
-{
-    return t == percentage_or;
-}
-
-template<typename T>
-bool operator==(PercentageOr<T> const& percentage_or, Percentage const& percentage)
-{
-    return percentage_or == PercentageOr<T> { percentage };
-}
-
-template<typename T>
-bool operator==(Percentage const& percentage, PercentageOr<T> const& percentage_or)
-{
-    return percentage == percentage_or;
-}
-
-class LengthPercentage : public PercentageOr<Length> {
-public:
-    using PercentageOr<Length>::PercentageOr;
 
     static LengthPercentage from_style_value(NonnullRefPtr<StyleValue const> const& style_value)
     {
@@ -204,8 +123,15 @@ public:
         VERIFY_NOT_REACHED();
     }
 
-    bool is_length() const { return is_t(); }
-    Length const& length() const { return get_t(); }
+    bool is_percentage() const { return m_value.template has<Percentage>(); }
+    bool is_calculated() const { return m_value.template has<NonnullRefPtr<CalculatedStyleValue const>>(); }
+    bool is_length() const { return m_value.has<Length>(); }
+    Length const& length() const { return m_value.get<Length>(); }
+
+    bool operator==(LengthPercentage const& other) const = default;
+
+private:
+    Variant<Length, Percentage, NonnullRefPtr<CalculatedStyleValue const>> m_value;
 };
 
 class LengthPercentageOrAuto {
