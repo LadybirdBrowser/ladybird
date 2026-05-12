@@ -360,9 +360,6 @@ public:
         return Color(min(255, (int)((float)red() * amount)), min(255, (int)((float)green() * amount)), min(255, (int)((float)blue() * amount)), alpha());
     }
 
-    Vector<Color> shades(u32 steps, float max = 1.f) const;
-    Vector<Color> tints(u32 steps, float max = 1.f) const;
-
     constexpr Color saturated_to(float saturation) const
     {
         auto hsv = to_hsv();

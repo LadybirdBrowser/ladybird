@@ -430,30 +430,6 @@ Optional<Color> Color::from_utf16_string(Utf16View const& string)
     return from_string(string.to_utf8_but_should_be_ported_to_utf16());
 }
 
-Vector<Color> Color::shades(u32 steps, float max) const
-{
-    float shade = 1.f;
-    float step = max / steps;
-    Vector<Color> shades;
-    for (u32 i = 0; i < steps; i++) {
-        shade -= step;
-        shades.append(this->darkened(shade));
-    }
-    return shades;
-}
-
-Vector<Color> Color::tints(u32 steps, float max) const
-{
-    float shade = 1.f;
-    float step = max / steps;
-    Vector<Color> tints;
-    for (u32 i = 0; i < steps; i++) {
-        shade += step;
-        tints.append(this->lightened(shade));
-    }
-    return tints;
-}
-
 static Color color_from_linear_srgb(ColorComponents const& linear)
 {
     auto srgb = linear_srgb_to_srgb(linear);
