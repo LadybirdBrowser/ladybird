@@ -360,15 +360,6 @@ public:
         return Color(min(255, (int)((float)red() * amount)), min(255, (int)((float)green() * amount)), min(255, (int)((float)blue() * amount)), alpha());
     }
 
-    constexpr Color saturated_to(float saturation) const
-    {
-        auto hsv = to_hsv();
-        auto alpha = this->alpha();
-        auto color = Color::from_hsv(hsv.hue, static_cast<double>(saturation), hsv.value);
-        color.set_alpha(alpha);
-        return color;
-    }
-
     constexpr Color inverted() const
     {
         return Color(~red(), ~green(), ~blue(), alpha());
