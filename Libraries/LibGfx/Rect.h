@@ -73,14 +73,6 @@ public:
     ALWAYS_INLINE void translate_by(T dboth) { m_location.translate_by(dboth); }
     ALWAYS_INLINE void translate_by(Point<T> const& delta) { m_location.translate_by(delta); }
 
-    ALWAYS_INLINE void scale_by(T dx, T dy)
-    {
-        m_location.scale_by(dx, dy);
-        m_size.scale_by(dx, dy);
-    }
-    ALWAYS_INLINE void scale_by(T dboth) { scale_by(dboth, dboth); }
-    ALWAYS_INLINE void scale_by(Point<T> const& delta) { scale_by(delta.x(), delta.y()); }
-
     [[nodiscard]] Point<T> center() const
     {
         return { x() + width() / 2, y() + height() / 2 };
@@ -160,27 +152,6 @@ public:
     {
         Rect<T> rect = *this;
         rect.translate_by(delta);
-        return rect;
-    }
-
-    [[nodiscard]] Rect<T> scaled(T dboth) const
-    {
-        Rect<T> rect = *this;
-        rect.scale_by(dboth);
-        return rect;
-    }
-
-    [[nodiscard]] Rect<T> scaled(T sx, T sy) const
-    {
-        Rect<T> rect = *this;
-        rect.scale_by(sx, sy);
-        return rect;
-    }
-
-    [[nodiscard]] Rect<T> scaled(Point<T> const& s) const
-    {
-        Rect<T> rect = *this;
-        rect.scale_by(s);
         return rect;
     }
 
