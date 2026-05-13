@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+
+        const pageBody = `<!DOCTYPE html>
+            <script>
+                if (!history.state?.didReloadAfterPushState) {
+                    history.pushState({ didReloadAfterPushState: true }, "", "#same-document-entry");
+                    location.reload();
+                } else {
+                    parent.postMessage(location.hash === "#same-document-entry" ? "PASS" : "FAIL", "*");
+                }
+            <\/script>`;
+        const pageUrl = await server.createEcho("GET", "/push-state-then-reload-page", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: pageBody,
+        });
+
+        const result = await new Promise(resolve => {
+            const iframe = document.createElement("iframe");
+            window.addEventListener("message", e => {
+                if (e.source === iframe.contentWindow) {
+                    iframe.remove();
+                    resolve(e.data);
+                }
+            });
+            document.body.appendChild(iframe);
+            iframe.src = pageUrl;
+        });
+        println(result);
+    });
+</script>

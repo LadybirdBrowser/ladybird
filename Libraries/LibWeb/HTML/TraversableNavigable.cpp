@@ -676,7 +676,13 @@ void ApplyHistoryStepState::start()
             changing_navigable_continuation->population_output = nullptr;
 
             // 4. If displayedEntry is targetEntry and targetEntry's document state's reload pending is false, then:
-            if (m_synchronous_navigation == TraversableNavigable::SynchronousNavigation::Yes && !target_entry->document_state()->reload_pending()) {
+            // AD-HOC: A synchronous same-document navigation has already updated the active entry by this point.
+            //         A later queued reload can additionally set reload pending on an already-active target entry
+            //         before that synchronous step is applied. The reload step owns that population work.
+            bool is_update_only = displayed_entry == target_entry && !target_entry->document_state()->reload_pending();
+            if (m_synchronous_navigation == TraversableNavigable::SynchronousNavigation::Yes)
+                is_update_only = !target_entry->document_state()->reload_pending() || displayed_entry == target_entry;
+            if (is_update_only) {
                 // 1. Set changingNavigableContinuation's update-only to true.
                 changing_navigable_continuation->update_only = true;
                 changing_navigable_continuation->resolved_document = navigable->active_document();
