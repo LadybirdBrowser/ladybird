@@ -2,8 +2,9 @@ import json
 import sys
 
 from typing import Any
+from typing import Optional
 
-_css_dimensions: dict[str, Any] | None = None
+_css_dimensions: Optional[dict[str, Any]] = None
 
 
 def json_is_valid(dimensions_data: dict[str, Any], json_path: str) -> bool:
