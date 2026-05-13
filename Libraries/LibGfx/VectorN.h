@@ -139,15 +139,6 @@ public:
         return result;
     }
 
-    [[nodiscard]] constexpr VectorN operator-() const
-    {
-        VectorN result;
-        UNROLL_LOOP
-        for (auto i = 0u; i < N; ++i)
-            result.m_data[i] = -m_data[i];
-        return result;
-    }
-
     [[nodiscard]] constexpr VectorN operator/(VectorN const& other) const
     {
         VectorN result;
