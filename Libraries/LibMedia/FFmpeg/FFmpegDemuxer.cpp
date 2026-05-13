@@ -378,6 +378,12 @@ DecoderErrorOr<DemuxerSeekResult> FFmpegDemuxer::seek_to_most_recent_keyframe(Tr
     auto av_timestamp = duration_to_time_units(timestamp, stream.time_base);
 
     auto seek_succeeded = false;
+
+    // AVIOContext can skip calling through to the underlying seek callback if the new position lands in its buffer,
+    // leaving us in EOF/error, so we need to clear these here.
+    format_context.pb->eof_reached = 0;
+    format_context.pb->error = 0;
+
     if (track_context.is_seekable && av_seek_frame(&format_context, stream.index, av_timestamp, AVSEEK_FLAG_BACKWARD) >= 0)
         seek_succeeded = true;
     if (!seek_succeeded) {
