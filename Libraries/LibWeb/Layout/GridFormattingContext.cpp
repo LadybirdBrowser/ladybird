@@ -1701,18 +1701,29 @@ void GridFormattingContext::resolve_grid_item_sizes(GridDimension dimension)
                 .size = a_size
             };
 
-            // Auto margins absorb positive free space prior to alignment via the box alignment properties.
+            // https://drafts.csswg.org/css-grid/#auto-margins
+            // Auto margins in either axis absorb positive free space prior to alignment via the box alignment
+            // properties, thereby disabling the effects of any self-alignment properties in that axis.
+            // Overflowing grid items resolve their auto margins to zero and overflow as specified by their box
+            // alignment properties.
             auto free_space_left_for_margins = containing_block_size - result.size - item.used_margin_box_start(dimension) - item.used_margin_box_end(dimension);
-            if (item.margin_start(dimension).is_auto() && item.margin_end(dimension).is_auto()) {
-                result.margin_start = free_space_left_for_margins / 2;
-                result.margin_end = free_space_left_for_margins / 2;
-            } else if (item.margin_start(dimension).is_auto()) {
-                result.margin_start = free_space_left_for_margins;
-            } else if (item.margin_end(dimension).is_auto()) {
-                result.margin_end = free_space_left_for_margins;
+            bool start_is_auto = item.margin_start(dimension).is_auto();
+            bool end_is_auto = item.margin_end(dimension).is_auto();
+            auto absorbed_margin_space = max(CSSPixels(0), free_space_left_for_margins);
+            if (start_is_auto && end_is_auto) {
+                result.margin_start = absorbed_margin_space / 2;
+                result.margin_end = absorbed_margin_space / 2;
+            } else if (start_is_auto) {
+                result.margin_start = absorbed_margin_space;
+            } else if (end_is_auto) {
+                result.margin_end = absorbed_margin_space;
             } else if (css_size.is_auto() && !item.box->is_replaced_box()) {
                 result.size += free_space_left_for_margins;
             }
+
+            // If auto margins absorbed positive free space, alignment properties have no effect in this dimension.
+            if ((start_is_auto || end_is_auto) && free_space_left_for_margins > 0)
+                return result;
 
             auto free_space_left_for_alignment = containing_block_size - a_size - item.used_margin_box_start(dimension) - item.used_margin_box_end(dimension);
             switch (alignment) {
