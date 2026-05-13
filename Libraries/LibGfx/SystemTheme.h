@@ -124,8 +124,6 @@ namespace Gfx {
     C(ColorScheme)
 
 enum class ColorRole {
-    NoRole,
-
 #undef __ENUMERATE_COLOR_ROLE
 #define __ENUMERATE_COLOR_ROLE(role) role,
     ENUMERATE_COLOR_ROLES(__ENUMERATE_COLOR_ROLE)
@@ -135,8 +133,6 @@ enum class ColorRole {
 };
 
 enum class FlagRole {
-    NoRole,
-
 #undef __ENUMERATE_FLAG_ROLE
 #define __ENUMERATE_FLAG_ROLE(role) role,
     ENUMERATE_FLAG_ROLES(__ENUMERATE_FLAG_ROLE)
@@ -146,8 +142,6 @@ enum class FlagRole {
 };
 
 enum class PathRole {
-    NoRole,
-
 #undef __ENUMERATE_PATH_ROLE
 #define __ENUMERATE_PATH_ROLE(role) role,
     ENUMERATE_PATH_ROLES(__ENUMERATE_PATH_ROLE)
