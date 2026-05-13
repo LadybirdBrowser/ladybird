@@ -21,12 +21,10 @@ public:
     using Options = JPEGEncoderOptions;
 
     static ErrorOr<void> encode(Stream&, Bitmap const&, Options const& = {});
-    static ErrorOr<void> encode(Stream&, CMYKBitmap const&, Options const& = {});
 
 private:
     enum class ColorSpace {
         RGB,
-        CMYK,
     };
     static ErrorOr<void> encode_impl(Stream&, auto const&, Options const&, ColorSpace);
 
