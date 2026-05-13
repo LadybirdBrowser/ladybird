@@ -1,6 +1,6 @@
 $63c57e75 try-catch-completion-ordering.js:1:1
   Registers: 8
-  Blocks:    4
+  Blocks:    3
   Locals:    e~0
   Constants:
     [0] = Undefined
@@ -9,18 +9,16 @@ $63c57e75 try-catch-completion-ordering.js:1:1
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] Jump target:block3
+  [   8] Jump target:block2
 
 block1:
   [  10] Catch dst:reg5
   [  18] SetLexicalEnvironment environment:reg4
   [  20] Mov3 dst1:e~0, src1:reg5, dst2:reg6, src2:Undefined, dst3:reg6, src3:Int32(42)
   [  40] Mov dst:reg7, src:reg6
-
-block2:
   [  50] End value:reg7
 
-block3:
+block2:
   [  58] Mov dst:reg5, src:Undefined
   [  68] Throw src:Null
 

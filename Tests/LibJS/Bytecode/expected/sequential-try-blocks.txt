@@ -15,7 +15,7 @@ block0:
 
 sequentialTryCatch$0a8456ee sequential-try-blocks.js:2:5
   Registers: 8
-  Blocks:    7
+  Blocks:    5
   Locals:    e~0, e~1, result~2
   Constants:
     [0] = String("")
@@ -29,7 +29,7 @@ sequentialTryCatch$0a8456ee sequential-try-blocks.js:2:5
 block0:
   [   0] GetLexicalEnvironment dst:reg4
   [   8] Mov dst:result~2, src:String("")
-  [  18] Jump target:block3
+  [  18] Jump target:block2
 
 block1:
   [  20] Catch dst:reg5
@@ -37,27 +37,23 @@ block1:
   [  30] Mov2 dst1:e~0, src1:reg5, dst2:reg6, src2:result~2
   [  48] Add dst:reg7, lhs:reg6, rhs:String("b")
   [  58] Mov dst:result~2, src:reg7
+  [  68] Jump target:block4
 
 block2:
-  [  68] Jump target:block6
-
-block3:
   [  70] Mov dst:reg5, src:result~2
   [  80] Add dst:reg7, lhs:reg5, rhs:String("a")
   [  90] Mov dst:result~2, src:reg7
   [  a0] Throw src:Int32(1)
 
-block4:
+block3:
   [  a8] Catch dst:reg7
   [  b0] SetLexicalEnvironment environment:reg4
   [  b8] Mov2 dst1:e~1, src1:reg7, dst2:reg5, src2:result~2
   [  d0] Add dst:reg6, lhs:reg5, rhs:String("d")
   [  e0] Mov dst:result~2, src:reg6
-
-block5:
   [  f0] Return value:result~2
 
-block6:
+block4:
   [  f8] Mov dst:reg7, src:result~2
   [ 108] Add dst:reg6, lhs:reg7, rhs:String("c")
   [ 118] Mov dst:result~2, src:reg6
@@ -65,7 +61,7 @@ block6:
 
 Exception handlers:
   [  70 ..   a8] => handler block1
-  [  f8 ..  130] => handler block4
+  [  f8 ..  130] => handler block3
 
 
 "abcd"

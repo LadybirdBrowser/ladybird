@@ -94,7 +94,7 @@ static_assert(put_kind_variant_count == 5);
 static constexpr u32 arguments_kind_variant_count = to_underlying(Op::ArgumentsKind::Unmapped) + 1;
 static_assert(arguments_kind_variant_count == 2);
 
-ErrorOr<void> validate_bytecode(Executable const& executable, CacheState cache_state)
+ErrorOr<void> validate_bytecode(Executable const& executable, ReadonlySpan<u32> basic_block_offsets, CacheState cache_state)
 {
     JS::FFI::FFIValidatorBounds bounds {
         .number_of_registers = executable.number_of_registers,
@@ -133,11 +133,6 @@ ErrorOr<void> validate_bytecode(Executable const& executable, CacheState cache_s
             .handler = static_cast<u32>(h.handler_offset),
         });
     }
-
-    Vector<u32> basic_block_offsets;
-    basic_block_offsets.ensure_capacity(executable.basic_block_start_offsets.size());
-    for (auto offset : executable.basic_block_start_offsets)
-        basic_block_offsets.append(static_cast<u32>(offset));
 
     Vector<u32> source_map_offsets;
     source_map_offsets.ensure_capacity(executable.source_map.size());

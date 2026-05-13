@@ -12,7 +12,7 @@ block0:
 
 test$e414328f do-while-register-allocation.js:9:5
   Registers: 9
-  Blocks:    4
+  Blocks:    3
   Locals:    i~0
   Constants:
     [0] = Undefined
@@ -30,11 +30,9 @@ block1:
   [  80] Mov dst:reg8, src:i~0
   [  90] Call dst:reg6, callee:reg7, this_value:Undefined, bar, arguments:[reg8]
   [  b8] PostfixIncrement dst:reg6, src:i~0
+  [  c8] JumpLessThan lhs:i~0, rhs:Int32(7), true_target:block1, false_target:block2
 
 block2:
-  [  c8] JumpLessThan lhs:i~0, rhs:Int32(7), true_target:block1, false_target:block3
-
-block3:
   [  e0] End value:Undefined
 
 

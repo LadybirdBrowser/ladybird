@@ -28,7 +28,7 @@ block0:
 
 eval$6559f0fb line 1, column 1
   Registers: 7
-  Blocks:    5
+  Blocks:    3
   Locals:    x~0
   Constants:
     [0] = Undefined
@@ -37,23 +37,19 @@ eval$6559f0fb line 1, column 1
 
 block0:
   [   0] Mov dst:reg5, src:Undefined
+  [  10] JumpStrictlyEquals lhs:Int32(1), rhs:Int32(1), true_target:block2, false_target:block1
 
 block1:
-  [  10] JumpStrictlyEquals lhs:Int32(1), rhs:Int32(1), true_target:block3, false_target:block2
-
-block2:
   [  28] End value:reg5
 
-block3:
+block2:
   [  30] Mov2 dst1:reg5, src1:String("hello"), dst2:x~0, src2:Int32(1)
-
-block4:
   [  48] End value:reg5
 
 
 eval$6559f0fb line 1, column 1
   Registers: 7
-  Blocks:    5
+  Blocks:    3
   Constants:
     [0] = Undefined
     [1] = Int32(1)
@@ -62,23 +58,19 @@ eval$6559f0fb line 1, column 1
 
 block0:
   [   0] Mov dst:reg5, src:Undefined
+  [  10] JumpStrictlyEquals lhs:Int32(1), rhs:Int32(1), true_target:block2, false_target:block1
 
 block1:
-  [  10] JumpStrictlyEquals lhs:Int32(1), rhs:Int32(1), true_target:block3, false_target:block2
-
-block2:
   [  28] End value:reg5
 
-block3:
+block2:
   [  30] Mov2 dst1:reg5, src1:String("first"), dst2:reg5, src2:String("second")
-
-block4:
   [  48] End value:reg5
 
 
 eval$6da5c42b line 1, column 1
   Registers: 7
-  Blocks:    6
+  Blocks:    4
   Constants:
     [0] = Undefined
     [1] = Int32(1)
@@ -87,21 +79,17 @@ eval$6da5c42b line 1, column 1
 
 block0:
   [   0] Mov dst:reg5, src:Undefined
+  [  10] JumpStrictlyEquals lhs:Int32(1), rhs:Int32(1), true_target:block2, false_target:block1
 
 block1:
-  [  10] JumpStrictlyEquals lhs:Int32(1), rhs:Int32(1), true_target:block3, false_target:block2
+  [  28] Jump target:block3
 
 block2:
-  [  28] Jump target:block4
-
-block3:
   [  30] Mov dst:reg5, src:String("matched")
   [  40] End value:reg5
 
-block4:
+block3:
   [  48] Mov dst:reg5, src:String("default")
-
-block5:
   [  58] End value:reg5
 
 

@@ -18,7 +18,7 @@ block0:
 
 C$9d8b2466 super-for-of-resolve-order.js:3:28
   Registers: 13
-  Blocks:    10
+  Blocks:    9
   Constants:
     [0] = String("prop")
     [1] = Int32(1)
@@ -36,34 +36,32 @@ block1:
 
 block2:
   [  50] IteratorNextUnpack dst_value:reg10, dst_done:reg11, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
-  [  68] JumpIf condition:reg11, true_target:block1, false_target:block5
+  [  68] JumpIf condition:reg11, true_target:block1, false_target:block4
 
 block3:
   [  78] Catch dst:reg9
   [  80] SetLexicalEnvironment environment:reg4
   [  88] Mov dst:reg5, src:Int32(1)
+  [  98] JumpStrictlyEquals lhs:reg5, rhs:Int32(1), true_target:block5, false_target:block6
 
 block4:
-  [  98] JumpStrictlyEquals lhs:reg5, rhs:Int32(1), true_target:block6, false_target:block7
-
-block5:
   [  b0] ResolveThisBinding
   [  b8] ResolveSuperBase dst:reg12
   [  c0] PutByIdWithThis base:reg12, this_value:this, `prop`, src:reg10, kind:Normal
   [  e0] Jump target:block2
 
-block6:
+block5:
   [  e8] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg9
   [ 100] Throw src:reg9
 
-block7:
+block6:
   [ 108] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
-  [ 120] JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:block8, false_target:block9
+  [ 120] JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:block7, false_target:block8
 
-block8:
+block7:
   [ 138] Return value:reg9
 
-block9:
+block8:
   [ 140] Throw src:reg9
 
 Exception handlers:

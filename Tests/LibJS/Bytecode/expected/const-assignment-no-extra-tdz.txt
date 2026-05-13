@@ -1,23 +1,21 @@
 $0a83f971 const-assignment-no-extra-tdz.js:5:1
   Registers: 9
-  Blocks:    4
+  Blocks:    3
   Locals:    e~0
   Constants:
     [0] = Undefined
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] Jump target:block3
+  [   8] Jump target:block2
 
 block1:
   [  10] Catch dst:reg5
   [  18] SetLexicalEnvironment environment:reg4
   [  20] Mov3 dst1:e~0, src1:reg5, dst2:reg6, src2:Undefined, dst3:reg7, src3:reg6
-
-block2:
   [  40] End value:reg6
 
-block3:
+block2:
   [  48] Mov dst:reg5, src:Undefined
   [  58] GetGlobal dst:reg8, `f`
   [  70] Call dst:reg6, callee:reg8, this_value:Undefined, f

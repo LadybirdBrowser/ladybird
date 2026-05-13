@@ -123,7 +123,7 @@ block5:
 
 forOfTeardown$94a2ae97 lexical-env-teardown.js:38:5
   Registers: 12
-  Blocks:    10
+  Blocks:    9
   Locals:    v~0, outer~1
   Constants:
     [0] = Int32(5)
@@ -143,33 +143,31 @@ block1:
 
 block2:
   [  60] IteratorNextUnpack dst_value:reg10, dst_done:reg11, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
-  [  78] JumpIf condition:reg11, true_target:block1, false_target:block5
+  [  78] JumpIf condition:reg11, true_target:block1, false_target:block4
 
 block3:
   [  88] Catch dst:reg9
   [  90] SetLexicalEnvironment environment:reg4
   [  98] Mov dst:reg5, src:Int32(1)
+  [  a8] JumpStrictlyEquals lhs:reg5, rhs:Int32(1), true_target:block5, false_target:block6
 
 block4:
-  [  a8] JumpStrictlyEquals lhs:reg5, rhs:Int32(1), true_target:block6, false_target:block7
-
-block5:
   [  c0] Mov dst:v~0, src:reg10
   [  d0] ThrowIfTDZ src:v~0
   [  d8] Jump target:block2
 
-block6:
+block5:
   [  e0] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg9
   [  f8] Throw src:reg9
 
-block7:
+block6:
   [ 100] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
-  [ 118] JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:block8, false_target:block9
+  [ 118] JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:block7, false_target:block8
 
-block8:
+block7:
   [ 130] Return value:reg9
 
-block9:
+block8:
   [ 138] Throw src:reg9
 
 Exception handlers:
@@ -178,7 +176,7 @@ Exception handlers:
 
 catchTeardown$ea214605 lexical-env-teardown.js:48:5
   Registers: 7
-  Blocks:    4
+  Blocks:    3
   Locals:    e~0, outer~1
   Constants:
     [0] = Int32(6)
@@ -188,17 +186,15 @@ catchTeardown$ea214605 lexical-env-teardown.js:48:5
 block0:
   [   0] GetLexicalEnvironment dst:reg4
   [   8] Mov dst:outer~1, src:Int32(6)
-  [  18] Jump target:block3
+  [  18] Jump target:block2
 
 block1:
   [  20] Catch dst:reg5
   [  28] SetLexicalEnvironment environment:reg4
   [  30] Mov dst:e~0, src:reg5
-
-block2:
   [  40] Return value:outer~1
 
-block3:
+block2:
   [  48] GetGlobal dst:reg6, `Error`
   [  60] CallConstruct dst:reg5, callee:reg6, Error, arguments:[String("test")]
   [  80] Throw src:reg5

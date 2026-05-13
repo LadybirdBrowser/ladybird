@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Error.h>
+#include <AK/Span.h>
 #include <LibJS/Forward.h>
 
 namespace JS::Bytecode {
@@ -22,6 +23,6 @@ enum class CacheState : u8 {
     AfterFixup,
 };
 
-ErrorOr<void> validate_bytecode(Executable const&, CacheState);
+ErrorOr<void> validate_bytecode(Executable const&, ReadonlySpan<u32> basic_block_offsets, CacheState);
 
 }

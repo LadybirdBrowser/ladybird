@@ -6,6 +6,7 @@
 
 #include <LibJS/RustIntegration.h>
 
+#include <AK/NumericLimits.h>
 #include <AK/TemporaryChange.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
@@ -1046,9 +1047,13 @@ extern "C" void* rust_create_executable(
         });
     }
 
-    // Set basic block offsets
+    // Keep basic block offsets transient. They are only needed by the
+    // validator while this Executable is being constructed.
+    Vector<u32> basic_block_offsets;
+    basic_block_offsets.ensure_capacity(data->basic_block_count);
     for (size_t i = 0; i < data->basic_block_count; ++i) {
-        executable->basic_block_start_offsets.append(data->basic_block_offsets[i]);
+        VERIFY(data->basic_block_offsets[i] <= NumericLimits<u32>::max());
+        basic_block_offsets.append(static_cast<u32>(data->basic_block_offsets[i]));
     }
 
     // Set local variable names
@@ -1091,7 +1096,7 @@ extern "C" void* rust_create_executable(
     auto const should_validate_bytecode = is_materializing_bytecode_cache;
 #endif
     if (should_validate_bytecode) {
-        if (auto validation = JS::Bytecode::validate_bytecode(*executable, JS::Bytecode::CacheState::BeforeFixup); validation.is_error()) {
+        if (auto validation = JS::Bytecode::validate_bytecode(*executable, basic_block_offsets.span(), JS::Bytecode::CacheState::BeforeFixup); validation.is_error()) {
             if (is_materializing_bytecode_cache)
                 return nullptr;
 #if !defined(NDEBUG) || defined(HAS_ADDRESS_SANITIZER)

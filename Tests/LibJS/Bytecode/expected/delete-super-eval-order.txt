@@ -1,6 +1,6 @@
 $67bc40cb delete-super-eval-order.js:4:1
   Registers: 10
-  Blocks:    4
+  Blocks:    3
   Constants:
     [0] = String("m")
     [1] = Undefined
@@ -13,17 +13,15 @@ block0:
   [  28] SetLexicalEnvironment environment:reg4
   [  30] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("m")]
   [  58] InitializeLexicalBinding `A`, src:reg6
-  [  70] Jump target:block3
+  [  70] Jump target:block2
 
 block1:
   [  78] Catch dst:reg6
   [  80] SetLexicalEnvironment environment:reg4
   [  88] Mov2 dst1:reg5, src1:Undefined, dst2:reg7, src2:reg5
-
-block2:
   [  a0] End value:reg5
 
-block3:
+block2:
   [  a8] Mov dst:reg6, src:Undefined
   [  b8] GetGlobal dst:reg9, `A`
   [  d0] CallConstruct dst:reg8, callee:reg9, A

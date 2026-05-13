@@ -14,7 +14,7 @@ block0:
 
 tryCatchWithBlocks$fc7f9ac0 try-catch-scoping.js:2:5
   Registers: 11
-  Blocks:    4
+  Blocks:    3
   Locals:    y~0, z~1, e~2, x~3
   Constants:
     [0] = Int32(1)
@@ -25,7 +25,7 @@ tryCatchWithBlocks$fc7f9ac0 try-catch-scoping.js:2:5
 block0:
   [   0] GetLexicalEnvironment dst:reg4
   [   8] Mov dst:x~3, src:Int32(1)
-  [  18] Jump target:block3
+  [  18] Jump target:block2
 
 block1:
   [  20] Catch dst:reg5
@@ -36,11 +36,9 @@ block1:
   [  80] Add dst:reg9, lhs:x~3, rhs:e~2
   [  90] Add dst:reg10, lhs:reg9, rhs:z~1
   [  a0] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg10]
-
-block2:
   [  c8] End value:Undefined
 
-block3:
+block2:
   [  d0] Mov dst:y~0, src:Int32(2)
   [  e0] Throw src:y~0
 

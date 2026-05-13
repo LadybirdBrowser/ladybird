@@ -1,6 +1,6 @@
 $80aea387 this-base-identifier.js:16:1
   Registers: 10
-  Blocks:    4
+  Blocks:    3
   Constants:
     [0] = Undefined
 
@@ -10,17 +10,15 @@ block0:
   [  20] Call dst:reg5, callee:reg6, this_value:Undefined, get_from_this
   [  40] GetGlobal dst:reg7, `set_on_this`
   [  58] Call dst:reg6, callee:reg7, this_value:Undefined, set_on_this
-  [  78] Jump target:block3
+  [  78] Jump target:block2
 
 block1:
   [  80] Catch dst:reg5
   [  88] SetLexicalEnvironment environment:reg4
   [  90] Mov2 dst1:reg7, src1:Undefined, dst2:reg8, src2:reg7
-
-block2:
   [  a8] End value:reg7
 
-block3:
+block2:
   [  b0] Mov dst:reg5, src:Undefined
   [  c0] GetGlobal dst:reg9, `chained_this_access`
   [  d8] Call dst:reg7, callee:reg9, this_value:Undefined, chained_this_access

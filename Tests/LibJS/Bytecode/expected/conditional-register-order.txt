@@ -12,7 +12,7 @@ block0:
 
 foo$1d0ffb84 conditional-register-order.js:2:5
   Registers: 6
-  Blocks:    4
+  Blocks:    3
   Constants:
     [0] = Int32(1)
     [1] = Int32(2)
@@ -26,6 +26,4 @@ block1:
 
 block2:
   [  28] Mov dst:reg5, src:Int32(2)
-
-block3:
   [  38] Return value:reg5

@@ -1,22 +1,20 @@
 $aaec50d4 invalid-lhs-assignment-no-dead-code.js:8:1
   Registers: 10
-  Blocks:    4
+  Blocks:    3
   Constants:
     [0] = Undefined
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] Jump target:block3
+  [   8] Jump target:block2
 
 block1:
   [  10] Catch dst:reg5
   [  18] SetLexicalEnvironment environment:reg4
   [  20] Mov2 dst1:reg6, src1:Undefined, dst2:reg7, src2:reg6
-
-block2:
   [  38] End value:reg6
 
-block3:
+block2:
   [  40] Mov dst:reg5, src:Undefined
   [  50] GetGlobal dst:reg8, `f`
   [  68] NewFunction dst:reg9, shared_function_data_index:0

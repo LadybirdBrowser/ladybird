@@ -50,7 +50,7 @@ block0:
 
 method$994e3bed super-optional-call-this.js:6:9
   Registers: 9
-  Blocks:    4
+  Blocks:    3
   Constants:
     [0] = Undefined
 
@@ -60,15 +60,13 @@ block0:
   [  18] ResolveSuperBase dst:reg7
   [  20] GetByIdWithThis dst:reg8, base:reg7, `method`, this_value:this
   [  40] Mov2 dst1:reg5, src1:this, dst2:reg6, src2:reg8
-  [  58] JumpNullish condition:reg6, true_target:block1, false_target:block3
+  [  58] JumpNullish condition:reg6, true_target:block1, false_target:block2
 
 block1:
   [  68] Mov dst:reg6, src:Undefined
-
-block2:
   [  78] Return value:reg6
 
-block3:
+block2:
   [  80] NewArray dst:reg7
   [  90] CallWithArgumentArray dst:reg6, callee:reg6, this_value:reg5, arguments:reg7
   [  a8] Mov dst:reg5, src:Undefined

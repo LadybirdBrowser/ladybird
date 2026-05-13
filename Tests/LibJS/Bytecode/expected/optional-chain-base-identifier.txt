@@ -1,6 +1,6 @@
 $a37cd2a2 optional-chain-base-identifier.js:1:1
   Registers: 9
-  Blocks:    4
+  Blocks:    3
   Constants:
     [0] = Int32(44)
     [1] = Undefined
@@ -17,15 +17,13 @@ block0:
   [  98] GetGlobal dst:reg7, `obj`
   [  b0] GetById dst:reg8, base:reg7, `a` (obj.a)
   [  d0] Mov2 dst1:reg5, src1:reg7, dst2:reg6, src2:reg8
-  [  e8] JumpNullish condition:reg6, true_target:block1, false_target:block3
+  [  e8] JumpNullish condition:reg6, true_target:block1, false_target:block2
 
 block1:
   [  f8] Mov dst:reg6, src:Undefined
-
-block2:
   [ 108] End value:reg6
 
-block3:
+block2:
   [ 110] Mov dst:reg5, src:reg6
   [ 120] GetById dst:reg6, base:reg6, `b`
   [ 140] End value:reg6

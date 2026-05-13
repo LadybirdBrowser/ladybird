@@ -13,7 +13,7 @@ block0:
 
 f$a6e23ba8 for-of-continue-with-block-scope.js:2:15
   Registers: 18
-  Blocks:    12
+  Blocks:    11
   Locals:    o~0, t~1
   Constants:
     [0] = Int32(1)
@@ -34,25 +34,23 @@ block1:
 
 block2:
   [  68] IteratorNextUnpack dst_value:reg10, dst_done:reg11, iterator_object:reg5, iterator_next:reg6, iterator_done:reg7
-  [  80] JumpIf condition:reg11, true_target:block1, false_target:block5
+  [  80] JumpIf condition:reg11, true_target:block1, false_target:block4
 
 block3:
   [  90] Catch dst:reg9
   [  98] SetLexicalEnvironment environment:reg4
   [  a0] Mov dst:reg8, src:Int32(1)
+  [  b0] JumpStrictlyEquals lhs:reg8, rhs:Int32(1), true_target:block7, false_target:block8
 
 block4:
-  [  b0] JumpStrictlyEquals lhs:reg8, rhs:Int32(1), true_target:block8, false_target:block9
-
-block5:
   [  c8] CreateLexicalEnvironment dst:reg12, parent:reg4, capacity:0
   [  d8] CreateVariable `r`, is_immutable:true, is_global:false, is_strict:true
   [  e8] InitializeLexicalBinding `r`, src:reg10
   [ 100] GetBinding dst:reg14, `r`
   [ 118] Not dst:reg13, src:reg14
-  [ 128] JumpFalse condition:reg13, target:block7
+  [ 128] JumpFalse condition:reg13, target:block6
 
-block6:
+block5:
   [ 138] GetById dst:reg15, base:t~1, `push` (t.push)
   [ 158] Mov dst:reg16, src:t~1
   [ 168] GetBinding dst:reg17, `r`
@@ -60,7 +58,7 @@ block6:
   [ 1a8] SetLexicalEnvironment environment:reg4
   [ 1b0] Jump target:block2
 
-block7:
+block6:
   [ 1b8] GetById dst:reg13, base:t~1, `find` (t.find)
   [ 1d8] Mov dst:reg14, src:t~1
   [ 1e8] NewFunction dst:reg15, shared_function_data_index:0
@@ -68,18 +66,18 @@ block7:
   [ 228] SetLexicalEnvironment environment:reg4
   [ 230] Jump target:block2
 
-block8:
+block7:
   [ 238] IteratorClose iterator_object:reg5, iterator_next:reg6, iterator_done:reg7, completion_value:reg9
   [ 250] Throw src:reg9
 
-block9:
+block8:
   [ 258] IteratorClose iterator_object:reg5, iterator_next:reg6, iterator_done:reg7, completion_value:Undefined
-  [ 270] JumpStrictlyEquals lhs:reg8, rhs:Int32(2), true_target:block10, false_target:block11
+  [ 270] JumpStrictlyEquals lhs:reg8, rhs:Int32(2), true_target:block9, false_target:block10
 
-block10:
+block9:
   [ 288] Return value:reg9
 
-block11:
+block10:
   [ 290] Throw src:reg9
 
 Exception handlers:

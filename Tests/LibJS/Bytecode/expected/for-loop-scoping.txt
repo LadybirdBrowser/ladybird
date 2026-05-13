@@ -15,7 +15,7 @@ block0:
 
 forLetClosure$9d2e257d for-loop-scoping.js:2:15
   Registers: 10
-  Blocks:    5
+  Blocks:    4
   Locals:    fns~0
   Constants:
     [0] = Int32(0)
@@ -32,7 +32,7 @@ block0:
   [  70] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
   [  80] CreateVariable `i`, is_immutable:false, is_global:false, is_strict:false
   [  90] InitializeLexicalBinding `i`, src:reg6
-  [  a8] Jump target:block3
+  [  a8] Jump target:block2
 
 block1:
   [  b0] GetById dst:reg7, base:fns~0, `push` (fns.push)
@@ -44,17 +44,15 @@ block1:
   [ 140] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
   [ 150] CreateVariable `i`, is_immutable:false, is_global:false, is_strict:false
   [ 160] InitializeLexicalBinding `i`, src:reg6
-
-block2:
   [ 178] GetBinding dst:reg7, `i`
   [ 190] PostfixIncrement dst:reg6, src:reg7
   [ 1a0] SetLexicalBinding `i`, src:reg7
 
-block3:
+block2:
   [ 1b8] GetBinding dst:reg6, `i`
-  [ 1d0] JumpLessThan lhs:reg6, rhs:Int32(3), true_target:block1, false_target:block4
+  [ 1d0] JumpLessThan lhs:reg6, rhs:Int32(3), true_target:block1, false_target:block3
 
-block4:
+block3:
   [ 1e8] SetLexicalEnvironment environment:reg4
   [ 1f0] GetById dst:reg6, base:fns~0, `map` (fns.map)
   [ 210] Mov dst:reg7, src:fns~0

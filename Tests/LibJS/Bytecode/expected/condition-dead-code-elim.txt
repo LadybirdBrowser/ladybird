@@ -100,7 +100,7 @@ block0:
 
 do_while_falsey$2b22dba1 condition-dead-code-elim.js:37:9
   Registers: 7
-  Blocks:    4
+  Blocks:    1
   Constants:
     [0] = Bool(false)
     [1] = Undefined
@@ -109,16 +109,10 @@ do_while_falsey$2b22dba1 condition-dead-code-elim.js:37:9
 block0:
   [   0] GetGlobal dst:reg6, `alive`
   [  18] Call dst:reg5, callee:reg6, this_value:Undefined, alive
-
-block1:
   [  38] GetGlobal dst:reg6, `alive`
   [  50] Call dst:reg5, callee:reg6, this_value:Undefined, alive
-
-block2:
   [  70] GetGlobal dst:reg6, `alive`
   [  88] Call dst:reg5, callee:reg6, this_value:Undefined, alive
-
-block3:
   [  a8] GetGlobal dst:reg6, `alive`
   [  c0] Call dst:reg5, callee:reg6, this_value:Undefined, alive
   [  e0] End value:Undefined

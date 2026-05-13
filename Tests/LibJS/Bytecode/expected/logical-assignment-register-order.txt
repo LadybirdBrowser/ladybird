@@ -1,6 +1,6 @@
 $932d2a38 logical-assignment-register-order.js:2:7
   Registers: 8
-  Blocks:    4
+  Blocks:    3
 
 block0:
   [   0] GetGlobal dst:reg5, `value`
@@ -14,6 +14,4 @@ block1:
 
 block2:
   [  70] Mov dst:reg7, src:reg5
-
-block3:
   [  80] End value:reg7
