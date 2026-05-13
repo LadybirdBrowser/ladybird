@@ -47,8 +47,6 @@ public:
     ByteString path(PathRole) const;
     SystemTheme const& theme() const { return *m_theme_buffer.data<SystemTheme>(); }
 
-    void replace_internal_buffer(Core::AnonymousBuffer);
-
 private:
     explicit PaletteImpl(Core::AnonymousBuffer);
 
@@ -85,8 +83,6 @@ public:
 
     void set_color(ColorRole, Color);
     void set_flag(FlagRole, bool);
-
-    SystemTheme const& theme() const { return m_impl->theme(); }
 
     PaletteImpl& impl() { return *m_impl; }
     PaletteImpl const& impl() const { return *m_impl; }

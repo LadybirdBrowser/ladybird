@@ -60,9 +60,4 @@ void Palette::set_flag(FlagRole role, bool value)
     theme.flag[(int)role] = value;
 }
 
-void PaletteImpl::replace_internal_buffer(Core::AnonymousBuffer buffer)
-{
-    m_theme_buffer = move(buffer);
-}
-
 }
