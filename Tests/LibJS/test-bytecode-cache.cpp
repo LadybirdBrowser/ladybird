@@ -7,9 +7,11 @@
 #include <AK/ScopeGuard.h>
 #include <LibCrypto/Hash/SHA2.h>
 #include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/ModuleRequest.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/RustIntegration.h>
 #include <LibJS/SourceCode.h>
+#include <LibJS/SourceTextModule.h>
 #include <LibTest/TestCase.h>
 
 struct BytecodeCacheTestData {
@@ -114,6 +116,35 @@ static BytecodeCacheTestData create_bytecode_cache_blob(StringView source)
     };
 
     auto blob = JS::RustIntegration::serialize_compiled_program_for_bytecode_cache(*compiled, JS::RustIntegration::ProgramType::Script, source_hash.bytes());
+    VERIFY(!blob.is_empty());
+
+    return {
+        .source_code = source_code,
+        .blob = move(blob),
+        .source_hash = source_hash,
+    };
+}
+
+static BytecodeCacheTestData create_module_bytecode_cache_blob(StringView source)
+{
+    auto source_code = JS::SourceCode::create("test.mjs"_string, Utf16String::from_utf8(source));
+    auto source_hash = Crypto::Hash::SHA256::hash(reinterpret_cast<u8 const*>(source_code->utf16_data()), source_code->length_in_code_units() * sizeof(u16));
+
+    auto* parsed = JS::RustIntegration::parse_program(source_code->utf16_data(), source_code->length_in_code_units(), JS::RustIntegration::ProgramType::Module);
+    VERIFY(parsed);
+    ArmedScopeGuard free_parsed = [&] {
+        JS::RustIntegration::free_parsed_program(parsed);
+    };
+    EXPECT(!JS::RustIntegration::parsed_program_has_errors(parsed));
+
+    auto* compiled = JS::RustIntegration::compile_parsed_program_fully_off_thread(parsed, source_code->length_in_code_units());
+    VERIFY(compiled);
+    free_parsed.disarm();
+    ScopeGuard free_compiled = [&] {
+        JS::RustIntegration::free_compiled_program(compiled);
+    };
+
+    auto blob = JS::RustIntegration::serialize_compiled_program_for_bytecode_cache(*compiled, JS::RustIntegration::ProgramType::Module, source_hash.bytes());
     VERIFY(!blob.is_empty());
 
     return {
@@ -293,4 +324,32 @@ TEST_CASE(bytecode_cache_rejects_out_of_range_declaration_function_source_span)
     EXPECT(materialized->is_error());
     EXPECT(!materialized->error().is_empty());
     EXPECT_EQ(materialized->error().first().message, "Failed to materialize bytecode cache"_string);
+}
+
+TEST_CASE(bytecode_cache_preserves_re_exported_import_names)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    auto test_data = create_module_bytecode_cache_blob("import { pass as renamed } from './source.mjs'; export { renamed as default };"sv);
+
+    auto* decoded_blob = JS::RustIntegration::decode_bytecode_cache_blob(test_data.blob.bytes(), JS::RustIntegration::ProgramType::Module, test_data.source_hash.bytes());
+    VERIFY(decoded_blob);
+
+    auto source_module = JS::SourceTextModule::parse("export function pass() {}"sv, realm, "./source.mjs"sv).release_value();
+    source_module->set_status(JS::ModuleStatus::Unlinked);
+
+    auto cached_module = JS::SourceTextModule::parse_from_bytecode_cache(decoded_blob, test_data.source_code, realm).release_value();
+    cached_module->set_status(JS::ModuleStatus::Unlinked);
+    cached_module->loaded_modules().append(JS::LoadedModuleRequest {
+        .specifier = Utf16String::from_utf8("./source.mjs"sv),
+        .attributes = {},
+        .module = source_module,
+    });
+
+    auto resolution = cached_module->resolve_export(*vm, "default"_utf16_fly_string);
+    EXPECT(resolution.is_valid());
+    EXPECT_EQ(resolution.module.ptr(), source_module.ptr());
+    EXPECT_EQ(resolution.export_name, "pass"sv);
 }

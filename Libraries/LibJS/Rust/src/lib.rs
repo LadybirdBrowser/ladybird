@@ -1884,7 +1884,13 @@ unsafe fn extract_module_metadata(scope: &ast::ScopeData, ctx: *mut c_void, cb: 
                         StatementKind::FunctionDeclaration(_) | StatementKind::ClassDeclaration(_)
                     )
                 });
-                if !is_declaration && let Some(ref name) = entry.local_or_import_name {
+                let is_specific_import_export = all_import_entries
+                    .iter()
+                    .any(|ie| entry.local_or_import_name.as_ref() == Some(&ie.local_name) && ie.import_name.is_some());
+                if !is_declaration
+                    && !is_specific_import_export
+                    && let Some(ref name) = entry.local_or_import_name
+                {
                     (cb.set_default_export_binding)(ctx, name.as_ptr(), name.len());
                 }
             }

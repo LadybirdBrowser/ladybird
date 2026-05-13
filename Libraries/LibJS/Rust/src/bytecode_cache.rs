@@ -26,7 +26,7 @@ use crate::bytecode::operand::PropertyKeyTableIndex;
 use crate::{CompiledProgram, CompiledProgramBytecode, ModuleCallbacks, ast, u32_from_usize};
 
 const MAGIC: &[u8; 8] = b"LBJSBC\0\0";
-const FORMAT_VERSION: u32 = 1;
+const FORMAT_VERSION: u32 = 2;
 const SOURCE_HASH_SIZE: usize = 32;
 
 fn source_span_is_valid(start: u32, end: u32, source_len: usize) -> bool {
@@ -1494,7 +1494,10 @@ fn collect_module_imports_and_exports(scope: &ast::ScopeData, metadata: &mut Mod
                     ast::StatementKind::FunctionDeclaration(_) | ast::StatementKind::ClassDeclaration(_)
                 )
             });
-            if !is_declaration {
+            let is_specific_import_export = all_import_entries.iter().any(|import| {
+                entry.local_or_import_name.as_ref() == Some(&import.local_name) && import.import_name.is_some()
+            });
+            if !is_declaration && !is_specific_import_export {
                 metadata.default_export_binding_name = entry.local_or_import_name.clone();
             }
         }
@@ -1513,9 +1516,12 @@ fn collect_module_imports_and_exports(scope: &ast::ScopeData, metadata: &mut Mod
                     if import_entry.import_name.is_none() {
                         metadata.local_exports.push(export_record(entry, None));
                     } else {
-                        metadata
-                            .indirect_exports
-                            .push(export_record(entry, Some(&import_entry.module_request)));
+                        metadata.indirect_exports.push(ModuleExportEntryRecord {
+                            kind: entry.kind,
+                            export_name: entry.export_name.clone(),
+                            local_or_import_name: import_entry.import_name.clone(),
+                            module_request: Some(import_entry.module_request.clone()),
+                        });
                     }
                 } else {
                     metadata.local_exports.push(export_record(entry, None));

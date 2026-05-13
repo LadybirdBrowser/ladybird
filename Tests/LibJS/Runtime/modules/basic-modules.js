@@ -164,6 +164,11 @@ describe("in- and exports", () => {
         expect(result.default).toBe(result.defaultValue);
     });
 
+    test("can re-export an imported binding as default", () => {
+        const result = expectModulePassed("./re-export-imported-binding-as-default.mjs");
+        expect(result.default()).toBe("PASS");
+    });
+
     test("declaration exports which can be used in the module it self", () => {
         expectModulePassed("./declarations-tests.mjs");
     });
