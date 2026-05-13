@@ -47,34 +47,9 @@ public:
 
     [[nodiscard]] ALWAYS_INLINE constexpr bool is_empty() const { return m_width <= 0 || m_height <= 0; }
 
-    constexpr void scale_by(T dx, T dy)
-    {
-        m_width *= dx;
-        m_height *= dy;
-    }
-
-    ALWAYS_INLINE constexpr void scale_by(T dboth) { scale_by(dboth, dboth); }
-    ALWAYS_INLINE constexpr void scale_by(Point<T> const& s) { scale_by(s.x(), s.y()); }
-
-    [[nodiscard]] constexpr Size scaled(T dx, T dy) const
-    {
-        Size<T> size = *this;
-        size.scale_by(dx, dy);
-        return size;
-    }
-
     [[nodiscard]] constexpr Size scaled(T dboth) const
     {
-        Size<T> size = *this;
-        size.scale_by(dboth);
-        return size;
-    }
-
-    [[nodiscard]] constexpr Size scaled(Point<T> const& s) const
-    {
-        Size<T> size = *this;
-        size.scale_by(s);
-        return size;
+        return { m_width * dboth, m_height * dboth };
     }
 
     [[nodiscard]] constexpr float aspect_ratio() const
