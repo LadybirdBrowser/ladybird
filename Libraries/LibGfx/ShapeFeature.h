@@ -15,7 +15,6 @@ struct ShapeFeature {
     u32 value;
 
     bool operator==(ShapeFeature const&) const = default;
-    bool operator!=(ShapeFeature const&) const = default;
 };
 
 using ShapeFeatures = Vector<ShapeFeature, 4>;
