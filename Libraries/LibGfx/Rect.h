@@ -392,19 +392,9 @@ public:
     [[nodiscard]] Rect centered_within(Rect const& other) const
     {
         Rect rect { *this };
-        rect.center_horizontally_within(other);
-        rect.center_vertically_within(other);
+        rect.set_x(other.center().x() - width() / 2);
+        rect.set_y(other.center().y() - height() / 2);
         return rect;
-    }
-
-    void center_horizontally_within(Rect<T> const& other)
-    {
-        set_x(other.center().x() - width() / 2);
-    }
-
-    void center_vertically_within(Rect<T> const& other)
-    {
-        set_y(other.center().y() - height() / 2);
     }
 
     template<typename U>
