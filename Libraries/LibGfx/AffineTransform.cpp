@@ -21,11 +21,6 @@ float AffineTransform::y_scale() const
     return AK::hypot(m_values[2], m_values[3]);
 }
 
-FloatPoint AffineTransform::scale() const
-{
-    return { x_scale(), y_scale() };
-}
-
 AffineTransform& AffineTransform::scale(float sx, float sy)
 {
     m_values[0] *= sx;
