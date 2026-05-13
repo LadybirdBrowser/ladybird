@@ -18,7 +18,7 @@ LineBuilder::LineBuilder(InlineFormattingContext& context, LayoutState& layout_s
     , m_writing_mode(writing_mode)
 {
     auto text_indent = m_context.containing_block().computed_values().text_indent();
-    m_text_indent = text_indent.length_percentage.to_px(m_context.containing_block(), m_containing_block_used_values.content_width());
+    m_text_indent = text_indent.length_percentage.to_px(m_containing_block_used_values.content_width());
     m_text_indent_each_line = text_indent.each_line;
     m_text_indent_hanging = text_indent.hanging;
     begin_new_line(false);
@@ -310,7 +310,7 @@ void LineBuilder::update_last_line()
             // NOTE: For fragments with a <length-percentage> vertical-align, shift the line box baseline down by the resolved amount.
             //       This ensures that we make enough vertical space on the line for any manually-aligned fragments.
             if (auto const* length_percentage = fragment.layout_node().computed_values().vertical_align().get_pointer<CSS::LengthPercentage>()) {
-                fragment_baseline += length_percentage->to_px(fragment.layout_node(), line_height);
+                fragment_baseline += length_percentage->to_px(line_height);
             }
 
             if (fragment_baseline > line_box_baseline) {
@@ -390,7 +390,7 @@ void LineBuilder::update_last_line()
             new_fragment_block_offset = block_offset_value_for_alignment(vertical_align.get<CSS::VerticalAlign>());
         } else {
             if (auto const* length_percentage = vertical_align.get_pointer<CSS::LengthPercentage>()) {
-                auto vertical_align_amount = length_percentage->to_px(fragment.layout_node(), fragment.layout_node().computed_values().line_height());
+                auto vertical_align_amount = length_percentage->to_px(fragment.layout_node().computed_values().line_height());
                 new_fragment_block_offset = block_offset_value_for_alignment(CSS::VerticalAlign::Baseline) - vertical_align_amount;
             }
         }
@@ -415,7 +415,7 @@ void LineBuilder::update_last_line()
                 bottom_of_inline_box = (fragment.block_offset() + fragment.baseline() + CSSPixels::nearest_value_for(font_metrics.descent) + half_leading);
             }
             if (auto const* length_percentage = fragment.layout_node().computed_values().vertical_align().get_pointer<CSS::LengthPercentage>()) {
-                bottom_of_inline_box += length_percentage->to_px(fragment.layout_node(), fragment.layout_node().computed_values().line_height());
+                bottom_of_inline_box += length_percentage->to_px(fragment.layout_node().computed_values().line_height());
             }
         }
 

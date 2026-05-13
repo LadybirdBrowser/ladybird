@@ -52,7 +52,7 @@ public:
     bool is_intrinsic_sizing_constraint() const { return is_min_content() || is_max_content() || is_fit_content(); }
     bool is_length_percentage() const { return is_length() || is_percentage() || is_calculated(); }
 
-    [[nodiscard]] CSSPixels to_px(Layout::Node const&, CSSPixels reference_value) const;
+    [[nodiscard]] CSSPixels to_px(CSSPixels reference_value) const;
 
     bool contains_percentage() const;
 

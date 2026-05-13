@@ -315,13 +315,11 @@ CSSPixelRect IntersectionObserver::root_intersection_rectangle() const
         document = &intersection_root.get<GC::Ref<DOM::Element>>()->document();
     }
     if (m_document && document->origin().is_same_origin(m_document->origin())) {
-        if (auto layout_node = intersection_root.visit([&](auto& node) -> Layout::Node* { return node->layout_node(); })) {
-            rect.inflate(
-                m_root_margin[0].to_px(*layout_node, rect.height()),
-                m_root_margin[1].to_px(*layout_node, rect.width()),
-                m_root_margin[2].to_px(*layout_node, rect.height()),
-                m_root_margin[3].to_px(*layout_node, rect.width()));
-        }
+        rect.inflate(
+            m_root_margin[0].to_px(rect.height()),
+            m_root_margin[1].to_px(rect.width()),
+            m_root_margin[2].to_px(rect.height()),
+            m_root_margin[3].to_px(rect.width()));
     }
 
     return rect;

@@ -103,7 +103,7 @@ static CSSPixels farthest_corner_distance(CSSPixelPoint const& center, CSSPixelR
     return corner_distance(center, reference_box, [](CSSPixels a, CSSPixels b) { return a > b; }, corner);
 }
 
-CSSPixels RadialSizeStyleValue::resolve_circle_size(CSSPixelPoint const& center, CSSPixelRect const& reference_box, Layout::Node const& node) const
+CSSPixels RadialSizeStyleValue::resolve_circle_size(CSSPixelPoint const& center, CSSPixelRect const& reference_box) const
 {
     VERIFY(m_components.size() == 1);
 
@@ -132,8 +132,7 @@ CSSPixels RadialSizeStyleValue::resolve_circle_size(CSSPixelPoint const& center,
         },
         [&](NonnullRefPtr<StyleValue const> const& length_percentage) {
             auto radius_ref = sqrt(pow(reference_box.width().to_float(), 2) + pow(reference_box.height().to_float(), 2)) / AK::Sqrt2<float>;
-            // FIXME: We don't need to pass `node` here since we know that all relative lengths have already been absolutized
-            return CSSPixels::nearest_value_for(max(0.0f, LengthPercentage::from_style_value(length_percentage).to_px(node, CSSPixels::nearest_value_for(radius_ref)).to_float()));
+            return CSSPixels::nearest_value_for(max(0.0f, LengthPercentage::from_style_value(length_percentage).to_px(CSSPixels::nearest_value_for(radius_ref)).to_float()));
         });
 
     // https://w3c.github.io/csswg-drafts/css-images/#degenerate-radials
@@ -175,7 +174,7 @@ static CSSPixelSize ellipse_corner_shape(CSSPixelPoint const& center, CSSPixelRe
     return CSSPixelSize { radius_a, radius_b };
 }
 
-CSSPixelSize RadialSizeStyleValue::resolve_ellipse_size(CSSPixelPoint const& center, CSSPixelRect const& reference_box, Layout::Node const& node) const
+CSSPixelSize RadialSizeStyleValue::resolve_ellipse_size(CSSPixelPoint const& center, CSSPixelRect const& reference_box) const
 {
     VERIFY(m_components.size() == 1 || m_components.size() == 2);
 
@@ -196,8 +195,7 @@ CSSPixelSize RadialSizeStyleValue::resolve_ellipse_size(CSSPixelPoint const& cen
                 VERIFY_NOT_REACHED();
             },
             [&](NonnullRefPtr<StyleValue const> const& length_percentage) {
-                // FIXME: We don't need to pass `node` here since we know that all relative lengths have already been absolutized
-                auto value = LengthPercentage::from_style_value(length_percentage).to_px(node, reference_size);
+                auto value = LengthPercentage::from_style_value(length_percentage).to_px(reference_size);
 
                 return CSSPixelSize { value, value };
             });

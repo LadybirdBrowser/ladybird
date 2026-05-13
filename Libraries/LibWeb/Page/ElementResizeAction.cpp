@@ -76,16 +76,16 @@ void ElementResizeAction::handle_pointer_move(CSSPixelPoint pointer_position)
 
     if (reference_basis.has_value()) {
         if (auto const& min_width = computed.min_width(); !min_width.is_auto()) {
-            css_width = max(css_width, min_width.to_px(layout_node, reference_basis->width()));
+            css_width = max(css_width, min_width.to_px(reference_basis->width()));
         }
         if (auto const& max_width = computed.max_width(); !max_width.is_none()) {
-            css_width = min(css_width, max_width.to_px(layout_node, reference_basis->width()));
+            css_width = min(css_width, max_width.to_px(reference_basis->width()));
         }
         if (auto const& min_height = computed.min_height(); !min_height.is_auto()) {
-            css_height = max(css_height, min_height.to_px(layout_node, reference_basis->height()));
+            css_height = max(css_height, min_height.to_px(reference_basis->height()));
         }
         if (auto const& max_height = computed.max_height(); !max_height.is_none()) {
-            css_height = min(css_height, max_height.to_px(layout_node, reference_basis->height()));
+            css_height = min(css_height, max_height.to_px(reference_basis->height()));
         }
     }
     if (computed.box_sizing() == CSS::BoxSizing::ContentBox) {

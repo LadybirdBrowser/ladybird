@@ -51,7 +51,7 @@ void ConicGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& node
         m_resolved_size = size;
         m_resolved = ResolvedData { Painting::resolve_conic_gradient_data(node, *this), {} };
     }
-    m_resolved->position = m_properties.position->resolved(node, CSSPixelRect { { 0, 0 }, size });
+    m_resolved->position = m_properties.position->resolved(CSSPixelRect { { 0, 0 }, size });
 }
 
 void ConicGradientStyleValue::paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering) const

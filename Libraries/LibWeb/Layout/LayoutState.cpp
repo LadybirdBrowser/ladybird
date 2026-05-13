@@ -795,13 +795,13 @@ void LayoutState::commit(Box& root)
                     scrollport_size = nearest_scrollable_ancestor->absolute_rect().size();
 
                 if (!inset.top().is_auto())
-                    sticky_insets->top = inset.top().to_px_or_zero(node, scrollport_size.height());
+                    sticky_insets->top = inset.top().to_px_or_zero(scrollport_size.height());
                 if (!inset.right().is_auto())
-                    sticky_insets->right = inset.right().to_px_or_zero(node, scrollport_size.width());
+                    sticky_insets->right = inset.right().to_px_or_zero(scrollport_size.width());
                 if (!inset.bottom().is_auto())
-                    sticky_insets->bottom = inset.bottom().to_px_or_zero(node, scrollport_size.height());
+                    sticky_insets->bottom = inset.bottom().to_px_or_zero(scrollport_size.height());
                 if (!inset.left().is_auto())
-                    sticky_insets->left = inset.left().to_px_or_zero(node, scrollport_size.width());
+                    sticky_insets->left = inset.left().to_px_or_zero(scrollport_size.width());
                 paintable_box->set_sticky_insets(move(sticky_insets));
             }
         }
@@ -877,14 +877,14 @@ void LayoutState::UsedValues::set_node(NodeWithStyle const& node, UsedValues con
 
         if (width) {
             border_and_padding = computed_values.border_left().width
-                + computed_values.padding().left().to_px_or_zero(*m_node, containing_block_used_values->content_width())
+                + computed_values.padding().left().to_px_or_zero(containing_block_used_values->content_width())
                 + computed_values.border_right().width
-                + computed_values.padding().right().to_px_or_zero(*m_node, containing_block_used_values->content_width());
+                + computed_values.padding().right().to_px_or_zero(containing_block_used_values->content_width());
         } else {
             border_and_padding = computed_values.border_top().width
-                + computed_values.padding().top().to_px_or_zero(*m_node, containing_block_used_values->content_width())
+                + computed_values.padding().top().to_px_or_zero(containing_block_used_values->content_width())
                 + computed_values.border_bottom().width
-                + computed_values.padding().bottom().to_px_or_zero(*m_node, containing_block_used_values->content_width());
+                + computed_values.padding().bottom().to_px_or_zero(containing_block_used_values->content_width());
         }
 
         return unadjusted_pixels - border_and_padding;
@@ -931,11 +931,11 @@ void LayoutState::UsedValues::set_node(NodeWithStyle const& node, UsedValues con
                 if (!containing_block_has_definite_size)
                     return false;
                 auto containing_block_size_as_length = width ? containing_block_used_values->content_width() : containing_block_used_values->content_height();
-                resolved_definite_size = clamp_to_max_dimension_value(adjust_for_box_sizing(size.to_px(node, containing_block_size_as_length), size, width));
+                resolved_definite_size = clamp_to_max_dimension_value(adjust_for_box_sizing(size.to_px(containing_block_size_as_length), size, width));
                 return true;
             }
 
-            resolved_definite_size = clamp_to_max_dimension_value(adjust_for_box_sizing(size.to_px(node, CSSPixels { 0 }), size, width));
+            resolved_definite_size = clamp_to_max_dimension_value(adjust_for_box_sizing(size.to_px(CSSPixels { 0 }), size, width));
             return true;
         }
 

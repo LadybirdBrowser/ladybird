@@ -23,7 +23,7 @@ struct TextPositioning {
     Vector<Position> dy;
     Vector<float> rotate;
 
-    void apply_to_text_position(Layout::Node const& node, CSSPixelSize viewport, Gfx::FloatPoint& current_text_position, size_t character_index) const
+    void apply_to_text_position(CSSPixelSize viewport, Gfx::FloatPoint& current_text_position, size_t character_index) const
     {
         auto value_for_character = [&](Vector<Position> const& values) -> float {
             if (values.is_empty())
@@ -34,7 +34,7 @@ struct TextPositioning {
                 [](CSS::Number const& number) { return static_cast<float>(number.value()); },
                 [&](CSS::LengthPercentage const& length_percentage) {
                     auto reference = &values == &x || &values == &dx ? viewport.width() : viewport.height();
-                    return length_percentage.to_px(node, reference).to_float();
+                    return length_percentage.to_px(reference).to_float();
                 });
         };
 

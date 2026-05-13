@@ -53,21 +53,21 @@ void RadialGradientStyleValue::serialize(StringBuilder& builder, SerializationMo
     builder.append(')');
 }
 
-CSSPixelSize RadialGradientStyleValue::resolve_size(CSSPixelPoint center, CSSPixelRect const& reference_box, Layout::NodeWithStyle const& node) const
+CSSPixelSize RadialGradientStyleValue::resolve_size(CSSPixelPoint center, CSSPixelRect const& reference_box) const
 {
     if (m_properties.ending_shape == EndingShape::Circle) {
-        auto radius = m_properties.size->as_radial_size().resolve_circle_size(center, reference_box, node);
+        auto radius = m_properties.size->as_radial_size().resolve_circle_size(center, reference_box);
         return CSSPixelSize { radius, radius };
     }
 
-    return m_properties.size->as_radial_size().resolve_ellipse_size(center, reference_box, node);
+    return m_properties.size->as_radial_size().resolve_ellipse_size(center, reference_box);
 }
 
 void RadialGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& node, CSSPixelSize paint_size) const
 {
     CSSPixelRect gradient_box { { 0, 0 }, paint_size };
-    auto center = m_properties.position->resolved(node, gradient_box);
-    auto gradient_size = resolve_size(center, gradient_box, node);
+    auto center = m_properties.position->resolved(gradient_box);
+    auto gradient_size = resolve_size(center, gradient_box);
 
     if (m_resolved_size != paint_size) {
         m_resolved_size = move(paint_size);

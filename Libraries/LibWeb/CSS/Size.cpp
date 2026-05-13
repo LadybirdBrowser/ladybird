@@ -16,11 +16,11 @@ Size::Size(Type type, Optional<LengthPercentage> length_percentage)
 {
 }
 
-CSSPixels Size::to_px(Layout::Node const& node, CSSPixels reference_value) const
+CSSPixels Size::to_px(CSSPixels reference_value) const
 {
     if (!m_length_percentage.has_value())
         return 0;
-    return m_length_percentage->resolved(node, reference_value).to_px(node);
+    return m_length_percentage->resolved(reference_value).absolute_length_to_px();
 }
 
 Size Size::make_auto()

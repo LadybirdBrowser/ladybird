@@ -206,9 +206,6 @@ public:
 
     static Length from_style_value(NonnullRefPtr<StyleValue const> const&, Optional<Length> percentage_basis);
 
-    static Length resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const&, Layout::Node const&, Length const& reference_value);
-    static Length resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const&, Layout::Node const&, CSSPixels reference_value);
-
 private:
     [[nodiscard]] CSSPixels to_px_slow_case(Layout::Node const&) const;
 

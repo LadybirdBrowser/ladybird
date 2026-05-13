@@ -69,17 +69,12 @@ public:
         return m_value.template get<NonnullRefPtr<CalculatedStyleValue const>>();
     }
 
-    CSSPixels to_px(Layout::Node const& layout_node, CSSPixels reference_value) const
+    CSSPixels to_px(CSSPixels reference_value) const
     {
-        if (auto const* length = m_value.template get_pointer<Length>()) {
-            if (length->is_absolute())
-                return length->absolute_length_to_px();
-        }
-
-        return resolved(layout_node, reference_value).to_px(layout_node);
+        return resolved(reference_value).absolute_length_to_px();
     }
 
-    Length resolved(Layout::Node const& layout_node, CSSPixels reference_value) const
+    Length resolved(CSSPixels reference_value) const
     {
         return m_value.visit(
             [&](Length const& t) {
@@ -89,7 +84,7 @@ public:
                 return Length::make_px(CSSPixels::truncated_value_for(reference_value.to_double() * percentage.as_fraction()));
             },
             [&](NonnullRefPtr<CalculatedStyleValue const> const& calculated) {
-                return Length::resolve_calculated(calculated, layout_node, reference_value);
+                return calculated->resolve_length({ .percentage_basis = Length::make_px(reference_value) }).value();
             });
     }
 
@@ -176,18 +171,18 @@ public:
     Percentage const& percentage() const { return m_length_percentage->percentage(); }
     NonnullRefPtr<CalculatedStyleValue const> const& calculated() const { return m_length_percentage->calculated(); }
 
-    LengthOrAuto resolved_or_auto(Layout::Node const& layout_node, CSSPixels reference_value) const
+    LengthOrAuto resolved_or_auto(CSSPixels reference_value) const
     {
         if (is_auto())
             return LengthOrAuto::make_auto();
-        return length_percentage().resolved(layout_node, reference_value);
+        return length_percentage().resolved(reference_value);
     }
 
-    CSSPixels to_px_or_zero(Layout::Node const& layout_node, CSSPixels reference_value) const
+    CSSPixels to_px_or_zero(CSSPixels reference_value) const
     {
         if (is_auto())
             return 0;
-        return length_percentage().to_px(layout_node, reference_value);
+        return length_percentage().to_px(reference_value);
     }
 
     void serialize(StringBuilder& builder, SerializationMode mode) const
