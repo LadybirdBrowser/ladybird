@@ -70,7 +70,7 @@ NonnullRefPtr<Font> Typeface::font(float point_size, FontVariationSettings const
                 used_typeface = move(derived);
     }
 
-    auto font = adopt_ref(*new Font(*used_typeface, point_size, point_size, DEFAULT_DPI, DEFAULT_DPI, variations, shape_features));
+    auto font = adopt_ref(*new Font(*used_typeface, point_size, point_size, variations, shape_features));
     m_fonts.set(key, font);
     return font;
 }

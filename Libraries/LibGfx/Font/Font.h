@@ -51,7 +51,7 @@ constexpr float text_shaping_resolution = 64;
 
 class Font : public AtomicRefCounted<Font> {
 public:
-    Font(NonnullRefPtr<Typeface const>, float point_width, float point_height, unsigned dpi_x, unsigned dpi_y, FontVariationSettings const variations, ShapeFeatures const& features);
+    Font(NonnullRefPtr<Typeface const>, float point_width, float point_height, FontVariationSettings const variations, ShapeFeatures const& features);
     ~Font();
 
     u64 id() const { return m_id; }
@@ -99,8 +99,6 @@ private:
     mutable TriState m_is_emoji_font { TriState::Unknown };
 
     NonnullRefPtr<Typeface const> m_typeface;
-    float m_x_scale { 0.0f };
-    float m_y_scale { 0.0f };
     float m_point_width { 0.0f };
     float m_point_height { 0.0f };
     FontVariationSettings const m_font_variation_settings;
