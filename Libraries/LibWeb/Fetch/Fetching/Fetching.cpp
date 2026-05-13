@@ -917,28 +917,29 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
     }
 
     // 8. If fetchParams’s process response consume body is non-null, then:
-    if (fetch_params.algorithms()->process_response_consume_body()) {
+    auto algorithms = fetch_params.algorithms();
+    if (algorithms->process_response_consume_body()) {
         // 1. Let processBody given nullOrBytes be this step: run fetchParams’s process response consume body given
         //    response and nullOrBytes.
-        auto process_body = GC::create_function(vm.heap(), [&fetch_params, &response](ByteBuffer bytes) {
-            (fetch_params.algorithms()->process_response_consume_body())(response, move(bytes));
+        auto process_body = GC::create_function(vm.heap(), [algorithms, &response](ByteBuffer bytes) {
+            (algorithms->process_response_consume_body())(response, move(bytes));
         });
 
         // 2. Let processBodyError be this step: run fetchParams’s process response consume body given response and
         //    failure.
-        auto process_body_error = GC::create_function(vm.heap(), [&fetch_params, &response, setup_report_timing_steps](JS::Value) {
+        auto process_body_error = GC::create_function(vm.heap(), [algorithms, &response, setup_report_timing_steps](JS::Value) {
             // AD-HOC: See comment on setup_report_timing_steps above.
             setup_report_timing_steps();
-            (fetch_params.algorithms()->process_response_consume_body())(response, Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag {});
+            (algorithms->process_response_consume_body())(response, Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag {});
         });
 
         // 3. If internalResponse's body is null, then queue a fetch task to run processBody given null, with
         //    fetchParams’s task destination.
         if (!internal_response->body()) {
-            Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.task_destination(), GC::create_function(vm.heap(), [&fetch_params, &response]() {
+            Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.task_destination(), GC::create_function(vm.heap(), [algorithms, &response]() {
                 // NOTE: We have to provide `fully_read` a callback which accepts a ByteBuffer. Since that is not
                 //       nullable, we just invoke `process_response_consume_body` with a null value manually here.
-                (fetch_params.algorithms()->process_response_consume_body())(response, Empty {});
+                (algorithms->process_response_consume_body())(response, Empty {});
             }));
         }
         // 4. Otherwise, fully read internalResponse body given processBody, processBodyError, and fetchParams’s task

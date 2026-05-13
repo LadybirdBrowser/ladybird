@@ -152,7 +152,7 @@ private:
     GC::Ptr<Fetch::Infrastructure::Request> create_link_request(LinkProcessingOptions const&);
 
     void fetch_and_process_linked_resource();
-    void default_fetch_and_process_linked_resource();
+    void default_fetch_and_process_linked_resource(u64 fetch_generation);
     void fetch_and_process_linked_dns_prefetch_resource();
     void fetch_and_process_linked_preconnect_resource();
     void fetch_and_process_linked_preload_resource();
@@ -195,6 +195,7 @@ private:
     GC::Ptr<DOM::DOMTokenList> m_rel_list;
     GC::Ptr<DOM::DOMTokenList> m_sizes;
     unsigned m_relationship { 0 };
+    u64 m_current_fetch_generation { 0 };
 
     // https://html.spec.whatwg.org/multipage/semantics.html#explicitly-enabled
     bool m_explicitly_enabled { false };

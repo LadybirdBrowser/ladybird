@@ -392,15 +392,15 @@ GC::Ptr<Fetch::Infrastructure::Request> HTMLLinkElement::create_link_request(HTM
 // https://html.spec.whatwg.org/multipage/semantics.html#fetch-and-process-the-linked-resource
 void HTMLLinkElement::fetch_and_process_linked_resource()
 {
-    // NB: Step 2 of "process the linked resource" for stylesheets is implemented here.
-    // https://html.spec.whatwg.org/multipage/links.html#link-type-stylesheet:process-the-linked-resource
+    auto fetch_generation = ++m_current_fetch_generation;
+
     if (m_fetch_controller) {
         m_fetch_controller->stop_fetch();
         document().script_blocking_style_sheet_set().remove(*this);
     }
 
     if (m_relationship & ~(Relationship::DNSPrefetch | Relationship::Preconnect | Relationship::Preload))
-        default_fetch_and_process_linked_resource();
+        default_fetch_and_process_linked_resource(fetch_generation);
     else if (m_relationship & Relationship::Preload)
         fetch_and_process_linked_preload_resource();
     else if (m_relationship & Relationship::Preconnect)
@@ -410,7 +410,7 @@ void HTMLLinkElement::fetch_and_process_linked_resource()
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#default-fetch-and-process-the-linked-resource
-void HTMLLinkElement::default_fetch_and_process_linked_resource()
+void HTMLLinkElement::default_fetch_and_process_linked_resource(u64 fetch_generation)
 {
     // https://html.spec.whatwg.org/multipage/semantics.html#the-link-element:attr-link-href-4
     // If both the href and imagesrcset attributes are absent, then the element does not define a link.
@@ -444,7 +444,11 @@ void HTMLLinkElement::default_fetch_and_process_linked_resource()
 
     // 7. Fetch request with processResponseConsumeBody set to the following steps given response response and null, failure, or a byte sequence bodyBytes:
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
-    fetch_algorithms_input.process_response_consume_body = [this](auto response, auto body_bytes) {
+    fetch_algorithms_input.process_response_consume_body = [this, fetch_generation](auto response, auto body_bytes) {
+        // "if, since the resource in question was fetched, it has become appropriate to fetch it again"
+        if (fetch_generation != m_current_fetch_generation)
+            return;
+
         // FIXME: If the response is CORS cross-origin, we must use its internal response to query any of its data. See:
         //        https://github.com/whatwg/html/issues/9355
         response = response->unsafe_response();
@@ -808,8 +812,8 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
 
     // 2. If el no longer creates an external resource link that contributes to the styling processing model, or
     //    if, since the resource in question was fetched, it has become appropriate to fetch it again, then return.
-    // NB: This is implemented in fetch_and_process_linked_resource() by stopping the outdated fetch,
-    //     which prevents this callback from running at all.
+    // NB: The "fetch it again" case is handled by the fetch generation check in
+    //     default_fetch_and_process_linked_resource().
 
     // 3. If el has an associated CSS style sheet, remove the CSS style sheet.
     if (m_loaded_style_sheet) {

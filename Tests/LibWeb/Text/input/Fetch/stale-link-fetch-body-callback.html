@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+asyncTest(done => {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.addEventListener("load", () => {
+        println(`Final body color: ${getComputedStyle(document.body).color}`);
+        done();
+    });
+
+    link.href = "data:text/css,body { color: rgb(0, 128, 0); }";
+    document.head.appendChild(link);
+    link.href = "data:text/css,body { color: rgb(0, 0, 255); }";
+});
+</script>
