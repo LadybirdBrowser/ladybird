@@ -562,15 +562,16 @@ void DisplayListRecorder::draw_text(Gfx::IntRect const& rect, Utf16String const&
 
     auto glyph_run = Gfx::shape_text({}, 0, raw_text.utf16_view(), font, Gfx::GlyphRun::TextType::Ltr);
     float baseline_x = 0;
-    if (alignment == Gfx::TextAlignment::CenterLeft) {
+    switch (alignment) {
+    case Gfx::TextAlignment::CenterLeft:
         baseline_x = rect.x();
-    } else if (alignment == Gfx::TextAlignment::Center) {
+        break;
+    case Gfx::TextAlignment::Center:
         baseline_x = static_cast<float>(rect.x()) + (static_cast<float>(rect.width()) - glyph_run->width()) / 2.0f;
-    } else if (alignment == Gfx::TextAlignment::CenterRight) {
+        break;
+    case Gfx::TextAlignment::CenterRight:
         baseline_x = static_cast<float>(rect.right()) - glyph_run->width();
-    } else {
-        // Unimplemented alignment.
-        TODO();
+        break;
     }
     auto metrics = font.pixel_metrics();
     float baseline_y = static_cast<float>(rect.y()) + metrics.ascent + (static_cast<float>(rect.height()) - (metrics.ascent + metrics.descent)) / 2.0f;

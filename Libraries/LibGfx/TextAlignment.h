@@ -14,13 +14,7 @@ namespace Gfx {
 #define GFX_ENUMERATE_TEXT_ALIGNMENTS(M) \
     M(Center)                            \
     M(CenterLeft)                        \
-    M(CenterRight)                       \
-    M(TopCenter)                         \
-    M(TopLeft)                           \
-    M(TopRight)                          \
-    M(BottomCenter)                      \
-    M(BottomLeft)                        \
-    M(BottomRight)
+    M(CenterRight)
 
 enum class TextAlignment {
 #define __ENUMERATE(x) x,
