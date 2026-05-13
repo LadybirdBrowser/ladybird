@@ -134,6 +134,11 @@ bool HSTSStore::is_known_hsts_host(StringView domain)
     return false;
 }
 
+void HSTSStore::remove_policies_observed_since(UnixDateTime since)
+{
+    m_transient_storage.remove_policies_observed_since(since);
+}
+
 void HSTSStore::TransientStorage::set_policies(Policies policies)
 {
     m_policies = move(policies);
@@ -166,6 +171,18 @@ void HSTSStore::TransientStorage::update_last_observed_time(StringView domain)
 
     it->value.last_observed_time = UnixDateTime::now();
     m_dirty_policies.set(it->key, it->value);
+}
+
+void HSTSStore::TransientStorage::remove_policies_observed_since(UnixDateTime since)
+{
+    for (auto& [domain, policy] : m_policies) {
+        if (policy.last_observed_time >= since) {
+            policy.expiry = UnixDateTime::earliest();
+            m_dirty_policies.set(domain, policy);
+        }
+    }
+
+    purge_expired_policies();
 }
 
 UnixDateTime HSTSStore::TransientStorage::purge_expired_policies()

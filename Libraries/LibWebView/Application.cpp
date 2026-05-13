@@ -1203,6 +1203,7 @@ void Application::clear_browsing_data(ClearBrowsingDataOptions const& options)
     if (options.delete_site_data == ClearBrowsingDataOptions::Delete::Yes) {
         m_cookie_jar->expire_cookies_accessed_since(options.since);
         m_storage_jar->remove_items_accessed_since(options.since);
+        m_hsts_store->remove_policies_observed_since(options.since);
     }
 
     if (did_change_history)
