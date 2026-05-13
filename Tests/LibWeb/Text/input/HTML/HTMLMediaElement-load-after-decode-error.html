@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="HTMLMediaElement-include.js"></script>
 <video id="video"></video>
 <script>
     const video = document.getElementById("video");
 
     function logEvent(name) {
-        let entry = `${name}: readyState=${video.readyState}`;
+        let entry = `${name}: ${formatReadyStateExpectation(video, name)}`;
         if (name === "durationchange")
             entry += ` duration=${video.duration}`;
         if (name === "error")
@@ -15,8 +16,7 @@
 
     for (const name of [
         "loadstart", "abort", "error", "emptied",
-        "loadedmetadata", "loadeddata", "canplay",
-        "canplaythrough", "durationchange", "ended",
+        "loadedmetadata", "durationchange", "ended",
     ]) {
         video.addEventListener(name, () => logEvent(name));
     }
