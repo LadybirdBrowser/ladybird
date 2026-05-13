@@ -221,18 +221,6 @@ public:
             && bottom() >= other.bottom();
     }
 
-    template<typename Container>
-    [[nodiscard]] bool contains(Container const& others) const
-    {
-        bool have_any = false;
-        for (auto const& other : others) {
-            if (!contains(other))
-                return false;
-            have_any = true;
-        }
-        return have_any;
-    }
-
     [[nodiscard]] ALWAYS_INLINE T primary_offset_for_orientation(Orientation orientation) const { return m_location.primary_offset_for_orientation(orientation); }
     [[nodiscard]] ALWAYS_INLINE T secondary_offset_for_orientation(Orientation orientation) const { return m_location.secondary_offset_for_orientation(orientation); }
     ALWAYS_INLINE void translate_primary_offset_for_orientation(Orientation orientation, T delta) { m_location.set_primary_offset_for_orientation(orientation, m_location.primary_offset_for_orientation(orientation) + delta); }
@@ -285,16 +273,6 @@ public:
     {
         return max(left(), other.left()) <= min(right(), other.right())
             && max(top(), other.top()) <= min(bottom(), other.bottom());
-    }
-
-    template<typename Container>
-    [[nodiscard]] bool intersects(Container const& others) const
-    {
-        for (auto const& other : others) {
-            if (intersects(other))
-                return true;
-        }
-        return false;
     }
 
     template<class U>
