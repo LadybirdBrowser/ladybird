@@ -236,18 +236,6 @@ public:
         return AK::sqrt<O>(dot(*this));
     }
 
-    [[nodiscard]] constexpr VectorN<2, T> xy() const
-    requires(N >= 3)
-    {
-        return VectorN<2, T>(x(), y());
-    }
-
-    [[nodiscard]] constexpr VectorN<3, T> xyz() const
-    requires(N >= 4)
-    {
-        return VectorN<3, T>(x(), y(), z());
-    }
-
     [[nodiscard]] ByteString to_byte_string() const
     {
         if constexpr (N == 2)
@@ -265,16 +253,6 @@ public:
         UNROLL_LOOP
         for (auto i = 0u; i < N; ++i)
             result.data()[i] = static_cast<U>(m_data[i]);
-        return result;
-    }
-
-    template<typename U>
-    [[nodiscard]] VectorN<N, U> to_rounded() const
-    {
-        VectorN<N, U> result;
-        UNROLL_LOOP
-        for (auto i = 0u; i < N; ++i)
-            result.data()[i] = round_to<U>(m_data[i]);
         return result;
     }
 
