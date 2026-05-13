@@ -82,7 +82,8 @@ struct BooleanExpressionEvaluationContext {
 };
 
 struct ContainerQueryFeatureRequirements {
-    bool requires_size_container : 1 { false };
+    bool requires_width_container : 1 { false };
+    bool requires_height_container : 1 { false };
     bool requires_inline_size_container : 1 { false };
     bool requires_block_size_container : 1 { false };
     bool requires_style_container : 1 { false };

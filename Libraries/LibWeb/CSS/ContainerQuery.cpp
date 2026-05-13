@@ -14,6 +14,11 @@
 
 namespace Web::CSS {
 
+static bool inline_axis_is_horizontal(WritingMode writing_mode)
+{
+    return writing_mode == WritingMode::HorizontalTb;
+}
+
 NonnullRefPtr<ContainerQuery> ContainerQuery::create(NonnullOwnPtr<BooleanExpression>&& condition)
 {
     return adopt_ref(*new ContainerQuery(move(condition)));
@@ -33,9 +38,25 @@ static bool container_satisfies_requirements(DOM::Element const& element, Contai
         return false;
 
     auto container_type = style->container_type();
+    auto inline_axis_horizontal = inline_axis_is_horizontal(style->writing_mode());
 
-    if (requirements.requires_size_container && !container_type.is_size_container)
-        return false;
+    if (requirements.requires_width_container) {
+        if (inline_axis_horizontal) {
+            if (!(container_type.is_size_container || container_type.is_inline_size_container))
+                return false;
+        } else if (!container_type.is_size_container) {
+            return false;
+        }
+    }
+
+    if (requirements.requires_height_container) {
+        if (inline_axis_horizontal) {
+            if (!container_type.is_size_container)
+                return false;
+        } else if (!(container_type.is_size_container || container_type.is_inline_size_container)) {
+            return false;
+        }
+    }
 
     if (requirements.requires_inline_size_container && !(container_type.is_size_container || container_type.is_inline_size_container))
         return false;
