@@ -140,6 +140,13 @@ public:
 
     void paint_scrollbar(ScrollFrameIndex scroll_frame_index, Gfx::IntRect gutter_rect, Gfx::IntRect thumb_rect, double scroll_size, Color thumb_color, Color track_color, bool vertical);
 
+    void compositor_scroll_node(CompositorScrollNode const&);
+    void compositor_sticky_area(CompositorStickyArea const&);
+    void set_async_scrolling_metadata(DisplayList::AsyncScrollingMetadata);
+    void compositor_main_thread_wheel_event_region(CompositorMainThreadWheelEventRegion const&);
+    void compositor_viewport_scrollbar(CompositorViewportScrollbar const&);
+    void compositor_blocking_wheel_event_region(CompositorBlockingWheelEventRegion const&);
+
     void apply_effects(float opacity = 1.0f, Gfx::CompositingAndBlendingOperator = Gfx::CompositingAndBlendingOperator::Normal, Optional<Gfx::Filter> filter = {}, Optional<Gfx::MaskKind> mask_kind = {});
 
     DisplayListRecorder(DisplayList&);

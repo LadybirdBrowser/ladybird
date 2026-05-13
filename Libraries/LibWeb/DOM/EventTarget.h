@@ -44,7 +44,7 @@ public:
     void add_an_event_listener(DOMEventListener&);
     void remove_an_event_listener(DOMEventListener&);
 
-    Vector<GC::Root<DOMEventListener>> event_listener_list();
+    Vector<GC::Root<DOMEventListener>> event_listener_list() const;
 
     virtual bool has_activation_behavior() const;
     virtual void activation_behavior(Event const&);

@@ -6,3 +6,16 @@ blocking element listener outside: true
 stale blocking element regions: false
 blocking window listener: false
 stale blocking window regions: false
+display list after blocking element listener:
+AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+    [2] clip=[0,0 200x200]
+      [3] scroll_frame_id=2 (PaintableWithLines(BlockContainer(anonymous)))
+
+DisplayList:
+SaveLayer@0
+  CompositorScrollNode@1 scroll_frame_index=2 parent_scroll_frame_index=0 scrollport_rect=[0,0 200x200] max_scroll_offset=[800,900] is_viewport=false
+  CompositorBlockingWheelEventRegion@3 rect=[0,0 100x100]
+  PaintScrollBar@1
+  PaintScrollBar@1
+Restore@0

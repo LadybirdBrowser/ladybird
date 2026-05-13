@@ -119,6 +119,11 @@ private:
     virtual void draw_rect(DrawRect const&) = 0;
     virtual void add_rounded_rect_clip(AddRoundedRectClip const&) = 0;
     virtual void paint_nested_display_list(PaintNestedDisplayList const&) = 0;
+    virtual void compositor_scroll_node(CompositorScrollNode const&) = 0;
+    virtual void compositor_sticky_area(CompositorStickyArea const&) = 0;
+    virtual void compositor_main_thread_wheel_event_region(CompositorMainThreadWheelEventRegion const&) = 0;
+    virtual void compositor_viewport_scrollbar(CompositorViewportScrollbar const&) = 0;
+    virtual void compositor_blocking_wheel_event_region(CompositorBlockingWheelEventRegion const&) = 0;
     virtual void paint_scrollbar(PaintScrollBar const&) = 0;
     virtual void apply_effects(ApplyEffects const&, Gfx::Filter const* = nullptr) = 0;
     virtual void apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4 const&) = 0;
@@ -133,6 +138,13 @@ private:
 
 class DisplayList : public AtomicRefCounted<DisplayList> {
 public:
+    struct AsyncScrollingMetadata {
+        Gfx::IntRect viewport_rect;
+        u64 wheel_event_listener_state_generation { 0 };
+        bool has_blocking_wheel_event_listeners { false };
+        bool has_blocking_wheel_event_region_covering_viewport { false };
+    };
+
     static NonnullRefPtr<DisplayList> create(NonnullRefPtr<AccumulatedVisualContextTree const> visual_context_tree)
     {
         return adopt_ref(*new DisplayList(move(visual_context_tree), DisplayListResourceStorage {}));
@@ -163,6 +175,8 @@ public:
     ReadonlyBytes command_bytes() const { return m_command_bytes.span(); }
     DisplayListResourceStorage& resource_storage() { return m_resource_storage; }
     DisplayListResourceStorage const& resource_storage() const { return m_resource_storage; }
+    void set_async_scrolling_metadata(AsyncScrollingMetadata metadata) { m_async_scrolling_metadata = metadata; }
+    Optional<AsyncScrollingMetadata> const& async_scrolling_metadata() const { return m_async_scrolling_metadata; }
 
     template<typename Callback>
     static void for_each_command_header(ReadonlyBytes command_bytes, Callback callback)
@@ -213,6 +227,7 @@ private:
     DisplayListResourceStorage m_resource_storage;
     u64 m_id { 0 };
     ByteBuffer m_command_bytes;
+    Optional<AsyncScrollingMetadata> m_async_scrolling_metadata;
 };
 
 }

@@ -4,6 +4,7 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 SaveLayer@0
+  CompositorScrollNode@0 scroll_frame_index=1 parent_scroll_frame_index=0 scrollport_rect=[0,0 800x600] max_scroll_offset=[0,613] is_viewport=true
   Save@1
     PaintLinearGradient@2 rect=[0,0 800x600]
   Restore@1

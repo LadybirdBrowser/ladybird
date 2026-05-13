@@ -59,7 +59,6 @@ struct BackingStoreState {
 struct UpdateDisplayListCommand {
     NonnullRefPtr<Painting::DisplayList> display_list;
     Painting::ScrollStateSnapshot scroll_state_snapshot;
-    Optional<AsyncScrollingState> async_scrolling_state;
 };
 
 struct AsyncScrollByCommand {
@@ -401,11 +400,11 @@ public:
     {
         Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
         auto scroll_target = m_async_scroll_tree.hit_test_scroll_node_for_wheel(position, delta);
-        if (!scroll_target.has_value())
+        if (scroll_target.blocked_by_main_thread_region || !scroll_target.node_id.has_value())
             return {};
-        if (!m_async_scroll_tree.scroll_node_is_viewport(*scroll_target))
+        if (!m_async_scroll_tree.scroll_node_is_viewport(*scroll_target.node_id))
             return { {}, true };
-        return { scroll_target, false };
+        return { scroll_target.node_id, false };
     }
 
     bool enqueue_async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect)
@@ -476,7 +475,7 @@ public:
         Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
         for (size_t i = 0; i < m_viewport_scrollbars.size(); ++i) {
             auto const& scrollbar = m_viewport_scrollbars[i];
-            auto scroll_offset = m_async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id);
+            auto scroll_offset = m_async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id, m_cached_scroll_state_snapshot);
             if (!scroll_offset.has_value())
                 continue;
 
@@ -508,7 +507,7 @@ public:
                 Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
                 for (size_t i = 0; i < m_viewport_scrollbars.size(); ++i) {
                     auto const& scrollbar = m_viewport_scrollbars[i];
-                    auto scroll_offset = m_async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id);
+                    auto scroll_offset = m_async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id, m_cached_scroll_state_snapshot);
                     if (!scroll_offset.has_value())
                         continue;
 
@@ -637,71 +636,55 @@ public:
                 bool should_yield_to_async_scroll_present = false;
                 command->visit(
                     [this](UpdateDisplayListCommand& cmd) {
-                        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor processing display list update (has_async_state={}, raster_tasks={}, deferred_async_present={})",
-                            cmd.async_scrolling_state.has_value(), m_queued_rasterization_tasks.load(), m_has_deferred_async_scroll_present);
+                        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor processing display list update (raster_tasks={}, deferred_async_present={})",
+                            m_queued_rasterization_tasks.load(), m_has_deferred_async_scroll_present);
                         m_cached_display_list = move(cmd.display_list);
                         m_cached_scroll_state_snapshot = move(cmd.scroll_state_snapshot);
-                        if (cmd.async_scrolling_state.has_value()) {
-                            auto async_scrolling_state = cmd.async_scrolling_state.release_value();
-                            auto async_scrolling_viewport_rect = async_scrolling_state.viewport_rect;
-                            auto const wheel_event_listener_state_generation = async_scrolling_state.wheel_event_listener_state_generation;
-                            auto wheel_routing_admission = wheel_routing_admission_for(async_scrolling_state);
-                            {
-                                Sync::MutexLocker const locker { m_mutex };
-                                if (wheel_event_listener_state_generation < m_wheel_event_listener_state_generation)
-                                    wheel_routing_admission = WheelRoutingAdmission::StaleWheelEventListeners;
-                                else
-                                    m_wheel_event_listener_state_generation = wheel_event_listener_state_generation;
-                                m_wheel_routing_admission = wheel_routing_admission;
-                            }
-                            m_can_accept_async_wheel_events = wheel_routing_admission == WheelRoutingAdmission::Accepted;
-                            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor wheel routing admission: {} (scroll_nodes={}, sticky_areas={}, blocking_regions={})",
-                                wheel_routing_admission_to_string(wheel_routing_admission),
-                                async_scrolling_state.scroll_nodes.size(),
-                                async_scrolling_state.sticky_areas.size(),
-                                async_scrolling_state.blocking_wheel_event_regions.size());
-                            auto viewport_node = viewport_scroll_node(async_scrolling_state);
-                            auto pending_async_viewport_scroll_offset = [this] {
-                                Sync::MutexLocker const locker { m_mutex };
-                                return m_pending_async_viewport_scroll_offset;
-                            }();
-
-                            {
-                                Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
-                                auto hovered_scrollbar_identity = viewport_scrollbar_identity_at(m_viewport_scrollbars, m_hovered_viewport_scrollbar_index);
-                                auto captured_scrollbar_identity = viewport_scrollbar_identity_at(m_viewport_scrollbars, m_captured_viewport_scrollbar_index);
-                                m_viewport_scrollbars = move(async_scrolling_state.viewport_scrollbars);
-                                m_hovered_viewport_scrollbar_index = hovered_scrollbar_identity.has_value() ? find_viewport_scrollbar_index(m_viewport_scrollbars, *hovered_scrollbar_identity) : Optional<size_t> {};
-                                m_captured_viewport_scrollbar_index = captured_scrollbar_identity.has_value() ? find_viewport_scrollbar_index(m_viewport_scrollbars, *captured_scrollbar_identity) : Optional<size_t> {};
-                                m_async_scroll_tree.set_state(move(async_scrolling_state));
-                                if (viewport_node.has_value() && pending_async_viewport_scroll_offset.has_value()) {
-                                    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Reapplying pending async viewport offset {},{} to display list update",
-                                        pending_async_viewport_scroll_offset->x(), pending_async_viewport_scroll_offset->y());
-                                    if (auto reconciled_scroll_offset = m_async_scroll_tree.set_scroll_offset(viewport_node->node_id, *pending_async_viewport_scroll_offset, m_cached_scroll_state_snapshot); reconciled_scroll_offset.has_value())
-                                        async_scrolling_viewport_rect.set_location(reconciled_scroll_offset->to_type<int>());
-                                }
-                                m_async_scroll_tree.rebuild_wheel_scroll_targets(m_cached_display_list, m_cached_scroll_state_snapshot);
-                            }
-                            {
-                                Sync::MutexLocker const locker { m_mutex };
-                                m_async_scrolling_viewport_rect = async_scrolling_viewport_rect;
-                            }
-                            m_has_async_scrolling_state = true;
-                        } else {
-                            {
-                                Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
-                                m_viewport_scrollbars.clear();
-                                m_hovered_viewport_scrollbar_index.clear();
-                                m_captured_viewport_scrollbar_index.clear();
-                                m_async_scroll_tree.clear_wheel_scroll_targets();
-                            }
-                            m_has_async_scrolling_state = false;
-                            m_can_accept_async_wheel_events = false;
-                            {
-                                Sync::MutexLocker const locker { m_mutex };
-                                m_wheel_routing_admission = WheelRoutingAdmission::NoAsyncScrollingState;
-                            }
+                        auto async_scrolling_state = async_scrolling_state_from_display_list(*m_cached_display_list);
+                        auto async_scrolling_viewport_rect = async_scrolling_state.viewport_rect;
+                        auto const wheel_event_listener_state_generation = async_scrolling_state.wheel_event_listener_state_generation;
+                        auto wheel_routing_admission = wheel_routing_admission_for(async_scrolling_state);
+                        {
+                            Sync::MutexLocker const locker { m_mutex };
+                            if (wheel_event_listener_state_generation < m_wheel_event_listener_state_generation)
+                                wheel_routing_admission = WheelRoutingAdmission::StaleWheelEventListeners;
+                            else
+                                m_wheel_event_listener_state_generation = wheel_event_listener_state_generation;
+                            m_wheel_routing_admission = wheel_routing_admission;
                         }
+                        m_can_accept_async_wheel_events = wheel_routing_admission == WheelRoutingAdmission::Accepted;
+                        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor wheel routing admission: {} (scroll_nodes={}, sticky_areas={}, blocking_regions={})",
+                            wheel_routing_admission_to_string(wheel_routing_admission),
+                            async_scrolling_state.scroll_nodes.size(),
+                            async_scrolling_state.sticky_areas.size(),
+                            async_scrolling_state.blocking_wheel_event_regions.size());
+                        auto viewport_node = viewport_scroll_node(async_scrolling_state);
+                        auto pending_async_viewport_scroll_offset = [this] {
+                            Sync::MutexLocker const locker { m_mutex };
+                            return m_pending_async_viewport_scroll_offset;
+                        }();
+
+                        {
+                            Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
+                            auto hovered_scrollbar_identity = viewport_scrollbar_identity_at(m_viewport_scrollbars, m_hovered_viewport_scrollbar_index);
+                            auto captured_scrollbar_identity = viewport_scrollbar_identity_at(m_viewport_scrollbars, m_captured_viewport_scrollbar_index);
+                            m_viewport_scrollbars = move(async_scrolling_state.viewport_scrollbars);
+                            m_hovered_viewport_scrollbar_index = hovered_scrollbar_identity.has_value() ? find_viewport_scrollbar_index(m_viewport_scrollbars, *hovered_scrollbar_identity) : Optional<size_t> {};
+                            m_captured_viewport_scrollbar_index = captured_scrollbar_identity.has_value() ? find_viewport_scrollbar_index(m_viewport_scrollbars, *captured_scrollbar_identity) : Optional<size_t> {};
+                            m_async_scroll_tree.set_state(move(async_scrolling_state));
+                            if (viewport_node.has_value() && pending_async_viewport_scroll_offset.has_value()) {
+                                dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Reapplying pending async viewport offset {},{} to display list update",
+                                    pending_async_viewport_scroll_offset->x(), pending_async_viewport_scroll_offset->y());
+                                if (auto reconciled_scroll_offset = m_async_scroll_tree.set_scroll_offset(viewport_node->node_id, *pending_async_viewport_scroll_offset, m_cached_scroll_state_snapshot); reconciled_scroll_offset.has_value())
+                                    async_scrolling_viewport_rect.set_location(reconciled_scroll_offset->to_type<int>());
+                            }
+                            m_async_scroll_tree.rebuild_wheel_scroll_targets(m_cached_display_list, m_cached_scroll_state_snapshot);
+                        }
+                        {
+                            Sync::MutexLocker const locker { m_mutex };
+                            m_async_scrolling_viewport_rect = async_scrolling_viewport_rect;
+                        }
+                        m_has_async_scrolling_state = true;
                     },
                     [this, &should_yield_to_async_scroll_present](AsyncScrollByCommand& cmd) {
                         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor processing async scroll command at {},{} device delta {},{} (raster_tasks={}, deferred_async_present={})",
@@ -714,7 +697,7 @@ public:
                                 dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Dropping async scroll command: scroll tree consumed no delta");
                                 return;
                             }
-                            scroll_offset = m_async_scroll_tree.scroll_offset_for_node(cmd.scroll_target);
+                            scroll_offset = m_async_scroll_tree.scroll_offset_for_node(cmd.scroll_target, m_cached_scroll_state_snapshot);
                             m_async_scroll_tree.rebuild_wheel_scroll_targets(m_cached_display_list, m_cached_scroll_state_snapshot);
                         }
                         if (scroll_offset.has_value()) {
@@ -898,7 +881,7 @@ private:
             if (scroll_size == 0)
                 return false;
 
-            auto current_scroll_offset = m_async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id);
+            auto current_scroll_offset = m_async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id, m_cached_scroll_state_snapshot);
             if (!current_scroll_offset.has_value())
                 return false;
 
@@ -916,7 +899,7 @@ private:
 
             if (!m_async_scroll_tree.apply_scroll_delta(scrollbar.scroll_node_id, delta, m_cached_scroll_state_snapshot))
                 return false;
-            scroll_offset = m_async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id);
+            scroll_offset = m_async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id, m_cached_scroll_state_snapshot);
             m_async_scroll_tree.rebuild_wheel_scroll_targets(m_cached_display_list, m_cached_scroll_state_snapshot);
         }
 
@@ -1431,12 +1414,7 @@ void CompositorThread::stop_presenting_to_client()
 
 void CompositorThread::update_display_list(NonnullRefPtr<Painting::DisplayList> display_list, Painting::ScrollStateSnapshot&& scroll_state_snapshot)
 {
-    m_thread_data->enqueue_command(UpdateDisplayListCommand { move(display_list), move(scroll_state_snapshot), {} });
-}
-
-void CompositorThread::update_display_list_and_async_scrolling_state(NonnullRefPtr<Painting::DisplayList> display_list, Painting::ScrollStateSnapshot&& scroll_state_snapshot, AsyncScrollingState&& async_scrolling_state)
-{
-    m_thread_data->enqueue_command(UpdateDisplayListCommand { move(display_list), move(scroll_state_snapshot), Optional<AsyncScrollingState> { move(async_scrolling_state) } });
+    m_thread_data->enqueue_command(UpdateDisplayListCommand { move(display_list), move(scroll_state_snapshot) });
 }
 
 void CompositorThread::invalidate_wheel_event_listener_state(u64 generation)

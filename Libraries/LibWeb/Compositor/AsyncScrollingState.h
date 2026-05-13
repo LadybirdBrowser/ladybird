@@ -33,7 +33,6 @@ struct AsyncScrollNode {
     Optional<AsyncScrollNodeID> parent_node_id;
     Painting::VisualContextIndex hit_test_visual_context_index;
     Gfx::IntRect scrollport_rect;
-    Gfx::FloatPoint scroll_offset;
     Gfx::FloatPoint max_scroll_offset;
     bool is_viewport { false };
 };
@@ -83,8 +82,6 @@ struct ViewportScrollbar {
     bool vertical { false };
 };
 
-// Snapshot of scroll-related paint data that the compositor can read without touching DOM, layout, or paintables.
-// It is immutable once collected on the main thread; AsyncScrollTree keeps the mutable compositor-side scroll offsets.
 struct AsyncScrollingState {
     Vector<AsyncScrollNode> scroll_nodes;
     Vector<AsyncStickyArea> sticky_areas;
@@ -102,7 +99,6 @@ struct AsyncScrollingState {
     // added.
     u64 wheel_event_listener_state_generation { 0 };
     bool has_blocking_wheel_event_listeners { false };
-    bool blocking_wheel_event_regions_are_current { false };
     bool has_blocking_wheel_event_region_covering_viewport { false };
 };
 
@@ -122,11 +118,13 @@ enum class WheelScrollAdmission {
     BlockedByWheelEventRegion,
 };
 
-AsyncScrollingState collect_async_scrolling_state(HTML::Navigable&, Painting::ViewportPaintable&, Gfx::IntRect viewport_rect);
+void initialize_async_scrolling_metadata_recording(DisplayListRecordingContext&, Painting::ViewportPaintable&);
+void record_async_scrolling_metadata_for_paintable(Painting::PaintableBox const&, DisplayListRecordingContext&);
+void finalize_async_scrolling_metadata_recording(DisplayListRecordingContext&, HTML::Navigable&, Gfx::IntRect viewport_rect);
+AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayList const&);
 WheelRoutingAdmission wheel_routing_admission_for(AsyncScrollingState const&);
 StringView wheel_routing_admission_to_string(WheelRoutingAdmission);
 bool blocks_wheel_event_at_position(AsyncScrollingState const&, RefPtr<Painting::DisplayList> const&, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position);
-bool requires_main_thread_wheel_event_at_position(AsyncScrollingState const&, RefPtr<Painting::DisplayList> const&, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position);
-WheelScrollAdmission admit_wheel_scroll(AsyncScrollingState const&, RefPtr<Painting::DisplayList> const&, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position, Gfx::FloatPoint delta, bool has_blocking_wheel_event_listeners, bool blocking_wheel_event_regions_are_current);
+WheelScrollAdmission admit_wheel_scroll(AsyncScrollingState const&, RefPtr<Painting::DisplayList> const&, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position, Gfx::FloatPoint delta, bool blocking_wheel_event_regions_are_current);
 
 }

@@ -624,33 +624,35 @@ void Internals::reset_style_invalidation_counters()
     window().associated_document().reset_style_invalidation_counters();
 }
 
-JS::Object* Internals::async_scrolling_state()
-{
-    auto& document = window().associated_document();
-    document.update_layout(DOM::UpdateLayoutReason::InternalsHitTest);
+struct AsyncScrollingStateSnapshot {
+    Compositor::AsyncScrollingState state;
+    RefPtr<Painting::DisplayList> display_list;
+    RefPtr<Painting::ViewportPaintable> document_paintable;
+};
 
-    auto object = JS::Object::create(realm(), nullptr);
+static Optional<AsyncScrollingStateSnapshot> capture_async_scrolling_state(DOM::Document& document)
+{
+    document.update_layout(DOM::UpdateLayoutReason::InternalsHitTest);
     auto navigable = document.navigable();
     auto document_paintable = document.paintable();
-    if (!navigable || !document_paintable) {
-        auto scroll_nodes = MUST(JS::Array::create(realm(), 0));
-        auto sticky_areas = MUST(JS::Array::create(realm(), 0));
-        object->define_direct_property("scrollNodeCount"_utf16_fly_string, JS::Value(0), JS::default_attributes);
-        object->define_direct_property("scrollNodes"_utf16_fly_string, scroll_nodes, JS::default_attributes);
-        object->define_direct_property("stickyAreaCount"_utf16_fly_string, JS::Value(0), JS::default_attributes);
-        object->define_direct_property("stickyAreas"_utf16_fly_string, sticky_areas, JS::default_attributes);
-        object->define_direct_property("hasBlockingWheelEventListeners"_utf16_fly_string, JS::Value(false), JS::default_attributes);
-        object->define_direct_property("blockingWheelEventRegionCount"_utf16_fly_string, JS::Value(0), JS::default_attributes);
-        object->define_direct_property("mainThreadWheelEventRegionCount"_utf16_fly_string, JS::Value(0), JS::default_attributes);
-        object->define_direct_property("wheelEventListenerStateGeneration"_utf16_fly_string, JS::Value(0), JS::default_attributes);
-        object->define_direct_property("blockingWheelEventRegionsAreCurrent"_utf16_fly_string, JS::Value(false), JS::default_attributes);
-        object->define_direct_property("hasBlockingWheelEventRegionCoveringViewport"_utf16_fly_string, JS::Value(false), JS::default_attributes);
-        return object;
-    }
+    if (!navigable || !document_paintable)
+        return {};
+    auto display_list = document.record_display_list(HTML::PaintConfig {});
+    if (!display_list)
+        return {};
+    return AsyncScrollingStateSnapshot {
+        .state = Compositor::async_scrolling_state_from_display_list(*display_list),
+        .display_list = display_list,
+        .document_paintable = document_paintable,
+    };
+}
 
-    document_paintable->refresh_scroll_state();
-    auto viewport_rect = page().css_to_device_rect(navigable->viewport_rect()).to_type<int>();
-    auto state = Compositor::collect_async_scrolling_state(*navigable, *document_paintable, viewport_rect);
+JS::Object* Internals::async_scrolling_state()
+{
+    auto object = JS::Object::create(realm(), nullptr);
+    auto snapshot = capture_async_scrolling_state(window().associated_document());
+    Compositor::AsyncScrollingState empty_state;
+    auto const& state = snapshot.has_value() ? snapshot->state : empty_state;
 
     auto scroll_nodes = MUST(JS::Array::create(realm(), state.scroll_nodes.size()));
     for (size_t i = 0; i < state.scroll_nodes.size(); ++i) {
@@ -687,26 +689,17 @@ JS::Object* Internals::async_scrolling_state()
     object->define_direct_property("blockingWheelEventRegionCount"_utf16_fly_string, JS::Value(state.blocking_wheel_event_regions.size()), JS::default_attributes);
     object->define_direct_property("mainThreadWheelEventRegionCount"_utf16_fly_string, JS::Value(state.main_thread_wheel_event_regions.size()), JS::default_attributes);
     object->define_direct_property("wheelEventListenerStateGeneration"_utf16_fly_string, JS::Value(state.wheel_event_listener_state_generation), JS::default_attributes);
-    object->define_direct_property("blockingWheelEventRegionsAreCurrent"_utf16_fly_string, JS::Value(state.blocking_wheel_event_regions_are_current), JS::default_attributes);
+    object->define_direct_property("blockingWheelEventRegionsAreCurrent"_utf16_fly_string, JS::Value(state.has_blocking_wheel_event_listeners), JS::default_attributes);
     object->define_direct_property("hasBlockingWheelEventRegionCoveringViewport"_utf16_fly_string, JS::Value(state.has_blocking_wheel_event_region_covering_viewport), JS::default_attributes);
     return object;
 }
 
 bool Internals::async_scrolling_state_blocks_wheel_event_at(double x, double y)
 {
-    auto& document = window().associated_document();
-    document.update_layout(DOM::UpdateLayoutReason::InternalsHitTest);
-
-    auto navigable = document.navigable();
-    auto document_paintable = document.paintable();
-    if (!navigable || !document_paintable)
+    auto snapshot = capture_async_scrolling_state(window().associated_document());
+    if (!snapshot.has_value())
         return false;
-
-    auto display_list = document.record_display_list(HTML::PaintConfig {});
-    document_paintable->refresh_scroll_state();
-    auto viewport_rect = page().css_to_device_rect(navigable->viewport_rect()).to_type<int>();
-    auto state = Compositor::collect_async_scrolling_state(*navigable, *document_paintable, viewport_rect);
-    return Compositor::blocks_wheel_event_at_position(state, display_list, document_paintable->scroll_state_snapshot(), { static_cast<float>(x), static_cast<float>(y) });
+    return Compositor::blocks_wheel_event_at_position(snapshot->state, snapshot->display_list, snapshot->document_paintable->scroll_state_snapshot(), { static_cast<float>(x), static_cast<float>(y) });
 }
 
 bool Internals::async_scrolling_state_can_wheel_scroll_at(double x, double y, double delta_x, double delta_y, bool force_stale_wheel_event_regions)
@@ -716,20 +709,9 @@ bool Internals::async_scrolling_state_can_wheel_scroll_at(double x, double y, do
 
 String Internals::async_scrolling_state_wheel_routing_admission()
 {
-    auto& document = window().associated_document();
-    document.update_layout(DOM::UpdateLayoutReason::InternalsHitTest);
-
-    auto navigable = document.navigable();
-    auto document_paintable = document.paintable();
-    if (!navigable || !document_paintable)
-        return String::from_utf8_without_validation(
-            Compositor::wheel_routing_admission_to_string(Compositor::WheelRoutingAdmission::NoAsyncScrollingState).bytes());
-
-    document_paintable->refresh_scroll_state();
-    auto viewport_rect = page().css_to_device_rect(navigable->viewport_rect()).to_type<int>();
-    auto state = Compositor::collect_async_scrolling_state(*navigable, *document_paintable, viewport_rect);
-    return String::from_utf8_without_validation(
-        Compositor::wheel_routing_admission_to_string(Compositor::wheel_routing_admission_for(state)).bytes());
+    auto snapshot = capture_async_scrolling_state(window().associated_document());
+    auto admission = snapshot.has_value() ? Compositor::wheel_routing_admission_for(snapshot->state) : Compositor::WheelRoutingAdmission::NoAsyncScrollingState;
+    return String::from_utf8_without_validation(Compositor::wheel_routing_admission_to_string(admission).bytes());
 }
 
 static String wheel_scroll_admission_to_string(Compositor::WheelScrollAdmission admission)
@@ -751,55 +733,35 @@ static String wheel_scroll_admission_to_string(Compositor::WheelScrollAdmission 
 
 String Internals::async_scrolling_state_wheel_scroll_admission_at(double x, double y, double delta_x, double delta_y, bool force_stale_wheel_event_regions)
 {
-    auto& document = window().associated_document();
-    document.update_layout(DOM::UpdateLayoutReason::InternalsHitTest);
-
-    auto navigable = document.navigable();
-    auto document_paintable = document.paintable();
-    if (!navigable || !document_paintable)
+    auto snapshot = capture_async_scrolling_state(window().associated_document());
+    if (!snapshot.has_value())
         return "no-scrollable-target"_string;
-
-    auto display_list = document.record_display_list(HTML::PaintConfig {});
-    document_paintable->refresh_scroll_state();
-    auto viewport_rect = page().css_to_device_rect(navigable->viewport_rect()).to_type<int>();
-    auto state = Compositor::collect_async_scrolling_state(*navigable, *document_paintable, viewport_rect);
     auto admission = Compositor::admit_wheel_scroll(
-        state,
-        display_list,
-        document_paintable->scroll_state_snapshot(),
+        snapshot->state,
+        snapshot->display_list,
+        snapshot->document_paintable->scroll_state_snapshot(),
         { static_cast<float>(x), static_cast<float>(y) },
         { static_cast<float>(delta_x), static_cast<float>(delta_y) },
-        state.has_blocking_wheel_event_listeners,
-        state.blocking_wheel_event_regions_are_current && !force_stale_wheel_event_regions);
+        snapshot->state.has_blocking_wheel_event_listeners && !force_stale_wheel_event_regions);
     return wheel_scroll_admission_to_string(admission);
 }
 
 String Internals::async_scrolling_state_wheel_target_at(double x, double y, double delta_x, double delta_y)
 {
-    auto& document = window().associated_document();
-    document.update_layout(DOM::UpdateLayoutReason::InternalsHitTest);
-
-    auto navigable = document.navigable();
-    auto document_paintable = document.paintable();
-    if (!navigable || !document_paintable)
+    auto snapshot = capture_async_scrolling_state(window().associated_document());
+    if (!snapshot.has_value())
         return "none"_string;
 
-    auto display_list = document.record_display_list(HTML::PaintConfig {});
-    document_paintable->refresh_scroll_state();
-    auto scroll_state_snapshot = document_paintable->scroll_state_snapshot();
-    auto viewport_rect = page().css_to_device_rect(navigable->viewport_rect()).to_type<int>();
-    auto state = Compositor::collect_async_scrolling_state(*navigable, *document_paintable, viewport_rect);
-
     Compositor::AsyncScrollTree scroll_tree;
-    scroll_tree.set_state(move(state));
-    scroll_tree.rebuild_wheel_scroll_targets(display_list, scroll_state_snapshot);
+    scroll_tree.set_state(move(snapshot->state));
+    scroll_tree.rebuild_wheel_scroll_targets(snapshot->display_list, snapshot->document_paintable->scroll_state_snapshot());
 
     auto target = scroll_tree.hit_test_scroll_node_for_wheel(
         { static_cast<float>(x), static_cast<float>(y) },
         { static_cast<float>(delta_x), static_cast<float>(delta_y) });
-    if (!target.has_value())
+    if (target.blocked_by_main_thread_region || !target.node_id.has_value())
         return "none"_string;
-    if (scroll_tree.scroll_node_is_viewport(*target))
+    if (scroll_tree.scroll_node_is_viewport(*target.node_id))
         return "viewport"_string;
     return "non-viewport"_string;
 }

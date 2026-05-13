@@ -821,6 +821,26 @@ void DisplayListPlayerSkia::paint_nested_display_list(PaintNestedDisplayList con
     execute_nested_display_list(nested_display_list, scroll_state_snapshot, command_bytes);
 }
 
+void DisplayListPlayerSkia::compositor_scroll_node(CompositorScrollNode const&)
+{
+}
+
+void DisplayListPlayerSkia::compositor_sticky_area(CompositorStickyArea const&)
+{
+}
+
+void DisplayListPlayerSkia::compositor_main_thread_wheel_event_region(CompositorMainThreadWheelEventRegion const&)
+{
+}
+
+void DisplayListPlayerSkia::compositor_viewport_scrollbar(CompositorViewportScrollbar const&)
+{
+}
+
+void DisplayListPlayerSkia::compositor_blocking_wheel_event_region(CompositorBlockingWheelEventRegion const&)
+{
+}
+
 void DisplayListPlayerSkia::paint_scrollbar(PaintScrollBar const& command)
 {
     auto gutter_rect = to_skia_rect(command.gutter_rect);

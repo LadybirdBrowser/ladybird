@@ -7,7 +7,9 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 SaveLayer@0
+  CompositorScrollNode@1 scroll_frame_index=2 parent_scroll_frame_index=0 scrollport_rect=[10,10 200x150] max_scroll_offset=[102,0] is_viewport=false
   FillPath@1 path_bounding_rect=[8,8 204x154]
+  CompositorScrollNode@3 scroll_frame_index=3 parent_scroll_frame_index=2 scrollport_rect=[11,11 300x100] max_scroll_offset=[100,0] is_viewport=false
   FillRect@3 rect=[10,10 302x102] color=rgb(255, 255, 224)
   FillPath@3 path_bounding_rect=[10,10 302x102]
   FillRect@5 rect=[11,11 400x80] color=rgb(240, 128, 128)

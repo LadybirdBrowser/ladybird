@@ -22,11 +22,21 @@
 <div id="scroller"><div id="spacer"></div></div>
 <div id="page-spacer"></div>
 <script>
+    function printOutputAndDisplayList(output) {
+        const displayList = internals.dumpDisplayList();
+        for (const line of output)
+            println(line);
+        println("display list:");
+        println(displayList);
+    }
+
     promiseTest(async () => {
         internals.wheel(50, 50, 0, 100);
         await animationFrame();
 
-        println(`scroller scrollTop: ${scroller.scrollTop}`);
-        println(`window scrollY: ${window.scrollY}`);
+        printOutputAndDisplayList([
+            `scroller scrollTop: ${scroller.scrollTop}`,
+            `window scrollY: ${window.scrollY}`,
+        ]);
     });
 </script>

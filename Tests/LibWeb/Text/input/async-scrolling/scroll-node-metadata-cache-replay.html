@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #scroller {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+
+    #scroller-content {
+        height: 500px;
+    }
+
+    #page-spacer {
+        height: 3000px;
+    }
+</style>
+<div id="scroller"><div id="scroller-content"></div></div>
+<div id="page-spacer"></div>
+<script>
+    function compositorScrollLines(displayList) {
+        return displayList
+            .split("\n")
+            .filter(line => line.includes("CompositorScrollNode"))
+            .join("\n");
+    }
+
+    test(() => {
+        internals.dumpDisplayList();
+
+        window.scrollTo(0, 1000);
+        scroller.scrollTop = 80;
+
+        println(`window scrollY: ${window.scrollY}`);
+        println(`scroller scrollTop: ${scroller.scrollTop}`);
+        println(`wheel target near viewport top: ${internals.asyncScrollingStateWheelTargetAt(150, 50, 0, 100)}`);
+        println(`upward wheel target over scroller: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 0, -100)}`);
+        println("scroll metadata:");
+        println(compositorScrollLines(internals.dumpDisplayList()));
+    });
+</script>

@@ -712,6 +712,36 @@ void DisplayListRecorder::paint_scrollbar(ScrollFrameIndex scroll_frame_index, G
         .vertical = vertical });
 }
 
+void DisplayListRecorder::compositor_scroll_node(CompositorScrollNode const& scroll_node)
+{
+    append_command(scroll_node);
+}
+
+void DisplayListRecorder::compositor_sticky_area(CompositorStickyArea const& sticky_area)
+{
+    append_command(sticky_area);
+}
+
+void DisplayListRecorder::set_async_scrolling_metadata(DisplayList::AsyncScrollingMetadata metadata)
+{
+    m_display_list.set_async_scrolling_metadata(metadata);
+}
+
+void DisplayListRecorder::compositor_main_thread_wheel_event_region(CompositorMainThreadWheelEventRegion const& region)
+{
+    append_command(region);
+}
+
+void DisplayListRecorder::compositor_viewport_scrollbar(CompositorViewportScrollbar const& scrollbar)
+{
+    append_command(scrollbar);
+}
+
+void DisplayListRecorder::compositor_blocking_wheel_event_region(CompositorBlockingWheelEventRegion const& region)
+{
+    append_command(region);
+}
+
 void DisplayListRecorder::apply_effects(float opacity, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Optional<Gfx::Filter> filter, Optional<Gfx::MaskKind> mask_kind)
 {
     CommandPayloadBuilder<ApplyEffects> payload_builder(m_display_list);

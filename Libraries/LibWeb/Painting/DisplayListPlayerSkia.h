@@ -50,6 +50,11 @@ private:
     void paint_radial_gradient(PaintRadialGradient const&) override;
     void paint_conic_gradient(PaintConicGradient const&) override;
     void add_rounded_rect_clip(AddRoundedRectClip const&) override;
+    void compositor_scroll_node(CompositorScrollNode const&) override;
+    void compositor_sticky_area(CompositorStickyArea const&) override;
+    void compositor_main_thread_wheel_event_region(CompositorMainThreadWheelEventRegion const&) override;
+    void compositor_viewport_scrollbar(CompositorViewportScrollbar const&) override;
+    void compositor_blocking_wheel_event_region(CompositorBlockingWheelEventRegion const&) override;
     void paint_scrollbar(PaintScrollBar const&) override;
     void paint_nested_display_list(PaintNestedDisplayList const&) override;
     void apply_effects(ApplyEffects const&, Gfx::Filter const*) override;

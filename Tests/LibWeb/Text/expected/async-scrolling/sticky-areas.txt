@@ -6,3 +6,16 @@ outer ancestor is viewport: true
 inner ancestor is viewport: true
 outer has top inset only: true
 inner has top inset only: true
+display list:
+AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+    [2] scroll_frame_id=2 (sticky) (PaintableWithLines(BlockContainer(anonymous)))
+      [3] scroll_frame_id=3 (sticky) (PaintableWithLines(BlockContainer<DIV>#inner))
+
+DisplayList:
+SaveLayer@0
+  CompositorScrollNode@0 scroll_frame_index=1 parent_scroll_frame_index=0 scrollport_rect=[0,0 800x600] max_scroll_offset=[0,1431] is_viewport=true
+  CompositorStickyArea@2 scroll_frame_index=2 parent_scroll_frame_index=1 nearest_scrolling_ancestor_index=1 position_relative_to_scroll_ancestor=[0,0] border_box_size=[800x18] scrollport_size=[800x600] containing_block_region=[0,0 800x2018] needs_parent_offset_adjustment=true inset_top=0 inset_right=none inset_bottom=none inset_left=none
+  CompositorStickyArea@3 scroll_frame_index=3 parent_scroll_frame_index=2 nearest_scrolling_ancestor_index=1 position_relative_to_scroll_ancestor=[0,0] border_box_size=[800x18] scrollport_size=[800x600] containing_block_region=[0,0 800x18] needs_parent_offset_adjustment=true inset_top=20 inset_right=none inset_bottom=none inset_left=none
+  DrawGlyphRun@3 rect=[0,0 45x18] translation=[0,13.796875] color=rgb(0, 0, 0)
+Restore@0

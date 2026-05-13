@@ -151,6 +151,49 @@ void PaintNestedDisplayList::dump(StringBuilder& builder) const
     builder.appendff(" rect={}", rect);
 }
 
+void CompositorScrollNode::dump(StringBuilder& builder) const
+{
+    builder.appendff(" scroll_frame_index={} parent_scroll_frame_index={} scrollport_rect={} max_scroll_offset={} is_viewport={}",
+        scroll_frame_index, parent_scroll_frame_index, scrollport_rect, max_scroll_offset, is_viewport);
+}
+
+static void dump_optional_float(StringBuilder& builder, Optional<float> value)
+{
+    if (value.has_value())
+        builder.appendff("{}", *value);
+    else
+        builder.append("none"sv);
+}
+
+void CompositorStickyArea::dump(StringBuilder& builder) const
+{
+    builder.appendff(" scroll_frame_index={} parent_scroll_frame_index={} nearest_scrolling_ancestor_index={} position_relative_to_scroll_ancestor={} border_box_size={} scrollport_size={} containing_block_region={} needs_parent_offset_adjustment={} inset_top=",
+        scroll_frame_index, parent_scroll_frame_index, nearest_scrolling_ancestor_index, position_relative_to_scroll_ancestor, border_box_size, scrollport_size, containing_block_region, needs_parent_offset_adjustment);
+    dump_optional_float(builder, inset_top);
+    builder.append(" inset_right="sv);
+    dump_optional_float(builder, inset_right);
+    builder.append(" inset_bottom="sv);
+    dump_optional_float(builder, inset_bottom);
+    builder.append(" inset_left="sv);
+    dump_optional_float(builder, inset_left);
+}
+
+void CompositorBlockingWheelEventRegion::dump(StringBuilder& builder) const
+{
+    builder.appendff(" rect={}", rect);
+}
+
+void CompositorMainThreadWheelEventRegion::dump(StringBuilder& builder) const
+{
+    builder.appendff(" rect={}", rect);
+}
+
+void CompositorViewportScrollbar::dump(StringBuilder& builder) const
+{
+    builder.appendff(" scroll_frame_index={} gutter_rect={} thumb_rect={} expanded_gutter_rect={} expanded_thumb_rect={} scroll_size={} expanded_scroll_size={} max_scroll_offset={} thumb_color={} track_color={} vertical={}",
+        scroll_frame_index, gutter_rect, thumb_rect, expanded_gutter_rect, expanded_thumb_rect, scroll_size, expanded_scroll_size, max_scroll_offset, thumb_color, track_color, vertical);
+}
+
 void PaintScrollBar::dump(StringBuilder&) const
 {
 }

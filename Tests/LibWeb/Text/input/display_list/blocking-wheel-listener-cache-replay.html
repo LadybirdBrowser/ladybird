@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #target {
+        width: 100px;
+        height: 100px;
+    }
+</style>
+<div id="target"></div>
+<script>
+    function compositorBlockingWheelEventRegionLines(displayListDump) {
+        return displayListDump
+            .split("\n")
+            .filter(line => line.includes("CompositorBlockingWheelEventRegion"))
+            .join("\n");
+    }
+
+    test(() => {
+        internals.dumpDisplayList();
+        target.addEventListener("wheel", () => {}, { passive: false });
+        println(compositorBlockingWheelEventRegionLines(internals.dumpDisplayList()));
+    });
+</script>

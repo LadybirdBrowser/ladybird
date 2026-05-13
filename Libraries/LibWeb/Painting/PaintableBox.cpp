@@ -11,6 +11,7 @@
 #include <LibGfx/Font/Font.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
+#include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/Navigable.h>
@@ -637,6 +638,9 @@ Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(Scrol
 
 void PaintableBox::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
+    if (phase == PaintPhase::Background)
+        Compositor::record_async_scrolling_metadata_for_paintable(*this, context);
+
     if (!is_visible())
         return;
 

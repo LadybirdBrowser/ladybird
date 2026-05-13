@@ -1,3 +1,10 @@
 before routing admission: accepted
 listener generation increased: true
 after routing admission: blocking wheel event listeners
+display list:
+AccumulatedVisualContext Tree:
+
+DisplayList:
+SaveLayer@0
+  CompositorScrollNode@0 scroll_frame_index=1 parent_scroll_frame_index=0 scrollport_rect=[0,0 800x600] max_scroll_offset=[0,1413] is_viewport=true
+Restore@0

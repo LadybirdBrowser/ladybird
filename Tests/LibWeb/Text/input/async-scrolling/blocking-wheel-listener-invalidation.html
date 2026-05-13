@@ -11,14 +11,24 @@
 </style>
 <div id="spacer"></div>
 <script>
+    function printOutputAndDisplayList(output) {
+        const displayList = internals.dumpDisplayList();
+        for (const line of output)
+            println(line);
+        println("display list:");
+        println(displayList);
+    }
+
     test(() => {
+        const output = [];
         const before = internals.asyncScrollingState();
-        println(`before routing admission: ${internals.asyncScrollingStateWheelRoutingAdmission()}`);
+        output.push(`before routing admission: ${internals.asyncScrollingStateWheelRoutingAdmission()}`);
 
         document.addEventListener("wheel", event => event.preventDefault(), { passive: false });
 
         const after = internals.asyncScrollingState();
-        println(`listener generation increased: ${after.wheelEventListenerStateGeneration > before.wheelEventListenerStateGeneration}`);
-        println(`after routing admission: ${internals.asyncScrollingStateWheelRoutingAdmission()}`);
+        output.push(`listener generation increased: ${after.wheelEventListenerStateGeneration > before.wheelEventListenerStateGeneration}`);
+        output.push(`after routing admission: ${internals.asyncScrollingStateWheelRoutingAdmission()}`);
+        printOutputAndDisplayList(output);
     });
 </script>

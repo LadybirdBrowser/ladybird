@@ -35,28 +35,38 @@
 </div>
 <div id="not-scrollable"></div>
 <script>
-    function canWheel(label, x, y, forceStaleWheelEventRegions = false) {
+    function printOutputAndDisplayList(output, displayList, label = "display list:") {
+        for (const line of output)
+            println(line);
+        println(label);
+        println(displayList);
+    }
+
+    function canWheel(output, label, x, y, forceStaleWheelEventRegions = false) {
         const canScroll = internals.asyncScrollingStateCanWheelScrollAt(x, y, 0, 100, forceStaleWheelEventRegions);
-        println(`${label}: ${canScroll}`);
+        output.push(`${label}: ${canScroll}`);
     }
 
     test(() => {
-        canWheel("no listener over scroller", 150, 150);
-        canWheel("no scrollable target", 275, 50);
+        const output = [];
+        canWheel(output, "no listener over scroller", 150, 150);
+        canWheel(output, "no scrollable target", 275, 50);
 
         target.addEventListener("wheel", event => {}, { passive: true });
-        canWheel("passive listener over target", 50, 50);
+        canWheel(output, "passive listener over target", 50, 50);
 
         const blockingElementListener = event => {};
         target.addEventListener("wheel", blockingElementListener, { passive: false });
-        canWheel("blocking element listener inside", 50, 50);
-        canWheel("blocking element listener outside", 150, 150);
-        canWheel("stale blocking element regions", 150, 150, true);
+        canWheel(output, "blocking element listener inside", 50, 50);
+        canWheel(output, "blocking element listener outside", 150, 150);
+        canWheel(output, "stale blocking element regions", 150, 150, true);
+        const displayList = internals.dumpDisplayList();
 
         target.removeEventListener("wheel", blockingElementListener);
         const blockingWindowListener = event => {};
         window.addEventListener("wheel", blockingWindowListener, { passive: false });
-        canWheel("blocking window listener", 150, 150);
-        canWheel("stale blocking window regions", 150, 150, true);
+        canWheel(output, "blocking window listener", 150, 150);
+        canWheel(output, "stale blocking window regions", 150, 150, true);
+        printOutputAndDisplayList(output, displayList, "display list after blocking element listener:");
     });
 </script>

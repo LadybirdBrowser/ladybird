@@ -23,8 +23,6 @@
 
 namespace Web::Compositor {
 
-struct AsyncScrollingState;
-
 class WEB_API CompositorThread {
     AK_MAKE_NONCOPYABLE(CompositorThread);
     AK_MAKE_NONMOVABLE(CompositorThread);
@@ -61,7 +59,6 @@ public:
 
     void update_display_list(NonnullRefPtr<Painting::DisplayList>, Painting::ScrollStateSnapshot&&);
     void update_scroll_state(Painting::ScrollStateSnapshot&&);
-    void update_display_list_and_async_scrolling_state(NonnullRefPtr<Painting::DisplayList>, Painting::ScrollStateSnapshot&&, AsyncScrollingState&&);
     void invalidate_wheel_event_listener_state(u64 generation);
     bool async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect);
     Optional<Gfx::FloatPoint> pending_async_viewport_scroll_offset() const;

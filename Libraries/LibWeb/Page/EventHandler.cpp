@@ -13,7 +13,6 @@
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/Bindings/InputEvent.h>
 #include <LibWeb/CSS/VisualViewport.h>
-#include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EditingHostManager.h>
 #include <LibWeb/DOM/Element.h>
@@ -105,39 +104,6 @@ static bool parent_element_for_event_dispatch(Painting::Paintable& paintable, GC
         node = layout_node->dom_node();
     }
     return node && layout_node;
-}
-
-static bool async_scrolling_state_has_scrollable_viewport_node(Compositor::AsyncScrollingState const& async_scrolling_state, Gfx::FloatPoint delta, Optional<Gfx::FloatPoint> pending_async_viewport_scroll_offset)
-{
-    for (auto const& node : async_scrolling_state.scroll_nodes) {
-        if (!node.is_viewport)
-            continue;
-
-        auto scroll_offset = pending_async_viewport_scroll_offset.value_or(node.scroll_offset);
-        if (delta.x() < 0 && scroll_offset.x() > 0)
-            return true;
-        if (delta.x() > 0 && scroll_offset.x() < node.max_scroll_offset.x())
-            return true;
-        if (delta.y() < 0 && scroll_offset.y() > 0)
-            return true;
-        if (delta.y() > 0 && scroll_offset.y() < node.max_scroll_offset.y())
-            return true;
-    }
-    return false;
-}
-
-static bool target_is_inside_non_viewport_wheel_scrollable_box(Painting::Paintable const& target)
-{
-    for (RefPtr<Painting::Paintable const> paintable = target; paintable; paintable = paintable->containing_block()) {
-        auto const* paintable_box = as_if<Painting::PaintableBox const>(*paintable);
-        if (!paintable_box)
-            continue;
-        if (paintable_box->is_viewport_paintable())
-            return false;
-        if (paintable_box->could_be_scrolled_by_wheel_event())
-            return true;
-    }
-    return false;
 }
 
 static Gfx::Cursor css_to_gfx_cursor(CSS::CursorPredefined css_cursor)
@@ -612,7 +578,8 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     if (!document->is_fully_active())
         return EventResult::Dropped;
 
-    auto viewport_position = document->visual_viewport()->map_to_layout_viewport(visual_viewport_position);
+    auto visual_viewport = document->visual_viewport();
+    auto viewport_position = visual_viewport->map_to_layout_viewport(visual_viewport_position);
 
     document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseWheel);
 
@@ -628,22 +595,12 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
 
     if (m_navigable->page().async_scrolling_enabled() && async_scroll_performed_default_action) {
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Not attempting wheel async scroll: default action already performed");
+    } else if (m_navigable->page().async_scrolling_enabled() && visual_viewport->scale() != 1.0) {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Not attempting wheel async scroll: visual viewport is scaled");
     } else if (m_navigable->page().async_scrolling_enabled()) {
-        auto& document_paintable = *document->paintable();
-        document_paintable.refresh_scroll_state();
-        auto viewport_rect = m_navigable->page().css_to_device_rect(m_navigable->viewport_rect()).to_type<int>();
-        auto async_scrolling_state = Compositor::collect_async_scrolling_state(*m_navigable, document_paintable, viewport_rect);
-        auto async_scroll_delta = Gfx::FloatPoint { static_cast<float>(wheel_delta_x), static_cast<float>(wheel_delta_y) };
-        auto pending_async_viewport_scroll_offset = m_navigable->rendering_thread().pending_async_viewport_scroll_offset();
-        // Non-passive wheel listeners can cancel the default scroll action, so the first live async path only handles
-        // pages where the current snapshot proves that no such listener exists anywhere in this page. Everything else
-        // stays on the synchronous path.
-        auto can_try_async_viewport_scroll = paintable
-            && !is<Painting::NavigableContainerViewportPaintable>(*paintable)
-            && !target_is_inside_non_viewport_wheel_scrollable_box(*paintable)
-            && !async_scrolling_state.has_blocking_wheel_event_listeners
-            && async_scrolling_state_has_scrollable_viewport_node(async_scrolling_state, async_scroll_delta, pending_async_viewport_scroll_offset);
-        if (can_try_async_viewport_scroll) {
+        if (paintable) {
+            auto viewport_rect = m_navigable->page().css_to_device_rect(m_navigable->viewport_rect()).to_type<int>();
+            auto async_scroll_delta = Gfx::FloatPoint { static_cast<float>(wheel_delta_x), static_cast<float>(wheel_delta_y) };
             auto device_position = m_navigable->page().css_to_device_point(visual_viewport_position);
             auto async_scroll_position = Gfx::FloatPoint { static_cast<float>(device_position.x().value()), static_cast<float>(device_position.y().value()) };
             auto device_pixels_per_css_pixel = static_cast<float>(m_navigable->page().client().device_pixels_per_css_pixel());
@@ -655,15 +612,6 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
                 async_scroll_delta_in_device_pixels.x(), async_scroll_delta_in_device_pixels.y());
         } else if (!paintable) {
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Not attempting wheel async scroll: no paintable target");
-        } else if (is<Painting::NavigableContainerViewportPaintable>(*paintable)) {
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Not attempting wheel async scroll: target is a nested navigable");
-        } else if (target_is_inside_non_viewport_wheel_scrollable_box(*paintable)) {
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Not attempting wheel async scroll: target is inside a nested scroll container");
-        } else if (async_scrolling_state.has_blocking_wheel_event_listeners) {
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Not attempting wheel async scroll: blocking wheel event listeners exist");
-        } else {
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Not attempting wheel async scroll: viewport cannot scroll by delta {},{}",
-                async_scroll_delta.x(), async_scroll_delta.y());
         }
     }
 

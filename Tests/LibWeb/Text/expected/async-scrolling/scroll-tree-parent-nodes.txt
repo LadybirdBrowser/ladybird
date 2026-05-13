@@ -2,3 +2,16 @@ scroll nodes: 2
 child nodes: 1
 dangling parent nodes: 0
 child parent is viewport: true
+display list:
+AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+    [2] scroll_frame_id=2 (sticky) (PaintableWithLines(BlockContainer(anonymous)))
+
+DisplayList:
+SaveLayer@0
+  CompositorScrollNode@0 scroll_frame_index=1 parent_scroll_frame_index=0 scrollport_rect=[0,0 800x600] max_scroll_offset=[0,1513] is_viewport=true
+  CompositorStickyArea@2 scroll_frame_index=2 parent_scroll_frame_index=1 nearest_scrolling_ancestor_index=1 position_relative_to_scroll_ancestor=[0,0] border_box_size=[800x100] scrollport_size=[800x600] containing_block_region=[0,0 800x2100] needs_parent_offset_adjustment=true inset_top=0 inset_right=none inset_bottom=none inset_left=none
+  CompositorScrollNode@2 scroll_frame_index=3 parent_scroll_frame_index=1 scrollport_rect=[0,0 100x100] max_scroll_offset=[400,400] is_viewport=false
+  PaintScrollBar@2
+  PaintScrollBar@2
+Restore@0

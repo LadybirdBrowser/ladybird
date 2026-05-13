@@ -24,6 +24,7 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/ScalingMode.h>
 #include <LibGfx/Size.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/DisplayListResourceIds.h>
 #include <LibWeb/Painting/ScrollState.h>
@@ -32,35 +33,40 @@ namespace Web::Painting {
 
 class DisplayList;
 
-#define ENUMERATE_DISPLAY_LIST_COMMANDS(V)                              \
-    V(DrawGlyphRun, draw_glyph_run)                                     \
-    V(FillRect, fill_rect)                                              \
-    V(DrawScaledDecodedImageFrame, draw_scaled_decoded_image_frame)     \
-    V(DrawRepeatedDecodedImageFrame, draw_repeated_decoded_image_frame) \
-    V(DrawExternalContent, draw_external_content)                       \
-    V(DrawVideoFrameSource, draw_video_frame_source)                    \
-    V(Save, save)                                                       \
-    V(SaveLayer, save_layer)                                            \
-    V(Restore, restore)                                                 \
-    V(Translate, translate)                                             \
-    V(AddClipRect, add_clip_rect)                                       \
-    V(PaintLinearGradient, paint_linear_gradient)                       \
-    V(PaintRadialGradient, paint_radial_gradient)                       \
-    V(PaintConicGradient, paint_conic_gradient)                         \
-    V(PaintOuterBoxShadow, paint_outer_box_shadow)                      \
-    V(PaintInnerBoxShadow, paint_inner_box_shadow)                      \
-    V(PaintTextShadow, paint_text_shadow)                               \
-    V(FillRectWithRoundedCorners, fill_rect_with_rounded_corners)       \
-    V(FillPath, fill_path)                                              \
-    V(StrokePath, stroke_path)                                          \
-    V(DrawEllipse, draw_ellipse)                                        \
-    V(FillEllipse, fill_ellipse)                                        \
-    V(DrawLine, draw_line)                                              \
-    V(ApplyBackdropFilter, apply_backdrop_filter)                       \
-    V(DrawRect, draw_rect)                                              \
-    V(AddRoundedRectClip, add_rounded_rect_clip)                        \
-    V(PaintNestedDisplayList, paint_nested_display_list)                \
-    V(PaintScrollBar, paint_scrollbar)                                  \
+#define ENUMERATE_DISPLAY_LIST_COMMANDS(V)                                             \
+    V(DrawGlyphRun, draw_glyph_run)                                                    \
+    V(FillRect, fill_rect)                                                             \
+    V(DrawScaledDecodedImageFrame, draw_scaled_decoded_image_frame)                    \
+    V(DrawRepeatedDecodedImageFrame, draw_repeated_decoded_image_frame)                \
+    V(DrawExternalContent, draw_external_content)                                      \
+    V(DrawVideoFrameSource, draw_video_frame_source)                                   \
+    V(Save, save)                                                                      \
+    V(SaveLayer, save_layer)                                                           \
+    V(Restore, restore)                                                                \
+    V(Translate, translate)                                                            \
+    V(AddClipRect, add_clip_rect)                                                      \
+    V(PaintLinearGradient, paint_linear_gradient)                                      \
+    V(PaintRadialGradient, paint_radial_gradient)                                      \
+    V(PaintConicGradient, paint_conic_gradient)                                        \
+    V(PaintOuterBoxShadow, paint_outer_box_shadow)                                     \
+    V(PaintInnerBoxShadow, paint_inner_box_shadow)                                     \
+    V(PaintTextShadow, paint_text_shadow)                                              \
+    V(FillRectWithRoundedCorners, fill_rect_with_rounded_corners)                      \
+    V(FillPath, fill_path)                                                             \
+    V(StrokePath, stroke_path)                                                         \
+    V(DrawEllipse, draw_ellipse)                                                       \
+    V(FillEllipse, fill_ellipse)                                                       \
+    V(DrawLine, draw_line)                                                             \
+    V(ApplyBackdropFilter, apply_backdrop_filter)                                      \
+    V(DrawRect, draw_rect)                                                             \
+    V(AddRoundedRectClip, add_rounded_rect_clip)                                       \
+    V(PaintNestedDisplayList, paint_nested_display_list)                               \
+    V(CompositorScrollNode, compositor_scroll_node)                                    \
+    V(CompositorStickyArea, compositor_sticky_area)                                    \
+    V(CompositorMainThreadWheelEventRegion, compositor_main_thread_wheel_event_region) \
+    V(CompositorViewportScrollbar, compositor_viewport_scrollbar)                      \
+    V(CompositorBlockingWheelEventRegion, compositor_blocking_wheel_event_region)      \
+    V(PaintScrollBar, paint_scrollbar)                                                 \
     V(ApplyEffects, apply_effects)
 
 enum class DisplayListCommandType : u8 {
@@ -496,6 +502,79 @@ struct PaintNestedDisplayList {
     Gfx::IntRect rect;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
+
+    void dump(StringBuilder&) const;
+};
+
+struct CompositorScrollNode {
+    static constexpr StringView command_name = "CompositorScrollNode"sv;
+    static constexpr DisplayListCommandType command_type = DisplayListCommandType::CompositorScrollNode;
+
+    UniqueNodeID document_id;
+    ScrollFrameIndex scroll_frame_index;
+    ScrollFrameIndex parent_scroll_frame_index;
+    Gfx::IntRect scrollport_rect;
+    Gfx::FloatPoint max_scroll_offset;
+    bool is_viewport { false };
+
+    void dump(StringBuilder&) const;
+};
+
+struct CompositorStickyArea {
+    static constexpr StringView command_name = "CompositorStickyArea"sv;
+    static constexpr DisplayListCommandType command_type = DisplayListCommandType::CompositorStickyArea;
+
+    UniqueNodeID document_id;
+    ScrollFrameIndex scroll_frame_index;
+    ScrollFrameIndex parent_scroll_frame_index;
+    ScrollFrameIndex nearest_scrolling_ancestor_index;
+    Gfx::FloatPoint position_relative_to_scroll_ancestor;
+    Gfx::FloatSize border_box_size;
+    Gfx::FloatSize scrollport_size;
+    Gfx::FloatRect containing_block_region;
+    bool needs_parent_offset_adjustment { false };
+    Optional<float> inset_top;
+    Optional<float> inset_right;
+    Optional<float> inset_bottom;
+    Optional<float> inset_left;
+
+    void dump(StringBuilder&) const;
+};
+
+struct CompositorBlockingWheelEventRegion {
+    static constexpr StringView command_name = "CompositorBlockingWheelEventRegion"sv;
+    static constexpr DisplayListCommandType command_type = DisplayListCommandType::CompositorBlockingWheelEventRegion;
+
+    Gfx::FloatRect rect;
+
+    void dump(StringBuilder&) const;
+};
+
+struct CompositorMainThreadWheelEventRegion {
+    static constexpr StringView command_name = "CompositorMainThreadWheelEventRegion"sv;
+    static constexpr DisplayListCommandType command_type = DisplayListCommandType::CompositorMainThreadWheelEventRegion;
+
+    Gfx::FloatRect rect;
+
+    void dump(StringBuilder&) const;
+};
+
+struct CompositorViewportScrollbar {
+    static constexpr StringView command_name = "CompositorViewportScrollbar"sv;
+    static constexpr DisplayListCommandType command_type = DisplayListCommandType::CompositorViewportScrollbar;
+
+    UniqueNodeID document_id;
+    ScrollFrameIndex scroll_frame_index;
+    Gfx::IntRect gutter_rect;
+    Gfx::IntRect thumb_rect;
+    Gfx::IntRect expanded_gutter_rect;
+    Gfx::IntRect expanded_thumb_rect;
+    double scroll_size { 0 };
+    double expanded_scroll_size { 0 };
+    float max_scroll_offset { 0 };
+    Color thumb_color;
+    Color track_color;
+    bool vertical { false };
 
     void dump(StringBuilder&) const;
 };

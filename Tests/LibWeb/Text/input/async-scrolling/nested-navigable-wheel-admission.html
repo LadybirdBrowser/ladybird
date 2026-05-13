@@ -21,6 +21,14 @@
 <iframe id="frame" srcdoc="<body style='height: 1000px'></body>"></iframe>
 <div id="spacer"></div>
 <script>
+    function printOutputAndDisplayList(output) {
+        const displayList = internals.dumpDisplayList();
+        for (const line of output)
+            println(line);
+        println("display list:");
+        println(displayList);
+    }
+
     promiseTest(async () => {
         await new Promise(resolve => {
             if (frame.contentDocument && frame.contentDocument.readyState === "complete") {
@@ -32,8 +40,11 @@
         await animationFrame();
 
         const state = internals.asyncScrollingState();
-        println(`main thread regions: ${state.mainThreadWheelEventRegionCount}`);
-        println(`over iframe: ${internals.asyncScrollingStateWheelScrollAdmissionAt(60, 60, 0, 100)}`);
-        println(`outside iframe: ${internals.asyncScrollingStateWheelScrollAdmissionAt(250, 60, 0, 100)}`);
+        const output = [
+            `main thread regions: ${state.mainThreadWheelEventRegionCount}`,
+            `over iframe: ${internals.asyncScrollingStateWheelScrollAdmissionAt(60, 60, 0, 100)}`,
+            `outside iframe: ${internals.asyncScrollingStateWheelScrollAdmissionAt(250, 60, 0, 100)}`,
+        ];
+        printOutputAndDisplayList(output);
     });
 </script>

@@ -34,18 +34,28 @@
     <div id="clipped-target"></div>
 </div>
 <script>
-    function dump(label, x, y) {
-        println(`${label}: ${internals.asyncScrollingStateBlocksWheelEventAt(x, y)}`);
+    function printOutputAndDisplayList(output) {
+        const displayList = internals.dumpDisplayList();
+        for (const line of output)
+            println(line);
+        println("display list:");
+        println(displayList);
+    }
+
+    function dump(output, label, x, y) {
+        output.push(`${label}: ${internals.asyncScrollingStateBlocksWheelEventAt(x, y)}`);
     }
 
     test(() => {
+        const output = [];
         transformed.addEventListener("wheel", event => {}, { passive: false });
         document.getElementById("clipped-target").addEventListener("wheel", event => {}, { passive: false });
 
-        println(`blocking regions: ${internals.asyncScrollingState().blockingWheelEventRegionCount}`);
-        dump("transformed visual inside", 130, 30);
-        dump("transformed original position", 30, 30);
-        dump("clipped visible inside", 30, 170);
-        dump("clipped overflow outside clip", 150, 170);
+        output.push(`blocking regions: ${internals.asyncScrollingState().blockingWheelEventRegionCount}`);
+        dump(output, "transformed visual inside", 130, 30);
+        dump(output, "transformed original position", 30, 30);
+        dump(output, "clipped visible inside", 30, 170);
+        dump(output, "clipped overflow outside clip", 150, 170);
+        printOutputAndDisplayList(output);
     });
 </script>

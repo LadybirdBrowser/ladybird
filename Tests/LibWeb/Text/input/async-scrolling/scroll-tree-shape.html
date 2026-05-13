@@ -19,20 +19,31 @@
 <div id="scroller"><div id="spacer"></div></div>
 <div style="height: 2000px"></div>
 <script>
+    function printOutputAndDisplayList(output) {
+        const displayList = internals.dumpDisplayList();
+        for (const line of output)
+            println(line);
+        println("display list:");
+        println(displayList);
+    }
+
     test(() => {
         const state = internals.asyncScrollingState();
-        println(`scroll node count: ${state.scrollNodeCount}`);
-        println(`scroll nodes: ${state.scrollNodes.length}`);
+        const output = [
+            `scroll node count: ${state.scrollNodeCount}`,
+            `scroll nodes: ${state.scrollNodes.length}`,
+        ];
 
         const viewportNode = state.scrollNodes.find(node => node.isViewport);
-        println(`has viewport node: ${!!viewportNode}`);
-        println(`viewport parent: ${viewportNode?.parentScrollFrameIndex ?? "missing"}`);
+        output.push(`has viewport node: ${!!viewportNode}`);
+        output.push(`viewport parent: ${viewportNode?.parentScrollFrameIndex ?? "missing"}`);
 
         const childNodes = state.scrollNodes.filter(node => !node.isViewport);
-        println(`child nodes: ${childNodes.length}`);
+        output.push(`child nodes: ${childNodes.length}`);
         for (const node of childNodes) {
-            println(`child has same document as viewport: ${node.documentID === viewportNode.documentID}`);
-            println(`child parent is viewport: ${node.parentScrollFrameIndex === viewportNode.scrollFrameIndex}`);
+            output.push(`child has same document as viewport: ${node.documentID === viewportNode.documentID}`);
+            output.push(`child parent is viewport: ${node.parentScrollFrameIndex === viewportNode.scrollFrameIndex}`);
         }
+        printOutputAndDisplayList(output);
     });
 </script>

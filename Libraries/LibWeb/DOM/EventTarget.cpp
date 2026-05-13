@@ -95,7 +95,7 @@ size_t EventTarget::external_memory_size() const
     return size;
 }
 
-Vector<GC::Root<DOMEventListener>> EventTarget::event_listener_list()
+Vector<GC::Root<DOMEventListener>> EventTarget::event_listener_list() const
 {
     Vector<GC::Root<DOMEventListener>> list;
     if (!m_data)
@@ -198,12 +198,16 @@ static void invalidate_compositor_wheel_event_listener_state(EventTarget& event_
         return;
 
     if (auto* window = as_if<HTML::Window>(event_target)) {
-        window->associated_document().page().invalidate_compositor_wheel_event_listener_state();
+        auto& document = window->associated_document();
+        document.set_needs_to_record_display_list();
+        document.page().invalidate_compositor_wheel_event_listener_state();
         return;
     }
 
-    if (auto* node = as_if<Node>(event_target))
+    if (auto* node = as_if<Node>(event_target)) {
+        node->set_needs_repaint();
         node->document().page().invalidate_compositor_wheel_event_listener_state();
+    }
 }
 
 // https://dom.spec.whatwg.org/#dom-eventtarget-addeventlistener

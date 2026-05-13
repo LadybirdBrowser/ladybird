@@ -1,3 +1,16 @@
 main thread regions: 1
 over iframe: blocked-by-main-thread-region
 outside iframe: accepted
+display list:
+AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+
+DisplayList:
+SaveLayer@0
+  CompositorScrollNode@0 scroll_frame_index=1 parent_scroll_frame_index=0 scrollport_rect=[0,0 800x600] max_scroll_offset=[0,1413] is_viewport=true
+  CompositorMainThreadWheelEventRegion@1 rect=[40,40 160x120]
+  Save@1
+    AddClipRect@1 rect=[40,40 160x120]
+    DrawExternalContent@1 dst_rect=[40,40 160x120]
+  Restore@1
+Restore@0

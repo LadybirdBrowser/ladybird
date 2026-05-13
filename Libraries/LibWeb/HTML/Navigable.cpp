@@ -9,7 +9,6 @@
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/CSS/VisualViewport.h>
-#include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/DirectiveOperations.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
@@ -3172,16 +3171,7 @@ void Navigable::record_display_list_and_scroll_state(PaintConfig paint_config)
 
     Painting::ScrollStateSnapshot scroll_state_snapshot { document_paintable->scroll_state_snapshot() };
     if (should_record_display_list) {
-        if (page().async_scrolling_enabled()) {
-            auto viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
-            auto async_scrolling_state = Compositor::collect_async_scrolling_state(*this, *document_paintable, viewport_rect);
-            m_rendering_thread.update_display_list_and_async_scrolling_state(
-                *display_list,
-                move(scroll_state_snapshot),
-                move(async_scrolling_state));
-        } else {
-            m_rendering_thread.update_display_list(*display_list, move(scroll_state_snapshot));
-        }
+        m_rendering_thread.update_display_list(*display_list, move(scroll_state_snapshot));
         m_needs_to_record_display_list = false;
         m_rendering_thread_display_list_paint_config = paint_config;
     } else {

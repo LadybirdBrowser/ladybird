@@ -1,2 +1,12 @@
 scroller scrollTop: 100
 window scrollY: 0
+display list:
+AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+
+DisplayList:
+SaveLayer@0
+  CompositorScrollNode@0 scroll_frame_index=1 parent_scroll_frame_index=0 scrollport_rect=[0,0 800x600] max_scroll_offset=[0,1513] is_viewport=true
+  CompositorScrollNode@1 scroll_frame_index=2 parent_scroll_frame_index=1 scrollport_rect=[0,0 100x100] max_scroll_offset=[0,400] is_viewport=false
+  PaintScrollBar@1
+Restore@0
