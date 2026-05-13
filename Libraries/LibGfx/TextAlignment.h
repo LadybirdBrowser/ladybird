@@ -28,48 +28,4 @@ enum class TextAlignment {
 #undef __ENUMERATE
 };
 
-inline bool is_right_text_alignment(TextAlignment alignment)
-{
-    switch (alignment) {
-    case TextAlignment::CenterRight:
-    case TextAlignment::TopRight:
-    case TextAlignment::BottomRight:
-        return true;
-    default:
-        return false;
-    }
-}
-
-inline bool is_vertically_centered_text_alignment(TextAlignment alignment)
-{
-    switch (alignment) {
-    case TextAlignment::CenterLeft:
-    case TextAlignment::CenterRight:
-    case TextAlignment::Center:
-        return true;
-    default:
-        return false;
-    }
-}
-
-inline Optional<TextAlignment> text_alignment_from_string(StringView string)
-{
-#define __ENUMERATE(x) \
-    if (string == #x)  \
-        return TextAlignment::x;
-    GFX_ENUMERATE_TEXT_ALIGNMENTS(__ENUMERATE)
-#undef __ENUMERATE
-    return {};
-}
-
-inline char const* to_string(TextAlignment text_alignment)
-{
-#define __ENUMERATE(x)                      \
-    if (text_alignment == TextAlignment::x) \
-        return #x;
-    GFX_ENUMERATE_TEXT_ALIGNMENTS(__ENUMERATE)
-#undef __ENUMERATE
-    return {};
-}
-
 }
