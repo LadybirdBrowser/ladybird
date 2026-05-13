@@ -20,6 +20,7 @@
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/ScalingMode.h>
+#include <LibGfx/TextAlignment.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>

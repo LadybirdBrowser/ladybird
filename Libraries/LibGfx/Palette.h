@@ -31,12 +31,6 @@ public:
         return Color::from_bgra(theme().color[(int)role]);
     }
 
-    Gfx::TextAlignment alignment(AlignmentRole role) const
-    {
-        VERIFY((int)role < (int)AlignmentRole::__Count);
-        return theme().alignment[(int)role];
-    }
-
     bool flag(FlagRole role) const
     {
         VERIFY((int)role < (int)FlagRole::__Count);
@@ -74,7 +68,6 @@ public:
     bool is_dark() const { return flag(FlagRole::IsDark); }
 
     Color color(ColorRole role) const { return m_impl->color(role); }
-    Gfx::TextAlignment alignment(AlignmentRole role) const { return m_impl->alignment(role); }
     bool flag(FlagRole role) const { return m_impl->flag(role); }
     ByteString path(PathRole role) const { return m_impl->path(role); }
 

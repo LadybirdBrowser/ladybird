@@ -62,29 +62,6 @@ ErrorOr<Core::AnonymousBuffer> load_system_theme(Core::ConfigFile const& file, O
         return file.read_bool_entry("Flags", name, false);
     };
 
-    auto get_alignment = [&](auto& name, auto role) {
-        auto alignment = file.read_entry("Alignments", name).to_lowercase();
-        if (alignment.is_empty()) {
-            switch (role) {
-            case (int)AlignmentRole::TitleAlignment:
-                return Gfx::TextAlignment::CenterLeft;
-            default:
-                dbgln("Alignment {} has no fallback value!", name);
-                return Gfx::TextAlignment::CenterLeft;
-            }
-        }
-
-        if (alignment == "left" || alignment == "centerleft")
-            return Gfx::TextAlignment::CenterLeft;
-        else if (alignment == "right" || alignment == "centerright")
-            return Gfx::TextAlignment::CenterRight;
-        else if (alignment == "center")
-            return Gfx::TextAlignment::Center;
-
-        dbgln("Alignment {} has an invalid value!", name);
-        return Gfx::TextAlignment::CenterLeft;
-    };
-
     auto get_path = [&](auto& name, auto role, bool allow_empty) {
         auto path = file.read_entry("Paths", name);
         if (path.is_empty()) {
@@ -123,12 +100,6 @@ ErrorOr<Core::AnonymousBuffer> load_system_theme(Core::ConfigFile const& file, O
     }
     ENUMERATE_COLOR_ROLES(__ENUMERATE_COLOR_ROLE)
 #undef __ENUMERATE_COLOR_ROLE
-
-#undef __ENUMERATE_ALIGNMENT_ROLE
-#define __ENUMERATE_ALIGNMENT_ROLE(role) \
-    data->alignment[(int)AlignmentRole::role] = get_alignment(#role, (int)AlignmentRole::role);
-    ENUMERATE_ALIGNMENT_ROLES(__ENUMERATE_ALIGNMENT_ROLE)
-#undef __ENUMERATE_ALIGNMENT_ROLE
 
 #undef __ENUMERATE_FLAG_ROLE
 #define __ENUMERATE_FLAG_ROLE(role)                            \
