@@ -17,9 +17,7 @@ namespace Gfx {
 
 template<class T>
 using Vector2 = VectorN<2, T>;
-using DoubleVector2 = Vector2<double>;
 using FloatVector2 = Vector2<float>;
-using IntVector2 = Vector2<int>;
 
 }
 
@@ -35,7 +33,5 @@ struct Formatter<Gfx::Vector2<T>> : Formatter<StringView> {
 
 }
 
-using Gfx::DoubleVector2;
 using Gfx::FloatVector2;
-using Gfx::IntVector2;
 using Gfx::Vector2;
