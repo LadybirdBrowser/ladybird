@@ -2518,9 +2518,8 @@ CSSPixels GridFormattingContext::calculate_min_content_contribution(GridItem con
     }();
 
     auto maximum_size = CSSPixels::max();
-    if (auto const& css_maximum_size = item.maximum_size(dimension); css_maximum_size.is_length()) {
-        maximum_size = css_maximum_size.length().to_px(item.box);
-    }
+    if (auto const& css_maximum_size = item.maximum_size(dimension); css_maximum_size.is_length_percentage() && !css_maximum_size.contains_percentage())
+        maximum_size = css_maximum_size.to_px(item.box, 0);
 
     if (should_treat_preferred_size_as_auto) {
         CSSPixels min_content_size;
@@ -2557,9 +2556,8 @@ CSSPixels GridFormattingContext::calculate_max_content_contribution(GridItem con
     }();
 
     auto maximum_size = CSSPixels::max();
-    if (auto const& css_maximum_size = item.maximum_size(dimension); css_maximum_size.is_length()) {
-        maximum_size = css_maximum_size.length().to_px(item.box);
-    }
+    if (auto const& css_maximum_size = item.maximum_size(dimension); css_maximum_size.is_length_percentage() && !css_maximum_size.contains_percentage())
+        maximum_size = css_maximum_size.to_px(item.box, 0);
 
     auto preferred_size = item.preferred_size(dimension);
     if (should_treat_preferred_size_as_auto || preferred_size.is_fit_content()) {
@@ -2760,10 +2758,8 @@ CSSPixels GridFormattingContext::content_based_minimum_size(GridItem const& item
 
     // In all cases, the size suggestion is additionally clamped by the maximum size in the affected axis, if it’s definite.
     auto const& maximum_size = item.maximum_size(dimension);
-    if (maximum_size.is_length()) {
-        auto maximum_size_px = maximum_size.length().to_px(item.box);
-        result = min(result, maximum_size_px);
-    }
+    if (maximum_size.is_length_percentage() && !maximum_size.contains_percentage())
+        result = min(result, maximum_size.to_px(item.box, 0));
 
     // If the item is a compressible replaced element, and has a definite preferred size or maximum size in the relevant axis,
     // the size suggestion is capped by those sizes; for this purpose, any indefinite percentages in these sizes are resolved
