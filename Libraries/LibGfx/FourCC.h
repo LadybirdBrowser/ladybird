@@ -21,18 +21,7 @@ struct [[gnu::packed]] FourCC {
         cc[3] = name[3];
     }
 
-    static constexpr FourCC from_u32(u32 value)
-    {
-        FourCC result;
-        result.cc[0] = static_cast<char>(value >> 24);
-        result.cc[1] = static_cast<char>(value >> 16);
-        result.cc[2] = static_cast<char>(value >> 8);
-        result.cc[3] = static_cast<char>(value);
-        return result;
-    }
-
     bool operator==(FourCC const&) const = default;
-    bool operator!=(FourCC const&) const = default;
 
     u32 to_u32() const
     {
