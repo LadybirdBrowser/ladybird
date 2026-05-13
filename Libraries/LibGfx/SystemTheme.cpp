@@ -11,33 +11,15 @@
 
 namespace Gfx {
 
-static Core::AnonymousBuffer theme_buffer;
-
-void set_system_theme(Core::AnonymousBuffer buffer)
-{
-    theme_buffer = move(buffer);
-}
-
-ErrorOr<Core::AnonymousBuffer> load_system_theme(Core::ConfigFile const& file, Optional<ByteString> const& color_scheme)
+ErrorOr<Core::AnonymousBuffer> load_system_theme(Core::ConfigFile const& file)
 {
     auto buffer = TRY(Core::AnonymousBuffer::create_with_size(sizeof(SystemTheme)));
 
     auto* data = buffer.data<SystemTheme>();
 
-    if (color_scheme.has_value()) {
-        if (color_scheme.value().length() > 255)
-            return Error::from_string_literal("Passed an excessively long color scheme pathname");
-        if (color_scheme.value() != "Custom"sv)
-            memcpy(data->path[(int)PathRole::ColorScheme], color_scheme.value().characters(), color_scheme.value().length());
-        else
-            memcpy(buffer.data<SystemTheme>(), theme_buffer.data<SystemTheme>(), sizeof(SystemTheme));
-    }
-
     auto get_color = [&](auto& name) -> Optional<Color> {
         auto color_string = file.read_entry("Colors", name);
         auto color = Color::from_string(color_string);
-        if (color_scheme.has_value() && color_scheme.value() == "Custom"sv)
-            return color;
         if (!color.has_value()) {
             auto maybe_color_config = Core::ConfigFile::open(data->path[(int)PathRole::ColorScheme]);
             if (maybe_color_config.is_error())
@@ -62,7 +44,7 @@ ErrorOr<Core::AnonymousBuffer> load_system_theme(Core::ConfigFile const& file, O
         return file.read_bool_entry("Flags", name, false);
     };
 
-    if (!color_scheme.has_value()) {
+    {
         auto path = file.read_entry("Paths", "ColorScheme");
         char const* path_str = path.is_empty() ? "" : path.characters();
         auto& dest = data->path[(int)PathRole::ColorScheme];
@@ -89,10 +71,10 @@ ErrorOr<Core::AnonymousBuffer> load_system_theme(Core::ConfigFile const& file, O
     return buffer;
 }
 
-ErrorOr<Core::AnonymousBuffer> load_system_theme(ByteString const& path, Optional<ByteString> const& color_scheme)
+ErrorOr<Core::AnonymousBuffer> load_system_theme(ByteString const& path)
 {
     auto config_file = TRY(Core::ConfigFile::open(path));
-    return TRY(load_system_theme(config_file, color_scheme));
+    return TRY(load_system_theme(config_file));
 }
 
 }
