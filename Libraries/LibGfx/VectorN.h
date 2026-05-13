@@ -216,16 +216,6 @@ public:
             return ByteString::formatted("[{},{},{},{}]", x(), y(), z(), w());
     }
 
-    template<typename U>
-    [[nodiscard]] VectorN<N, U> to_type() const
-    {
-        VectorN<N, U> result;
-        UNROLL_LOOP
-        for (auto i = 0u; i < N; ++i)
-            result.data()[i] = static_cast<U>(m_data[i]);
-        return result;
-    }
-
     constexpr auto& data() { return m_data; }
     constexpr auto const& data() const { return m_data; }
 
