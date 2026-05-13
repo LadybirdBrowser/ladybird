@@ -120,21 +120,9 @@ public:
     constexpr u8 blue() const { return m_value & 0xff; }
     constexpr u8 alpha() const { return (m_value >> 24) & 0xff; }
 
-    constexpr void set_alpha(u8 value, AlphaType alpha_type = AlphaType::Unpremultiplied)
+    constexpr void set_alpha(u8 value)
     {
-        switch (alpha_type) {
-        case AlphaType::Premultiplied:
-            m_value = value << 24
-                | (red() * value / 255) << 16
-                | (green() * value / 255) << 8
-                | blue() * value / 255;
-            break;
-        case AlphaType::Unpremultiplied:
-            m_value = (m_value & 0x00ffffff) | value << 24;
-            break;
-        default:
-            VERIFY_NOT_REACHED();
-        }
+        m_value = (m_value & 0x00ffffff) | value << 24;
     }
 
     constexpr void set_red(u8 value)
@@ -155,10 +143,10 @@ public:
         m_value |= value;
     }
 
-    constexpr Color with_alpha(u8 alpha, AlphaType alpha_type = AlphaType::Unpremultiplied) const
+    constexpr Color with_alpha(u8 alpha) const
     {
         Color color_with_alpha = Color(m_value);
-        color_with_alpha.set_alpha(alpha, alpha_type);
+        color_with_alpha.set_alpha(alpha);
         return color_with_alpha;
     }
 
