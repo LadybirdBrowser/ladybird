@@ -1637,7 +1637,7 @@ void TableFormattingContext::BorderConflictFinder::collect_column_group_conflict
         result.append({ col_element, Painting::PaintableBox::ConflictingElementKind::ColumnGroup, ConflictingSide::Right, {}, cell.column_index });
     }
     // Left edge of the column group to the right.
-    if (auto col_element = get_col_element(cell.column_index - cell.column_span); col_element && edge == ConflictingSide::Right) {
+    if (auto col_element = get_col_element(cell.column_index + cell.column_span); col_element && edge == ConflictingSide::Right) {
         result.append({ col_element, Painting::PaintableBox::ConflictingElementKind::ColumnGroup, ConflictingSide::Left, {}, cell.column_index + cell.column_span });
     }
 }
