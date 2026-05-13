@@ -69,19 +69,11 @@ public:
     Color syntax_number() const { return color(ColorRole::SyntaxNumber); }
     Color syntax_string() const { return color(ColorRole::SyntaxString); }
     Color syntax_identifier() const { return color(ColorRole::SyntaxIdentifier); }
-    Color syntax_type() const { return color(ColorRole::SyntaxType); }
     Color syntax_punctuation() const { return color(ColorRole::SyntaxPunctuation); }
     Color syntax_operator() const { return color(ColorRole::SyntaxOperator); }
     Color syntax_keyword() const { return color(ColorRole::SyntaxKeyword); }
     Color syntax_control_keyword() const { return color(ColorRole::SyntaxControlKeyword); }
     Color syntax_preprocessor_statement() const { return color(ColorRole::SyntaxPreprocessorStatement); }
-    Color syntax_preprocessor_value() const { return color(ColorRole::SyntaxPreprocessorValue); }
-    Color syntax_function() const { return color(ColorRole::SyntaxFunction); }
-    Color syntax_variable() const { return color(ColorRole::SyntaxVariable); }
-    Color syntax_custom_type() const { return color(ColorRole::SyntaxCustomType); }
-    Color syntax_namespace() const { return color(ColorRole::SyntaxNamespace); }
-    Color syntax_member() const { return color(ColorRole::SyntaxMember); }
-    Color syntax_parameter() const { return color(ColorRole::SyntaxParameter); }
 
     bool is_dark() const { return flag(FlagRole::IsDark); }
 
@@ -92,10 +84,7 @@ public:
     ByteString path(PathRole role) const { return m_impl->path(role); }
 
     void set_color(ColorRole, Color);
-    void set_alignment(AlignmentRole, Gfx::TextAlignment);
     void set_flag(FlagRole, bool);
-    void set_metric(MetricRole, int);
-    void set_path(PathRole, ByteString);
 
     SystemTheme const& theme() const { return m_impl->theme(); }
 
