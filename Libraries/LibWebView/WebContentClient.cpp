@@ -348,7 +348,11 @@ void WebContentClient::maybe_record_history_visit_for_current_load(u64 page_id, 
     if (!normalized_url.has_value())
         return;
 
-    if (auto recorded_url = m_history_recorded_urls_for_current_load.get(page_id); recorded_url.has_value() && *recorded_url == *normalized_url) {
+    auto recorded_url = m_history_recorded_urls_for_current_load.get(page_id);
+    // This is arguably not a bug. But if the history for a url is cleared
+    // and a currently open tab is reloaded, then this if guarantees that it is reloaded
+    // I think that the real fix would be for the history clear to send some signal
+    if (WebView::Application::history_store().entry_for_url(url).has_value() && recorded_url.has_value() && *recorded_url == *normalized_url) {
         dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Visit for page {} at '{}' was already recorded during this load before {}", page_id, *normalized_url, reason);
         return;
     }

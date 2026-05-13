@@ -1391,11 +1391,11 @@ void Application::initialize_actions()
     update_vertical_tabs_action();
 
     m_history_menu = Menu::create("History"sv);
-    m_history_menu->add_action(Action::create("Manage History"sv, ActionID::ManageHistory, [this](){
+    m_history_menu->add_action(Action::create("Manage History"sv, ActionID::ManageHistory, [this]() {
         open_url_in_new_tab(URL::about_history(), Web::HTML::ActivateTab::Yes);
     }));
     m_history_menu->add_separator();
-    m_history_menu->add_action(Action::create("Clear History"sv, ActionID::ClearHistory, [this](){
+    m_history_menu->add_action(Action::create("Clear History"sv, ActionID::ClearHistory, [this]() {
         clear_history();
     }));
     m_history_menu->add_action(reload_action());
