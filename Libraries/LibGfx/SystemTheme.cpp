@@ -85,28 +85,6 @@ ErrorOr<Core::AnonymousBuffer> load_system_theme(Core::ConfigFile const& file, O
         return Gfx::TextAlignment::CenterLeft;
     };
 
-    auto get_metric = [&](auto& name, auto role) {
-        int metric = file.read_num_entry("Metrics", name, -1);
-        if (metric == -1) {
-            switch (role) {
-            case (int)MetricRole::BorderThickness:
-                return 4;
-            case (int)MetricRole::BorderRadius:
-                return 0;
-            case (int)MetricRole::TitleHeight:
-                return 19;
-            case (int)MetricRole::TitleButtonHeight:
-                return 15;
-            case (int)MetricRole::TitleButtonWidth:
-                return 15;
-            default:
-                dbgln("Metric {} has no fallback value!", name);
-                return 16;
-            }
-        }
-        return metric;
-    };
-
     auto get_path = [&](auto& name, auto role, bool allow_empty) {
         auto path = file.read_entry("Paths", name);
         if (path.is_empty()) {
@@ -160,12 +138,6 @@ ErrorOr<Core::AnonymousBuffer> load_system_theme(Core::ConfigFile const& file, O
     }
     ENUMERATE_FLAG_ROLES(__ENUMERATE_FLAG_ROLE)
 #undef __ENUMERATE_FLAG_ROLE
-
-#undef __ENUMERATE_METRIC_ROLE
-#define __ENUMERATE_METRIC_ROLE(role) \
-    data->metric[(int)MetricRole::role] = get_metric(#role, (int)MetricRole::role);
-    ENUMERATE_METRIC_ROLES(__ENUMERATE_METRIC_ROLE)
-#undef __ENUMERATE_METRIC_ROLE
 
     if (!color_scheme.has_value() || color_scheme.value() != "Custom"sv) {
         auto maybe_color_config = Core::ConfigFile::open(data->path[(int)PathRole::ColorScheme]);

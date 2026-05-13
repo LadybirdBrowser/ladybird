@@ -43,7 +43,6 @@ public:
         return theme().flag[(int)role];
     }
 
-    int metric(MetricRole) const;
     ByteString path(PathRole) const;
     SystemTheme const& theme() const { return *m_theme_buffer.data<SystemTheme>(); }
 
@@ -59,7 +58,6 @@ public:
     explicit Palette(NonnullRefPtr<PaletteImpl>);
     ~Palette() = default;
 
-    Color base() const { return color(ColorRole::Base); }
     Color base_text() const { return color(ColorRole::BaseText); }
     Color threed_shadow1() const { return color(ColorRole::ThreedShadow1); }
 
@@ -78,7 +76,6 @@ public:
     Color color(ColorRole role) const { return m_impl->color(role); }
     Gfx::TextAlignment alignment(AlignmentRole role) const { return m_impl->alignment(role); }
     bool flag(FlagRole role) const { return m_impl->flag(role); }
-    int metric(MetricRole role) const { return m_impl->metric(role); }
     ByteString path(PathRole role) const { return m_impl->path(role); }
 
     void set_color(ColorRole, Color);

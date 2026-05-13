@@ -126,13 +126,6 @@ namespace Gfx {
     C(IsDark)                   \
     C(TitleButtonsIconOnly)
 
-#define ENUMERATE_METRIC_ROLES(C) \
-    C(BorderThickness)            \
-    C(BorderRadius)               \
-    C(TitleHeight)                \
-    C(TitleButtonWidth)           \
-    C(TitleButtonHeight)
-
 #define ENUMERATE_PATH_ROLES(C) \
     C(TitleButtonIcons)         \
     C(InactiveWindowShadow)     \
@@ -178,17 +171,6 @@ enum class FlagRole {
         __Count,
 };
 
-enum class MetricRole {
-    NoRole,
-
-#undef __ENUMERATE_METRIC_ROLE
-#define __ENUMERATE_METRIC_ROLE(role) role,
-    ENUMERATE_METRIC_ROLES(__ENUMERATE_METRIC_ROLE)
-#undef __ENUMERATE_METRIC_ROLE
-
-        __Count,
-};
-
 enum class PathRole {
     NoRole,
 
@@ -204,7 +186,6 @@ struct SystemTheme {
     BGRA8888 color[(int)ColorRole::__Count];
     Gfx::TextAlignment alignment[(int)AlignmentRole::__Count];
     bool flag[(int)FlagRole::__Count];
-    int metric[(int)MetricRole::__Count];
     char path[(int)PathRole::__Count][256]; // TODO: PATH_MAX?
 };
 

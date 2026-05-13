@@ -25,12 +25,6 @@ Palette::Palette(NonnullRefPtr<PaletteImpl> impl)
 {
 }
 
-int PaletteImpl::metric(MetricRole role) const
-{
-    VERIFY((int)role < (int)MetricRole::__Count);
-    return theme().metric[(int)role];
-}
-
 ByteString PaletteImpl::path(PathRole role) const
 {
     VERIFY((int)role < (int)PathRole::__Count);
