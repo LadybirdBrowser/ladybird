@@ -28,22 +28,6 @@ class Metadata {
 public:
     Metadata() = default;
     virtual ~Metadata() = default;
-
-    HashMap<StringView, String> const& main_tags() const
-    {
-        if (m_main_tags.is_empty())
-            fill_main_tags();
-
-        // This is designed to be used in a general GUI, don't include too much information here.
-        VERIFY(m_main_tags.size() < 8);
-
-        return m_main_tags;
-    }
-
-protected:
-    virtual void fill_main_tags() const { }
-
-    mutable HashMap<StringView, String> m_main_tags;
 };
 
 enum class NaturalFrameFormat {
