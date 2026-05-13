@@ -70,10 +70,10 @@ struct Position {
     PositionEdge edge_y { PositionEdge::Top };
     LengthPercentage offset_y { Percentage(50) };
 
-    CSSPixelPoint resolved(Layout::Node const& node, CSSPixelRect const& rect) const
+    CSSPixelPoint resolved(CSSPixelRect const& rect) const
     {
-        CSSPixels x = offset_x.to_px(node, rect.width());
-        CSSPixels y = offset_y.to_px(node, rect.height());
+        CSSPixels x = offset_x.to_px(rect.width());
+        CSSPixels y = offset_y.to_px(rect.height());
         if (edge_x == PositionEdge::Right)
             x = rect.width() - x;
         if (edge_y == PositionEdge::Bottom)
@@ -466,6 +466,7 @@ struct WhiteSpaceTrimData {
 struct TransformOrigin {
     LengthPercentage x { Percentage(50) };
     LengthPercentage y { Percentage(50) };
+    // FIXME: We can store this as a CSSPixels since we know it's always an absolute length
     LengthPercentage z { Percentage(0) };
 };
 

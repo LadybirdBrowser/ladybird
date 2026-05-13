@@ -130,7 +130,7 @@ static void resolve_text_fragment_properties(PaintableWithLines const& paintable
                 },
                 [&](CSS::LengthPercentage const& length_percentage) {
                     // https://drafts.csswg.org/css-text-decor-4/#valdef-text-decoration-thickness-length-percentage
-                    auto resolved_length = length_percentage.resolved(*text_node, CSS::Length(1, CSS::LengthUnit::Em).to_px(*text_node)).to_px(*text_node);
+                    auto resolved_length = length_percentage.resolved(CSS::Length(1, CSS::LengthUnit::Em).to_px(*text_node)).to_px(*text_node);
                     return max(resolved_length, 1);
                 });
         }();

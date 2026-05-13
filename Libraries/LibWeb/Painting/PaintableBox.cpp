@@ -1952,7 +1952,7 @@ BorderRadiiData PaintableBox::border_radii_data() const
     auto border_top_right_radius = m_fragment_top_edge_away || m_fragment_right_edge_away ? CSS::BorderRadiusData {} : computed_values.border_top_right_radius();
     auto border_bottom_right_radius = m_fragment_bottom_edge_away || m_fragment_right_edge_away ? CSS::BorderRadiusData {} : computed_values.border_bottom_right_radius();
     auto border_bottom_left_radius = m_fragment_bottom_edge_away || m_fragment_left_edge_away ? CSS::BorderRadiusData {} : computed_values.border_bottom_left_radius();
-    return normalize_border_radii_data(layout_node(), border_rect, border_rect,
+    return normalize_border_radii_data(border_rect, border_rect,
         border_top_left_radius, border_top_right_radius,
         border_bottom_right_radius, border_bottom_left_radius);
 }

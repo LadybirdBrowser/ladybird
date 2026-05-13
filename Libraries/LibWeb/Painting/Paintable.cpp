@@ -240,15 +240,15 @@ CSSPixelPoint Paintable::box_type_agnostic_position() const
     return position;
 }
 
-Painting::BorderRadiiData normalize_border_radii_data(Layout::Node const& node, CSSPixelRect const& border_rect, CSSPixelRect const& reference_rect, CSS::BorderRadiusData const& top_left_radius, CSS::BorderRadiusData const& top_right_radius, CSS::BorderRadiusData const& bottom_right_radius, CSS::BorderRadiusData const& bottom_left_radius)
+Painting::BorderRadiiData normalize_border_radii_data(CSSPixelRect const& border_rect, CSSPixelRect const& reference_rect, CSS::BorderRadiusData const& top_left_radius, CSS::BorderRadiusData const& top_right_radius, CSS::BorderRadiusData const& bottom_right_radius, CSS::BorderRadiusData const& bottom_left_radius)
 {
     Painting::BorderRadiiData radii_px {
         .top_left = {
-            top_left_radius.horizontal_radius.to_px(node, reference_rect.width()),
-            top_left_radius.vertical_radius.to_px(node, reference_rect.height()) },
-        .top_right = { top_right_radius.horizontal_radius.to_px(node, reference_rect.width()), top_right_radius.vertical_radius.to_px(node, reference_rect.height()) },
-        .bottom_right = { bottom_right_radius.horizontal_radius.to_px(node, reference_rect.width()), bottom_right_radius.vertical_radius.to_px(node, reference_rect.height()) },
-        .bottom_left = { bottom_left_radius.horizontal_radius.to_px(node, reference_rect.width()), bottom_left_radius.vertical_radius.to_px(node, reference_rect.height()) }
+            top_left_radius.horizontal_radius.to_px(reference_rect.width()),
+            top_left_radius.vertical_radius.to_px(reference_rect.height()) },
+        .top_right = { top_right_radius.horizontal_radius.to_px(reference_rect.width()), top_right_radius.vertical_radius.to_px(reference_rect.height()) },
+        .bottom_right = { bottom_right_radius.horizontal_radius.to_px(reference_rect.width()), bottom_right_radius.vertical_radius.to_px(reference_rect.height()) },
+        .bottom_left = { bottom_left_radius.horizontal_radius.to_px(reference_rect.width()), bottom_left_radius.vertical_radius.to_px(reference_rect.height()) }
     };
 
     // Scale overlapping curves according to https://www.w3.org/TR/css-backgrounds-3/#corner-overlap

@@ -30,12 +30,12 @@ static Gfx::Path path_from_resolved_rect(float top, float right, float bottom, f
 }
 
 // https://drafts.csswg.org/css-shapes/#funcdef-basic-shape-inset
-Gfx::Path Inset::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
+Gfx::Path Inset::to_path(CSSPixelRect reference_box) const
 {
-    auto resolved_top = LengthPercentageOrAuto::from_style_value(top).to_px_or_zero(node, reference_box.height()).to_float();
-    auto resolved_right = LengthPercentageOrAuto::from_style_value(right).to_px_or_zero(node, reference_box.width()).to_float();
-    auto resolved_bottom = LengthPercentageOrAuto::from_style_value(bottom).to_px_or_zero(node, reference_box.height()).to_float();
-    auto resolved_left = LengthPercentageOrAuto::from_style_value(left).to_px_or_zero(node, reference_box.width()).to_float();
+    auto resolved_top = LengthPercentageOrAuto::from_style_value(top).to_px_or_zero(reference_box.height()).to_float();
+    auto resolved_right = LengthPercentageOrAuto::from_style_value(right).to_px_or_zero(reference_box.width()).to_float();
+    auto resolved_bottom = LengthPercentageOrAuto::from_style_value(bottom).to_px_or_zero(reference_box.height()).to_float();
+    auto resolved_left = LengthPercentageOrAuto::from_style_value(left).to_px_or_zero(reference_box.width()).to_float();
 
     // A pair of insets in either dimension that add up to more than the used dimension
     // (such as left and right insets of 75% apiece) use the CSS Backgrounds 3 § 4.5 Overlapping Curves rules
@@ -79,7 +79,6 @@ Gfx::Path Inset::to_path(CSSPixelRect reference_box, Layout::Node const& node) c
     };
 
     auto radii = Painting::normalize_border_radii_data(
-        node,
         inset_rect,
         reference_box,
         to_border_radius_data(*border_radius_rect.top_left()),
@@ -174,7 +173,7 @@ void Rect::serialize(StringBuilder& builder, SerializationMode mode) const
     builder.append(')');
 }
 
-Gfx::Path Circle::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
+Gfx::Path Circle::to_path(CSSPixelRect reference_box) const
 {
     // Translating the reference box because PositionStyleValues are resolved to an absolute position.
     auto translated_reference_box = reference_box.translated(-reference_box.x(), -reference_box.y());
@@ -185,9 +184,9 @@ Gfx::Path Circle::to_path(CSSPixelRect reference_box, Layout::Node const& node) 
     if (position)
         resolved_position = position->as_position();
 
-    auto center = resolved_position->resolved(node, translated_reference_box);
+    auto center = resolved_position->resolved(translated_reference_box);
 
-    auto radius_px = radius->as_radial_size().resolve_circle_size(center, translated_reference_box, node).to_float();
+    auto radius_px = radius->as_radial_size().resolve_circle_size(center, translated_reference_box).to_float();
 
     Gfx::Path path;
     path.move_to(Gfx::FloatPoint { center.x().to_float(), center.y().to_float() + radius_px });
@@ -215,7 +214,7 @@ void Circle::serialize(StringBuilder& builder, SerializationMode mode) const
     builder.append(')');
 }
 
-Gfx::Path Ellipse::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
+Gfx::Path Ellipse::to_path(CSSPixelRect reference_box) const
 {
     // Translating the reference box because PositionStyleValues are resolved to an absolute position.
     auto translated_reference_box = reference_box.translated(-reference_box.x(), -reference_box.y());
@@ -226,8 +225,8 @@ Gfx::Path Ellipse::to_path(CSSPixelRect reference_box, Layout::Node const& node)
     if (position)
         resolved_position = position->as_position();
 
-    auto center = resolved_position->resolved(node, translated_reference_box);
-    auto size = radius->as_radial_size().resolve_ellipse_size(center, translated_reference_box, node);
+    auto center = resolved_position->resolved(translated_reference_box);
+    auto size = radius->as_radial_size().resolve_ellipse_size(center, translated_reference_box);
 
     Gfx::Path path;
     path.move_to(Gfx::FloatPoint { center.x().to_float(), center.y().to_float() + size.height().to_float() });
@@ -255,15 +254,15 @@ void Ellipse::serialize(StringBuilder& builder, SerializationMode mode) const
     builder.append(')');
 }
 
-Gfx::Path Polygon::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
+Gfx::Path Polygon::to_path(CSSPixelRect reference_box) const
 {
     Gfx::Path path;
     path.set_fill_type(fill_rule);
     bool first = true;
     for (auto const& point : points) {
         Gfx::FloatPoint resolved_point {
-            LengthPercentage::from_style_value(point.x).to_px(node, reference_box.width()).to_float(),
-            LengthPercentage::from_style_value(point.y).to_px(node, reference_box.height()).to_float()
+            LengthPercentage::from_style_value(point.x).to_px(reference_box.width()).to_float(),
+            LengthPercentage::from_style_value(point.y).to_px(reference_box.height()).to_float()
         };
         if (first)
             path.move_to(resolved_point);
@@ -297,7 +296,7 @@ void Polygon::serialize(StringBuilder& builder, SerializationMode mode) const
     builder.append(')');
 }
 
-Gfx::Path Path::to_path(CSSPixelRect, Layout::Node const&) const
+Gfx::Path Path::to_path(CSSPixelRect) const
 {
     auto result = path_instructions.to_gfx_path();
     result.set_fill_type(fill_rule);
@@ -328,13 +327,13 @@ void Path::serialize(StringBuilder& builder, SerializationMode mode) const
 
 BasicShapeStyleValue::~BasicShapeStyleValue() = default;
 
-Gfx::Path BasicShapeStyleValue::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
+Gfx::Path BasicShapeStyleValue::to_path(CSSPixelRect reference_box) const
 {
     return m_basic_shape.visit([&](auto const& shape) -> Gfx::Path {
         // NB: Xywh and Rect don't require to_path functions as we should have already converted them to their
         //     respective Inset equivalents during absolutization
-        if constexpr (requires { shape.to_path(reference_box, node); }) {
-            return shape.to_path(reference_box, node);
+        if constexpr (requires { shape.to_path(reference_box); }) {
+            return shape.to_path(reference_box);
         }
 
         VERIFY_NOT_REACHED();

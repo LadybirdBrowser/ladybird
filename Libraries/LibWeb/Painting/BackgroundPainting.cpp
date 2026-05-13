@@ -428,9 +428,9 @@ ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> co
         Optional<CSSPixels> specified_height {};
         if (layer.size_type == CSS::BackgroundSize::LengthPercentage) {
             if (!layer.size_x.is_auto())
-                specified_width = layer.size_x.length_percentage().to_px(paintable_box.layout_node(), background_positioning_area.width());
+                specified_width = layer.size_x.length_percentage().to_px(background_positioning_area.width());
             if (!layer.size_y.is_auto())
-                specified_height = layer.size_y.length_percentage().to_px(paintable_box.layout_node(), background_positioning_area.height());
+                specified_height = layer.size_y.length_percentage().to_px(background_positioning_area.height());
         }
         auto concrete_image_size = CSS::run_default_sizing_algorithm(
             specified_width, specified_height,
@@ -509,8 +509,8 @@ ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> co
         CSSPixels space_x = background_positioning_area.width() - image_rect.width();
         CSSPixels space_y = background_positioning_area.height() - image_rect.height();
 
-        CSSPixels position_x = layer.position_x.to_px(paintable_box.layout_node(), space_x);
-        CSSPixels position_y = layer.position_y.to_px(paintable_box.layout_node(), space_y);
+        CSSPixels position_x = layer.position_x.to_px(space_x);
+        CSSPixels position_y = layer.position_y.to_px(space_y);
 
         resolved_layers.append({ .background_image = layer.background_image,
             .attachment = layer.attachment,

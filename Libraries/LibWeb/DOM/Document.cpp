@@ -6160,10 +6160,10 @@ static CSSPixelRect compute_intersection(GC::Ref<Element> target, CSSPixelRect t
                 auto const& layout_node = container->layout_node_with_style_and_box_metrics();
                 if (layout_node.is_scroll_container() && !scroll_margin.is_empty()) {
                     clip_rect.inflate(
-                        scroll_margin[0].to_px(layout_node, clip_rect.height()),
-                        scroll_margin[1].to_px(layout_node, clip_rect.width()),
-                        scroll_margin[2].to_px(layout_node, clip_rect.height()),
-                        scroll_margin[3].to_px(layout_node, clip_rect.width()));
+                        scroll_margin[0].to_px(clip_rect.height()),
+                        scroll_margin[1].to_px(clip_rect.width()),
+                        scroll_margin[2].to_px(clip_rect.height()),
+                        scroll_margin[3].to_px(clip_rect.width()));
                 }
 
                 intersection_rect.intersect(clip_rect);

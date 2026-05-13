@@ -74,11 +74,11 @@ Gfx::Path SVGCircleElement::get_path(CSSPixelSize viewport_size)
         return {};
     }
 
-    auto cx = float(node->computed_values().cx().to_px(*node, viewport_size.width()));
-    auto cy = float(node->computed_values().cy().to_px(*node, viewport_size.height()));
+    auto cx = float(node->computed_values().cx().to_px(viewport_size.width()));
+    auto cy = float(node->computed_values().cy().to_px(viewport_size.height()));
     // Percentages refer to the normalized diagonal of the current SVG viewport
     // (see Units: https://svgwg.org/svg2-draft/coords.html#Units)
-    auto r = float(node->computed_values().r().to_px(*node, normalized_diagonal_length(viewport_size)));
+    auto r = float(node->computed_values().r().to_px(normalized_diagonal_length(viewport_size)));
 
     // A zero radius disables rendering.
     if (r == 0)

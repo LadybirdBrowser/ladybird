@@ -16,7 +16,7 @@
 namespace Web::CSS {
 
 struct Inset {
-    Gfx::Path to_path(CSSPixelRect reference_box, Layout::Node const&) const;
+    Gfx::Path to_path(CSSPixelRect reference_box) const;
     void serialize(StringBuilder&, SerializationMode) const;
 
     bool operator==(Inset const&) const = default;
@@ -83,7 +83,7 @@ struct Rect {
 };
 
 struct Circle {
-    Gfx::Path to_path(CSSPixelRect reference_box, Layout::Node const&) const;
+    Gfx::Path to_path(CSSPixelRect reference_box) const;
     void serialize(StringBuilder&, SerializationMode) const;
 
     bool operator==(Circle const&) const = default;
@@ -99,7 +99,7 @@ struct Circle {
 };
 
 struct Ellipse {
-    Gfx::Path to_path(CSSPixelRect reference_box, Layout::Node const&) const;
+    Gfx::Path to_path(CSSPixelRect reference_box) const;
     void serialize(StringBuilder&, SerializationMode) const;
 
     bool operator==(Ellipse const&) const = default;
@@ -121,7 +121,7 @@ struct Polygon {
         ValueComparingNonnullRefPtr<StyleValue const> y;
     };
 
-    Gfx::Path to_path(CSSPixelRect reference_box, Layout::Node const&) const;
+    Gfx::Path to_path(CSSPixelRect reference_box) const;
     void serialize(StringBuilder&, SerializationMode) const;
 
     bool operator==(Polygon const&) const = default;
@@ -137,7 +137,7 @@ struct Polygon {
 
 // https://drafts.csswg.org/css-shapes/#funcdef-basic-shape-path
 struct Path {
-    Gfx::Path to_path(CSSPixelRect reference_box, Layout::Node const&) const;
+    Gfx::Path to_path(CSSPixelRect reference_box) const;
     void serialize(StringBuilder&, SerializationMode) const;
 
     bool operator==(Path const&) const = default;
@@ -171,7 +171,7 @@ public:
         return m_basic_shape.visit([](auto const& shape) { return shape.is_computationally_independent(); });
     }
 
-    Gfx::Path to_path(CSSPixelRect reference_box, Layout::Node const&) const;
+    Gfx::Path to_path(CSSPixelRect reference_box) const;
 
 private:
     BasicShapeStyleValue(BasicShape basic_shape)

@@ -544,7 +544,7 @@ bool GridFormattingContext::has_gaps(GridDimension dimension) const
 CSSPixels GridFormattingContext::resolve_definite_track_size(CSS::GridSize const& grid_size, AvailableSpace const& available_space) const
 {
     VERIFY(grid_size.is_definite());
-    return grid_size.css_size().to_px(grid_container(), available_space.width.to_px_or_zero());
+    return grid_size.css_size().to_px(available_space.width.to_px_or_zero());
 }
 
 int GridFormattingContext::count_of_repeated_auto_fill_or_fit_tracks(GridDimension dimension, CSS::ExplicitGridTrack const& repeated_track)
@@ -1195,13 +1195,13 @@ void GridFormattingContext::initialize_track_sizes(GridDimension dimension)
         }
 
         if (track.min_track_sizing_function.is_fixed(available_size)) {
-            track.base_size = track.min_track_sizing_function.css_size().to_px(grid_container(), available_size.to_px_or_zero());
+            track.base_size = track.min_track_sizing_function.css_size().to_px(available_size.to_px_or_zero());
         } else if (track.min_track_sizing_function.is_intrinsic(available_size)) {
             track.base_size = 0;
         }
 
         if (track.max_track_sizing_function.is_fixed(available_size)) {
-            track.growth_limit = track.max_track_sizing_function.css_size().to_px(grid_container(), available_size.to_px_or_zero());
+            track.growth_limit = track.max_track_sizing_function.css_size().to_px(available_size.to_px_or_zero());
         } else if (track.max_track_sizing_function.is_flexible_length()) {
             if (dimension == GridDimension::Column) {
                 m_has_flexible_column_tracks = true;
@@ -1536,7 +1536,7 @@ void GridFormattingContext::increase_sizes_to_accommodate_spanning_items_crossin
                 track.growth_limit.value() += track.planned_increase;
                 if (track.growth_limit.value() < track.base_size)
                     track.growth_limit = track.base_size;
-                auto fit_content_limit = track.max_track_sizing_function.css_size().to_px(grid_container(), available_size.to_px_or_zero());
+                auto fit_content_limit = track.max_track_sizing_function.css_size().to_px(available_size.to_px_or_zero());
                 if (track.growth_limit.value() > fit_content_limit)
                     track.growth_limit = max(track.base_size, fit_content_limit);
             } else if (!track.growth_limit.has_value()) {
@@ -2598,22 +2598,22 @@ void GridFormattingContext::resolve_items_box_metrics(GridDimension dimension)
 
         CSSPixels containing_block_width = containing_block_size_for_item(item, GridDimension::Column);
         if (dimension == GridDimension::Column) {
-            item.used_values.padding_right = computed_values.padding().right().to_px_or_zero(grid_container(), containing_block_width);
-            item.used_values.padding_left = computed_values.padding().left().to_px_or_zero(grid_container(), containing_block_width);
+            item.used_values.padding_right = computed_values.padding().right().to_px_or_zero(containing_block_width);
+            item.used_values.padding_left = computed_values.padding().left().to_px_or_zero(containing_block_width);
 
-            item.used_values.margin_right = computed_values.margin().right().to_px_or_zero(grid_container(), containing_block_width);
-            item.used_values.margin_left = computed_values.margin().left().to_px_or_zero(grid_container(), containing_block_width);
+            item.used_values.margin_right = computed_values.margin().right().to_px_or_zero(containing_block_width);
+            item.used_values.margin_left = computed_values.margin().left().to_px_or_zero(containing_block_width);
 
             item.used_values.border_right = computed_values.border_right().width;
             item.used_values.border_left = computed_values.border_left().width;
 
             apply_subgrid_gap_extra_margins(item, dimension, m_available_space->width);
         } else {
-            item.used_values.padding_top = computed_values.padding().top().to_px_or_zero(grid_container(), containing_block_width);
-            item.used_values.padding_bottom = computed_values.padding().bottom().to_px_or_zero(grid_container(), containing_block_width);
+            item.used_values.padding_top = computed_values.padding().top().to_px_or_zero(containing_block_width);
+            item.used_values.padding_bottom = computed_values.padding().bottom().to_px_or_zero(containing_block_width);
 
-            item.used_values.margin_top = computed_values.margin().top().to_px_or_zero(grid_container(), containing_block_width);
-            item.used_values.margin_bottom = computed_values.margin().bottom().to_px_or_zero(grid_container(), containing_block_width);
+            item.used_values.margin_top = computed_values.margin().top().to_px_or_zero(containing_block_width);
+            item.used_values.margin_bottom = computed_values.margin().bottom().to_px_or_zero(containing_block_width);
 
             item.used_values.border_top = computed_values.border_top().width;
             item.used_values.border_bottom = computed_values.border_bottom().width;
@@ -3504,8 +3504,8 @@ void GridFormattingContext::resolve_table_wrapper_grid_item_width(GridItem& item
         table_wrapper_width = max(table_wrapper_width, calculate_inner_width(item.box, available_space.width, item.minimum_size(GridDimension::Column)));
 
     auto const& computed_values = item.box.computed_values();
-    item.used_values.margin_left = computed_values.margin().left().to_px_or_zero(grid_container(), table_wrapper_containing_block_width);
-    item.used_values.margin_right = computed_values.margin().right().to_px_or_zero(grid_container(), table_wrapper_containing_block_width);
+    item.used_values.margin_left = computed_values.margin().left().to_px_or_zero(table_wrapper_containing_block_width);
+    item.used_values.margin_right = computed_values.margin().right().to_px_or_zero(table_wrapper_containing_block_width);
 
     auto margin_start = item.used_margin_start(GridDimension::Column);
     auto margin_end = item.used_margin_end(GridDimension::Column);
@@ -3593,7 +3593,7 @@ CSSPixels GridFormattingContext::calculate_min_content_contribution(GridItem con
 
     auto maximum_size = CSSPixels::max();
     if (auto const& css_maximum_size = item.maximum_size(dimension); css_maximum_size.is_length_percentage() && !css_maximum_size.contains_percentage())
-        maximum_size = css_maximum_size.to_px(item.box, 0);
+        maximum_size = css_maximum_size.to_px(0);
 
     if (should_treat_preferred_size_as_auto) {
         CSSPixels min_content_size;
@@ -3627,7 +3627,7 @@ CSSPixels GridFormattingContext::calculate_max_content_contribution(GridItem con
 
     auto maximum_size = CSSPixels::max();
     if (auto const& css_maximum_size = item.maximum_size(dimension); css_maximum_size.is_length_percentage() && !css_maximum_size.contains_percentage())
-        maximum_size = css_maximum_size.to_px(item.box, 0);
+        maximum_size = css_maximum_size.to_px(0);
 
     auto preferred_size = item.preferred_size(dimension);
     if (should_treat_preferred_size_as_auto || preferred_size.is_fit_content()) {
@@ -3673,7 +3673,7 @@ Optional<CSSPixels> GridFormattingContext::calculate_fixed_max_track_size_limit(
 
         if (max_track_sizing_function.is_fixed(available_size)) {
             auto const& max_track_size = max_track_sizing_function.css_size();
-            result += max_track_size.to_px(grid_container(), available_size.to_px_or_zero());
+            result += max_track_size.to_px(available_size.to_px_or_zero());
             return;
         }
 
@@ -3682,7 +3682,7 @@ Optional<CSSPixels> GridFormattingContext::calculate_fixed_max_track_size_limit(
             auto const& fit_content_available_space = max_track_size.fit_content_available_space();
             if (fit_content_available_space.has_value()
                 && (!fit_content_available_space->contains_percentage() || available_size.is_definite())) {
-                result += max_track_size.to_px(grid_container(), available_size.to_px_or_zero());
+                result += max_track_size.to_px(available_size.to_px_or_zero());
                 return;
             }
         }
@@ -3761,7 +3761,7 @@ Optional<CSSPixels> GridFormattingContext::specified_size_suggestion(GridItem co
     if (has_definite_preferred_size) {
         // FIXME: consider margins, padding and borders because it is outer size.
         auto containing_block_size = containing_block_size_for_item(item, dimension);
-        return item.preferred_size(dimension).to_px(item.box, containing_block_size);
+        return item.preferred_size(dimension).to_px(containing_block_size);
     }
 
     return {};
@@ -3823,7 +3823,7 @@ CSSPixels GridFormattingContext::content_based_minimum_size(GridItem const& item
             spans_only_tracks_with_limited_max_track_sizing_function = false;
             break;
         }
-        sum_of_max_sizing_functions += track.max_track_sizing_function.css_size().to_px(item.box, m_available_space->width.to_px_or_zero());
+        sum_of_max_sizing_functions += track.max_track_sizing_function.css_size().to_px(m_available_space->width.to_px_or_zero());
     }
     if (spans_only_tracks_with_limited_max_track_sizing_function) {
         result = min(result, sum_of_max_sizing_functions);
@@ -3832,7 +3832,7 @@ CSSPixels GridFormattingContext::content_based_minimum_size(GridItem const& item
     // In all cases, the size suggestion is additionally clamped by the maximum size in the affected axis, if it’s definite.
     auto const& maximum_size = item.maximum_size(dimension);
     if (maximum_size.is_length_percentage() && !maximum_size.contains_percentage())
-        result = min(result, maximum_size.to_px(item.box, 0));
+        result = min(result, maximum_size.to_px(0));
 
     // If the item is a compressible replaced element, and has a definite preferred size or maximum size in the relevant axis,
     // the size suggestion is capped by those sizes; for this purpose, any indefinite percentages in these sizes are resolved

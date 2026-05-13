@@ -27,8 +27,8 @@ public:
 
     Vector<Component> components() const { return m_components; }
 
-    CSSPixels resolve_circle_size(CSSPixelPoint const& center, CSSPixelRect const& reference_box, Layout::Node const&) const;
-    CSSPixelSize resolve_ellipse_size(CSSPixelPoint const& center, CSSPixelRect const& reference_box, Layout::Node const&) const;
+    CSSPixels resolve_circle_size(CSSPixelPoint const& center, CSSPixelRect const& reference_box) const;
+    CSSPixelSize resolve_ellipse_size(CSSPixelPoint const& center, CSSPixelRect const& reference_box) const;
 
     bool properties_equal(RadialSizeStyleValue const& other) const { return m_components == other.m_components; }
 

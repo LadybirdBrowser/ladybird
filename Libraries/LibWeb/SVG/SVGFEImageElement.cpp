@@ -103,16 +103,16 @@ Optional<Gfx::IntRect> SVGFEImageElement::content_rect() const
     auto layout_node = this->unsafe_layout_node();
     if (!layout_node)
         return {};
-    auto width = layout_node->computed_values().width().to_px(*layout_node, 0);
+    auto width = layout_node->computed_values().width().to_px(0);
     if (width == 0)
         width = bitmap->width();
 
-    auto height = layout_node->computed_values().height().to_px(*layout_node, 0);
+    auto height = layout_node->computed_values().height().to_px(0);
     if (height == 0)
         height = bitmap->height();
 
-    auto x = layout_node->computed_values().x().to_px(*layout_node, 0);
-    auto y = layout_node->computed_values().y().to_px(*layout_node, 0);
+    auto x = layout_node->computed_values().x().to_px(0);
+    auto y = layout_node->computed_values().y().to_px(0);
     return Gfx::enclosing_int_rect({ x, y, width, height });
 }
 

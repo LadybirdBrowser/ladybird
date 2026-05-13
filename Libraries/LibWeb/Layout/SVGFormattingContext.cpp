@@ -322,12 +322,12 @@ void SVGFormattingContext::layout_svg_element(Box const& child)
         auto& child_state = m_state.get_mutable(child);
         CSSPixelRect rect {
             {
-                child.computed_values().x().to_px(child, m_available_space->width.to_px_or_zero()),
-                child.computed_values().y().to_px(child, m_available_space->height.to_px_or_zero()),
+                child.computed_values().x().to_px(m_available_space->width.to_px_or_zero()),
+                child.computed_values().y().to_px(m_available_space->height.to_px_or_zero()),
             },
             {
-                child.computed_values().width().to_px(child, m_available_space->width.to_px_or_zero()),
-                child.computed_values().height().to_px(child, m_available_space->height.to_px_or_zero()),
+                child.computed_values().width().to_px(m_available_space->width.to_px_or_zero()),
+                child.computed_values().height().to_px(m_available_space->height.to_px_or_zero()),
             }
         };
         auto parent_svg_transform = get_parent_svg_transform(child);
@@ -356,18 +356,18 @@ void SVGFormattingContext::layout_nested_viewport(Box const& viewport)
     // Layout for a nested SVG viewport.
     // https://svgwg.org/svg2-draft/coords.html#EstablishingANewSVGViewport.
     auto& nested_viewport_state = m_state.get_mutable(viewport);
-    auto resolve_dimension = [](auto& node, auto size, auto reference_value) {
+    auto resolve_dimension = [](auto size, auto reference_value) {
         // The value auto for width and height on the ‘svg’ element is treated as 100%.
         // https://svgwg.org/svg2-draft/geometry.html#Sizing
         if (size.is_auto())
             return reference_value;
-        return size.to_px(node, reference_value);
+        return size.to_px(reference_value);
     };
 
-    auto nested_viewport_x = viewport.computed_values().x().to_px(viewport, m_viewport_size.width());
-    auto nested_viewport_y = viewport.computed_values().y().to_px(viewport, m_viewport_size.height());
-    auto nested_viewport_width = resolve_dimension(viewport, viewport.computed_values().width(), m_viewport_size.width());
-    auto nested_viewport_height = resolve_dimension(viewport, viewport.computed_values().height(), m_viewport_size.height());
+    auto nested_viewport_x = viewport.computed_values().x().to_px(m_viewport_size.width());
+    auto nested_viewport_y = viewport.computed_values().y().to_px(m_viewport_size.height());
+    auto nested_viewport_width = resolve_dimension(viewport.computed_values().width(), m_viewport_size.width());
+    auto nested_viewport_height = resolve_dimension(viewport.computed_values().height(), m_viewport_size.height());
 
     CSSPixelPoint content_offset { nested_viewport_x, nested_viewport_y };
     auto content_width = nested_viewport_width;
@@ -500,7 +500,7 @@ void SVGFormattingContext::layout_path_like_element(SVGGraphicsBox const& graphi
     } else if (auto* text_box = as_if<SVGTextBox>(graphics_box)) {
         // FIXME: Text offsets must be calculated per character. This only applies the first character's offset.
         auto text_positioning = text_box->dom_node().text_positioning();
-        text_positioning.apply_to_text_position(*text_box, m_viewport_size, m_current_text_position, 0u);
+        text_positioning.apply_to_text_position(m_viewport_size, m_current_text_position, 0u);
 
         path = compute_path_for_text(*text_box);
 

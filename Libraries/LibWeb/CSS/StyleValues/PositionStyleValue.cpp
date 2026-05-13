@@ -36,11 +36,11 @@ bool PositionStyleValue::is_center(SerializationMode mode) const
     return edge_x()->is_center(mode) && edge_y()->is_center(mode);
 }
 
-CSSPixelPoint PositionStyleValue::resolved(Layout::Node const& node, CSSPixelRect const& rect) const
+CSSPixelPoint PositionStyleValue::resolved(CSSPixelRect const& rect) const
 {
     // Note: A preset + a none default x/y_relative_to is impossible in the syntax (and makes little sense)
-    CSSPixels x = LengthPercentage::from_style_value(m_properties.edge_x->offset()).to_px(node, rect.width());
-    CSSPixels y = LengthPercentage::from_style_value(m_properties.edge_y->offset()).to_px(node, rect.height());
+    CSSPixels x = LengthPercentage::from_style_value(m_properties.edge_x->offset()).to_px(rect.width());
+    CSSPixels y = LengthPercentage::from_style_value(m_properties.edge_y->offset()).to_px(rect.height());
     return CSSPixelPoint { rect.x() + x, rect.y() + y };
 }
 

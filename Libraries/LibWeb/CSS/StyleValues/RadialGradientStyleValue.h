@@ -56,7 +56,7 @@ public:
 
     void resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const override;
 
-    CSSPixelSize resolve_size(CSSPixelPoint, CSSPixelRect const&, Layout::NodeWithStyle const&) const;
+    CSSPixelSize resolve_size(CSSPixelPoint, CSSPixelRect const&) const;
 
     bool is_repeating() const { return m_properties.repeating == GradientRepeating::Yes; }
 

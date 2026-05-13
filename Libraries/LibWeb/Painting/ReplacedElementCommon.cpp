@@ -77,16 +77,16 @@ Gfx::IntRect get_replaced_box_painting_area(PaintableBox const& paintable, Displ
 
     auto offset_x = CSSPixels::from_raw(0);
     if (object_position.edge_x == CSS::PositionEdge::Left) {
-        offset_x = object_position.offset_x.to_px(paintable.layout_node(), residual_horizontal);
+        offset_x = object_position.offset_x.to_px(residual_horizontal);
     } else if (object_position.edge_x == CSS::PositionEdge::Right) {
-        offset_x = residual_horizontal - object_position.offset_x.to_px(paintable.layout_node(), residual_horizontal);
+        offset_x = residual_horizontal - object_position.offset_x.to_px(residual_horizontal);
     }
 
     auto offset_y = CSSPixels::from_raw(0);
     if (object_position.edge_y == CSS::PositionEdge::Top) {
-        offset_y = object_position.offset_y.to_px(paintable.layout_node(), residual_vertical);
+        offset_y = object_position.offset_y.to_px(residual_vertical);
     } else if (object_position.edge_y == CSS::PositionEdge::Bottom) {
-        offset_y = residual_vertical - object_position.offset_y.to_px(paintable.layout_node(), residual_vertical);
+        offset_y = residual_vertical - object_position.offset_y.to_px(residual_vertical);
     }
 
     return Gfx::IntRect(

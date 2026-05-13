@@ -293,12 +293,12 @@ float SVGGraphicsElement::resolve_relative_to_viewport_size(CSS::LengthPercentag
     CSSPixels viewport_height = 0;
     if (auto* svg_svg_element = first_flat_tree_ancestor_of_type<SVGSVGElement>()) {
         if (auto svg_svg_layout_node = svg_svg_element->unsafe_layout_node()) {
-            viewport_width = svg_svg_layout_node->computed_values().width().to_px(*svg_svg_layout_node, 0);
-            viewport_height = svg_svg_layout_node->computed_values().height().to_px(*svg_svg_layout_node, 0);
+            viewport_width = svg_svg_layout_node->computed_values().width().to_px(0);
+            viewport_height = svg_svg_layout_node->computed_values().height().to_px(0);
         }
     }
     auto scaled_viewport_size = (viewport_width + viewport_height) * CSSPixels(0.5);
-    return length_percentage.to_px(*unsafe_layout_node(), scaled_viewport_size).to_double();
+    return length_percentage.to_px(scaled_viewport_size).to_double();
 }
 
 Vector<float> SVGGraphicsElement::stroke_dasharray() const

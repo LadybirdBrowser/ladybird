@@ -2924,11 +2924,10 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
     // AD-HOC: The spec doesn't specify when to do this, but we need to apply scroll-margin and scroll-margin to target
     //         bounding border box (https://drafts.csswg.org/cssom-view-1/#example-51af1565).
     auto scroll_margin = target.computed_properties()->length_box(CSS::PropertyID::ScrollMarginLeft, CSS::PropertyID::ScrollMarginTop, CSS::PropertyID::ScrollMarginRight, CSS::PropertyID::ScrollMarginBottom, CSS::Length::make_px(0));
-    auto& target_layout_node = *target.layout_node();
-    auto scroll_margin_top = scroll_margin.top().to_px_or_zero(target_layout_node, CSSPixels { 0 });
-    auto scroll_margin_right = scroll_margin.right().to_px_or_zero(target_layout_node, CSSPixels { 0 });
-    auto scroll_margin_bottom = scroll_margin.bottom().to_px_or_zero(target_layout_node, CSSPixels { 0 });
-    auto scroll_margin_left = scroll_margin.left().to_px_or_zero(target_layout_node, CSSPixels { 0 });
+    auto scroll_margin_top = scroll_margin.top().to_px_or_zero(CSSPixels { 0 });
+    auto scroll_margin_right = scroll_margin.right().to_px_or_zero(CSSPixels { 0 });
+    auto scroll_margin_bottom = scroll_margin.bottom().to_px_or_zero(CSSPixels { 0 });
+    auto scroll_margin_left = scroll_margin.left().to_px_or_zero(CSSPixels { 0 });
 
     target_bounding_border_box.set_top(target_bounding_border_box.top() - scroll_margin_top);
     target_bounding_border_box.set_right(target_bounding_border_box.right() + scroll_margin_left + scroll_margin_right);
@@ -2951,14 +2950,13 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
 
     if (scrolling_box_computed_properties) {
         auto scroll_padding = scrolling_box_computed_properties->length_box(CSS::PropertyID::ScrollPaddingLeft, CSS::PropertyID::ScrollPaddingTop, CSS::PropertyID::ScrollPaddingRight, CSS::PropertyID::ScrollPaddingBottom, CSS::Length::make_px(0));
-        auto& scrolling_box_layout_node = *scrolling_box.layout_node();
         auto scrolling_box_width = scrolling_box_rect.width();
         auto scrolling_box_height = scrolling_box_rect.height();
 
-        auto scroll_padding_top = scroll_padding.top().to_px_or_zero(scrolling_box_layout_node, scrolling_box_height);
-        auto scroll_padding_right = scroll_padding.right().to_px_or_zero(scrolling_box_layout_node, scrolling_box_width);
-        auto scroll_padding_bottom = scroll_padding.bottom().to_px_or_zero(scrolling_box_layout_node, scrolling_box_height);
-        auto scroll_padding_left = scroll_padding.left().to_px_or_zero(scrolling_box_layout_node, scrolling_box_width);
+        auto scroll_padding_top = scroll_padding.top().to_px_or_zero(scrolling_box_height);
+        auto scroll_padding_right = scroll_padding.right().to_px_or_zero(scrolling_box_width);
+        auto scroll_padding_bottom = scroll_padding.bottom().to_px_or_zero(scrolling_box_height);
+        auto scroll_padding_left = scroll_padding.left().to_px_or_zero(scrolling_box_width);
 
         target_bounding_border_box.set_top(target_bounding_border_box.top() - scroll_padding_top);
         target_bounding_border_box.set_right(target_bounding_border_box.right() + scroll_padding_left + scroll_padding_right);

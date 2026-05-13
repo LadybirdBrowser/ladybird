@@ -97,9 +97,9 @@ static Optional<TransformData> compute_transform(PaintableBox const& paintable_b
     // offset properties as follows:
     auto reference_box = paintable_box.transform_reference_box();
     auto const& css_transform_origin = computed_values.transform_origin();
-    auto origin_x = css_transform_origin.x.to_px(paintable_box.layout_node(), reference_box.width());
-    auto origin_y = css_transform_origin.y.to_px(paintable_box.layout_node(), reference_box.height());
-    auto origin_z = css_transform_origin.z.to_px(paintable_box.layout_node(), 0).to_float();
+    auto origin_x = css_transform_origin.x.to_px(reference_box.width());
+    auto origin_y = css_transform_origin.y.to_px(reference_box.height());
+    auto origin_z = css_transform_origin.z.to_px(0).to_float();
 
     // 1. Start with the identity matrix.
     // 2. Translate by the computed X, Y, and Z values of transform-origin.
@@ -149,7 +149,7 @@ static Optional<Gfx::FloatMatrix4x4> compute_perspective_matrix(PaintableBox con
     // https://drafts.csswg.org/css-transforms-2/#perspective-origin-property
     // Percentages: refer to the size of the reference box
     auto reference_box = paintable_box.transform_reference_box();
-    auto perspective_origin = computed_values.perspective_origin().resolved(paintable_box.layout_node(), reference_box);
+    auto perspective_origin = computed_values.perspective_origin().resolved(reference_box);
     auto computed_x = perspective_origin.x().to_float();
     auto computed_y = perspective_origin.y().to_float();
     auto perspective_matrix = Gfx::translation_matrix(Vector3<float>(computed_x, computed_y, 0));
@@ -246,7 +246,7 @@ static Optional<ClipPathData> compute_basic_shape_clip_path_data(PaintableBox co
     auto masking_area = paintable_box.absolute_border_box_rect();
     auto reference_box = CSSPixelRect { {}, masking_area.size() };
     auto const& basic_shape = clip_path->basic_shape();
-    auto path = basic_shape.to_path(reference_box, paintable_box.layout_node());
+    auto path = basic_shape.to_path(reference_box);
     path.offset(masking_area.top_left().template to_type<float>());
     auto fill_rule = basic_shape.basic_shape().visit(
         [](CSS::Polygon const& polygon) { return polygon.fill_rule; },
