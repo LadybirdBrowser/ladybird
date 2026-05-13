@@ -70,7 +70,6 @@ public:
     [[nodiscard]] ALWAYS_INLINE bool is_empty() const { return width() <= 0 || height() <= 0; }
 
     ALWAYS_INLINE void translate_by(T dx, T dy) { m_location.translate_by(dx, dy); }
-    ALWAYS_INLINE void translate_by(T dboth) { m_location.translate_by(dboth); }
     ALWAYS_INLINE void translate_by(Point<T> const& delta) { m_location.translate_by(delta); }
 
     [[nodiscard]] Point<T> center() const
