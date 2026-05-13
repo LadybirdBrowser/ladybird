@@ -149,42 +149,12 @@ public:
     }
 
     template<typename U>
-    [[nodiscard]] constexpr VectorN operator+(U f) const
-    {
-        VectorN result;
-        UNROLL_LOOP
-        for (auto i = 0u; i < N; ++i)
-            result.m_data[i] = m_data[i] + f;
-        return result;
-    }
-
-    template<typename U>
-    [[nodiscard]] constexpr VectorN operator-(U f) const
-    {
-        VectorN result;
-        UNROLL_LOOP
-        for (auto i = 0u; i < N; ++i)
-            result.m_data[i] = m_data[i] - f;
-        return result;
-    }
-
-    template<typename U>
     [[nodiscard]] constexpr VectorN operator*(U f) const
     {
         VectorN result;
         UNROLL_LOOP
         for (auto i = 0u; i < N; ++i)
             result.m_data[i] = m_data[i] * f;
-        return result;
-    }
-
-    template<typename U>
-    [[nodiscard]] constexpr VectorN operator/(U f) const
-    {
-        VectorN result;
-        UNROLL_LOOP
-        for (auto i = 0u; i < N; ++i)
-            result.m_data[i] = m_data[i] / f;
         return result;
     }
 
