@@ -100,8 +100,6 @@ public:
     ~ImageDecoder() = default;
 
     IntSize size() const { return m_plugin->size(); }
-    int width() const { return size().width(); }
-    int height() const { return size().height(); }
     bool is_animated() const { return m_plugin->is_animated(); }
     size_t loop_count() const { return m_plugin->loop_count(); }
     size_t frame_count() const { return m_plugin->frame_count(); }
