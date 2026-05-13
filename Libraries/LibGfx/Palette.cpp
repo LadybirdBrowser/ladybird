@@ -25,12 +25,6 @@ Palette::Palette(NonnullRefPtr<PaletteImpl> impl)
 {
 }
 
-ByteString PaletteImpl::path(PathRole role) const
-{
-    VERIFY((int)role < (int)PathRole::__Count);
-    return theme().path[(int)role];
-}
-
 NonnullRefPtr<PaletteImpl> PaletteImpl::clone() const
 {
     auto new_theme_buffer = Core::AnonymousBuffer::create_with_size(m_theme_buffer.size()).release_value();

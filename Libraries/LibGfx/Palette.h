@@ -37,7 +37,6 @@ public:
         return theme().flag[(int)role];
     }
 
-    ByteString path(PathRole) const;
     SystemTheme const& theme() const { return *m_theme_buffer.data<SystemTheme>(); }
 
 private:
@@ -69,7 +68,6 @@ public:
 
     Color color(ColorRole role) const { return m_impl->color(role); }
     bool flag(FlagRole role) const { return m_impl->flag(role); }
-    ByteString path(PathRole role) const { return m_impl->path(role); }
 
     void set_color(ColorRole, Color);
     void set_flag(FlagRole, bool);
