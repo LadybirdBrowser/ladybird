@@ -23,11 +23,6 @@ public:
     static ErrorOr<void> encode(Stream&, Bitmap const&, Options const& = {});
 
 private:
-    enum class ColorSpace {
-        RGB,
-    };
-    static ErrorOr<void> encode_impl(Stream&, auto const&, Options const&, ColorSpace);
-
     JPEGWriter() = delete;
 };
 
