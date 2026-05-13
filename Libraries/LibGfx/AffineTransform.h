@@ -42,9 +42,6 @@ public:
     Point<T> map(Point<T>) const;
 
     template<Arithmetic T>
-    Size<T> map(Size<T>) const;
-
-    template<Arithmetic T>
     Rect<T> map(Rect<T> const&) const;
 
     [[nodiscard]] ALWAYS_INLINE float a() const { return m_values[0]; }
@@ -55,7 +52,6 @@ public:
     [[nodiscard]] ALWAYS_INLINE float f() const { return m_values[5]; }
 
     [[nodiscard]] float x_scale() const;
-    [[nodiscard]] float y_scale() const;
     AffineTransform& scale(float sx, float sy);
     AffineTransform& scale(FloatPoint s);
     AffineTransform& set_scale(float sx, float sy);

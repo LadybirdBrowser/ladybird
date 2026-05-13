@@ -16,11 +16,6 @@ float AffineTransform::x_scale() const
     return AK::hypot(m_values[0], m_values[1]);
 }
 
-float AffineTransform::y_scale() const
-{
-    return AK::hypot(m_values[2], m_values[3]);
-}
-
 AffineTransform& AffineTransform::scale(float sx, float sy)
 {
     m_values[0] *= sx;
@@ -142,12 +137,6 @@ FloatPoint AffineTransform::map(FloatPoint point) const
     float mapped_y;
     map(point.x(), point.y(), mapped_x, mapped_y);
     return { mapped_x, mapped_y };
-}
-
-template<>
-FloatSize AffineTransform::map(FloatSize size) const
-{
-    return { size.width() * x_scale(), size.height() * y_scale() };
 }
 
 template<typename T>

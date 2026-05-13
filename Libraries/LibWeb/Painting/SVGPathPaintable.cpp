@@ -172,7 +172,7 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
         auto miter_limit = graphics_element.stroke_miterlimit().value_or(0);
         auto stroke_opacity = graphics_element.stroke_opacity().value_or(1);
 
-        // Note: This is assuming .x_scale() == .y_scale() (which it does currently).
+        // Note: This is assuming uniform scaling on x and y (which it does currently).
         auto viewbox_scale = paint_transform.x_scale();
         float stroke_thickness = graphics_element.stroke_width().value_or(1) * viewbox_scale;
         auto stroke_dasharray = graphics_element.stroke_dasharray();
