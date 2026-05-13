@@ -190,7 +190,13 @@ void TestRunCapture::write_test_output(TestWebView const& view)
 bool TestRunCapture::write_helper_process_output()
 {
     restore_stderr();
-    return m_helper_output.transfer_to_output_file().value_or(false);
+
+    auto result = m_helper_output.transfer_to_output_file();
+    if (result.is_error()) {
+        warnln("Failed to write helper process logs: {}", result.error());
+        return false;
+    }
+    return result.value();
 }
 
 void TestRunCapture::restore_stderr()
