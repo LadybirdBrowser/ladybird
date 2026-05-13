@@ -286,27 +286,3 @@ private:
 };
 
 }
-
-namespace AK {
-
-template<size_t N, typename T>
-constexpr Gfx::VectorN<N, T> min(Gfx::VectorN<N, T> const& a, Gfx::VectorN<N, T> const& b)
-{
-    Gfx::VectorN<N, T> result;
-    UNROLL_LOOP
-    for (auto i = 0u; i < N; ++i)
-        result[i] = min(a[i], b[i]);
-    return result;
-}
-
-template<size_t N, typename T>
-constexpr Gfx::VectorN<N, T> max(Gfx::VectorN<N, T> const& a, Gfx::VectorN<N, T> const& b)
-{
-    Gfx::VectorN<N, T> result;
-    UNROLL_LOOP
-    for (auto i = 0u; i < N; ++i)
-        result[i] = max(a[i], b[i]);
-    return result;
-}
-
-}
