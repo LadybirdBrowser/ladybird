@@ -8,8 +8,10 @@
 #include <LibCrypto/Hash/SHA2.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/ModuleRequest.h>
+#include <LibJS/Runtime/SharedFunctionInstanceData.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/RustIntegration.h>
+#include <LibJS/Script.h>
 #include <LibJS/SourceCode.h>
 #include <LibJS/SourceTextModule.h>
 #include <LibTest/TestCase.h>
@@ -324,6 +326,69 @@ TEST_CASE(bytecode_cache_rejects_out_of_range_declaration_function_source_span)
     EXPECT(materialized->is_error());
     EXPECT(!materialized->error().is_empty());
     EXPECT_EQ(materialized->error().first().message, "Failed to materialize bytecode cache"_string);
+}
+
+TEST_CASE(bytecode_cache_materializes_function_executables_lazily)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    auto test_data = create_bytecode_cache_blob("let f = function lazy() { return 1; }; f();"_string);
+
+    auto* decoded_blob = JS::RustIntegration::decode_bytecode_cache_blob(test_data.blob.bytes(), JS::RustIntegration::ProgramType::Script, test_data.source_hash.bytes());
+    VERIFY(decoded_blob);
+
+    auto script_or_error = JS::Script::create_from_bytecode_cache(decoded_blob, test_data.source_code, realm);
+    VERIFY(!script_or_error.is_error());
+    auto script = script_or_error.release_value();
+
+    auto* executable = script->cached_executable();
+    VERIFY(executable);
+    VERIFY(!executable->shared_function_data.is_empty());
+    auto& shared_data = *executable->shared_function_data[0];
+    EXPECT(!shared_data.m_executable);
+    EXPECT(shared_data.m_cached_bytecode_executable);
+
+    auto result = vm->run(script);
+    VERIFY(!result.is_throw_completion());
+    EXPECT(shared_data.m_executable);
+    EXPECT(!shared_data.m_cached_bytecode_executable);
+}
+
+TEST_CASE(fresh_precompiled_function_executables_materialize_lazily)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    auto source_code = JS::SourceCode::create("test.js"_string, Utf16String::from_utf8("let f = function lazy() { return 1; }; f();"_string));
+    auto* parsed = JS::RustIntegration::parse_program(source_code->utf16_data(), source_code->length_in_code_units(), JS::RustIntegration::ProgramType::Script);
+    VERIFY(parsed);
+    ArmedScopeGuard free_parsed = [&] {
+        JS::RustIntegration::free_parsed_program(parsed);
+    };
+    EXPECT(!JS::RustIntegration::parsed_program_has_errors(parsed));
+
+    auto* compiled = JS::RustIntegration::compile_parsed_program_fully_off_thread(parsed, source_code->length_in_code_units());
+    VERIFY(compiled);
+    free_parsed.disarm();
+
+    auto script_or_error = JS::Script::create_from_compiled(compiled, source_code, realm);
+    VERIFY(!script_or_error.is_error());
+    auto script = script_or_error.release_value();
+
+    auto* executable = script->cached_executable();
+    VERIFY(executable);
+    VERIFY(!executable->shared_function_data.is_empty());
+    auto& shared_data = *executable->shared_function_data[0];
+    EXPECT(!shared_data.m_executable);
+    EXPECT(shared_data.m_precompiled_bytecode_executable);
+
+    auto result = vm->run(script);
+    VERIFY(!result.is_throw_completion());
+    EXPECT(shared_data.m_executable);
+    EXPECT(!shared_data.m_precompiled_bytecode_executable);
 }
 
 TEST_CASE(bytecode_cache_preserves_re_exported_import_names)

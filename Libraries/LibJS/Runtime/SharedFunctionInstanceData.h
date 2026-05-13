@@ -147,6 +147,12 @@ public:
     // NB: When non-null, points to a Rust Box<FunctionData> used for
     //     lazy compilation through the Rust pipeline.
     void* m_rust_function_ast { nullptr };
+    // NB: When non-null, points to a Rust Box<DecodedExecutableRecord> used
+    //     for lazy materialization from the bytecode cache.
+    void* m_cached_bytecode_executable { nullptr };
+    // NB: When non-null, points to a Rust Box<PrecompiledFunction> used for
+    //     lazy materialization from freshly compiled bytecode.
+    void* m_precompiled_bytecode_executable { nullptr };
     bool m_use_rust_compilation { false };
 
     void clear_compile_inputs();

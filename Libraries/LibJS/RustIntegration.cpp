@@ -763,6 +763,27 @@ Optional<Vector<GC::Root<SharedFunctionInstanceData>>> compile_builtin_file(
 
 GC::Ptr<Bytecode::Executable> compile_function(VM& vm, SharedFunctionInstanceData& shared_data, bool builtin_abstract_operations_enabled)
 {
+    if (shared_data.m_precompiled_bytecode_executable) {
+        GC::DeferGC defer_gc(vm.heap());
+        auto* exec = static_cast<Bytecode::Executable*>(rust_materialize_precompiled_bytecode_function(
+            shared_data.m_precompiled_bytecode_executable,
+            &vm,
+            shared_data.m_source_code.ptr()));
+        shared_data.m_precompiled_bytecode_executable = nullptr;
+        return exec;
+    }
+
+    if (shared_data.m_cached_bytecode_executable) {
+        GC::DeferGC defer_gc(vm.heap());
+        TemporaryChange validate_cache_executables { s_validate_materialized_bytecode_cache_executables, true };
+        auto* exec = static_cast<Bytecode::Executable*>(rust_materialize_bytecode_cache_function(
+            shared_data.m_cached_bytecode_executable,
+            &vm,
+            shared_data.m_source_code.ptr()));
+        shared_data.m_cached_bytecode_executable = nullptr;
+        return exec;
+    }
+
     if (!shared_data.m_use_rust_compilation)
         return nullptr;
 
@@ -801,6 +822,18 @@ void materialize_compiled_function(CompiledFunction* compiled, VM& vm, SourceCod
 void free_compiled_function(CompiledFunction* compiled)
 {
     rust_free_compiled_function(compiled);
+}
+
+void free_cached_bytecode_executable(void* executable)
+{
+    if (executable)
+        rust_free_cached_bytecode_executable(executable);
+}
+
+void free_precompiled_bytecode_executable(void* executable)
+{
+    if (executable)
+        rust_free_precompiled_bytecode_executable(executable);
 }
 
 void free_function_ast(void* ast)
@@ -1190,6 +1223,52 @@ extern "C" void rust_sfd_set_precompiled_executable(
     if (Bytecode::g_dump_bytecode)
         executable.dump();
     shared.clear_compile_inputs();
+}
+
+extern "C" void rust_sfd_set_cached_bytecode_executable(
+    void* sfd_ptr,
+    void* cached_executable_ptr,
+    bool uses_this,
+    bool this_value_needs_environment_resolution,
+    bool function_environment_needed,
+    size_t function_environment_bindings_count,
+    bool might_need_arguments_object,
+    bool contains_direct_call_to_eval)
+{
+    auto& shared = *static_cast<JS::SharedFunctionInstanceData*>(sfd_ptr);
+
+    shared.m_uses_this = uses_this;
+    shared.m_this_value_needs_environment_resolution = this_value_needs_environment_resolution;
+    shared.m_function_environment_needed = function_environment_needed;
+    shared.m_function_environment_bindings_count = function_environment_bindings_count;
+    shared.m_might_need_arguments_object = might_need_arguments_object;
+    shared.m_contains_direct_call_to_eval = contains_direct_call_to_eval;
+    shared.m_cached_bytecode_executable = cached_executable_ptr;
+    shared.update_asm_call_metadata();
+}
+
+extern "C" void rust_sfd_set_precompiled_bytecode_executable(
+    void* sfd_ptr,
+    void* precompiled_executable_ptr,
+    bool uses_this,
+    bool this_value_needs_environment_resolution,
+    bool function_environment_needed,
+    size_t function_environment_bindings_count,
+    bool might_need_arguments_object,
+    bool contains_direct_call_to_eval)
+{
+    auto& shared = *static_cast<JS::SharedFunctionInstanceData*>(sfd_ptr);
+
+    shared.m_uses_this = uses_this;
+    shared.m_this_value_needs_environment_resolution = this_value_needs_environment_resolution;
+    shared.m_function_environment_needed = function_environment_needed;
+    shared.m_function_environment_bindings_count = function_environment_bindings_count;
+    shared.m_might_need_arguments_object = might_need_arguments_object;
+    shared.m_contains_direct_call_to_eval = contains_direct_call_to_eval;
+    shared.m_precompiled_bytecode_executable = precompiled_executable_ptr;
+    RustIntegration::free_function_ast(shared.m_rust_function_ast);
+    shared.m_rust_function_ast = nullptr;
+    shared.update_asm_call_metadata();
 }
 
 extern "C" void* rust_create_class_blueprint(

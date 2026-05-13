@@ -946,6 +946,90 @@ pub unsafe extern "C" fn rust_materialize_bytecode_cache_module(
     }
 }
 
+/// Materialize a decoded function executable from a bytecode cache blob.
+/// Consumes and frees the cached executable.
+///
+/// # Safety
+/// - `cached_executable` must be a valid pointer attached to a
+///   `SharedFunctionInstanceData` by bytecode cache materialization.
+/// - `vm_ptr` must be a valid `JS::VM*`.
+/// - `source_code_ptr` must be a valid `JS::SourceCode const*`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_materialize_bytecode_cache_function(
+    cached_executable: *mut c_void,
+    vm_ptr: *mut c_void,
+    source_code_ptr: *const c_void,
+) -> *mut c_void {
+    unsafe {
+        abort_on_panic(|| bytecode_cache::materialize_cached_function(cached_executable, vm_ptr, source_code_ptr))
+    }
+}
+
+/// Free a cached decoded function executable without materializing it.
+///
+/// # Safety
+/// `cached_executable` must be either null or a valid pointer attached to a
+/// `SharedFunctionInstanceData` by bytecode cache materialization.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_free_cached_bytecode_executable(cached_executable: *mut c_void) {
+    unsafe {
+        abort_on_panic(|| {
+            bytecode_cache::free_cached_function(cached_executable);
+        });
+    }
+}
+
+/// Materialize a precompiled function executable.
+/// Consumes and frees the precompiled executable.
+///
+/// # Safety
+/// - `precompiled_executable` must be a valid `Box<PrecompiledFunction>`
+///   pointer attached to a `SharedFunctionInstanceData`.
+/// - `vm_ptr` must be a valid `JS::VM*`.
+/// - `source_code_ptr` must be a valid `JS::SourceCode const*`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_materialize_precompiled_bytecode_function(
+    precompiled_executable: *mut c_void,
+    vm_ptr: *mut c_void,
+    source_code_ptr: *const c_void,
+) -> *mut c_void {
+    unsafe {
+        abort_on_panic(|| {
+            if precompiled_executable.is_null() {
+                return std::ptr::null_mut();
+            }
+            let mut precompiled =
+                Box::from_raw(precompiled_executable as *mut bytecode::generator::PrecompiledFunction);
+            precompiled.generator.vm_ptr = vm_ptr;
+            precompiled.generator.source_code_ptr = source_code_ptr;
+            bytecode::ffi::create_executable(
+                &mut precompiled.generator,
+                &precompiled.assembled,
+                vm_ptr,
+                source_code_ptr,
+            )
+        })
+    }
+}
+
+/// Free a precompiled function executable without materializing it.
+///
+/// # Safety
+/// `precompiled_executable` must be either null or a valid
+/// `Box<PrecompiledFunction>` pointer attached to a `SharedFunctionInstanceData`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_free_precompiled_bytecode_executable(precompiled_executable: *mut c_void) {
+    unsafe {
+        abort_on_panic(|| {
+            if !precompiled_executable.is_null() {
+                drop(Box::from_raw(
+                    precompiled_executable as *mut bytecode::generator::PrecompiledFunction,
+                ));
+            }
+        });
+    }
+}
+
 /// Get the AST dump string from a ParsedProgram.
 ///
 /// Generates the dump on first call and caches it. Writes the pointer
@@ -2694,9 +2778,10 @@ pub unsafe extern "C" fn rust_compile_function_off_thread(
     }
 }
 
-/// Materialize a GC-free compiled function onto an existing SFD.
+/// Attach a GC-free compiled function to an existing SFD.
 ///
-/// Consumes and frees the compiled function.
+/// Consumes the compiled function. Its precompiled bytecode is materialized
+/// lazily the first time the function is called.
 ///
 /// # Safety
 /// - `compiled` must be a valid pointer returned by `rust_compile_function_off_thread`.
@@ -2704,8 +2789,8 @@ pub unsafe extern "C" fn rust_compile_function_off_thread(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_materialize_compiled_function(
     compiled: *mut CompiledFunction,
-    vm_ptr: *mut c_void,
-    source_code_ptr: *const c_void,
+    _vm_ptr: *mut c_void,
+    _source_code_ptr: *const c_void,
     sfd_ptr: *mut c_void,
 ) {
     unsafe {
@@ -2713,28 +2798,23 @@ pub unsafe extern "C" fn rust_materialize_compiled_function(
             if compiled.is_null() {
                 return;
             }
-            let mut compiled = Box::from_raw(compiled);
-            compiled.precompiled.generator.vm_ptr = vm_ptr;
-            compiled.precompiled.generator.source_code_ptr = source_code_ptr;
-            let executable_ptr = bytecode::ffi::create_executable(
-                &mut compiled.precompiled.generator,
-                &compiled.precompiled.assembled,
-                vm_ptr,
-                source_code_ptr,
-            );
-            assert!(
-                !executable_ptr.is_null(),
-                "rust_materialize_compiled_function: executable materialization failed"
-            );
-            bytecode::ffi::rust_sfd_set_precompiled_executable(
+            let CompiledFunction { precompiled } = *Box::from_raw(compiled);
+            let uses_this = precompiled.metadata.uses_this;
+            let this_value_needs_environment_resolution = precompiled.metadata.this_value_needs_environment_resolution;
+            let function_environment_needed = precompiled.metadata.function_environment_needed;
+            let function_environment_bindings_count = precompiled.metadata.function_environment_bindings_count;
+            let might_need_arguments = precompiled.metadata.might_need_arguments;
+            let contains_eval = precompiled.metadata.contains_eval;
+            let precompiled_ptr = Box::into_raw(precompiled) as *mut c_void;
+            bytecode::ffi::rust_sfd_set_precompiled_bytecode_executable(
                 sfd_ptr,
-                executable_ptr,
-                compiled.precompiled.metadata.uses_this,
-                compiled.precompiled.metadata.this_value_needs_environment_resolution,
-                compiled.precompiled.metadata.function_environment_needed,
-                compiled.precompiled.metadata.function_environment_bindings_count,
-                compiled.precompiled.metadata.might_need_arguments,
-                compiled.precompiled.metadata.contains_eval,
+                precompiled_ptr,
+                uses_this,
+                this_value_needs_environment_resolution,
+                function_environment_needed,
+                function_environment_bindings_count,
+                might_need_arguments,
+                contains_eval,
             );
         });
     }

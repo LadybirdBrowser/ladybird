@@ -98,6 +98,10 @@ void SharedFunctionInstanceData::finalize()
     Base::finalize();
     RustIntegration::free_function_ast(m_rust_function_ast);
     m_rust_function_ast = nullptr;
+    RustIntegration::free_cached_bytecode_executable(m_cached_bytecode_executable);
+    m_cached_bytecode_executable = nullptr;
+    RustIntegration::free_precompiled_bytecode_executable(m_precompiled_bytecode_executable);
+    m_precompiled_bytecode_executable = nullptr;
 }
 
 void SharedFunctionInstanceData::clear_compile_inputs()
@@ -108,6 +112,10 @@ void SharedFunctionInstanceData::clear_compile_inputs()
     m_lexical_bindings.clear();
     RustIntegration::free_function_ast(m_rust_function_ast);
     m_rust_function_ast = nullptr;
+    RustIntegration::free_cached_bytecode_executable(m_cached_bytecode_executable);
+    m_cached_bytecode_executable = nullptr;
+    RustIntegration::free_precompiled_bytecode_executable(m_precompiled_bytecode_executable);
+    m_precompiled_bytecode_executable = nullptr;
 }
 
 void SharedFunctionInstanceData::update_can_inline_call()

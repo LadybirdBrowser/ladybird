@@ -23,11 +23,19 @@ use crate::bytecode::generator::{
     PrecompiledFunction,
 };
 use crate::bytecode::operand::PropertyKeyTableIndex;
+use crate::bytecode::validator::{
+    FFIExceptionHandlerOffsets, FFIValidatorBounds, ValidationErrorKind, validate_bytecode,
+};
 use crate::{CompiledProgram, CompiledProgramBytecode, ModuleCallbacks, ast, u32_from_usize};
 
 const MAGIC: &[u8; 8] = b"LBJSBC\0\0";
 const FORMAT_VERSION: u32 = 2;
 const SOURCE_HASH_SIZE: usize = 32;
+const COMPLETION_TYPE_VARIANT_COUNT: u32 = 6;
+const ITERATOR_HINT_VARIANT_COUNT: u32 = 2;
+const ENVIRONMENT_MODE_VARIANT_COUNT: u32 = 2;
+const PUT_KIND_VARIANT_COUNT: u32 = 5;
+const ARGUMENTS_KIND_VARIANT_COUNT: u32 = 2;
 
 fn source_span_is_valid(start: u32, end: u32, source_len: usize) -> bool {
     let start = start as usize;
@@ -687,6 +695,10 @@ unsafe fn materialize_function(
     source_code_ptr: *const c_void,
 ) -> *mut c_void {
     unsafe {
+        if function.precompiled.validate_cached_bytecode().is_err() {
+            return std::ptr::null_mut();
+        }
+
         let parameter_names: Vec<FFIUtf16Slice> = function
             .parameter_names
             .as_ref()
@@ -736,13 +748,10 @@ unsafe fn materialize_function(
             );
         }
 
-        let executable_ptr = materialize_executable(function.precompiled, vm_ptr, source_code_ptr);
-        if executable_ptr.is_null() {
-            return std::ptr::null_mut();
-        }
-        crate::bytecode::ffi::rust_sfd_set_precompiled_executable(
+        let cached_executable_ptr = Box::into_raw(Box::new(function.precompiled)) as *mut c_void;
+        crate::bytecode::ffi::rust_sfd_set_cached_bytecode_executable(
             sfd_ptr,
-            executable_ptr,
+            cached_executable_ptr,
             function.metadata.uses_this,
             function.metadata.this_value_needs_environment_resolution,
             function.metadata.function_environment_needed,
@@ -752,6 +761,28 @@ unsafe fn materialize_function(
         );
 
         sfd_ptr
+    }
+}
+
+pub(crate) unsafe fn materialize_cached_function(
+    cached_executable_ptr: *mut c_void,
+    vm_ptr: *mut c_void,
+    source_code_ptr: *const c_void,
+) -> *mut c_void {
+    unsafe {
+        if cached_executable_ptr.is_null() {
+            return std::ptr::null_mut();
+        }
+        let executable = Box::from_raw(cached_executable_ptr as *mut DecodedExecutableRecord);
+        materialize_executable(*executable, vm_ptr, source_code_ptr)
+    }
+}
+
+pub(crate) unsafe fn free_cached_function(cached_executable_ptr: *mut c_void) {
+    unsafe {
+        if !cached_executable_ptr.is_null() {
+            drop(Box::from_raw(cached_executable_ptr as *mut DecodedExecutableRecord));
+        }
     }
 }
 
@@ -1947,6 +1978,52 @@ impl DecodedExecutableRecord {
         for blueprint in &self.class_blueprints {
             blueprint.validate();
         }
+    }
+
+    fn validate_cached_bytecode(&self) -> Result<(), ValidationErrorKind> {
+        let bounds = FFIValidatorBounds {
+            number_of_registers: self.number_of_registers,
+            number_of_locals: self.local_variables.len() as u32,
+            number_of_constants: self.constants.len() as u32,
+            number_of_arguments: self.number_of_arguments,
+            identifier_table_size: self.identifier_table.len() as u32,
+            string_table_size: self.string_table.len() as u32,
+            property_key_table_size: self.property_key_table.len() as u32,
+            regex_table_size: 0,
+            property_lookup_cache_count: self.cache_counters.property_lookup_cache_count,
+            global_variable_cache_count: self.cache_counters.global_variable_cache_count,
+            template_object_cache_count: self.cache_counters.template_object_cache_count,
+            object_shape_cache_count: self.cache_counters.object_shape_cache_count,
+            object_property_iterator_cache_count: self.cache_counters.object_property_iterator_cache_count,
+            class_blueprint_count: self.class_blueprints.len() as u32,
+            shared_function_data_count: self.shared_functions.len() as u32,
+            completion_type_variant_count: COMPLETION_TYPE_VARIANT_COUNT,
+            iterator_hint_variant_count: ITERATOR_HINT_VARIANT_COUNT,
+            environment_mode_variant_count: ENVIRONMENT_MODE_VARIANT_COUNT,
+            put_kind_variant_count: PUT_KIND_VARIANT_COUNT,
+            arguments_kind_variant_count: ARGUMENTS_KIND_VARIANT_COUNT,
+            before_cache_fixup: true,
+        };
+
+        let exception_handlers: Vec<FFIExceptionHandlerOffsets> = self
+            .exception_handlers
+            .iter()
+            .map(|handler| FFIExceptionHandlerOffsets {
+                start: handler.start_offset,
+                end: handler.end_offset,
+                handler: handler.handler_offset,
+            })
+            .collect();
+        let source_map_offsets: Vec<u32> = self.source_map.iter().map(|entry| entry.bytecode_offset).collect();
+
+        validate_bytecode(&self.bytecode, &bounds, &[], &exception_handlers, &source_map_offsets)
+            .map_err(|error| error.kind)?;
+
+        for function in &self.shared_functions {
+            function.precompiled.validate_cached_bytecode()?;
+        }
+
+        Ok(())
     }
 
     fn source_ranges_are_valid(&self, source_len: usize) -> bool {

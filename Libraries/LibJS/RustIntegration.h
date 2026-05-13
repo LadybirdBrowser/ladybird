@@ -172,8 +172,15 @@ GC::Ptr<Bytecode::Executable> compile_function(VM& vm, SharedFunctionInstanceDat
 
 JS_API void* clone_function_ast(void const*);
 JS_API FFI::CompiledFunction* compile_function_off_thread(void* function_ast, size_t length_in_code_units, bool builtin_abstract_operations_enabled);
+// Attach a previously compiled function for lazy materialization.
 JS_API void materialize_compiled_function(FFI::CompiledFunction*, VM&, SourceCode const&, SharedFunctionInstanceData&);
 JS_API void free_compiled_function(FFI::CompiledFunction*);
+
+// Free a Rust decoded bytecode cache executable pointer. No-op if null.
+void free_cached_bytecode_executable(void*);
+
+// Free a Rust precompiled bytecode executable pointer. No-op if null.
+void free_precompiled_bytecode_executable(void*);
 
 // Free a Rust function AST pointer. No-op if Rust is not available.
 void free_function_ast(void* ast);
