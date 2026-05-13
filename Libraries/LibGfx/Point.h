@@ -102,13 +102,6 @@ public:
         return point;
     }
 
-    [[nodiscard]] Point<T> scaled(T sx, T sy) const
-    {
-        Point<T> point = *this;
-        point.scale_by(sx, sy);
-        return point;
-    }
-
     [[nodiscard]] Point<T> moved_left(T amount) const { return { x() - amount, y() }; }
     [[nodiscard]] Point<T> moved_up(T amount) const { return { x(), y() - amount }; }
 
@@ -148,13 +141,6 @@ public:
     }
 
     [[nodiscard]] Point<T> operator/(T factor) const { return { m_x / factor, m_y / factor }; }
-
-    Point<T>& operator/=(T factor)
-    {
-        m_x /= factor;
-        m_y /= factor;
-        return *this;
-    }
 
     [[nodiscard]] T primary_offset_for_orientation(Orientation orientation) const
     {
