@@ -1645,6 +1645,15 @@ impl Generator {
         let mut bytecode: Vec<u8> = Vec::with_capacity(offset);
         let mut source_map: Vec<SourceMapEntry> = Vec::new();
         let mut exception_handlers: Vec<ExceptionHandler> = Vec::new();
+        fn push_source_map_entry(source_map: &mut Vec<SourceMapEntry>, entry: SourceMapEntry) {
+            let should_push = source_map.last().is_none_or(|previous| {
+                previous.source_start != entry.source_start || previous.source_end != entry.source_end
+            });
+            if should_push {
+                source_map.push(entry);
+            }
+        }
+
         // Track which blocks actually produced instructions.
         let mut basic_block_start_offsets: Vec<usize> = Vec::with_capacity(num_blocks);
 
@@ -1666,30 +1675,39 @@ impl Generator {
                     }
                     InstAction::Emit => {
                         let instruction_offset = bytecode.len();
-                        source_map.push(SourceMapEntry {
-                            bytecode_offset: u32_from_usize(instruction_offset),
-                            source_start: sm.source_start,
-                            source_end: sm.source_end,
-                        });
+                        push_source_map_entry(
+                            &mut source_map,
+                            SourceMapEntry {
+                                bytecode_offset: u32_from_usize(instruction_offset),
+                                source_start: sm.source_start,
+                                source_end: sm.source_end,
+                            },
+                        );
                         instruction.encode(self.strict, &mut bytecode);
                     }
                     InstAction::JumpToReturn(value) => {
                         let instruction_offset = bytecode.len();
-                        source_map.push(SourceMapEntry {
-                            bytecode_offset: u32_from_usize(instruction_offset),
-                            source_start: sm.source_start,
-                            source_end: sm.source_end,
-                        });
+                        push_source_map_entry(
+                            &mut source_map,
+                            SourceMapEntry {
+                                bytecode_offset: u32_from_usize(instruction_offset),
+                                source_start: sm.source_start,
+                                source_end: sm.source_end,
+                            },
+                        );
                         let replacement = Instruction::Return { value };
                         replacement.encode(self.strict, &mut bytecode);
                     }
                     InstAction::JumpToEnd(value) => {
                         let instruction_offset = bytecode.len();
-                        source_map.push(SourceMapEntry {
-                            bytecode_offset: u32_from_usize(instruction_offset),
-                            source_start: sm.source_start,
-                            source_end: sm.source_end,
-                        });
+                        push_source_map_entry(
+                            &mut source_map,
+                            SourceMapEntry {
+                                bytecode_offset: u32_from_usize(instruction_offset),
+                                source_start: sm.source_start,
+                                source_end: sm.source_end,
+                            },
+                        );
                         let replacement = Instruction::End { value };
                         replacement.encode(self.strict, &mut bytecode);
                     }
@@ -1698,11 +1716,14 @@ impl Generator {
                         let target_block = target.0 as usize;
                         target.0 = u32_from_usize(block_offsets[target_block]);
                         let instruction_offset = bytecode.len();
-                        source_map.push(SourceMapEntry {
-                            bytecode_offset: u32_from_usize(instruction_offset),
-                            source_start: sm.source_start,
-                            source_end: sm.source_end,
-                        });
+                        push_source_map_entry(
+                            &mut source_map,
+                            SourceMapEntry {
+                                bytecode_offset: u32_from_usize(instruction_offset),
+                                source_start: sm.source_start,
+                                source_end: sm.source_end,
+                            },
+                        );
                         let replacement = Instruction::JumpFalse { condition, target };
                         replacement.encode(self.strict, &mut bytecode);
                     }
@@ -1710,11 +1731,14 @@ impl Generator {
                         let target_block = target.0 as usize;
                         target.0 = u32_from_usize(block_offsets[target_block]);
                         let instruction_offset = bytecode.len();
-                        source_map.push(SourceMapEntry {
-                            bytecode_offset: u32_from_usize(instruction_offset),
-                            source_start: sm.source_start,
-                            source_end: sm.source_end,
-                        });
+                        push_source_map_entry(
+                            &mut source_map,
+                            SourceMapEntry {
+                                bytecode_offset: u32_from_usize(instruction_offset),
+                                source_start: sm.source_start,
+                                source_end: sm.source_end,
+                            },
+                        );
                         let replacement = Instruction::JumpTrue { condition, target };
                         replacement.encode(self.strict, &mut bytecode);
                     }
@@ -1727,19 +1751,22 @@ impl Generator {
                 undef_rewritten.offset_index_by(number_of_registers + number_of_locals);
                 let end_instruction = Instruction::End { value: undef_rewritten };
                 let instruction_offset = bytecode.len();
-                source_map.push(SourceMapEntry {
-                    bytecode_offset: u32_from_usize(instruction_offset),
-                    source_start: Position {
-                        line: 0,
-                        column: 0,
-                        offset: 0,
+                push_source_map_entry(
+                    &mut source_map,
+                    SourceMapEntry {
+                        bytecode_offset: u32_from_usize(instruction_offset),
+                        source_start: Position {
+                            line: 0,
+                            column: 0,
+                            offset: 0,
+                        },
+                        source_end: Position {
+                            line: 0,
+                            column: 0,
+                            offset: 0,
+                        },
                     },
-                    source_end: Position {
-                        line: 0,
-                        column: 0,
-                        offset: 0,
-                    },
-                });
+                );
                 end_instruction.encode(self.strict, &mut bytecode);
             }
 

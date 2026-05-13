@@ -405,19 +405,24 @@ Optional<SourceRange> Executable::source_range_at(size_t offset) const
 {
     if (offset >= bytecode.size())
         return {};
-    auto* entry = binary_search(source_map, offset, nullptr, [](size_t needle, SourceMapEntry const& entry) -> int {
-        if (needle < entry.bytecode_offset)
-            return -1;
-        if (needle > entry.bytecode_offset)
-            return 1;
-        return 0;
-    });
-    if (!entry)
+    if (source_map.is_empty())
         return {};
+    size_t low = 0;
+    size_t high = source_map.size();
+    while (low < high) {
+        auto middle = low + (high - low) / 2;
+        if (source_map[middle].bytecode_offset <= offset)
+            low = middle + 1;
+        else
+            high = middle;
+    }
+    if (low == 0)
+        return {};
+    auto& entry = source_map[low - 1];
     return SourceRange {
         .code = source_code,
-        .start = entry->source_record.start,
-        .end = entry->source_record.end,
+        .start = entry.source_record.start,
+        .end = entry.source_record.end,
     };
 }
 
