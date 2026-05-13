@@ -3197,7 +3197,10 @@ void Navigable::paint_next_frame()
 
     record_display_list_and_scroll_state(paint_config);
 
-    if (page().async_scrolling_enabled() && m_rendering_thread.should_defer_main_thread_present_for_async_scroll()) {
+    viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
+    auto should_defer_main_thread_present_for_async_scroll = page().async_scrolling_enabled()
+        && m_rendering_thread.should_defer_main_thread_present_for_async_scroll();
+    if (should_defer_main_thread_present_for_async_scroll) {
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread deferred present while async scroll is pending");
         return;
     }

@@ -42,9 +42,11 @@ public:
     void clear_wheel_scroll_targets();
 
     Optional<Gfx::FloatPoint> scroll_offset_for_node(AsyncScrollNodeID) const;
+    Optional<AsyncScrollNodeID> viewport_scroll_node_id() const;
     Optional<AsyncScrollNodeID> hit_test_scroll_node_for_wheel(Gfx::FloatPoint position, Gfx::FloatPoint delta) const;
     bool scroll_node_is_viewport(AsyncScrollNodeID) const;
     bool apply_scroll_delta(AsyncScrollNodeID, Gfx::FloatPoint delta, Painting::ScrollStateSnapshot&);
+    Optional<Gfx::FloatPoint> set_scroll_offset(AsyncScrollNodeID, Gfx::FloatPoint, Painting::ScrollStateSnapshot&);
 
 private:
     static Gfx::FloatPoint clamp_scroll_offset_to_node(AsyncScrollNode const&, Gfx::FloatPoint);

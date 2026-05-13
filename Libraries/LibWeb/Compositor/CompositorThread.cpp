@@ -382,6 +382,7 @@ public:
                         m_cached_scroll_state_snapshot = move(cmd.scroll_state_snapshot);
                         if (cmd.async_scrolling_state.has_value()) {
                             auto async_scrolling_state = cmd.async_scrolling_state.release_value();
+                            auto async_scrolling_viewport_rect = async_scrolling_state.viewport_rect;
                             auto const wheel_event_listener_state_generation = async_scrolling_state.wheel_event_listener_state_generation;
                             auto wheel_routing_admission = wheel_routing_admission_for(async_scrolling_state);
                             {
@@ -391,7 +392,6 @@ public:
                                 else
                                     m_wheel_event_listener_state_generation = wheel_event_listener_state_generation;
                                 m_wheel_routing_admission = wheel_routing_admission;
-                                m_async_scrolling_viewport_rect = async_scrolling_state.viewport_rect;
                             }
                             m_can_accept_async_wheel_events = wheel_routing_admission == WheelRoutingAdmission::Accepted;
                             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor wheel routing admission: {} (scroll_nodes={}, sticky_areas={}, blocking_regions={})",
@@ -409,14 +409,16 @@ public:
                                 Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
                                 m_async_scroll_tree.set_state(move(async_scrolling_state));
                                 if (viewport_node.has_value() && pending_async_viewport_scroll_offset.has_value()) {
-                                    auto delta = pending_async_viewport_scroll_offset->translated(-viewport_node->scroll_offset.x(), -viewport_node->scroll_offset.y());
-                                    if (delta.x() != 0 || delta.y() != 0) {
-                                        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Reapplying pending async viewport offset {},{} to display list update",
-                                            pending_async_viewport_scroll_offset->x(), pending_async_viewport_scroll_offset->y());
-                                        m_async_scroll_tree.apply_scroll_delta(viewport_node->node_id, delta, m_cached_scroll_state_snapshot);
-                                    }
+                                    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Reapplying pending async viewport offset {},{} to display list update",
+                                        pending_async_viewport_scroll_offset->x(), pending_async_viewport_scroll_offset->y());
+                                    if (auto reconciled_scroll_offset = m_async_scroll_tree.set_scroll_offset(viewport_node->node_id, *pending_async_viewport_scroll_offset, m_cached_scroll_state_snapshot); reconciled_scroll_offset.has_value())
+                                        async_scrolling_viewport_rect.set_location(reconciled_scroll_offset->to_type<int>());
                                 }
                                 m_async_scroll_tree.rebuild_wheel_scroll_targets(m_cached_display_list, m_cached_scroll_state_snapshot);
+                            }
+                            {
+                                Sync::MutexLocker const locker { m_mutex };
+                                m_async_scrolling_viewport_rect = async_scrolling_viewport_rect;
                             }
                             m_has_async_scrolling_state = true;
                         } else {
@@ -466,8 +468,29 @@ public:
                     [this](UpdateScrollStateCommand& cmd) {
                         m_cached_scroll_state_snapshot = move(cmd.scroll_state_snapshot);
                         if (m_has_async_scrolling_state) {
-                            Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
-                            m_async_scroll_tree.rebuild_wheel_scroll_targets(m_cached_display_list, m_cached_scroll_state_snapshot);
+                            auto pending_async_viewport_scroll_offset = [this] {
+                                Sync::MutexLocker const locker { m_mutex };
+                                return m_pending_async_viewport_scroll_offset;
+                            }();
+                            Optional<Gfx::FloatPoint> reconciled_viewport_scroll_offset;
+                            {
+                                Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
+                                if (pending_async_viewport_scroll_offset.has_value()) {
+                                    if (auto viewport_node_id = m_async_scroll_tree.viewport_scroll_node_id(); viewport_node_id.has_value()) {
+                                        // A main-thread scroll-state update can be older than compositor-side async
+                                        // scrolling. Preserve the compositor-visible viewport offset in the fresh
+                                        // snapshot before rebuilding hit-test data from it.
+                                        reconciled_viewport_scroll_offset = m_async_scroll_tree.set_scroll_offset(*viewport_node_id, *pending_async_viewport_scroll_offset, m_cached_scroll_state_snapshot);
+                                    }
+                                }
+                                m_async_scroll_tree.rebuild_wheel_scroll_targets(m_cached_display_list, m_cached_scroll_state_snapshot);
+                            }
+                            if (reconciled_viewport_scroll_offset.has_value()) {
+                                Sync::MutexLocker const mutex_locker { m_mutex };
+                                auto reconciled_viewport_rect = m_async_scrolling_viewport_rect;
+                                reconciled_viewport_rect.set_location(reconciled_viewport_scroll_offset->to_type<int>());
+                                m_async_scrolling_viewport_rect = reconciled_viewport_rect;
+                            }
                         }
                     },
                     [this](UpdateBackingStoresCommand& cmd) {
