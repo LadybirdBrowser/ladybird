@@ -248,7 +248,6 @@ public:
     void serialize_a_srgb_value(StringBuilder&) const;
     String serialize_a_srgb_value() const;
 
-    ByteString to_byte_string() const;
     static Optional<Color> from_string(StringView);
     static Optional<Color> from_utf16_string(Utf16View const&);
     static Optional<Color> from_named_css_color_string(StringView);
