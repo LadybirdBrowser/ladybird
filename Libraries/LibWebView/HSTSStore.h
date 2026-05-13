@@ -29,6 +29,8 @@ public:
     // https://www.rfc-editor.org/rfc/rfc6797#section-8.2
     bool is_known_hsts_host(StringView domain);
 
+    void remove_policies_observed_since(UnixDateTime since);
+
 private:
     struct StoredPolicy {
         UnixDateTime expiry;
@@ -52,6 +54,7 @@ private:
         void update_last_observed_time(StringView domain);
 
         UnixDateTime purge_expired_policies();
+        void remove_policies_observed_since(UnixDateTime since);
 
         auto take_dirty_policies() { return move(m_dirty_policies); }
 
