@@ -167,46 +167,11 @@ private:
 // The following paint styles implement the gradients required for SVGs
 
 class SVGGradientPaintStyle : public GradientPaintStyle {
-};
-
-class SVGLinearGradientPaintStyle : public SVGGradientPaintStyle {
 public:
-    static ErrorOr<NonnullRefPtr<SVGLinearGradientPaintStyle>> create(FloatPoint p0, FloatPoint p1)
+    static ErrorOr<NonnullRefPtr<SVGGradientPaintStyle>> create()
     {
-        return adopt_nonnull_ref_or_enomem(new (nothrow) SVGLinearGradientPaintStyle(p0, p1));
+        return adopt_nonnull_ref_or_enomem(new (nothrow) SVGGradientPaintStyle);
     }
-
-    SVGLinearGradientPaintStyle(FloatPoint p0, FloatPoint p1)
-        : m_p0(p0)
-        , m_p1(p1)
-    {
-    }
-
-private:
-    FloatPoint m_p0;
-    FloatPoint m_p1;
-};
-
-class SVGRadialGradientPaintStyle final : public SVGGradientPaintStyle {
-public:
-    static ErrorOr<NonnullRefPtr<SVGRadialGradientPaintStyle>> create(FloatPoint start_center, float start_radius, FloatPoint end_center, float end_radius)
-    {
-        return adopt_nonnull_ref_or_enomem(new (nothrow) SVGRadialGradientPaintStyle(start_center, start_radius, end_center, end_radius));
-    }
-
-    SVGRadialGradientPaintStyle(FloatPoint start_center, float start_radius, FloatPoint end_center, float end_radius)
-        : m_start_center(start_center)
-        , m_start_radius(start_radius)
-        , m_end_center(end_center)
-        , m_end_radius(end_radius)
-    {
-    }
-
-private:
-    FloatPoint m_start_center;
-    float m_start_radius { 0.0f };
-    FloatPoint m_end_center;
-    float m_end_radius { 0.0f };
 };
 
 }
