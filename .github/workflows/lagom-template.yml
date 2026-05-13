@@ -221,7 +221,10 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: libweb-test-artifacts-${{ inputs.os_name }}-${{ inputs.arch }}-${{ inputs.build_preset }}-${{ inputs.toolchain }}-${{ inputs.clang_plugins }}
-          path: ${{ github.workspace }}/Build/Tests/LibWeb/test-web/test-dumps/
+          path: |
+            Build/Tests/LibWeb/test-web/test-dumps/
+            Build/**/asan.log.*
+            Build/**/ubsan.log.*
           retention-days: 0
           if-no-files-found: ignore
 
@@ -229,7 +232,7 @@ jobs:
         if: ${{ !cancelled() && inputs.os_name != 'Windows' && inputs.build_preset == 'Sanitizer' }}
         working-directory: ${{ github.workspace }}
         run: |
-          log_output=$(find . -maxdepth 1 \( -name 'asan.log.*' -o -name 'ubsan.log.*' \) -exec cat {} \; )
+          log_output=$(find Build \( -name 'asan.log.*' -o -name 'ubsan.log.*' \) -exec cat {} \; )
           if [ -z "$log_output" ]; then
             echo "No sanitizer issues found."
           else
