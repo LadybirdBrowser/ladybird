@@ -36,11 +36,6 @@ public:
         return m_values[0] == 1 && m_values[1] == 0 && m_values[2] == 0 && m_values[3] == 1;
     }
 
-    [[nodiscard]] bool is_identity_or_translation_or_scale() const
-    {
-        return m_values[1] == 0 && m_values[2] == 0;
-    }
-
     void map(float unmapped_x, float unmapped_y, float& mapped_x, float& mapped_y) const;
 
     template<Arithmetic T>
