@@ -26,9 +26,9 @@
 namespace AK {
 
 // FIXME: this always uses round to nearest break-tie to even
-// FIXME: use the Integral concept to constrain Underlying
 template<size_t precision, typename Underlying>
 class FixedPoint {
+    static_assert(IsIntegral<Underlying>, "Underlying type must be integral");
     using This = FixedPoint<precision, Underlying>;
     constexpr static Underlying radix_mask = (static_cast<Underlying>(1) << precision) - 1;
 
