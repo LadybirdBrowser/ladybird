@@ -141,13 +141,6 @@ public:
         return rect;
     }
 
-    [[nodiscard]] Rect<T> translated(T dboth) const
-    {
-        Rect<T> rect = *this;
-        rect.translate_by(dboth);
-        return rect;
-    }
-
     [[nodiscard]] Rect<T> translated(Point<T> const& delta) const
     {
         Rect<T> rect = *this;
