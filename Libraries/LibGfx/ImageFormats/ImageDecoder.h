@@ -48,7 +48,6 @@ protected:
 
 enum class NaturalFrameFormat {
     RGB,
-    Grayscale,
     CMYK,
 };
 
