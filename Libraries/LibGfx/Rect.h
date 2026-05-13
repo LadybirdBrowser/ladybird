@@ -344,13 +344,6 @@ public:
 
     [[nodiscard]] Rect<T> operator*(T factor) const { return { m_location * factor, m_size * factor }; }
 
-    Rect<T>& operator*=(T factor)
-    {
-        m_location *= factor;
-        m_size *= factor;
-        return *this;
-    }
-
     void intersect(Rect<T> const& other)
     {
         T l = max(left(), other.left());

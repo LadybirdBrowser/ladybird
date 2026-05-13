@@ -95,28 +95,7 @@ public:
         return width() == other.width() && height() == other.height();
     }
 
-    constexpr Size<T>& operator-=(Size<T> const& other)
-    {
-        m_width -= other.m_width;
-        m_height -= other.m_height;
-        return *this;
-    }
-
-    Size<T>& operator+=(Size<T> const& other)
-    {
-        m_width += other.m_width;
-        m_height += other.m_height;
-        return *this;
-    }
-
     [[nodiscard]] constexpr Size<T> operator*(T factor) const { return { m_width * factor, m_height * factor }; }
-
-    constexpr Size<T>& operator*=(T factor)
-    {
-        m_width *= factor;
-        m_height *= factor;
-        return *this;
-    }
 
     [[nodiscard]] constexpr T primary_size_for_orientation(Orientation orientation) const
     {
