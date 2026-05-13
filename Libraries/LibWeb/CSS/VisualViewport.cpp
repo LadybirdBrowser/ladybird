@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/Value.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/VisualViewport.h>
 #include <LibWeb/CSS/VisualViewport.h>
@@ -12,6 +13,11 @@
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/InvalidateDisplayList.h>
+#include <LibWeb/Page/SmoothScrollHandler.h>
+#include <LibWeb/PixelUnits.h>
+#include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::CSS {
 
@@ -146,6 +152,56 @@ WebIDL::CallbackType* VisualViewport::onscrollend()
     return event_handler_attribute(HTML::EventNames::scrollend);
 }
 
+// https://drafts.csswg.org/cssom-view-1/#perform-a-scroll
+GC::Ref<WebIDL::Promise> VisualViewport::perform_scroll_of_visual_viewport_scrolling_box(CSSPixelPoint offset, Bindings::ScrollBehavior scroll_behavior)
+{
+    // 1. Abort any ongoing smooth scroll for box.
+    // 2. Resolve all pending scroll Promises whose scroll container is box.
+    m_document->smooth_scroll_handler()->abort_any_ongoing_visual_viewport_scroll();
+
+    HTML::TemporaryExecutionContext temporary_execution_context { m_document->realm() };
+    // 3. Let scrollPromise be a new Promise.
+    auto scroll_promise = WebIDL::create_promise(m_document->realm());
+
+    // NB: Step 4 happens out of order, as we can start a smooth scroll or perform an instant scroll first.
+
+    // 5. If the user agent honors the scroll-behavior property and one of the following is true:
+    //      - behavior is "auto" and element is not null and its computed value of the scroll-behavior property is smooth, or
+    //      - behavior is smooth
+    //    then perform a smooth scroll of box to position; otherwise, perform an instant scroll of box to position.
+    // NB: Above determination happens in SmoothScrollHandler::resolve_scroll_behavior.
+    scroll_behavior = SmoothScrollHandler::resolve_scroll_behavior(*this, scroll_behavior);
+    if (scroll_behavior == Bindings::ScrollBehavior::Smooth) {
+        // NB: In this branch steps 6 and 7 are handled by SmoothScrollHander.
+        m_document->smooth_scroll_handler()->start_visual_viewport_scroll(scroll_promise, offset);
+    } else {
+        // 6. Wait until either the position has finished updating, or scrollPromise has been resolved.
+        set_offset(offset);
+        // 7. If scrollPromise is still in the pending state:
+        //      FIXME: 1. If the scroll position changed as a result of this call, emit the scrollend event.
+        //      2. Resolve scrollPromise.
+        WebIDL::resolve_promise(m_document->realm(), scroll_promise);
+    }
+
+    // 4. Return scrollPromise, and run the remaining steps in parallel.
+    return scroll_promise;
+}
+
+GC::Ref<WebIDL::Promise> VisualViewport::perform_scroll_of_visual_viewport_scrolling_box_by_delta(CSSPixelPoint delta, Bindings::ScrollBehavior scroll_behavior)
+{
+    CSSPixelPoint target_offset;
+    auto ongoing_visual_viewport_smooth_scroll = m_document->smooth_scroll_handler()->ongoing_visual_viewport_scroll();
+    if (ongoing_visual_viewport_smooth_scroll) {
+        auto ongoing_scroll_target_offset = ongoing_visual_viewport_smooth_scroll->target_offset();
+
+        target_offset = ongoing_scroll_target_offset + delta;
+    } else {
+        target_offset = m_offset + delta;
+    }
+
+    return perform_scroll_of_visual_viewport_scrolling_box(target_offset, scroll_behavior);
+}
+
 Gfx::AffineTransform VisualViewport::transform() const
 {
     Gfx::AffineTransform transform;
@@ -155,8 +211,26 @@ Gfx::AffineTransform VisualViewport::transform() const
     return transform;
 }
 
+void VisualViewport::set_offset(CSSPixelPoint offset)
+{
+    auto did_change = offset != m_offset;
+    m_offset = offset;
+
+    if (did_change) {
+        m_document->set_needs_accumulated_visual_contexts_update(true);
+        m_document->set_needs_repaint(Badge<CSS::VisualViewport> {}, InvalidateDisplayList::Yes);
+    }
+}
+
+void VisualViewport::scroll_by(CSSPixelPoint delta)
+{
+    set_offset(m_offset + delta);
+}
+
 void VisualViewport::zoom(CSSPixelPoint position, double scale_delta)
 {
+    m_document->smooth_scroll_handler()->abort_any_ongoing_visual_viewport_scroll();
+
     static constexpr double MIN_ALLOWED_SCALE = 1.0;
     static constexpr double MAX_ALLOWED_SCALE = 5.0;
     double new_scale = clamp(m_scale * (1 + scale_delta), MIN_ALLOWED_SCALE, MAX_ALLOWED_SCALE);
@@ -173,9 +247,7 @@ void VisualViewport::zoom(CSSPixelPoint position, double scale_delta)
     new_offset = { clamp(new_offset.x(), 0.0f, max_x_offset), clamp(new_offset.y(), 0.0f, max_y_offset) };
 
     m_scale = new_scale;
-    m_offset = (new_offset / m_scale).to_type<CSSPixels>();
-    m_document->set_needs_accumulated_visual_contexts_update(true);
-    m_document->set_needs_repaint(Badge<CSS::VisualViewport> {}, InvalidateDisplayList::Yes);
+    set_offset((new_offset / m_scale).to_type<CSSPixels>());
 }
 
 CSSPixelPoint VisualViewport::map_to_layout_viewport(CSSPixelPoint position) const
@@ -186,10 +258,10 @@ CSSPixelPoint VisualViewport::map_to_layout_viewport(CSSPixelPoint position) con
 
 void VisualViewport::reset()
 {
+    m_document->smooth_scroll_handler()->abort_any_ongoing_visual_viewport_scroll();
+
     m_scale = 1.0;
-    m_offset = { 0, 0 };
-    m_document->set_needs_accumulated_visual_contexts_update(true);
-    m_document->set_needs_repaint(Badge<CSS::VisualViewport> {}, InvalidateDisplayList::Yes);
+    set_offset({ 0, 0 });
 }
 
 }

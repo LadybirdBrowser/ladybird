@@ -3839,10 +3839,7 @@
     "affects-layout": false,
     "animation-type": "none",
     "requires-computation": "never",
-    "valid-identifiers": [
-      "auto",
-      "smooth"
-    ]
+    "valid-types": ["scroll-behavior"]
   },
   "scroll-margin": {
     "initial": "0",
@@ -3940,7 +3937,7 @@
     ]
   },
   "scroll-padding": {
-    "initial": "auto",
+    "initial": "0",
     "positional-value-list-shorthand": true,
     "longhands": [
       "scroll-padding-top",

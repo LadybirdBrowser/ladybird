@@ -2,33 +2,33 @@ Harness status: OK
 
 Found 28 tests
 
-16 Pass
-12 Fail
+22 Pass
+6 Fail
 Pass	iframe loaded
 Pass	Make sure the page is ready for animation.
 Pass	Main frame with auto scroll-behavior ; scroll() with default behavior
 Pass	Main frame with auto scroll-behavior ; scroll() with auto behavior
 Pass	Main frame with auto scroll-behavior ; scroll() with instant behavior
-Fail	Main frame with auto scroll-behavior ; scroll() with smooth behavior
+Pass	Main frame with auto scroll-behavior ; scroll() with smooth behavior
 Fail	Main frame with smooth scroll-behavior ; scroll() with default behavior
 Fail	Main frame with smooth scroll-behavior ; scroll() with auto behavior
 Pass	Main frame with smooth scroll-behavior ; scroll() with instant behavior
-Fail	Main frame with smooth scroll-behavior ; scroll() with smooth behavior
+Pass	Main frame with smooth scroll-behavior ; scroll() with smooth behavior
 Pass	Main frame with auto scroll-behavior ; scrollTo() with default behavior
 Pass	Main frame with auto scroll-behavior ; scrollTo() with auto behavior
 Pass	Main frame with auto scroll-behavior ; scrollTo() with instant behavior
-Fail	Main frame with auto scroll-behavior ; scrollTo() with smooth behavior
+Pass	Main frame with auto scroll-behavior ; scrollTo() with smooth behavior
 Fail	Main frame with smooth scroll-behavior ; scrollTo() with default behavior
 Fail	Main frame with smooth scroll-behavior ; scrollTo() with auto behavior
 Pass	Main frame with smooth scroll-behavior ; scrollTo() with instant behavior
-Fail	Main frame with smooth scroll-behavior ; scrollTo() with smooth behavior
+Pass	Main frame with smooth scroll-behavior ; scrollTo() with smooth behavior
 Pass	Main frame with auto scroll-behavior ; scrollBy() with default behavior
 Pass	Main frame with auto scroll-behavior ; scrollBy() with auto behavior
 Pass	Main frame with auto scroll-behavior ; scrollBy() with instant behavior
-Fail	Main frame with auto scroll-behavior ; scrollBy() with smooth behavior
+Pass	Main frame with auto scroll-behavior ; scrollBy() with smooth behavior
 Fail	Main frame with smooth scroll-behavior ; scrollBy() with default behavior
 Fail	Main frame with smooth scroll-behavior ; scrollBy() with auto behavior
 Pass	Main frame with smooth scroll-behavior ; scrollBy() with instant behavior
-Fail	Main frame with smooth scroll-behavior ; scrollBy() with smooth behavior
+Pass	Main frame with smooth scroll-behavior ; scrollBy() with smooth behavior
 Pass	Aborting an ongoing smooth scrolling on the main frame with another smooth scrolling
 Pass	Aborting an ongoing smooth scrolling on the main frame with an instant scrolling

@@ -358,6 +358,10 @@ void EventLoop::update_the_rendering()
     for (auto& document : docs)
         document->page().update_all_media_element_video_sinks();
 
+    // AD-HOC: Process smooth scrolls.
+    for (auto& document : docs)
+        document->smooth_scroll_handler()->process();
+
     // FIXME: 4. Unnecessary rendering: Remove from docs any Document object doc for which all of the following are true:
 
     // FIXME: 5. Remove from docs all Document objects for which the user agent believes that it's preferable to skip updating the rendering for other reasons.

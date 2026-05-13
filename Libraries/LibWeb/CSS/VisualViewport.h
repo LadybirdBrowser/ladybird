@@ -8,6 +8,7 @@
 #pragma once
 
 #include <LibGfx/AffineTransform.h>
+#include <LibWeb/Bindings/Window.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/PixelUnits.h>
 
@@ -43,7 +44,13 @@ public:
     void set_onscrollend(WebIDL::CallbackType*);
     WebIDL::CallbackType* onscrollend();
 
-    void scroll_by(CSSPixelPoint delta) { m_offset += delta; }
+    void set_offset(CSSPixelPoint);
+    void scroll_by(CSSPixelPoint delta);
+
+    GC::Ref<WebIDL::Promise> perform_scroll_of_visual_viewport_scrolling_box_by_delta(CSSPixelPoint delta, Bindings::ScrollBehavior = Bindings::ScrollBehavior::Auto);
+    GC::Ref<WebIDL::Promise> perform_scroll_of_visual_viewport_scrolling_box(CSSPixelPoint offset, Bindings::ScrollBehavior = Bindings::ScrollBehavior::Auto);
+
+    GC::Ptr<DOM::Document> document() { return m_document; }
 
     [[nodiscard]] Gfx::AffineTransform transform() const;
     void zoom(CSSPixelPoint position, double scale_delta);

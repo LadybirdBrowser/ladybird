@@ -6,7 +6,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Function.h>
+#include <LibJS/Runtime/Value.h>
+#include <LibWeb/Bindings/Window.h>
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/CSS/VisualViewport.h>
@@ -56,9 +60,11 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Page/SmoothScrollHandler.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
+#include <LibWeb/PixelUnits.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/InputTypes.h>
@@ -2966,14 +2972,11 @@ void Navigable::clamp_viewport_scroll_offset()
         max(CSSPixels(0), min(m_viewport_scroll_offset.y(), max_y)),
     };
     if (clamped != m_viewport_scroll_offset)
-        perform_scroll_of_viewport_scrolling_box(clamped);
+        set_viewport_scroll_offset(clamped);
 }
 
-void Navigable::perform_scroll_of_viewport_scrolling_box(CSSPixelPoint new_position)
+void Navigable::set_viewport_scroll_offset(CSSPixelPoint new_position)
 {
-    // NB: This method is ad-hoc, but is currently called where "perform a scroll of a scrolling box" would be,
-    //     where the box is the viewport.
-    //     https://drafts.csswg.org/cssom-view/#perform-a-scroll
     if (m_viewport_scroll_offset != new_position) {
         m_viewport_scroll_offset = new_position;
         scroll_offset_did_change();
@@ -3098,7 +3101,7 @@ static bool adopt_async_viewport_scroll_delta(Navigable& navigable, CSSPixelPoin
     scroll_offset.translate_by(scroll_delta);
     if (scroll_offset == navigable.viewport_scroll_offset())
         return false;
-    navigable.perform_scroll_of_viewport_scrolling_box(scroll_offset);
+    navigable.set_viewport_scroll_offset(scroll_offset);
     return true;
 }
 
@@ -3146,6 +3149,54 @@ void Navigable::adopt_pending_async_scroll_offsets()
 
     for (auto operation_id : async_scroll_updates.completed_operation_ids)
         resolve_async_scroll_operation(operation_id);
+}
+
+Optional<GC::Ref<WebIDL::Promise>> Navigable::perform_scroll_of_viewport_scrolling_box(CSSPixelPoint new_position, Bindings::ScrollBehavior scroll_behavior)
+{
+    auto doc = active_document();
+
+    if (!doc) {
+        return {};
+    }
+
+    return perform_scroll_of_viewport_scrolling_box(doc, new_position, scroll_behavior);
+}
+
+// https://drafts.csswg.org/cssom-view-1/#perform-a-scroll
+GC::Ref<WebIDL::Promise> Navigable::perform_scroll_of_viewport_scrolling_box(GC::Ptr<DOM::Document> doc, CSSPixelPoint new_position, Bindings::ScrollBehavior scroll_behavior)
+{
+    // 1. Abort any ongoing smooth scroll for box.
+    // 2. Resolve all pending scroll Promises whose scroll container is box.
+    doc->smooth_scroll_handler()->abort_any_ongoing_viewport_scroll();
+
+    HTML::TemporaryExecutionContext temporary_execution_context { doc->realm() };
+    // 3. Let scrollPromise be a new Promise.
+    auto scroll_promise = WebIDL::create_promise(doc->realm());
+
+    // NB: Step 4 happens out of order, as we can start a smooth scroll or perform an instant scroll first.
+
+    // 5. If the user agent honors the scroll-behavior property and one of the following is true:
+    //        - behavior is "auto" and element is not null and its computed value of the scroll-behavior property
+    //          is smooth, or
+    //        - behavior is smooth
+    //    then perform a smooth scroll of box to position; otherwise, perform an instant scroll of box to position.
+    // NB: Above determination happens in SmoothScrollHandler::resolve_scroll_behavior.
+    scroll_behavior = SmoothScrollHandler::resolve_scroll_behavior(*this, scroll_behavior);
+    if (scroll_behavior == Bindings::ScrollBehavior::Smooth) {
+        // NB: In this branch steps 6 and 7 are handled by SmoothScrollHander.
+        doc->smooth_scroll_handler()->start_viewport_scroll(scroll_promise, new_position);
+    } else {
+        // 6. Wait until either the position has finished updating, or scrollPromise has been resolved.
+        set_viewport_scroll_offset(new_position);
+
+        // 7. If scrollPromise is still in the pending state:
+        //      FIXME: 1. If the scroll position changed as a result of this call, emit the scrollend event.
+        //      2. Resolve scrollPromise.
+        WebIDL::resolve_promise(doc->realm(), scroll_promise);
+    }
+
+    // 4. Return scrollPromise, and run the remaining steps in parallel.
+    return scroll_promise;
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#rendering-opportunity
@@ -3481,15 +3532,22 @@ void Navigable::render_screenshot(Gfx::PaintingSurface& painting_surface, PaintC
     compositor_context().request_screenshot(painting_surface, move(callback));
 }
 
-GC::Ref<WebIDL::Promise> Navigable::scroll_viewport_by_delta(CSSPixelPoint delta)
+GC::Ref<WebIDL::Promise> Navigable::scroll_viewport_by_delta(CSSPixelPoint delta, Bindings::ScrollBehavior scroll_behavior)
 {
+    auto doc = active_document();
+    auto ongoing_viewport_scroll = doc->smooth_scroll_handler()->ongoing_viewport_scroll();
+
+    if (ongoing_viewport_scroll) {
+        return perform_a_scroll_of_the_viewport(ongoing_viewport_scroll->target_offset() + delta, scroll_behavior);
+    }
+
     auto vv = active_document()->visual_viewport();
     CSSPixelPoint page_position { CSSPixels(vv->page_left()), CSSPixels(vv->page_top()) };
-    return perform_a_scroll_of_the_viewport(page_position + delta);
+    return perform_a_scroll_of_the_viewport(page_position + delta, scroll_behavior);
 }
 
 // https://drafts.csswg.org/cssom-view/#viewport-perform-a-scroll
-GC::Ref<WebIDL::Promise> Navigable::perform_a_scroll_of_the_viewport(CSSPixelPoint position)
+GC::Ref<WebIDL::Promise> Navigable::perform_a_scroll_of_the_viewport(CSSPixelPoint position, Bindings::ScrollBehavior scroll_behavior)
 {
     // 1. Let doc be the viewport’s associated Document.
     auto doc = active_document();
@@ -3534,7 +3592,7 @@ GC::Ref<WebIDL::Promise> Navigable::perform_a_scroll_of_the_viewport(CSSPixelPoi
     // 14. Perform a scroll of the viewport’s scrolling box to its current scroll position + (layout dx, layout dy)
     //     with element as the associated element, and behavior as the scroll behavior. Let scrollPromise1 be the
     //     Promise returned from this step.
-    TemporaryExecutionContext temporary_execution_context { doc->realm() };
+    TemporaryExecutionContext temporary_execution_context { doc->realm(), TemporaryExecutionContext::CallbacksEnabled::Yes };
 
     // NB: Must update layout before accessing paintables.
     doc->update_layout(DOM::UpdateLayoutReason::NavigableViewportScroll);
@@ -3554,28 +3612,57 @@ GC::Ref<WebIDL::Promise> Navigable::perform_a_scroll_of_the_viewport(CSSPixelPoi
     if (new_viewport_scroll_offset.to_type<CSSPixels>() == m_viewport_scroll_offset && visual_dx == 0.0 && visual_dy == 0.0)
         return WebIDL::create_resolved_promise(doc->realm(), JS::js_undefined());
 
-    // FIXME: Get a Promise from this.
-    perform_scroll_of_viewport_scrolling_box(new_viewport_scroll_offset.to_type<CSSPixels>());
+    auto& realm = doc->realm();
 
-    // 15. Perform a scroll of vv’s scrolling box to its current scroll position + (visual dx, visual dy) with element
-    //     as the associated element, and behavior as the scroll behavior. Let scrollPromise2 be the Promise returned
-    //     from this step.
-    // FIXME: Get a Promise from this.
-    vv->scroll_by({ visual_dx, visual_dy });
-    if (visual_dx != 0.0 || visual_dy != 0.0) {
-        doc->set_needs_accumulated_visual_contexts_update(true);
-        doc->set_needs_repaint(Badge<HTML::Navigable> {}, InvalidateDisplayList::Yes);
-    } else {
-        doc->set_needs_repaint(Badge<HTML::Navigable> {}, InvalidateDisplayList::No);
-    }
+    auto scroll_promise_1 = perform_scroll_of_viewport_scrolling_box(doc, new_viewport_scroll_offset.to_type<CSSPixels>(), scroll_behavior);
+
+    // NB: Steps defined out of order due to variable scoping.
 
     // 16. Let scrollPromise be a new Promise.
-    auto scroll_promise = WebIDL::create_promise(doc->realm());
+    auto scroll_promise = WebIDL::create_promise(realm);
+
+    // FIXME: This whole part with promises does not look pretty.
+    auto reject_scroll_promise = GC::create_function(heap(), [&realm, scroll_promise](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+        WebIDL::reject_promise(realm, scroll_promise, JS::js_undefined());
+
+        return JS::js_undefined();
+    });
+
+    auto on_scroll_promise_1_fulfilled = [this, vv, visual_dx, visual_dy, scroll_behavior, &realm, scroll_promise, reject_scroll_promise](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+        // 15. Perform a scroll of vv’s scrolling box to its current scroll position + (visual dx, visual dy) with element
+        //     as the associated element, and behavior as the scroll behavior. Let scrollPromise2 be the Promise returned
+        //     from this step.
+        auto scroll_promise_2 = vv->perform_scroll_of_visual_viewport_scrolling_box_by_delta({ visual_dx, visual_dy }, scroll_behavior);
+
+        if (WebIDL::is_promise_fulfilled(scroll_promise_2)) {
+            // 18. Resolve scrollPromise when both scrollPromise1 and scrollPromise2 have settled.
+            WebIDL::resolve_promise(realm, scroll_promise);
+        } else {
+            WebIDL::react_to_promise(scroll_promise_2, GC::create_function(heap(), [&realm, scroll_promise](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+                // 18. Resolve scrollPromise when both scrollPromise1 and scrollPromise2 have settled.
+                WebIDL::resolve_promise(realm, scroll_promise);
+
+                return JS::js_undefined();
+            }),
+                reject_scroll_promise);
+        }
+
+        return JS::js_undefined();
+    };
+
+    if (WebIDL::is_promise_fulfilled(scroll_promise_1)) {
+        (void)on_scroll_promise_1_fulfilled(JS::js_undefined());
+    } else {
+        WebIDL::react_to_promise(scroll_promise_1, GC::create_function(heap(), [&realm, scroll_promise](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+            // 18. Resolve scrollPromise when both scrollPromise1 and scrollPromise2 have settled.
+            WebIDL::resolve_promise(realm, scroll_promise);
+
+            return JS::js_undefined();
+        }),
+            reject_scroll_promise);
+    }
 
     // 17. Return scrollPromise, and run the remaining steps in parallel.
-    // 18. Resolve scrollPromise when both scrollPromise1 and scrollPromise2 have settled.
-    // FIXME: Actually wait for scroll to occur. For now, all our scrolls are instant.
-    WebIDL::resolve_promise(doc->realm(), scroll_promise);
     return scroll_promise;
 }
 

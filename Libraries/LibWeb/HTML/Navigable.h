@@ -14,7 +14,9 @@
 #include <AK/Tuple.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Bindings/Navigation.h>
+#include <LibWeb/Bindings/Window.h>
 #include <LibWeb/Compositor/CompositorHost.h>
+#include <LibWeb/Compositor/CompositorThread.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -200,6 +202,9 @@ public:
     void perform_scroll_of_viewport_scrolling_box(CSSPixelPoint position);
     void adopt_pending_async_scroll_offsets();
     void wait_for_async_scroll_operation(Compositor::AsyncScrollOperationID, GC::Ref<WebIDL::Promise>);
+    Optional<GC::Ref<WebIDL::Promise>> perform_scroll_of_viewport_scrolling_box(CSSPixelPoint position, Bindings::ScrollBehavior scroll_behavior = Bindings::ScrollBehavior::Auto);
+    GC::Ref<WebIDL::Promise> perform_scroll_of_viewport_scrolling_box(GC::Ptr<DOM::Document>, CSSPixelPoint position, Bindings::ScrollBehavior scroll_behavior = Bindings::ScrollBehavior::Auto);
+    void set_viewport_scroll_offset(CSSPixelPoint position);
     void clamp_viewport_scroll_offset();
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#rendering-opportunity
@@ -261,8 +266,8 @@ public:
     template<typename T>
     bool fast_is() const = delete;
 
-    GC::Ref<WebIDL::Promise> scroll_viewport_by_delta(CSSPixelPoint delta);
-    GC::Ref<WebIDL::Promise> perform_a_scroll_of_the_viewport(CSSPixelPoint position);
+    GC::Ref<WebIDL::Promise> scroll_viewport_by_delta(CSSPixelPoint delta, Bindings::ScrollBehavior scroll_behavior = Bindings::ScrollBehavior::Auto);
+    GC::Ref<WebIDL::Promise> perform_a_scroll_of_the_viewport(CSSPixelPoint position, Bindings::ScrollBehavior scroll_behavior = Bindings::ScrollBehavior::Auto);
     void reset_zoom();
 
 protected:

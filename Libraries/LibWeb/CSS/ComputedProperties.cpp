@@ -2243,6 +2243,12 @@ ScrollbarWidth ComputedProperties::scrollbar_width() const
     return keyword_to_scrollbar_width(value.to_keyword()).release_value();
 }
 
+ScrollBehavior ComputedProperties::scroll_behavior() const
+{
+    auto const& value = property(PropertyID::ScrollBehavior);
+    return keyword_to_scroll_behavior(value.to_keyword()).release_value();
+}
+
 Resize ComputedProperties::resize() const
 {
     auto const& value = property(PropertyID::Resize);

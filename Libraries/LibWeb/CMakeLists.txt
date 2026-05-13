@@ -850,6 +850,7 @@ set(SOURCES
     Page/InputEvent.cpp
     Page/MiddleButtonScrollHandler.cpp
     Page/Page.cpp
+    Page/SmoothScrollHandler.cpp
     Painting/AccumulatedVisualContext.cpp
     Painting/BackgroundPainting.cpp
     Painting/Blending.cpp

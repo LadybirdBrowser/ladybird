@@ -44,6 +44,7 @@
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/InvalidateDisplayList.h>
+#include <LibWeb/Page/SmoothScrollHandler.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
 #include <LibWeb/TrustedTypes/InjectionSink.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -679,6 +680,8 @@ public:
     };
     Vector<PendingScrollEvent>& pending_scroll_events() { return m_pending_scroll_events; }
 
+    GC::Ptr<SmoothScrollHandler> smooth_scroll_handler() { return m_smooth_scroll_handler; }
+
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#completely-loaded
     bool is_completely_loaded() const;
 
@@ -1296,6 +1299,8 @@ private:
     // https://drafts.csswg.org/cssom-view-1/#document-pending-scroll-events
     // Each Document has an associated list of pending scroll events, which stores pairs of (EventTarget, DOMString), initially empty.
     Vector<PendingScrollEvent> m_pending_scroll_events;
+
+    GC::Ptr<SmoothScrollHandler> m_smooth_scroll_handler;
 
     // Used by evaluate_media_queries_and_report_changes().
     bool m_needs_media_query_evaluation { false };

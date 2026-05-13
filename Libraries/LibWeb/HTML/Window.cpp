@@ -1604,6 +1604,8 @@ GC::Ref<WebIDL::Promise> Window::scroll(Bindings::ScrollToOptions const& options
     //     smooth scroll, return a resolved Promise and abort the remaining steps.
     if (position == viewport_rect.location()) {
         TemporaryExecutionContext temporary_execution_context { realm() };
+        document->smooth_scroll_handler()->abort_any_ongoing_viewport_scroll();
+        document->smooth_scroll_handler()->abort_any_ongoing_visual_viewport_scroll();
         return WebIDL::create_resolved_promise(realm(), JS::js_undefined());
     }
 
@@ -1613,7 +1615,7 @@ GC::Ref<WebIDL::Promise> Window::scroll(Bindings::ScrollToOptions const& options
     // 12. Perform a scroll of the viewport to position, document’s root element as the associated element, if there is
     //     one, or null otherwise, and the scroll behavior being the value of the behavior dictionary member of options.
     //     Let scrollPromise be the Promise returned from this step.
-    auto scroll_promise = navigable->perform_a_scroll_of_the_viewport({ x, y });
+    auto scroll_promise = navigable->perform_a_scroll_of_the_viewport({ x, y }, options.behavior);
 
     // 13. Return scrollPromise.
     return scroll_promise;

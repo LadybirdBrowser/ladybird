@@ -9,6 +9,7 @@
 
 #include <AK/GenericShorthands.h>
 #include <LibGfx/Font/Font.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/StyleScope.h>
@@ -39,6 +40,7 @@
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/SVG/SVGFilterElement.h>
+#include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Painting {
 
@@ -249,7 +251,7 @@ PaintableBox::ScrollHandled PaintableBox::set_scroll_offset(CSSPixelPoint offset
     if (is_viewport_paintable()) {
         auto navigable = document().navigable();
         VERIFY(navigable);
-        navigable->perform_scroll_of_viewport_scrolling_box(offset);
+        navigable->set_viewport_scroll_offset(offset);
         return ScrollHandled::Yes;
     }
 
@@ -293,6 +295,42 @@ PaintableBox::ScrollHandled PaintableBox::set_scroll_offset(CSSPixelPoint offset
 
     set_needs_repaint(InvalidateDisplayList::No);
     return ScrollHandled::Yes;
+}
+
+// https://drafts.csswg.org/cssom-view-1/#perform-a-scroll
+GC::Ref<WebIDL::Promise> PaintableBox::perform_scroll(CSSPixelPoint offset, Bindings::ScrollBehavior scroll_behavior)
+{
+    auto& doc = document();
+
+    if (is_viewport_paintable()) {
+        auto navigable = document().navigable();
+        VERIFY(navigable);
+        return navigable->perform_scroll_of_viewport_scrolling_box(document(), offset, scroll_behavior);
+    }
+
+    // FIXME: 1. Abort any ongoing smooth scroll for box.
+    // FIXME: 2. Resolve all pending scroll Promises whose scroll container is box.
+
+    // 3. Let scrollPromise be a new Promise.
+    auto scroll_promise = WebIDL::create_promise(doc.realm());
+
+    // 4. Return scrollPromise, and run the remaining steps in parallel.
+
+    // FIXME: 5. If the user agent honors the scroll-behavior property and one of the following is true:
+    //        - behavior is "auto" and element is not null and its computed value of the scroll-behavior property
+    //          is smooth, or
+    //        - behavior is smooth
+    //    then perform a smooth scroll of box to position; otherwise, perform an instant scroll of box to position.
+
+    // 6. Wait until either the position has finished updating, or scrollPromise has been resolved.
+    set_scroll_offset(offset);
+
+    // 7. If scrollPromise is still in the pending state:
+    //      FIXME: 1. If the scroll position changed as a result of this call, emit the scrollend event.
+    //      2. Resolve scrollPromise.
+    WebIDL::resolve_promise(doc.realm(), scroll_promise);
+
+    return scroll_promise;
 }
 
 PaintableBox::ScrollHandled PaintableBox::scroll_by(double delta_x, double delta_y)

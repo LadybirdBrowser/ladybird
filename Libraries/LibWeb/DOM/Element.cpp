@@ -127,6 +127,7 @@
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/XML/XMLFragmentParser.h>
 
 namespace Web::DOM {
@@ -2206,7 +2207,7 @@ void Element::set_scroll_left(double x)
     // FIXME: Implement this in terms of calling "scroll the element".
     auto scroll_offset = paintable_box()->scroll_offset();
     scroll_offset.set_x(CSSPixels::nearest_value_for(x));
-    paintable_box()->set_scroll_offset(scroll_offset);
+    paintable_box()->perform_scroll(scroll_offset);
 }
 
 void Element::set_scroll_top(double y)
@@ -2263,7 +2264,7 @@ void Element::set_scroll_top(double y)
     // FIXME: Implement this in terms of calling "scroll the element".
     auto scroll_offset = paintable_box()->scroll_offset();
     scroll_offset.set_y(CSSPixels::nearest_value_for(y));
-    paintable_box()->set_scroll_offset(scroll_offset);
+    paintable_box()->perform_scroll(scroll_offset);
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scrollwidth
@@ -2931,7 +2932,8 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
 // https://drafts.csswg.org/cssom-view-1/#scroll-a-target-into-view
 static GC::Ref<WebIDL::Promise> scroll_an_element_into_view(Element& target, Bindings::ScrollBehavior behavior, Bindings::ScrollLogicalPosition block, Bindings::ScrollLogicalPosition inline_, GC::Ptr<Element> container)
 {
-    // FIXME: 1. Let ancestorPromises be an empty set of Promises.
+    // 1. Let ancestorPromises be an empty set of Promises.
+    GC::RootVector<GC::Ref<WebIDL::Promise>> ancestor_promises { target.heap() };
 
     // 2. For each ancestor element or viewport that establishes a scrolling box scrolling box, in order of innermost
     //    to outermost scrolling box, run these substeps:
@@ -2961,8 +2963,10 @@ static GC::Ref<WebIDL::Promise> scroll_an_element_into_view(Element& target, Bin
         if (true) {
             // -> If scrolling box is associated with an element
             if (auto* element = as_if<Element>(scrolling_box)) {
-                // FIXME: Perform a scroll of the element’s scrolling box to position, with the element as the associated element and behavior as the scroll behavior.
-                element->paintable_box()->set_scroll_offset(position);
+                // Perform a scroll of the element’s scrolling box to position, with the element as the associated
+                // element and behavior as the scroll behavior.
+                auto element_scroll_promise = element->paintable_box()->perform_scroll(position, behavior);
+                ancestor_promises.append(element_scroll_promise);
             }
             // -> If scrolling box is associated with a viewport
             else if (scrolling_box.is_document()) {
@@ -2970,15 +2974,16 @@ static GC::Ref<WebIDL::Promise> scroll_an_element_into_view(Element& target, Bin
                 auto& document = static_cast<Document&>(scrolling_box);
 
                 // FIXME: 2. Let root element be document’s root element, if there is one, or null otherwise.
-                // FIXME: 3. Perform a scroll of the viewport to position, with root element as the associated element and behavior as the scroll behavior.
+                // 3. Perform a scroll of the viewport to position, with root element as the associated element and
+                //    behavior as the scroll behavior.
                 //           Add the Promise returned from this step in the set ancestorPromises.
-                (void)behavior;
 
                 // AD-HOC:
                 // NOTE: Since calculated position is relative to the viewport, we need to add the viewport's position to it
                 //       before passing to perform_a_scroll_of_the_viewport() that expects a position relative to the page.
                 position.set_y(position.y() + document.viewport_rect().y());
-                document.navigable()->perform_a_scroll_of_the_viewport(position);
+                auto viewport_scroll_promise = document.navigable()->perform_a_scroll_of_the_viewport(position, behavior);
+                ancestor_promises.append(viewport_scroll_promise);
             }
         }
 
@@ -2990,15 +2995,12 @@ static GC::Ref<WebIDL::Promise> scroll_an_element_into_view(Element& target, Bin
             break;
     }
 
-    // 3. Let scrollPromise be a new Promise.
-    auto scroll_promise = WebIDL::create_promise(target.realm());
+    HTML::TemporaryExecutionContext temporary_execution_context { target.realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
+    // 3. Let scrollPromise be a new Promise.
     // 4. Return scrollPromise, and run the remaining steps in parallel.
     // 5. Resolve scrollPromise when all Promises in ancestorPromises have settled.
-    // FIXME: Actually wait for those promises.
-    WebIDL::resolve_promise(target.realm(), scroll_promise);
-
-    return scroll_promise;
+    return WebIDL::get_promise_for_wait_for_all(target.realm(), ancestor_promises);
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scrollintoview
@@ -3710,15 +3712,36 @@ bool Element::refresh_inherited_custom_property_data()
 GC::Ref<WebIDL::Promise> Element::scroll(double x, double y)
 {
     // 1. If invoked with one argument, follow these substeps:
-    //    NOTE: Not relevant here.
+    //    NB: Not relevant here.
     // 2. If invoked with two arguments, follow these substeps:
     //     1. Let options be null converted to a ScrollToOptions dictionary. [WEBIDL]
     //     2. Let x and y be the arguments, respectively.
+    Bindings::ScrollToOptions options;
+
+    //     NB: Step 3 happens in scroll(options).
     //     3. Normalize non-finite values for x and y.
+
     //     4. Let the left dictionary member of options have the value x.
+    options.left = x;
     //     5. Let the top dictionary member of options have the value y.
-    x = HTML::normalize_non_finite_values(x);
-    y = HTML::normalize_non_finite_values(y);
+    options.top = y;
+
+    options.behavior = Bindings::ScrollBehavior::Auto;
+    return scroll(options);
+}
+
+// https://drafts.csswg.org/cssom-view/#dom-element-scroll
+GC::Ref<WebIDL::Promise> Element::scroll(Bindings::ScrollToOptions options)
+{
+    // 1. If invoked with one argument, follow these substeps:
+    //     1. Let options be the argument.
+    //     2. Normalize non-finite values for left and top dictionary members of options, if present.
+    //     3. Let x be the value of the left dictionary member of options, if present, or the element’s current scroll position on the x axis otherwise.
+    //     4. Let y be the value of the top dictionary member of options, if present, or the element’s current scroll position on the y axis otherwise.
+    // 2. If invoked with two arguments, follow these substeps:
+    //    NB: Already performed by scroll(x, y)
+    auto x = options.left.has_value() ? HTML::normalize_non_finite_values(options.left.value()) : scroll_left();
+    auto y = options.top.has_value() ? HTML::normalize_non_finite_values(options.top.value()) : scroll_top();
 
     // 3. Let document be the element’s node document.
     auto& document = this->document();
@@ -3776,25 +3799,10 @@ GC::Ref<WebIDL::Promise> Element::scroll(double x, double y)
     auto scroll_offset = paintable_box()->scroll_offset();
     scroll_offset.set_x(CSSPixels::nearest_value_for(x));
     scroll_offset.set_y(CSSPixels::nearest_value_for(y));
-    paintable_box()->set_scroll_offset(scroll_offset);
-    auto scroll_promise = WebIDL::create_resolved_promise(realm(), JS::js_undefined());
+    auto scroll_promise = paintable_box()->perform_scroll(scroll_offset, options.behavior);
 
     // 12. Return scrollPromise.
     return scroll_promise;
-}
-
-// https://drafts.csswg.org/cssom-view/#dom-element-scroll
-GC::Ref<WebIDL::Promise> Element::scroll(Bindings::ScrollToOptions options)
-{
-    // 1. If invoked with one argument, follow these substeps:
-    //     1. Let options be the argument.
-    //     2. Normalize non-finite values for left and top dictionary members of options, if present.
-    //     3. Let x be the value of the left dictionary member of options, if present, or the element’s current scroll position on the x axis otherwise.
-    //     4. Let y be the value of the top dictionary member of options, if present, or the element’s current scroll position on the y axis otherwise.
-    // NOTE: remaining steps performed by Element::scroll(double x, double y)
-    auto x = options.left.has_value() ? HTML::normalize_non_finite_values(options.left.value()) : scroll_left();
-    auto y = options.top.has_value() ? HTML::normalize_non_finite_values(options.top.value()) : scroll_top();
-    return scroll(x, y);
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scrollby

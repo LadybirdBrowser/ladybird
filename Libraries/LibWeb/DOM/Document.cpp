@@ -184,6 +184,7 @@
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Page/SmoothScrollHandler.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
@@ -635,6 +636,8 @@ void Document::initialize(JS::Realm& realm)
 
     m_list_of_available_images = realm.create<HTML::ListOfAvailableImages>();
 
+    m_smooth_scroll_handler = heap().allocate<SmoothScrollHandler>(*this);
+
     page().client().page_did_create_new_document(*this);
 
     ensure_cookie_version_index(m_url);
@@ -717,6 +720,9 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_document_observers_being_notified);
     for (auto& pending_scroll_event : m_pending_scroll_events)
         visitor.visit(pending_scroll_event.event_target);
+
+    visitor.visit(m_smooth_scroll_handler);
+
     for (auto& resize_observer : m_resize_observers)
         visitor.visit(resize_observer);
 
@@ -3811,7 +3817,7 @@ void Document::scroll_to_the_beginning_of_the_document()
 {
     // FIXME: Actually implement this algorithm
     if (auto navigable = this->navigable())
-        navigable->perform_scroll_of_viewport_scrolling_box({ 0, 0 });
+        navigable->perform_scroll_of_viewport_scrolling_box(this, { 0, 0 }, Bindings::ScrollBehavior::Auto);
 }
 
 StringView Document::ready_state() const

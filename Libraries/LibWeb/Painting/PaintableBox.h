@@ -11,6 +11,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
 #include <LibGfx/Forward.h>
+#include <LibWeb/Bindings/Window.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/Box.h>
@@ -81,6 +82,7 @@ public:
     ScrollHandled set_scroll_offset(CSSPixelPoint);
     ScrollHandled scroll_by(double delta_x, double delta_y);
     void scroll_into_view(CSSPixelRect);
+    GC::Ref<WebIDL::Promise> perform_scroll(CSSPixelPoint, Bindings::ScrollBehavior = Bindings::ScrollBehavior::Auto);
 
     void set_offset(CSSPixelPoint);
     void set_offset(float x, float y) { set_offset({ x, y }); }
