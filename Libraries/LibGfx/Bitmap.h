@@ -94,7 +94,6 @@ public:
 
     [[nodiscard]] static size_t minimum_pitch(size_t width, BitmapFormat);
 
-    [[nodiscard]] bool has_alpha_channel() const { return m_format == BitmapFormat::BGRA8888 || m_format == BitmapFormat::RGBA8888; }
     [[nodiscard]] BitmapFormat format() const { return m_format; }
 
     // Call only for BGRx8888 and BGRA8888 bitmaps.
