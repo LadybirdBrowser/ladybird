@@ -498,8 +498,6 @@ public:
         };
     }
 
-    [[nodiscard]] ByteString to_byte_string() const;
-
 private:
     Point<T> m_location;
     Size<T> m_size;
