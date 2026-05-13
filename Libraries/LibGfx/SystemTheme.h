@@ -121,12 +121,6 @@ namespace Gfx {
     C(IsDark)
 
 #define ENUMERATE_PATH_ROLES(C) \
-    C(TitleButtonIcons)         \
-    C(InactiveWindowShadow)     \
-    C(ActiveWindowShadow)       \
-    C(TaskbarShadow)            \
-    C(MenuShadow)               \
-    C(TooltipShadow)            \
     C(ColorScheme)
 
 enum class ColorRole {
