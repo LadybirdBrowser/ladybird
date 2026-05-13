@@ -116,7 +116,6 @@ public:
     bool contains(FloatPoint point, Gfx::WindingRule winding_rule) const { return impl().contains(point, winding_rule); }
     void set_fill_type(Gfx::WindingRule winding_rule) { impl().set_fill_type(winding_rule); }
 
-    Gfx::Path clone() const { return Gfx::Path { impl().clone() }; }
     Gfx::Path copy_transformed(Gfx::AffineTransform const& transform) const { return Gfx::Path { impl().copy_transformed(transform) }; }
     Gfx::Path place_text_along(Utf8View const& text, Font const& font) const { return Gfx::Path { impl().place_text_along(text, font) }; }
     Gfx::Path place_text_along(Utf16View const& text, Font const& font) const { return Gfx::Path { impl().place_text_along(text, font) }; }
