@@ -102,21 +102,10 @@ ErrorOr<Core::AnonymousBuffer> load_system_theme(Core::ConfigFile const& file, O
 #undef __ENUMERATE_COLOR_ROLE
 
 #undef __ENUMERATE_FLAG_ROLE
-#define __ENUMERATE_FLAG_ROLE(role)                            \
-    {                                                          \
-        if (#role != "BoldTextAsBright"sv)                     \
-            data->flag[(int)FlagRole::role] = get_flag(#role); \
-    }
+#define __ENUMERATE_FLAG_ROLE(role) \
+    data->flag[(int)FlagRole::role] = get_flag(#role);
     ENUMERATE_FLAG_ROLES(__ENUMERATE_FLAG_ROLE)
 #undef __ENUMERATE_FLAG_ROLE
-
-    if (!color_scheme.has_value() || color_scheme.value() != "Custom"sv) {
-        auto maybe_color_config = Core::ConfigFile::open(data->path[(int)PathRole::ColorScheme]);
-        if (!maybe_color_config.is_error()) {
-            auto color_config = maybe_color_config.release_value();
-            data->flag[(int)FlagRole::BoldTextAsBright] = color_config->read_bool_entry("Options", "ShowBoldTextAsBright", true);
-        }
-    }
 
     return buffer;
 }
