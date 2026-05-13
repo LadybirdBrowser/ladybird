@@ -56,7 +56,6 @@ public:
         Yellow,
         Magenta,
         DarkGray,
-        MidGray,
         LightGray,
         WarmGray,
         DarkCyan,
@@ -333,9 +332,6 @@ constexpr Color::Color(NamedColor named)
         break;
     case DarkGray:
         rgb = { 64, 64, 64 };
-        break;
-    case MidGray:
-        rgb = { 127, 127, 127 };
         break;
     case LightGray:
         rgb = { 192, 192, 192 };
