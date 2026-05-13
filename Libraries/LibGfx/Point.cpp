@@ -4,26 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/ByteString.h>
 #include <LibGfx/Point.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
-
-namespace Gfx {
-
-template<>
-ByteString IntPoint::to_byte_string() const
-{
-    return ByteString::formatted("[{},{}]", x(), y());
-}
-
-template<>
-ByteString FloatPoint::to_byte_string() const
-{
-    return ByteString::formatted("[{},{}]", x(), y());
-}
-
-}
 
 namespace IPC {
 

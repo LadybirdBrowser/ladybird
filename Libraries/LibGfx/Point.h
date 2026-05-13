@@ -214,8 +214,6 @@ public:
         return Point<U>(roundf(x()), roundf(y()));
     }
 
-    [[nodiscard]] ByteString to_byte_string() const;
-
 private:
     T m_x { 0 };
     T m_y { 0 };
