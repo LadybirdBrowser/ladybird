@@ -1499,11 +1499,11 @@ TableFormattingContext::BorderConflictFinder::BorderConflictFinder(TableFormatti
 void TableFormattingContext::BorderConflictFinder::collect_conflicting_col_elements()
 {
     m_col_elements_by_index.resize(m_context->m_columns.size());
+    size_t column_index = 0;
     for (auto* child = m_context->table_box().first_child(); child; child = child->next_sibling()) {
         if (!child->display().is_table_column_group()) {
             continue;
         }
-        size_t column_index = 0;
         for (auto* child_of_column_group = child->first_child(); child_of_column_group; child_of_column_group = child_of_column_group->next_sibling()) {
             VERIFY(child_of_column_group->display().is_table_column());
             auto const& col_node = static_cast<HTML::HTMLElement const&>(*child_of_column_group->dom_node());
