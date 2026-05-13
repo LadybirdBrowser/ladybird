@@ -94,8 +94,6 @@ public:
         m_context->submit(GrSyncCpu::kYes);
     }
 
-    skgpu::VulkanExtensions const* extensions() const { return m_extensions.ptr(); }
-
     GrDirectContext* sk_context() const override { return m_context.get(); }
 
     VulkanContext const& vulkan_context() override { return m_vulkan_context; }
