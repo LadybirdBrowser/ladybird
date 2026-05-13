@@ -857,8 +857,6 @@ private:
             hovered_scrollbar_index = m_hovered_viewport_scrollbar_index;
             captured_scrollbar_index = m_captured_viewport_scrollbar_index;
         }
-        if (!hovered_scrollbar_index.has_value() && !captured_scrollbar_index.has_value())
-            return;
         paint_viewport_scrollbars(surface, scrollbars, m_cached_scroll_state_snapshot, hovered_scrollbar_index, captured_scrollbar_index);
     }
 
