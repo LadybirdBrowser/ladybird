@@ -15,6 +15,7 @@
 #include <LibWeb/Compositor/AsyncScrollTree.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/Compositor/CompositorThread.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/ExternalContentSource.h>
@@ -724,6 +725,9 @@ public:
                             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Stored pending async viewport offset {},{}",
                                 scroll_offset->x(), scroll_offset->y());
                         }
+                        invoke_on_main_thread([] {
+                            HTML::main_thread_event_loop().queue_task_to_update_the_rendering();
+                        });
                         {
                             Sync::MutexLocker const locker { m_mutex };
                             m_has_deferred_async_scroll_present = true;
@@ -931,6 +935,9 @@ private:
             m_has_deferred_async_scroll_present = true;
             m_deferred_async_scroll_present_viewport_rect = async_scroll_viewport_rect;
         }
+        invoke_on_main_thread([] {
+            HTML::main_thread_event_loop().queue_task_to_update_the_rendering();
+        });
         return true;
     }
 

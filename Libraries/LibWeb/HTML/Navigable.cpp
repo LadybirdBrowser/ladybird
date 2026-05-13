@@ -2907,6 +2907,26 @@ void Navigable::perform_scroll_of_viewport_scrolling_box(CSSPixelPoint new_posit
     HTML::main_thread_event_loop().schedule();
 }
 
+void Navigable::adopt_pending_async_viewport_scroll_offset()
+{
+    if (!page().async_scrolling_enabled())
+        return;
+
+    // The compositor thread may have already presented newer viewport scroll offsets. Adopt the latest one before
+    // running rendering-update observers so they see the same scroll position as the user.
+    if (m_rendering_thread.should_defer_async_viewport_scroll_offset_adoption()) {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread deferred async viewport offset adoption");
+    } else if (auto async_scroll_offset = m_rendering_thread.take_pending_async_viewport_scroll_offset(); async_scroll_offset.has_value()) {
+        auto device_pixels_per_css_pixel = page().client().device_pixels_per_css_pixel();
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread adopting async viewport offset {},{}",
+            async_scroll_offset->x(), async_scroll_offset->y());
+        perform_scroll_of_viewport_scrolling_box({
+            CSSPixels { async_scroll_offset->x() / device_pixels_per_css_pixel },
+            CSSPixels { async_scroll_offset->y() / device_pixels_per_css_pixel },
+        });
+    }
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#rendering-opportunity
 bool Navigable::has_a_rendering_opportunity() const
 {
@@ -3133,21 +3153,7 @@ void Navigable::record_display_list_and_scroll_state(PaintConfig paint_config)
     if (!document)
         return;
 
-    if (page().async_scrolling_enabled()) {
-        // The compositor thread may have already presented newer viewport scroll offsets. Adopt the latest one before
-        // recording so a main-thread repaint catches up to the visible async position.
-        if (m_rendering_thread.should_defer_async_viewport_scroll_offset_adoption()) {
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread deferred async viewport offset adoption before recording display list");
-        } else if (auto async_scroll_offset = m_rendering_thread.take_pending_async_viewport_scroll_offset(); async_scroll_offset.has_value()) {
-            auto device_pixels_per_css_pixel = page().client().device_pixels_per_css_pixel();
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread adopting async viewport offset {},{} before recording display list",
-                async_scroll_offset->x(), async_scroll_offset->y());
-            perform_scroll_of_viewport_scrolling_box({
-                CSSPixels { async_scroll_offset->x() / device_pixels_per_css_pixel },
-                CSSPixels { async_scroll_offset->y() / device_pixels_per_css_pixel },
-            });
-        }
-    }
+    adopt_pending_async_viewport_scroll_offset();
 
     auto should_record_display_list = m_needs_to_record_display_list
         || !m_rendering_thread_display_list_paint_config.has_value()
