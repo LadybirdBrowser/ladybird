@@ -1054,7 +1054,13 @@ void GridFormattingContext::increase_sizes_to_accommodate_spanning_items_crossin
     auto const& available_size = dimension == GridDimension::Column ? m_available_space->width : m_available_space->height;
 
     auto dominated_by_available_size = [&](GridTrack const& track) {
-        return available_size.is_intrinsic_sizing_constraint() || track.min_track_sizing_function.is_intrinsic(available_size);
+        // NB: This step repeats the content-sized track step, but only distributes space to flexible tracks.
+        // For min-content column sizing, the later "Expand Flexible Tracks" step resolves the flex fraction
+        // to zero, so fixed-min flexible columns must not grow from their items' intrinsic width here.
+        // Keep min-content row sizing here so intrinsic-height grids still account for their contents.
+        return available_size.is_max_content()
+            || (dimension == GridDimension::Row && available_size.is_min_content())
+            || track.min_track_sizing_function.is_intrinsic(available_size);
     };
 
     HashMap<GridTrack*, CSSPixels> track_contributions;
