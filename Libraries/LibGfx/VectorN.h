@@ -233,22 +233,6 @@ public:
         return copy;
     }
 
-    [[nodiscard]] constexpr VectorN clamped(T m, T x) const
-    {
-        VectorN copy { *this };
-        copy.clamp(m, x);
-        return copy;
-    }
-
-    constexpr void clamp(T min_value, T max_value)
-    {
-        UNROLL_LOOP
-        for (auto i = 0u; i < N; ++i) {
-            m_data[i] = max(min_value, m_data[i]);
-            m_data[i] = min(max_value, m_data[i]);
-        }
-    }
-
     constexpr void normalize()
     {
         T const inv_length = 1 / length();
