@@ -132,9 +132,6 @@ enum class ColorRole {
 #undef __ENUMERATE_COLOR_ROLE
 
         __Count,
-
-    Background = Window,
-    DisabledText = ThreedShadow1,
 };
 
 enum class FlagRole {
