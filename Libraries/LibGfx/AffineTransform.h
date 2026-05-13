@@ -61,7 +61,6 @@ public:
     AffineTransform& set_scale(float sx, float sy);
     AffineTransform& translate(float tx, float ty);
     AffineTransform& translate(FloatPoint t);
-    AffineTransform& set_translation(float tx, float ty);
     AffineTransform& set_translation(FloatPoint t);
     AffineTransform& rotate_radians(float);
     AffineTransform& skew_radians(float x_radians, float y_radians);

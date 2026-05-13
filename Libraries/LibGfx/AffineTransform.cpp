@@ -68,16 +68,11 @@ AffineTransform& AffineTransform::translate(FloatPoint t)
     return translate(t.x(), t.y());
 }
 
-AffineTransform& AffineTransform::set_translation(float tx, float ty)
-{
-    m_values[4] = tx;
-    m_values[5] = ty;
-    return *this;
-}
-
 AffineTransform& AffineTransform::set_translation(FloatPoint t)
 {
-    return set_translation(t.x(), t.y());
+    m_values[4] = t.x();
+    m_values[5] = t.y();
+    return *this;
 }
 
 AffineTransform& AffineTransform::multiply(AffineTransform const& other)
