@@ -6,6 +6,7 @@
 
 #include <AK/Debug.h>
 #include <AK/NeverDestroyed.h>
+#include <AK/WeakPtr.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibIPC/Transport.h>
@@ -33,7 +34,7 @@ class CompositorConnectionToServer final
 public:
     CompositorConnectionToServer(WebContentClient& web_content_client, NonnullOwnPtr<IPC::Transport> transport)
         : IPC::ConnectionToServer<CompositorClientEndpoint, CompositorServerEndpoint>(*this, move(transport))
-        , m_web_content_client(web_content_client)
+        , m_web_content_client(web_content_client.make_weak_ptr<WebContentClient>())
     {
     }
 
@@ -42,15 +43,17 @@ private:
 
     virtual void did_allocate_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store) override
     {
-        m_web_content_client.did_present_backing_stores(page_id, front_bitmap_id, move(front_backing_store), back_bitmap_id, move(back_backing_store));
+        if (auto web_content_client = m_web_content_client.strong_ref())
+            web_content_client->did_present_backing_stores(page_id, front_bitmap_id, move(front_backing_store), back_bitmap_id, move(back_backing_store));
     }
 
     virtual void did_paint(u64 page_id, Gfx::IntRect content_rect, i32 bitmap_id) override
     {
-        m_web_content_client.did_present_bitmap(page_id, content_rect, bitmap_id);
+        if (auto web_content_client = m_web_content_client.strong_ref())
+            web_content_client->did_present_bitmap(page_id, content_rect, bitmap_id);
     }
 
-    WebContentClient& m_web_content_client;
+    WeakPtr<WebContentClient> m_web_content_client;
 };
 
 static HashMap<WebContentClient*, NonnullRefPtr<CompositorConnectionToServer>>& compositor_connections()
