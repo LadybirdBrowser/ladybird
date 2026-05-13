@@ -25,7 +25,7 @@ namespace Gfx {
 
 static Atomic<u64> s_next_id { 1 };
 
-Font::Font(NonnullRefPtr<Typeface const> typeface, float point_width, float point_height, unsigned dpi_x, unsigned dpi_y, FontVariationSettings const variations, ShapeFeatures const& features)
+Font::Font(NonnullRefPtr<Typeface const> typeface, float point_width, float point_height, FontVariationSettings const variations, ShapeFeatures const& features)
     : m_id(s_next_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
     , m_typeface(move(typeface))
     , m_point_width(point_width)
@@ -33,10 +33,6 @@ Font::Font(NonnullRefPtr<Typeface const> typeface, float point_width, float poin
     , m_font_variation_settings(move(variations))
     , m_shape_features(features)
 {
-    float const units_per_em = m_typeface->units_per_em();
-    m_x_scale = (point_width * dpi_x) / (POINTS_PER_INCH * units_per_em);
-    m_y_scale = (point_height * dpi_y) / (POINTS_PER_INCH * units_per_em);
-
     m_pixel_size = m_point_height * (DEFAULT_DPI / POINTS_PER_INCH);
 
     auto const* sk_typeface = as<TypefaceSkia>(*m_typeface).sk_typeface();
