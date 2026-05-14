@@ -2473,6 +2473,7 @@ void CreateLexicalEnvironment::execute_impl(VM& vm) const
     auto& parent = as<Environment>(vm.get(m_parent).as_cell());
     auto environment = new_declarative_environment(parent);
     environment->ensure_capacity(m_capacity);
+    environment->set_is_catch_environment(m_is_catch_environment);
     vm.set(m_dst, environment);
     vm.running_execution_context().lexical_environment = environment;
 }

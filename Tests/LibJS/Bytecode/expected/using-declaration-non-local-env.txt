@@ -26,7 +26,7 @@ Exception handlers:
   [  48 ..   b0] => handler block1
 
 
-$e58540c1 using-declaration-non-local-env.js:1:21
+$66e73949 using-declaration-non-local-env.js:1:21
   Registers: 8
   Blocks:    2
   Constants:
@@ -34,14 +34,14 @@ $e58540c1 using-declaration-non-local-env.js:1:21
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-  [  18] CreateImmutableBinding environment:reg5, `x`, strict_binding:true
-  [  28] NewTypeError dst:reg6, TODO: UsingDeclaration
-  [  38] SetLexicalEnvironment environment:reg4
-  [  40] Throw src:reg6
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  20] CreateImmutableBinding environment:reg5, `x`, strict_binding:true
+  [  30] NewTypeError dst:reg6, TODO: UsingDeclaration
+  [  40] SetLexicalEnvironment environment:reg4
+  [  48] Throw src:reg6
 
 block1:
-  [  48] NewFunction dst:reg7, shared_function_data_index:0
-  [  60] Call dst:reg6, callee:reg7, this_value:Undefined
-  [  80] SetLexicalEnvironment environment:reg4
-  [  88] End value:Undefined
+  [  50] NewFunction dst:reg7, shared_function_data_index:0
+  [  68] Call dst:reg6, callee:reg7, this_value:Undefined
+  [  88] SetLexicalEnvironment environment:reg4
+  [  90] End value:Undefined

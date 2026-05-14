@@ -1,4 +1,4 @@
-$663d1da4 super-length-access.js:3:1
+$63792c94 super-length-access.js:3:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -8,22 +8,22 @@ $663d1da4 super-length-access.js:3:1
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-  [  18] CreateVariable `A`, is_immutable:true, is_global:false, is_strict:false
-  [  28] SetLexicalEnvironment environment:reg4
-  [  30] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("length")]
-  [  58] InitializeLexicalBinding `A`, src:reg6
-  [  70] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:0
-  [  80] CreateVariable `B`, is_immutable:true, is_global:false, is_strict:false
-  [  90] GetGlobal dst:reg5, `A`
-  [  a8] SetLexicalEnvironment environment:reg4
-  [  b0] NewClass dst:reg7, super_class:reg5, class_environment:reg6, class_blueprint_index:1, element_keys:[element_keys:String("m")]
-  [  d8] InitializeLexicalBinding `B`, src:reg7
-  [  f0] GetGlobal dst:reg5, `B`
-  [ 108] CallConstruct dst:reg6, callee:reg5, B
-  [ 120] GetById dst:reg5, base:reg6, `m`
-  [ 140] Call dst:reg7, callee:reg5, this_value:reg6, <object>.m
-  [ 160] End value:reg7
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  20] CreateVariable `A`, is_immutable:true, is_global:false, is_strict:false
+  [  30] SetLexicalEnvironment environment:reg4
+  [  38] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("length")]
+  [  60] InitializeLexicalBinding `A`, src:reg6
+  [  78] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:0, is_catch_environment:false
+  [  90] CreateVariable `B`, is_immutable:true, is_global:false, is_strict:false
+  [  a0] GetGlobal dst:reg5, `A`
+  [  b8] SetLexicalEnvironment environment:reg4
+  [  c0] NewClass dst:reg7, super_class:reg5, class_environment:reg6, class_blueprint_index:1, element_keys:[element_keys:String("m")]
+  [  e8] InitializeLexicalBinding `B`, src:reg7
+  [ 100] GetGlobal dst:reg5, `B`
+  [ 118] CallConstruct dst:reg6, callee:reg5, B
+  [ 130] GetById dst:reg5, base:reg6, `m`
+  [ 150] Call dst:reg7, callee:reg5, this_value:reg6, <object>.m
+  [ 170] End value:reg7
 
 
 B$cbd8a311 super-length-access.js:7:1

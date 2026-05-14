@@ -1,4 +1,4 @@
-$e7eb680d class-lhs-name-no-createvariable.js:1:1
+$63c57e75 class-lhs-name-no-createvariable.js:1:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -7,8 +7,8 @@ $e7eb680d class-lhs-name-no-createvariable.js:1:1
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-  [  18] SetLexicalEnvironment environment:reg4
-  [  20] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0 (x), element_keys:[element_keys:String("method")]
-  [  48] SetGlobal `x`, src:reg6
-  [  60] End value:Undefined
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  20] SetLexicalEnvironment environment:reg4
+  [  28] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0 (x), element_keys:[element_keys:String("method")]
+  [  50] SetGlobal `x`, src:reg6
+  [  68] End value:Undefined

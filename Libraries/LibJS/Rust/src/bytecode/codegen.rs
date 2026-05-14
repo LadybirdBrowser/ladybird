@@ -536,6 +536,7 @@ fn generate_function_expression(
             dst: new_env.operand(),
             parent: parent.operand(),
             capacity: 0,
+            is_catch_environment: false,
         });
         generator.lexical_environment_register_stack.push(new_env);
 
@@ -5655,6 +5656,7 @@ fn generate_class_expression(
         dst: class_env.operand(),
         parent: parent_env.operand(),
         capacity: 0,
+        is_catch_environment: false,
     });
     generator.lexical_environment_register_stack.push(class_env.clone());
 
@@ -7370,7 +7372,7 @@ fn generate_try_statement(
                         generator.emit_mov(&local, &caught_value);
                         generator.mark_local_initialized(ident.local_index);
                     } else {
-                        generator.push_new_lexical_environment(0);
+                        generator.push_new_catch_lexical_environment(0);
                         generator.start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
                         created_catch_scope = true;
 
@@ -7394,7 +7396,7 @@ fn generate_try_statement(
                     collect_pattern_binding_names(pattern, &mut names, &generator.arena);
 
                     if !names.is_empty() {
-                        generator.push_new_lexical_environment(0);
+                        generator.push_new_catch_lexical_environment(0);
                         generator.start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
                         created_catch_scope = true;
 

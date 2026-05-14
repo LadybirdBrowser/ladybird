@@ -28,7 +28,7 @@ block0:
   [  70] Return value:reg5
 
 
-let_access$c5263a88 var-binding-access.js:14:5
+let_access$6d3f61f0 var-binding-access.js:14:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -36,9 +36,9 @@ let_access$c5263a88 var-binding-access.js:14:5
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1
-  [  18] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
-  [  28] InitializeLexicalBinding `x`, src:Int32(1)
-  [  40] NewFunction dst:reg6, shared_function_data_index:0
-  [  58] GetBinding dst:reg6, `x`
-  [  70] Return value:reg6
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
+  [  20] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
+  [  30] InitializeLexicalBinding `x`, src:Int32(1)
+  [  48] NewFunction dst:reg6, shared_function_data_index:0
+  [  60] GetBinding dst:reg6, `x`
+  [  78] Return value:reg6

@@ -1,4 +1,4 @@
-$ae8c96e2 block-function-declaration-order.js:1:1
+$2a66ad4a block-function-declaration-order.js:1:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -6,16 +6,16 @@ $ae8c96e2 block-function-declaration-order.js:1:1
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-  [  18] CreateMutableBinding environment:reg5, `f1`, can_be_deleted:false
-  [  28] NewFunction dst:reg6, shared_function_data_index:0
-  [  40] InitializeLexicalBinding `f1`, src:reg6
-  [  58] CreateMutableBinding environment:reg5, `f2`, can_be_deleted:false
-  [  68] NewFunction dst:reg6, shared_function_data_index:1
-  [  80] InitializeLexicalBinding `f2`, src:reg6
-  [  98] GetBinding dst:reg6, `f1`
-  [  b0] SetVariableBinding `f1`, src:reg6
-  [  c8] GetBinding dst:reg6, `f2`
-  [  e0] SetVariableBinding `f2`, src:reg6
-  [  f8] SetLexicalEnvironment environment:reg4
-  [ 100] End value:Undefined
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  20] CreateMutableBinding environment:reg5, `f1`, can_be_deleted:false
+  [  30] NewFunction dst:reg6, shared_function_data_index:0
+  [  48] InitializeLexicalBinding `f1`, src:reg6
+  [  60] CreateMutableBinding environment:reg5, `f2`, can_be_deleted:false
+  [  70] NewFunction dst:reg6, shared_function_data_index:1
+  [  88] InitializeLexicalBinding `f2`, src:reg6
+  [  a0] GetBinding dst:reg6, `f1`
+  [  b8] SetVariableBinding `f1`, src:reg6
+  [  d0] GetBinding dst:reg6, `f2`
+  [  e8] SetVariableBinding `f2`, src:reg6
+  [ 100] SetLexicalEnvironment environment:reg4
+  [ 108] End value:Undefined

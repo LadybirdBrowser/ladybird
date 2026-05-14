@@ -286,6 +286,7 @@
     M(ToObjectNullOrUndefinedWithProperty, "Cannot access property \"{}\" on {} object")                                            \
     M(ToObjectNullOrUndefinedWithPropertyAndName, "Cannot access property \"{}\" on {} object \"{}\"")                              \
     M(TopLevelVariableAlreadyDeclared, "Redeclaration of top level variable '{}'")                                                  \
+    M(EvalVarHoistingConflict, "Cannot declare var '{}': there is already a lexical declaration with that name in scope")           \
     M(ToPrimitiveReturnedObject, "Can't convert {} to primitive with hint \"{}\", its @@toPrimitive method returned an object")     \
     M(TypedArrayContentTypeMismatch, "Can't create {} from {}")                                                                     \
     M(TypedArrayInvalidBufferLength, "Invalid buffer length for {}: must be a multiple of {}, got {}")                              \

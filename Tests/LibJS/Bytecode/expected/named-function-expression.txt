@@ -1,15 +1,15 @@
-$642030ef named-function-expression.js:4:6
+$cf62a0f7 named-function-expression.js:4:6
   Registers: 8
   Blocks:    1
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-  [  18] CreateVariable `Oops`, is_immutable:true, is_global:false, is_strict:false
-  [  28] NewFunction dst:reg6, shared_function_data_index:0
-  [  40] InitializeLexicalBinding `Oops`, src:reg6
-  [  58] SetLexicalEnvironment environment:reg4
-  [  60] SetGlobal `Oops`, src:reg6
-  [  78] GetGlobal dst:reg5, `Oops`
-  [  90] GetById dst:reg7, base:reg5, `x` (Oops.x)
-  [  b0] End value:reg7
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  20] CreateVariable `Oops`, is_immutable:true, is_global:false, is_strict:false
+  [  30] NewFunction dst:reg6, shared_function_data_index:0
+  [  48] InitializeLexicalBinding `Oops`, src:reg6
+  [  60] SetLexicalEnvironment environment:reg4
+  [  68] SetGlobal `Oops`, src:reg6
+  [  80] GetGlobal dst:reg5, `Oops`
+  [  98] GetById dst:reg7, base:reg5, `x` (Oops.x)
+  [  b8] End value:reg7

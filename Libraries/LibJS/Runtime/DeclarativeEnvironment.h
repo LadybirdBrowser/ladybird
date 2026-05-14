@@ -32,6 +32,9 @@ class JS_API DeclarativeEnvironment : public Environment {
 public:
     virtual ~DeclarativeEnvironment() override = default;
 
+    virtual bool is_catch_environment() const override { return m_is_catch_environment; }
+    void set_is_catch_environment(bool value) { m_is_catch_environment = value; }
+
     virtual ThrowCompletionOr<bool> has_binding(Utf16FlyString const& name, Optional<size_t>* = nullptr) const override final;
     virtual ThrowCompletionOr<void> create_mutable_binding(VM&, Utf16FlyString const& name, bool can_be_deleted) override final;
     virtual ThrowCompletionOr<void> create_immutable_binding(VM&, Utf16FlyString const& name, bool strict) override final;
@@ -128,6 +131,7 @@ private:
     DisposeCapability m_dispose_capability;
 
     u64 m_environment_serial_number { 0 };
+    bool m_is_catch_environment { false };
 };
 
 inline ThrowCompletionOr<Value> DeclarativeEnvironment::get_binding_value_direct(VM& vm, size_t index) const

@@ -10,7 +10,7 @@ block0:
   [  38] End value:reg5
 
 
-outer$e7583c0c captured-variables.js:5:5
+outer$65f64384 captured-variables.js:5:5
   Registers: 7
   Blocks:    1
   Locals:    inner~0
@@ -21,12 +21,12 @@ outer$e7583c0c captured-variables.js:5:5
 block0:
   [   0] GetLexicalEnvironment dst:reg4
   [   8] Mov dst:inner~0, src:Undefined
-  [  18] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1
-  [  28] CreateVariable `captured`, is_immutable:false, is_global:false, is_strict:false
-  [  38] NewFunction dst:inner~0, shared_function_data_index:0
-  [  50] InitializeLexicalBinding `captured`, src:Int32(1)
-  [  68] Call dst:reg6, callee:inner~0, this_value:Undefined, inner
-  [  88] Return value:reg6
+  [  18] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
+  [  30] CreateVariable `captured`, is_immutable:false, is_global:false, is_strict:false
+  [  40] NewFunction dst:inner~0, shared_function_data_index:0
+  [  58] InitializeLexicalBinding `captured`, src:Int32(1)
+  [  70] Call dst:reg6, callee:inner~0, this_value:Undefined, inner
+  [  90] Return value:reg6
 
 
 inner$e471f8e5 captured-variables.js:7:9

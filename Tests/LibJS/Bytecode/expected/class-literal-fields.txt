@@ -26,7 +26,7 @@ block0:
   [ 210] End value:reg5
 
 
-test$7bd6515c class-literal-fields.js:2:5
+test$fa7458d4 class-literal-fields.js:2:5
   Registers: 7
   Blocks:    1
   Locals:    A~0
@@ -41,14 +41,14 @@ test$7bd6515c class-literal-fields.js:2:5
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-  [  18] CreateVariable `A`, is_immutable:true, is_global:false, is_strict:false
-  [  28] SetLexicalEnvironment environment:reg4
-  [  30] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("x"), element_keys:String("y"), element_keys:String("z"), element_keys:String("w"), element_keys:String("s"), element_keys:String("computed")]
-  [  68] Mov dst:A~0, src:reg6
-  [  78] ThrowIfTDZ src:A~0
-  [  80] CallConstruct dst:reg6, callee:A~0, A
-  [  98] Return value:reg6
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  20] CreateVariable `A`, is_immutable:true, is_global:false, is_strict:false
+  [  30] SetLexicalEnvironment environment:reg4
+  [  38] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("x"), element_keys:String("y"), element_keys:String("z"), element_keys:String("w"), element_keys:String("s"), element_keys:String("computed")]
+  [  70] Mov dst:A~0, src:reg6
+  [  80] ThrowIfTDZ src:A~0
+  [  88] CallConstruct dst:reg6, callee:A~0, A
+  [  a0] Return value:reg6
 
 
 A$ef0589ec

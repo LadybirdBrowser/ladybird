@@ -1,4 +1,4 @@
-$67bc40cb delete-super-eval-order.js:4:1
+$e91e3953 delete-super-eval-order.js:4:1
   Registers: 10
   Blocks:    3
   Constants:
@@ -8,30 +8,30 @@ $67bc40cb delete-super-eval-order.js:4:1
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-  [  18] CreateVariable `A`, is_immutable:true, is_global:false, is_strict:false
-  [  28] SetLexicalEnvironment environment:reg4
-  [  30] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("m")]
-  [  58] InitializeLexicalBinding `A`, src:reg6
-  [  70] Jump target:block2
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  20] CreateVariable `A`, is_immutable:true, is_global:false, is_strict:false
+  [  30] SetLexicalEnvironment environment:reg4
+  [  38] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("m")]
+  [  60] InitializeLexicalBinding `A`, src:reg6
+  [  78] Jump target:block2
 
 block1:
-  [  78] Catch dst:reg6
-  [  80] SetLexicalEnvironment environment:reg4
-  [  88] Mov2 dst1:reg5, src1:Undefined, dst2:reg7, src2:reg5
-  [  a0] End value:reg5
+  [  80] Catch dst:reg6
+  [  88] SetLexicalEnvironment environment:reg4
+  [  90] Mov2 dst1:reg5, src1:Undefined, dst2:reg7, src2:reg5
+  [  a8] End value:reg5
 
 block2:
-  [  a8] Mov dst:reg6, src:Undefined
-  [  b8] GetGlobal dst:reg9, `A`
-  [  d0] CallConstruct dst:reg8, callee:reg9, A
-  [  e8] GetById dst:reg9, base:reg8, `m`
-  [ 108] Call dst:reg5, callee:reg9, this_value:reg8, <object>.m, arguments:[String("x")]
-  [ 130] Mov2 dst1:reg6, src1:reg5, dst2:reg5, src2:reg6
-  [ 148] End value:reg5
+  [  b0] Mov dst:reg6, src:Undefined
+  [  c0] GetGlobal dst:reg9, `A`
+  [  d8] CallConstruct dst:reg8, callee:reg9, A
+  [  f0] GetById dst:reg9, base:reg8, `m`
+  [ 110] Call dst:reg5, callee:reg9, this_value:reg8, <object>.m, arguments:[String("x")]
+  [ 138] Mov2 dst1:reg6, src1:reg5, dst2:reg5, src2:reg6
+  [ 150] End value:reg5
 
 Exception handlers:
-  [  a8 ..  150] => handler block1
+  [  b0 ..  158] => handler block1
 
 
 A$ef0589ec

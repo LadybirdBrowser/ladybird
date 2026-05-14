@@ -11,7 +11,7 @@ block0:
   [  38] End value:reg5
 
 
-test$65d0907d block-scoped-function-no-tdz.js:3:5
+test$e46e97f5 block-scoped-function-no-tdz.js:3:5
   Registers: 7
   Blocks:    1
   Locals:    foo~0, result~1
@@ -21,13 +21,13 @@ test$65d0907d block-scoped-function-no-tdz.js:3:5
 block0:
   [   0] GetLexicalEnvironment dst:reg4
   [   8] Mov dst:result~1, src:Undefined
-  [  18] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-  [  28] NewFunction dst:reg6, shared_function_data_index:0
-  [  40] Mov dst:foo~0, src:reg6
-  [  50] Call dst:reg6, callee:foo~0, this_value:Undefined, foo
-  [  70] Mov dst:result~1, src:reg6
-  [  80] SetLexicalEnvironment environment:reg4
-  [  88] Return value:result~1
+  [  18] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  30] NewFunction dst:reg6, shared_function_data_index:0
+  [  48] Mov dst:foo~0, src:reg6
+  [  58] Call dst:reg6, callee:foo~0, this_value:Undefined, foo
+  [  78] Mov dst:result~1, src:reg6
+  [  88] SetLexicalEnvironment environment:reg4
+  [  90] Return value:result~1
 
 
 foo$f46a9b04 block-scoped-function-no-tdz.js:5:26

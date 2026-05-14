@@ -353,6 +353,7 @@ op CreateLexicalEnvironment < Instruction
     m_dst: Operand
     m_parent: Operand
     m_capacity: u32
+    m_is_catch_environment: bool
 endop
 
 op CreateImmutableBinding < Instruction

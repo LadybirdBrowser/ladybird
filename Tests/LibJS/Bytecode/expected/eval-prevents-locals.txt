@@ -12,7 +12,7 @@ block0:
   [  70] End value:reg6
 
 
-with_eval$361b5eed eval-prevents-locals.js:6:5
+with_eval$b4b96665 eval-prevents-locals.js:6:5
   Registers: 9
   Blocks:    1
   Constants:
@@ -22,13 +22,13 @@ with_eval$361b5eed eval-prevents-locals.js:6:5
 block0:
   [   0] GetLexicalEnvironment dst:reg4
   [   8] CreateArguments is_immutable:false
-  [  18] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1
-  [  28] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
-  [  38] InitializeLexicalBinding `x`, src:Int32(1)
-  [  50] GetCalleeAndThisFromEnvironment callee:reg7, this_value:reg8, `eval`
-  [  68] CallDirectEval dst:reg6, callee:reg7, this_value:reg8, eval, arguments:[String("")]
-  [  90] GetBinding dst:reg6, `x`
-  [  a8] Return value:reg6
+  [  18] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
+  [  30] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
+  [  40] InitializeLexicalBinding `x`, src:Int32(1)
+  [  58] GetCalleeAndThisFromEnvironment callee:reg7, this_value:reg8, `eval`
+  [  70] CallDirectEval dst:reg6, callee:reg7, this_value:reg8, eval, arguments:[String("")]
+  [  98] GetBinding dst:reg6, `x`
+  [  b0] Return value:reg6
 
 
 eval$b72141f3

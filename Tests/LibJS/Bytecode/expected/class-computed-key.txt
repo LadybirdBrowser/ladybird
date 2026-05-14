@@ -10,16 +10,16 @@ block0:
   [  38] End value:reg5
 
 
-f$88b2a512 class-computed-key.js:4:5
+f$01c8ca6a class-computed-key.js:4:5
   Registers: 8
   Blocks:    1
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-  [  18] CreateVariable ``, is_immutable:true, is_global:false, is_strict:false
-  [  28] GetGlobal dst:reg6, `Symbol`
-  [  40] GetById dst:reg7, base:reg6, `iterator` (Symbol.iterator)
-  [  60] SetLexicalEnvironment environment:reg4
-  [  68] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:reg7]
-  [  90] Return value:reg6
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  20] CreateVariable ``, is_immutable:true, is_global:false, is_strict:false
+  [  30] GetGlobal dst:reg6, `Symbol`
+  [  48] GetById dst:reg7, base:reg6, `iterator` (Symbol.iterator)
+  [  68] SetLexicalEnvironment environment:reg4
+  [  70] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:reg7]
+  [  98] Return value:reg6

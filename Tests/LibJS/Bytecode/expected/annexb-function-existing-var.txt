@@ -10,7 +10,7 @@ block0:
   [  38] End value:reg5
 
 
-test$8422248c annexb-function-existing-var.js:2:5
+test$02c02c04 annexb-function-existing-var.js:2:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -23,12 +23,12 @@ block0:
   [   8] CreateVariable `f`, is_immutable:false, is_global:false, is_strict:false
   [  18] InitializeVariableBinding `f`, src:Undefined
   [  30] SetLexicalBinding `f`, src:Int32(123)
-  [  48] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-  [  58] CreateMutableBinding environment:reg5, `f`, can_be_deleted:false
-  [  68] NewFunction dst:reg6, shared_function_data_index:0
-  [  80] InitializeLexicalBinding `f`, src:reg6
-  [  98] GetBinding dst:reg6, `f`
-  [  b0] SetVariableBinding `f`, src:reg6
-  [  c8] SetLexicalEnvironment environment:reg4
-  [  d0] GetInitializedBinding dst:reg5, `f`
-  [  e8] Return value:reg5
+  [  48] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  60] CreateMutableBinding environment:reg5, `f`, can_be_deleted:false
+  [  70] NewFunction dst:reg6, shared_function_data_index:0
+  [  88] InitializeLexicalBinding `f`, src:reg6
+  [  a0] GetBinding dst:reg6, `f`
+  [  b8] SetVariableBinding `f`, src:reg6
+  [  d0] SetLexicalEnvironment environment:reg4
+  [  d8] GetInitializedBinding dst:reg5, `f`
+  [  f0] Return value:reg5

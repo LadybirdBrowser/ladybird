@@ -20,7 +20,7 @@ block0:
   [ 140] End value:reg7
 
 
-annexBFunctionInIf$f4b6a259 annex-b-function-in-if.js:2:5
+annexBFunctionInIf$f1f2b149 annex-b-function-in-if.js:2:5
   Registers: 8
   Blocks:    4
   Constants:
@@ -33,28 +33,28 @@ block0:
   [  30] JumpFalse condition:arg0, target:block2
 
 block1:
-  [  40] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-  [  50] CreateMutableBinding environment:reg5, `inner`, can_be_deleted:false
-  [  60] NewFunction dst:reg6, shared_function_data_index:0
-  [  78] InitializeLexicalBinding `inner`, src:reg6
-  [  90] GetBinding dst:reg6, `inner`
-  [  a8] SetVariableBinding `inner`, src:reg6
-  [  c0] SetLexicalEnvironment environment:reg4
-  [  c8] Jump target:block3
+  [  40] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  58] CreateMutableBinding environment:reg5, `inner`, can_be_deleted:false
+  [  68] NewFunction dst:reg6, shared_function_data_index:0
+  [  80] InitializeLexicalBinding `inner`, src:reg6
+  [  98] GetBinding dst:reg6, `inner`
+  [  b0] SetVariableBinding `inner`, src:reg6
+  [  c8] SetLexicalEnvironment environment:reg4
+  [  d0] Jump target:block3
 
 block2:
-  [  d0] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-  [  e0] CreateMutableBinding environment:reg5, `inner`, can_be_deleted:false
-  [  f0] NewFunction dst:reg6, shared_function_data_index:1
-  [ 108] InitializeLexicalBinding `inner`, src:reg6
-  [ 120] GetBinding dst:reg6, `inner`
-  [ 138] SetVariableBinding `inner`, src:reg6
-  [ 150] SetLexicalEnvironment environment:reg4
+  [  d8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  f0] CreateMutableBinding environment:reg5, `inner`, can_be_deleted:false
+  [ 100] NewFunction dst:reg6, shared_function_data_index:1
+  [ 118] InitializeLexicalBinding `inner`, src:reg6
+  [ 130] GetBinding dst:reg6, `inner`
+  [ 148] SetVariableBinding `inner`, src:reg6
+  [ 160] SetLexicalEnvironment environment:reg4
 
 block3:
-  [ 158] GetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, `inner`
-  [ 170] Call dst:reg5, callee:reg6, this_value:reg7, inner
-  [ 190] Return value:reg5
+  [ 168] GetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, `inner`
+  [ 180] Call dst:reg5, callee:reg6, this_value:reg7, inner
+  [ 1a0] Return value:reg5
 
 
 inner$b5b8e95a annex-b-function-in-if.js:4:13

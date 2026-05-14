@@ -1,4 +1,4 @@
-$00cee19d class-computed-field-lhs-name.js:1:1
+$87b8bc45 class-computed-field-lhs-name.js:1:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -9,13 +9,13 @@ $00cee19d class-computed-field-lhs-name.js:1:1
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-  [  18] SetLexicalEnvironment environment:reg4
-  [  20] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0 (C), element_keys:[element_keys:Int32(3)]
-  [  48] SetGlobal `C`, src:reg6
-  [  60] GetGlobal dst:reg5, `C`
-  [  78] CallConstruct dst:reg6, callee:reg5, C
-  [  90] End value:reg6
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  20] SetLexicalEnvironment environment:reg4
+  [  28] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0 (C), element_keys:[element_keys:Int32(3)]
+  [  50] SetGlobal `C`, src:reg6
+  [  68] GetGlobal dst:reg5, `C`
+  [  80] CallConstruct dst:reg6, callee:reg5, C
+  [  98] End value:reg6
 
 
 C$e7b179de

@@ -20,7 +20,7 @@ block0:
   [ 140] End value:reg7
 
 
-switchWithBlockDecl$4f465f02 switch-scoping.js:2:5
+switchWithBlockDecl$ba88cf0a switch-scoping.js:2:5
   Registers: 7
   Blocks:    6
   Locals:    result~0
@@ -34,32 +34,32 @@ switchWithBlockDecl$4f465f02 switch-scoping.js:2:5
 block0:
   [   0] GetLexicalEnvironment dst:reg4
   [   8] Mov dst:result~0, src:Undefined
-  [  18] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-  [  28] CreateMutableBinding environment:reg5, `a`, can_be_deleted:false
-  [  38] CreateMutableBinding environment:reg5, `b`, can_be_deleted:false
-  [  48] JumpStrictlyEquals lhs:Int32(1), rhs:arg0, true_target:block3, false_target:block1
+  [  18] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  30] CreateMutableBinding environment:reg5, `a`, can_be_deleted:false
+  [  40] CreateMutableBinding environment:reg5, `b`, can_be_deleted:false
+  [  50] JumpStrictlyEquals lhs:Int32(1), rhs:arg0, true_target:block3, false_target:block1
 
 block1:
-  [  60] JumpStrictlyEquals lhs:Int32(2), rhs:arg0, true_target:block4, false_target:block2
+  [  68] JumpStrictlyEquals lhs:Int32(2), rhs:arg0, true_target:block4, false_target:block2
 
 block2:
-  [  78] Jump target:block5
+  [  80] Jump target:block5
 
 block3:
-  [  80] InitializeLexicalBinding `a`, src:String("one")
-  [  98] NewFunction dst:reg6, shared_function_data_index:0 (result)
-  [  b0] Mov dst:result~0, src:reg6
-  [  c0] Jump target:block5
+  [  88] InitializeLexicalBinding `a`, src:String("one")
+  [  a0] NewFunction dst:reg6, shared_function_data_index:0 (result)
+  [  b8] Mov dst:result~0, src:reg6
+  [  c8] Jump target:block5
 
 block4:
-  [  c8] InitializeLexicalBinding `b`, src:String("two")
-  [  e0] NewFunction dst:reg6, shared_function_data_index:1 (result)
-  [  f8] Mov dst:result~0, src:reg6
+  [  d0] InitializeLexicalBinding `b`, src:String("two")
+  [  e8] NewFunction dst:reg6, shared_function_data_index:1 (result)
+  [ 100] Mov dst:result~0, src:reg6
 
 block5:
-  [ 108] SetLexicalEnvironment environment:reg4
-  [ 110] Call dst:reg5, callee:result~0, this_value:Undefined, result
-  [ 130] Return value:reg5
+  [ 110] SetLexicalEnvironment environment:reg4
+  [ 118] Call dst:reg5, callee:result~0, this_value:Undefined, result
+  [ 138] Return value:reg5
 
 
 result$38b0d48c switch-scoping.js:6:22

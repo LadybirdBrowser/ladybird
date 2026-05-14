@@ -1,4 +1,4 @@
-$b319ee85 lexical-env-teardown.js:13:1
+$31b7f5fd lexical-env-teardown.js:13:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -31,21 +31,21 @@ block0:
   [ 2a0] GetGlobal dst:reg10, `catchTeardown`
   [ 2b8] Call dst:reg9, callee:reg10, this_value:Undefined, catchTeardown
   [ 2d8] Call dst:reg5, callee:reg6, this_value:reg8, console.log, arguments:[reg9]
-  [ 300] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:0
-  [ 310] CreateVariable `myName`, is_immutable:true, is_global:false, is_strict:false
-  [ 320] NewFunction dst:reg6, shared_function_data_index:0
-  [ 338] InitializeLexicalBinding `myName`, src:reg6
-  [ 350] SetLexicalEnvironment environment:reg4
-  [ 358] SetGlobal `namedFn`, src:reg6
-  [ 370] GetGlobal dst:reg7, `console`
-  [ 388] GetById dst:reg8, base:reg7, `log` (console.log)
-  [ 3a8] GetGlobal dst:reg10, `namedFn`
-  [ 3c0] Call dst:reg9, callee:reg10, this_value:Undefined, namedFn
-  [ 3e0] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
-  [ 408] End value:reg6
+  [ 300] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:0, is_catch_environment:false
+  [ 318] CreateVariable `myName`, is_immutable:true, is_global:false, is_strict:false
+  [ 328] NewFunction dst:reg6, shared_function_data_index:0
+  [ 340] InitializeLexicalBinding `myName`, src:reg6
+  [ 358] SetLexicalEnvironment environment:reg4
+  [ 360] SetGlobal `namedFn`, src:reg6
+  [ 378] GetGlobal dst:reg7, `console`
+  [ 390] GetById dst:reg8, base:reg7, `log` (console.log)
+  [ 3b0] GetGlobal dst:reg10, `namedFn`
+  [ 3c8] Call dst:reg9, callee:reg10, this_value:Undefined, namedFn
+  [ 3e8] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
+  [ 410] End value:reg6
 
 
-withTeardown$f8b3e64d lexical-env-teardown.js:7:5
+withTeardown$7751edc5 lexical-env-teardown.js:7:5
   Registers: 10
   Blocks:    1
   Locals:    inner~0
@@ -56,19 +56,19 @@ withTeardown$f8b3e64d lexical-env-teardown.js:7:5
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1
-  [  18] CreateVariable `outer`, is_immutable:false, is_global:false, is_strict:false
-  [  28] InitializeLexicalBinding `outer`, src:Int32(1)
-  [  40] NewObject dst:reg6
-  [  50] InitObjectLiteralProperty object:reg6, `x`, src:Int32(10), shape_cache_index:0, property_slot:0
-  [  68] CacheObjectShape object:reg6
-  [  78] EnterObjectEnvironment dst:reg7, object:reg6
-  [  88] GetBinding dst:reg8, `x`
-  [  a0] GetBinding dst:reg9, `outer`
-  [  b8] Add dst:inner~0, lhs:reg8, rhs:reg9
-  [  c8] SetLexicalEnvironment environment:reg5
-  [  d0] GetBinding dst:reg6, `outer`
-  [  e8] Return value:reg6
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
+  [  20] CreateVariable `outer`, is_immutable:false, is_global:false, is_strict:false
+  [  30] InitializeLexicalBinding `outer`, src:Int32(1)
+  [  48] NewObject dst:reg6
+  [  58] InitObjectLiteralProperty object:reg6, `x`, src:Int32(10), shape_cache_index:0, property_slot:0
+  [  70] CacheObjectShape object:reg6
+  [  80] EnterObjectEnvironment dst:reg7, object:reg6
+  [  90] GetBinding dst:reg8, `x`
+  [  a8] GetBinding dst:reg9, `outer`
+  [  c0] Add dst:inner~0, lhs:reg8, rhs:reg9
+  [  d0] SetLexicalEnvironment environment:reg5
+  [  d8] GetBinding dst:reg6, `outer`
+  [  f0] Return value:reg6
 
 
 blockTeardown$b6f5c4f0 lexical-env-teardown.js:17:5

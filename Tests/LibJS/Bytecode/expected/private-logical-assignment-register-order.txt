@@ -1,4 +1,4 @@
-$2d2a9e5a private-logical-assignment-register-order.js:1:1
+$ae8c96e2 private-logical-assignment-register-order.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -7,19 +7,19 @@ $2d2a9e5a private-logical-assignment-register-order.js:1:1
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-  [  18] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:false
-  [  28] CreatePrivateEnvironment
-  [  30] AddPrivateName `#x`
-  [  38] SetLexicalEnvironment environment:reg4
-  [  40] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("f")]
-  [  68] LeavePrivateEnvironment
-  [  70] InitializeLexicalBinding `C`, src:reg6
-  [  88] GetGlobal dst:reg7, `C`
-  [  a0] CallConstruct dst:reg5, callee:reg7, C
-  [  b8] GetById dst:reg7, base:reg5, `f`
-  [  d8] Call dst:reg6, callee:reg7, this_value:reg5, <object>.f
-  [  f8] End value:reg6
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  20] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:false
+  [  30] CreatePrivateEnvironment
+  [  38] AddPrivateName `#x`
+  [  40] SetLexicalEnvironment environment:reg4
+  [  48] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("f")]
+  [  70] LeavePrivateEnvironment
+  [  78] InitializeLexicalBinding `C`, src:reg6
+  [  90] GetGlobal dst:reg7, `C`
+  [  a8] CallConstruct dst:reg5, callee:reg7, C
+  [  c0] GetById dst:reg7, base:reg5, `f`
+  [  e0] Call dst:reg6, callee:reg7, this_value:reg5, <object>.f
+  [ 100] End value:reg6
 
 
 C$e7b179de

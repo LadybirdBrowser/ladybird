@@ -954,12 +954,21 @@ impl Generator {
     }
 
     pub fn push_new_lexical_environment(&mut self, capacity: u32) -> ScopedOperand {
+        self.push_new_lexical_environment_impl(capacity, false)
+    }
+
+    pub fn push_new_catch_lexical_environment(&mut self, capacity: u32) -> ScopedOperand {
+        self.push_new_lexical_environment_impl(capacity, true)
+    }
+
+    fn push_new_lexical_environment_impl(&mut self, capacity: u32, is_catch_environment: bool) -> ScopedOperand {
         let parent = self.current_lexical_environment();
         let new_env = self.allocate_register();
         self.emit(Instruction::CreateLexicalEnvironment {
             dst: new_env.operand(),
             parent: parent.operand(),
             capacity,
+            is_catch_environment,
         });
         self.lexical_environment_register_stack.push(new_env.clone());
         new_env

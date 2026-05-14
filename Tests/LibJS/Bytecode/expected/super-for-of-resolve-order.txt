@@ -1,4 +1,4 @@
-$87b8bc45 super-for-of-resolve-order.js:1:1
+$091ab4cd super-for-of-resolve-order.js:1:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -6,14 +6,14 @@ $87b8bc45 super-for-of-resolve-order.js:1:1
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-  [  18] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:false
-  [  28] SetLexicalEnvironment environment:reg4
-  [  30] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0
-  [  50] InitializeLexicalBinding `C`, src:reg6
-  [  68] GetGlobal dst:reg5, `C`
-  [  80] CallConstruct dst:reg6, callee:reg5, C
-  [  98] End value:reg6
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  20] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:false
+  [  30] SetLexicalEnvironment environment:reg4
+  [  38] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0
+  [  58] InitializeLexicalBinding `C`, src:reg6
+  [  70] GetGlobal dst:reg5, `C`
+  [  88] CallConstruct dst:reg6, callee:reg5, C
+  [  a0] End value:reg6
 
 
 C$9d8b2466 super-for-of-resolve-order.js:3:28
