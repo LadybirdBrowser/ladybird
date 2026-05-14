@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<title>@container: invalidation of container size after load event</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#size-container">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<style>
+  #container {
+    container-type: size;
+    width: 200px;
+    height: 4em;
+    border: 1px solid black;
+  }
+  @container (width > 300px) {
+    #child { color: green; }
+  }
+</style>
+<div id=container>
+  <div id=child>
+    Green
+  </div>
+</div>
+<script>
+  setup(() => assert_implements_size_container_queries());
+
+  function waitForLoad(w) {
+    return new Promise(resolve => w.addEventListener('load', resolve));
+  }
+
+  promise_test(async () => {
+    await waitForLoad(window);
+    container.offsetTop;
+
+    container.style.width = '400px';
+    container.style.setProperty('--x', 'x'); // crbug.com/1321010
+
+    assert_equals(getComputedStyle(child).color, 'rgb(0, 128, 0)');
+  });
+</script>

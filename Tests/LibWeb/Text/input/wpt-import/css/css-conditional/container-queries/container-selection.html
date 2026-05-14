@@ -1,0 +1,183 @@
+<!doctype html>
+<title>@container: selection using name and implicit selection</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-rule">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<style>
+
+  main { background-color: lightgray; }
+  main > div { background-color: skyblue; }
+  main > div > div { background-color: seagreen; }
+  main > div > div > div { background-color: tomato; }
+
+  main {
+    width: 64px;
+    height: 64px;
+  }
+
+  main div {
+    width: 50%;
+    height: 50%;
+  }
+
+  .inline { container-type: inline-size; }
+  .size { container-type: size; }
+
+  .a-inline { container: a / inline-size; }
+  .a-size { container: a / size; }
+
+  .b-size { container: inline- b / size; }
+  .b-size { container: b / size; }
+
+  .ab-size { container: a b / size; }
+
+  .a { container-name: a; contain: strict; }
+
+</style>
+
+<main>
+  <div class="inline">
+    <div class="size">
+      <span></span>
+    </div>
+  </div>
+</main>
+
+<main>
+  <div class="size">
+    <div class="inline">
+      <span></span>
+    </div>
+  </div>
+</main>
+
+<main>
+  <div class="inline">
+    <div class="inline">
+      <span></span>
+    </div>
+  </div>
+</main>
+
+<main>
+  <div class="a-size">
+    <div class="b-size">
+      <span></span>
+    </div>
+  </div>
+</main>
+
+<main>
+  <div class="a-size">
+    <div class="a-size">
+      <span></span>
+    </div>
+  </div>
+</main>
+
+<main>
+  <div class="a-size">
+    <div class="a">
+      <span></span>
+    </div>
+  </div>
+</main>
+
+<main>
+  <div class="a-size">
+    <div class="b-size">
+      <div class="a-inline">
+        <span></span>
+      </div>
+    </div>
+  </div>
+</main>
+
+<main>
+  <div class="a-inline">
+    <div class="b-size">
+      <span></span>
+    </div>
+  </div>
+</main>
+
+<main>
+  <div class="ab-size">
+    <div class="size">
+      <span></span>
+    </div>
+  </div>
+</main>
+
+<script>
+  setup(() => assert_implements_size_container_queries());
+
+  function test_query(prelude, selector, expected) {
+    test(t => {
+      let elements = document.querySelectorAll(selector);
+      assert_equals(elements.length, 1);
+      let element = elements[0];
+
+      let style = document.createElement('style');
+      t.add_cleanup(() => { style.remove(); });
+      style.innerText = `@container ${prelude} { span { --match:true; } } `;
+      document.body.append(style);
+
+      assert_equals(getComputedStyle(element).getPropertyValue('--match'), expected);
+    }, `${prelude} for ${selector}`);
+  }
+
+  // Test that a given container query applies to the specified element.
+  // The provided selector must unique identify the element.
+  function test_applied(prelude, selector) {
+    test_query(prelude, selector, 'true');
+  }
+
+  function test_rejected(prelude, selector) {
+    test_query(prelude, selector, '');
+  }
+
+  // For the following tests, the inner container has a size of 16x16px,
+  // and the outer container has a size of 32x32px.
+
+  // Implicit selection:
+  test_applied('(width: 16px)',  '.size > .inline > span');
+  test_applied('(height: 16px)', '.inline > .size > span');
+  test_applied('(width: 16px)',  '.inline > .size > span');
+  test_applied('(height: 32px)', '.size > .inline > span');
+  test_rejected('(height: 16px)', '.size > .inline > span');
+
+  // Name selection:
+  test_applied('a (width: 32px)', '.a-size > .b-size > span');
+  test_applied('b (width: 16px)', '.a-size > .b-size > span');
+  test_rejected('c (width)', '.a-size > .b-size > span');
+  test_applied('a (width: 16px)', '.a-size > .a-size > span');
+
+  // container-name alone does not establish a container:
+  test_applied('a (width: 32px)', '.a-size > .a > span');
+
+  // Can query container with multiple names:
+  test_applied('a (width: 32px)', '.ab-size > .size > span');
+  test_applied('b (width: 32px)', '.ab-size > .size > span');
+  test_rejected('c (width)', '.ab-size > .size > span');
+
+  // The following tests have three containers:
+  //
+  //  outer  -> 32x32px
+  //  middle -> 16x16px
+  //  inner -> 8x8px
+
+  // Combinations of name and implicit selection:
+  test_applied('a (width: 8px)', '.a-size > .b-size > .a-inline > span');
+  test_applied('b (width: 16px)', '.a-size > .b-size > .a-inline > span');
+  test_applied('a (height: 32px)', '.a-size > .b-size > .a-inline > span');
+  test_rejected('a (height)', '.a-inline > .b-size');
+
+  // Same tests as above, but logical versions:
+  test_applied('a (inline-size: 8px)', '.a-size > .b-size > .a-inline > span');
+  test_applied('b (inline-size: 16px)', '.a-size > .b-size > .a-inline > span');
+  test_applied('a (block-size: 32px)', '.a-size > .b-size > .a-inline > span');
+  test_rejected('a (block-size)', '.a-inline > .b-size');
+
+</script>

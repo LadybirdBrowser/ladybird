@@ -1,0 +1,53 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Container Queries Test: Invalidate size container query for Shadow DOM</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#query-container">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<style>
+  .container {
+    container-type: inline-size;
+    width: 100px;
+  }
+  @container (width = 200px) {
+    .target { color: green; }
+  }
+</style>
+<div id="host_container" class="container">
+  <template shadowrootmode="open">
+    <div class="container">
+      <slot></slot>
+    </div>
+  </template>
+  <div class="target">Green</div>
+</div>
+<div id="non_host_container" class="container">
+  <div>
+    <template shadowrootmode="open">
+      <div class="container">
+        <slot></slot>
+      </div>
+    </template>
+    <div class="target">Green</div>
+  </div>
+</div>
+<script>
+  setup(() => {
+    assert_implements_size_container_queries();
+  });
+
+  const green = "rgb(0, 128, 0)";
+
+  test(() => {
+    document.body.offsetTop;
+    host_container.style.width = "200px";
+    assert_equals(getComputedStyle(document.querySelector("#host_container .target")).color, green);
+  }, "Host container child invalidated with container in shadow tree");
+
+  test(() => {
+    document.body.offsetTop;
+    non_host_container.style.width = "200px";
+    assert_equals(getComputedStyle(document.querySelector("#non_host_container .target")).color, green);
+  }, "Non-host container child invalidated with container in shadow tree");
+</script>
