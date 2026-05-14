@@ -1915,16 +1915,7 @@ bool Element::has_pseudo_elements() const
     return false;
 }
 
-void Element::clear_pseudo_element_nodes(Badge<Layout::TreeBuilder>)
-{
-    if (m_pseudo_element_data) {
-        for (auto& pseudo_element : *m_pseudo_element_data) {
-            pseudo_element.value->set_layout_node(nullptr);
-        }
-    }
-}
-
-void Element::clear_pseudo_element_layout_nodes(Badge<Document>)
+void Element::clear_pseudo_element_layout_nodes()
 {
     if (m_pseudo_element_data) {
         for (auto& pseudo_element : *m_pseudo_element_data) {
