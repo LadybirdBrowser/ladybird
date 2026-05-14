@@ -91,15 +91,6 @@ struct ScreenshotCommand {
 
 using CompositorCommand = Variant<UpdateDisplayListCommand, AsyncScrollByCommand, ViewportScrollbarDragCommand, UpdateScrollStateCommand, UpdateBackingStoresCommand, ScreenshotCommand>;
 
-static Optional<AsyncScrollNode> viewport_scroll_node(AsyncScrollingState const& state)
-{
-    for (auto const& node : state.scroll_nodes) {
-        if (node.is_viewport)
-            return node;
-    }
-    return {};
-}
-
 static SkRect to_skia_rect(Gfx::IntRect const& rect)
 {
     return SkRect::MakeXYWH(rect.x(), rect.y(), rect.width(), rect.height());
@@ -134,6 +125,17 @@ static Optional<size_t> find_viewport_scrollbar_index(ReadonlySpan<ViewportScrol
             return i;
     }
     return {};
+}
+
+static void set_or_append_pending_scroll_offset(Vector<AsyncScrollOffset>& pending_scroll_offsets, AsyncScrollOffset const& scroll_offset)
+{
+    for (auto& existing : pending_scroll_offsets) {
+        if (existing.stable_node_id == scroll_offset.stable_node_id) {
+            existing.scroll_offset = scroll_offset.scroll_offset;
+            return;
+        }
+    }
+    pending_scroll_offsets.append(scroll_offset);
 }
 
 static Gfx::IntRect scrollbar_gutter_rect(ViewportScrollbar const& scrollbar, bool expanded)
@@ -354,31 +356,25 @@ public:
             m_frame_completed.wait();
     }
 
-    Optional<Gfx::FloatPoint> take_pending_async_viewport_scroll_offset()
+    Vector<AsyncScrollOffset> take_pending_async_scroll_offsets()
     {
         Sync::MutexLocker const locker { m_mutex };
-        auto scroll_offset = m_pending_async_viewport_scroll_offset;
-        m_pending_async_viewport_scroll_offset.clear();
-        return scroll_offset;
+        Vector<AsyncScrollOffset> scroll_offsets;
+        AK::swap(scroll_offsets, m_pending_async_scroll_offsets);
+        return scroll_offsets;
     }
 
-    Optional<Gfx::FloatPoint> pending_async_viewport_scroll_offset() const
+    bool should_defer_async_scroll_offset_adoption() const
     {
         Sync::MutexLocker const locker { m_mutex };
-        return m_pending_async_viewport_scroll_offset;
-    }
-
-    bool should_defer_async_viewport_scroll_offset_adoption() const
-    {
-        Sync::MutexLocker const locker { m_mutex };
-        return m_pending_async_viewport_scroll_offset.has_value()
+        return !m_pending_async_scroll_offsets.is_empty()
             && m_is_rasterizing;
     }
 
     bool should_defer_main_thread_present_for_async_scroll() const
     {
         Sync::MutexLocker const locker { m_mutex };
-        return m_pending_async_viewport_scroll_offset.has_value()
+        return !m_pending_async_scroll_offsets.is_empty()
             && (m_is_rasterizing || m_has_deferred_async_scroll_present || m_queued_rasterization_tasks > 0);
     }
 
@@ -391,20 +387,21 @@ public:
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Invalidated compositor wheel listener state (generation={})", generation);
     }
 
-    struct ViewportWheelTarget {
+    struct WheelTarget {
         Optional<AsyncScrollNodeID> node_id;
-        bool rejected_non_viewport_target { false };
+        bool blocked_by_main_thread_region { false };
+        bool blocked_by_wheel_event_region { false };
     };
 
-    ViewportWheelTarget hit_test_viewport_scroll_node_for_wheel(Gfx::FloatPoint position, Gfx::FloatPoint delta) const
+    WheelTarget hit_test_scroll_node_for_wheel(Gfx::FloatPoint position, Gfx::FloatPoint delta) const
     {
         Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
         auto scroll_target = m_async_scroll_tree.hit_test_scroll_node_for_wheel(position, delta);
-        if (scroll_target.blocked_by_main_thread_region || !scroll_target.node_id.has_value())
-            return {};
-        if (!m_async_scroll_tree.scroll_node_is_viewport(*scroll_target.node_id))
-            return { {}, true };
-        return { scroll_target.node_id, false };
+        return {
+            .node_id = scroll_target.node_id,
+            .blocked_by_main_thread_region = scroll_target.blocked_by_main_thread_region,
+            .blocked_by_wheel_event_region = scroll_target.blocked_by_wheel_event_region,
+        };
     }
 
     bool enqueue_async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position,
@@ -419,9 +416,14 @@ public:
                 wheel_routing_admission_to_string(wheel_routing_admission));
             return false;
         }
-        auto scroll_target = hit_test_viewport_scroll_node_for_wheel(position, delta_in_device_pixels);
-        if (scroll_target.rejected_non_viewport_target) {
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: non-viewport target at {},{} device delta {},{}",
+        auto scroll_target = hit_test_scroll_node_for_wheel(position, delta_in_device_pixels);
+        if (scroll_target.blocked_by_main_thread_region) {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: main-thread wheel region at {},{} device delta {},{}",
+                position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y());
+            return false;
+        }
+        if (scroll_target.blocked_by_wheel_event_region) {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: blocking wheel event region at {},{} device delta {},{}",
                 position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y());
             return false;
         }
@@ -436,8 +438,8 @@ public:
             return false;
         }
 
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor accepted main-thread async scroll enqueue at {},{} device delta {},{} viewport={}x{} at {},{}",
-            position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y(), viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor accepted main-thread async scroll enqueue at {},{} device delta {},{} for scroll node {} viewport={}x{} at {},{}",
+            position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y(), scroll_target.node_id->scroll_frame_index.value(), viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
         enqueue_command(AsyncScrollByCommand { position, delta_in_device_pixels, viewport_rect, *scroll_target.node_id });
         return true;
     }
@@ -458,9 +460,14 @@ public:
             Sync::MutexLocker const locker { m_mutex };
             return m_async_scrolling_viewport_rect;
         }();
-        auto scroll_target = hit_test_viewport_scroll_node_for_wheel(position, delta_in_device_pixels);
-        if (scroll_target.rejected_non_viewport_target) {
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: non-viewport target at {},{} device delta {},{}",
+        auto scroll_target = hit_test_scroll_node_for_wheel(position, delta_in_device_pixels);
+        if (scroll_target.blocked_by_main_thread_region) {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: main-thread wheel region at {},{} device delta {},{}",
+                position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y());
+            return false;
+        }
+        if (scroll_target.blocked_by_wheel_event_region) {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: blocking wheel event region at {},{} device delta {},{}",
                 position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y());
             return false;
         }
@@ -470,8 +477,8 @@ public:
             return false;
         }
 
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor accepted async scroll enqueue at {},{} device delta {},{} viewport={}x{} at {},{}",
-            position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y(), viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor accepted async scroll enqueue at {},{} device delta {},{} for scroll node {} viewport={}x{} at {},{}",
+            position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y(), scroll_target.node_id->scroll_frame_index.value(), viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
         enqueue_command(AsyncScrollByCommand { position, delta_in_device_pixels, viewport_rect, *scroll_target.node_id });
         return true;
     }
@@ -664,10 +671,9 @@ public:
                             async_scrolling_state.scroll_nodes.size(),
                             async_scrolling_state.sticky_areas.size(),
                             async_scrolling_state.blocking_wheel_event_regions.size());
-                        auto viewport_node = viewport_scroll_node(async_scrolling_state);
-                        auto pending_async_viewport_scroll_offset = [this] {
+                        auto pending_async_scroll_offsets = [this] {
                             Sync::MutexLocker const locker { m_mutex };
-                            return m_pending_async_viewport_scroll_offset;
+                            return m_pending_async_scroll_offsets;
                         }();
 
                         {
@@ -678,11 +684,11 @@ public:
                             m_hovered_viewport_scrollbar_index = hovered_scrollbar_identity.has_value() ? find_viewport_scrollbar_index(m_viewport_scrollbars, *hovered_scrollbar_identity) : Optional<size_t> {};
                             m_captured_viewport_scrollbar_index = captured_scrollbar_identity.has_value() ? find_viewport_scrollbar_index(m_viewport_scrollbars, *captured_scrollbar_identity) : Optional<size_t> {};
                             m_async_scroll_tree.set_state(move(async_scrolling_state));
-                            if (viewport_node.has_value() && pending_async_viewport_scroll_offset.has_value()) {
-                                dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Reapplying pending async viewport offset {},{} to display list update",
-                                    pending_async_viewport_scroll_offset->x(), pending_async_viewport_scroll_offset->y());
-                                if (auto reconciled_scroll_offset = m_async_scroll_tree.set_scroll_offset(viewport_node->node_id, *pending_async_viewport_scroll_offset, m_cached_scroll_state_snapshot); reconciled_scroll_offset.has_value())
-                                    async_scrolling_viewport_rect.set_location(reconciled_scroll_offset->to_type<int>());
+                            if (!pending_async_scroll_offsets.is_empty()) {
+                                dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Reapplying {} pending async scroll offset(s) to display list update",
+                                    pending_async_scroll_offsets.size());
+                                if (auto viewport_scroll_offset = reapply_pending_async_scroll_offsets(pending_async_scroll_offsets); viewport_scroll_offset.has_value())
+                                    async_scrolling_viewport_rect.set_location(viewport_scroll_offset->to_type<int>());
                             }
                             m_async_scroll_tree.rebuild_wheel_hit_test_targets(m_cached_display_list, m_cached_scroll_state_snapshot);
                         }
@@ -693,27 +699,28 @@ public:
                         m_has_async_scrolling_state = true;
                     },
                     [this, &should_yield_to_async_scroll_present](AsyncScrollByCommand& cmd) {
-                        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor processing async scroll command at {},{} device delta {},{} (raster_tasks={}, deferred_async_present={})",
-                            cmd.position.x(), cmd.position.y(), cmd.delta_in_device_pixels.x(), cmd.delta_in_device_pixels.y(), m_queued_rasterization_tasks.load(), m_has_deferred_async_scroll_present);
+                        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor processing async scroll command at {},{} device delta {},{} for scroll node {} (raster_tasks={}, deferred_async_present={})",
+                            cmd.position.x(), cmd.position.y(), cmd.delta_in_device_pixels.x(), cmd.delta_in_device_pixels.y(), cmd.scroll_target.scroll_frame_index.value(), m_queued_rasterization_tasks.load(), m_has_deferred_async_scroll_present);
                         auto async_scroll_viewport_rect = cmd.viewport_rect;
-                        Optional<Gfx::FloatPoint> scroll_offset;
+                        Vector<AsyncScrollOffset> scroll_offsets;
                         {
                             Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
-                            if (!m_async_scroll_tree.apply_scroll_delta(cmd.scroll_target, cmd.delta_in_device_pixels, m_cached_scroll_state_snapshot)) {
+                            scroll_offsets = m_async_scroll_tree.apply_scroll_delta(cmd.scroll_target, cmd.delta_in_device_pixels, m_cached_scroll_state_snapshot);
+                            if (scroll_offsets.is_empty()) {
                                 dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Dropping async scroll command: scroll tree consumed no delta");
                                 return;
                             }
-                            scroll_offset = m_async_scroll_tree.scroll_offset_for_node(cmd.scroll_target, m_cached_scroll_state_snapshot);
                             m_async_scroll_tree.rebuild_wheel_hit_test_targets(m_cached_display_list, m_cached_scroll_state_snapshot);
                         }
-                        if (scroll_offset.has_value()) {
-                            async_scroll_viewport_rect.set_location(scroll_offset->to_type<int>());
+                        if (auto viewport_scroll_offset = viewport_scroll_offset_from(scroll_offsets); viewport_scroll_offset.has_value())
+                            async_scroll_viewport_rect.set_location(viewport_scroll_offset->to_type<int>());
+                        store_pending_async_scroll_offsets(scroll_offsets);
+                        {
                             Sync::MutexLocker const locker { m_mutex };
-                            m_pending_async_viewport_scroll_offset = *scroll_offset;
                             m_async_scrolling_viewport_rect = async_scroll_viewport_rect;
-                            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Stored pending async viewport offset {},{}",
-                                scroll_offset->x(), scroll_offset->y());
                         }
+                        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Stored {} pending async scroll offset(s)",
+                            scroll_offsets.size());
                         invoke_on_main_thread([] {
                             HTML::main_thread_event_loop().queue_task_to_update_the_rendering();
                         });
@@ -738,21 +745,17 @@ public:
                     [this](UpdateScrollStateCommand& cmd) {
                         m_cached_scroll_state_snapshot = move(cmd.scroll_state_snapshot);
                         if (m_has_async_scrolling_state) {
-                            auto pending_async_viewport_scroll_offset = [this] {
+                            auto pending_async_scroll_offsets = [this] {
                                 Sync::MutexLocker const locker { m_mutex };
-                                return m_pending_async_viewport_scroll_offset;
+                                return m_pending_async_scroll_offsets;
                             }();
                             Optional<Gfx::FloatPoint> reconciled_viewport_scroll_offset;
                             {
                                 Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
-                                if (pending_async_viewport_scroll_offset.has_value()) {
-                                    if (auto viewport_node_id = m_async_scroll_tree.viewport_scroll_node_id(); viewport_node_id.has_value()) {
-                                        // A main-thread scroll-state update can be older than compositor-side async
-                                        // scrolling. Preserve the compositor-visible viewport offset in the fresh
-                                        // snapshot before rebuilding hit-test data from it.
-                                        reconciled_viewport_scroll_offset = m_async_scroll_tree.set_scroll_offset(*viewport_node_id, *pending_async_viewport_scroll_offset, m_cached_scroll_state_snapshot);
-                                    }
-                                }
+                                // A main-thread scroll-state update can be older than compositor-side async
+                                // scrolling. Preserve compositor-visible offsets in the fresh snapshot before
+                                // rebuilding hit-test data from it.
+                                reconciled_viewport_scroll_offset = reapply_pending_async_scroll_offsets(pending_async_scroll_offsets);
                                 m_async_scroll_tree.rebuild_wheel_hit_test_targets(m_cached_display_list, m_cached_scroll_state_snapshot);
                             }
                             if (reconciled_viewport_scroll_offset.has_value()) {
@@ -835,6 +838,36 @@ private:
         AsyncScroll,
     };
 
+    void store_pending_async_scroll_offsets(Vector<AsyncScrollOffset> const& scroll_offsets)
+    {
+        Sync::MutexLocker const locker { m_mutex };
+        for (auto const& scroll_offset : scroll_offsets)
+            set_or_append_pending_scroll_offset(m_pending_async_scroll_offsets, scroll_offset);
+    }
+
+    Optional<Gfx::FloatPoint> reapply_pending_async_scroll_offsets(Vector<AsyncScrollOffset> const& pending_scroll_offsets)
+    {
+        Optional<Gfx::FloatPoint> viewport_scroll_offset;
+        for (auto const& pending_scroll_offset : pending_scroll_offsets) {
+            auto node_id = m_async_scroll_tree.scroll_node_id_for_stable_id(pending_scroll_offset.stable_node_id);
+            if (!node_id.has_value())
+                continue;
+            auto reconciled_scroll_offset = m_async_scroll_tree.set_scroll_offset(*node_id, pending_scroll_offset.scroll_offset, m_cached_scroll_state_snapshot);
+            if (reconciled_scroll_offset.has_value() && m_async_scroll_tree.scroll_node_is_viewport(*node_id))
+                viewport_scroll_offset = *reconciled_scroll_offset;
+        }
+        return viewport_scroll_offset;
+    }
+
+    static Optional<Gfx::FloatPoint> viewport_scroll_offset_from(Vector<AsyncScrollOffset> const& scroll_offsets)
+    {
+        for (auto const& scroll_offset : scroll_offsets) {
+            if (scroll_offset.stable_node_id.kind == AsyncScrollNodeKind::Viewport)
+                return scroll_offset.scroll_offset;
+        }
+        return {};
+    }
+
     void paint_viewport_scrollbar_overlay(Gfx::PaintingSurface& surface)
     {
         Vector<ViewportScrollbar> scrollbars;
@@ -875,7 +908,7 @@ private:
 
     bool apply_viewport_scrollbar_drag(size_t scrollbar_index, float primary_position, float thumb_grab_position)
     {
-        Optional<Gfx::FloatPoint> scroll_offset;
+        Vector<AsyncScrollOffset> scroll_offsets;
         {
             Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
             if (scrollbar_index >= m_viewport_scrollbars.size())
@@ -903,21 +936,23 @@ private:
             if (delta.x() == 0 && delta.y() == 0)
                 return false;
 
-            if (!m_async_scroll_tree.apply_scroll_delta(scrollbar.scroll_node_id, delta, m_cached_scroll_state_snapshot))
+            scroll_offsets = m_async_scroll_tree.apply_scroll_delta(scrollbar.scroll_node_id, delta, m_cached_scroll_state_snapshot);
+            if (scroll_offsets.is_empty())
                 return false;
-            scroll_offset = m_async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id, m_cached_scroll_state_snapshot);
             m_async_scroll_tree.rebuild_wheel_hit_test_targets(m_cached_display_list, m_cached_scroll_state_snapshot);
         }
 
+        auto scroll_offset = viewport_scroll_offset_from(scroll_offsets);
         if (!scroll_offset.has_value())
             return false;
+
+        store_pending_async_scroll_offsets(scroll_offsets);
 
         Gfx::IntRect async_scroll_viewport_rect;
         {
             Sync::MutexLocker const locker { m_mutex };
             async_scroll_viewport_rect = m_async_scrolling_viewport_rect;
             async_scroll_viewport_rect.set_location(scroll_offset->to_type<int>());
-            m_pending_async_viewport_scroll_offset = *scroll_offset;
             m_async_scrolling_viewport_rect = async_scroll_viewport_rect;
             m_has_deferred_async_scroll_present = true;
             m_deferred_async_scroll_present_viewport_rect = async_scroll_viewport_rect;
@@ -1120,7 +1155,7 @@ private:
     u64 m_submitted_frame_id { 0 };
     u64 m_completed_frame_id { 0 };
     mutable Sync::ConditionVariable m_frame_completed { m_mutex };
-    Optional<Gfx::FloatPoint> m_pending_async_viewport_scroll_offset;
+    Vector<AsyncScrollOffset> m_pending_async_scroll_offsets;
     Gfx::IntRect m_async_scrolling_viewport_rect;
     Atomic<bool> m_has_async_scrolling_state { false };
     Atomic<bool> m_can_accept_async_wheel_events { false };
@@ -1434,14 +1469,9 @@ bool CompositorThread::async_scroll_by(UniqueNodeID expected_document_id, Gfx::F
     return m_thread_data->enqueue_async_scroll_by(expected_document_id, position, delta_in_device_pixels, viewport_rect);
 }
 
-Optional<Gfx::FloatPoint> CompositorThread::pending_async_viewport_scroll_offset() const
+bool CompositorThread::should_defer_async_scroll_offset_adoption() const
 {
-    return m_thread_data->pending_async_viewport_scroll_offset();
-}
-
-bool CompositorThread::should_defer_async_viewport_scroll_offset_adoption() const
-{
-    return m_thread_data->should_defer_async_viewport_scroll_offset_adoption();
+    return m_thread_data->should_defer_async_scroll_offset_adoption();
 }
 
 bool CompositorThread::should_defer_main_thread_present_for_async_scroll() const
@@ -1449,9 +1479,9 @@ bool CompositorThread::should_defer_main_thread_present_for_async_scroll() const
     return m_thread_data->should_defer_main_thread_present_for_async_scroll();
 }
 
-Optional<Gfx::FloatPoint> CompositorThread::take_pending_async_viewport_scroll_offset()
+Vector<AsyncScrollOffset> CompositorThread::take_pending_async_scroll_offsets()
 {
-    return m_thread_data->take_pending_async_viewport_scroll_offset();
+    return m_thread_data->take_pending_async_scroll_offsets();
 }
 
 void CompositorThread::update_scroll_state(Painting::ScrollStateSnapshot&& scroll_state_snapshot)

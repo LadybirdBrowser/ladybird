@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #outer {
+        width: 180px;
+        height: 180px;
+        overflow: scroll;
+    }
+
+    #outer-content {
+        position: relative;
+        width: 400px;
+        height: 400px;
+    }
+
+    #inner {
+        position: absolute;
+        left: 40px;
+        top: 40px;
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+
+    #inner-content {
+        position: relative;
+        height: 300px;
+    }
+
+    #target {
+        position: absolute;
+        top: 150px;
+        width: 60px;
+        height: 40px;
+    }
+
+    #page-spacer {
+        height: 2000px;
+    }
+</style>
+<div id="outer">
+    <div id="outer-content">
+        <div id="inner">
+            <div id="inner-content">
+                <div id="target"></div>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="page-spacer"></div>
+<script>
+    const pendingEntries = [];
+    const pendingResolvers = [];
+
+    function enqueueEntry(entry) {
+        const snapshot = {
+            isIntersecting: entry.isIntersecting,
+            intersectionRatio: entry.intersectionRatio,
+        };
+
+        if (pendingResolvers.length > 0) {
+            pendingResolvers.shift()(snapshot);
+            return;
+        }
+
+        pendingEntries.push(snapshot);
+    }
+
+    function nextIntersectionEntry() {
+        if (pendingEntries.length > 0)
+            return Promise.resolve(pendingEntries.shift());
+
+        return new Promise(resolve => {
+            pendingResolvers.push(resolve);
+        });
+    }
+
+    promiseTest(async () => {
+        const observer = new IntersectionObserver(entries => {
+            for (const entry of entries)
+                enqueueEntry(entry);
+        }, {
+            root: inner,
+            threshold: [0, 1],
+        });
+
+        observer.observe(target);
+
+        const initialEntry = await nextIntersectionEntry();
+        println(`initial isIntersecting: ${initialEntry.isIntersecting}`);
+        println(`initial ratio: ${initialEntry.intersectionRatio}`);
+
+        await animationFrame();
+        await animationFrame();
+
+        println(`wheel routing admission: ${internals.asyncScrollingStateWheelRoutingAdmission()}`);
+        println(`wheel scroll admission: ${internals.asyncScrollingStateWheelScrollAdmissionAt(60, 60, 0, 100)}`);
+        println(`downward wheel target before wheel: ${internals.asyncScrollingStateWheelTargetAt(60, 60, 0, 100)}`);
+
+        internals.wheel(60, 60, 0, 100);
+
+        await animationFrame();
+        await animationFrame();
+
+        const scrolledEntry = await nextIntersectionEntry();
+        println(`scrolled isIntersecting: ${scrolledEntry.isIntersecting}`);
+        println(`scrolled ratio: ${scrolledEntry.intersectionRatio}`);
+        println(`inner scrollTop: ${inner.scrollTop}`);
+        println(`outer scrollTop: ${outer.scrollTop}`);
+        println(`window scrollY: ${window.scrollY}`);
+
+        observer.disconnect();
+        await animationFrame();
+        await animationFrame();
+    });
+</script>

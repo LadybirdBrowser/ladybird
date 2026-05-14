@@ -383,7 +383,7 @@ void EventLoop::update_the_rendering()
     // 9. For each doc of docs, run the scroll steps for doc. [CSSOMVIEW]
     for (auto& document : docs) {
         if (auto navigable = document->navigable())
-            navigable->adopt_pending_async_viewport_scroll_offset();
+            navigable->adopt_pending_async_scroll_offsets();
         document->run_the_scroll_steps();
     }
 

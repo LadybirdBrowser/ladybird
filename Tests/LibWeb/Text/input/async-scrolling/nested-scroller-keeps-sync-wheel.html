@@ -31,7 +31,11 @@
     }
 
     promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
         internals.wheel(50, 50, 0, 100);
+        await animationFrame();
         await animationFrame();
 
         printOutputAndDisplayList([

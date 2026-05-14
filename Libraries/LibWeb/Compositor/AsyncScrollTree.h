@@ -21,6 +21,7 @@ namespace Web::Compositor {
 struct WheelHitTestResult {
     Optional<AsyncScrollNodeID> node_id;
     bool blocked_by_main_thread_region { false };
+    bool blocked_by_wheel_event_region { false };
 };
 
 struct CachedWheelHitTestTarget {
@@ -32,6 +33,13 @@ struct CachedWheelHitTestTarget {
 };
 
 struct MainThreadWheelEventTarget {
+    Painting::VisualContextIndex visual_context_index;
+    Gfx::FloatRect rect;
+    Gfx::FloatRect viewport_rect;
+};
+
+// Viewport-space cache of regions containing non-passive wheel listeners.
+struct BlockingWheelEventTarget {
     Painting::VisualContextIndex visual_context_index;
     Gfx::FloatRect rect;
     Gfx::FloatRect viewport_rect;
@@ -51,7 +59,7 @@ public:
     Optional<AsyncScrollNodeID> scroll_node_id_for_stable_id(AsyncScrollNodeStableID) const;
     WheelHitTestResult hit_test_scroll_node_for_wheel(Gfx::FloatPoint position, Gfx::FloatPoint delta) const;
     bool scroll_node_is_viewport(AsyncScrollNodeID) const;
-    bool apply_scroll_delta(AsyncScrollNodeID, Gfx::FloatPoint delta, Painting::ScrollStateSnapshot&);
+    Vector<AsyncScrollOffset> apply_scroll_delta(AsyncScrollNodeID, Gfx::FloatPoint delta, Painting::ScrollStateSnapshot&);
     Optional<Gfx::FloatPoint> set_scroll_offset(AsyncScrollNodeID, Gfx::FloatPoint, Painting::ScrollStateSnapshot&);
 
 private:
@@ -75,9 +83,12 @@ private:
     Vector<WheelHitTestTarget> m_wheel_hit_test_regions;
     Vector<MainThreadWheelEventRegion> m_main_thread_wheel_event_regions;
     Vector<CachedWheelHitTestTarget> m_wheel_hit_test_targets;
+    Vector<BlockingWheelEventRegion> m_blocking_wheel_event_regions;
     Vector<MainThreadWheelEventTarget> m_main_thread_wheel_event_targets;
+    Vector<BlockingWheelEventTarget> m_blocking_wheel_event_targets;
     RefPtr<Painting::AccumulatedVisualContextTree const> m_visual_context_tree;
     Painting::ScrollStateSnapshot m_scroll_state_snapshot;
+    bool m_has_blocking_wheel_event_region_covering_viewport { false };
 };
 
 }

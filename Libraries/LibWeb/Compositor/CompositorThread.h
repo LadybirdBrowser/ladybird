@@ -10,12 +10,14 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/Variant.h>
+#include <AK/Vector.h>
 #include <LibCore/Forward.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/SharedImage.h>
 #include <LibSync/ConditionVariable.h>
 #include <LibThreading/Forward.h>
+#include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Page/InputEvent.h>
@@ -62,10 +64,9 @@ public:
     void invalidate_wheel_event_listener_state(u64 generation);
     bool async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels,
         Gfx::IntRect viewport_rect);
-    Optional<Gfx::FloatPoint> pending_async_viewport_scroll_offset() const;
-    bool should_defer_async_viewport_scroll_offset_adoption() const;
+    bool should_defer_async_scroll_offset_adoption() const;
     bool should_defer_main_thread_present_for_async_scroll() const;
-    Optional<Gfx::FloatPoint> take_pending_async_viewport_scroll_offset();
+    Vector<AsyncScrollOffset> take_pending_async_scroll_offsets();
     void update_backing_stores(Gfx::IntSize, i32 front_id, i32 back_id);
     u64 present_frame(Gfx::IntRect);
     void wait_for_frame(u64 frame_id);

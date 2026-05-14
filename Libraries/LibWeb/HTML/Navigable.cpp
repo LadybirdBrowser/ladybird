@@ -7,6 +7,7 @@
  */
 
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
@@ -16,6 +17,7 @@
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentLoading.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
@@ -62,6 +64,7 @@
 #include <LibWeb/XHR/FormData.h>
 
 #include <AK/Debug.h>
+#include <AK/StdLibExtras.h>
 
 namespace Web::HTML {
 
@@ -2906,23 +2909,101 @@ void Navigable::perform_scroll_of_viewport_scrolling_box(CSSPixelPoint new_posit
     HTML::main_thread_event_loop().schedule();
 }
 
-void Navigable::adopt_pending_async_viewport_scroll_offset()
+static CSSPixelPoint async_scroll_offset_to_css_pixels(Gfx::FloatPoint async_scroll_offset, double device_pixels_per_css_pixel)
+{
+    return {
+        CSSPixels { async_scroll_offset.x() / device_pixels_per_css_pixel },
+        CSSPixels { async_scroll_offset.y() / device_pixels_per_css_pixel },
+    };
+}
+
+static Optional<CSS::PseudoElement> pseudo_element_from_async_scroll_node_stable_id(Compositor::AsyncScrollNodeStableID const& stable_id)
+{
+    if (stable_id.kind != Compositor::AsyncScrollNodeKind::PseudoElement)
+        return {};
+    if (stable_id.pseudo_element_type >= to_underlying(CSS::PseudoElement::KnownPseudoElementCount))
+        return {};
+    return static_cast<CSS::PseudoElement>(stable_id.pseudo_element_type);
+}
+
+static DOM::Element* element_for_async_scroll_node_stable_id(DOM::Document& document, Compositor::AsyncScrollNodeStableID const& stable_id)
+{
+    auto* node = DOM::Node::from_unique_id(stable_id.node_id);
+    auto* element = as_if<DOM::Element>(node);
+    if (!element || &element->document() != &document)
+        return nullptr;
+    return element;
+}
+
+static bool adopt_async_element_scroll_offset(DOM::Document& document, Compositor::AsyncScrollNodeStableID const& stable_id, CSSPixelPoint scroll_offset)
+{
+    auto* element = element_for_async_scroll_node_stable_id(document, stable_id);
+    if (!element)
+        return false;
+
+    Optional<CSS::PseudoElement> pseudo_element;
+    switch (stable_id.kind) {
+    case Compositor::AsyncScrollNodeKind::Viewport:
+        return false;
+    case Compositor::AsyncScrollNodeKind::Element:
+        break;
+    case Compositor::AsyncScrollNodeKind::PseudoElement:
+        pseudo_element = pseudo_element_from_async_scroll_node_stable_id(stable_id);
+        if (!pseudo_element.has_value())
+            return false;
+        if (!element->get_pseudo_element(*pseudo_element).has_value())
+            return false;
+        break;
+    }
+
+    if (element->scroll_offset(pseudo_element) == scroll_offset)
+        return false;
+
+    element->set_scroll_offset(pseudo_element, scroll_offset);
+
+    document.set_needs_to_refresh_scroll_state(true);
+    if (!document.pending_scroll_events().contains_slow(DOM::Document::PendingScrollEvent { *element, EventNames::scroll }))
+        document.pending_scroll_events().append({ *element, EventNames::scroll });
+    element->set_needs_repaint(InvalidateDisplayList::No);
+    return true;
+}
+
+void Navigable::adopt_pending_async_scroll_offsets()
 {
     if (!page().async_scrolling_enabled())
         return;
 
-    // The compositor thread may have already presented newer viewport scroll offsets. Adopt the latest one before
-    // running rendering-update observers so they see the same scroll position as the user.
-    if (m_rendering_thread.should_defer_async_viewport_scroll_offset_adoption()) {
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread deferred async viewport offset adoption");
-    } else if (auto async_scroll_offset = m_rendering_thread.take_pending_async_viewport_scroll_offset(); async_scroll_offset.has_value()) {
-        auto device_pixels_per_css_pixel = page().client().device_pixels_per_css_pixel();
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread adopting async viewport offset {},{}",
-            async_scroll_offset->x(), async_scroll_offset->y());
-        perform_scroll_of_viewport_scrolling_box({
-            CSSPixels { async_scroll_offset->x() / device_pixels_per_css_pixel },
-            CSSPixels { async_scroll_offset->y() / device_pixels_per_css_pixel },
-        });
+    // The compositor thread may have already presented newer scroll offsets. Adopt the latest ones before running
+    // rendering-update observers so they see the same scroll positions as the user.
+    if (m_rendering_thread.should_defer_async_scroll_offset_adoption()) {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread deferred async scroll offset adoption");
+        return;
+    }
+
+    auto async_scroll_offsets = m_rendering_thread.take_pending_async_scroll_offsets();
+    if (async_scroll_offsets.is_empty())
+        return;
+
+    auto document = active_document();
+    if (!document)
+        return;
+
+    auto device_pixels_per_css_pixel = page().client().device_pixels_per_css_pixel();
+    for (auto const& async_scroll_offset : async_scroll_offsets) {
+        auto css_scroll_offset = async_scroll_offset_to_css_pixels(async_scroll_offset.scroll_offset, device_pixels_per_css_pixel);
+        if (async_scroll_offset.stable_node_id.kind == Compositor::AsyncScrollNodeKind::Viewport) {
+            if (async_scroll_offset.stable_node_id.node_id != document->unique_id())
+                continue;
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread adopting async viewport offset {},{}",
+                async_scroll_offset.scroll_offset.x(), async_scroll_offset.scroll_offset.y());
+            perform_scroll_of_viewport_scrolling_box(css_scroll_offset);
+            continue;
+        }
+
+        if (adopt_async_element_scroll_offset(*document, async_scroll_offset.stable_node_id, css_scroll_offset)) {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread adopting async element offset {},{}",
+                async_scroll_offset.scroll_offset.x(), async_scroll_offset.scroll_offset.y());
+        }
     }
 }
 
@@ -3152,7 +3233,7 @@ void Navigable::record_display_list_and_scroll_state(PaintConfig paint_config)
     if (!document)
         return;
 
-    adopt_pending_async_viewport_scroll_offset();
+    adopt_pending_async_scroll_offsets();
 
     auto should_record_display_list = m_needs_to_record_display_list
         || !m_rendering_thread_display_list_paint_config.has_value()

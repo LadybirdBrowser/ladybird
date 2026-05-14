@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #host {
+        width: 100px;
+        height: 100px;
+    }
+
+    #host::before {
+        content: "line 1\A line 2\A line 3\A line 4\A line 5\A "
+            "line 6\A line 7\A line 8\A line 9\A line 10";
+        display: block;
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+        font: 16px / 20px sans-serif;
+        white-space: pre;
+    }
+
+    #page-spacer {
+        height: 2000px;
+    }
+</style>
+<div id="host"></div>
+<div id="page-spacer"></div>
+<script>
+    promiseTest(async () => {
+        let scrollEventCount = 0;
+
+        host.addEventListener("scroll", () => {
+            scrollEventCount++;
+        });
+
+        // Let the compositor consume an initial display list containing the pseudo-element scroll node.
+        await animationFrame();
+        await animationFrame();
+
+        println(`wheel routing admission: ${internals.asyncScrollingStateWheelRoutingAdmission()}`);
+        println(`wheel scroll admission: ${internals.asyncScrollingStateWheelScrollAdmissionAt(50, 50, 0, 100)}`);
+        println(`downward wheel target before wheel: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 0, 100)}`);
+
+        internals.wheel(50, 50, 0, 100);
+
+        // The compositor scroll offset is adopted during a rendering update.
+        await animationFrame();
+        await animationFrame();
+
+        println(`scroll event count: ${scrollEventCount}`);
+        println(`host scrollTop: ${host.scrollTop}`);
+        println(`window scrollY: ${window.scrollY}`);
+        println(`upward wheel target after wheel: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 0, -100)}`);
+    });
+</script>
