@@ -1200,14 +1200,14 @@ ParseResult<GlobalSection::Global> GlobalSection::Global::parse(ConstrainedStrea
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("Global"sv);
     auto type = TRY(GlobalType::parse(stream));
     auto exprs = TRY(Expression::parse(stream));
-    return Global { type, exprs };
+    return Global { type, move(exprs) };
 }
 
 ParseResult<GlobalSection> GlobalSection::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("GlobalSection"sv);
     auto result = TRY(parse_vector<Global>(stream));
-    return GlobalSection { result };
+    return GlobalSection { move(result) };
 }
 
 ParseResult<ExportSection::Export> ExportSection::Export::parse(ConstrainedStream& stream)
@@ -1279,7 +1279,7 @@ ParseResult<ElementSection::Element> ElementSection::Element::parse(ConstrainedS
         if (has_explicit_index)
             table_index = TRY(GenericIndexParser<TableIndex>::parse(stream));
         auto expression = TRY(Expression::parse(stream));
-        mode = Active { table_index, expression };
+        mode = Active { table_index, move(expression) };
     }
 
     auto type = ValueType(ValueType::FunctionReference);
@@ -1318,7 +1318,7 @@ ParseResult<ElementSection> ElementSection::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("ElementSection"sv);
     auto result = TRY(parse_vector<Element>(stream));
-    return ElementSection { result };
+    return ElementSection { move(result) };
 }
 
 ParseResult<Locals> Locals::parse(ConstrainedStream& stream)
@@ -1372,17 +1372,17 @@ ParseResult<DataSection::Data> DataSection::Data::parse(ConstrainedStream& strea
     if (tag == 0x00) {
         auto expr = TRY(Expression::parse(stream));
         auto init = TRY(parse_vector<u8>(stream));
-        return Data { Active { init, { 0 }, expr } };
+        return Data { Active { move(init), { 0 }, move(expr) } };
     }
     if (tag == 0x01) {
         auto init = TRY(parse_vector<u8>(stream));
-        return Data { Passive { init } };
+        return Data { Passive { move(init) } };
     }
     if (tag == 0x02) {
         auto index = TRY(GenericIndexParser<MemoryIndex>::parse(stream));
         auto expr = TRY(Expression::parse(stream));
         auto init = TRY(parse_vector<u8>(stream));
-        return Data { Active { init, index, expr } };
+        return Data { Active { move(init), index, move(expr) } };
     }
     VERIFY_NOT_REACHED();
 }
@@ -1391,7 +1391,7 @@ ParseResult<DataSection> DataSection::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("DataSection"sv);
     auto data = TRY(parse_vector<Data>(stream));
-    return DataSection { data };
+    return DataSection { move(data) };
 }
 
 ParseResult<DataCountSection> DataCountSection::parse(ConstrainedStream& stream)

@@ -9,6 +9,7 @@
 #include <AK/Badge.h>
 #include <AK/ByteString.h>
 #include <AK/DistinctNumeric.h>
+#include <AK/FixedArray.h>
 #include <AK/LEB128.h>
 #include <AK/NumericLimits.h>
 #include <AK/Optional.h>
@@ -769,12 +770,37 @@ union SourcesAndDestination {
     u32 sources_and_destination;
 };
 
+class InstructionStorage {
+    using Chunk = FixedArray<Optional<Instruction>>;
+
+public:
+    InstructionStorage() = default;
+    InstructionStorage(InstructionStorage const&) = delete;
+    InstructionStorage& operator=(InstructionStorage const&) = delete;
+    InstructionStorage(InstructionStorage&&) = default;
+    InstructionStorage& operator=(InstructionStorage&&) = default;
+
+    Instruction& append(Instruction);
+
+    size_t size() const { return m_size; }
+    size_t capacity() const { return m_capacity; }
+    bool is_empty() const { return m_size == 0; }
+
+private:
+    void add_chunk();
+
+    Vector<Chunk, 0, FastLastAccess::Yes> m_chunks;
+    size_t m_size { 0 };
+    size_t m_capacity { 0 };
+    size_t m_next_index_in_last_chunk { 0 };
+};
+
 void free_cranelift_code(void* handle);
 
 struct CompiledInstructions {
     Vector<Dispatch> dispatches;
     Vector<SourcesAndDestination> src_dst_mappings;
-    Vector<Instruction, 0, FastLastAccess::Yes> extra_instruction_storage;
+    InstructionStorage extra_instruction_storage;
     bool direct = false; // true if all dispatches contain handler_ptr, otherwise false and all contain instruction_opcode.
     bool cranelift_compiled = false;
     void* cranelift_code_handle = nullptr; // Owned; freed when the owning Module is destroyed.

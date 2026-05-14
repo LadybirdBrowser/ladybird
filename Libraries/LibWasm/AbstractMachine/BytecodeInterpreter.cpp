@@ -5835,6 +5835,27 @@ double BytecodeInterpreter::read_value<double>(ReadonlyBytes data)
     return bit_cast<double>(read_value<u64>(data));
 }
 
+void InstructionStorage::add_chunk()
+{
+    static constexpr size_t initial_chunk_capacity = 8;
+    static constexpr size_t max_chunk_capacity = 512;
+    auto chunk_capacity = clamp(m_capacity, initial_chunk_capacity, max_chunk_capacity);
+    m_chunks.append(Chunk::must_create_but_fixme_should_propagate_errors(chunk_capacity));
+    m_capacity += chunk_capacity;
+    m_next_index_in_last_chunk = 0;
+}
+
+Instruction& InstructionStorage::append(Instruction instruction)
+{
+    if (m_chunks.is_empty() || m_next_index_in_last_chunk == m_chunks.unsafe_last().size())
+        add_chunk();
+
+    auto& slot = m_chunks.unsafe_last()[m_next_index_in_last_chunk++];
+    slot = move(instruction);
+    ++m_size;
+    return slot.value();
+}
+
 CompiledInstructions try_compile_instructions(Expression const& expression, Span<FunctionType const> functions)
 {
     CompiledInstructions result;
@@ -5842,10 +5863,6 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
     auto instruction_count = expression.instructions().size();
     result.dispatches.ensure_capacity(instruction_count);
     result.src_dst_mappings.ensure_capacity(instruction_count);
-    // We keep raw pointers into this storage in dispatch entries across several
-    // later rewrite passes, so it must not reallocate while we append synthetic
-    // instructions.
-    result.extra_instruction_storage.ensure_capacity(max<size_t>(instruction_count * 8, 32));
 
     i32 i32_const_value { 0 };
     i64 i64_const_value { 0 };
@@ -5866,6 +5883,10 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
 
     size_t calls_in_expression = 0;
 
+    auto append_extra_instruction = [&result](auto&&... args) -> Instruction& {
+        return result.extra_instruction_storage.append(Instruction(forward<decltype(args)>(args)...));
+    };
+
     auto const set_default_dispatch = [&result](Instruction const& instruction, size_t index = NumericLimits<size_t>::max()) {
         if (index < result.dispatches.size()) {
             result.dispatches[index] = { { .instruction_opcode = instruction.opcode() }, &instruction };
@@ -5882,10 +5903,10 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             if (function.results().size() <= 1 && function.parameters().size() < 4) {
                 pattern_state = InsnPatternState::Nothing;
                 OpCode op { static_cast<OpCode::Type>(Instructions::synthetic_call_00.value() + function.parameters().size() * 2 + function.results().size()) };
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     op,
-                    instruction.arguments()));
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                    instruction.arguments());
+                set_default_dispatch(extra_instruction);
                 continue;
             }
 
@@ -5918,34 +5939,34 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             } else if (instruction.opcode() == Instructions::i32_store) {
                 // `local.get a; i32.store m` -> `i32.storelocal a m`.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_i32_storelocal,
                     local_index_0,
-                    instruction.arguments()));
+                    instruction.arguments());
 
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             } else if (instruction.opcode() == Instructions::i64_store) {
                 // `local.get a; i64.store m` -> `i64.storelocal a m`.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_i64_storelocal,
                     local_index_0,
-                    instruction.arguments()));
+                    instruction.arguments());
 
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             } else if (instruction.opcode() == Instructions::local_set) {
                 // `local.get a; local.set b` -> `local_copy a b`.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_local_copy,
                     local_index_0,
-                    instruction.local_index()));
+                    instruction.local_index());
 
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             } else {
@@ -5956,12 +5977,11 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             auto make_2local_synthetic = [&](OpCode synthetic_op) {
                 set_default_dispatch(nop, result.dispatches.size() - 1);
                 set_default_dispatch(nop, result.dispatches.size() - 2);
-                result.extra_instruction_storage.unchecked_append(Instruction {
+                auto& extra_instruction = append_extra_instruction(
                     synthetic_op,
                     local_index_0,
-                    local_index_1,
-                });
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                    local_index_1);
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
             };
             if (instruction.opcode() == Instructions::i32_add) {
@@ -6057,24 +6077,24 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             if (instruction.opcode() == Instructions::i32_store) {
                 // `local.get a; i32.store m` -> `i32.storelocal a m`.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_i32_storelocal,
                     local_index_1,
-                    instruction.arguments()));
+                    instruction.arguments());
 
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             }
             if (instruction.opcode() == Instructions::i64_store) {
                 // `local.get a; i64.store m` -> `i64.storelocal a m`.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_i64_storelocal,
                     local_index_1,
-                    instruction.arguments()));
+                    instruction.arguments());
 
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             }
@@ -6099,11 +6119,11 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             } else if (instruction.opcode() == Instructions::local_set) {
                 // `i32.const a; local.set b` -> `local.seti32_const b a`.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_local_seti32_const,
                     instruction.local_index(),
-                    i32_const_value));
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                    i32_const_value);
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             } else {
@@ -6114,11 +6134,11 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             if (instruction.opcode() == Instructions::local_set) {
                 // `i32.const a; local.set b` -> `local.seti32_const b a`.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_local_seti32_const,
                     instruction.local_index(),
-                    i32_const_value));
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                    i32_const_value);
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             }
@@ -6145,12 +6165,12 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                 // Replace the previous two ops with noops, and add i32.add_constlocal.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
                 set_default_dispatch(nop, result.dispatches.size() - 2);
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_i32_addconstlocal,
                     local_index_0,
-                    i32_const_value));
+                    i32_const_value);
 
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             } else if (instruction.opcode() == Instructions::i32_and) {
@@ -6158,12 +6178,12 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                 // Replace the previous two ops with noops, and add i32.and_constlocal.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
                 set_default_dispatch(nop, result.dispatches.size() - 2);
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_i32_andconstlocal,
                     local_index_0,
-                    i32_const_value));
+                    i32_const_value);
 
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             } else {
@@ -6179,11 +6199,11 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             } else if (instruction.opcode() == Instructions::local_set) {
                 // `i64.const a; local.set b` -> `local.seti64_const b a`.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_local_seti64_const,
                     instruction.local_index(),
-                    i64_const_value));
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                    i64_const_value);
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             } else {
@@ -6194,11 +6214,11 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             if (instruction.opcode() == Instructions::local_set) {
                 // `i64.const a; local.set b` -> `local.seti64_const b a`.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_local_seti64_const,
                     instruction.local_index(),
-                    i64_const_value));
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                    i64_const_value);
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             }
@@ -6225,12 +6245,12 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                 // Replace the previous two ops with noops, and add i64.add_constlocal.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
                 set_default_dispatch(nop, result.dispatches.size() - 2);
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_i64_addconstlocal,
                     local_index_0,
-                    i64_const_value));
+                    i64_const_value);
 
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             } else if (instruction.opcode() == Instructions::i64_and) {
@@ -6238,12 +6258,12 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                 // Replace the previous two ops with noops, and add i64.and_constlocal.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
                 set_default_dispatch(nop, result.dispatches.size() - 2);
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_i64_andconstlocal,
                     local_index_0,
-                    i64_const_value));
+                    i64_const_value);
 
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             } else {
@@ -6292,8 +6312,8 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                 .else_ip = else_ip,
                 .meta = ptr->meta,
             };
-            result.extra_instruction_storage.unchecked_append(move(instruction));
-            result.dispatches[i].instruction = &result.extra_instruction_storage.unsafe_last();
+            auto& extra_instruction = append_extra_instruction(move(instruction));
+            result.dispatches[i].instruction = &extra_instruction;
             result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
         }
     }
@@ -6307,28 +6327,28 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         if (dispatch.instruction->opcode() == Instructions::local_get) {
             auto local_index = dispatch.instruction->local_index();
             if (local_index.value() & LocalArgumentMarker) {
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_argument_get,
-                    local_index));
-                result.dispatches[i].instruction = &result.extra_instruction_storage.unsafe_last();
+                    local_index);
+                result.dispatches[i].instruction = &extra_instruction;
                 result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
             }
         } else if (dispatch.instruction->opcode() == Instructions::local_set) {
             auto local_index = dispatch.instruction->local_index();
             if (local_index.value() & LocalArgumentMarker) {
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_argument_set,
-                    local_index));
-                result.dispatches[i].instruction = &result.extra_instruction_storage.unsafe_last();
+                    local_index);
+                result.dispatches[i].instruction = &extra_instruction;
                 result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
             }
         } else if (dispatch.instruction->opcode() == Instructions::local_tee) {
             auto local_index = dispatch.instruction->local_index();
             if (local_index.value() & LocalArgumentMarker) {
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_argument_tee,
-                    local_index));
-                result.dispatches[i].instruction = &result.extra_instruction_storage.unsafe_last();
+                    local_index);
+                result.dispatches[i].instruction = &extra_instruction;
                 result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
             }
         }
@@ -6718,8 +6738,8 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             new_call_opcode,
             result.dispatches[call_info->call_index].instruction->arguments());
 
-        result.extra_instruction_storage.unchecked_append(new_call_insn);
-        result.dispatches[call_info->call_index].instruction = &result.extra_instruction_storage.unsafe_last();
+        auto& extra_instruction = append_extra_instruction(move(new_call_insn));
+        result.dispatches[call_info->call_index].instruction = &extra_instruction;
         result.dispatches[call_info->call_index].instruction_opcode = new_call_opcode;
     }
 
@@ -6938,10 +6958,10 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         if (dispatch.instruction->opcode() == Instructions::local_get) {
             auto local_index = dispatch.instruction->local_index().value();
             if (local_index <= 7) {
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     static_cast<OpCode>(Instructions::synthetic_local_get_0.value() + local_index),
-                    dispatch.instruction->local_index()));
-                result.dispatches[i].instruction = &result.extra_instruction_storage.unsafe_last();
+                    dispatch.instruction->local_index());
+                result.dispatches[i].instruction = &extra_instruction;
                 result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
             }
         }
@@ -6953,10 +6973,10 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         if (dispatch.instruction->opcode() == Instructions::local_set) {
             auto local_index = dispatch.instruction->local_index().value();
             if (local_index <= 7) {
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     static_cast<OpCode>(Instructions::synthetic_local_set_0.value() + local_index),
-                    dispatch.instruction->local_index()));
-                result.dispatches[i].instruction = &result.extra_instruction_storage.unsafe_last();
+                    dispatch.instruction->local_index());
+                result.dispatches[i].instruction = &extra_instruction;
                 result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
             }
         }
@@ -6970,10 +6990,10 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             auto new_opcode = dispatch.instruction->opcode() == Instructions::br
                 ? Instructions::synthetic_br_nostack
                 : Instructions::synthetic_br_if_nostack;
-            result.extra_instruction_storage.unchecked_append(Instruction(
+            auto& extra_instruction = append_extra_instruction(
                 new_opcode,
-                dispatch.instruction->arguments()));
-            result.dispatches[i].instruction = &result.extra_instruction_storage.unsafe_last();
+                dispatch.instruction->arguments());
+            result.dispatches[i].instruction = &extra_instruction;
             result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
         }
     }
