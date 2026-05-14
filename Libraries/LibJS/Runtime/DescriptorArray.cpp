@@ -5,7 +5,6 @@
  */
 
 #include <AK/NumericLimits.h>
-#include <AK/QuickSort.h>
 #include <LibJS/Runtime/DescriptorArray.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 
@@ -22,6 +21,7 @@ DescriptorArray::DescriptorArray(DescriptorArray const& other, u32 descriptor_co
 {
     VERIFY(descriptor_count <= max_descriptor_count);
     m_entries.ensure_capacity(descriptor_count);
+    m_entry_indices_by_enum_index.ensure_capacity(descriptor_count);
     other.for_each_in_insertion_order([&](auto const& property_key, auto const& metadata) {
         set(property_key, metadata, m_entries.size());
     },
@@ -47,7 +47,14 @@ void DescriptorArray::set(PropertyKey const& property_key, PropertyMetadata meta
     }
 
     auto insertion_index = find_insertion_index(property_key);
+    VERIFY(insertion_index <= NumericLimits<u32>::max());
+    VERIFY(enum_index == m_entry_indices_by_enum_index.size());
+    for (auto& entry_index : m_entry_indices_by_enum_index) {
+        if (entry_index >= insertion_index)
+            ++entry_index;
+    }
     m_entries.insert(insertion_index, { property_key, metadata.offset, metadata.attributes.bits(), static_cast<u16>(enum_index) });
+    m_entry_indices_by_enum_index.append(static_cast<u32>(insertion_index));
 }
 
 void DescriptorArray::set_attributes(PropertyKey const& property_key, PropertyAttributes attributes, u32 descriptor_count)
@@ -65,6 +72,11 @@ void DescriptorArray::remove(PropertyKey const& property_key, u32 descriptor_cou
     auto removed_offset = m_entries[*index].offset;
     auto removed_enum_index = m_entries[*index].enum_index;
     m_entries.remove(*index);
+    m_entry_indices_by_enum_index.remove(removed_enum_index);
+    for (auto& entry_index : m_entry_indices_by_enum_index) {
+        if (entry_index > *index)
+            --entry_index;
+    }
 
     for (auto& entry : m_entries) {
         if (entry.enum_index >= descriptor_count)
@@ -78,20 +90,12 @@ void DescriptorArray::remove(PropertyKey const& property_key, u32 descriptor_cou
 
 void DescriptorArray::for_each_in_insertion_order(Function<void(PropertyKey const&, PropertyMetadata const&)> const& callback, u32 descriptor_count) const
 {
-    Vector<Entry const*, 32> entries;
-    entries.ensure_capacity(descriptor_count);
-    for (auto const& entry : m_entries) {
-        if (entry.enum_index < descriptor_count)
-            entries.unchecked_append(&entry);
-    }
-
-    quick_sort(entries, [](auto const* lhs, auto const* rhs) {
-        return lhs->enum_index < rhs->enum_index;
-    });
-
-    for (auto const* entry : entries) {
-        auto metadata = entry->metadata();
-        callback(entry->property_key, metadata);
+    VERIFY(descriptor_count <= m_entry_indices_by_enum_index.size());
+    for (u32 enum_index = 0; enum_index < descriptor_count; ++enum_index) {
+        auto const& entry = m_entries[m_entry_indices_by_enum_index[enum_index]];
+        VERIFY(entry.enum_index == enum_index);
+        auto metadata = entry.metadata();
+        callback(entry.property_key, metadata);
     }
 }
 
@@ -104,7 +108,7 @@ void DescriptorArray::visit_edges(Visitor& visitor)
 
 size_t DescriptorArray::external_memory_size() const
 {
-    return vector_external_memory_size(m_entries);
+    return vector_external_memory_size(m_entries) + vector_external_memory_size(m_entry_indices_by_enum_index);
 }
 
 Optional<size_t> DescriptorArray::find(PropertyKey const& property_key, u32 descriptor_count) const

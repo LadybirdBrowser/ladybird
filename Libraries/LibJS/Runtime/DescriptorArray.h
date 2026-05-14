@@ -61,6 +61,7 @@ private:
     [[nodiscard]] size_t find_insertion_index(PropertyKey const&) const;
 
     Vector<Entry> m_entries;
+    Vector<u32> m_entry_indices_by_enum_index;
 };
 
 static_assert(sizeof(DescriptorArray::Entry) == 16);
