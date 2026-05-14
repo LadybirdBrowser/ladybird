@@ -2,44 +2,43 @@ Harness status: OK
 
 Found 39 tests
 
-21 Pass
-18 Fail
+39 Pass
 Pass	Make sure the page is ready for animation.
 Pass	Element with auto scroll-behavior ; scroll() with default behavior
 Pass	Element with auto scroll-behavior ; scroll() with auto behavior
 Pass	Element with auto scroll-behavior ; scroll() with instant behavior
-Fail	Element with auto scroll-behavior ; scroll() with smooth behavior
-Fail	Element with smooth scroll-behavior ; scroll() with default behavior
-Fail	Element with smooth scroll-behavior ; scroll() with auto behavior
+Pass	Element with auto scroll-behavior ; scroll() with smooth behavior
+Pass	Element with smooth scroll-behavior ; scroll() with default behavior
+Pass	Element with smooth scroll-behavior ; scroll() with auto behavior
 Pass	Element with smooth scroll-behavior ; scroll() with instant behavior
-Fail	Element with smooth scroll-behavior ; scroll() with smooth behavior
+Pass	Element with smooth scroll-behavior ; scroll() with smooth behavior
 Pass	Element with auto scroll-behavior ; scrollTo() with default behavior
 Pass	Element with auto scroll-behavior ; scrollTo() with auto behavior
 Pass	Element with auto scroll-behavior ; scrollTo() with instant behavior
-Fail	Element with auto scroll-behavior ; scrollTo() with smooth behavior
-Fail	Element with smooth scroll-behavior ; scrollTo() with default behavior
-Fail	Element with smooth scroll-behavior ; scrollTo() with auto behavior
+Pass	Element with auto scroll-behavior ; scrollTo() with smooth behavior
+Pass	Element with smooth scroll-behavior ; scrollTo() with default behavior
+Pass	Element with smooth scroll-behavior ; scrollTo() with auto behavior
 Pass	Element with smooth scroll-behavior ; scrollTo() with instant behavior
-Fail	Element with smooth scroll-behavior ; scrollTo() with smooth behavior
+Pass	Element with smooth scroll-behavior ; scrollTo() with smooth behavior
 Pass	Element with auto scroll-behavior ; scrollBy() with default behavior
 Pass	Element with auto scroll-behavior ; scrollBy() with auto behavior
 Pass	Element with auto scroll-behavior ; scrollBy() with instant behavior
-Fail	Element with auto scroll-behavior ; scrollBy() with smooth behavior
-Fail	Element with smooth scroll-behavior ; scrollBy() with default behavior
-Fail	Element with smooth scroll-behavior ; scrollBy() with auto behavior
+Pass	Element with auto scroll-behavior ; scrollBy() with smooth behavior
+Pass	Element with smooth scroll-behavior ; scrollBy() with default behavior
+Pass	Element with smooth scroll-behavior ; scrollBy() with auto behavior
 Pass	Element with smooth scroll-behavior ; scrollBy() with instant behavior
-Fail	Element with smooth scroll-behavior ; scrollBy() with smooth behavior
+Pass	Element with smooth scroll-behavior ; scrollBy() with smooth behavior
 Pass	Element with auto scroll-behavior ; scrollIntoView() with default behavior
 Pass	Element with auto scroll-behavior ; scrollIntoView() with auto behavior
 Pass	Element with auto scroll-behavior ; scrollIntoView() with instant behavior
-Fail	Element with auto scroll-behavior ; scrollIntoView() with smooth behavior
-Fail	Element with smooth scroll-behavior ; scrollIntoView() with default behavior
-Fail	Element with smooth scroll-behavior ; scrollIntoView() with auto behavior
+Pass	Element with auto scroll-behavior ; scrollIntoView() with smooth behavior
+Pass	Element with smooth scroll-behavior ; scrollIntoView() with default behavior
+Pass	Element with smooth scroll-behavior ; scrollIntoView() with auto behavior
 Pass	Element with smooth scroll-behavior ; scrollIntoView() with instant behavior
-Fail	Element with smooth scroll-behavior ; scrollIntoView() with smooth behavior
+Pass	Element with smooth scroll-behavior ; scrollIntoView() with smooth behavior
 Pass	Set scrollLeft to element with auto scroll-behavior
-Fail	Set scrollLeft to element with smooth scroll-behavior
+Pass	Set scrollLeft to element with smooth scroll-behavior
 Pass	Set scrollTop to element with auto scroll-behavior
-Fail	Set scrollTop to element with smooth scroll-behavior
+Pass	Set scrollTop to element with smooth scroll-behavior
 Pass	Aborting an ongoing smooth scrolling on an element with another smooth scrolling
 Pass	Aborting an ongoing smooth scrolling on an element with an instant scrolling

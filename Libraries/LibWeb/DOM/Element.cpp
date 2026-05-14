@@ -2933,7 +2933,7 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
 static GC::Ref<WebIDL::Promise> scroll_an_element_into_view(Element& target, Bindings::ScrollBehavior behavior, Bindings::ScrollLogicalPosition block, Bindings::ScrollLogicalPosition inline_, GC::Ptr<Element> container)
 {
     // 1. Let ancestorPromises be an empty set of Promises.
-    GC::RootVector<GC::Ref<WebIDL::Promise>> ancestor_promises { target.heap() };
+    GC::RootVector<GC::Ref<WebIDL::Promise>> ancestor_promises;
 
     // 2. For each ancestor element or viewport that establishes a scrolling box scrolling box, in order of innermost
     //    to outermost scrolling box, run these substeps:
@@ -3770,6 +3770,9 @@ GC::Ref<WebIDL::Promise> Element::scroll(Bindings::ScrollToOptions options)
         && scroll_offset({}).is_zero()
         && this != document.body()
         && this != document.document_element()) {
+        if (document.layout_is_up_to_date() && paintable_box()) {
+            document.smooth_scroll_handler()->abort_any_ongoing_scroll_of_box(*paintable_box());
+        }
         return WebIDL::create_resolved_promise(realm(), JS::js_undefined());
     }
 

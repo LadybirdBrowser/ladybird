@@ -21,6 +21,7 @@
 #include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/MiddleButtonScrollHandler.h>
@@ -308,27 +309,36 @@ GC::Ref<WebIDL::Promise> PaintableBox::perform_scroll(CSSPixelPoint offset, Bind
         return navigable->perform_scroll_of_viewport_scrolling_box(document(), offset, scroll_behavior);
     }
 
-    // FIXME: 1. Abort any ongoing smooth scroll for box.
-    // FIXME: 2. Resolve all pending scroll Promises whose scroll container is box.
+    HTML::TemporaryExecutionContext temporary_execution_context { doc.realm() };
+
+    // 1. Abort any ongoing smooth scroll for box.
+    // 2. Resolve all pending scroll Promises whose scroll container is box.
+    doc.smooth_scroll_handler()->abort_any_ongoing_scroll_of_box(*this);
 
     // 3. Let scrollPromise be a new Promise.
     auto scroll_promise = WebIDL::create_promise(doc.realm());
 
-    // 4. Return scrollPromise, and run the remaining steps in parallel.
+    // NB: Step 4 happens out of order, as we can start a smooth scroll or perform an instant scroll first.
 
-    // FIXME: 5. If the user agent honors the scroll-behavior property and one of the following is true:
+    // 5. If the user agent honors the scroll-behavior property and one of the following is true:
     //        - behavior is "auto" and element is not null and its computed value of the scroll-behavior property
     //          is smooth, or
     //        - behavior is smooth
     //    then perform a smooth scroll of box to position; otherwise, perform an instant scroll of box to position.
+    // NB: Above determination happens in SmoothScrollHandler::resolve_scroll_behavior.
+    scroll_behavior = SmoothScrollHandler::resolve_scroll_behavior(*this, scroll_behavior);
+    if (scroll_behavior == Bindings::ScrollBehavior::Smooth) {
+        // NB: In this branch steps 6 and 7 are handled by SmoothScrollHander.
+        doc.smooth_scroll_handler()->start_box_scroll(scroll_promise, offset, this);
+    } else {
+        // 6. Wait until either the position has finished updating, or scrollPromise has been resolved.
+        set_scroll_offset(offset);
 
-    // 6. Wait until either the position has finished updating, or scrollPromise has been resolved.
-    set_scroll_offset(offset);
-
-    // 7. If scrollPromise is still in the pending state:
-    //      FIXME: 1. If the scroll position changed as a result of this call, emit the scrollend event.
-    //      2. Resolve scrollPromise.
-    WebIDL::resolve_promise(doc.realm(), scroll_promise);
+        // 7. If scrollPromise is still in the pending state:
+        //      FIXME: 1. If the scroll position changed as a result of this call, emit the scrollend event.
+        //      2. Resolve scrollPromise.
+        WebIDL::resolve_promise(doc.realm(), scroll_promise);
+    }
 
     return scroll_promise;
 }

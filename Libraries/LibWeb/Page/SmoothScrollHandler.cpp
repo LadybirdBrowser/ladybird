@@ -5,6 +5,7 @@
  */
 
 #include <AK/Badge.h>
+#include <AK/RefPtr.h>
 #include <AK/StdLibExtras.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Ptr.h>
@@ -20,6 +21,7 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Page/SmoothScrollHandler.h>
+#include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/WebIDL/Promise.h>
 
@@ -37,6 +39,21 @@ SmoothScrollTask::SmoothScrollTask(GC::Ref<WebIDL::Promise> promise, CSSPixelPoi
     m_is_ongoing = true;
 
     update_duration();
+}
+
+SmoothScrollTask::SmoothScrollTask(RefPtr<Painting::PaintableBox> const& box, GC::Ref<WebIDL::Promise> promise, CSSPixelPoint source_offset, CSSPixelPoint target_offset, double timestamp)
+    : SmoothScrollTask(promise, source_offset, target_offset, timestamp)
+{
+    m_box = box;
+}
+
+RefPtr<Painting::PaintableBox> SmoothScrollTask::box()
+{
+    if (auto box = m_box.strong_ref()) {
+        return static_cast<Painting::PaintableBox&>(*m_box);
+    }
+
+    return nullptr;
 }
 
 void SmoothScrollTask::update_duration()
@@ -69,6 +86,35 @@ SmoothScrollHandler::SmoothScrollHandler(GC::Ref<DOM::Document> document)
 void SmoothScrollHandler::process()
 {
     auto timestamp = HighResolutionTime::unsafe_shared_current_time();
+
+    for (auto& task : m_ongoing_box_scrolls) {
+        if (!task->is_ongoing())
+            continue;
+
+        auto box = task->box();
+        if (!box) {
+            finish(task);
+            continue;
+        }
+
+        auto progress = task_progress(task, timestamp);
+        CSSPixelPoint current_offset = current_scroll_offset(task, progress);
+
+        auto scroll_handled = box->set_scroll_offset(current_offset);
+
+        if (progress >= 1 || scroll_handled == Painting::PaintableBox::ScrollHandled::No) {
+            finish(task);
+        }
+    }
+
+    GC::RootVector<GC::Ref<SmoothScrollTask>> ongoing_box_scrolls;
+    for (auto& task : m_ongoing_box_scrolls) {
+        if (task->is_ongoing()) {
+            ongoing_box_scrolls.append(task);
+        }
+    }
+
+    m_ongoing_box_scrolls = ongoing_box_scrolls;
 
     if (m_ongoing_viewport_scroll) {
         if (m_ongoing_viewport_scroll->is_ongoing()) {
@@ -119,6 +165,28 @@ void SmoothScrollHandler::start_visual_viewport_scroll(GC::Ref<WebIDL::Promise> 
     m_ongoing_visual_viewport_scroll = heap().allocate<SmoothScrollTask>(promise, source_offset, target_offset, HighResolutionTime::unsafe_shared_current_time());
 }
 
+void SmoothScrollHandler::start_box_scroll(GC::Ref<WebIDL::Promise> promise, CSSPixelPoint target_offset, RefPtr<Painting::PaintableBox> const& box)
+{
+    auto ongoing_scroll = ongoing_scroll_of_box(*box);
+    VERIFY(!ongoing_scroll || !ongoing_scroll->is_ongoing());
+
+    auto source_offset = box->scroll_offset();
+    auto task = heap().allocate<SmoothScrollTask>(box, promise, source_offset, target_offset, HighResolutionTime::unsafe_shared_current_time());
+
+    m_ongoing_box_scrolls.append(task);
+}
+
+GC::Ptr<SmoothScrollTask> SmoothScrollHandler::ongoing_scroll_of_box(Painting::PaintableBox& box)
+{
+    for (auto& task : m_ongoing_box_scrolls) {
+        if (task->box() && task->box() == box && task->is_ongoing()) {
+            return task;
+        }
+    }
+
+    return nullptr;
+}
+
 void SmoothScrollHandler::abort_any_ongoing_viewport_scroll()
 {
     if (!m_ongoing_viewport_scroll)
@@ -135,6 +203,14 @@ void SmoothScrollHandler::abort_any_ongoing_visual_viewport_scroll()
 
     finish(*m_ongoing_visual_viewport_scroll);
     m_ongoing_visual_viewport_scroll = nullptr;
+}
+
+void SmoothScrollHandler::abort_any_ongoing_scroll_of_box(Painting::PaintableBox& box)
+{
+    auto task = ongoing_scroll_of_box(box);
+    if (task) {
+        finish(*task);
+    }
 }
 
 // https://drafts.csswg.org/cssom-view-1/#ref-for-propdef-scroll-behavior
@@ -179,6 +255,20 @@ Bindings::ScrollBehavior SmoothScrollHandler::resolve_scroll_behavior(CSS::Visua
     return Bindings::ScrollBehavior::Instant;
 }
 
+Bindings::ScrollBehavior SmoothScrollHandler::resolve_scroll_behavior(Painting::PaintableBox& box, Bindings::ScrollBehavior scroll_behavior)
+{
+    auto& node = box.layout_node();
+    if (auto pseudo_element = node.generated_for_pseudo_element(); pseudo_element.has_value()) {
+        return resolve_scroll_behavior(*node.pseudo_element_generator(), scroll_behavior);
+    }
+
+    if (auto* element = as_if<DOM::Element>(*box.dom_node())) {
+        return resolve_scroll_behavior(*element, scroll_behavior);
+    }
+
+    return Bindings::ScrollBehavior::Instant;
+}
+
 void SmoothScrollHandler::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
@@ -186,6 +276,8 @@ void SmoothScrollHandler::visit_edges(Cell::Visitor& visitor)
 
     visitor.visit(m_ongoing_viewport_scroll);
     visitor.visit(m_ongoing_visual_viewport_scroll);
+
+    visitor.visit(m_ongoing_box_scrolls);
 }
 
 // Steps 6 and 7 of https://drafts.csswg.org/cssom-view-1/#perform-a-scroll
