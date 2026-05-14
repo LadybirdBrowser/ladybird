@@ -319,7 +319,6 @@ public:
         Sync::MutexLocker const locker { m_mutex };
         m_exit = true;
         m_command_ready.signal();
-        m_ready_to_paint.signal();
         m_frame_completed.broadcast();
     }
 
@@ -327,8 +326,8 @@ public:
     {
         Sync::MutexLocker const locker { m_mutex };
         m_command_queue.enqueue(move(command));
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor command queued (queue_size={}, raster_tasks={}, needs_present={}, deferred_async_present={})",
-            m_command_queue.size(), m_queued_rasterization_tasks.load(), m_needs_present, m_has_deferred_async_scroll_present);
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor command queued (queue_size={}, awaiting_bitmap={}, needs_present={}, deferred_async_present={})",
+            m_command_queue.size(), m_presented_bitmap_id_awaiting_ack.value_or(-1), m_needs_present, m_has_deferred_async_scroll_present);
         m_command_ready.signal();
     }
 
@@ -375,7 +374,7 @@ public:
     {
         Sync::MutexLocker const locker { m_mutex };
         return !m_pending_async_scroll_offsets.is_empty()
-            && (m_is_rasterizing || m_has_deferred_async_scroll_present || m_queued_rasterization_tasks > 0);
+            && (m_is_rasterizing || m_has_deferred_async_scroll_present || has_presented_bitmap_awaiting_ack_while_locked());
     }
 
     void invalidate_wheel_event_listener_state(u64 generation)
@@ -649,8 +648,8 @@ public:
                 bool should_yield_to_async_scroll_present = false;
                 command->visit(
                     [this](UpdateDisplayListCommand& cmd) {
-                        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor processing display list update (raster_tasks={}, deferred_async_present={})",
-                            m_queued_rasterization_tasks.load(), m_has_deferred_async_scroll_present);
+                        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor processing display list update (deferred_async_present={})",
+                            m_has_deferred_async_scroll_present);
                         m_cached_display_list = move(cmd.display_list);
                         m_cached_scroll_state_snapshot = move(cmd.scroll_state_snapshot);
                         auto async_scrolling_state = async_scrolling_state_from_display_list(*m_cached_display_list);
@@ -699,8 +698,8 @@ public:
                         m_has_async_scrolling_state = true;
                     },
                     [this, &should_yield_to_async_scroll_present](AsyncScrollByCommand& cmd) {
-                        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor processing async scroll command at {},{} device delta {},{} for scroll node {} (raster_tasks={}, deferred_async_present={})",
-                            cmd.position.x(), cmd.position.y(), cmd.delta_in_device_pixels.x(), cmd.delta_in_device_pixels.y(), cmd.scroll_target.scroll_frame_index.value(), m_queued_rasterization_tasks.load(), m_has_deferred_async_scroll_present);
+                        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor processing async scroll command at {},{} device delta {},{} for scroll node {} (deferred_async_present={})",
+                            cmd.position.x(), cmd.position.y(), cmd.delta_in_device_pixels.x(), cmd.delta_in_device_pixels.y(), cmd.scroll_target.scroll_frame_index.value(), m_has_deferred_async_scroll_present);
                         auto async_scroll_viewport_rect = cmd.viewport_rect;
                         Vector<AsyncScrollOffset> scroll_offsets;
                         {
@@ -730,16 +729,16 @@ public:
                             m_deferred_async_scroll_present_viewport_rect = async_scroll_viewport_rect;
                         }
                         should_yield_to_async_scroll_present = can_present_deferred_async_scroll();
-                        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor async scroll command complete (yield_to_present={}, raster_tasks={})",
-                            should_yield_to_async_scroll_present, m_queued_rasterization_tasks.load());
+                        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor async scroll command complete (yield_to_present={})",
+                            should_yield_to_async_scroll_present);
                     },
                     [this, &should_yield_to_async_scroll_present](ViewportScrollbarDragCommand& cmd) {
                         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor processing viewport scrollbar drag (index={}, position={}, grab={})",
                             cmd.scrollbar_index, cmd.primary_position, cmd.thumb_grab_position);
                         if (apply_viewport_scrollbar_drag(cmd.scrollbar_index, cmd.primary_position, cmd.thumb_grab_position)) {
                             should_yield_to_async_scroll_present = can_present_deferred_async_scroll();
-                            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor viewport scrollbar drag complete (yield_to_present={}, raster_tasks={})",
-                                should_yield_to_async_scroll_present, m_queued_rasterization_tasks.load());
+                            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor viewport scrollbar drag complete (yield_to_present={})",
+                                should_yield_to_async_scroll_present);
                         }
                     },
                     [this](UpdateScrollStateCommand& cmd) {
@@ -807,7 +806,7 @@ public:
             Optional<u64> deferred_async_scroll_presenting_frame_id;
             {
                 Sync::MutexLocker const locker { m_mutex };
-                if (m_has_deferred_async_scroll_present && m_queued_rasterization_tasks == 0) {
+                if (m_has_deferred_async_scroll_present && !has_presented_bitmap_awaiting_ack_while_locked()) {
                     should_present_deferred_async_scroll = true;
                     deferred_async_scroll_viewport_rect = m_deferred_async_scroll_present_viewport_rect;
                     m_has_deferred_async_scroll_present = false;
@@ -815,9 +814,9 @@ public:
                         deferred_async_scroll_presenting_frame_id = m_submitted_frame_id;
                         m_needs_present = false;
                     }
-                    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor selected deferred async present (raster_tasks={}, pending_main_thread_present={})",
-                        m_queued_rasterization_tasks.load(), deferred_async_scroll_presenting_frame_id.has_value());
-                } else if (m_needs_present && m_queued_rasterization_tasks == 0) {
+                    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor selected deferred async present (pending_main_thread_present={})",
+                        deferred_async_scroll_presenting_frame_id.has_value());
+                } else if (m_needs_present && !has_presented_bitmap_awaiting_ack_while_locked()) {
                     should_present = true;
                     viewport_rect = m_pending_viewport_rect;
                     presenting_frame_id = m_submitted_frame_id;
@@ -837,6 +836,11 @@ private:
         MainThread,
         AsyncScroll,
     };
+
+    bool has_presented_bitmap_awaiting_ack_while_locked() const
+    {
+        return m_presented_bitmap_id_awaiting_ack.has_value();
+    }
 
     void store_pending_async_scroll_offsets(Vector<AsyncScrollOffset> const& scroll_offsets)
     {
@@ -965,32 +969,33 @@ private:
 
     bool has_presentable_work() const
     {
-        return (m_has_deferred_async_scroll_present && m_queued_rasterization_tasks == 0)
-            || (m_needs_present && m_queued_rasterization_tasks == 0);
+        return (m_has_deferred_async_scroll_present && !has_presented_bitmap_awaiting_ack_while_locked())
+            || (m_needs_present && !has_presented_bitmap_awaiting_ack_while_locked());
     }
 
     bool can_present_deferred_async_scroll() const
     {
         Sync::MutexLocker const locker { m_mutex };
-        return m_has_deferred_async_scroll_present && m_queued_rasterization_tasks == 0;
+        return m_has_deferred_async_scroll_present && !has_presented_bitmap_awaiting_ack_while_locked();
     }
 
     void present_frame(Gfx::IntRect viewport_rect, Optional<u64> presenting_frame_id = {}, PresentFrameDelivery delivery = PresentFrameDelivery::MainThread)
     {
         auto delivery_name = delivery == PresentFrameDelivery::AsyncScroll ? "compositor-thread"sv : "main-thread"sv;
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Begin {} present (frame={}, raster_tasks={}, viewport={}x{} at {},{})",
-            delivery_name, presenting_frame_id.value_or(0), m_queued_rasterization_tasks.load(), viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
 
         {
             Sync::MutexLocker const locker { m_mutex };
-            if (delivery == PresentFrameDelivery::AsyncScroll && m_queued_rasterization_tasks > 0) {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Begin {} present (frame={}, awaiting_bitmap={}, viewport={}x{} at {},{})",
+                delivery_name, presenting_frame_id.value_or(0), m_presented_bitmap_id_awaiting_ack.value_or(-1), viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
+
+            if (delivery == PresentFrameDelivery::AsyncScroll && has_presented_bitmap_awaiting_ack_while_locked()) {
                 m_has_deferred_async_scroll_present = true;
                 m_deferred_async_scroll_present_viewport_rect = viewport_rect;
-                dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Deferring async scroll present until a backing store is ready (raster_tasks={})",
-                    m_queued_rasterization_tasks.load());
+                dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Deferring async scroll present until bitmap {} is ready to paint",
+                    m_presented_bitmap_id_awaiting_ack.value());
                 return;
             }
-            VERIFY(m_queued_rasterization_tasks == 0);
+            VERIFY(!has_presented_bitmap_awaiting_ack_while_locked());
             if (m_exit)
                 return;
             m_is_rasterizing = true;
@@ -1023,8 +1028,8 @@ private:
                     if (m_presents_to_client) {
                         finish_rasterizing(rendered_bitmap_id);
                         if (delivery == PresentFrameDelivery::AsyncScroll) {
-                            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Finished async scroll raster into bitmap {} (raster_tasks={})",
-                                rendered_bitmap_id, m_queued_rasterization_tasks.load());
+                            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Finished async scroll raster into bitmap {}",
+                                rendered_bitmap_id);
                         }
                         VERIFY(CompositorThread::present_frame_to_client(m_page_id, viewport_rect, rendered_bitmap_id));
                     } else {
@@ -1142,9 +1147,7 @@ private:
     BackingStoreState m_backing_stores;
     CompositorThread::PresentationMode m_presentation_mode { CompositorThread::PresentToUI {} };
 
-    Atomic<i32> m_queued_rasterization_tasks { 0 };
     Optional<i32> m_presented_bitmap_id_awaiting_ack;
-    mutable Sync::ConditionVariable m_ready_to_paint { m_mutex };
     bool m_is_rasterizing { false };
 
     bool m_needs_present { false };
@@ -1169,27 +1172,22 @@ public:
         m_is_rasterizing = false;
         VERIFY(!m_presented_bitmap_id_awaiting_ack.has_value());
         m_presented_bitmap_id_awaiting_ack = bitmap_id;
-        m_queued_rasterization_tasks++;
-        VERIFY(m_queued_rasterization_tasks == 1);
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rasterized bitmap {} waiting for ready_to_paint (raster_tasks={})",
-            bitmap_id, m_queued_rasterization_tasks.load());
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rasterized bitmap {} waiting for ready_to_paint",
+            bitmap_id);
     }
 
-    void decrement_queued_tasks(i32 bitmap_id)
+    void mark_presented_bitmap_ready_to_paint(i32 bitmap_id)
     {
         Sync::MutexLocker const locker { m_mutex };
         if (m_presented_bitmap_id_awaiting_ack != bitmap_id) {
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Ignoring stale ready_to_paint for bitmap {} while awaiting bitmap {} (raster_tasks={})",
-                bitmap_id, m_presented_bitmap_id_awaiting_ack.value_or(-1), m_queued_rasterization_tasks.load());
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Ignoring stale ready_to_paint for bitmap {} while awaiting bitmap {}",
+                bitmap_id, m_presented_bitmap_id_awaiting_ack.value_or(-1));
             return;
         }
 
-        VERIFY(m_queued_rasterization_tasks == 1);
         m_presented_bitmap_id_awaiting_ack.clear();
-        m_queued_rasterization_tasks--;
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor ready_to_paint released bitmap {} (raster_tasks={})",
-            bitmap_id, m_queued_rasterization_tasks.load());
-        m_ready_to_paint.signal();
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor ready_to_paint released bitmap {}",
+            bitmap_id);
         m_command_ready.signal();
     }
 };
@@ -1399,7 +1397,7 @@ void CompositorThread::presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_i
         }
         thread_data = compositor->value;
     }
-    thread_data->decrement_queued_tasks(bitmap_id);
+    thread_data->mark_presented_bitmap_ready_to_paint(bitmap_id);
 }
 
 bool CompositorThread::async_scroll_by(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels)
