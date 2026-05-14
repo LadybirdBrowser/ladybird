@@ -16,14 +16,13 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/InvalidateDisplayList.h>
+#include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/ShadowData.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/RefCountedTreeNode.h>
 #include <LibWeb/TraversalDecision.h>
 
 namespace Web::Painting {
-
-class ChromeWidget;
 
 enum class PaintPhase {
     Background,
