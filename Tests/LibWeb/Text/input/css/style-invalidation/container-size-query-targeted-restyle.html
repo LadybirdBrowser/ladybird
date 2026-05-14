@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    function addBystanders(parent, count) {
+        for (let i = 0; i < count; ++i) {
+            const bystander = document.createElement("div");
+            bystander.className = "bystander";
+            bystander.textContent = `bystander ${i}`;
+            parent.appendChild(bystander);
+        }
+    }
+
+    function counterSummary() {
+        const counters = internals.getStyleInvalidationCounters();
+        return {
+            fullStyleInvalidations: counters.fullStyleInvalidations,
+            elementStyleRecomputations: counters.elementStyleRecomputations,
+            elementStyleNoopRecomputations: counters.elementStyleNoopRecomputations,
+        };
+    }
+
+    test(() => {
+        const style = document.createElement("style");
+        style.textContent = `
+            #container {
+                container-type: size;
+                width: 100px;
+                height: 20px;
+            }
+
+            .bystander {
+                color: rgb(0, 0, 0);
+            }
+
+            @container (min-width: 200px) {
+                #target {
+                    color: rgb(0, 128, 0);
+                }
+            }
+        `;
+        document.head.appendChild(style);
+
+        const container = document.createElement("main");
+        container.id = "container";
+        document.body.appendChild(container);
+
+        const target = document.createElement("div");
+        target.id = "target";
+        target.textContent = "target";
+        container.appendChild(target);
+
+        addBystanders(container, 30);
+        addBystanders(document.body, 30);
+
+        internals.resetStyleInvalidationCounters();
+        getComputedStyle(target).color;
+
+        const initialCounters = counterSummary();
+        const initialElementCount = document.querySelectorAll("*").length;
+        println(`initial target color: ${getComputedStyle(target).color}`);
+        println(`initial full invalidations: ${initialCounters.fullStyleInvalidations}`);
+        println(`initial recomputations bounded: ${initialCounters.elementStyleRecomputations < initialElementCount + 5}`);
+
+        internals.resetStyleInvalidationCounters();
+        container.style.width = "300px";
+        getComputedStyle(target).color;
+
+        const dynamicCounters = counterSummary();
+        println(`dynamic target color: ${getComputedStyle(target).color}`);
+        println(`dynamic full invalidations: ${dynamicCounters.fullStyleInvalidations}`);
+        println(`dynamic recomputations bounded: ${dynamicCounters.elementStyleRecomputations <= 4}`);
+        println(`dynamic noop recomputations bounded: ${dynamicCounters.elementStyleNoopRecomputations <= 2}`);
+    });
+</script>

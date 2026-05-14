@@ -11,6 +11,7 @@
 #include <LibWeb/CSS/CSSFunctionDeclarations.h>
 #include <LibWeb/CSS/CSSMediaRule.h>
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
+#include <LibWeb/CSS/ContainerQuery.h>
 #include <LibWeb/CSS/MediaList.h>
 #include <LibWeb/CSS/MediaQuery.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
@@ -422,6 +423,16 @@ OwnPtr<MediaFeature> Parser::parse_media_feature(TokenStream<ComponentValue>& in
         [](MediaFeatureID id) { return media_feature_type_is_range(id); });
 }
 
+// `<size-feature>`, https://drafts.csswg.org/css-conditional-5/#size-container
+OwnPtr<SizeFeature> Parser::parse_size_feature(TokenStream<ComponentValue>& inner_tokens)
+{
+    return parse_query_feature<SizeFeature, SizeFeatureID>(
+        inner_tokens,
+        [](StringView name) { return size_feature_id_from_string(name); },
+        [this](SizeFeatureID id, auto& tokens) { return parse_size_feature_value(id, tokens); },
+        [](SizeFeatureID id) { return size_feature_type_is_range(id); });
+}
+
 Optional<MediaQuery::MediaType> Parser::parse_media_type(TokenStream<ComponentValue>& tokens)
 {
     auto transaction = tokens.begin_transaction();
@@ -629,6 +640,28 @@ Optional<FeatureValue> Parser::parse_media_feature_value(MediaFeatureID feature,
         tokens,
         [](MediaFeatureID feature, Keyword keyword) { return media_feature_accepts_keyword(feature, keyword); },
         [](MediaFeatureID feature, QueryValueType type) { return media_feature_accepts_type(feature, type); });
+}
+
+Optional<FeatureValue> Parser::parse_size_feature_value(SizeFeatureID feature, TokenStream<ComponentValue>& tokens)
+{
+    auto size_feature_accepts_keyword = [](SizeFeatureID feature, Keyword keyword) {
+        return feature == SizeFeatureID::Orientation && first_is_one_of(keyword, Keyword::Landscape, Keyword::Portrait);
+    };
+    auto size_feature_accepts_type = [](SizeFeatureID feature, QueryValueType type) {
+        switch (type) {
+        case QueryValueType::Length:
+            return first_is_one_of(feature,
+                SizeFeatureID::BlockSize,
+                SizeFeatureID::Height,
+                SizeFeatureID::InlineSize,
+                SizeFeatureID::Width);
+        case QueryValueType::Ratio:
+            return feature == SizeFeatureID::AspectRatio;
+        default:
+            return false;
+        }
+    };
+    return parse_feature_value(feature, tokens, size_feature_accepts_keyword, size_feature_accepts_type);
 }
 
 template<typename NestedDeclarationsRule>

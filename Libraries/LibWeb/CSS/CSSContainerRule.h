@@ -36,6 +36,7 @@ public:
     virtual String condition_text() const override;
     virtual bool condition_matches() const override;
     bool matches(DOM::AbstractElement const&) const;
+    bool contains_size_feature() const;
 
     String container_name() const;
     String container_query() const;

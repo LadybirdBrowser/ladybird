@@ -593,6 +593,8 @@ private:
     OwnPtr<MediaFeature> parse_media_feature(TokenStream<ComponentValue>&);
     Optional<MediaQuery::MediaType> parse_media_type(TokenStream<ComponentValue>&);
     Optional<FeatureValue> parse_media_feature_value(MediaFeatureID, TokenStream<ComponentValue>&);
+    OwnPtr<SizeFeature> parse_size_feature(TokenStream<ComponentValue>&);
+    Optional<FeatureValue> parse_size_feature_value(SizeFeatureID, TokenStream<ComponentValue>&);
 
     template<typename FeatureID, typename FeatureAcceptsKeyword, typename FeatureAcceptsType>
     Optional<FeatureValue> parse_feature_value(FeatureID, TokenStream<ComponentValue>&, FeatureAcceptsKeyword, FeatureAcceptsType);

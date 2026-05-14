@@ -2,6 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	Children respond to changes in container size
-Fail	Descendants respond to changes in container size
+2 Pass
+Pass	Children respond to changes in container size
+Pass	Descendants respond to changes in container size

@@ -721,6 +721,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
         visitor.visit(resize_observer);
 
     visitor.visit(m_svg_roots_needing_relayout);
+    visitor.visit(m_query_containers_needing_container_query_evaluation_after_layout);
 
     visitor.visit(m_shared_resource_requests);
 
@@ -1534,6 +1535,11 @@ void Document::mark_svg_root_as_needing_relayout(Layout::SVGSVGBox& svg_root)
     m_svg_roots_needing_relayout.set(svg_root);
 }
 
+void Document::set_needs_container_query_evaluation_after_layout(Element const& query_container)
+{
+    m_query_containers_needing_container_query_evaluation_after_layout.set(const_cast<Element&>(query_container));
+}
+
 static void relayout_svg_root(Layout::SVGSVGBox& svg_root)
 {
     Layout::LayoutState layout_state(svg_root);
@@ -1655,163 +1661,194 @@ void Document::update_layout(UpdateLayoutReason reason)
     ScopeGuard guard = [&] { m_is_running_update_layout = false; };
     m_is_running_update_layout = true;
 
-    update_style();
+    auto needs_style_update_after_layout = [&] {
+        return !m_query_containers_needing_container_query_evaluation_after_layout.is_empty()
+            || m_needs_animated_style_update
+            || m_needs_invalidation_of_elements_affected_by_has
+            || m_style_invalidator->has_pending_invalidations()
+            || needs_full_style_update()
+            || needs_style_update()
+            || child_needs_style_update();
+    };
 
-    if (layout_is_up_to_date())
-        return;
+    constexpr size_t max_container_query_layout_passes = 8;
+    for (size_t layout_pass = 0; layout_pass < max_container_query_layout_passes; ++layout_pass) {
+        update_style();
 
-    auto svg_roots_to_relayout = move(m_svg_roots_needing_relayout);
+        if (layout_is_up_to_date())
+            return;
 
-    // NOTE: If this is a document hosting <template> contents, layout is unnecessary.
-    if (m_created_for_appropriate_template_contents)
-        return;
+        auto svg_roots_to_relayout = move(m_svg_roots_needing_relayout);
 
-    auto const needs_layout_tree_rebuild = !m_layout_root || needs_layout_tree_update() || child_needs_layout_tree_update() || needs_full_layout_tree_update();
+        // NOTE: If this is a document hosting <template> contents, layout is unnecessary.
+        if (m_created_for_appropriate_template_contents)
+            return;
 
-    // Partial SVG relayout
-    if (!needs_layout_tree_rebuild && !svg_roots_to_relayout.is_empty() && !m_layout_root->needs_layout_update()) {
-        for (auto const& svg_root : svg_roots_to_relayout)
-            relayout_svg_root(*svg_root);
+        auto const needs_layout_tree_rebuild = !m_layout_root || needs_layout_tree_update() || child_needs_layout_tree_update() || needs_full_layout_tree_update();
 
-        invalidate_stacking_context_tree();
+        // Partial SVG relayout
+        if (!needs_layout_tree_rebuild && !svg_roots_to_relayout.is_empty() && !m_layout_root->needs_layout_update()) {
+            for (auto const& svg_root : svg_roots_to_relayout)
+                relayout_svg_root(*svg_root);
+
+            invalidate_stacking_context_tree();
+            set_needs_to_record_display_list();
+
+            set_needs_accumulated_visual_contexts_update(true);
+            update_paint_and_hit_testing_properties_if_needed();
+            m_document->set_needs_repaint();
+            return;
+        }
+
+        // Clear text blocks cache so we rebuild them on the next find action.
+        if (m_layout_root)
+            m_layout_root->invalidate_text_blocks_cache();
+
         set_needs_to_record_display_list();
+
+        auto* document_element = this->document_element();
+        auto viewport_rect = navigable->viewport_rect();
+
+        auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
+
+        if (needs_layout_tree_rebuild) {
+            Layout::TreeBuilder tree_builder;
+            m_layout_root = as<Layout::Viewport>(*tree_builder.build(*this));
+
+            // NB: Called during layout update.
+            if (document_element && document_element->unsafe_layout_node()) {
+                propagate_overflow_to_viewport(*document_element, *m_layout_root);
+                propagate_scrollbar_width_to_viewport(*document_element, *m_layout_root);
+            }
+
+            set_needs_full_layout_tree_update(false);
+
+            if constexpr (UPDATE_LAYOUT_DEBUG) {
+                dbgln("TREEBUILD {} µs", timer.elapsed_time().to_microseconds());
+            }
+        }
+
+        u32 layout_index_counter = 0;
+        m_layout_root->for_each_in_inclusive_subtree([&](auto& layout_node) {
+            if (auto* node_with_style = as_if<Layout::NodeWithStyle>(layout_node))
+                node_with_style->set_layout_index(layout_index_counter++);
+
+            layout_node.recompute_containing_block({});
+
+            auto* box = as_if<Layout::Box>(layout_node);
+            if (!box)
+                return TraversalDecision::Continue;
+
+            box->clear_contained_abspos_children();
+
+            if (!box->is_absolutely_positioned())
+                return TraversalDecision::Continue;
+
+            if (auto containing_block = box->containing_block()) {
+                auto closest_box_that_establishes_formatting_context = containing_block;
+                while (closest_box_that_establishes_formatting_context) {
+                    if (closest_box_that_establishes_formatting_context == m_layout_root)
+                        break;
+                    if (Layout::FormattingContext::formatting_context_type_created_by_box(*closest_box_that_establishes_formatting_context).has_value())
+                        break;
+                    closest_box_that_establishes_formatting_context = closest_box_that_establishes_formatting_context->containing_block();
+                }
+                VERIFY(closest_box_that_establishes_formatting_context);
+                closest_box_that_establishes_formatting_context->add_contained_abspos_child(*box);
+            }
+
+            return TraversalDecision::Continue;
+        });
+
+        Layout::LayoutState layout_state;
+        layout_state.ensure_capacity(layout_index_counter);
+
+        {
+            auto& viewport = static_cast<Layout::Viewport&>(*m_layout_root);
+            auto& viewport_state = layout_state.get_mutable(viewport);
+            viewport_state.set_content_width(viewport_rect.width());
+            viewport_state.set_content_height(viewport_rect.height());
+
+            // NB: Called during layout update.
+            if (document_element && document_element->unsafe_layout_node()) {
+                auto& icb_state = layout_state.get_mutable(as<Layout::NodeWithStyleAndBoxModelMetrics>(*document_element->unsafe_layout_node()));
+                icb_state.set_content_width(viewport_rect.width());
+            }
+
+            auto available_space = Layout::AvailableSpace(
+                Layout::AvailableSize::make_definite(viewport_rect.width()),
+                Layout::AvailableSize::make_definite(viewport_rect.height()));
+
+            if (m_layout_root->first_child() && m_layout_root->first_child()->is_svg_svg_box()) {
+                // NOTE: If we are laying out a standalone SVG document, we give it some special treatment:
+                //       The root <svg> container gets the same size as the viewport,
+                //       and we call directly into the SVG layout code from here.
+                auto const& svg_root = as<Layout::SVGSVGBox>(*m_layout_root->first_child());
+                auto content_height = layout_state.get(*svg_root.containing_block()).content_height();
+                layout_state.get_mutable(svg_root).set_content_height(content_height);
+                Layout::SVGFormattingContext svg_formatting_context(layout_state, Layout::LayoutMode::Normal, svg_root, nullptr);
+                svg_formatting_context.run(available_space);
+            } else {
+                Layout::BlockFormattingContext root_formatting_context(layout_state, Layout::LayoutMode::Normal, *m_layout_root, nullptr);
+                root_formatting_context.run(available_space);
+            }
+        }
+
+        layout_state.commit(*m_layout_root);
+
+        // Broadcast the current viewport rect to any new paintables, so they know whether they're visible or not.
+        inform_all_viewport_clients_about_the_current_viewport_rect();
+
+        m_document->set_needs_repaint();
+
+        // NB: Called during layout update.
+        unsafe_paintable()->assign_scroll_frames();
 
         set_needs_accumulated_visual_contexts_update(true);
         update_paint_and_hit_testing_properties_if_needed();
-        m_document->set_needs_repaint();
-        return;
-    }
 
-    // Clear text blocks cache so we rebuild them on the next find action.
-    if (m_layout_root)
-        m_layout_root->invalidate_text_blocks_cache();
-
-    set_needs_to_record_display_list();
-
-    auto* document_element = this->document_element();
-    auto viewport_rect = navigable->viewport_rect();
-
-    auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-
-    if (needs_layout_tree_rebuild) {
-        Layout::TreeBuilder tree_builder;
-        m_layout_root = as<Layout::Viewport>(*tree_builder.build(*this));
-
-        // NB: Called during layout update.
-        if (document_element && document_element->unsafe_layout_node()) {
-            propagate_overflow_to_viewport(*document_element, *m_layout_root);
-            propagate_scrollbar_width_to_viewport(*document_element, *m_layout_root);
+        if (auto range = get_selection()->range()) {
+            unsafe_paintable()->recompute_selection_states(*range);
         }
 
-        set_needs_full_layout_tree_update(false);
+        // Collect elements with content-visibility: auto. This is used in the HTML event loop to avoid traversing the whole tree every time.
+        Vector<WeakPtr<Painting::PaintableBox>> paintable_boxes_with_auto_content_visibility;
+        unsafe_paintable()->for_each_in_subtree_of_type<Painting::PaintableBox>([&](auto& paintable_box) {
+            if (paintable_box.dom_node()
+                && paintable_box.dom_node()->is_element()
+                && paintable_box.computed_values().content_visibility() == CSS::ContentVisibility::Auto) {
+                paintable_boxes_with_auto_content_visibility.append(paintable_box);
+            }
+            return TraversalDecision::Continue;
+        });
+        unsafe_paintable()->set_paintable_boxes_with_auto_content_visibility(move(paintable_boxes_with_auto_content_visibility));
+
+        m_layout_root->for_each_in_inclusive_subtree([](auto& node) {
+            node.reset_needs_layout_update();
+            return TraversalDecision::Continue;
+        });
 
         if constexpr (UPDATE_LAYOUT_DEBUG) {
-            dbgln("TREEBUILD {} µs", timer.elapsed_time().to_microseconds());
+            dbgln("LAYOUT {} {} µs", to_string(reason), timer.elapsed_time().to_microseconds());
         }
-    }
 
-    u32 layout_index_counter = 0;
-    m_layout_root->for_each_in_inclusive_subtree([&](auto& layout_node) {
-        if (auto* node_with_style = as_if<Layout::NodeWithStyle>(layout_node))
-            node_with_style->set_layout_index(layout_index_counter++);
+        if (!m_query_containers_needing_container_query_evaluation_after_layout.is_empty()) {
+            auto query_containers = move(m_query_containers_needing_container_query_evaluation_after_layout);
+            for (auto& query_container : query_containers) {
+                if (!query_container->is_connected())
+                    continue;
 
-        layout_node.recompute_containing_block({});
+                query_container->for_each_shadow_including_descendant([](Node& node) {
+                    if (auto* element = as_if<Element>(node); element && element->style_depends_on_size_container_query())
+                        element->set_needs_style_update(true);
 
-        auto* box = as_if<Layout::Box>(layout_node);
-        if (!box)
-            return TraversalDecision::Continue;
-
-        box->clear_contained_abspos_children();
-
-        if (!box->is_absolutely_positioned())
-            return TraversalDecision::Continue;
-
-        if (auto containing_block = box->containing_block()) {
-            auto closest_box_that_establishes_formatting_context = containing_block;
-            while (closest_box_that_establishes_formatting_context) {
-                if (closest_box_that_establishes_formatting_context == m_layout_root)
-                    break;
-                if (Layout::FormattingContext::formatting_context_type_created_by_box(*closest_box_that_establishes_formatting_context).has_value())
-                    break;
-                closest_box_that_establishes_formatting_context = closest_box_that_establishes_formatting_context->containing_block();
+                    return TraversalDecision::Continue;
+                });
             }
-            VERIFY(closest_box_that_establishes_formatting_context);
-            closest_box_that_establishes_formatting_context->add_contained_abspos_child(*box);
         }
 
-        return TraversalDecision::Continue;
-    });
-
-    Layout::LayoutState layout_state;
-    layout_state.ensure_capacity(layout_index_counter);
-
-    {
-        auto& viewport = static_cast<Layout::Viewport&>(*m_layout_root);
-        auto& viewport_state = layout_state.get_mutable(viewport);
-        viewport_state.set_content_width(viewport_rect.width());
-        viewport_state.set_content_height(viewport_rect.height());
-
-        // NB: Called during layout update.
-        if (document_element && document_element->unsafe_layout_node()) {
-            auto& icb_state = layout_state.get_mutable(as<Layout::NodeWithStyleAndBoxModelMetrics>(*document_element->unsafe_layout_node()));
-            icb_state.set_content_width(viewport_rect.width());
-        }
-
-        auto available_space = Layout::AvailableSpace(
-            Layout::AvailableSize::make_definite(viewport_rect.width()),
-            Layout::AvailableSize::make_definite(viewport_rect.height()));
-
-        if (m_layout_root->first_child() && m_layout_root->first_child()->is_svg_svg_box()) {
-            // NOTE: If we are laying out a standalone SVG document, we give it some special treatment:
-            //       The root <svg> container gets the same size as the viewport,
-            //       and we call directly into the SVG layout code from here.
-            auto const& svg_root = as<Layout::SVGSVGBox>(*m_layout_root->first_child());
-            auto content_height = layout_state.get(*svg_root.containing_block()).content_height();
-            layout_state.get_mutable(svg_root).set_content_height(content_height);
-            Layout::SVGFormattingContext svg_formatting_context(layout_state, Layout::LayoutMode::Normal, svg_root, nullptr);
-            svg_formatting_context.run(available_space);
-        } else {
-            Layout::BlockFormattingContext root_formatting_context(layout_state, Layout::LayoutMode::Normal, *m_layout_root, nullptr);
-            root_formatting_context.run(available_space);
-        }
-    }
-
-    layout_state.commit(*m_layout_root);
-
-    // Broadcast the current viewport rect to any new paintables, so they know whether they're visible or not.
-    inform_all_viewport_clients_about_the_current_viewport_rect();
-
-    m_document->set_needs_repaint();
-
-    // NB: Called during layout update.
-    unsafe_paintable()->assign_scroll_frames();
-
-    set_needs_accumulated_visual_contexts_update(true);
-    update_paint_and_hit_testing_properties_if_needed();
-
-    if (auto range = get_selection()->range()) {
-        unsafe_paintable()->recompute_selection_states(*range);
-    }
-
-    // Collect elements with content-visibility: auto. This is used in the HTML event loop to avoid traversing the whole tree every time.
-    Vector<WeakPtr<Painting::PaintableBox>> paintable_boxes_with_auto_content_visibility;
-    unsafe_paintable()->for_each_in_subtree_of_type<Painting::PaintableBox>([&](auto& paintable_box) {
-        if (paintable_box.dom_node()
-            && paintable_box.dom_node()->is_element()
-            && paintable_box.computed_values().content_visibility() == CSS::ContentVisibility::Auto) {
-            paintable_boxes_with_auto_content_visibility.append(paintable_box);
-        }
-        return TraversalDecision::Continue;
-    });
-    unsafe_paintable()->set_paintable_boxes_with_auto_content_visibility(move(paintable_boxes_with_auto_content_visibility));
-
-    m_layout_root->for_each_in_inclusive_subtree([](auto& node) {
-        node.reset_needs_layout_update();
-        return TraversalDecision::Continue;
-    });
-
-    if constexpr (UPDATE_LAYOUT_DEBUG) {
-        dbgln("LAYOUT {} {} µs", to_string(reason), timer.elapsed_time().to_microseconds());
+        if (!needs_style_update_after_layout())
+            break;
     }
 
     VERIFY(layout_is_up_to_date());

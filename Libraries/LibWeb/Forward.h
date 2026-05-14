@@ -380,6 +380,7 @@ class Selector;
 class ShadowStyleValue;
 class ShorthandStyleValue;
 class Size;
+class SizeFeature;
 class ScrollbarColorStyleValue;
 class StringStyleValue;
 class StyleComputer;
@@ -413,6 +414,7 @@ enum class FontFeatureValueType : u8;
 enum class Keyword : u16;
 enum class MediaFeatureID : u8;
 enum class PropertyID : u16;
+enum class SizeFeatureID : u8;
 enum class ValueType : u8;
 enum class AnimatedPropertyResultOfTransition : u8;
 
