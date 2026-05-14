@@ -2296,13 +2296,13 @@ VALIDATE_INSTRUCTION(throw_ref)
 VALIDATE_INSTRUCTION(try_table)
 {
     auto& args = instruction.arguments().get<Instruction::TryTableArgs>();
-    auto block_type = TRY(validate(args.try_.block_type));
+    auto block_type = TRY(validate(args.block_type));
 
     auto& parameters = block_type.parameters();
     for (size_t i = 1; i <= parameters.size(); ++i)
         TRY(stack.take(parameters[parameters.size() - i]));
 
-    args.try_.meta = Instruction::StructuredInstructionArgs::Meta {
+    args.meta = Instruction::TryTableArgs::Meta {
         .arity = static_cast<u32>(block_type.results().size()),
         .parameter_count = static_cast<u32>(parameters.size()),
     };
@@ -2312,7 +2312,7 @@ VALIDATE_INSTRUCTION(try_table)
     for (auto& parameter : parameters)
         stack.append(parameter);
 
-    for (auto& catch_ : args.catches) {
+    for (auto& catch_ : args.catches()) {
         auto label = catch_.target_label();
         TRY(validate(label));
         auto& target_label_type = m_frames[(m_frames.size() - 1) - label.value()].labels();

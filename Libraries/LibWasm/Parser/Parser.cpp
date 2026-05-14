@@ -348,9 +348,8 @@ ParseResult<Instruction> Instruction::parse(ConstrainedStream& stream)
         // try_table block_type (catch*) (instruction*) end
         auto block_type = TRY(BlockType::parse(stream));
         auto catch_types = TRY(parse_vector<Catch>(stream));
-        auto structured_args = StructuredInstructionArgs { block_type, {}, {} };
         return Instruction {
-            opcode, TryTableArgs { move(structured_args), move(catch_types) }
+            opcode, TryTableArgs { block_type, {}, catch_types.span() }
         };
     }
     case Instructions::throw_.value(): {
@@ -1160,11 +1159,11 @@ ParseResult<Expression> Expression::parse(ConstrainedStream& stream, Optional<si
             auto entry = stack.take_last();
             bool valid_type = instructions[entry.value()].arguments().visit(
                 [&](Instruction::StructuredInstructionArgs& args) {
-                    args.end_ip = ip + (args.else_ip.has_value() ? 1 : 0);
+                    args.end_ip = ip + (args.else_ip().has_value() ? 1 : 0);
                     return true;
                 },
                 [&](Instruction::TryTableArgs& args) {
-                    args.try_.end_ip = ip + 1;
+                    args.end_ip = ip + 1;
                     return true;
                 },
                 [](auto&) { return false; });
@@ -1182,7 +1181,7 @@ ParseResult<Expression> Expression::parse(ConstrainedStream& stream, Optional<si
             if (!args)
                 return ParseError::InvalidType;
 
-            args->else_ip = ip + 1;
+            args->else_ip() = ip + 1;
             break;
         }
         }

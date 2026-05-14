@@ -2099,8 +2099,8 @@ HANDLE_INSTRUCTION(if_)
     auto value = configuration.take_source<source_address_mix>(0, addresses.sources).template to<i32>();
     auto end_label = Label(meta.arity, args.end_ip.value(), configuration.value_stack().size() - meta.parameter_count);
     if (value == 0) {
-        if (args.else_ip.has_value()) {
-            short_ip.current_ip_value = args.else_ip->value() - 1;
+        if (args.else_ip().has_value()) {
+            short_ip.current_ip_value = args.else_ip()->value() - 1;
             configuration.label_stack().unchecked_append(end_label);
         } else {
             short_ip.current_ip_value = args.end_ip.value();
@@ -6303,15 +6303,10 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                 return offset;
             };
 
-            InstructionPointer end_ip = ptr->end_ip.value() - offset_accumulated - offset_to(ptr->end_ip - ptr->else_ip.has_value());
-            auto else_ip = ptr->else_ip.map([&](InstructionPointer const& ip) -> InstructionPointer { return ip.value() - offset_accumulated - offset_to(ip - 1); });
+            InstructionPointer end_ip = ptr->end_ip.value() - offset_accumulated - offset_to(ptr->end_ip - ptr->else_ip().has_value());
+            auto else_ip = ptr->else_ip().map([&](InstructionPointer const& ip) -> InstructionPointer { return ip.value() - offset_accumulated - offset_to(ip - 1); });
             auto instruction = *result.dispatches[i].instruction;
-            instruction.arguments() = Instruction::StructuredInstructionArgs {
-                .block_type = ptr->block_type,
-                .end_ip = end_ip,
-                .else_ip = else_ip,
-                .meta = ptr->meta,
-            };
+            instruction.arguments() = Instruction::StructuredInstructionArgs { ptr->block_type, end_ip, else_ip, ptr->meta };
             auto& extra_instruction = append_extra_instruction(move(instruction));
             result.dispatches[i].instruction = &extra_instruction;
             result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
@@ -7132,8 +7127,8 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         if (dispatch.instruction->opcode() == Instructions::if_) {
             // if (else) (end), verify (else) - 1 points at a synthetic:else_, and (end)-1+(!has-else) points at a synthetic:end.
             auto args = dispatch.instruction->arguments().get<Instruction::StructuredInstructionArgs>();
-            if (args.else_ip.has_value()) {
-                size_t else_ip = args.else_ip->value() - 1;
+            if (args.else_ip().has_value()) {
+                size_t else_ip = args.else_ip()->value() - 1;
                 if (result.dispatches[else_ip].instruction->opcode() != Instructions::structured_else) {
                     dbgln("Invalid else_ip target at instruction {}: else_ip {}", i, else_ip);
                     dbgln("Instructions around the invalid else_ip:");
@@ -7141,7 +7136,7 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                     VERIFY_NOT_REACHED();
                 }
             }
-            size_t end_ip = args.end_ip.value() - 1 + (args.else_ip.has_value() ? 0 : 1);
+            size_t end_ip = args.end_ip.value() - 1 + (args.else_ip().has_value() ? 0 : 1);
             if (result.dispatches[end_ip].instruction->opcode() != Instructions::structured_end) {
                 dbgln("Invalid end_ip target at instruction {}: end_ip {}", i, end_ip);
                 dbgln("Instructions around the invalid end_ip:");

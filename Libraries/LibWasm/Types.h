@@ -13,6 +13,7 @@
 #include <AK/LEB128.h>
 #include <AK/NumericLimits.h>
 #include <AK/Optional.h>
+#include <AK/OwnPtr.h>
 #include <AK/Result.h>
 #include <AK/String.h>
 #include <AK/UFixedBigInt.h>
@@ -572,16 +573,32 @@ public:
         TableIndex rhs;
     };
 
-    struct StructuredInstructionArgs {
+    template<typename ExtraData>
+    struct StructuredInstructionArgsBase {
+        using Extra = ExtraData;
+
         BlockType block_type;
         InstructionPointer end_ip; // 'end' instruction IP if there is no 'else'; otherwise IP of instruction after 'end'.
-        Optional<InstructionPointer> else_ip;
+        ExtraData extra;
 
         struct Meta {
             u32 arity;
             u32 parameter_count;
         };
         mutable Meta meta {};
+    };
+
+    struct StructuredInstructionArgs : StructuredInstructionArgsBase<Optional<InstructionPointer>> {
+        using Base = StructuredInstructionArgsBase<Optional<InstructionPointer>>;
+        using Meta = typename Base::Meta;
+
+        StructuredInstructionArgs(BlockType block_type, InstructionPointer end_ip, Optional<InstructionPointer> else_ip, Meta meta = {})
+            : Base { block_type, end_ip, else_ip, meta }
+        {
+        }
+
+        auto& else_ip() { return extra; }
+        auto& else_ip() const { return extra; }
     };
 
     struct TableBranchArgs {
@@ -630,9 +647,55 @@ public:
     };
 
     // Proposal "exception-handling"
-    struct TryTableArgs {
-        StructuredInstructionArgs try_; // "else" unused.
-        Vector<Catch> catches;
+    struct TryTableArgs : StructuredInstructionArgsBase<OwnPtr<FixedArray<Catch>>> {
+        using Base = StructuredInstructionArgsBase<OwnPtr<FixedArray<Catch>>>;
+        using Meta = typename Base::Meta;
+
+        TryTableArgs(BlockType block_type, InstructionPointer end_ip, ReadonlySpan<Catch> catches, Meta meta = {})
+            : Base { block_type, end_ip, create_catches(catches), meta }
+        {
+        }
+
+        TryTableArgs(TryTableArgs const& other)
+            : Base { other.block_type, other.end_ip, clone_catches(other.extra), other.meta }
+        {
+        }
+
+        TryTableArgs& operator=(TryTableArgs const& other)
+        {
+            if (this == &other)
+                return *this;
+            block_type = other.block_type;
+            end_ip = other.end_ip;
+            extra = clone_catches(other.extra);
+            meta = other.meta;
+            return *this;
+        }
+
+        TryTableArgs(TryTableArgs&&) = default;
+        TryTableArgs& operator=(TryTableArgs&&) = default;
+
+        ReadonlySpan<Catch> catches() const
+        {
+            if (!extra)
+                return {};
+            return extra->span();
+        }
+
+    private:
+        static OwnPtr<FixedArray<Catch>> create_catches(ReadonlySpan<Catch> catches)
+        {
+            if (catches.is_empty())
+                return nullptr;
+            return make<FixedArray<Catch>>(MUST(FixedArray<Catch>::create(catches)));
+        }
+
+        static OwnPtr<FixedArray<Catch>> clone_catches(OwnPtr<FixedArray<Catch>> const& catches)
+        {
+            if (!catches)
+                return nullptr;
+            return make<FixedArray<Catch>>(MUST(catches->clone()));
+        }
     };
 
     struct ShuffleArgument {
