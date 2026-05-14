@@ -334,8 +334,8 @@ public:
     GC::Ptr<Layout::NodeWithStyle> get_pseudo_element_node(CSS::PseudoElement) const;
     bool has_pseudo_element(CSS::PseudoElement) const;
     bool has_pseudo_elements() const;
-    void clear_pseudo_element_nodes(Badge<Layout::TreeBuilder>);
-    void clear_pseudo_element_layout_nodes(Badge<Document>);
+    void clear_pseudo_element_layout_nodes(Badge<Layout::TreeBuilder>) { clear_pseudo_element_layout_nodes(); }
+    void clear_pseudo_element_layout_nodes(Badge<Document>) { clear_pseudo_element_layout_nodes(); }
 
     void serialize_children_as_json(JsonObjectSerializer<StringBuilder>&) const;
 
@@ -652,6 +652,7 @@ private:
     using PseudoElementData = HashMap<CSS::PseudoElement, GC::Ref<PseudoElement>>;
     mutable OwnPtr<PseudoElementData> m_pseudo_element_data;
     PseudoElement& ensure_pseudo_element(CSS::PseudoElement) const;
+    void clear_pseudo_element_layout_nodes();
 
     Optional<CSS::PseudoElement> m_use_pseudo_element;
 

@@ -810,7 +810,7 @@ TraversalDecision TreeBuilder::clear_stale_layout_and_paint_node(DOM::Node& node
     node.clear_paintable();
 
     if (is<DOM::Element>(node))
-        static_cast<DOM::Element&>(node).clear_pseudo_element_nodes({});
+        static_cast<DOM::Element&>(node).clear_pseudo_element_layout_nodes(Badge<TreeBuilder> {});
 
     return TraversalDecision::Continue;
 }
@@ -877,7 +877,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
             // automatically discarded when element's layout is recomputed. We must remove it manually.
             if (auto old_backdrop_node = element.get_pseudo_element_node(CSS::PseudoElement::Backdrop))
                 old_backdrop_node->remove();
-            element.clear_pseudo_element_nodes({});
+            element.clear_pseudo_element_layout_nodes(Badge<TreeBuilder> {});
             // Elements inside a `display:none` subtree are skipped by
             // `Document::update_style_recursively`, so a bypass path (top-layer iteration, slot
             // projection, SVG mask/clip-path or pattern reference) may reach an element whose
