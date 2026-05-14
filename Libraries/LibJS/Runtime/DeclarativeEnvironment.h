@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Bitmap.h>
 #include <AK/HashMap.h>
 #include <AK/Utf16FlyString.h>
 #include <LibJS/Export.h>
@@ -49,10 +50,12 @@ public:
     [[nodiscard]] Vector<Utf16FlyString> bindings() const
     {
         Vector<Utf16FlyString> names;
-        names.ensure_capacity(m_bindings.size());
+        names.ensure_capacity(m_binding_names.size());
 
-        for (auto const& binding : m_bindings)
-            names.unchecked_append(binding.name);
+        for (auto const& name : m_binding_names) {
+            if (!name.is_empty())
+                names.unchecked_append(name);
+        }
 
         return names;
     }
@@ -60,13 +63,16 @@ public:
     ThrowCompletionOr<void> initialize_binding_direct(VM&, size_t index, Value, InitializeBindingHint);
     ThrowCompletionOr<void> set_mutable_binding_direct(VM&, size_t index, Value, bool strict);
     ThrowCompletionOr<Value> get_binding_value_direct(VM&, size_t index) const;
-    Value get_initialized_binding_value_direct(size_t index) const { return m_bindings[index].value; }
+    Value get_initialized_binding_value_direct(size_t index) const { return m_binding_values[index]; }
 
     void shrink_to_fit();
 
     void ensure_capacity(size_t needed_capacity)
     {
-        m_bindings.ensure_capacity(needed_capacity);
+        m_binding_names.ensure_capacity(needed_capacity);
+        m_binding_values.ensure_capacity(needed_capacity);
+        m_binding_flags.ensure_capacity(needed_capacity);
+        ensure_initialized_bindings_capacity(needed_capacity);
     }
 
     [[nodiscard]] u64 environment_serial_number() const { return m_environment_serial_number; }
@@ -75,6 +81,27 @@ public:
     DisposeCapability& dispose_capability() { return m_dispose_capability; }
 
 private:
+    enum BindingFlag : u8 {
+        BindingFlagStrict = 1 << 0,
+        BindingFlagMutable = 1 << 1,
+        BindingFlagCanBeDeleted = 1 << 2,
+    };
+
+    void append_binding(Binding);
+    void clear_binding(Utf16FlyString const& name, size_t index);
+    void ensure_initialized_bindings_capacity(size_t needed_capacity)
+    {
+        if (needed_capacity <= m_initialized_bindings.size())
+            return;
+        m_initialized_bindings.grow(ceil_div(needed_capacity, static_cast<size_t>(8)) * 8, false);
+    }
+    Binding binding_at(size_t index) const;
+    bool binding_is_strict(size_t index) const { return (m_binding_flags[index] & BindingFlagStrict) != 0; }
+    bool binding_is_mutable(size_t index) const { return (m_binding_flags[index] & BindingFlagMutable) != 0; }
+    bool binding_can_be_deleted(size_t index) const { return (m_binding_flags[index] & BindingFlagCanBeDeleted) != 0; }
+    bool binding_is_initialized(size_t index) const { return m_initialized_bindings.get(index); }
+    void set_binding_initialized(size_t index, bool initialized) { m_initialized_bindings.set(index, initialized); }
+
     ThrowCompletionOr<Value> get_binding_value_direct(VM&, Binding const&) const;
     ThrowCompletionOr<void> set_mutable_binding_direct(VM&, Binding&, Value, bool strict);
 
@@ -88,16 +115,16 @@ protected:
 
     class BindingAndIndex {
     public:
-        Binding& binding()
+        Binding binding() const
         {
-            if (m_referenced_binding)
-                return *m_referenced_binding;
+            if (m_referenced_environment)
+                return m_referenced_environment->binding_at(m_index.value());
             return m_temporary_binding;
         }
 
-        BindingAndIndex(Binding* binding, Optional<size_t> index)
-            : m_referenced_binding(binding)
-            , m_index(move(index))
+        BindingAndIndex(DeclarativeEnvironment const& environment, size_t index)
+            : m_referenced_environment(&environment)
+            , m_index(index)
         {
         }
 
@@ -109,7 +136,7 @@ protected:
         Optional<size_t> const& index() const { return m_index; }
 
     private:
-        Binding* m_referenced_binding { nullptr };
+        GC::Ptr<DeclarativeEnvironment const> m_referenced_environment;
         Binding m_temporary_binding {};
         Optional<size_t> m_index;
     };
@@ -119,14 +146,17 @@ protected:
     virtual Optional<BindingAndIndex> find_binding_and_index(Utf16FlyString const& name) const
     {
         if (auto it = m_bindings_assoc.find(name); it != m_bindings_assoc.end()) {
-            return BindingAndIndex { const_cast<Binding*>(&m_bindings.at(it->value)), it->value };
+            return BindingAndIndex { *this, it->value };
         }
 
         return {};
     }
 
 private:
-    Vector<Binding> m_bindings;
+    Vector<Utf16FlyString> m_binding_names;
+    Vector<Value> m_binding_values;
+    Vector<u8> m_binding_flags;
+    Bitmap m_initialized_bindings;
     HashMap<Utf16FlyString, size_t> m_bindings_assoc;
     DisposeCapability m_dispose_capability;
 
@@ -136,7 +166,10 @@ private:
 
 inline ThrowCompletionOr<Value> DeclarativeEnvironment::get_binding_value_direct(VM& vm, size_t index) const
 {
-    return get_binding_value_direct(vm, m_bindings[index]);
+    if (!binding_is_initialized(index))
+        return vm.throw_completion<ReferenceError>(ErrorType::BindingNotInitialized, m_binding_names[index]);
+
+    return m_binding_values[index];
 }
 
 inline ThrowCompletionOr<Value> DeclarativeEnvironment::get_binding_value_direct(VM&, Binding const& binding) const

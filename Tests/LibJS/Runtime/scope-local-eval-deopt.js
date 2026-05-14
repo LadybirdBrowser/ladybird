@@ -357,6 +357,14 @@ describe("scope-local eval deoptimization", () => {
         expect(typeof localToFoo).toBe("undefined");
     });
 
+    test("direct eval can delete a function environment var binding", () => {
+        function foo() {
+            eval("var localToFoo = 42; delete localToFoo;");
+            return typeof localToFoo;
+        }
+        expect(foo()).toBe("undefined");
+    });
+
     test("eval shadowing global does not modify actual global", () => {
         globalThis.testGlobal789 = "original";
         function foo() {

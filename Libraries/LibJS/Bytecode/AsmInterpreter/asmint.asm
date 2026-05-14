@@ -975,18 +975,57 @@ end
 # Environment / binding access
 # ============================================================================
 
+macro check_binding_initialized(env, idx, bitmap_data, bit_index, init, fail_label)
+    load64 bitmap_data, [env, INITIALIZED_BINDINGS_DATA_PTR]
+    assert_nonzero bitmap_data
+    mov bit_index, idx
+    shr bit_index, 3
+    load8 init, [bitmap_data, bit_index]
+    mov bit_index, idx
+    and bit_index, 7
+    shr init, bit_index
+    and init, 1
+    branch_zero init, fail_label
+end
+
+macro set_binding_initialized(env, idx, bitmap_data, byte_index, bit_index, byte_value, mask)
+    load64 bitmap_data, [env, INITIALIZED_BINDINGS_DATA_PTR]
+    assert_nonzero bitmap_data
+    mov byte_index, idx
+    shr byte_index, 3
+    load8 byte_value, [bitmap_data, byte_index]
+    mov bit_index, idx
+    and bit_index, 7
+    mov mask, 1
+    shl mask, bit_index
+    or byte_value, mask
+    store8 [bitmap_data, byte_index], byte_value
+end
+
+macro load_binding_value(env, idx, binding_values, value)
+    load64 binding_values, [env, BINDING_VALUES_DATA_PTR]
+    assert_nonzero binding_values
+    load64 value, [binding_values, idx, 8]
+end
+
+macro store_binding_value(env, idx, binding_values, value)
+    load64 binding_values, [env, BINDING_VALUES_DATA_PTR]
+    assert_nonzero binding_values
+    store64 [binding_values, idx, 8], value
+end
+
+macro load_binding_flags(env, idx, flags, flag)
+    load64 flags, [env, BINDING_FLAGS_DATA_PTR]
+    assert_nonzero flags
+    load8 flag, [flags, idx]
+end
+
 # Inline environment chain walk + binding value load with TDZ check.
 handler GetBinding
-    temp env, idx, binding, init, value
+    temp env, idx, bitmap_data, bit_index, init, binding_values, value
     walk_env_chain m_cache, env, idx, .slow
-    load64 binding, [env, BINDINGS_DATA_PTR]
-    assert_nonzero binding
-    mul idx, idx, SIZEOF_BINDING
-    add binding, idx
-    # Check binding is initialized (TDZ)
-    load8 init, [binding, BINDING_INITIALIZED]
-    branch_zero init, .slow
-    load64 value, [binding, BINDING_VALUE]
+    check_binding_initialized env, idx, bitmap_data, bit_index, init, .slow
+    load_binding_value env, idx, binding_values, value
     store_operand m_dst, value
     dispatch_next
 .slow:
@@ -995,13 +1034,9 @@ end
 
 # Inline environment chain walk + direct binding value load.
 handler GetInitializedBinding
-    temp env, idx, binding, value
+    temp env, idx, binding_values, value
     walk_env_chain m_cache, env, idx, .slow
-    load64 binding, [env, BINDINGS_DATA_PTR]
-    assert_nonzero binding
-    mul idx, idx, SIZEOF_BINDING
-    add binding, idx
-    load64 value, [binding, BINDING_VALUE]
+    load_binding_value env, idx, binding_values, value
     store_operand m_dst, value
     dispatch_next
 .slow:
@@ -1010,17 +1045,11 @@ end
 
 # Inline environment chain walk + initialize binding (set value + initialized=true).
 handler InitializeLexicalBinding
-    temp env, idx, binding, value, one
+    temp env, idx, value, binding_values, bitmap_data, byte_index, bit_index, byte_value, mask
     walk_env_chain m_cache, env, idx, .slow
-    load64 binding, [env, BINDINGS_DATA_PTR]
-    assert_nonzero binding
-    mul idx, idx, SIZEOF_BINDING
-    add binding, idx
     load_operand value, m_src
-    store64 [binding, BINDING_VALUE], value
-    # Set initialized = true
-    mov one, 1
-    store8 [binding, BINDING_INITIALIZED], one
+    store_binding_value env, idx, binding_values, value
+    set_binding_initialized env, idx, bitmap_data, byte_index, bit_index, byte_value, mask
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_initialize_lexical_binding
@@ -1028,20 +1057,15 @@ end
 
 # Inline environment chain walk + set mutable binding.
 handler SetLexicalBinding
-    temp env, idx, binding, flag, value
+    temp env, idx, bitmap_data, bit_index, flag, value, binding_values, flags
     walk_env_chain m_cache, env, idx, .slow
-    load64 binding, [env, BINDINGS_DATA_PTR]
-    assert_nonzero binding
-    mul idx, idx, SIZEOF_BINDING
-    add binding, idx
-    # Check initialized (TDZ)
-    load8 flag, [binding, BINDING_INITIALIZED]
-    branch_zero flag, .slow
+    check_binding_initialized env, idx, bitmap_data, bit_index, flag, .slow
     # Check mutable
-    load8 flag, [binding, BINDING_MUTABLE]
+    load_binding_flags env, idx, flags, flag
+    and flag, BINDING_FLAG_MUTABLE
     branch_zero flag, .slow
     load_operand value, m_src
-    store64 [binding, BINDING_VALUE], value
+    store_binding_value env, idx, binding_values, value
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_set_lexical_binding
@@ -1363,17 +1387,12 @@ end
 
 # Inline environment chain walk + get callee and this.
 handler GetCalleeAndThisFromEnvironment
-    temp env, idx, binding, init, value
+    temp env, idx, bitmap_data, bit_index, init, binding_values, value
     walk_env_chain m_cache, env, idx, .slow
-    load64 binding, [env, BINDINGS_DATA_PTR]
-    assert_nonzero binding
-    mul idx, idx, SIZEOF_BINDING
-    add binding, idx
-    # TDZ state lives in Binding.initialized; the value slot itself starts as
+    # TDZ state lives outside the value slot; the value itself starts as
     # undefined, so checking for EMPTY would miss cached second-hit calls.
-    load8 init, [binding, BINDING_INITIALIZED]
-    branch_zero init, .slow
-    load64 value, [binding, BINDING_VALUE]
+    check_binding_initialized env, idx, bitmap_data, bit_index, init, .slow
+    load_binding_value env, idx, binding_values, value
     store_operand m_callee, value
     # this = undefined (DeclarativeEnvironment.with_base_object() always returns nullptr)
     mov value, UNDEFINED_SHIFTED
@@ -1916,7 +1935,7 @@ end
 
 # Inline cache fast path for global variable access via the global object.
 handler GetGlobal
-    temp realm, global_object, env, gvc, cache_serial, env_serial, shape, cache_shape, cur_dict_gen, prop_offset, dict_gen, props, value, tag, has_env, in_module, idx, binding, init, result
+    temp realm, global_object, env, gvc, cache_serial, env_serial, shape, cache_shape, cur_dict_gen, prop_offset, dict_gen, props, value, tag, has_env, in_module, idx, bitmap_data, bit_index, init, binding_values, result
     load64 realm, [exec_ctx, EXECUTION_CONTEXT_REALM]
     load_pair64 global_object, env, [realm, REALM_GLOBAL_OBJECT], [realm, REALM_GLOBAL_DECLARATIVE_ENVIRONMENT]
     assert_nonzero global_object
@@ -1951,13 +1970,8 @@ handler GetGlobal
     branch_nonzero in_module, .slow_env
     # Inline env binding: index into global_declarative_environment bindings.
     load32 idx, [gvc, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_BINDING_INDEX]
-    load64 binding, [env, BINDINGS_DATA_PTR]
-    assert_nonzero binding
-    mul idx, idx, SIZEOF_BINDING
-    add binding, idx
-    load8 init, [binding, BINDING_INITIALIZED]
-    branch_zero init, .slow
-    load64 value, [binding, BINDING_VALUE]
+    check_binding_initialized env, idx, bitmap_data, bit_index, init, .slow
+    load_binding_value env, idx, binding_values, value
     store_operand m_dst, value
     dispatch_next
 .slow_env:
@@ -1970,7 +1984,7 @@ end
 
 # Inline cache fast path for global variable store via the global object.
 handler SetGlobal
-    temp realm, global_object, env, gvc, cache_serial, env_serial, shape, cache_shape, cur_dict_gen, prop_offset, dict_gen, props, value, tag, has_env, in_module, idx, binding, flag, src, result
+    temp realm, global_object, env, gvc, cache_serial, env_serial, shape, cache_shape, cur_dict_gen, prop_offset, dict_gen, props, value, tag, has_env, in_module, idx, bitmap_data, bit_index, flag, src, binding_values, flags, result
     load64 realm, [exec_ctx, EXECUTION_CONTEXT_REALM]
     load_pair64 global_object, env, [realm, REALM_GLOBAL_OBJECT], [realm, REALM_GLOBAL_DECLARATIVE_ENVIRONMENT]
     assert_nonzero global_object
@@ -2002,16 +2016,12 @@ handler SetGlobal
     load8 in_module, [gvc, GLOBAL_VARIABLE_CACHE_IN_MODULE_ENVIRONMENT]
     branch_nonzero in_module, .slow_env
     load32 idx, [gvc, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_BINDING_INDEX]
-    load64 binding, [env, BINDINGS_DATA_PTR]
-    assert_nonzero binding
-    mul idx, idx, SIZEOF_BINDING
-    add binding, idx
-    load8 flag, [binding, BINDING_INITIALIZED]
-    branch_zero flag, .slow
-    load8 flag, [binding, BINDING_MUTABLE]
+    check_binding_initialized env, idx, bitmap_data, bit_index, flag, .slow
+    load_binding_flags env, idx, flags, flag
+    and flag, BINDING_FLAG_MUTABLE
     branch_zero flag, .slow
     load_operand src, m_src
-    store64 [binding, BINDING_VALUE], src
+    store_binding_value env, idx, binding_values, src
     dispatch_next
 .slow_env:
     call_interp asm_try_set_global_env_binding, result
