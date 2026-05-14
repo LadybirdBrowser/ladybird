@@ -2492,6 +2492,8 @@ void CreateVariableEnvironment::execute_impl(VM& vm) const
 {
     auto& running_execution_context = vm.running_execution_context();
     auto var_environment = new_declarative_environment(*running_execution_context.lexical_environment);
+    if (auto* shared_data = vm.active_shared_function_data(); shared_data && m_capacity == shared_data->m_var_environment_bindings_count)
+        var_environment->set_environment_shape_cache(shared_data->m_var_environment_shape, m_capacity);
     var_environment->ensure_capacity(m_capacity);
     running_execution_context.variable_environment = var_environment;
     running_execution_context.lexical_environment = var_environment;

@@ -27,6 +27,7 @@
 #include <LibJS/Runtime/FunctionEnvironment.h>
 #include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/NativeFunction.h>
+#include <LibJS/Runtime/NativeJavaScriptBackedFunction.h>
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/Reference.h>
 #include <LibJS/Runtime/Symbol.h>
@@ -239,6 +240,18 @@ VM::~VM()
 {
     --s_vm_count;
     VERIFY(s_vm_count == 0);
+}
+
+SharedFunctionInstanceData* VM::active_shared_function_data()
+{
+    auto* function = active_function_object();
+    if (!function)
+        return nullptr;
+    if (auto* ecmascript_function = as_if<ECMAScriptFunctionObject>(*function))
+        return &ecmascript_function->shared_data();
+    if (auto* native_javascript_backed_function = as_if<NativeJavaScriptBackedFunction>(*function))
+        return &native_javascript_backed_function->shared_data();
+    return nullptr;
 }
 
 Utf16String const& VM::error_message(ErrorMessage type) const

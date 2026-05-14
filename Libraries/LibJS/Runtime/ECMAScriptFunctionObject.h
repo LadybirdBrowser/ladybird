@@ -137,6 +137,7 @@ private:
     ThrowCompletionOr<Value> ordinary_call_evaluate_body(VM&, ExecutionContext&);
 
     [[nodiscard]] bool function_environment_needed() const { return shared_data().m_function_environment_needed; }
+    SharedFunctionInstanceData& shared_data() { return m_shared_data; }
     SharedFunctionInstanceData const& shared_data() const { return m_shared_data; }
 
     virtual void visit_edges(Visitor&) override;

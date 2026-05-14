@@ -113,4 +113,19 @@ describe("var shadowing in default parameter expressions", () => {
         }
         expect(f()).toBe(1);
     });
+
+    test("repeated calls keep captured vars in default-parameter var environment", () => {
+        function f(x = 1) {
+            var y;
+            function readY() {
+                return y;
+            }
+            y = x;
+            return readY();
+        }
+
+        expect(f()).toBe(1);
+        expect(f(2)).toBe(2);
+        expect(f(3)).toBe(3);
+    });
 });

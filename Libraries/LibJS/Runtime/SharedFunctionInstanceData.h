@@ -141,6 +141,7 @@ public:
     size_t m_var_environment_bindings_count { 0 };
     size_t m_lex_environment_bindings_count { 0 };
     mutable GC::Ptr<EnvironmentShape> m_function_environment_shape;
+    mutable GC::Ptr<EnvironmentShape> m_var_environment_shape;
 
     Variant<PropertyKey, PrivateName, Empty> m_class_field_initializer_name; // [[ClassFieldInitializerName]]
     ConstructorKind m_constructor_kind : 1 { ConstructorKind::Base };        // [[ConstructorKind]]
