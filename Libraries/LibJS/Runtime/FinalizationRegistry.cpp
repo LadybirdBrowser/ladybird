@@ -62,7 +62,6 @@ void FinalizationRegistry::remove_dead_cells(Badge<GC::Heap>)
             continue;
         record.target = nullptr;
         any_cells_were_removed = true;
-        break;
     }
     if (any_cells_were_removed) {
         // NOTE: We make a GC::Root here to ensure that the FinalizationRegistry stays alive

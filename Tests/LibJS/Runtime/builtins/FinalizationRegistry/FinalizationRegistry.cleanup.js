@@ -51,6 +51,25 @@ test("callback can unregister the next record after the current record dies", ()
     expect(registry.unregister(token2)).toBeFalse();
 });
 
+test("cleanup can process multiple dead records from one garbage collection", () => {
+    var heldValues = [];
+    var registry = new FinalizationRegistry(value => {
+        heldValues.push(value);
+    });
+
+    evaluateSource("var __finalizationRegistryCleanupTarget1 = {};");
+    evaluateSource("var __finalizationRegistryCleanupTarget2 = {};");
+    registry.register(globalThis.__finalizationRegistryCleanupTarget1, "first");
+    registry.register(globalThis.__finalizationRegistryCleanupTarget2, "second");
+    markAsGarbage("__finalizationRegistryCleanupTarget1");
+    markAsGarbage("__finalizationRegistryCleanupTarget2");
+    gc();
+
+    cleanupFinalizationRegistry(registry);
+
+    expect(heldValues).toEqual(["first", "second"]);
+});
+
 test("cleanup helper errors", () => {
     var registry = new FinalizationRegistry(() => {});
 
