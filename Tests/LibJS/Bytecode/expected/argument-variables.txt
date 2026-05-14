@@ -1,4 +1,4 @@
-$e3bb9811 argument-variables.js:12:1
+$3b8b4350 argument-variables.js:12:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -14,7 +14,7 @@ block0:
   [  80] End value:reg6
 
 
-identity$7176ad76 argument-variables.js:5:5
+identity$753f961b argument-variables.js:5:5
   Registers: 5
   Blocks:    1
 
@@ -22,7 +22,7 @@ block0:
   [   0] Return value:arg0
 
 
-swap$0ff1f8d6 argument-variables.js:9:5
+swap$556fb42c argument-variables.js:9:5
   Registers: 6
   Blocks:    1
 

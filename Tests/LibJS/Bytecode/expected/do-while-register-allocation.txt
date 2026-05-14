@@ -1,4 +1,4 @@
-$d99dc022 do-while-register-allocation.js:15:1
+$6c6bb70b do-while-register-allocation.js:15:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -10,7 +10,7 @@ block0:
   [  38] End value:reg5
 
 
-test$21b235ef do-while-register-allocation.js:9:5
+test$e414328f do-while-register-allocation.js:9:5
   Registers: 9
   Blocks:    4
   Locals:    i~0
@@ -38,7 +38,7 @@ block3:
   [  e0] End value:Undefined
 
 
-foo$7176ad76 do-while-register-allocation.js:2:5
+foo$93622fcc do-while-register-allocation.js:2:5
   Registers: 5
   Blocks:    1
 
@@ -46,7 +46,7 @@ block0:
   [   0] Return value:arg0
 
 
-bar$7176ad76 do-while-register-allocation.js:5:5
+bar$cbf37924 do-while-register-allocation.js:5:5
   Registers: 5
   Blocks:    1
 

@@ -1,4 +1,4 @@
-$d6bbce15 computed-member-access.js:12:1
+$3e4f3460 computed-member-access.js:12:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -15,7 +15,7 @@ block0:
   [  b0] End value:reg6
 
 
-computed_read$a6f67e31 computed-member-access.js:5:5
+computed_read$f0ef6ac1 computed-member-access.js:5:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -27,7 +27,7 @@ block0:
   [  28] Return value:reg6
 
 
-computed_read_expression$adb2a228 computed-member-access.js:9:5
+computed_read_expression$c18fd380 computed-member-access.js:9:5
   Registers: 7
   Blocks:    1
 

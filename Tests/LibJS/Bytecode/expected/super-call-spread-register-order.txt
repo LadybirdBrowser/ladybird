@@ -1,4 +1,4 @@
-$477d99c6 super-call-spread-register-order.js:1:1
+$0656c3bd super-call-spread-register-order.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -17,7 +17,7 @@ block0:
   [  b0] End value:reg7
 
 
-C$0ec9c92d super-call-spread-register-order.js:3:14
+C$c11ea3e3 super-call-spread-register-order.js:3:14
   Registers: 7
   Blocks:    1
   Constants:

@@ -1,4 +1,4 @@
-$2de61f8f eval-prevents-locals.js:22:1
+$a036f1fa eval-prevents-locals.js:22:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -12,7 +12,7 @@ block0:
   [  70] End value:reg6
 
 
-with_eval$28a6eab0 eval-prevents-locals.js:6:5
+with_eval$361b5eed eval-prevents-locals.js:6:5
   Registers: 9
   Blocks:    1
   Constants:
@@ -31,7 +31,7 @@ block0:
   [  a8] Return value:reg6
 
 
-eval$811c9dc5
+eval$b72141f3
   Registers: 5
   Blocks:    1
   Constants:
@@ -41,7 +41,7 @@ block0:
   [   0] End value:Undefined
 
 
-outer_eval$85fe2dd2 eval-prevents-locals.js:14:9
+outer_eval$6785167a eval-prevents-locals.js:14:9
   Registers: 8
   Blocks:    1
   Constants:
@@ -61,7 +61,7 @@ block0:
   [  e0] Return value:reg5
 
 
-eval$811c9dc5
+eval$b72141f3
   Registers: 5
   Blocks:    1
   Constants:
@@ -71,7 +71,7 @@ block0:
   [   0] End value:Undefined
 
 
-inner$cbedf31d eval-prevents-locals.js:16:9
+inner$1897993a eval-prevents-locals.js:16:9
   Registers: 5
   Blocks:    1
   Locals:    y~0

@@ -1,4 +1,4 @@
-$01a3b494 indexed-append-guards.js:16:1
+$40a540f0 indexed-append-guards.js:16:1
   Registers: 11
   Blocks:    7
   Constants:
@@ -75,7 +75,7 @@ block6:
   [ 430] End value:reg5
 
 
-expect_type_error$f42c6af9 indexed-append-guards.js:4:5
+expect_type_error$f9cd6888 indexed-append-guards.js:4:5
   Registers: 9
   Blocks:    8
   Locals:    error~0, did_throw~1
@@ -125,7 +125,7 @@ Exception handlers:
   [  c0 ..   e8] => handler block1
 
 
-$58e01468 indexed-append-guards.js:18:5
+$6dd371fa indexed-append-guards.js:18:5
   Registers: 6
   Blocks:    1
   Constants:
@@ -139,7 +139,7 @@ block0:
   [  30] End value:Undefined
 
 
-$19fab4ff indexed-append-guards.js:26:5
+$f99f4d22 indexed-append-guards.js:26:5
   Registers: 8
   Blocks:    1
   Constants:

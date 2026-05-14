@@ -1,4 +1,4 @@
-$a08063d8 right-shift-by-zero.js:5:1
+$9431c529 right-shift-by-zero.js:5:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -11,7 +11,7 @@ block0:
   [  40] End value:reg5
 
 
-foo$197906fe right-shift-by-zero.js:2:5
+foo$962620dc right-shift-by-zero.js:2:5
   Registers: 6
   Blocks:    1
   Constants:

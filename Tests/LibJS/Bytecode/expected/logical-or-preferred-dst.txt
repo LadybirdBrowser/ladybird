@@ -1,4 +1,4 @@
-$2e768d79 logical-or-preferred-dst.js:11:1
+$393b7f47 logical-or-preferred-dst.js:11:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -11,7 +11,7 @@ block0:
   [  40] End value:reg5
 
 
-blocked$3d17db43 logical-or-preferred-dst.js:6:9
+blocked$0b29b642 logical-or-preferred-dst.js:6:9
   Registers: 6
   Blocks:    6
   Constants:

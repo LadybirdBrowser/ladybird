@@ -1,4 +1,4 @@
-$4b4a3d70 nested-member-base-identifier.js:9:1
+$9a6e7215 nested-member-base-identifier.js:9:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -15,7 +15,7 @@ block0:
   [  90] End value:reg5
 
 
-assign_nested$ab9ddddc nested-member-base-identifier.js:6:8
+assign_nested$126a4010 nested-member-base-identifier.js:6:8
   Registers: 8
   Blocks:    1
   Constants:

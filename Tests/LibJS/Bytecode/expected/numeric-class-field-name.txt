@@ -1,4 +1,4 @@
-$dffca61b numeric-class-field-name.js:1:1
+$7ca8f805 numeric-class-field-name.js:1:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -19,7 +19,7 @@ block0:
   [  d8] End value:reg6
 
 
-C$811c9dc5
+C$e7b179de
   Registers: 5
   Blocks:    1
   Constants:
@@ -29,7 +29,7 @@ block0:
   [   0] End value:Undefined
 
 
-field$a798f2fd numeric-class-field-name.js:2:10
+field$2db660f7 numeric-class-field-name.js:2:10
   Registers: 7
   Blocks:    1
 

@@ -29,7 +29,7 @@ use crate::bytecode::validator::{
 use crate::{CompiledProgram, CompiledProgramBytecode, ModuleCallbacks, ast, u32_from_usize};
 
 const MAGIC: &[u8; 8] = b"LBJSBC\0\0";
-const FORMAT_VERSION: u32 = 2;
+const FORMAT_VERSION: u32 = 4;
 const SOURCE_HASH_SIZE: usize = 32;
 const COMPLETION_TYPE_VARIANT_COUNT: u32 = 6;
 const ITERATOR_HINT_VARIANT_COUNT: u32 = 2;
@@ -2209,12 +2209,8 @@ impl Encode for SourceMapTable<'_> {
     fn encode(&self, encoder: &mut Encoder) {
         encoder.sequence(&self.0.source_map, |entry, encoder| {
             entry.bytecode_offset.encode(encoder);
-            entry.source_start.line.encode(encoder);
-            entry.source_start.column.encode(encoder);
-            entry.source_start.offset.encode(encoder);
-            entry.source_end.line.encode(encoder);
-            entry.source_end.column.encode(encoder);
-            entry.source_end.offset.encode(encoder);
+            entry.line.encode(encoder);
+            entry.column.encode(encoder);
         });
     }
 }
@@ -2224,8 +2220,8 @@ impl SourceMapTable<'_> {
         decoder.sequence_values(|decoder| {
             Some(SourceMapEntry {
                 bytecode_offset: u32::decode(decoder)?,
-                source_start: ast::Position::decode(decoder)?,
-                source_end: ast::Position::decode(decoder)?,
+                line: u32::decode(decoder)?,
+                column: u32::decode(decoder)?,
             })
         })
     }

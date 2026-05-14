@@ -1,4 +1,4 @@
-$fe3e9770 tagged-template-base-identifier.js:1:1
+$79e506f5 tagged-template-base-identifier.js:1:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -17,7 +17,7 @@ block0:
   [  e8] End value:reg8
 
 
-f$53c26a58 tagged-template-base-identifier.js:3:9
+f$eef94cf9 tagged-template-base-identifier.js:3:9
   Registers: 5
   Blocks:    1
 

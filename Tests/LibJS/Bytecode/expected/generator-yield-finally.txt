@@ -1,4 +1,4 @@
-$69cce752 generator-yield-finally.js:11:1
+$ba9d77cf generator-yield-finally.js:11:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -10,7 +10,7 @@ block0:
   [  38] End value:reg5
 
 
-f$f2967315 generator-yield-finally.js:4:5
+f$6b17ea44 generator-yield-finally.js:4:5
   Registers: 13
   Blocks:    24
   Constants:

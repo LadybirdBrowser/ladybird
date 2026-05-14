@@ -1,4 +1,4 @@
-$199ac30a constant-fold-string-to-number.js:1:1
+$e7eb680d constant-fold-string-to-number.js:1:1
   Registers: 5
   Blocks:    1
   Constants:

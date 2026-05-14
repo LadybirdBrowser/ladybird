@@ -1,4 +1,4 @@
-$3063fdab bitwise-numeric-preconvert.js:4:1
+$acfb7718 bitwise-numeric-preconvert.js:4:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -11,7 +11,7 @@ block0:
   [  40] End value:reg5
 
 
-test$355d3f01 bitwise-numeric-preconvert.js:2:5
+test$e718c164 bitwise-numeric-preconvert.js:2:5
   Registers: 6
   Blocks:    1
   Constants:

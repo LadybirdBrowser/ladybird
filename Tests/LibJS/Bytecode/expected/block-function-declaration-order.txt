@@ -1,4 +1,4 @@
-$7ec14918 block-function-declaration-order.js:1:1
+$ae8c96e2 block-function-declaration-order.js:1:1
   Registers: 7
   Blocks:    1
   Constants:

@@ -1,4 +1,4 @@
-$115d56d4 generator-yield-call.js:9:1
+$9ff65435 generator-yield-call.js:9:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -18,7 +18,7 @@ block0:
   [  b0] End value:reg5
 
 
-f$21b59c1e generator-yield-call.js:6:5
+f$914aca23 generator-yield-call.js:6:5
   Registers: 11
   Blocks:    12
   Constants:

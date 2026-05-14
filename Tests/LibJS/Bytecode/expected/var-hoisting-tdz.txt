@@ -1,4 +1,4 @@
-$b05eae7c var-hoisting-tdz.js:9:1
+$fd650eed var-hoisting-tdz.js:9:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -10,7 +10,7 @@ block0:
   [  38] End value:reg5
 
 
-isect$3b32d4d0 var-hoisting-tdz.js:5:5
+isect$63c4d7d5 var-hoisting-tdz.js:5:5
   Registers: 6
   Blocks:    7
   Locals:    i~0

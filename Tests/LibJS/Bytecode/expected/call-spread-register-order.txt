@@ -1,4 +1,4 @@
-$da4d2529 call-spread-register-order.js:2:1
+$973653fe call-spread-register-order.js:2:1
   Registers: 10
   Blocks:    1
   Constants:
@@ -15,7 +15,7 @@ block0:
   [  80] End value:reg5
 
 
-f$811c9dc5
+f$7aaaa003
   Registers: 5
   Blocks:    1
   Constants:

@@ -1,4 +1,4 @@
-$b53b3a59 optional-chain.js:25:1
+$9712b2ea optional-chain.js:25:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -21,7 +21,7 @@ block0:
   [ 180] End value:reg6
 
 
-member$f8fa6898 optional-chain.js:7:5
+member$b5894147 optional-chain.js:7:5
   Registers: 7
   Blocks:    4
   Constants:
@@ -43,7 +43,7 @@ block3:
   [  70] Return value:reg6
 
 
-nested_member$1108ab88 optional-chain.js:10:5
+nested_member$830d1888 optional-chain.js:10:5
   Registers: 7
   Blocks:    5
   Constants:
@@ -70,7 +70,7 @@ block4:
   [  b0] Return value:reg6
 
 
-call_no_args$4730b337 optional-chain.js:13:5
+call_no_args$f2028fc1 optional-chain.js:13:5
   Registers: 8
   Blocks:    4
   Constants:
@@ -95,7 +95,7 @@ block3:
   [  a8] Return value:reg6
 
 
-call_with_args$880276bf optional-chain.js:16:5
+call_with_args$339c1d87 optional-chain.js:16:5
   Registers: 11
   Blocks:    4
   Constants:
@@ -124,7 +124,7 @@ block3:
   [  d8] Return value:reg6
 
 
-computed$ae9e607c optional-chain.js:19:5
+computed$1d9658d2 optional-chain.js:19:5
   Registers: 7
   Blocks:    4
   Constants:
@@ -147,7 +147,7 @@ block3:
   [  70] Return value:reg6
 
 
-member_then_call$4f64d681 optional-chain.js:22:5
+member_then_call$adb462b3 optional-chain.js:22:5
   Registers: 8
   Blocks:    4
   Constants:

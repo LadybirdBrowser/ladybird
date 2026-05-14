@@ -1,4 +1,4 @@
-$d8d3a626 numeric-getter-no-lhs-name.js:1:1
+$87b8bc45 numeric-getter-no-lhs-name.js:1:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -15,7 +15,7 @@ block0:
   [  98] End value:reg6
 
 
-get 0$52a40bc0 numeric-getter-no-lhs-name.js:3:9
+get 0$4c2eeb71 numeric-getter-no-lhs-name.js:3:9
   Registers: 5
   Blocks:    1
   Constants:

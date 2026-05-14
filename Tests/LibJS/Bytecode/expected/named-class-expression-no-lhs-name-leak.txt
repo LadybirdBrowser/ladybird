@@ -1,4 +1,4 @@
-$ddd7ff5c named-class-expression-no-lhs-name-leak.js:1:1
+$b15087f2 named-class-expression-no-lhs-name-leak.js:1:1
   Registers: 13
   Blocks:    7
   Constants:

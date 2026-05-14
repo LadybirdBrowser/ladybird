@@ -1,4 +1,4 @@
-$d99dc022 numeric-index-object-literal.js:4:1
+$2b997e90 numeric-index-object-literal.js:4:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -10,7 +10,7 @@ block0:
   [  38] End value:reg5
 
 
-test$9f6ed6e2 numeric-index-object-literal.js:2:5
+test$7e9a426c numeric-index-object-literal.js:2:5
   Registers: 6
   Blocks:    1
   Constants:

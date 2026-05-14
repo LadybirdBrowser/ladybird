@@ -1,4 +1,4 @@
-$d96d9efb sequential-try-blocks.js:17:1
+$b56ffb15 sequential-try-blocks.js:17:1
   Registers: 10
   Blocks:    1
   Constants:
@@ -13,7 +13,7 @@ block0:
   [  98] End value:reg5
 
 
-sequentialTryCatch$4bff3490 sequential-try-blocks.js:2:5
+sequentialTryCatch$0a8456ee sequential-try-blocks.js:2:5
   Registers: 8
   Blocks:    7
   Locals:    e~0, e~1, result~2

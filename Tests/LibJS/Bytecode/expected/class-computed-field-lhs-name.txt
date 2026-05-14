@@ -1,4 +1,4 @@
-$91a5a724 class-computed-field-lhs-name.js:1:1
+$00cee19d class-computed-field-lhs-name.js:1:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -18,7 +18,7 @@ block0:
   [  90] End value:reg6
 
 
-C$811c9dc5
+C$e7b179de
   Registers: 5
   Blocks:    1
   Constants:
@@ -28,7 +28,7 @@ block0:
   [   0] End value:Undefined
 
 
-field$d817cc70 class-computed-field-lhs-name.js:2:15
+field$e1b95ffa class-computed-field-lhs-name.js:2:15
   Registers: 6
   Blocks:    1
 

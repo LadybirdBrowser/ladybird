@@ -1,4 +1,4 @@
-$7867793e delete-super-eval-order.js:4:1
+$67bc40cb delete-super-eval-order.js:4:1
   Registers: 10
   Blocks:    4
   Constants:
@@ -36,7 +36,7 @@ Exception handlers:
   [  a8 ..  150] => handler block1
 
 
-A$811c9dc5
+A$ef0589ec
   Registers: 5
   Blocks:    1
   Constants:
@@ -46,7 +46,7 @@ block0:
   [   0] End value:Undefined
 
 
-m$0f0a711c delete-super-eval-order.js:6:9
+m$0f7c4977 delete-super-eval-order.js:6:9
   Registers: 7
   Blocks:    2
   Constants:

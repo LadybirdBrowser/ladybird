@@ -1,4 +1,4 @@
-$28c626df object-rest-computed-key.js:1:1
+$fb46ff7d object-rest-computed-key.js:1:1
   Registers: 8
   Blocks:    1
   Constants:

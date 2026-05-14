@@ -1,4 +1,4 @@
-$12ff989c var-binding-access.js:22:1
+$a036f1fa var-binding-access.js:22:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -12,7 +12,7 @@ block0:
   [  70] End value:reg6
 
 
-var_access$84869239 var-binding-access.js:5:5
+var_access$52e19afb var-binding-access.js:5:5
   Registers: 6
   Blocks:    1
   Constants:
@@ -28,7 +28,7 @@ block0:
   [  70] Return value:reg5
 
 
-let_access$a0a01ad1 var-binding-access.js:14:5
+let_access$c5263a88 var-binding-access.js:14:5
   Registers: 7
   Blocks:    1
   Constants:

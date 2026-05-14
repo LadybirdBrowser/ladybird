@@ -1,4 +1,4 @@
-$0b8784bc async-await-in-try-catch.js:9:1
+$793f2555 async-await-in-try-catch.js:9:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -11,7 +11,7 @@ block0:
   [  50] End value:reg5
 
 
-f$9cd82caf async-await-in-try-catch.js:2:5
+f$8982c134 async-await-in-try-catch.js:2:5
   Registers: 10
   Blocks:    8
   Locals:    e~0

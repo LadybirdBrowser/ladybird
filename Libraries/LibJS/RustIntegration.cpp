@@ -78,7 +78,7 @@ static void collect_parse_errors(void* ctx, uint8_t const* message, size_t messa
     auto& errors = *static_cast<Vector<ParserError>*>(ctx);
     errors.append({
         MUST(String::from_utf8({ message, message_len })),
-        Position { line, column, 0 },
+        Position { line, column },
     });
 }
 
@@ -1041,18 +1041,8 @@ extern "C" void* rust_create_executable(
     for (size_t i = 0; i < data->source_map_count; ++i) {
         executable->source_map.append({
             data->source_map[i].bytecode_offset,
-            {
-                .start = {
-                    .line = data->source_map[i].source_start_line,
-                    .column = data->source_map[i].source_start_column,
-                    .offset = data->source_map[i].source_start_offset,
-                },
-                .end = {
-                    .line = data->source_map[i].source_end_line,
-                    .column = data->source_map[i].source_end_column,
-                    .offset = data->source_map[i].source_end_offset,
-                },
-            },
+            data->source_map[i].source_start_line,
+            data->source_map[i].source_start_column,
         });
     }
 

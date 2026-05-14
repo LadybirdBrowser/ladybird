@@ -1,4 +1,4 @@
-$69cce752 arguments-with-arguments-fn.js:4:1
+$2b997e90 arguments-with-arguments-fn.js:4:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -10,7 +10,7 @@ block0:
   [  38] End value:reg5
 
 
-f$811c9dc5
+f$6cd6eab3
   Registers: 6
   Blocks:    3
   Locals:    arguments~0

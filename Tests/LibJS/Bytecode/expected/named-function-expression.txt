@@ -1,4 +1,4 @@
-$46e6a760 named-function-expression.js:4:6
+$642030ef named-function-expression.js:4:6
   Registers: 8
   Blocks:    1
 

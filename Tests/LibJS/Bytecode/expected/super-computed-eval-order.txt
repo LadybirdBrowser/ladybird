@@ -1,4 +1,4 @@
-$b88eb0a5 super-computed-eval-order.js:1:1
+$27a2bc3a super-computed-eval-order.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -25,7 +25,7 @@ block0:
   [ 158] End value:reg7
 
 
-Derived$1c41db7c super-computed-eval-order.js:4:14
+Derived$730ebf72 super-computed-eval-order.js:4:14
   Registers: 7
   Blocks:    1
   Constants:
@@ -37,7 +37,7 @@ block0:
   [  20] End value:Undefined
 
 
-Base$811c9dc5
+Base$a461b108
   Registers: 5
   Blocks:    1
   Constants:
@@ -47,7 +47,7 @@ block0:
   [   0] End value:Undefined
 
 
-test$fd5f6781 super-computed-eval-order.js:7:9
+test$37ca7115 super-computed-eval-order.js:7:9
   Registers: 7
   Blocks:    1
   Constants:

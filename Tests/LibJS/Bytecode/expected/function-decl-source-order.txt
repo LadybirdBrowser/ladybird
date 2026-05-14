@@ -1,4 +1,4 @@
-$ae1c0998 function-decl-source-order.js:17:1
+$7ed51afa function-decl-source-order.js:17:1
   Registers: 14
   Blocks:    1
   Constants:
@@ -21,7 +21,7 @@ block0:
   [ 188] End value:reg5
 
 
-alpha$3b8324cd function-decl-source-order.js:5:20
+alpha$29e24060 function-decl-source-order.js:5:20
   Registers: 5
   Blocks:    1
   Constants:
@@ -31,7 +31,7 @@ block0:
   [   0] Return value:Int32(1)
 
 
-beta$d739d7c6 function-decl-source-order.js:7:19
+beta$565e177b function-decl-source-order.js:7:19
   Registers: 5
   Blocks:    1
   Constants:
@@ -41,7 +41,7 @@ block0:
   [   0] Return value:Int32(2)
 
 
-gamma$09aead7f function-decl-source-order.js:11:20
+gamma$03071905 function-decl-source-order.js:11:20
   Registers: 5
   Blocks:    1
   Constants:
@@ -51,7 +51,7 @@ block0:
   [   0] Return value:Int32(3)
 
 
-delta$240367f0 function-decl-source-order.js:15:20
+delta$3c1404ee function-decl-source-order.js:15:20
   Registers: 5
   Blocks:    1
   Constants:
@@ -61,7 +61,7 @@ block0:
   [   0] Return value:Int32(4)
 
 
-dup$510f266c function-decl-source-order.js:13:18
+dup$7c6f066b function-decl-source-order.js:13:18
   Registers: 5
   Blocks:    1
   Constants:

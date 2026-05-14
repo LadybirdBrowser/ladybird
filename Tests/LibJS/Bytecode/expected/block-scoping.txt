@@ -1,4 +1,4 @@
-$975f41e0 block-scoping.js:13:1
+$fcbe57a6 block-scoping.js:13:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -18,7 +18,7 @@ block0:
   [ 130] End value:reg7
 
 
-closureOverBlockScope$4f0633f8 block-scoping.js:2:15
+closureOverBlockScope$61104af2 block-scoping.js:2:15
   Registers: 10
   Blocks:    1
   Locals:    fns~0
@@ -54,7 +54,7 @@ block0:
   [ 1f8] Return value:reg7
 
 
-$551734f7 block-scoping.js:5:18
+$4bcefff2 block-scoping.js:5:18
   Registers: 6
   Blocks:    1
 
@@ -63,7 +63,7 @@ block0:
   [  18] Return value:reg5
 
 
-$2f14ba8e block-scoping.js:9:18
+$3664423e block-scoping.js:9:18
   Registers: 6
   Blocks:    1
 
@@ -72,7 +72,7 @@ block0:
   [  18] Return value:reg5
 
 
-breakThroughBlockScopes$c915ba4a block-scoping.js:16:5
+breakThroughBlockScopes$bb8ff62f block-scoping.js:16:5
   Registers: 8
   Blocks:    7
   Locals:    f~0, i~1, result~2
@@ -115,7 +115,7 @@ block6:
   [ 120] Jump target:block2
 
 
-f$551734f7 block-scoping.js:20:21
+f$e7dc110a block-scoping.js:20:21
   Registers: 6
   Blocks:    1
 

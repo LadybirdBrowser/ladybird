@@ -1,4 +1,4 @@
-$2d41d92c computed-string-object-literal.js:15:1
+$f8dd73d3 computed-string-object-literal.js:15:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -15,7 +15,7 @@ block0:
   [  b0] End value:reg5
 
 
-simple_computed$4b41b515 computed-string-object-literal.js:6:5
+simple_computed$ee1d99de computed-string-object-literal.js:6:5
   Registers: 6
   Blocks:    1
   Constants:
@@ -28,7 +28,7 @@ block0:
   [  38] Return value:reg5
 
 
-mixed$5c18a76a computed-string-object-literal.js:9:5
+mixed$9f3e333c computed-string-object-literal.js:9:5
   Registers: 6
   Blocks:    1
   Constants:
@@ -43,7 +43,7 @@ block0:
   [  50] Return value:reg5
 
 
-dynamic$ae7fe9ae computed-string-object-literal.js:12:5
+dynamic$fd0d2731 computed-string-object-literal.js:12:5
   Registers: 7
   Blocks:    1
   Constants:

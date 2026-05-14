@@ -1,4 +1,4 @@
-$5b93d13b optional-chain-base-identifier.js:1:1
+$a37cd2a2 optional-chain-base-identifier.js:1:1
   Registers: 9
   Blocks:    4
   Constants:

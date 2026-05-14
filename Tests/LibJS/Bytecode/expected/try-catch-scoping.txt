@@ -1,4 +1,4 @@
-$2bdd3a63 try-catch-scoping.js:11:1
+$3bff7057 try-catch-scoping.js:11:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -12,7 +12,7 @@ block0:
   [  70] End value:reg6
 
 
-tryCatchWithBlocks$5efa7757 try-catch-scoping.js:2:5
+tryCatchWithBlocks$fc7f9ac0 try-catch-scoping.js:2:5
   Registers: 11
   Blocks:    4
   Locals:    y~0, z~1, e~2, x~3
@@ -48,7 +48,7 @@ Exception handlers:
   [  d0 ..   e8] => handler block1
 
 
-tryCatchFinallyWithBlocks$3ef115ff try-catch-scoping.js:14:5
+tryCatchFinallyWithBlocks$b3c419da try-catch-scoping.js:14:5
   Registers: 12
   Blocks:    9
   Locals:    y~0, e~1, z~2, x~3

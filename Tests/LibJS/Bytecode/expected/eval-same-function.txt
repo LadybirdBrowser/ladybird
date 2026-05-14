@@ -1,4 +1,4 @@
-$e6445d4a eval-same-function.js:10:1
+$d36729be eval-same-function.js:10:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -10,7 +10,7 @@ block0:
   [  38] End value:reg5
 
 
-foo$a4ff2c4f eval-same-function.js:6:9
+foo$c25bdd1c eval-same-function.js:6:9
   Registers: 8
   Blocks:    1
   Constants:
@@ -27,7 +27,7 @@ block0:
   [  88] Return value:reg5
 
 
-eval$3c61584c line 1, column 1
+eval$6295ffeb line 1, column 1
   Registers: 5
   Blocks:    1
   Constants:

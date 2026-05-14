@@ -1,4 +1,4 @@
-$bc802664 super-method-call-order.js:1:1
+$0463738f super-method-call-order.js:1:1
   Registers: 9
   Blocks:    1
 
@@ -29,7 +29,7 @@ block0:
   [ 278] End value:reg5
 
 
-test$6b58e3e5 super-method-call-order.js:5:9
+test$70dcf05f super-method-call-order.js:5:9
   Registers: 8
   Blocks:    1
 
@@ -41,7 +41,7 @@ block0:
   [  50] Return value:reg5
 
 
-m$811c9dc5
+m$685877e0
   Registers: 5
   Blocks:    1
   Constants:
@@ -51,7 +51,7 @@ block0:
   [   0] End value:Undefined
 
 
-get x$6b58e3e5 super-method-call-order.js:8:9
+get x$97875862 super-method-call-order.js:8:9
   Registers: 8
   Blocks:    1
 
@@ -63,7 +63,7 @@ block0:
   [  50] Return value:reg5
 
 
-test2$d17f9e3d super-method-call-order.js:11:9
+test2$5d2fb73b super-method-call-order.js:11:9
   Registers: 8
   Blocks:    1
   Constants:

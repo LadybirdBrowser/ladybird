@@ -1,4 +1,4 @@
-$7861a666 destructuring-no-base-identifier.js:1:1
+$32b2807a destructuring-no-base-identifier.js:1:1
   Registers: 12
   Blocks:    5
   Constants:

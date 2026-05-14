@@ -1,4 +1,4 @@
-$15b7a0d0 private-method-call-description.js:1:1
+$2d2a9e5a private-method-call-description.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -22,7 +22,7 @@ block0:
   [  f8] End value:reg6
 
 
-C$811c9dc5
+C$e7b179de
   Registers: 5
   Blocks:    1
   Constants:
@@ -32,7 +32,7 @@ block0:
   [   0] End value:Undefined
 
 
-call$f617ed01 private-method-call-description.js:6:9
+call$c4371728 private-method-call-description.js:6:9
   Registers: 7
   Blocks:    1
 
@@ -42,7 +42,7 @@ block0:
   [  30] Return value:reg5
 
 
-#m$52a40bc0 private-method-call-description.js:3:9
+#m$a16f05d1 private-method-call-description.js:3:9
   Registers: 5
   Blocks:    1
   Constants:

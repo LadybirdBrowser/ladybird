@@ -1,4 +1,4 @@
-$3522b97e try-finally.js:8:1
+$3a21feac try-finally.js:8:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -14,7 +14,7 @@ block0:
   [  a8] End value:reg5
 
 
-basicTryFinally$06bcb6b7 try-finally.js:2:5
+basicTryFinally$280b5166 try-finally.js:2:5
   Registers: 10
   Blocks:    8
   Constants:
@@ -59,7 +59,7 @@ Exception handlers:
   [  a8 ..   c8] => handler block1
 
 
-breakThroughFinally$a2a426c4 try-finally.js:11:5
+breakThroughFinally$8a0e33e1 try-finally.js:11:5
   Registers: 11
   Blocks:    15
   Locals:    i~0
@@ -131,7 +131,7 @@ Exception handlers:
   [ 100 ..  148] => handler block5
 
 
-nestedTryFinallyWithBreak$aa8999b1 try-finally.js:22:12
+nestedTryFinallyWithBreak$a67b40bb try-finally.js:22:12
   Registers: 12
   Blocks:    21
   Locals:    i~0

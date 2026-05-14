@@ -1,4 +1,4 @@
-$b08b32bb argument-postfix-self-move.js:5:1
+$9431c529 argument-postfix-self-move.js:5:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -11,7 +11,7 @@ block0:
   [  40] End value:reg5
 
 
-f$bfdb0dbf argument-postfix-self-move.js:2:6
+f$833b82e7 argument-postfix-self-move.js:2:6
   Registers: 6
   Blocks:    1
 

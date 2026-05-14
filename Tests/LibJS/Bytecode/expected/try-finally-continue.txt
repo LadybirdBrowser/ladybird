@@ -1,4 +1,4 @@
-$e54891d8 try-finally-continue.js:13:1
+$fcbe57a6 try-finally-continue.js:13:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -18,7 +18,7 @@ block0:
   [ 130] End value:reg7
 
 
-continueThroughFinally$8372c35a try-finally-continue.js:2:5
+continueThroughFinally$49ed363e try-finally-continue.js:2:5
   Registers: 9
   Blocks:    15
   Locals:    i~0, result~1
@@ -90,7 +90,7 @@ Exception handlers:
   [  c8 ..  138] => handler block5
 
 
-breakThroughFinally$9e814d0d try-finally-continue.js:16:5
+breakThroughFinally$d975d962 try-finally-continue.js:16:5
   Registers: 9
   Blocks:    15
   Locals:    i~0, result~1

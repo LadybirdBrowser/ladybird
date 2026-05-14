@@ -1,4 +1,4 @@
-$d99dc022 annexb-function-existing-var.js:10:1
+$d36729be annexb-function-existing-var.js:10:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -10,7 +10,7 @@ block0:
   [  38] End value:reg5
 
 
-test$de75bc07 annexb-function-existing-var.js:2:5
+test$8422248c annexb-function-existing-var.js:2:5
   Registers: 7
   Blocks:    1
   Constants:

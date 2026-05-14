@@ -1,4 +1,4 @@
-$ab928610 bigint-constant-folding.js:1:1
+$7ca8f805 bigint-constant-folding.js:1:1
   Registers: 5
   Blocks:    1
   Constants:

@@ -1,4 +1,4 @@
-$da832d31 local-source-order.js:12:1
+$c7fd0018 local-source-order.js:12:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -10,7 +10,7 @@ block0:
   [  38] End value:reg5
 
 
-source_order_locals$7988cb5f local-source-order.js:6:5
+source_order_locals$4b1aeb83 local-source-order.js:6:5
   Registers: 7
   Blocks:    1
   Locals:    zebra~0, yak~1, aardvark~2

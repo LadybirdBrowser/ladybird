@@ -1,4 +1,4 @@
-$d99dc022 block-scoped-function-no-tdz.js:10:1
+$d36729be block-scoped-function-no-tdz.js:10:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -11,7 +11,7 @@ block0:
   [  38] End value:reg5
 
 
-test$8f4c6018 block-scoped-function-no-tdz.js:3:5
+test$65d0907d block-scoped-function-no-tdz.js:3:5
   Registers: 7
   Blocks:    1
   Locals:    foo~0, result~1
@@ -30,7 +30,7 @@ block0:
   [  88] Return value:result~1
 
 
-foo$48752efa block-scoped-function-no-tdz.js:5:26
+foo$f46a9b04 block-scoped-function-no-tdz.js:5:26
   Registers: 5
   Blocks:    1
   Constants:

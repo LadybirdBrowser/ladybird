@@ -40,7 +40,11 @@ private:
     // starting points (with byte offsets into the source string) and which
     // line:column they map to. This can then be binary-searched.
     void fill_position_cache() const;
-    Vector<Position> mutable m_cached_positions;
+    struct CachedPosition {
+        Position position;
+        u32 offset { 0 };
+    };
+    Vector<CachedPosition> mutable m_cached_positions;
 
     // Cached UTF-16 widening of ASCII source data, lazily populated by
     // utf16_data() for use by the Rust compilation pipeline.

@@ -1,4 +1,4 @@
-$6b0803e2 destructuring-assignment.js:28:1
+$f2f04dd8 destructuring-assignment.js:28:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -14,7 +14,7 @@ block0:
   [  a8] End value:reg5
 
 
-array_destructuring_with_class_default$c0397068 destructuring-assignment.js:6:10
+array_destructuring_with_class_default$28ef14a9 destructuring-assignment.js:6:10
   Registers: 13
   Blocks:    7
   Locals:    x~0
@@ -57,7 +57,7 @@ block6:
   [ 140] Return value:x~0
 
 
-object_destructuring_with_function_default$544c1fbd destructuring-assignment.js:12:12
+object_destructuring_with_function_default$497a8092 destructuring-assignment.js:12:12
   Registers: 8
   Blocks:    3
   Locals:    x~0
@@ -80,7 +80,7 @@ block2:
   [  90] Return value:x~0
 
 
-setter_parameter_resolution$75109441 destructuring-assignment.js:19:9
+setter_parameter_resolution$2898cc06 destructuring-assignment.js:19:9
   Registers: 12
   Blocks:    5
   Constants:
@@ -116,7 +116,7 @@ block4:
   [ 168] Jump target:block3
 
 
-set y$f36f0033 destructuring-assignment.js:21:26
+set y$72954fa9 destructuring-assignment.js:21:26
   Registers: 5
   Blocks:    1
   Constants:

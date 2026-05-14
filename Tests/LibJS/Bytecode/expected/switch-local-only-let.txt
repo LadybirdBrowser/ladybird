@@ -1,4 +1,4 @@
-$a1c3db73 switch-local-only-let.js:15:1
+$c7ca75d8 switch-local-only-let.js:15:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -26,7 +26,7 @@ block0:
   [ 1e0] End value:reg5
 
 
-switchLocalOnly$c70bcd58 switch-local-only-let.js:4:5
+switchLocalOnly$fc47fb27 switch-local-only-let.js:4:5
   Registers: 6
   Blocks:    7
   Locals:    a~0, b~1

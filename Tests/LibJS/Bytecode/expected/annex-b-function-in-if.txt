@@ -1,4 +1,4 @@
-$64717e3f annex-b-function-in-if.js:13:1
+$eeeaa256 annex-b-function-in-if.js:13:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -20,7 +20,7 @@ block0:
   [ 140] End value:reg7
 
 
-annexBFunctionInIf$cf6b2161 annex-b-function-in-if.js:2:5
+annexBFunctionInIf$f4b6a259 annex-b-function-in-if.js:2:5
   Registers: 8
   Blocks:    4
   Constants:
@@ -57,7 +57,7 @@ block3:
   [ 190] Return value:reg5
 
 
-inner$b8316a64 annex-b-function-in-if.js:4:13
+inner$b5b8e95a annex-b-function-in-if.js:4:13
   Registers: 5
   Blocks:    1
   Constants:
@@ -67,7 +67,7 @@ block0:
   [   0] Return value:String("true branch")
 
 
-inner$1f25fd67 annex-b-function-in-if.js:8:13
+inner$8980a116 annex-b-function-in-if.js:8:13
   Registers: 5
   Blocks:    1
   Constants:

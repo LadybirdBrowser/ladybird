@@ -1,4 +1,4 @@
-$1ca3d2f9 private-logical-assignment-register-order.js:1:1
+$2d2a9e5a private-logical-assignment-register-order.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -22,7 +22,7 @@ block0:
   [  f8] End value:reg6
 
 
-C$811c9dc5
+C$e7b179de
   Registers: 5
   Blocks:    1
   Constants:
@@ -32,7 +32,7 @@ block0:
   [   0] End value:Undefined
 
 
-f$cce54051 private-logical-assignment-register-order.js:3:19
+f$2cb7734b private-logical-assignment-register-order.js:3:19
   Registers: 7
   Blocks:    4
   Constants:

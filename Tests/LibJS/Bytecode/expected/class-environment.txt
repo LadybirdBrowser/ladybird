@@ -1,4 +1,4 @@
-$5f9e2ffb class-environment.js:9:1
+$241c3dcd class-environment.js:9:1
   Registers: 10
   Blocks:    1
   Constants:
@@ -13,7 +13,7 @@ block0:
   [  98] End value:reg5
 
 
-classWithName$8829de8e class-environment.js:2:13
+classWithName$155d62f1 class-environment.js:2:13
   Registers: 8
   Blocks:    1
   Locals:    C~0
@@ -34,7 +34,7 @@ block0:
   [  c0] Return value:reg7
 
 
-Foo$811c9dc5
+Foo$534d924b
   Registers: 5
   Blocks:    1
   Constants:
@@ -44,7 +44,7 @@ block0:
   [   0] End value:Undefined
 
 
-method$e3fa2040 class-environment.js:4:13
+method$f198ceab class-environment.js:4:13
   Registers: 6
   Blocks:    1
 

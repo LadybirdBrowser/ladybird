@@ -1,4 +1,4 @@
-$54f8ba98 nested-function-decl-source-order.js:15:1
+$06b12923 nested-function-decl-source-order.js:15:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -16,7 +16,7 @@ block0:
   [  e0] End value:reg5
 
 
-outer$541206d9 nested-function-decl-source-order.js:12:5
+outer$f608465a nested-function-decl-source-order.js:12:5
   Registers: 11
   Blocks:    1
   Locals:    alpha~0, beta~1, dup~2, gamma~3, delta~4
@@ -40,7 +40,7 @@ block0:
   [ 178] Return value:reg10
 
 
-alpha$3b8324cd nested-function-decl-source-order.js:6:24
+alpha$ddf1e99f nested-function-decl-source-order.js:6:24
   Registers: 5
   Blocks:    1
   Constants:
@@ -50,7 +50,7 @@ block0:
   [   0] Return value:Int32(1)
 
 
-beta$d739d7c6 nested-function-decl-source-order.js:7:23
+beta$cbe393ff nested-function-decl-source-order.js:7:23
   Registers: 5
   Blocks:    1
   Constants:
@@ -60,7 +60,7 @@ block0:
   [   0] Return value:Int32(2)
 
 
-gamma$09aead7f nested-function-decl-source-order.js:9:24
+gamma$4c5374eb nested-function-decl-source-order.js:9:24
   Registers: 5
   Blocks:    1
   Constants:
@@ -70,7 +70,7 @@ block0:
   [   0] Return value:Int32(3)
 
 
-delta$240367f0 nested-function-decl-source-order.js:11:24
+delta$fd075126 nested-function-decl-source-order.js:11:24
   Registers: 5
   Blocks:    1
   Constants:
@@ -80,7 +80,7 @@ block0:
   [   0] Return value:Int32(4)
 
 
-dup$510f266c nested-function-decl-source-order.js:10:22
+dup$5f4e2278 nested-function-decl-source-order.js:10:22
   Registers: 5
   Blocks:    1
   Constants:

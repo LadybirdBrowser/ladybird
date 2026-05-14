@@ -1,4 +1,4 @@
-$ae8c532d private-identifier-access-patterns.js:1:1
+$7f6ce915 private-identifier-access-patterns.js:1:1
   Registers: 7
   Blocks:    1
   Constants:

@@ -1,4 +1,4 @@
-$5198286f for-loop-scoping.js:8:1
+$3ce5efbc for-loop-scoping.js:8:1
   Registers: 10
   Blocks:    1
   Constants:
@@ -13,7 +13,7 @@ block0:
   [  98] End value:reg5
 
 
-forLetClosure$ab480781 for-loop-scoping.js:2:15
+forLetClosure$9d2e257d for-loop-scoping.js:2:15
   Registers: 10
   Blocks:    5
   Locals:    fns~0
@@ -63,7 +63,7 @@ block4:
   [ 260] Return value:reg5
 
 
-$a78bf47f for-loop-scoping.js:6:20
+$617ce76f for-loop-scoping.js:6:20
   Registers: 6
   Blocks:    1
   Constants:
@@ -74,7 +74,7 @@ block0:
   [  20] Return value:reg5
 
 
-$ceed13fe for-loop-scoping.js:4:18
+$732f8c03 for-loop-scoping.js:4:18
   Registers: 6
   Blocks:    1
 

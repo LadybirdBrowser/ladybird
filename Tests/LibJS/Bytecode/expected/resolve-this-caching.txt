@@ -1,4 +1,4 @@
-$e6445d4a resolve-this-caching.js:4:1
+$2b997e90 resolve-this-caching.js:4:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -10,7 +10,7 @@ block0:
   [  38] End value:reg5
 
 
-foo$2256967e resolve-this-caching.js:2:5
+foo$1d0ffb84 resolve-this-caching.js:2:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -22,7 +22,7 @@ block0:
   [  38] Return value:reg5
 
 
-$c9429add resolve-this-caching.js:2:13
+$9bf17e5a resolve-this-caching.js:2:13
   Registers: 8
   Blocks:    1
 

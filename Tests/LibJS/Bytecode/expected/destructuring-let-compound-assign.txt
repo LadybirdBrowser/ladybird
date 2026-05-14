@@ -1,4 +1,4 @@
-$59a926ae destructuring-let-compound-assign.js:5:1
+$99b9a749 destructuring-let-compound-assign.js:5:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -12,7 +12,7 @@ block0:
   [  60] End value:reg5
 
 
-f$0c16b60f destructuring-let-compound-assign.js:2:5
+f$fa4d135c destructuring-let-compound-assign.js:2:5
   Registers: 8
   Blocks:    1
   Locals:    a~0

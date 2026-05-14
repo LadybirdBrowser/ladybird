@@ -1,4 +1,4 @@
-$31ad76ee try-catch-terminated.js:12:1
+$c7fd0018 try-catch-terminated.js:12:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -10,7 +10,7 @@ block0:
   [  38] End value:reg5
 
 
-try_return$21828749 try-catch-terminated.js:5:5
+try_return$6825fe97 try-catch-terminated.js:5:5
   Registers: 6
   Blocks:    3
   Locals:    e~0

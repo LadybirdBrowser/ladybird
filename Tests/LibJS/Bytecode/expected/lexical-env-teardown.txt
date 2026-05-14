@@ -1,4 +1,4 @@
-$6c97fa3b lexical-env-teardown.js:13:1
+$b319ee85 lexical-env-teardown.js:13:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -45,7 +45,7 @@ block0:
   [ 408] End value:reg6
 
 
-withTeardown$27bad413 lexical-env-teardown.js:7:5
+withTeardown$f8b3e64d lexical-env-teardown.js:7:5
   Registers: 10
   Blocks:    1
   Locals:    inner~0
@@ -71,7 +71,7 @@ block0:
   [  e8] Return value:reg6
 
 
-blockTeardown$7cd4b5cf lexical-env-teardown.js:17:5
+blockTeardown$b6f5c4f0 lexical-env-teardown.js:17:5
   Registers: 5
   Blocks:    1
   Locals:    inner~0, outer~1
@@ -84,7 +84,7 @@ block0:
   [  18] Return value:outer~1
 
 
-forInTeardown$e8d7ea8e lexical-env-teardown.js:28:5
+forInTeardown$00ab80a8 lexical-env-teardown.js:28:5
   Registers: 8
   Blocks:    6
   Locals:    k~0, outer~1
@@ -121,7 +121,7 @@ block5:
   [  d8] Jump target:block2
 
 
-forOfTeardown$b603f5d2 lexical-env-teardown.js:38:5
+forOfTeardown$94a2ae97 lexical-env-teardown.js:38:5
   Registers: 12
   Blocks:    10
   Locals:    v~0, outer~1
@@ -176,7 +176,7 @@ Exception handlers:
   [  c0 ..   e0] => handler block3
 
 
-catchTeardown$ece08ab5 lexical-env-teardown.js:48:5
+catchTeardown$ea214605 lexical-env-teardown.js:48:5
   Registers: 7
   Blocks:    4
   Locals:    e~0, outer~1
@@ -207,7 +207,7 @@ Exception handlers:
   [  48 ..   88] => handler block1
 
 
-myName$bf13a37c lexical-env-teardown.js:60:5
+myName$b54e4267 lexical-env-teardown.js:60:5
   Registers: 6
   Blocks:    1
 

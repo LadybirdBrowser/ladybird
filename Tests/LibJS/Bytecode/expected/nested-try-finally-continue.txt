@@ -1,4 +1,4 @@
-$058cd786 nested-try-finally-continue.js:14:1
+$853568fa nested-try-finally-continue.js:14:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -10,7 +10,7 @@ block0:
   [  38] End value:reg5
 
 
-nestedTryFinallyContinue$f4bfe0d3 nested-try-finally-continue.js:2:5
+nestedTryFinallyContinue$4f168066 nested-try-finally-continue.js:2:5
   Registers: 13
   Blocks:    24
   Locals:    i~0

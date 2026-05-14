@@ -1,4 +1,4 @@
-$d21ee499 for-of-iterator-close.js:6:1
+$04795212 for-of-iterator-close.js:6:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -15,7 +15,7 @@ block0:
   [  d8] End value:reg5
 
 
-forOfBreak$0cb6b2e2 for-of-iterator-close.js:2:18
+forOfBreak$0dacb993 for-of-iterator-close.js:2:18
   Registers: 13
   Blocks:    13
   Locals:    x~0
@@ -79,7 +79,7 @@ Exception handlers:
   [  b8 ..  108] => handler block3
 
 
-forOfReturn$1ac7c5b6 for-of-iterator-close.js:9:18
+forOfReturn$3e676e69 for-of-iterator-close.js:9:18
   Registers: 12
   Blocks:    10
   Locals:    x~0
@@ -133,7 +133,7 @@ Exception handlers:
   [  b8 ..   f0] => handler block3
 
 
-forAwaitOfBreak$1ffc670e for-of-iterator-close.js:16:24
+forAwaitOfBreak$0834dde7 for-of-iterator-close.js:16:24
   Registers: 18
   Blocks:    30
   Locals:    x~0

@@ -1,4 +1,4 @@
-$aea521ec super-optional-call-this.js:1:1
+$a904b4c2 super-optional-call-this.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -25,7 +25,7 @@ block0:
   [ 160] End value:reg7
 
 
-Foo$4b66ae80 super-optional-call-this.js:4:1
+Foo$f8ebe2ee super-optional-call-this.js:4:1
   Registers: 7
   Blocks:    1
 
@@ -38,7 +38,7 @@ block0:
   [  60] Return value:reg6
 
 
-Base$811c9dc5
+Base$a461b108
   Registers: 5
   Blocks:    1
   Constants:
@@ -48,7 +48,7 @@ block0:
   [   0] End value:Undefined
 
 
-method$e17748b6 super-optional-call-this.js:6:9
+method$994e3bed super-optional-call-this.js:6:9
   Registers: 9
   Blocks:    4
   Constants:
@@ -75,7 +75,7 @@ block3:
   [  b8] Return value:reg6
 
 
-method$811c9dc5
+method$6c22ae6a
   Registers: 5
   Blocks:    1
   Constants:

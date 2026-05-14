@@ -45,7 +45,10 @@ public:
     BasicBlock const* handler() const { return m_handler; }
 
     auto const& source_map() const { return m_source_map; }
-    void add_source_map_entry(u32 bytecode_offset, SourceRecord const& source_record) { m_source_map.append({ bytecode_offset, source_record }); }
+    void add_source_map_entry(u32 bytecode_offset, Position source_start)
+    {
+        m_source_map.append({ bytecode_offset, source_start.line, source_start.column });
+    }
 
     [[nodiscard]] bool has_resolved_this() const { return m_has_resolved_this; }
     void set_has_resolved_this() { m_has_resolved_this = true; }

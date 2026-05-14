@@ -1,4 +1,4 @@
-$a37f24d4 for-in-var-function-lhs-name.js:7:1
+$d0083583 for-in-var-function-lhs-name.js:7:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -10,7 +10,7 @@ block0:
   [  38] End value:reg5
 
 
-fn$a115675f for-in-var-function-lhs-name.js:4:19
+fn$4477295a for-in-var-function-lhs-name.js:4:19
   Registers: 8
   Blocks:    6
   Locals:    f~0

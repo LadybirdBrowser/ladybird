@@ -1,4 +1,4 @@
-$7dae70db super-for-of-resolve-order.js:1:1
+$87b8bc45 super-for-of-resolve-order.js:1:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -16,7 +16,7 @@ block0:
   [  98] End value:reg6
 
 
-C$f4d17d48 super-for-of-resolve-order.js:3:28
+C$9d8b2466 super-for-of-resolve-order.js:3:28
   Registers: 13
   Blocks:    10
   Constants:

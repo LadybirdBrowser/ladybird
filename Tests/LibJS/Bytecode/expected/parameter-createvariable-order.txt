@@ -1,4 +1,4 @@
-$6ef6ff9a parameter-createvariable-order.js:7:1
+$cd444473 parameter-createvariable-order.js:7:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -13,7 +13,7 @@ block0:
   [  48] End value:reg5
 
 
-f$40c96172 parameter-createvariable-order.js:2:5
+f$8982c134 parameter-createvariable-order.js:2:5
   Registers: 6
   Blocks:    1
   Locals:    inner~0
@@ -34,7 +34,7 @@ block0:
   [  d0] Return value:reg5
 
 
-inner$350d7dbe parameter-createvariable-order.js:3:9
+inner$9e8c0b51 parameter-createvariable-order.js:3:9
   Registers: 8
   Blocks:    1
 

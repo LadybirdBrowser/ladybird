@@ -1,4 +1,4 @@
-$bb1bc930 switch-completion-value.js:1:1
+$bf243d42 switch-completion-value.js:1:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -26,7 +26,7 @@ block0:
   [ 1e0] End value:reg5
 
 
-eval$802caa65 line 1, column 1
+eval$6559f0fb line 1, column 1
   Registers: 7
   Blocks:    5
   Locals:    x~0
@@ -51,7 +51,7 @@ block4:
   [  48] End value:reg5
 
 
-eval$e4733afc line 1, column 1
+eval$6559f0fb line 1, column 1
   Registers: 7
   Blocks:    5
   Constants:
@@ -76,7 +76,7 @@ block4:
   [  48] End value:reg5
 
 
-eval$94daef6a line 1, column 1
+eval$6da5c42b line 1, column 1
   Registers: 7
   Blocks:    6
   Constants:

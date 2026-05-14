@@ -15,7 +15,7 @@
 
 namespace JS {
 
-static SourceRange dummy_source_range { SourceCode::create({}, {}), {}, {} };
+static SourceRange dummy_source_range { SourceCode::create({}, {}), {} };
 
 SourceRange const& TracebackFrame::source_range() const
 {
@@ -67,7 +67,7 @@ Utf16String ErrorData::stack_string(CompactTraceback compact) const
         auto const& function_name = frame.function_name;
         auto const& source_range = frame.source_range();
         // Note: Since we don't know whether we have a valid SourceRange here we just check for some default values.
-        if (!source_range.filename().is_empty() || source_range.start.offset != 0 || source_range.end.offset != 0) {
+        if (!source_range.filename().is_empty() || source_range.start.line != 0 || source_range.start.column != 0) {
 
             if (function_name.is_empty())
                 stack_string_builder.appendff("    at {}:{}:{}\n", source_range.filename(), source_range.start.line, source_range.start.column);

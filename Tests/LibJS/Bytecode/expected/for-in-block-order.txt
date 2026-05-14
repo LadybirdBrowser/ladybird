@@ -1,4 +1,4 @@
-$1faa0c14 for-in-block-order.js:5:1
+$916dd419 for-in-block-order.js:5:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -11,7 +11,7 @@ block0:
   [  50] End value:reg5
 
 
-foo$ad9db83a for-in-block-order.js:2:16
+foo$3b347bf9 for-in-block-order.js:2:16
   Registers: 8
   Blocks:    6
   Locals:    k~0

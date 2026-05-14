@@ -54,7 +54,7 @@ void SourceCode::fill_position_cache() const
     u32 offset_of_last_starting_point = 0;
 
     m_cached_positions.ensure_capacity(predicted_minimum_cached_positions + (m_code.length_in_code_units() / maximum_distance_between_cached_positions));
-    m_cached_positions.append({ .line = 1, .column = 1, .offset = 0 });
+    m_cached_positions.append({ .position = { .line = 1, .column = 1 }, .offset = 0 });
 
     auto view = m_code.utf16_view();
 
@@ -69,7 +69,7 @@ void SourceCode::fill_position_cache() const
         auto distance_between_cached_position = offset - offset_of_last_starting_point;
 
         if ((distance_between_cached_position >= minimum_distance_between_cached_positions && is_nonempty_line) || distance_between_cached_position >= maximum_distance_between_cached_positions) {
-            m_cached_positions.append({ .line = line, .column = column, .offset = static_cast<u32>(offset) });
+            m_cached_positions.append({ .position = { .line = line, .column = column }, .offset = static_cast<u32>(offset) });
             offset_of_last_starting_point = offset;
         }
 
@@ -84,19 +84,19 @@ void SourceCode::fill_position_cache() const
     }
 }
 
-SourceRange SourceCode::range_from_offsets(u32 start_offset, u32 end_offset) const
+SourceRange SourceCode::range_from_offsets(u32 start_offset, [[maybe_unused]] u32 end_offset) const
 {
-    // If the underlying code is an empty string, the range is 1,1 - 1,1 no matter what.
+    // If the underlying code is an empty string, the range is 1,1 no matter what.
     if (m_code.is_empty())
-        return { *this, { .line = 1, .column = 1, .offset = 0 }, { .line = 1, .column = 1, .offset = 0 } };
+        return { *this, { .line = 1, .column = 1 } };
 
     if (m_cached_positions.is_empty())
         fill_position_cache();
 
-    Position current { .line = 1, .column = 1, .offset = 0 };
+    CachedPosition current { .position = { .line = 1, .column = 1 }, .offset = 0 };
 
     if (!m_cached_positions.is_empty()) {
-        Position const dummy;
+        CachedPosition const dummy;
         size_t nearest_index = 0;
         binary_search(m_cached_positions, dummy, &nearest_index,
             [&](auto&, auto& starting_point) {
@@ -107,7 +107,6 @@ SourceRange SourceCode::range_from_offsets(u32 start_offset, u32 end_offset) con
     }
 
     Optional<Position> start;
-    Optional<Position> end;
 
     u32 previous_code_point = 0;
 
@@ -117,20 +116,9 @@ SourceRange SourceCode::range_from_offsets(u32 start_offset, u32 end_offset) con
         // If we're on or after the start offset, this is the start position.
         if (!start.has_value() && view.iterator_offset(it) >= start_offset) {
             start = Position {
-                .line = current.line,
-                .column = current.column,
-                .offset = start_offset,
+                .line = current.position.line,
+                .column = current.position.column,
             };
-        }
-
-        // If we're on or after the end offset, this is the end position.
-        if (!end.has_value() && view.iterator_offset(it) >= end_offset) {
-            end = Position {
-                .line = current.line,
-                .column = current.column,
-                .offset = end_offset,
-            };
-            break;
         }
 
         u32 code_point = *it;
@@ -139,20 +127,20 @@ SourceRange SourceCode::range_from_offsets(u32 start_offset, u32 end_offset) con
         previous_code_point = code_point;
 
         if (is_line_terminator) {
-            current.line += 1;
-            current.column = 1;
+            current.position.line += 1;
+            current.position.column = 1;
             continue;
         }
 
-        current.column += 1;
+        current.position.column += 1;
     }
 
-    // If we didn't find both a start and end position, just return 1,1-1,1.
+    // If we didn't find a start position, just return 1,1.
     // FIXME: This is a hack. Find a way to return the nicest possible values here.
-    if (!start.has_value() || !end.has_value())
-        return SourceRange { *this, { .line = 1, .column = 1 }, { .line = 1, .column = 1 } };
+    if (!start.has_value())
+        return SourceRange { *this, { .line = 1, .column = 1 } };
 
-    return SourceRange { *this, *start, *end };
+    return SourceRange { *this, *start };
 }
 
 }

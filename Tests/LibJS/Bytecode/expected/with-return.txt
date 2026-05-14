@@ -1,4 +1,4 @@
-$e9ab2da1 with-return.js:10:1
+$b237dcfe with-return.js:10:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -14,7 +14,7 @@ block0:
   [  78] End value:reg5
 
 
-with_return$a3013274 with-return.js:5:5
+with_return$d690ef5a with-return.js:5:5
   Registers: 7
   Blocks:    1
   Constants:

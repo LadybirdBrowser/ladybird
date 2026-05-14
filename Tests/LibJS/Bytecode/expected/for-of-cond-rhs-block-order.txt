@@ -1,4 +1,4 @@
-$9cd3e64e for-of-cond-rhs-block-order.js:6:1
+$6a33dffa for-of-cond-rhs-block-order.js:6:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -11,7 +11,7 @@ block0:
   [  40] End value:reg5
 
 
-f$0adf9089 for-of-cond-rhs-block-order.js:2:21
+f$567c3f32 for-of-cond-rhs-block-order.js:2:21
   Registers: 17
   Blocks:    20
   Locals:    r~0, n~1

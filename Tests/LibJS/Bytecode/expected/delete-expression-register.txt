@@ -1,4 +1,4 @@
-$bfb1383b delete-expression-register.js:6:1
+$6a33dffa delete-expression-register.js:6:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -11,7 +11,7 @@ block0:
   [  40] End value:reg5
 
 
-f$2bc22ddd delete-expression-register.js:3:7
+f$04c49ea7 delete-expression-register.js:3:7
   Registers: 7
   Blocks:    3
   Locals:    x~0, arguments~1

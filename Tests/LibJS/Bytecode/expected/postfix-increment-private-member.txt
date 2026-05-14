@@ -1,4 +1,4 @@
-$c73348dc postfix-increment-private-member.js:1:1
+$2d2a9e5a postfix-increment-private-member.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -22,7 +22,7 @@ block0:
   [  f8] End value:reg6
 
 
-C$811c9dc5
+C$e7b179de
   Registers: 5
   Blocks:    1
   Constants:
@@ -32,7 +32,7 @@ block0:
   [   0] End value:Undefined
 
 
-nextId$b6db6eed postfix-increment-private-member.js:4:9
+nextId$ab917a32 postfix-increment-private-member.js:4:9
   Registers: 7
   Blocks:    1
   Constants:

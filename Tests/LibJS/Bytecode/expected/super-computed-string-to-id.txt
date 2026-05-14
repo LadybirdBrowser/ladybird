@@ -1,4 +1,4 @@
-$dda9a222 super-computed-string-to-id.js:1:1
+$0656c3bd super-computed-string-to-id.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -17,7 +17,7 @@ block0:
   [  b0] End value:reg7
 
 
-C$851d2148 super-computed-string-to-id.js:3:14
+C$be5ab2d3 super-computed-string-to-id.js:3:14
   Registers: 7
   Blocks:    1
   Constants:

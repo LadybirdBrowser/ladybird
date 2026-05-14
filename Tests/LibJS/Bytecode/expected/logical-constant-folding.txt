@@ -1,4 +1,4 @@
-$66fad71b logical-constant-folding.js:1:1
+$84f4cb35 logical-constant-folding.js:1:1
   Registers: 6
   Blocks:    1
   Constants:

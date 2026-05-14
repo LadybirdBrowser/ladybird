@@ -1,4 +1,4 @@
-$781e423f super-evaluation-order.js:1:1
+$bf243d42 super-evaluation-order.js:1:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -30,7 +30,7 @@ block0:
   [ 1e0] End value:reg7
 
 
-A$3f156142 super-evaluation-order.js:1:1
+A$3d02c59c super-evaluation-order.js:1:1
   Registers: 7
   Blocks:    1
 
@@ -43,7 +43,7 @@ block0:
   [  60] Return value:reg6
 
 
-read$2a1a7339 super-evaluation-order.js:3:9
+read$df25c2bd super-evaluation-order.js:3:9
   Registers: 7
   Blocks:    1
   Constants:
@@ -56,7 +56,7 @@ block0:
   [  30] Return value:reg6
 
 
-write$5b793bae super-evaluation-order.js:6:20
+write$7ede70d2 super-evaluation-order.js:6:20
   Registers: 6
   Blocks:    1
   Constants:
@@ -71,7 +71,7 @@ block0:
   [  30] End value:Undefined
 
 
-update$8ce50e3d super-evaluation-order.js:9:16
+update$044d6445 super-evaluation-order.js:9:16
   Registers: 8
   Blocks:    1
   Constants:

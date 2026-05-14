@@ -1,4 +1,4 @@
-$2e768d79 logical-or-in-if-condition.js:12:1
+$469b0790 logical-or-in-if-condition.js:12:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -11,7 +11,7 @@ block0:
   [  40] End value:reg5
 
 
-blocked$d90bf4bd logical-or-in-if-condition.js:7:9
+blocked$f2600453 logical-or-in-if-condition.js:7:9
   Registers: 6
   Blocks:    6
   Constants:

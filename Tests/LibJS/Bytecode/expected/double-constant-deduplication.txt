@@ -1,4 +1,4 @@
-$e6445d4a double-constant-deduplication.js:8:1
+$162ec0dc double-constant-deduplication.js:8:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -10,7 +10,7 @@ block0:
   [  38] End value:reg5
 
 
-foo$afa1fb9c double-constant-deduplication.js:2:5
+foo$9e71f40c double-constant-deduplication.js:2:5
   Registers: 7
   Blocks:    1
   Locals:    a~0, b~1, c~2

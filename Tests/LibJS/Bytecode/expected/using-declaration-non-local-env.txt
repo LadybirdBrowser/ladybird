@@ -1,4 +1,4 @@
-$97607366 using-declaration-non-local-env.js:1:1
+$84f4cb35 using-declaration-non-local-env.js:1:1
   Registers: 9
   Blocks:    4
   Locals:    e~0
@@ -28,7 +28,7 @@ Exception handlers:
   [  48 ..   b0] => handler block1
 
 
-$21ba43fc using-declaration-non-local-env.js:1:21
+$e58540c1 using-declaration-non-local-env.js:1:21
   Registers: 8
   Blocks:    2
   Constants:

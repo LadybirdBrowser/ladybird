@@ -1,4 +1,4 @@
-$17c08991 computed-compound-assign-register-reuse.js:9:1
+$9d326325 computed-compound-assign-register-reuse.js:9:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -12,7 +12,7 @@ block0:
   [  80] End value:reg5
 
 
-subVector$1525553e computed-compound-assign-register-reuse.js:5:13
+subVector$3599dc10 computed-compound-assign-register-reuse.js:5:13
   Registers: 9
   Blocks:    1
   Constants:

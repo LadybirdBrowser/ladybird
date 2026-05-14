@@ -1,4 +1,4 @@
-$0d42cfa1 for-in-register-lifetime.js:1:1
+$ee43eb0f for-in-register-lifetime.js:1:1
   Registers: 14
   Blocks:    6
   Constants:

@@ -112,36 +112,46 @@ void Executable::fixup_cache_pointers()
     }
 }
 
+static SourceMapEntry const* first_real_source_map_entry(Executable const& executable)
+{
+    SourceMapEntry const* first_entry = nullptr;
+    for (auto const& entry : executable.source_map) {
+        if (entry.line == 0 && entry.column == 0)
+            continue;
+        if (!first_entry || entry.line < first_entry->line || (entry.line == first_entry->line && entry.column < first_entry->column))
+            first_entry = &entry;
+    }
+    return first_entry;
+}
+
 static void dump_header(StringBuilder& output, Executable const& executable, bool use_color)
 {
     auto const white_bold = use_color ? "\033[37;1m"sv : ""sv;
     auto const reset = use_color ? "\033[0m"sv : ""sv;
-
-    // Generate a stable hash from the source text for identification.
-    // We hash source code rather than bytecode so the ID is stable
-    // across changes to bytecode generation.
-    // Find the overall source range covered by this executable.
-    u32 source_start = NumericLimits<u32>::max();
-    u32 source_end = 0;
-    Optional<Position> first_position;
-    for (auto const& entry : executable.source_map) {
-        if (entry.source_record.start.offset < entry.source_record.end.offset) {
-            source_start = min(source_start, entry.source_record.start.offset);
-            source_end = max(source_end, entry.source_record.end.offset);
-            if (!first_position.has_value() || entry.source_record.start.offset < first_position->offset)
-                first_position = entry.source_record.start;
-        }
-    }
+    auto const* first_source_map_entry = first_real_source_map_entry(executable);
 
     u32 hash = 2166136261u; // FNV-1a offset basis
-    auto code_view = executable.source_code->code_view();
-    for (auto i = source_start; i < source_end && i < code_view.length_in_code_units(); ++i) {
-        auto code_unit = code_view.code_unit_at(i);
+    auto update_hash = [&](u32 value) {
+        for (size_t i = 0; i < sizeof(value); ++i) {
+            hash ^= (value >> (i * 8)) & 0xFF;
+            hash *= 16777619u;
+        }
+    };
+    auto update_hash_with_code_unit = [&](u16 code_unit) {
         hash ^= code_unit & 0xFF;
         hash *= 16777619u;
         hash ^= (code_unit >> 8) & 0xFF;
         hash *= 16777619u;
+    };
+
+    auto name_view = executable.name.view();
+    for (size_t i = 0; i < name_view.length_in_code_units(); ++i)
+        update_hash_with_code_unit(name_view.code_unit_at(i));
+    if (first_source_map_entry) {
+        update_hash(first_source_map_entry->line);
+        update_hash(first_source_map_entry->column);
     }
+    update_hash(static_cast<u32>(min(executable.bytecode.size(), static_cast<size_t>(NumericLimits<u32>::max()))));
 
     if (executable.name.is_empty())
         output.appendff("{}${:08x}{}", white_bold, hash, reset);
@@ -149,16 +159,16 @@ static void dump_header(StringBuilder& output, Executable const& executable, boo
         output.appendff("{}{}${:08x}{}", white_bold, executable.name, hash, reset);
 
     // Show source location if available.
-    if (source_start < source_end && first_position.has_value()) {
+    if (first_source_map_entry) {
         auto filename = executable.source_code->filename();
         if (!filename.is_empty()) {
             // Show just the basename to keep output portable across machines.
             auto last_slash = filename.bytes_as_string_view().find_last('/');
             if (last_slash.has_value())
                 filename = MUST(filename.substring_from_byte_offset(last_slash.value() + 1));
-            output.appendff(" {}:{}:{}", filename, first_position->line, first_position->column);
+            output.appendff(" {}:{}:{}", filename, first_source_map_entry->line, first_source_map_entry->column);
         } else {
-            output.appendff(" line {}, column {}", first_position->line, first_position->column);
+            output.appendff(" line {}, column {}", first_source_map_entry->line, first_source_map_entry->column);
         }
     }
     output.append('\n');
@@ -421,8 +431,7 @@ Optional<SourceRange> Executable::source_range_at(size_t offset) const
     auto& entry = source_map[low - 1];
     return SourceRange {
         .code = source_code,
-        .start = entry.source_record.start,
-        .end = entry.source_record.end,
+        .start = { .line = entry.line, .column = entry.column },
     };
 }
 
@@ -431,7 +440,7 @@ SourceRange const& Executable::get_source_range(u32 program_counter)
     return m_source_range_cache.ensure(program_counter, [&] {
         if (auto source_range = source_range_at(program_counter); source_range.has_value())
             return *source_range;
-        static SourceRange dummy { SourceCode::create({}, {}), {}, {} };
+        static SourceRange dummy { SourceCode::create({}, {}), {} };
         return dummy;
     });
 }

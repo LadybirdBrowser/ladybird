@@ -1,4 +1,4 @@
-$3a9dde7d try-catch-finally-register.js:1:1
+$abc8a5d2 try-catch-finally-register.js:1:1
   Registers: 10
   Blocks:    9
   Locals:    e~0

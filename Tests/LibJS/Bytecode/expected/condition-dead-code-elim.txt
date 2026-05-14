@@ -1,4 +1,4 @@
-$4a68760f condition-dead-code-elim.js:141:1
+$ec8fc79b condition-dead-code-elim.js:141:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -31,7 +31,7 @@ block0:
   [ 270] End value:reg5
 
 
-ternary_true$adbcc261 condition-dead-code-elim.js:9:5
+ternary_true$cd62d477 condition-dead-code-elim.js:9:5
   Registers: 5
   Blocks:    1
   Constants:
@@ -42,7 +42,7 @@ block0:
   [   0] Return value:Int32(1)
 
 
-ternary_truthy$8671fdc6 condition-dead-code-elim.js:12:5
+ternary_truthy$8c4636c2 condition-dead-code-elim.js:12:5
   Registers: 5
   Blocks:    1
   Constants:
@@ -52,7 +52,7 @@ block0:
   [   0] Return value:Int32(1)
 
 
-ternary_false$1fde34b2 condition-dead-code-elim.js:15:5
+ternary_false$0ff09522 condition-dead-code-elim.js:15:5
   Registers: 5
   Blocks:    1
   Constants:
@@ -63,7 +63,7 @@ block0:
   [   0] Return value:Int32(1)
 
 
-ternary_falsey$1c25e5ad condition-dead-code-elim.js:18:5
+ternary_falsey$47046b1e condition-dead-code-elim.js:18:5
   Registers: 5
   Blocks:    1
   Constants:
@@ -74,7 +74,7 @@ block0:
   [   0] Return value:Int32(1)
 
 
-while_falsey$5d6360eb condition-dead-code-elim.js:33:5
+while_falsey$17590e95 condition-dead-code-elim.js:33:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -88,7 +88,7 @@ block0:
   [  38] End value:Undefined
 
 
-alive$57b46309 condition-dead-code-elim.js:2:5
+alive$dfea904d condition-dead-code-elim.js:2:5
   Registers: 5
   Blocks:    1
   Constants:
@@ -98,7 +98,7 @@ block0:
   [   0] Return value:String("alive")
 
 
-do_while_falsey$799dde23 condition-dead-code-elim.js:37:9
+do_while_falsey$2b22dba1 condition-dead-code-elim.js:37:9
   Registers: 7
   Blocks:    4
   Constants:
@@ -124,7 +124,7 @@ block3:
   [  e0] End value:Undefined
 
 
-if_falsely$5d6360eb condition-dead-code-elim.js:62:5
+if_falsely$537336d6 condition-dead-code-elim.js:62:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -138,7 +138,7 @@ block0:
   [  38] End value:Undefined
 
 
-if_truthy$ac929a95 condition-dead-code-elim.js:66:9
+if_truthy$a6783770 condition-dead-code-elim.js:66:9
   Registers: 7
   Blocks:    1
   Constants:
@@ -159,7 +159,7 @@ block0:
   [  e0] End value:Undefined
 
 
-if_exhausted$80f20e23 condition-dead-code-elim.js:90:9
+if_exhausted$9d4f2301 condition-dead-code-elim.js:90:9
   Registers: 7
   Blocks:    1
   Constants:
@@ -177,7 +177,7 @@ block0:
   [  a8] End value:Undefined
 
 
-for_false$2883f85d condition-dead-code-elim.js:109:5
+for_false$23671fdc condition-dead-code-elim.js:109:5
   Registers: 7
   Blocks:    9
   Locals:    x~0
@@ -218,7 +218,7 @@ block8:
   [  b0] End value:Undefined
 
 
-call_this$77eb3a07 condition-dead-code-elim.js:105:5
+call_this$7cdf005a condition-dead-code-elim.js:105:5
   Registers: 5
   Blocks:    1
   Constants:
@@ -228,7 +228,7 @@ block0:
   [   0] Return value:Int32(1)
 
 
-for_true$81dd51ad condition-dead-code-elim.js:128:5
+for_true$e3e30115 condition-dead-code-elim.js:128:5
   Registers: 7
   Blocks:    11
   Constants:

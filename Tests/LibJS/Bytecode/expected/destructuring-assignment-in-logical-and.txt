@@ -1,4 +1,4 @@
-$490efcb5 destructuring-assignment-in-logical-and.js:5:1
+$9431c529 destructuring-assignment-in-logical-and.js:5:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -12,7 +12,7 @@ block0:
   [  40] End value:reg5
 
 
-f$c5d7e0b7 destructuring-assignment-in-logical-and.js:2:5
+f$bd59b03f destructuring-assignment-in-logical-and.js:2:5
   Registers: 12
   Blocks:    10
   Locals:    a~0, b~1

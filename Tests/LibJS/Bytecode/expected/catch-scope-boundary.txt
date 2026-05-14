@@ -1,4 +1,4 @@
-$b00b92b3 catch-scope-boundary.js:14:1
+$3a6e508d catch-scope-boundary.js:14:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -18,7 +18,7 @@ block0:
   [ 130] End value:reg7
 
 
-throwInCatch$ff1cead7 catch-scope-boundary.js:2:5
+throwInCatch$94c0d746 catch-scope-boundary.js:2:5
   Registers: 7
   Blocks:    7
   Locals:    e2~0, e~1, result~2
@@ -61,7 +61,7 @@ Exception handlers:
   [  88 ..   90] => handler block1
 
 
-throwInCatchWithLocals$a73f2041 catch-scope-boundary.js:17:5
+throwInCatchWithLocals$35b0d9e9 catch-scope-boundary.js:17:5
   Registers: 9
   Blocks:    5
   Locals:    inner~0, catchLocal~1, e~2, outerVar~3

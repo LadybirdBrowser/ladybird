@@ -1,4 +1,4 @@
-$6cc1cfb5 captured-variables.js:12:1
+$c7fd0018 captured-variables.js:12:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -10,7 +10,7 @@ block0:
   [  38] End value:reg5
 
 
-outer$0300a3f9 captured-variables.js:5:5
+outer$e7583c0c captured-variables.js:5:5
   Registers: 7
   Blocks:    1
   Locals:    inner~0
@@ -29,7 +29,7 @@ block0:
   [  88] Return value:reg6
 
 
-inner$f798183e captured-variables.js:7:9
+inner$e471f8e5 captured-variables.js:7:9
   Registers: 6
   Blocks:    1
 

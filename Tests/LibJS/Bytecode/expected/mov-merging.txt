@@ -1,4 +1,4 @@
-$3add7786 mov-merging.js:14:1
+$3a6e508d mov-merging.js:14:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -18,7 +18,7 @@ block0:
   [ 130] End value:reg7
 
 
-twoLocals$37fee39e mov-merging.js:2:5
+twoLocals$848f6408 mov-merging.js:2:5
   Registers: 6
   Blocks:    1
   Locals:    a~0, b~1
@@ -32,7 +32,7 @@ block0:
   [  28] Return value:reg5
 
 
-threeLocals$ddb137e7 mov-merging.js:8:5
+threeLocals$f4c3fc48 mov-merging.js:8:5
   Registers: 7
   Blocks:    1
   Locals:    a~0, b~1, c~2

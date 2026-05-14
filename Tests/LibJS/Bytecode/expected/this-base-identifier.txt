@@ -1,4 +1,4 @@
-$3a924082 this-base-identifier.js:16:1
+$80aea387 this-base-identifier.js:16:1
   Registers: 10
   Blocks:    4
   Constants:
@@ -31,7 +31,7 @@ Exception handlers:
   [  b0 ..  118] => handler block1
 
 
-get_from_this$4bb390c8 this-base-identifier.js:5:5
+get_from_this$7b4d6173 this-base-identifier.js:5:5
   Registers: 6
   Blocks:    1
 
@@ -40,7 +40,7 @@ block0:
   [  20] Return value:reg5
 
 
-set_on_this$453a2d11 this-base-identifier.js:9:14
+set_on_this$1818839f this-base-identifier.js:9:14
   Registers: 5
   Blocks:    1
   Constants:
@@ -52,7 +52,7 @@ block0:
   [  28] End value:Undefined
 
 
-chained_this_access$48ebed63 this-base-identifier.js:13:5
+chained_this_access$4d4a3dab this-base-identifier.js:13:5
   Registers: 7
   Blocks:    1
 

@@ -1,4 +1,4 @@
-$fc23251f switch-scoping.js:15:1
+$ac230b38 switch-scoping.js:15:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -20,7 +20,7 @@ block0:
   [ 140] End value:reg7
 
 
-switchWithBlockDecl$2b5ecfcd switch-scoping.js:2:5
+switchWithBlockDecl$4f465f02 switch-scoping.js:2:5
   Registers: 7
   Blocks:    7
   Locals:    result~0
@@ -64,7 +64,7 @@ block6:
   [ 130] Return value:reg5
 
 
-result$9ed940b6 switch-scoping.js:6:22
+result$38b0d48c switch-scoping.js:6:22
   Registers: 6
   Blocks:    1
 
@@ -73,7 +73,7 @@ block0:
   [  18] Return value:reg5
 
 
-result$78d6c64d switch-scoping.js:10:22
+result$ff741ac0 switch-scoping.js:10:22
   Registers: 6
   Blocks:    1
 

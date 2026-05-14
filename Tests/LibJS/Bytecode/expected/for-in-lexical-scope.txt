@@ -1,4 +1,4 @@
-$6f3aad7a for-in-lexical-scope.js:1:12
+$3122836b for-in-lexical-scope.js:1:12
   Registers: 12
   Blocks:    6
   Constants:

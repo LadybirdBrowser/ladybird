@@ -1,4 +1,4 @@
-$69cce752 async-return-bare.js:4:1
+$2b997e90 async-return-bare.js:4:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -10,7 +10,7 @@ block0:
   [  38] End value:reg5
 
 
-f$e646074e async-return-bare.js:2:5
+f$e16999cc async-return-bare.js:2:5
   Registers: 5
   Blocks:    2
   Constants:

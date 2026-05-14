@@ -1,4 +1,4 @@
-$1522c0b3 generator-yield-star.js:6:1
+$6fbbc21a generator-yield-star.js:6:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -11,7 +11,7 @@ block0:
   [  60] End value:reg5
 
 
-f$c2e40832 generator-yield-star.js:4:5
+f$289ca507 generator-yield-star.js:4:5
   Registers: 22
   Blocks:    19
   Constants:

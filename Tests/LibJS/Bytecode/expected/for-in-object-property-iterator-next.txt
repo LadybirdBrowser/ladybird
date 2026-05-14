@@ -1,4 +1,4 @@
-$5af00ff4 for-in-object-property-iterator-next.js:8:1
+$298a584c for-in-object-property-iterator-next.js:8:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -21,7 +21,7 @@ block0:
   [  c8] End value:reg5
 
 
-collect$4195dbe6 for-in-object-property-iterator-next.js:2:18
+collect$a74ca55b for-in-object-property-iterator-next.js:2:18
   Registers: 12
   Blocks:    6
   Locals:    key~0, keys~1

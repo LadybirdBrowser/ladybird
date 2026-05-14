@@ -1,4 +1,4 @@
-$90bea1bc for-of-continue-with-block-scope.js:13:1
+$2b0d6491 for-of-continue-with-block-scope.js:13:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -11,7 +11,7 @@ block0:
   [  50] End value:reg5
 
 
-f$cb6e0975 for-of-continue-with-block-scope.js:2:15
+f$a6e23ba8 for-of-continue-with-block-scope.js:2:15
   Registers: 18
   Blocks:    12
   Locals:    o~0, t~1

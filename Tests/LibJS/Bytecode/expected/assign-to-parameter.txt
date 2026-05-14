@@ -1,4 +1,4 @@
-$b05eae7c assign-to-parameter.js:8:1
+$162ec0dc assign-to-parameter.js:8:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -10,7 +10,7 @@ block0:
   [  38] End value:reg5
 
 
-isect$96caa89c assign-to-parameter.js:5:9
+isect$41c8d351 assign-to-parameter.js:5:9
   Registers: 5
   Blocks:    1
   Constants:

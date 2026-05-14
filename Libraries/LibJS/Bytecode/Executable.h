@@ -137,14 +137,10 @@ struct ObjectPropertyIteratorCache {
     GC::Ptr<Object> reusable_property_name_iterator;
 };
 
-struct SourceRecord {
-    Position start {};
-    Position end {};
-};
-
 struct SourceMapEntry {
     u32 bytecode_offset {};
-    SourceRecord source_record {};
+    u32 line {};
+    u32 column {};
 };
 
 class JS_API Executable final

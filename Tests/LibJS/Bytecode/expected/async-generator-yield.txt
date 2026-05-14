@@ -1,4 +1,4 @@
-$bfb1383b async-generator-yield.js:7:1
+$516a2e0b async-generator-yield.js:7:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -11,7 +11,7 @@ block0:
   [  40] End value:reg5
 
 
-f$a4f936a8 async-generator-yield.js:5:5
+f$aa186530 async-generator-yield.js:5:5
   Registers: 10
   Blocks:    16
   Constants:

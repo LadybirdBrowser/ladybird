@@ -1,4 +1,4 @@
-$a061729d logical-assignment-register-order.js:2:7
+$932d2a38 logical-assignment-register-order.js:2:7
   Registers: 8
   Blocks:    4
 

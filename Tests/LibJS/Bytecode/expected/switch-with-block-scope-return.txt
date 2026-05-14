@@ -1,4 +1,4 @@
-$bfb1383b switch-with-block-scope-return.js:12:1
+$469b0790 switch-with-block-scope-return.js:12:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -11,7 +11,7 @@ block0:
   [  40] End value:reg5
 
 
-f$bb4b08d4 switch-with-block-scope-return.js:2:5
+f$055cd79c switch-with-block-scope-return.js:2:5
   Registers: 8
   Blocks:    8
   Constants:

@@ -1,4 +1,4 @@
-$3dab9a19 assign-to-let-variable-tdz.js:12:1
+$bced3bd8 assign-to-let-variable-tdz.js:12:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -14,7 +14,7 @@ block0:
   [  78] End value:reg5
 
 
-f$08c437ee assign-to-let-variable-tdz.js:7:5
+f$7105e5e6 assign-to-let-variable-tdz.js:7:5
   Registers: 10
   Blocks:    3
   Locals:    a~0
@@ -45,7 +45,7 @@ block2:
   [ 100] Return value:a~0
 
 
-g$15d4d90c assign-to-let-variable-tdz.js:4:17
+g$f452072f assign-to-let-variable-tdz.js:4:17
   Registers: 5
   Blocks:    1
 

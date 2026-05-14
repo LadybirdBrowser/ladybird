@@ -1,4 +1,4 @@
-$6cc1cfb5 eval-scope-optimization.js:12:1
+$c7fd0018 eval-scope-optimization.js:12:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -10,7 +10,7 @@ block0:
   [  38] End value:reg5
 
 
-outer$6201e926 eval-scope-optimization.js:9:5
+outer$2f7d7ac8 eval-scope-optimization.js:9:5
   Registers: 7
   Blocks:    1
   Constants:

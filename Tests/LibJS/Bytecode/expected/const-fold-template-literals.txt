@@ -1,4 +1,4 @@
-$dc4cd9dd const-fold-template-literals.js:20:1
+$5034494e const-fold-template-literals.js:20:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -42,7 +42,7 @@ block0:
   [ 2d0] End value:Undefined
 
 
-prefix$f72ec249 const-fold-template-literals.js:2:5
+prefix$722bd91a const-fold-template-literals.js:2:5
   Registers: 6
   Blocks:    1
   Constants:
@@ -54,7 +54,7 @@ block0:
   [  20] Return value:reg5
 
 
-suffix$5b9fba3e const-fold-template-literals.js:5:5
+suffix$a92a9be2 const-fold-template-literals.js:5:5
   Registers: 6
   Blocks:    1
   Constants:
@@ -66,7 +66,7 @@ block0:
   [  20] Return value:reg5
 
 
-tostring$1567fc7c const-fold-template-literals.js:8:5
+tostring$ba142bc6 const-fold-template-literals.js:8:5
   Registers: 6
   Blocks:    1
 
@@ -75,7 +75,7 @@ block0:
   [  10] Return value:reg5
 
 
-multi$f3ef7824 const-fold-template-literals.js:11:5
+multi$05431102 const-fold-template-literals.js:11:5
   Registers: 6
   Blocks:    1
 
@@ -86,7 +86,7 @@ block0:
   [  30] Return value:reg5
 
 
-literal$c7e85f9e const-fold-template-literals.js:14:5
+literal$12c5c655 const-fold-template-literals.js:14:5
   Registers: 6
   Blocks:    1
   Constants:
@@ -96,7 +96,7 @@ block0:
   [   0] Return value:String("hello world")
 
 
-empty$93602216 const-fold-template-literals.js:17:5
+empty$4890c274 const-fold-template-literals.js:17:5
   Registers: 5
   Blocks:    1
   Constants:

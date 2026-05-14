@@ -1,4 +1,4 @@
-$b23ddabf computed-member-compound-assign.js:15:1
+$7fc74e7b computed-member-compound-assign.js:15:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -18,7 +18,7 @@ block0:
   [  c8] End value:reg6
 
 
-compound_computed$3d35f992 computed-member-compound-assign.js:7:14
+compound_computed$811bdddb computed-member-compound-assign.js:7:14
   Registers: 8
   Blocks:    1
   Constants:
@@ -33,7 +33,7 @@ block0:
   [  50] End value:Undefined
 
 
-compound_then_assign$fda157e3 computed-member-compound-assign.js:11:13
+compound_then_assign$aead8c3c computed-member-compound-assign.js:11:13
   Registers: 8
   Blocks:    1
   Constants:

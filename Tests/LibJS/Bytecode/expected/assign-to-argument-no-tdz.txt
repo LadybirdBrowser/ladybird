@@ -1,4 +1,4 @@
-$a49ec34a assign-to-argument-no-tdz.js:11:1
+$393b7f47 assign-to-argument-no-tdz.js:11:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -11,7 +11,7 @@ block0:
   [  40] End value:reg5
 
 
-f$71204352 assign-to-argument-no-tdz.js:6:5
+f$44906188 assign-to-argument-no-tdz.js:6:5
   Registers: 5
   Blocks:    1
   Locals:    y~0

@@ -1,4 +1,4 @@
-$b70081a4 computed-update-register-order.js:8:1
+$9790b964 computed-update-register-order.js:8:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -11,7 +11,7 @@ block0:
   [  70] End value:reg5
 
 
-test$c6be6338 computed-update-register-order.js:5:9
+test$7becb49f computed-update-register-order.js:5:9
   Registers: 8
   Blocks:    1
   Constants:
@@ -28,7 +28,7 @@ block0:
   [  90] End value:Undefined
 
 
-foo$7176ad76 computed-update-register-order.js:2:5
+foo$93622fcc computed-update-register-order.js:2:5
   Registers: 5
   Blocks:    1
 

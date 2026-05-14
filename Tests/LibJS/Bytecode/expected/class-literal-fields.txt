@@ -1,4 +1,4 @@
-$b4f9525c class-literal-fields.js:12:1
+$ccb44156 class-literal-fields.js:12:1
   Registers: 15
   Blocks:    1
   Constants:
@@ -26,7 +26,7 @@ block0:
   [ 210] End value:reg5
 
 
-test$657cc1d3 class-literal-fields.js:2:5
+test$7bd6515c class-literal-fields.js:2:5
   Registers: 7
   Blocks:    1
   Locals:    A~0
@@ -51,7 +51,7 @@ block0:
   [  98] Return value:reg6
 
 
-A$811c9dc5
+A$ef0589ec
   Registers: 5
   Blocks:    1
   Constants:
@@ -61,7 +61,7 @@ block0:
   [   0] End value:Undefined
 
 
-field$4297853c class-literal-fields.js:8:22
+field$d016a301 class-literal-fields.js:8:22
   Registers: 5
   Blocks:    1
   Constants:

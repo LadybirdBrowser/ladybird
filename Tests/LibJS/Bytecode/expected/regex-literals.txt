@@ -1,4 +1,4 @@
-$b46fb5c4 regex-literals.js:2:1
+$a7cdfa5e regex-literals.js:2:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -19,7 +19,7 @@ block0:
   [  e0] End value:reg6
 
 
-matchDigits$4cca49e8 regex-literals.js:8:5
+matchDigits$5149c62f regex-literals.js:8:5
   Registers: 9
   Blocks:    1
 

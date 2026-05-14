@@ -1,4 +1,4 @@
-$2915e894 delete-super-property.js:1:1
+$752dc5b7 delete-super-property.js:1:1
   Registers: 11
   Blocks:    7
   Locals:    e~0, e~1
@@ -55,7 +55,7 @@ Exception handlers:
   [ 188 ..  228] => handler block4
 
 
-A$811c9dc5
+A$ef0589ec
   Registers: 5
   Blocks:    1
   Constants:
@@ -65,7 +65,7 @@ block0:
   [   0] End value:Undefined
 
 
-foo$7dff3f72 delete-super-property.js:3:9
+foo$7707d509 delete-super-property.js:3:9
   Registers: 7
   Blocks:    2
   Constants:
@@ -81,7 +81,7 @@ block1:
   [  28] End value:Undefined
 
 
-baz$cb4e52e2 delete-super-property.js:6:9
+baz$8acb3acb delete-super-property.js:6:9
   Registers: 7
   Blocks:    2
   Constants:

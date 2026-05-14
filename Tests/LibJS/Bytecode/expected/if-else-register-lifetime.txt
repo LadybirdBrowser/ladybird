@@ -1,4 +1,4 @@
-$93c13d35 if-else-register-lifetime.js:11:1
+$c02559ef if-else-register-lifetime.js:11:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -11,7 +11,7 @@ block0:
   [  58] End value:reg5
 
 
-test$c1ed08de if-else-register-lifetime.js:2:5
+test$5f5e45da if-else-register-lifetime.js:2:5
   Registers: 13
   Blocks:    12
   Locals:    a~0, i~1, j~2

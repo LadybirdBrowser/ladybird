@@ -1,4 +1,4 @@
-$bc2d85a0 string-from-char-code-builtin.js:3:1
+$8130931f string-from-char-code-builtin.js:3:1
   Registers: 9
   Blocks:    1
   Constants:

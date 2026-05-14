@@ -1,4 +1,4 @@
-$e092f884 class-lhs-name-no-createvariable.js:1:1
+$e7eb680d class-lhs-name-no-createvariable.js:1:1
   Registers: 7
   Blocks:    1
   Constants:

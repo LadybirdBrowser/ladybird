@@ -1,4 +1,4 @@
-$c0e94b43 chained-member-call.js:12:1
+$82bdc9cb chained-member-call.js:12:1
   Registers: 10
   Blocks:    7
   Constants:
@@ -44,7 +44,7 @@ Exception handlers:
   [  e8 ..  158] => handler block4
 
 
-chained_computed_call$df45ff7f chained-member-call.js:5:5
+chained_computed_call$78bf026a chained-member-call.js:5:5
   Registers: 8
   Blocks:    1
 
@@ -57,7 +57,7 @@ block0:
   [  80] Return value:reg5
 
 
-chained_dot_call$9501e458 chained-member-call.js:9:5
+chained_dot_call$4ef00940 chained-member-call.js:9:5
   Registers: 8
   Blocks:    1
 

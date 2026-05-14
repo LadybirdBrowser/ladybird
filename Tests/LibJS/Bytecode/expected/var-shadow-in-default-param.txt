@@ -1,4 +1,4 @@
-$b1c0097f var-shadow-in-default-param.js:7:1
+$d85408b3 var-shadow-in-default-param.js:7:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -14,7 +14,7 @@ block0:
   [  88] End value:reg6
 
 
-shadow_in_default$8b450421 var-shadow-in-default-param.js:8:32
+shadow_in_default$adf74487 var-shadow-in-default-param.js:8:32
   Registers: 7
   Blocks:    3
   Constants:
@@ -38,7 +38,7 @@ block2:
   [  98] Return value:arg0
 
 
-no_conflict$0d2d606f var-shadow-in-default-param.js:17:5
+no_conflict$f0c5f291 var-shadow-in-default-param.js:17:5
   Registers: 6
   Blocks:    3
   Locals:    y~0

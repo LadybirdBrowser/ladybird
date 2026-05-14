@@ -1,4 +1,4 @@
-$e8ebe331 postfix-update-in-logical-and.js:4:1
+$acfb7718 postfix-update-in-logical-and.js:4:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -11,7 +11,7 @@ block0:
   [  40] End value:reg5
 
 
-postfixInLogicalAnd$34f13720 postfix-update-in-logical-and.js:2:5
+postfixInLogicalAnd$ff9880b2 postfix-update-in-logical-and.js:2:5
   Registers: 8
   Blocks:    3
   Constants:

@@ -1,4 +1,4 @@
-$b4733eed invalid-lhs-assignment-no-dead-code.js:8:1
+$aaec50d4 invalid-lhs-assignment-no-dead-code.js:8:1
   Registers: 10
   Blocks:    4
   Constants:
@@ -28,7 +28,7 @@ Exception handlers:
   [  40 ..   c8] => handler block1
 
 
-f$36570247 invalid-lhs-assignment-no-dead-code.js:5:6
+f$36958900 invalid-lhs-assignment-no-dead-code.js:5:6
   Registers: 6
   Blocks:    1
   Constants:
@@ -40,7 +40,7 @@ block0:
   [  30] Throw src:reg5
 
 
-$811c9dc5
+$ccf7ed9d
   Registers: 5
   Blocks:    1
   Constants:

@@ -1,4 +1,4 @@
-$90ad3082 computed-string-to-ById.js:17:1
+$dc43d5b2 computed-string-to-ById.js:17:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -20,7 +20,7 @@ block0:
   [ 140] End value:reg6
 
 
-get_string_prop$fa843635 computed-string-to-ById.js:5:5
+get_string_prop$d6b42da3 computed-string-to-ById.js:5:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -32,7 +32,7 @@ block0:
   [  30] Return value:reg6
 
 
-set_string_prop$5b793bae computed-string-to-ById.js:8:16
+set_string_prop$592a21c7 computed-string-to-ById.js:8:16
   Registers: 6
   Blocks:    1
   Constants:
@@ -46,7 +46,7 @@ block0:
   [  38] End value:Undefined
 
 
-get_index_prop$f6a04ecf computed-string-to-ById.js:11:5
+get_index_prop$a54df54e computed-string-to-ById.js:11:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -58,7 +58,7 @@ block0:
   [  28] Return value:reg6
 
 
-get_length_prop$2983fb9b computed-string-to-ById.js:14:5
+get_length_prop$813e14f1 computed-string-to-ById.js:14:5
   Registers: 7
   Blocks:    1
   Constants:

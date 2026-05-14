@@ -1,4 +1,4 @@
-$34849cbe destructuring-param-no-param-expressions.js:10:1
+$2e11f366 destructuring-param-no-param-expressions.js:10:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -16,7 +16,7 @@ block0:
   [  90] End value:reg5
 
 
-f$84013cfc destructuring-param-no-param-expressions.js:7:5
+f$41e63819 destructuring-param-no-param-expressions.js:7:5
   Registers: 6
   Blocks:    1
   Locals:    local~0

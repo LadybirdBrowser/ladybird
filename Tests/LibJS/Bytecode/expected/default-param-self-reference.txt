@@ -1,4 +1,4 @@
-$bfb1383b default-param-self-reference.js:2:1
+$b865a0be default-param-self-reference.js:2:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -11,7 +11,7 @@ block0:
   [  40] End value:reg5
 
 
-f$e162c485 default-param-self-reference.js:1:16
+f$d753a0ea default-param-self-reference.js:1:16
   Registers: 5
   Blocks:    3
   Constants:

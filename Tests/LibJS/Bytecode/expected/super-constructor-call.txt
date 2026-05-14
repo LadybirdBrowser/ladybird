@@ -1,4 +1,4 @@
-$e065c380 super-constructor-call.js:1:1
+$32b2807a super-constructor-call.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -23,7 +23,7 @@ block0:
   [ 118] End value:reg7
 
 
-Derived$3808ea25 super-constructor-call.js:4:14
+Derived$eee8d5da super-constructor-call.js:4:14
   Registers: 7
   Blocks:    1
   Constants:
@@ -36,7 +36,7 @@ block0:
   [  38] End value:Undefined
 
 
-Base$811c9dc5
+Base$a461b108
   Registers: 5
   Blocks:    1
   Constants:
