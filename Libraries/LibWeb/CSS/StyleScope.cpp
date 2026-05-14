@@ -342,6 +342,9 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
         size_t rule_index = 0;
         Vector<GC::Ptr<CSSContainerRule const>> container_rule_stack;
         for_each_style_producing_rule_for_rule_cache(sheet, container_rule_stack, [&](auto const& rule, auto container_rule) {
+            if (container_rule && container_rule->contains_size_feature())
+                style_cache.has_size_container_queries = true;
+
             SelectorList const& absolutized_selectors = [&]() {
                 if (rule.type() == CSSRule::Type::Style)
                     return static_cast<CSSStyleRule const&>(rule).absolutized_selectors();
@@ -919,6 +922,12 @@ bool StyleScope::have_local_link_selectors() const
 {
     build_rule_cache_if_needed();
     return m_rule_cache->selector_insights.has_local_link_selectors;
+}
+
+bool StyleScope::have_size_container_queries() const
+{
+    build_rule_cache_if_needed();
+    return m_rule_cache->has_size_container_queries;
 }
 
 DOM::Document& StyleScope::document() const

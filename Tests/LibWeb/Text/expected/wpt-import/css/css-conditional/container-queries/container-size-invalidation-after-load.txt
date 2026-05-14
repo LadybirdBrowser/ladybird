@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	@container: invalidation of container size after load event
+1 Pass
+Pass	@container: invalidation of container size after load event

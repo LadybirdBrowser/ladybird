@@ -590,6 +590,17 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
         if (abstract_element.document().element_needs_style_update(abstract_element))
             abstract_element.document().update_style_for_element(abstract_element);
 
+        // Size container queries need layout to resolve. Avoid forcing layout for every getComputedStyle() call in
+        // a scope with size queries; only elements that actually matched a potentially relevant rule need the
+        // post-layout style.
+        bool const needs_layout_for_container_queries = abstract_element.style_scope().have_size_container_queries()
+            && abstract_element.element().style_depends_on_size_container_query()
+            && !abstract_element.document().layout_is_up_to_date();
+        if (needs_layout_for_container_queries) {
+            abstract_element.document().update_layout(DOM::UpdateLayoutReason::ResolvedCSSStyleDeclarationProperty);
+            layout_node = abstract_element.layout_node();
+        }
+
         // FIXME: Somehow get custom properties if there's no layout node.
         if (property_name_and_id.is_custom_property()) {
             if (auto maybe_value = abstract_element.get_custom_property(property_name_and_id.name())) {

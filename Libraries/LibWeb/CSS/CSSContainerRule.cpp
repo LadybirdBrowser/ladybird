@@ -152,6 +152,19 @@ bool CSSContainerRule::matches(DOM::AbstractElement const& element) const
     return true;
 }
 
+bool CSSContainerRule::contains_size_feature() const
+{
+    for (auto const& condition : m_conditions) {
+        if (condition.container_query && condition.container_query->contains_size_feature())
+            return true;
+    }
+
+    if (auto const* parent_container_rule = find_parent_container_rule())
+        return parent_container_rule->contains_size_feature();
+
+    return false;
+}
+
 // https://drafts.csswg.org/cssom-1/#serialize-a-css-rule
 String CSSContainerRule::serialized() const
 {

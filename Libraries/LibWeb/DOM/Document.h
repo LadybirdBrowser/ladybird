@@ -646,6 +646,7 @@ public:
 
     bool needs_full_style_update() const { return m_needs_full_style_update; }
     void set_needs_full_style_update(bool b) { m_needs_full_style_update = b; }
+    void set_needs_container_query_evaluation_after_layout(Element const& query_container);
 
     [[nodiscard]] bool needs_full_layout_tree_update() const { return m_needs_full_layout_tree_update; }
     void set_needs_full_layout_tree_update(bool b) { m_needs_full_layout_tree_update = b; }
@@ -1301,6 +1302,7 @@ private:
     Vector<GC::Weak<CSS::MediaQueryList>> m_media_query_lists;
 
     bool m_needs_full_style_update { false };
+    HashTable<GC::Ref<Element>> m_query_containers_needing_container_query_evaluation_after_layout;
     bool m_needs_full_layout_tree_update { false };
 
     bool m_is_decoded_svg { false };

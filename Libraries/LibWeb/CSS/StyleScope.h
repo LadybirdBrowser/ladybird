@@ -93,6 +93,7 @@ struct StyleCache : public RefCounted<StyleCache> {
     RuleCaches author_rule_cache;
     RuleCaches user_rule_cache;
     RuleCaches user_agent_rule_cache;
+    bool has_size_container_queries { false };
 
     void visit_edges(GC::Cell::Visitor&);
 };
@@ -142,6 +143,7 @@ public:
     [[nodiscard]] bool may_have_has_selectors_with_relative_selector_that_has_sibling_combinator() const;
     [[nodiscard]] bool have_has_selectors_with_relative_selector_that_has_sibling_combinator() const;
     [[nodiscard]] bool have_local_link_selectors() const;
+    [[nodiscard]] bool have_size_container_queries() const;
 
     void for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&)> const& callback) const;
 

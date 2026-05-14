@@ -279,7 +279,7 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules(
         if (!rule_is_relevant_for_current_scope)
             return;
 
-        if (rule_to_run.container_rule && !rule_to_run.container_rule->matches(abstract_element))
+        if (rule_to_run.container_rule && !rule_to_run.container_rule->contains_size_feature() && !rule_to_run.container_rule->matches(abstract_element))
             return;
 
         auto const& selector = rule_to_run.selector;
@@ -403,6 +403,11 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules(
         };
         if (!SelectorEngine::matches(selector, abstract_element, shadow_host_to_use, context))
             continue;
+        if (rule.container_rule && rule.container_rule->contains_size_feature()) {
+            abstract_element.element().set_style_depends_on_size_container_query();
+            if (!rule.container_rule->matches(abstract_element))
+                continue;
+        }
         matching_rules.append(rule_to_run);
     }
 

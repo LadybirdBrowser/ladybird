@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 16 tests
 
-12 Pass
-4 Fail
-Fail	(width > 0px)
+16 Pass
+Pass	(width > 0px)
 Pass	(height > 0px)
 Pass	((height > 0px) or (width > 0px))
 Pass	((width > 0px) or (height > 0px))
@@ -12,11 +11,11 @@ Pass	((orientation: landscape) or (width > 0px))
 Pass	((width > 0px) or (orientation: landscape))
 Pass	((height > 0px) or (orientation: landscape))
 Pass	((height > 0px) or (orientation: landscape)), with contain:size
-Fail	(inline-size > 0px)
+Pass	(inline-size > 0px)
 Pass	(block-size > 0px)
 Pass	(block-size > 0px), with writing-mode:vertical-rl
-Fail	not (width < 0px)
+Pass	not (width < 0px)
 Pass	not (height < 0px)
-Fail	not (inline-size < 0px)
+Pass	not (inline-size < 0px)
 Pass	not (block-size < 0px)
 Pass	not (orientation)

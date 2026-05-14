@@ -11,9 +11,12 @@
 #include <LibGfx/Font/Font.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/ComputedValues.h>
+#include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/Navigable.h>
@@ -40,6 +43,37 @@
 namespace Web::Painting {
 
 static bool g_paint_viewport_scrollbars = true;
+
+static bool content_size_change_affects_container_queries(PaintableBox const& paintable_box, CSSPixelSize old_size, CSSPixelSize new_size)
+{
+    auto const& container_type = paintable_box.computed_values().container_type();
+    if (container_type.is_size_container)
+        return old_size != new_size;
+
+    if (!container_type.is_inline_size_container)
+        return false;
+
+    if (paintable_box.computed_values().writing_mode() == CSS::WritingMode::HorizontalTb)
+        return old_size.width() != new_size.width();
+
+    return old_size.height() != new_size.height();
+}
+
+static void invalidate_descendant_styles_for_container_query_size_change(PaintableBox& paintable_box, CSSPixelSize old_size, CSSPixelSize new_size)
+{
+    if (!content_size_change_affects_container_queries(paintable_box, old_size, new_size))
+        return;
+
+    if (auto* element = as_if<DOM::Element>(paintable_box.dom_node().ptr());
+        element && element->style_scope().have_size_container_queries()) {
+
+        element->for_each_shadow_including_descendant([](DOM::Node& node) {
+            if (auto* descendant_element = as_if<DOM::Element>(node); descendant_element && descendant_element->style_depends_on_size_container_query())
+                descendant_element->set_needs_style_update(true);
+            return TraversalDecision::Continue;
+        });
+    }
+}
 
 void set_paint_viewport_scrollbars(bool const enabled)
 {
@@ -295,9 +329,11 @@ void PaintableBox::set_offset(CSSPixelPoint offset)
 
 void PaintableBox::set_content_size(CSSPixelSize size)
 {
+    auto old_size = m_content_size;
     m_content_size = size;
     if (auto layout_box = as_if<Layout::Box>(layout_node()))
         layout_box->did_set_content_size();
+    invalidate_descendant_styles_for_container_query_size_change(*this, old_size, size);
 }
 
 void PaintableBox::set_fragmentation_state(FragmentationState fragmentation_state)
