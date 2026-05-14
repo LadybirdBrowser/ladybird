@@ -606,7 +606,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
             auto device_pixels_per_css_pixel = static_cast<float>(m_navigable->page().client().device_pixels_per_css_pixel());
             auto async_scroll_delta_in_device_pixels = async_scroll_delta.scaled(device_pixels_per_css_pixel);
             async_scroll_performed_default_action = m_navigable->rendering_thread().async_scroll_by(async_scroll_position, async_scroll_delta_in_device_pixels, viewport_rect);
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] {} wheel async scroll for viewport at {},{} with device delta {},{}",
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] {} wheel async scroll at {},{} with device delta {},{}",
                 async_scroll_performed_default_action ? "Enqueued"sv : "Could not enqueue"sv,
                 async_scroll_position.x(), async_scroll_position.y(),
                 async_scroll_delta_in_device_pixels.x(), async_scroll_delta_in_device_pixels.y());
@@ -618,8 +618,22 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     auto handled_event = EventResult::Dropped;
 
     if (paintable) {
-        if (!async_scroll_performed_default_action) {
-            RefPtr<Painting::Paintable> containing_block = paintable;
+        auto resolve_wheel_default_action_target = [&]() -> RefPtr<Painting::Paintable> {
+            auto document = m_navigable->active_document();
+            if (!document || !document->is_fully_active())
+                return nullptr;
+
+            document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseWheel);
+            if (!paint_root())
+                return nullptr;
+
+            if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value())
+                return result->paintable;
+            return nullptr;
+        };
+
+        auto perform_wheel_default_action = [&](RefPtr<Painting::Paintable> target) -> EventResult {
+            RefPtr<Painting::Paintable> containing_block = move(target);
             while (containing_block) {
                 auto handled_scroll_event = containing_block->handle_mousewheel({}, visual_viewport_position, buttons, modifiers, wheel_delta_x, wheel_delta_y);
                 if (handled_scroll_event)
@@ -628,9 +642,19 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
                 containing_block = containing_block->containing_block();
             }
 
-            if (paintable->handle_mousewheel({}, visual_viewport_position, buttons, modifiers, wheel_delta_x, wheel_delta_y))
-                return EventResult::Handled;
-        }
+            auto document = m_navigable->active_document();
+            if (!document || !document->paintable_box())
+                return EventResult::Dropped;
+
+            if (document->paintable_box()->could_be_scrolled_by_wheel_event()) {
+                auto viewport_scroll_position_before = CSSPixelPoint { CSSPixels(document->visual_viewport()->page_left()), CSSPixels(document->visual_viewport()->page_top()) };
+                m_navigable->scroll_viewport_by_delta({ CSSPixels::nearest_value_for(wheel_delta_x), CSSPixels::nearest_value_for(wheel_delta_y) });
+                auto viewport_scroll_position_after = CSSPixelPoint { CSSPixels(document->visual_viewport()->page_left()), CSSPixels(document->visual_viewport()->page_top()) };
+                return viewport_scroll_position_before != viewport_scroll_position_after ? EventResult::Handled : EventResult::Accepted;
+            }
+
+            return EventResult::Accepted;
+        };
 
         auto node = dom_node_for_event_dispatch(*paintable);
 
@@ -654,24 +678,20 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
                 offset_paintable = paintable;
             auto scroll_offset = document->navigable()->viewport_scroll_offset();
             auto offset = compute_mouse_event_offset(visual_viewport_position.translated(scroll_offset), *offset_paintable);
-            bool could_scroll_viewport = document->paintable_box()->could_be_scrolled_by_wheel_event();
             auto is_cancelable = async_scroll_performed_default_action ? UIEvents::WheelEventIsCancelable::No : UIEvents::WheelEventIsCancelable::Yes;
             if (node->dispatch_event(UIEvents::WheelEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::wheel, screen_position, page_offset, viewport_position, offset, wheel_delta_x, wheel_delta_y, button, buttons, modifiers, is_cancelable).release_value_but_fixme_should_propagate_errors())) {
                 if (async_scroll_performed_default_action) {
                     handled_event = EventResult::Handled;
-                } else if (could_scroll_viewport) {
-                    auto viewport_scroll_position_before = CSSPixelPoint { CSSPixels(document->visual_viewport()->page_left()), CSSPixels(document->visual_viewport()->page_top()) };
-                    m_navigable->scroll_viewport_by_delta({ CSSPixels::nearest_value_for(wheel_delta_x), CSSPixels::nearest_value_for(wheel_delta_y) });
-                    auto viewport_scroll_position_after = CSSPixelPoint { CSSPixels(document->visual_viewport()->page_left()), CSSPixels(document->visual_viewport()->page_top()) };
-                    handled_event = viewport_scroll_position_before != viewport_scroll_position_after ? EventResult::Handled : EventResult::Accepted;
                 } else {
-                    handled_event = EventResult::Accepted;
+                    handled_event = perform_wheel_default_action(resolve_wheel_default_action_target());
                 }
             } else if (async_scroll_performed_default_action) {
                 handled_event = EventResult::Handled;
             } else {
                 handled_event = EventResult::Cancelled;
             }
+        } else if (!async_scroll_performed_default_action) {
+            handled_event = perform_wheel_default_action(paintable);
         }
     }
 

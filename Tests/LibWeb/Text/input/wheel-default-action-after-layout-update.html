@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #scroller {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+
+    #spacer {
+        height: 500px;
+    }
+
+    #page-spacer {
+        height: 2000px;
+    }
+</style>
+<div id="scroller"><div id="spacer"></div></div>
+<div id="page-spacer"></div>
+<script>
+    test(() => {
+        scroller.addEventListener("wheel", () => {
+            scroller.remove();
+            document.body.offsetHeight;
+        }, { passive: false });
+
+        internals.wheel(50, 50, 0, 100);
+
+        println("PASS");
+        println(`window.scrollY: ${window.scrollY}`);
+    });
+</script>
