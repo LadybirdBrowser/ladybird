@@ -5881,7 +5881,7 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             auto& function = functions[instruction.arguments().get<FunctionIndex>().value()];
             if (function.results().size() <= 1 && function.parameters().size() < 4) {
                 pattern_state = InsnPatternState::Nothing;
-                OpCode op { Instructions::synthetic_call_00.value() + function.parameters().size() * 2 + function.results().size() };
+                OpCode op { static_cast<OpCode::Type>(Instructions::synthetic_call_00.value() + function.parameters().size() * 2 + function.results().size()) };
                 result.extra_instruction_storage.unchecked_append(Instruction(
                     op,
                     instruction.arguments()));

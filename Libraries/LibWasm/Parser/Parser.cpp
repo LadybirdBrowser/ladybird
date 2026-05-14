@@ -639,7 +639,10 @@ ParseResult<Instruction> Instruction::parse(ConstrainedStream& stream)
     case 0xfd: {
         // These are multibyte instructions.
         auto selector = TRY_READ(stream, LEB128<u32>, ParseError::InvalidInput);
-        OpCode full_opcode = static_cast<u64>(opcode.value()) << 56 | selector;
+        if (selector > 0xffffff)
+            return ParseError::UnknownInstruction;
+
+        OpCode full_opcode = static_cast<u32>(opcode.value()) << 24 | selector;
 
         switch (full_opcode.value()) {
         case Instructions::i32_trunc_sat_f32_s.value():

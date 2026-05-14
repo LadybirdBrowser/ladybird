@@ -746,7 +746,7 @@ static CraneliftInsn serialize_insn(Dispatch const& dispatch, SourcesAndDestinat
     out.imm3 = 0;
 
     auto const& args = insn->arguments();
-    u64 opc = out.opcode;
+    u32 opc = out.opcode;
 
     if (opc == Instructions::i32_const.value()) {
         out.imm1 = static_cast<i64>(args.get<i32>());

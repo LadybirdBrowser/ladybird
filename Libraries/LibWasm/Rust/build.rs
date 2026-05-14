@@ -17,7 +17,7 @@ fn generate_opcodes(manifest_dir: &Path, out_dir: &Path) -> Result<(), Box<dyn E
     let mut output = String::new();
 
     // Grab name and value from _M(name, value, pops, pushes)_ lines
-    let re = regex::Regex::new(r"M\(\s*(\w+)\s*,\s*(0x[0-9a-fA-F]+)(?:ull)?\s*,")?;
+    let re = regex::Regex::new(r"M\(\s*(\w+)\s*,\s*(0x[0-9a-fA-F]+)(?:[uUlL]+)?\s*,")?;
     for cap in re.captures_iter(&contents) {
         let cpp_name = &cap[1];
         let value = &cap[2];
