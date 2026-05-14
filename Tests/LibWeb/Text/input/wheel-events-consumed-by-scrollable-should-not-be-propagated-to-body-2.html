@@ -24,8 +24,11 @@
 </div>
 <script src="include.js"></script>
 <script>
-    test(() => {
+    promiseTest(async () => {
         internals.wheel(10, 10, 0, 1000);
+        await animationFrame();
+        await animationFrame();
+
         const scrollable = document.getElementById("scrollable");
         println("scrollable.scrollTop: " + scrollable.scrollTop);
         println("window.scrollY: " + window.scrollY);

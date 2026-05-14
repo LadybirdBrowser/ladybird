@@ -407,7 +407,8 @@ public:
         return { scroll_target.node_id, false };
     }
 
-    bool enqueue_async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect)
+    bool enqueue_async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position,
+        Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect)
     {
         if (!m_can_accept_async_wheel_events.load()) {
             auto wheel_routing_admission = [this] {
@@ -427,6 +428,11 @@ public:
         if (!scroll_target.node_id.has_value()) {
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: no wheel target at {},{} for device delta {},{}",
                 position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y());
+            return false;
+        }
+        if (scroll_target.node_id->document_id != expected_document_id) {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: stale wheel target at {},{} for current document",
+                position.x(), position.y());
             return false;
         }
 
@@ -1422,9 +1428,10 @@ void CompositorThread::invalidate_wheel_event_listener_state(u64 generation)
     m_thread_data->invalidate_wheel_event_listener_state(generation);
 }
 
-bool CompositorThread::async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect)
+bool CompositorThread::async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position,
+    Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect)
 {
-    return m_thread_data->enqueue_async_scroll_by(position, delta_in_device_pixels, viewport_rect);
+    return m_thread_data->enqueue_async_scroll_by(expected_document_id, position, delta_in_device_pixels, viewport_rect);
 }
 
 Optional<Gfx::FloatPoint> CompositorThread::pending_async_viewport_scroll_offset() const

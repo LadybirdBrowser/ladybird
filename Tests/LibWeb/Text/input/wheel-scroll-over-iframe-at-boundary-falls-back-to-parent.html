@@ -39,12 +39,14 @@
         const scrollingElement = iframe.contentDocument.scrollingElement;
         scrollingElement.scrollTop = 10000;
         await animationFrame();
+        await animationFrame();
 
         println(`iframe.scrollTop before wheel: ${scrollingElement.scrollTop}`);
         println(`iframe.scrollHeight: ${scrollingElement.scrollHeight}`);
         println(`iframe.clientHeight: ${scrollingElement.clientHeight}`);
 
         internals.wheel(50, 50, 0, 100);
+        await animationFrame();
         await animationFrame();
 
         println(`window.scrollY: ${window.scrollY}`);

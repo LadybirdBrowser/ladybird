@@ -605,7 +605,8 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
             auto async_scroll_position = Gfx::FloatPoint { static_cast<float>(device_position.x().value()), static_cast<float>(device_position.y().value()) };
             auto device_pixels_per_css_pixel = static_cast<float>(m_navigable->page().client().device_pixels_per_css_pixel());
             auto async_scroll_delta_in_device_pixels = async_scroll_delta.scaled(device_pixels_per_css_pixel);
-            async_scroll_performed_default_action = m_navigable->rendering_thread().async_scroll_by(async_scroll_position, async_scroll_delta_in_device_pixels, viewport_rect);
+            async_scroll_performed_default_action = m_navigable->rendering_thread().async_scroll_by(
+                document->unique_id(), async_scroll_position, async_scroll_delta_in_device_pixels, viewport_rect);
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] {} wheel async scroll at {},{} with device delta {},{}",
                 async_scroll_performed_default_action ? "Enqueued"sv : "Could not enqueue"sv,
                 async_scroll_position.x(), async_scroll_position.y(),
