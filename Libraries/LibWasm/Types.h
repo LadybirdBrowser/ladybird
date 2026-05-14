@@ -205,11 +205,11 @@ public:
     {
     }
 
-    template<typename T>
-    explicit ValueType(Kind kind, T argument)
+    explicit ValueType(Kind kind, TypeIndex type_index)
         : m_kind(kind)
-        , m_argument(move(argument))
+        , m_type_index(type_index)
     {
+        VERIFY(kind == TypeUseReference);
     }
 
     bool operator==(ValueType const&) const = default;
@@ -223,7 +223,11 @@ public:
     auto is_typeuse() const { return m_kind == TypeUseReference; }
     auto kind() const { return m_kind; }
 
-    auto unsafe_typeindex() const { return m_argument.unsafe_get<TypeIndex>(); }
+    auto unsafe_typeindex() const
+    {
+        VERIFY(m_kind == TypeUseReference);
+        return m_type_index;
+    }
 
     static ParseResult<ValueType> parse(Stream& stream);
 
@@ -257,8 +261,10 @@ public:
 private:
     Kind m_kind;
     bool m_nullable { true };
-    Variant<TypeIndex, Empty> m_argument;
+    TypeIndex m_type_index;
 };
+
+static_assert(sizeof(ValueType) == 8);
 
 // https://webassembly.github.io/spec/core/bikeshed/#result-types%E2%91%A2
 class ResultType {
