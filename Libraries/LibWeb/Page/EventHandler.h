@@ -15,7 +15,6 @@
 #include <LibGC/Weak.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibUnicode/Forward.h>
-#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -32,36 +31,26 @@ class WEB_API EventHandler {
     friend class AutoScrollHandler;
 
 public:
-    explicit EventHandler(Badge<HTML::Navigable>, HTML::Navigable&);
+    EventHandler(Badge<HTML::Navigable>, HTML::Navigable&);
     ~EventHandler();
 
-    void clear_mousedown_tracking();
-    void stop_updating_selection();
-    EventResult handle_mouseup(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers);
-    bool initiate_character_selection(DOM::Document&, Painting::HitTestResult const&, CSS::UserSelect, bool shift_held);
-    bool initiate_word_selection(DOM::Document&, Painting::HitTestResult const&, CSS::UserSelect);
-    bool initiate_paragraph_selection(DOM::Document&, Painting::HitTestResult const&, CSS::UserSelect);
+    void visit_edges(JS::Cell::Visitor& visitor) const;
+
     EventResult handle_mousedown(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count);
     EventResult handle_mousemove(CSSPixelPoint, CSSPixelPoint screen_position, unsigned buttons, unsigned modifiers);
-    EventResult handle_mouseleave();
+    EventResult handle_mouseup(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers);
     EventResult handle_mousewheel(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y, bool async_scroll_performed_default_action = false);
-
-    EventResult handle_drag_and_drop_event(DragEvent::Type, CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, Vector<HTML::SelectedFile> files);
-
-    EventResult handle_pinch_event(CSSPixelPoint, double scale_delta);
+    EventResult handle_mouseleave();
 
     EventResult handle_keydown(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
     EventResult handle_keyup(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
 
-    void process_auto_scroll();
-
+    EventResult handle_drag_and_drop_event(DragEvent::Type, CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, Vector<HTML::SelectedFile> files);
+    EventResult handle_pinch_event(CSSPixelPoint, double scale_delta);
     EventResult handle_paste(Utf16String const& text);
-
     void handle_sdl_input_events();
 
-    void visit_edges(JS::Cell::Visitor& visitor) const;
-
-    Unicode::Segmenter& word_segmenter();
+    void process_auto_scroll();
 
     enum class SelectionMode : u8 {
         None,
@@ -69,7 +58,6 @@ public:
         Word,
         Paragraph,
     };
-
     bool is_handling_mouse_selection() const { return m_selection_mode != SelectionMode::None; }
 
     Optional<MiddleButtonScrollHandler&> middle_button_scroll_handler() const
@@ -82,14 +70,23 @@ public:
     void clear_per_test_input_state(Badge<Internals::Internals>);
 
 private:
-    EventResult focus_next_element();
-    EventResult focus_previous_element();
-
-    GC::Ptr<DOM::Node> focus_candidate_for_position(CSSPixelPoint) const;
+    bool should_ignore_device_input_event() const;
 
     EventResult fire_keyboard_event(FlyString const& event_name, HTML::Navigable&, UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
     [[nodiscard]] EventResult input_event(FlyString const& event_name, FlyString const& input_type, HTML::Navigable&, Variant<u32, Utf16String> code_point_or_string);
-    CSSPixelPoint compute_mouse_event_client_offset(CSSPixelPoint event_page_position) const;
+
+    EventResult focus_next_element();
+    EventResult focus_previous_element();
+
+    struct MouseEventCoordinates {
+        CSSPixelPoint page_offset;
+        CSSPixelPoint visual_viewport_position;
+        CSSPixelPoint viewport_position;
+        CSSPixelPoint offset;
+    };
+    bool fire_click_events(GC::Ref<DOM::Node>, MouseEventCoordinates const&, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count);
+
+    MouseEventCoordinates compute_mouse_event_coordinates(CSSPixelPoint visual_viewport_position, CSSPixelPoint viewport_position, Painting::Paintable const& paintable, Layout::Node const& layout_node) const;
     CSSPixelPoint compute_mouse_event_page_offset(CSSPixelPoint event_client_offset) const;
     CSSPixelPoint compute_mouse_event_movement(CSSPixelPoint screen_position) const;
 
@@ -99,14 +96,21 @@ private:
         Optional<int> index_in_node;
     };
     Optional<Target> target_for_mouse_position(CSSPixelPoint position);
+    GC::Ptr<DOM::Node> focus_candidate_for_position(CSSPixelPoint) const;
 
-    struct MouseEventCoordinates {
-        CSSPixelPoint page_offset;
-        CSSPixelPoint visual_viewport_position;
-        CSSPixelPoint viewport_position;
-        CSSPixelPoint offset;
-    };
-    MouseEventCoordinates compute_mouse_event_coordinates(CSSPixelPoint visual_viewport_position, CSSPixelPoint viewport_position, Painting::Paintable const& paintable, Layout::Node const& layout_node) const;
+    void run_mousedown_default_actions(DOM::Document&, CSSPixelPoint visual_viewport_position, CSSPixelPoint viewport_position, unsigned button, unsigned modifiers, int click_count);
+    void run_activation_behavior(GC::Ref<DOM::Node>, unsigned button, unsigned modifiers);
+    void maybe_show_context_menu(GC::Ref<DOM::Node>, MouseEventCoordinates const&, CSSPixelPoint screen_position, CSSPixelPoint viewport_position, unsigned buttons, unsigned modifiers);
+
+    bool initiate_character_selection(DOM::Document&, Painting::HitTestResult const&, CSS::UserSelect, bool shift_held);
+    bool initiate_word_selection(DOM::Document&, Painting::HitTestResult const&, CSS::UserSelect);
+    bool initiate_paragraph_selection(DOM::Document&, Painting::HitTestResult const&, CSS::UserSelect);
+
+    void update_mouse_selection(CSSPixelPoint visual_viewport_position);
+    void apply_mouse_selection(CSSPixelPoint visual_viewport_position);
+
+    void clear_mousedown_tracking();
+    void stop_updating_selection();
 
     enum class PointerEventType : u8 {
         PointerDown,
@@ -116,26 +120,19 @@ private:
     };
     bool dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType, GC::Ptr<DOM::Node>, RefPtr<Painting::ChromeWidget>, MouseEventCoordinates const&, CSSPixelPoint screen_position, CSSPixelPoint movement, unsigned button, unsigned buttons, unsigned modifiers, int click_count = 0);
     void track_the_effective_position_of_the_legacy_mouse_pointer(GC::Ptr<DOM::Node>);
-    void update_cursor(RefPtr<Painting::Paintable> paintable, GC::Ptr<DOM::Node> host_element, RefPtr<Painting::ChromeWidget> chrome_widget);
+
     bool dispatch_chrome_widget_pointer_event(RefPtr<Painting::ChromeWidget>, FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position);
     void update_hovered_chrome_widget(RefPtr<Painting::ChromeWidget>);
-    bool fire_click_events(GC::Ref<DOM::Node>, MouseEventCoordinates const&, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count);
-    void run_activation_behavior(GC::Ref<DOM::Node>, unsigned button, unsigned modifiers);
-    void maybe_show_context_menu(GC::Ref<DOM::Node>, MouseEventCoordinates const&, CSSPixelPoint screen_position, CSSPixelPoint viewport_position, unsigned buttons, unsigned modifiers);
 
-    void run_mousedown_default_actions(DOM::Document&, CSSPixelPoint visual_viewport_position, CSSPixelPoint viewport_position, unsigned button, unsigned modifiers, int click_count);
-
-    void update_mouse_selection(CSSPixelPoint visual_viewport_position);
-    void apply_mouse_selection(CSSPixelPoint visual_viewport_position);
-
-    RefPtr<Painting::PaintableBox> paint_root();
-    RefPtr<Painting::PaintableBox const> paint_root() const;
-
-    bool should_ignore_device_input_event() const;
+    void update_cursor(RefPtr<Painting::Paintable> paintable, GC::Ptr<DOM::Node> host_element, RefPtr<Painting::ChromeWidget> chrome_widget);
 
     void handle_gamepad_connected(SDL_JoystickID);
     void handle_gamepad_updated(SDL_JoystickID);
     void handle_gamepad_disconnected(SDL_JoystickID);
+
+    RefPtr<Painting::PaintableBox> paint_root();
+    RefPtr<Painting::PaintableBox const> paint_root() const;
+    Unicode::Segmenter& word_segmenter();
 
     GC::Ref<HTML::Navigable> m_navigable;
 
@@ -145,8 +142,6 @@ private:
 
     RefPtr<Painting::ChromeWidget> m_hovered_chrome_widget;
     RefPtr<Painting::ChromeWidget> m_captured_chrome_widget;
-
-    NonnullOwnPtr<DragAndDropEventHandler> m_drag_and_drop_event_handler;
 
     GC::Weak<DOM::Node> m_effective_legacy_mouse_pointer_position;
 
@@ -167,6 +162,7 @@ private:
 
     OwnPtr<AutoScrollHandler> m_auto_scroll_handler;
     OwnPtr<MiddleButtonScrollHandler> m_middle_button_scroll_handler;
+    NonnullOwnPtr<DragAndDropEventHandler> m_drag_and_drop_event_handler;
 };
 
 }
