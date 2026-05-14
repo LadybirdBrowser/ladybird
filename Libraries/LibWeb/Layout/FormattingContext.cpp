@@ -42,8 +42,26 @@ static Optional<CSSPixels> max_content_size_for_replaced_element_without_natural
     if (!box.is_replaced_box() || (is_width ? natural_size.has_width() : natural_size.has_height()))
         return {};
 
-    // For the max-content size:
+    // SVG Integration says that a non-top-level <svg> starts with auto width/height, and that with a viewBox, missing
+    // width/height attributes "keep" their auto value. The resulting width, height, and aspect ratio are then
+    // "used in CSS sizing as intrinsic element size properties".
+    //
+    // CSS Sizing defines max-content as the size the box would have "if it was a float" with an auto preferred size.
+    // CSS2 replaced sizing then resolves auto width from "(used height) * (intrinsic ratio)", and auto height from
+    // "(used width) / (intrinsic ratio)". Keep this SVG specific bridge before falling through to CSS Sizing's fallback
+    // for replaced elements without natural sizes.
+    //  - https://svgwg.org/specs/integration/#svg-css-sizing
+    //  - https://drafts.csswg.org/css-sizing-3/#intrinsic-sizes
+    //  - https://drafts.csswg.org/css2/#inline-replaced-width
+    //  - https://drafts.csswg.org/css2/#inline-replaced-height
+    if (box.is_svg_svg_box() && natural_size.has_aspect_ratio()) {
+        if (is_width && natural_size.has_height())
+            return natural_size.height.value() * natural_size.aspect_ratio.value();
+        if (!is_width && natural_size.has_width())
+            return natural_size.width.value() / natural_size.aspect_ratio.value();
+    }
 
+    // For the max-content size:
     // If it has a preferred aspect ratio:
     if (natural_size.has_aspect_ratio()) {
         // If the available space is definite in the inline axis, use the stretch fit into that size for the inline size
