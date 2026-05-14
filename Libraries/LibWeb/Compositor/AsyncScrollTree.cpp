@@ -237,8 +237,8 @@ static void set_or_append_scroll_offset(Vector<AsyncScrollOffset>& scroll_offset
 
 Vector<AsyncScrollOffset> AsyncScrollTree::apply_scroll_delta(AsyncScrollNodeID node_id, Gfx::FloatPoint delta, Painting::ScrollStateSnapshot& scroll_state_snapshot)
 {
-    // The compositor can advance only the scroll offsets it owns in this snapshot. When a target reaches an edge,
-    // the remaining wheel delta is handed to the nearest scrollable ancestor from the same immutable tree.
+    // The compositor can advance only the scroll offsets it owns in this snapshot. Hit testing already selects an
+    // ancestor when the target cannot scroll in the wheel direction at all, so once a node moves it consumes the event.
     Vector<AsyncScrollOffset> scroll_offsets;
     auto remaining_delta = delta;
     for (size_t remaining_handoffs = m_scroll_nodes.size(); remaining_handoffs > 0 && has_non_zero_scroll_delta(remaining_delta); --remaining_handoffs) {
@@ -248,10 +248,10 @@ Vector<AsyncScrollOffset> AsyncScrollTree::apply_scroll_delta(AsyncScrollNodeID 
 
         auto delta_before_scroll = remaining_delta;
         remaining_delta = apply_scroll_delta_to_node(*node, remaining_delta, scroll_state_snapshot);
-        if (remaining_delta != delta_before_scroll)
+        if (remaining_delta != delta_before_scroll) {
             set_or_append_scroll_offset(scroll_offsets, *node, scroll_offset_for_node(*node, scroll_state_snapshot));
-        if (!has_non_zero_scroll_delta(remaining_delta))
             break;
+        }
 
         auto ancestor_node_id = scrollable_ancestor_for_node(node_id, scroll_state_snapshot, remaining_delta);
         if (!ancestor_node_id.has_value())
