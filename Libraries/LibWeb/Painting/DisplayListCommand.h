@@ -76,6 +76,12 @@ enum class DisplayListCommandType : u8 {
 #undef ENUMERATE_DISPLAY_LIST_COMMAND_TYPE
 };
 
+enum class CompositorScrollNodeKind : u8 {
+    Viewport,
+    Element,
+    PseudoElement,
+};
+
 struct DisplayListDataSpan {
     // Offset into the command payload containing this span.
     u32 offset { 0 };
@@ -512,10 +518,13 @@ struct CompositorScrollNode {
     static constexpr DisplayListCommandType command_type = DisplayListCommandType::CompositorScrollNode;
 
     UniqueNodeID document_id;
+    UniqueNodeID scrollable_node_id;
     ScrollFrameIndex scroll_frame_index;
     ScrollFrameIndex parent_scroll_frame_index;
     Gfx::IntRect scrollport_rect;
     Gfx::FloatPoint max_scroll_offset;
+    CompositorScrollNodeKind scroll_node_kind { CompositorScrollNodeKind::Element };
+    u8 pseudo_element_type { 0 };
     bool is_viewport { false };
 
     void dump(StringBuilder&) const;

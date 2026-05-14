@@ -48,6 +48,7 @@ public:
 
     Optional<Gfx::FloatPoint> scroll_offset_for_node(AsyncScrollNodeID, Painting::ScrollStateSnapshot const&) const;
     Optional<AsyncScrollNodeID> viewport_scroll_node_id() const;
+    Optional<AsyncScrollNodeID> scroll_node_id_for_stable_id(AsyncScrollNodeStableID) const;
     WheelHitTestResult hit_test_scroll_node_for_wheel(Gfx::FloatPoint position, Gfx::FloatPoint delta) const;
     bool scroll_node_is_viewport(AsyncScrollNodeID) const;
     bool apply_scroll_delta(AsyncScrollNodeID, Gfx::FloatPoint delta, Painting::ScrollStateSnapshot&);
@@ -61,6 +62,7 @@ private:
 
     AsyncScrollNode const* scroll_node_for_id(AsyncScrollNodeID) const;
     WheelHitTestResult hit_test_result_for_scroll_node(AsyncScrollNodeID, Gfx::FloatPoint delta) const;
+    AsyncScrollNode const* scroll_node_for_stable_id(AsyncScrollNodeStableID) const;
     AsyncStickyArea const* sticky_area_for_scroll_frame_index(Painting::ScrollFrameIndex) const;
     Optional<AsyncScrollNodeID> scrollable_ancestor_for_node(AsyncScrollNodeID, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint delta) const;
     Optional<Painting::ScrollFrameIndex> parent_scroll_frame_index(Painting::ScrollFrameIndex) const;

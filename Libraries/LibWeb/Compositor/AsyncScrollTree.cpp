@@ -43,6 +43,15 @@ WheelHitTestResult AsyncScrollTree::hit_test_result_for_scroll_node(AsyncScrollN
     return {};
 }
 
+AsyncScrollNode const* AsyncScrollTree::scroll_node_for_stable_id(AsyncScrollNodeStableID stable_node_id) const
+{
+    for (auto const& node : m_scroll_nodes) {
+        if (node.stable_node_id == stable_node_id)
+            return &node;
+    }
+    return nullptr;
+}
+
 AsyncStickyArea const* AsyncScrollTree::sticky_area_for_scroll_frame_index(Painting::ScrollFrameIndex scroll_frame_index) const
 {
     for (auto const& sticky_area : m_sticky_areas) {
@@ -304,6 +313,13 @@ Optional<AsyncScrollNodeID> AsyncScrollTree::viewport_scroll_node_id() const
         if (node.is_viewport)
             return node.node_id;
     }
+    return {};
+}
+
+Optional<AsyncScrollNodeID> AsyncScrollTree::scroll_node_id_for_stable_id(AsyncScrollNodeStableID stable_node_id) const
+{
+    if (auto const* node = scroll_node_for_stable_id(stable_node_id))
+        return node->node_id;
     return {};
 }
 

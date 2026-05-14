@@ -9,6 +9,7 @@
 #include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/DOM/DOMEventListener.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
@@ -21,6 +22,8 @@
 #include <LibWeb/Painting/ScrollState.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/PixelUnits.h>
+
+#include <AK/StdLibExtras.h>
 
 namespace Web::Compositor {
 
@@ -53,6 +56,56 @@ static AsyncScrollNodeID scroll_node_id_for(UniqueNodeID document_id, Painting::
     return { .document_id = document_id, .scroll_frame_index = scroll_frame_index };
 }
 
+static Optional<Painting::CompositorScrollNodeKind> scroll_node_kind_for(Painting::PaintableBox const& paintable_box)
+{
+    if (paintable_box.is_viewport_paintable())
+        return Painting::CompositorScrollNodeKind::Viewport;
+    if (paintable_box.layout_node().generated_for_pseudo_element().has_value())
+        return Painting::CompositorScrollNodeKind::PseudoElement;
+    if (paintable_box.dom_node() && is<DOM::Element>(*paintable_box.dom_node()))
+        return Painting::CompositorScrollNodeKind::Element;
+    return {};
+}
+
+static UniqueNodeID scrollable_node_id_for(Painting::PaintableBox const& paintable_box)
+{
+    if (paintable_box.is_viewport_paintable())
+        return paintable_box.document().unique_id();
+    if (paintable_box.layout_node().generated_for_pseudo_element().has_value())
+        return paintable_box.layout_node().pseudo_element_generator()->unique_id();
+    return paintable_box.dom_node()->unique_id();
+}
+
+static u8 pseudo_element_type_for(Painting::PaintableBox const& paintable_box)
+{
+    auto pseudo_element = paintable_box.layout_node().generated_for_pseudo_element();
+    if (!pseudo_element.has_value())
+        return 0;
+    return static_cast<u8>(to_underlying(*pseudo_element));
+}
+
+static AsyncScrollNodeKind async_scroll_node_kind_for(Painting::CompositorScrollNodeKind kind)
+{
+    switch (kind) {
+    case Painting::CompositorScrollNodeKind::Viewport:
+        return AsyncScrollNodeKind::Viewport;
+    case Painting::CompositorScrollNodeKind::Element:
+        return AsyncScrollNodeKind::Element;
+    case Painting::CompositorScrollNodeKind::PseudoElement:
+        return AsyncScrollNodeKind::PseudoElement;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static AsyncScrollNodeStableID stable_scroll_node_id_for(UniqueNodeID scrollable_node_id, Painting::CompositorScrollNodeKind kind, u8 pseudo_element_type)
+{
+    return {
+        .node_id = scrollable_node_id,
+        .kind = async_scroll_node_kind_for(kind),
+        .pseudo_element_type = pseudo_element_type,
+    };
+}
+
 static bool is_nested_navigable_container(Painting::PaintableBox const& paintable_box)
 {
     auto node = paintable_box.dom_node();
@@ -74,6 +127,10 @@ static CSSPixelPoint maximum_scroll_offset_for(Painting::PaintableBox const& pai
 
 static void record_scroll_node(Painting::PaintableBox const& paintable_box, DisplayListRecordingContext& context)
 {
+    auto scroll_node_kind = scroll_node_kind_for(paintable_box);
+    if (!scroll_node_kind.has_value())
+        return;
+
     auto parent_scroll_frame_index = Painting::ScrollFrameIndex {};
     if (auto scrollable_ancestor = paintable_box.nearest_scrollable_ancestor())
         parent_scroll_frame_index = scrollable_ancestor->own_scroll_frame_index();
@@ -85,10 +142,13 @@ static void record_scroll_node(Painting::PaintableBox const& paintable_box, Disp
     auto& recorder = context.display_list_recorder();
     recorder.compositor_scroll_node({
         .document_id = paintable_box.document().unique_id(),
+        .scrollable_node_id = scrollable_node_id_for(paintable_box),
         .scroll_frame_index = paintable_box.own_scroll_frame_index(),
         .parent_scroll_frame_index = parent_scroll_frame_index,
         .scrollport_rect = scrollport_rect,
         .max_scroll_offset = css_point_to_device_point(maximum_scroll_offset_for(paintable_box), context.device_pixels_per_css_pixel()),
+        .scroll_node_kind = *scroll_node_kind,
+        .pseudo_element_type = pseudo_element_type_for(paintable_box),
         .is_viewport = paintable_box.is_viewport_paintable(),
     });
 }
@@ -333,6 +393,7 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
             auto command = Painting::read_display_list_command_payload<Painting::CompositorScrollNode>(payload);
             async_scrolling_state.scroll_nodes.append({
                 .node_id = scroll_node_id_for(command.document_id, command.scroll_frame_index),
+                .stable_node_id = stable_scroll_node_id_for(command.scrollable_node_id, command.scroll_node_kind, command.pseudo_element_type),
                 .parent_node_id = {},
                 .hit_test_visual_context_index = header.context_index,
                 .scrollport_rect = command.scrollport_rect,

@@ -8,6 +8,7 @@
 
 #include <AK/Optional.h>
 #include <AK/StringView.h>
+#include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/CornerRadii.h>
@@ -27,10 +28,31 @@ struct AsyncScrollNodeID {
     bool operator==(AsyncScrollNodeID const&) const = default;
 };
 
+enum class AsyncScrollNodeKind : u8 {
+    Viewport,
+    Element,
+    PseudoElement,
+};
+
+// Stable identity for reconciling compositor-side scroll offsets after the paint snapshot has been rebuilt.
+struct AsyncScrollNodeStableID {
+    UniqueNodeID node_id;
+    AsyncScrollNodeKind kind { AsyncScrollNodeKind::Element };
+    u8 pseudo_element_type { 0 };
+
+    bool operator==(AsyncScrollNodeStableID const&) const = default;
+};
+
+struct AsyncScrollOffset {
+    AsyncScrollNodeStableID stable_node_id;
+    Gfx::FloatPoint scroll_offset;
+};
+
 // One scrollable area from the paint snapshot. Non-viewport scrollports are stored in hit_test_visual_context_index
 // coordinates and transformed to viewport coordinates when the compositor rebuilds wheel targets.
 struct AsyncScrollNode {
     AsyncScrollNodeID node_id;
+    AsyncScrollNodeStableID stable_node_id;
     Optional<AsyncScrollNodeID> parent_node_id;
     Painting::VisualContextIndex hit_test_visual_context_index;
     Gfx::IntRect scrollport_rect;
