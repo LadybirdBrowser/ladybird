@@ -769,8 +769,8 @@ static CraneliftInsn serialize_insn(Dispatch const& dispatch, SourcesAndDestinat
         out.imm2 = struct_args.else_ip.has_value()
             ? static_cast<i64>(struct_args.else_ip->value())
             : -1;
-        u32 arity = struct_args.meta.has_value() ? struct_args.meta->arity : 0;
-        u32 param_count = struct_args.meta.has_value() ? struct_args.meta->parameter_count : 0;
+        u32 arity = struct_args.meta.arity;
+        u32 param_count = struct_args.meta.parameter_count;
         out.imm3 = arity | (param_count << 16);
     } else if (opc == Instructions::br_table.value()) {
         auto const& table_args = args.get<Instruction::TableBranchArgs>();

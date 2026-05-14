@@ -574,7 +574,7 @@ public:
             u32 arity;
             u32 parameter_count;
         };
-        mutable Optional<Meta> meta {};
+        mutable Meta meta {};
     };
 
     struct TableBranchArgs {

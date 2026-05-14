@@ -511,8 +511,8 @@ void Printer::print(Wasm::Instruction const& instruction)
                 print(args.block_type);
                 print_indent();
                 print("(else {}) (end {})", args.else_ip.has_value() ? ByteString::number(args.else_ip->value()) : "(none)", args.end_ip.value());
-                if (args.meta.has_value())
-                    print(" (meta arity {} params {})", args.meta->arity, args.meta->parameter_count);
+                if (args.meta.arity != 0 || args.meta.parameter_count != 0)
+                    print(" (meta arity {} params {})", args.meta.arity, args.meta.parameter_count);
                 else
                     print(" (meta none)");
                 print(")");

@@ -2074,7 +2074,7 @@ HANDLE_INSTRUCTION(block)
 {
     LOG_INSN;
     auto& args = instruction->arguments().unsafe_get<Instruction::StructuredInstructionArgs>();
-    auto& meta = args.meta.unchecked_value();
+    auto& meta = args.meta;
     auto label = Label(meta.arity, args.end_ip, configuration.value_stack().size() - meta.parameter_count);
     configuration.label_stack().unchecked_append(move(label));
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
@@ -2084,7 +2084,7 @@ HANDLE_INSTRUCTION(loop)
 {
     LOG_INSN;
     auto& args = instruction->arguments().get<Instruction::StructuredInstructionArgs>();
-    size_t params = args.meta->parameter_count;
+    size_t params = args.meta.parameter_count;
     configuration.label_stack().unchecked_append(Label(params, short_ip.current_ip_value + 1, configuration.value_stack().size() - params));
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
@@ -2094,7 +2094,7 @@ HANDLE_INSTRUCTION(if_)
     LOG_INSN;
     LOAD_ADDRESSES();
     auto& args = instruction->arguments().unsafe_get<Instruction::StructuredInstructionArgs>();
-    auto& meta = args.meta.value();
+    auto& meta = args.meta;
 
     auto value = configuration.take_source<source_address_mix>(0, addresses.sources).template to<i32>();
     auto end_label = Label(meta.arity, args.end_ip.value(), configuration.value_stack().size() - meta.parameter_count);
