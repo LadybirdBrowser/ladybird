@@ -49,6 +49,7 @@
 
     test(() => {
         const output = [];
+        output.push(`initial routing admission: ${internals.asyncScrollingStateWheelRoutingAdmission()}`);
         canWheel(output, "no listener over scroller", 150, 150);
         canWheel(output, "no scrollable target", 275, 50);
 
@@ -57,6 +58,7 @@
 
         const blockingElementListener = event => {};
         target.addEventListener("wheel", blockingElementListener, { passive: false });
+        output.push(`blocking element routing admission: ${internals.asyncScrollingStateWheelRoutingAdmission()}`);
         canWheel(output, "blocking element listener inside", 50, 50);
         canWheel(output, "blocking element listener outside", 150, 150);
         canWheel(output, "stale blocking element regions", 150, 150, true);
@@ -65,6 +67,7 @@
         target.removeEventListener("wheel", blockingElementListener);
         const blockingWindowListener = event => {};
         window.addEventListener("wheel", blockingWindowListener, { passive: false });
+        output.push(`blocking window routing admission: ${internals.asyncScrollingStateWheelRoutingAdmission()}`);
         canWheel(output, "blocking window listener", 150, 150);
         canWheel(output, "stale blocking window regions", 150, 150, true);
         printOutputAndDisplayList(output, displayList, "display list after blocking element listener:");

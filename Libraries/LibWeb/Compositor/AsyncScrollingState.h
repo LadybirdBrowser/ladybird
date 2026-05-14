@@ -137,7 +137,7 @@ enum class WheelRoutingAdmission {
     Accepted,
     NoAsyncScrollingState,
     BlockingWheelEventListeners,
-    NoViewportScrollNode,
+    NoScrollNode,
     StaleWheelEventListeners,
 };
 

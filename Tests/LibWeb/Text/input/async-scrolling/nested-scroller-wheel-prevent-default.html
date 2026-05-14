@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #scroller {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+
+    #spacer {
+        height: 500px;
+    }
+
+    #page-spacer {
+        height: 2000px;
+    }
+</style>
+<div id="scroller"><div id="spacer"></div></div>
+<div id="page-spacer"></div>
+<script>
+    promiseTest(async () => {
+        let wheelEventCount = 0;
+        let wheelEventWasCancelable = false;
+        let wheelEventWasDefaultPrevented = false;
+
+        scroller.addEventListener("wheel", event => {
+            wheelEventCount++;
+            wheelEventWasCancelable = event.cancelable;
+            event.preventDefault();
+            wheelEventWasDefaultPrevented = event.defaultPrevented;
+        }, { passive: false });
+
+        println(`async can scroll before wheel: ${internals.asyncScrollingStateCanWheelScrollAt(50, 50, 0, 100, false)}`);
+
+        internals.wheel(50, 50, 0, 100);
+        await animationFrame();
+
+        println(`wheel event count: ${wheelEventCount}`);
+        println(`wheel event cancelable: ${wheelEventWasCancelable}`);
+        println(`wheel event defaultPrevented: ${wheelEventWasDefaultPrevented}`);
+        println(`scroller scrollTop: ${scroller.scrollTop}`);
+        println(`window scrollY: ${window.scrollY}`);
+    });
+</script>

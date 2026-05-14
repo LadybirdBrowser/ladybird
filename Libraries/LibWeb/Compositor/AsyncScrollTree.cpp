@@ -21,7 +21,7 @@ void AsyncScrollTree::set_state(AsyncScrollingState&& state)
     m_has_blocking_wheel_event_region_covering_viewport = state.has_blocking_wheel_event_region_covering_viewport;
     m_wheel_hit_test_targets.clear();
     m_main_thread_wheel_event_targets.clear();
-    m_blocking_wheel_event_targets.clear();
+    m_cached_blocking_wheel_event_targets.clear();
     m_visual_context_tree = nullptr;
 }
 
@@ -272,7 +272,7 @@ void AsyncScrollTree::rebuild_wheel_hit_test_targets(RefPtr<Painting::DisplayLis
 {
     m_wheel_hit_test_targets.clear();
     m_main_thread_wheel_event_targets.clear();
-    m_blocking_wheel_event_targets.clear();
+    m_cached_blocking_wheel_event_targets.clear();
     m_visual_context_tree = nullptr;
     m_scroll_state_snapshot = scroll_state_snapshot;
     if (!display_list)
@@ -302,7 +302,7 @@ void AsyncScrollTree::rebuild_wheel_hit_test_targets(RefPtr<Painting::DisplayLis
     }
 
     for (auto const& region : m_blocking_wheel_event_regions) {
-        m_blocking_wheel_event_targets.append({
+        m_cached_blocking_wheel_event_targets.append({
             .visual_context_index = region.visual_context_index,
             .rect = region.rect,
             .viewport_rect = visual_context_tree.transform_rect_to_viewport(region.visual_context_index, region.rect, scroll_state_snapshot),
@@ -314,7 +314,7 @@ void AsyncScrollTree::clear_wheel_hit_test_targets()
 {
     m_wheel_hit_test_targets.clear();
     m_main_thread_wheel_event_targets.clear();
-    m_blocking_wheel_event_targets.clear();
+    m_cached_blocking_wheel_event_targets.clear();
     m_visual_context_tree = nullptr;
 }
 
@@ -367,7 +367,7 @@ WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Gfx::FloatPoi
             return { {}, true };
     }
 
-    for (auto const& target : m_blocking_wheel_event_targets) {
+    for (auto const& target : m_cached_blocking_wheel_event_targets) {
         if (!target.viewport_rect.contains(position))
             continue;
 

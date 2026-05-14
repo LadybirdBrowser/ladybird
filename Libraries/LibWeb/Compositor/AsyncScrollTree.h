@@ -39,7 +39,7 @@ struct MainThreadWheelEventTarget {
 };
 
 // Viewport-space cache of regions containing non-passive wheel listeners.
-struct BlockingWheelEventTarget {
+struct CachedBlockingWheelEventTarget {
     Painting::VisualContextIndex visual_context_index;
     Gfx::FloatRect rect;
     Gfx::FloatRect viewport_rect;
@@ -85,7 +85,7 @@ private:
     Vector<CachedWheelHitTestTarget> m_wheel_hit_test_targets;
     Vector<BlockingWheelEventRegion> m_blocking_wheel_event_regions;
     Vector<MainThreadWheelEventTarget> m_main_thread_wheel_event_targets;
-    Vector<BlockingWheelEventTarget> m_blocking_wheel_event_targets;
+    Vector<CachedBlockingWheelEventTarget> m_cached_blocking_wheel_event_targets;
     RefPtr<Painting::AccumulatedVisualContextTree const> m_visual_context_tree;
     Painting::ScrollStateSnapshot m_scroll_state_snapshot;
     bool m_has_blocking_wheel_event_region_covering_viewport { false };

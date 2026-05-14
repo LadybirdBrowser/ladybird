@@ -1,9 +1,12 @@
+initial routing admission: accepted
 no listener over scroller: true
 no scrollable target: false
 passive listener over target: true
+blocking element routing admission: accepted
 blocking element listener inside: false
 blocking element listener outside: true
 stale blocking element regions: false
+blocking window routing admission: blocking wheel event listeners
 blocking window listener: false
 stale blocking window regions: false
 display list after blocking element listener:

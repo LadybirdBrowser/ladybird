@@ -465,18 +465,11 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
 
 WheelRoutingAdmission wheel_routing_admission_for(AsyncScrollingState const& state)
 {
-    if (state.has_blocking_wheel_event_listeners)
+    if (state.has_blocking_wheel_event_region_covering_viewport)
         return WheelRoutingAdmission::BlockingWheelEventListeners;
 
-    bool found_viewport_node = false;
-    for (auto const& node : state.scroll_nodes) {
-        if (node.is_viewport) {
-            found_viewport_node = true;
-            break;
-        }
-    }
-    if (!found_viewport_node)
-        return WheelRoutingAdmission::NoViewportScrollNode;
+    if (state.scroll_nodes.is_empty())
+        return WheelRoutingAdmission::NoScrollNode;
     return WheelRoutingAdmission::Accepted;
 }
 
@@ -489,8 +482,8 @@ StringView wheel_routing_admission_to_string(WheelRoutingAdmission admission)
         return "no async scrolling state"sv;
     case WheelRoutingAdmission::BlockingWheelEventListeners:
         return "blocking wheel event listeners"sv;
-    case WheelRoutingAdmission::NoViewportScrollNode:
-        return "no viewport scroll node"sv;
+    case WheelRoutingAdmission::NoScrollNode:
+        return "no scroll node"sv;
     case WheelRoutingAdmission::StaleWheelEventListeners:
         return "stale wheel event listeners"sv;
     }
