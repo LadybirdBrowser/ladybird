@@ -447,7 +447,9 @@ OwnPtr<Supports::Declaration> Parser::parse_supports_declaration(TokenStream<Com
 
 OwnPtr<BooleanExpression> Parser::parse_container_query_condition(TokenStream<ComponentValue>& tokens)
 {
-    return parse_boolean_expression(tokens, MatchResult::False, [this](auto& tokens) {
+    // https://drafts.csswg.org/css-conditional-5/#container-rule
+    // As with media queries, <general-enclosed> evaluates to unknown.
+    return parse_boolean_expression(tokens, MatchResult::Unknown, [this](auto& tokens) {
         return parse_container_query_feature(tokens);
     });
 }
