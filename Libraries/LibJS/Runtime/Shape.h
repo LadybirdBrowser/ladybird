@@ -120,7 +120,6 @@ private:
     [[nodiscard]] GC::Ptr<Shape> get_or_prune_cached_prototype_transition(Object* prototype);
     [[nodiscard]] GC::Ptr<Shape> get_or_prune_cached_delete_transition(PropertyKey const&);
 
-    void ensure_property_table() const;
     void ensure_descriptor_array();
     [[nodiscard]] GC::Ref<DescriptorArray> copy_descriptors() const;
     void copy_properties_to_dictionary_shape(Shape&) const;
@@ -132,7 +131,8 @@ private:
 
     GC::Ptr<DescriptorArray> descriptors() const;
     void set_descriptors(GC::Ptr<DescriptorArray>);
-    PropertyTablePtr& property_table() const;
+    PropertyTable& property_table();
+    PropertyTable const& property_table() const;
     void become_dictionary_shape();
 
     union PropertyStorage {
@@ -153,7 +153,7 @@ private:
 
     GC::Ref<Realm> m_realm;
 
-    mutable PropertyStorage m_property_storage;
+    PropertyStorage m_property_storage;
 
     OwnPtr<HashMap<TransitionKey, GC::Weak<Shape>>> m_forward_transitions;
     OwnPtr<HashMap<GC::Ptr<Object>, GC::Weak<Shape>>> m_prototype_transitions;

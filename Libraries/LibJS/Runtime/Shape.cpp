@@ -38,24 +38,33 @@ void Shape::set_descriptors(GC::Ptr<DescriptorArray> descriptors)
     m_property_storage.descriptors = descriptors;
 }
 
-Shape::PropertyTablePtr& Shape::property_table() const
+Shape::PropertyTable& Shape::property_table()
 {
     VERIFY(m_dictionary);
-    return m_property_storage.property_table;
+    VERIFY(m_property_storage.property_table);
+    return *m_property_storage.property_table;
+}
+
+Shape::PropertyTable const& Shape::property_table() const
+{
+    VERIFY(m_dictionary);
+    VERIFY(m_property_storage.property_table);
+    return *m_property_storage.property_table;
 }
 
 void Shape::become_dictionary_shape()
 {
     VERIFY(!m_dictionary);
     new (&m_property_storage.property_table) PropertyTablePtr();
+    m_property_storage.property_table = make<PropertyTable>();
     m_dictionary = true;
 }
 
 size_t Shape::external_memory_size() const
 {
     size_t size = 0;
-    if (m_dictionary && property_table())
-        size += hash_map_external_memory_size(*property_table());
+    if (m_dictionary)
+        size += hash_map_external_memory_size(property_table());
     if (m_forward_transitions)
         size += hash_map_external_memory_size(*m_forward_transitions);
     if (m_prototype_transitions)
@@ -254,8 +263,8 @@ void Shape::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_prototype_chain_validity);
 
     // Descriptor arrays mark their own keys; dictionary tables are not cells, so Shape marks their keys directly.
-    if (m_dictionary && property_table()) {
-        for (auto& it : *property_table())
+    if (m_dictionary) {
+        for (auto& it : property_table())
             it.key.visit_edges(visitor);
     }
 }
@@ -265,8 +274,7 @@ Optional<PropertyMetadata> Shape::lookup(PropertyKey const& property_key) const
     if (m_property_count == 0)
         return {};
     if (m_dictionary) {
-        ensure_property_table();
-        auto property = property_table()->get(property_key);
+        auto property = property_table().get(property_key);
         if (!property.has_value())
             return {};
         return property;
@@ -279,22 +287,13 @@ Optional<PropertyMetadata> Shape::lookup(PropertyKey const& property_key) const
 void Shape::for_each_property_in_insertion_order(Function<void(PropertyKey const&, PropertyMetadata const&)> const& callback) const
 {
     if (m_dictionary) {
-        ensure_property_table();
-        for (auto const& [property_key, metadata] : *property_table())
+        for (auto const& [property_key, metadata] : property_table())
             callback(property_key, metadata);
         return;
     }
     if (!descriptors())
         return;
     descriptors()->for_each_in_insertion_order(callback, m_property_count);
-}
-
-void Shape::ensure_property_table() const
-{
-    VERIFY(m_dictionary);
-    if (property_table())
-        return;
-    property_table() = make<PropertyTable>();
 }
 
 void Shape::ensure_descriptor_array()
@@ -321,11 +320,10 @@ GC::Ref<DescriptorArray> Shape::copy_descriptors() const
 void Shape::copy_properties_to_dictionary_shape(Shape& shape) const
 {
     VERIFY(shape.m_dictionary);
-    shape.ensure_property_table();
     for_each_property_in_insertion_order([&](auto const& property_key, auto const& metadata) {
-        shape.property_table()->set(property_key, metadata);
+        shape.property_table().set(property_key, metadata);
     });
-    shape.m_property_count = shape.property_table()->size();
+    shape.m_property_count = shape.property_table().size();
 }
 
 GC::Ref<Shape> Shape::create_delete_transition(PropertyKey const& property_key)
@@ -346,8 +344,7 @@ void Shape::add_property_without_transition(PropertyKey const& property_key, Pro
 {
     invalidate_prototype_if_needed_for_change_without_transition();
     if (m_dictionary) {
-        ensure_property_table();
-        if (property_table()->set(property_key, { m_property_count, attributes }) == AK::HashSetResult::InsertedNewEntry) {
+        if (property_table().set(property_key, { m_property_count, attributes }) == AK::HashSetResult::InsertedNewEntry) {
             VERIFY(m_property_count < NumericLimits<u32>::max());
             ++m_property_count;
             ++m_dictionary_generation;
@@ -370,11 +367,10 @@ void Shape::set_property_attributes_without_transition(PropertyKey const& proper
 {
     invalidate_prototype_if_needed_for_change_without_transition();
     VERIFY(is_dictionary());
-    VERIFY(property_table());
-    auto it = property_table()->find(property_key);
-    VERIFY(it != property_table()->end());
+    auto it = property_table().find(property_key);
+    VERIFY(it != property_table().end());
     it->value.attributes = attributes;
-    property_table()->set(property_key, it->value);
+    property_table().set(property_key, it->value);
     ++m_dictionary_generation;
 }
 
@@ -382,10 +378,9 @@ void Shape::remove_property_without_transition(PropertyKey const& property_key, 
 {
     invalidate_prototype_if_needed_for_change_without_transition();
     VERIFY(is_dictionary());
-    VERIFY(property_table());
-    if (property_table()->remove(property_key))
+    if (property_table().remove(property_key))
         --m_property_count;
-    for (auto& it : *property_table()) {
+    for (auto& it : property_table()) {
         VERIFY(it.value.offset != offset);
         if (it.value.offset > offset)
             --it.value.offset;
