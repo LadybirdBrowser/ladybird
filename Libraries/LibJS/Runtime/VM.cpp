@@ -488,7 +488,9 @@ void VM::run_queued_finalization_registry_cleanup_jobs()
     while (!m_finalization_registry_cleanup_jobs.is_empty()) {
         auto registry = m_finalization_registry_cleanup_jobs.take_last();
         // FIXME: Handle any uncatched exceptions here.
-        (void)registry->cleanup();
+        auto result = registry->cleanup();
+        if (result.is_error() && registry->has_empty_cells())
+            m_finalization_registry_cleanup_jobs.append(registry);
     }
 }
 

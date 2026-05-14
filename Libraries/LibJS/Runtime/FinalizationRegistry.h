@@ -30,6 +30,7 @@ public:
     void add_finalization_record(Cell& target, Value held_value, Cell* unregister_token);
     bool remove_by_token(Cell& unregister_token);
     ThrowCompletionOr<void> cleanup(GC::Ptr<JobCallback> = {});
+    bool has_empty_cells() const;
 
     virtual Cell const& owner_cell(Badge<GC::Heap>) const override { return *this; }
     virtual void remove_dead_cells(Badge<GC::Heap>) override;

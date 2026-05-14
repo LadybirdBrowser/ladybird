@@ -70,6 +70,26 @@ test("cleanup can process multiple dead records from one garbage collection", ()
     expect(heldValues).toEqual(["first", "second"]);
 });
 
+test("automatic cleanup continues after a callback throws", () => {
+    var heldValues = [];
+    var registry = new FinalizationRegistry(value => {
+        heldValues.push(value);
+        if (value === "first") throw new Error("expected abrupt completion");
+    });
+
+    evaluateSource("var __finalizationRegistryCleanupAfterThrowTarget1 = {};");
+    evaluateSource("var __finalizationRegistryCleanupAfterThrowTarget2 = {};");
+    registry.register(globalThis.__finalizationRegistryCleanupAfterThrowTarget1, "first");
+    registry.register(globalThis.__finalizationRegistryCleanupAfterThrowTarget2, "second");
+    markAsGarbage("__finalizationRegistryCleanupAfterThrowTarget1");
+    markAsGarbage("__finalizationRegistryCleanupAfterThrowTarget2");
+    gc();
+
+    runQueuedFinalizationRegistryCleanupJobs();
+
+    expect(heldValues).toEqual(["first", "second"]);
+});
+
 test("cleanup helper errors", () => {
     var registry = new FinalizationRegistry(() => {});
 

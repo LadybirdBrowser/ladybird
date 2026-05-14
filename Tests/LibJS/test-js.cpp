@@ -53,6 +53,12 @@ TESTJS_GLOBAL_FUNCTION(run_queued_promise_jobs, runQueuedPromiseJobs)
     return JS::js_undefined();
 }
 
+TESTJS_GLOBAL_FUNCTION(run_queued_finalization_registry_cleanup_jobs, runQueuedFinalizationRegistryCleanupJobs)
+{
+    vm.run_queued_finalization_registry_cleanup_jobs();
+    return JS::js_undefined();
+}
+
 TESTJS_GLOBAL_FUNCTION(get_weak_set_size, getWeakSetSize)
 {
     auto object = TRY(vm.argument(0).to_object(vm));
