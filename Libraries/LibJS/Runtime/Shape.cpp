@@ -103,8 +103,14 @@ GC::Ref<Shape> Shape::create_put_transition(PropertyKey const& property_key, Pro
     if (auto existing_shape = get_or_prune_cached_forward_transition(key))
         return *existing_shape;
     auto new_shape = heap().allocate<Shape>(*this, property_key, attributes, TransitionType::Put);
-    new_shape->m_descriptors = copy_descriptors();
-    new_shape->m_descriptors->set(property_key, { m_property_count, attributes }, m_property_count);
+
+    if (m_descriptors && m_descriptors->size() == m_own_descriptor_count) {
+        m_descriptors->set(property_key, { m_property_count, attributes }, m_own_descriptor_count);
+        new_shape->m_descriptors = m_descriptors;
+    } else {
+        new_shape->m_descriptors = copy_descriptors();
+        new_shape->m_descriptors->set(property_key, { m_property_count, attributes }, m_property_count);
+    }
     new_shape->m_own_descriptor_count = new_shape->m_property_count;
     invalidate_prototype_if_needed_for_new_prototype(new_shape);
     if (!m_is_prototype_shape) {
@@ -143,9 +149,12 @@ GC::Ref<Shape> Shape::create_prototype_transition(Object* new_prototype)
     if (m_dictionary && m_property_count > DescriptorArray::max_descriptor_count) {
         new_shape->m_dictionary = true;
         copy_properties_to_dictionary_shape(*new_shape);
-    } else {
+    } else if (m_dictionary) {
         new_shape->m_descriptors = copy_descriptors();
         new_shape->m_own_descriptor_count = new_shape->m_property_count;
+    } else {
+        new_shape->m_descriptors = m_descriptors;
+        new_shape->m_own_descriptor_count = m_own_descriptor_count;
     }
     invalidate_prototype_if_needed_for_new_prototype(new_shape);
     if (!m_is_prototype_shape) {
