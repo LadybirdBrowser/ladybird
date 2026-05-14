@@ -4,10 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/AnonymousBuffer.h>
 #include <LibRequests/RequestClient.h>
 #include <LibRequests/WebSocket.h>
 
 namespace Requests {
+
+static constexpr size_t WEBSOCKET_SHARED_MEMORY_THRESHOLD = 16 * MiB;
 
 WebSocket::WebSocket(RequestClient& client, u64 websocket_id)
     : m_client(client)
@@ -39,6 +42,16 @@ void WebSocket::send(ReadonlyBytes binary_or_text_message, bool is_text)
 {
     if (!m_client)
         return;
+    if (binary_or_text_message.size() >= WEBSOCKET_SHARED_MEMORY_THRESHOLD) {
+        auto buffer_or_error = Core::AnonymousBuffer::create_with_size(binary_or_text_message.size());
+        if (!buffer_or_error.is_error()) {
+            auto buffer = buffer_or_error.release_value();
+            __builtin_memcpy(buffer.data<void>(), binary_or_text_message.data(), binary_or_text_message.size());
+            m_client->async_websocket_send_shared(m_websocket_id, is_text, move(buffer));
+            return;
+        }
+        dbgln("WebSocket::send: failed to allocate shared buffer for {} bytes: {}", binary_or_text_message.size(), buffer_or_error.error());
+    }
     m_client->async_websocket_send(m_websocket_id, is_text, binary_or_text_message);
 }
 

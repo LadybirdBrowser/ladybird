@@ -72,6 +72,7 @@ private:
 
     virtual void websocket_connect(u64 websocket_id, URL::URL, ByteString, Vector<ByteString>, Vector<ByteString>, Vector<HTTP::Header>) override;
     virtual void websocket_send(u64 websocket_id, bool, ByteBuffer) override;
+    virtual void websocket_send_shared(u64 websocket_id, bool, Core::AnonymousBuffer) override;
     virtual void websocket_close(u64 websocket_id, u16, ByteString) override;
     virtual Messages::RequestServer::WebsocketSetCertificateResponse websocket_set_certificate(u64, ByteString, ByteString) override;
 
