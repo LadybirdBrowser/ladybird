@@ -134,7 +134,7 @@ GC::Ref<Shape> Shape::create_put_transition(PropertyKey const& property_key, Pro
     TransitionKey key { property_key, attributes };
     if (auto existing_shape = get_or_prune_cached_forward_transition(key))
         return *existing_shape;
-    auto new_shape = heap().allocate<Shape>(*this, property_key, attributes, TransitionType::Put);
+    auto new_shape = heap().allocate<Shape>(*this, PropertyCountChange::Increment);
 
     if (descriptors() && descriptors()->size() == m_property_count) {
         descriptors()->set(property_key, { m_property_count, attributes }, m_property_count);
@@ -157,7 +157,7 @@ GC::Ref<Shape> Shape::create_configure_transition(PropertyKey const& property_ke
     TransitionKey key { property_key, attributes };
     if (auto existing_shape = get_or_prune_cached_forward_transition(key))
         return *existing_shape;
-    auto new_shape = heap().allocate<Shape>(*this, property_key, attributes, TransitionType::Configure);
+    auto new_shape = heap().allocate<Shape>(*this, PropertyCountChange::Preserve);
     new_shape->set_descriptors(copy_descriptors());
     new_shape->descriptors()->set_attributes(property_key, attributes, m_property_count);
     invalidate_prototype_if_needed_for_new_prototype(new_shape);
@@ -198,35 +198,29 @@ Shape::Shape(Realm& realm)
 {
 }
 
-Shape::Shape(Shape& previous_shape, PropertyKey const& property_key, PropertyAttributes attributes, TransitionType transition_type)
-    : m_attributes(attributes)
-    , m_transition_type(transition_type)
-    , m_has_parameter_map(previous_shape.m_has_parameter_map)
+Shape::Shape(Shape& previous_shape, PropertyCountChange property_count_change)
+    : m_has_parameter_map(previous_shape.m_has_parameter_map)
     , m_realm(previous_shape.m_realm)
-    , m_previous(&previous_shape)
-    , m_property_key(property_key)
     , m_prototype(previous_shape.m_prototype)
-    , m_property_count(transition_type == TransitionType::Put ? previous_shape.m_property_count + 1 : previous_shape.m_property_count)
+    , m_property_count(previous_shape.m_property_count)
 {
-}
-
-Shape::Shape(Shape& previous_shape, PropertyKey const& property_key, TransitionType transition_type)
-    : m_transition_type(transition_type)
-    , m_has_parameter_map(previous_shape.m_has_parameter_map)
-    , m_realm(previous_shape.m_realm)
-    , m_previous(&previous_shape)
-    , m_property_key(property_key)
-    , m_prototype(previous_shape.m_prototype)
-    , m_property_count(previous_shape.m_property_count - 1)
-{
-    VERIFY(transition_type == TransitionType::Delete);
+    switch (property_count_change) {
+    case PropertyCountChange::Preserve:
+        break;
+    case PropertyCountChange::Increment:
+        VERIFY(m_property_count < NumericLimits<u32>::max());
+        ++m_property_count;
+        break;
+    case PropertyCountChange::Decrement:
+        VERIFY(m_property_count > 0);
+        --m_property_count;
+        break;
+    }
 }
 
 Shape::Shape(Shape& previous_shape, Object* new_prototype)
-    : m_transition_type(TransitionType::Prototype)
-    , m_has_parameter_map(previous_shape.m_has_parameter_map)
+    : m_has_parameter_map(previous_shape.m_has_parameter_map)
     , m_realm(previous_shape.m_realm)
-    , m_previous(&previous_shape)
     , m_prototype(new_prototype)
     , m_property_count(previous_shape.m_property_count)
 {
@@ -239,9 +233,6 @@ void Shape::visit_edges(Cell::Visitor& visitor)
     if (!m_dictionary)
         visitor.visit(m_property_storage.descriptors);
     visitor.visit(m_prototype);
-    visitor.visit(m_previous);
-    if (m_property_key.has_value())
-        m_property_key->visit_edges(visitor);
 
     visitor.ignore(m_prototype_transitions);
 
@@ -341,7 +332,7 @@ GC::Ref<Shape> Shape::create_delete_transition(PropertyKey const& property_key)
 {
     if (auto existing_shape = get_or_prune_cached_delete_transition(property_key))
         return *existing_shape;
-    auto new_shape = heap().allocate<Shape>(*this, property_key, TransitionType::Delete);
+    auto new_shape = heap().allocate<Shape>(*this, PropertyCountChange::Decrement);
     new_shape->set_descriptors(copy_descriptors());
     new_shape->descriptors()->remove(property_key, m_property_count);
     invalidate_prototype_if_needed_for_new_prototype(new_shape);

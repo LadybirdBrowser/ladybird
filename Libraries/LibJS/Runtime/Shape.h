@@ -62,16 +62,6 @@ public:
     virtual ~Shape() override;
     virtual void finalize() override;
 
-    enum class TransitionType : u8 {
-        Invalid,
-        Put,
-        Configure,
-        Prototype,
-        Delete,
-        CacheableDictionary,
-        UncacheableDictionary,
-    };
-
     [[nodiscard]] GC::Ref<Shape> create_put_transition(PropertyKey const&, PropertyAttributes attributes);
     [[nodiscard]] GC::Ref<Shape> create_configure_transition(PropertyKey const&, PropertyAttributes attributes);
     [[nodiscard]] GC::Ref<Shape> create_prototype_transition(Object* new_prototype);
@@ -107,9 +97,14 @@ public:
     void set_prototype_without_transition(Object* new_prototype);
 
 private:
+    enum class PropertyCountChange : u8 {
+        Preserve,
+        Increment,
+        Decrement,
+    };
+
     explicit Shape(Realm&);
-    Shape(Shape& previous_shape, PropertyKey const& property_key, PropertyAttributes attributes, TransitionType);
-    Shape(Shape& previous_shape, PropertyKey const& property_key, TransitionType);
+    Shape(Shape& previous_shape, PropertyCountChange);
     Shape(Shape& previous_shape, Object* new_prototype);
 
     void invalidate_prototype_if_needed_for_new_prototype(GC::Ref<Shape> new_prototype_shape);
@@ -152,9 +147,6 @@ private:
         PropertyTablePtr property_table;
     };
 
-    PropertyAttributes m_attributes { 0 };
-    TransitionType m_transition_type { TransitionType::Invalid };
-
     bool m_dictionary : 1 { false };
     bool m_is_prototype_shape : 1 { false };
     bool m_has_parameter_map : 1 { false };
@@ -166,8 +158,6 @@ private:
     OwnPtr<HashMap<TransitionKey, GC::Weak<Shape>>> m_forward_transitions;
     OwnPtr<HashMap<GC::Ptr<Object>, GC::Weak<Shape>>> m_prototype_transitions;
     OwnPtr<HashMap<PropertyKey, GC::Weak<Shape>>> m_delete_transitions;
-    GC::Ptr<Shape> m_previous;
-    Optional<PropertyKey> m_property_key;
     GC::Ptr<Object> m_prototype;
 
     // The following two are only populated for prototype shapes.
@@ -180,7 +170,7 @@ private:
 };
 
 #if !defined(AK_OS_WINDOWS)
-static_assert(sizeof(Shape) == 104, "Keep the size of JS::Shape down!");
+static_assert(sizeof(Shape) == 88, "Keep the size of JS::Shape down!");
 #endif
 
 }
