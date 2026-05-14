@@ -41,6 +41,7 @@ void DeclarativeEnvironment::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     m_dispose_capability.visit_edges(visitor);
+    visitor.visit(m_shape);
 
     for (auto& value : m_binding_values)
         visitor.visit(value);
@@ -52,6 +53,7 @@ size_t DeclarativeEnvironment::external_memory_size() const
     size = saturating_add_external_memory_size(size, vector_external_memory_size(m_binding_values));
     size = saturating_add_external_memory_size(size, vector_external_memory_size(m_binding_flags));
     size = saturating_add_external_memory_size(size, m_initialized_bindings.size_in_bytes());
+    size = saturating_add_external_memory_size(size, m_deleted_bindings.size_in_bytes());
     size = saturating_add_external_memory_size(size, hash_map_external_memory_size(m_bindings_assoc));
     return size;
 }
@@ -69,8 +71,14 @@ void DeclarativeEnvironment::append_binding(Binding binding)
     if (binding.can_be_deleted)
         flags |= BindingFlagCanBeDeleted;
 
-    m_bindings_assoc.set(binding.name, index);
-    m_binding_names.append(move(binding.name));
+    if (m_shape && index < shape_binding_count()) {
+        VERIFY(m_shape->binding_name(index) == binding.name);
+        VERIFY(m_shape->binding_flags(index) == flags);
+    } else {
+        m_bindings_assoc.set(binding.name, index);
+        m_binding_names.append(move(binding.name));
+    }
+
     m_binding_values.append(binding.value);
     m_binding_flags.append(flags);
     set_binding_initialized(index, binding.initialized);
@@ -78,8 +86,17 @@ void DeclarativeEnvironment::append_binding(Binding binding)
 
 void DeclarativeEnvironment::clear_binding(Utf16FlyString const& name, size_t index)
 {
+    if (index < shape_binding_count()) {
+        ensure_deleted_bindings_capacity(index + 1);
+        m_deleted_bindings.set(index, true);
+        m_binding_values[index] = {};
+        set_binding_initialized(index, false);
+        return;
+    }
+
     m_bindings_assoc.remove(name);
-    m_binding_names[index] = Utf16FlyString {};
+    auto local_index = local_binding_index(index);
+    m_binding_names[local_index] = Utf16FlyString {};
     m_binding_values[index] = {};
     m_binding_flags[index] = 0;
     set_binding_initialized(index, false);
@@ -88,13 +105,55 @@ void DeclarativeEnvironment::clear_binding(Utf16FlyString const& name, size_t in
 DeclarativeEnvironment::Binding DeclarativeEnvironment::binding_at(size_t index) const
 {
     return Binding {
-        .name = m_binding_names[index],
+        .name = binding_name(index),
         .value = m_binding_values[index],
         .strict = binding_is_strict(index),
         .mutable_ = binding_is_mutable(index),
         .can_be_deleted = binding_can_be_deleted(index),
         .initialized = binding_is_initialized(index),
     };
+}
+
+void DeclarativeEnvironment::set_environment_shape_cache(GC::Ptr<EnvironmentShape>& cache, size_t expected_binding_count)
+{
+    m_environment_shape_cache = &cache;
+    m_expected_binding_count = expected_binding_count;
+    if (expected_binding_count == 0 || !cache)
+        return;
+
+    VERIFY(cache->size() == expected_binding_count);
+    set_environment_shape(GC::Ref { *cache });
+}
+
+void DeclarativeEnvironment::set_environment_shape(GC::Ref<EnvironmentShape> shape)
+{
+    VERIFY(!m_shape);
+    VERIFY(m_binding_values.size() <= shape->size());
+
+    m_shape = shape;
+    m_binding_names.clear();
+    m_bindings_assoc.clear();
+}
+
+void DeclarativeEnvironment::maybe_finalize_environment_shape(VM& vm)
+{
+    if (!m_environment_shape_cache || m_shape || m_expected_binding_count == 0 || m_binding_values.size() != m_expected_binding_count)
+        return;
+
+    if (*m_environment_shape_cache) {
+        auto shape = GC::Ref { **m_environment_shape_cache };
+        VERIFY(shape->size() == m_binding_values.size());
+        for (size_t i = 0; i < m_binding_values.size(); ++i) {
+            VERIFY(shape->binding_name(i) == m_binding_names[i]);
+            VERIFY(shape->binding_flags(i) == m_binding_flags[i]);
+        }
+        set_environment_shape(shape);
+        return;
+    }
+
+    auto shape = EnvironmentShape::create(vm, m_binding_names, m_binding_flags);
+    *m_environment_shape_cache = shape;
+    set_environment_shape(shape);
 }
 
 // 9.1.1.1.1 HasBinding ( N ), https://tc39.es/ecma262/#sec-declarative-environment-records-hasbinding-n
@@ -109,7 +168,7 @@ ThrowCompletionOr<bool> DeclarativeEnvironment::has_binding(Utf16FlyString const
 }
 
 // 9.1.1.1.2 CreateMutableBinding ( N, D ), https://tc39.es/ecma262/#sec-declarative-environment-records-createmutablebinding-n-d
-ThrowCompletionOr<void> DeclarativeEnvironment::create_mutable_binding(VM&, Utf16FlyString const& name, bool can_be_deleted)
+ThrowCompletionOr<void> DeclarativeEnvironment::create_mutable_binding(VM& vm, Utf16FlyString const& name, bool can_be_deleted)
 {
     // 1. Assert: envRec does not already have a binding for N.
     // NOTE: We skip this to avoid O(n) traversal of m_binding_names.
@@ -123,6 +182,7 @@ ThrowCompletionOr<void> DeclarativeEnvironment::create_mutable_binding(VM&, Utf1
         .can_be_deleted = can_be_deleted,
         .initialized = false,
     });
+    maybe_finalize_environment_shape(vm);
 
     ++m_environment_serial_number;
 
@@ -131,7 +191,7 @@ ThrowCompletionOr<void> DeclarativeEnvironment::create_mutable_binding(VM&, Utf1
 }
 
 // 9.1.1.1.3 CreateImmutableBinding ( N, S ), https://tc39.es/ecma262/#sec-declarative-environment-records-createimmutablebinding-n-s
-ThrowCompletionOr<void> DeclarativeEnvironment::create_immutable_binding(VM&, Utf16FlyString const& name, bool strict)
+ThrowCompletionOr<void> DeclarativeEnvironment::create_immutable_binding(VM& vm, Utf16FlyString const& name, bool strict)
 {
     // 1. Assert: envRec does not already have a binding for N.
     // NOTE: We skip this to avoid O(n) traversal of m_binding_names.
@@ -145,6 +205,7 @@ ThrowCompletionOr<void> DeclarativeEnvironment::create_immutable_binding(VM&, Ut
         .can_be_deleted = false,
         .initialized = false,
     });
+    maybe_finalize_environment_shape(vm);
 
     ++m_environment_serial_number;
 
@@ -216,7 +277,7 @@ ThrowCompletionOr<void> DeclarativeEnvironment::set_mutable_binding_direct(VM& v
         strict = true;
 
     if (!binding_is_initialized(index))
-        return vm.throw_completion<ReferenceError>(ErrorType::BindingNotInitialized, m_binding_names[index]);
+        return vm.throw_completion<ReferenceError>(ErrorType::BindingNotInitialized, binding_name(index));
 
     if (binding_is_mutable(index)) {
         m_binding_values[index] = value;
@@ -319,6 +380,14 @@ void DeclarativeEnvironment::shrink_to_fit()
     for (size_t i = 0; i < m_binding_values.size(); ++i)
         initialized_bindings.set(i, binding_is_initialized(i));
     m_initialized_bindings = move(initialized_bindings);
+
+    if (m_deleted_bindings.is_null())
+        return;
+
+    auto deleted_bindings = MUST(Bitmap::create(m_binding_values.size(), false));
+    for (size_t i = 0; i < m_binding_values.size(); ++i)
+        deleted_bindings.set(i, binding_is_deleted(i));
+    m_deleted_bindings = move(deleted_bindings);
 }
 
 }

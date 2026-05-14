@@ -432,4 +432,22 @@ describe("scope-local eval deoptimization", () => {
         }
         expect(foo(23)).toBe(123);
     });
+
+    test("repeated calls keep eval-created vars separate from cached function bindings", () => {
+        function outer(seed, createEvalVar) {
+            var captured = seed;
+            function readCaptured() {
+                return captured;
+            }
+            if (createEvalVar) {
+                eval("var injected = captured + 100; delete injected;");
+                return readCaptured() + ":" + typeof injected;
+            }
+            return readCaptured() + ":" + typeof injected;
+        }
+
+        expect(outer(1, false)).toBe("1:undefined");
+        expect(outer(2, true)).toBe("2:undefined");
+        expect(outer(3, false)).toBe("3:undefined");
+    });
 });

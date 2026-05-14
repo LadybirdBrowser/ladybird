@@ -284,7 +284,9 @@ ExecutionContext* VM::push_inline_frame(
     callee_context->script_or_module = callee_function.m_script_or_module;
     if (callee_function.function_environment_needed()) {
         auto local_environment = new_function_environment(callee_function, new_target);
-        local_environment->ensure_capacity(callee_function.shared_data().m_function_environment_bindings_count);
+        auto function_environment_bindings_count = callee_function.shared_data().m_function_environment_bindings_count;
+        local_environment->set_environment_shape_cache(callee_function.shared_data().m_function_environment_shape, function_environment_bindings_count);
+        local_environment->ensure_capacity(function_environment_bindings_count);
         callee_context->lexical_environment = local_environment;
         callee_context->variable_environment = local_environment;
     } else {

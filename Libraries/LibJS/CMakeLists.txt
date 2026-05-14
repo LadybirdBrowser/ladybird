@@ -79,6 +79,7 @@ set(SOURCES
     Runtime/DisposableStackPrototype.cpp
     Runtime/ECMAScriptFunctionObject.cpp
     Runtime/Environment.cpp
+    Runtime/EnvironmentShape.cpp
     Runtime/Error.cpp
     Runtime/ErrorConstructor.cpp
     Runtime/ErrorData.cpp

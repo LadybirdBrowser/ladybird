@@ -27,6 +27,8 @@ public:
     virtual ThrowCompletionOr<Value> call() override;
 
     Bytecode::Executable& bytecode_executable();
+    SharedFunctionInstanceData& shared_data() { return *m_shared_function_instance_data; }
+    SharedFunctionInstanceData const& shared_data() const { return *m_shared_function_instance_data; }
     FunctionKind kind() const;
     ThisMode this_mode() const;
 

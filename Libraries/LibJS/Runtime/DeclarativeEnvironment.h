@@ -13,6 +13,7 @@
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Environment.h>
+#include <LibJS/Runtime/EnvironmentShape.h>
 #include <LibJS/Runtime/Value.h>
 
 namespace JS {
@@ -50,7 +51,17 @@ public:
     [[nodiscard]] Vector<Utf16FlyString> bindings() const
     {
         Vector<Utf16FlyString> names;
-        names.ensure_capacity(m_binding_names.size());
+        names.ensure_capacity(binding_count());
+
+        auto shape_bindings_to_visit = shape_binding_count();
+        if (shape_bindings_to_visit > binding_count())
+            shape_bindings_to_visit = binding_count();
+
+        for (size_t i = 0; i < shape_bindings_to_visit; ++i) {
+            auto const& name = m_shape->binding_name(i);
+            if (!binding_is_deleted(i) && !name.is_empty())
+                names.unchecked_append(name);
+        }
 
         for (auto const& name : m_binding_names) {
             if (!name.is_empty())
@@ -66,13 +77,17 @@ public:
     Value get_initialized_binding_value_direct(size_t index) const { return m_binding_values[index]; }
 
     void shrink_to_fit();
+    void set_environment_shape_cache(GC::Ptr<EnvironmentShape>&, size_t expected_binding_count);
 
     void ensure_capacity(size_t needed_capacity)
     {
-        m_binding_names.ensure_capacity(needed_capacity);
         m_binding_values.ensure_capacity(needed_capacity);
         m_binding_flags.ensure_capacity(needed_capacity);
         ensure_initialized_bindings_capacity(needed_capacity);
+        if (m_shape)
+            return;
+
+        m_binding_names.ensure_capacity(needed_capacity);
     }
 
     [[nodiscard]] u64 environment_serial_number() const { return m_environment_serial_number; }
@@ -81,12 +96,13 @@ public:
     DisposeCapability& dispose_capability() { return m_dispose_capability; }
 
 private:
-    enum BindingFlag : u8 {
-        BindingFlagStrict = 1 << 0,
-        BindingFlagMutable = 1 << 1,
-        BindingFlagCanBeDeleted = 1 << 2,
-    };
+    static constexpr u8 BindingFlagStrict = EnvironmentShape::BindingFlagStrict;
+    static constexpr u8 BindingFlagMutable = EnvironmentShape::BindingFlagMutable;
+    static constexpr u8 BindingFlagCanBeDeleted = EnvironmentShape::BindingFlagCanBeDeleted;
 
+    [[nodiscard]] size_t shape_binding_count() const { return m_shape ? m_shape->size() : 0; }
+    [[nodiscard]] size_t binding_count() const { return m_binding_values.size(); }
+    [[nodiscard]] size_t local_binding_index(size_t index) const { return index - shape_binding_count(); }
     void append_binding(Binding);
     void clear_binding(Utf16FlyString const& name, size_t index);
     void ensure_initialized_bindings_capacity(size_t needed_capacity)
@@ -95,11 +111,32 @@ private:
             return;
         m_initialized_bindings.grow(ceil_div(needed_capacity, static_cast<size_t>(8)) * 8, false);
     }
+    void ensure_deleted_bindings_capacity(size_t needed_capacity)
+    {
+        if (needed_capacity <= m_deleted_bindings.size())
+            return;
+        m_deleted_bindings.grow(ceil_div(needed_capacity, static_cast<size_t>(8)) * 8, false);
+    }
+    void maybe_finalize_environment_shape(VM&);
+    void set_environment_shape(GC::Ref<EnvironmentShape>);
     Binding binding_at(size_t index) const;
-    bool binding_is_strict(size_t index) const { return (m_binding_flags[index] & BindingFlagStrict) != 0; }
-    bool binding_is_mutable(size_t index) const { return (m_binding_flags[index] & BindingFlagMutable) != 0; }
-    bool binding_can_be_deleted(size_t index) const { return (m_binding_flags[index] & BindingFlagCanBeDeleted) != 0; }
+    Utf16FlyString const& binding_name(size_t index) const
+    {
+        if (index < shape_binding_count())
+            return m_shape->binding_name(index);
+        return m_binding_names[local_binding_index(index)];
+    }
+    u8 binding_flags(size_t index) const
+    {
+        if (index < shape_binding_count())
+            return m_shape->binding_flags(index);
+        return m_binding_flags[index];
+    }
+    bool binding_is_strict(size_t index) const { return (binding_flags(index) & BindingFlagStrict) != 0; }
+    bool binding_is_mutable(size_t index) const { return (binding_flags(index) & BindingFlagMutable) != 0; }
+    bool binding_can_be_deleted(size_t index) const { return (binding_flags(index) & BindingFlagCanBeDeleted) != 0; }
     bool binding_is_initialized(size_t index) const { return m_initialized_bindings.get(index); }
+    bool binding_is_deleted(size_t index) const { return !m_deleted_bindings.is_null() && m_deleted_bindings.get(index); }
     void set_binding_initialized(size_t index, bool initialized) { m_initialized_bindings.set(index, initialized); }
 
     ThrowCompletionOr<Value> get_binding_value_direct(VM&, Binding const&) const;
@@ -145,6 +182,12 @@ protected:
 
     virtual Optional<BindingAndIndex> find_binding_and_index(Utf16FlyString const& name) const
     {
+        if (m_shape) {
+            auto index = m_shape->find_binding(name);
+            if (index.has_value() && *index < binding_count() && !binding_is_deleted(*index))
+                return BindingAndIndex { *this, *index };
+        }
+
         if (auto it = m_bindings_assoc.find(name); it != m_bindings_assoc.end()) {
             return BindingAndIndex { *this, it->value };
         }
@@ -153,12 +196,16 @@ protected:
     }
 
 private:
+    GC::Ptr<EnvironmentShape> m_shape;
     Vector<Utf16FlyString> m_binding_names;
     Vector<Value> m_binding_values;
     Vector<u8> m_binding_flags;
     Bitmap m_initialized_bindings;
+    Bitmap m_deleted_bindings;
     HashMap<Utf16FlyString, size_t> m_bindings_assoc;
     DisposeCapability m_dispose_capability;
+    GC::Ptr<EnvironmentShape>* m_environment_shape_cache { nullptr };
+    size_t m_expected_binding_count { 0 };
 
     u64 m_environment_serial_number { 0 };
     bool m_is_catch_environment { false };
@@ -167,7 +214,7 @@ private:
 inline ThrowCompletionOr<Value> DeclarativeEnvironment::get_binding_value_direct(VM& vm, size_t index) const
 {
     if (!binding_is_initialized(index))
-        return vm.throw_completion<ReferenceError>(ErrorType::BindingNotInitialized, m_binding_names[index]);
+        return vm.throw_completion<ReferenceError>(ErrorType::BindingNotInitialized, binding_name(index));
 
     return m_binding_values[index];
 }

@@ -10,6 +10,7 @@
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/LocalVariable.h>
+#include <LibJS/Runtime/EnvironmentShape.h>
 #include <LibJS/Runtime/FunctionKind.h>
 #include <LibJS/Runtime/PrivateEnvironment.h>
 #include <LibJS/Runtime/PropertyKey.h>
@@ -139,6 +140,7 @@ public:
     size_t m_function_environment_bindings_count { 0 };
     size_t m_var_environment_bindings_count { 0 };
     size_t m_lex_environment_bindings_count { 0 };
+    mutable GC::Ptr<EnvironmentShape> m_function_environment_shape;
 
     Variant<PropertyKey, PrivateName, Empty> m_class_field_initializer_name; // [[ClassFieldInitializerName]]
     ConstructorKind m_constructor_kind : 1 { ConstructorKind::Base };        // [[ConstructorKind]]
