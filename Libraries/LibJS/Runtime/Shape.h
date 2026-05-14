@@ -80,7 +80,7 @@ public:
 
     [[nodiscard]] u32 dictionary_generation() const { return m_dictionary_generation; }
 
-    [[nodiscard]] bool is_prototype_shape() const { return m_is_prototype_shape; }
+    [[nodiscard]] bool is_prototype_shape() const { return m_prototype_chain_validity; }
     void set_prototype_shape();
 
     GC::Ptr<PrototypeChainValidity> prototype_chain_validity() const { return m_prototype_chain_validity; }
@@ -148,7 +148,6 @@ private:
     };
 
     bool m_dictionary : 1 { false };
-    bool m_is_prototype_shape : 1 { false };
     bool m_has_parameter_map : 1 { false };
 
     GC::Ref<Realm> m_realm;
@@ -160,9 +159,8 @@ private:
     OwnPtr<HashMap<PropertyKey, GC::Weak<Shape>>> m_delete_transitions;
     GC::Ptr<Object> m_prototype;
 
-    // The following two are only populated for prototype shapes.
+    // A non-null validity cell marks this as a prototype shape. Child shape references only exist for prototype shapes.
     GC::Ptr<PrototypeChainValidity> m_prototype_chain_validity;
-    // Prototype shapes whose immediate [[Prototype]] is the object that owns this shape.
     OwnPtr<Vector<GC::Weak<Shape>>> m_child_prototype_shapes;
 
     u32 m_property_count { 0 };

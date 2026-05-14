@@ -89,7 +89,7 @@ GC::Ref<Shape> Shape::create_dictionary_transition()
 
 GC::Ptr<Shape> Shape::get_or_prune_cached_forward_transition(TransitionKey const& key)
 {
-    if (m_is_prototype_shape)
+    if (is_prototype_shape())
         return nullptr;
     if (!m_forward_transitions)
         return nullptr;
@@ -106,7 +106,7 @@ GC::Ptr<Shape> Shape::get_or_prune_cached_forward_transition(TransitionKey const
 
 GC::Ptr<Shape> Shape::get_or_prune_cached_delete_transition(PropertyKey const& key)
 {
-    if (m_is_prototype_shape)
+    if (is_prototype_shape())
         return nullptr;
     if (!m_delete_transitions)
         return nullptr;
@@ -123,7 +123,7 @@ GC::Ptr<Shape> Shape::get_or_prune_cached_delete_transition(PropertyKey const& k
 
 GC::Ptr<Shape> Shape::get_or_prune_cached_prototype_transition(Object* prototype)
 {
-    if (m_is_prototype_shape)
+    if (is_prototype_shape())
         return nullptr;
     if (!m_prototype_transitions)
         return nullptr;
@@ -153,7 +153,7 @@ GC::Ref<Shape> Shape::create_put_transition(PropertyKey const& property_key, Pro
         new_shape->descriptors()->set(property_key, { m_property_count, attributes }, m_property_count);
     }
     invalidate_prototype_if_needed_for_new_prototype(new_shape);
-    if (!m_is_prototype_shape) {
+    if (!is_prototype_shape()) {
         if (!m_forward_transitions)
             m_forward_transitions = make<HashMap<TransitionKey, GC::Weak<Shape>>>();
         m_forward_transitions->set(key, new_shape);
@@ -170,7 +170,7 @@ GC::Ref<Shape> Shape::create_configure_transition(PropertyKey const& property_ke
     new_shape->set_descriptors(copy_descriptors());
     new_shape->descriptors()->set_attributes(property_key, attributes, m_property_count);
     invalidate_prototype_if_needed_for_new_prototype(new_shape);
-    if (!m_is_prototype_shape) {
+    if (!is_prototype_shape()) {
         if (!m_forward_transitions)
             m_forward_transitions = make<HashMap<TransitionKey, GC::Weak<Shape>>>();
         m_forward_transitions->set(key, new_shape.ptr());
@@ -194,7 +194,7 @@ GC::Ref<Shape> Shape::create_prototype_transition(Object* new_prototype)
         new_shape->set_descriptors(descriptors());
     }
     invalidate_prototype_if_needed_for_new_prototype(new_shape);
-    if (!m_is_prototype_shape) {
+    if (!is_prototype_shape()) {
         if (!m_prototype_transitions)
             m_prototype_transitions = make<HashMap<GC::Ptr<Object>, GC::Weak<Shape>>>();
         m_prototype_transitions->set(new_prototype, new_shape.ptr());
@@ -390,10 +390,9 @@ void Shape::remove_property_without_transition(PropertyKey const& property_key, 
 
 GC::Ref<Shape> Shape::clone_for_prototype()
 {
-    VERIFY(!m_is_prototype_shape);
+    VERIFY(!is_prototype_shape());
     VERIFY(!m_prototype_chain_validity);
     auto new_shape = heap().allocate<Shape>(m_realm);
-    new_shape->m_is_prototype_shape = true;
     new_shape->m_has_parameter_map = m_has_parameter_map;
     new_shape->m_prototype = m_prototype;
     if (m_dictionary && m_property_count > DescriptorArray::max_descriptor_count) {
@@ -418,8 +417,7 @@ void Shape::set_prototype_without_transition(Object* new_prototype)
 
 void Shape::set_prototype_shape()
 {
-    VERIFY(!m_is_prototype_shape);
-    m_is_prototype_shape = true;
+    VERIFY(!is_prototype_shape());
     m_prototype_chain_validity = heap().allocate<PrototypeChainValidity>();
     if (m_prototype)
         m_prototype->shape().add_child_prototype_shape(*this);
@@ -427,8 +425,8 @@ void Shape::set_prototype_shape()
 
 void Shape::add_child_prototype_shape(GC::Ref<Shape> child)
 {
-    VERIFY(m_is_prototype_shape);
-    VERIFY(child->m_is_prototype_shape);
+    VERIFY(is_prototype_shape());
+    VERIFY(child->is_prototype_shape());
     if (!m_child_prototype_shapes)
         m_child_prototype_shapes = make<Vector<GC::Weak<Shape>>>();
     m_child_prototype_shapes->append(GC::Weak<Shape> { *child });
@@ -436,7 +434,7 @@ void Shape::add_child_prototype_shape(GC::Ref<Shape> child)
 
 void Shape::invalidate_prototype_if_needed_for_new_prototype(GC::Ref<Shape> new_prototype_shape)
 {
-    if (!m_is_prototype_shape)
+    if (!is_prototype_shape())
         return;
     new_prototype_shape->set_prototype_shape();
     m_prototype_chain_validity->set_valid(false);
@@ -450,7 +448,7 @@ void Shape::invalidate_prototype_if_needed_for_new_prototype(GC::Ref<Shape> new_
 
 void Shape::invalidate_prototype_if_needed_for_change_without_transition()
 {
-    if (!m_is_prototype_shape)
+    if (!is_prototype_shape())
         return;
     m_prototype_chain_validity->set_valid(false);
     m_prototype_chain_validity = heap().allocate<PrototypeChainValidity>();
