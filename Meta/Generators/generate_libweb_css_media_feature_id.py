@@ -33,16 +33,9 @@ def write_header_file(out: TextIO, media_feature_data: dict) -> None:
 #include <AK/StringView.h>
 #include <AK/Traits.h>
 #include <LibWeb/CSS/Keyword.h>
+#include <LibWeb/CSS/QueryValueType.h>
 
 namespace Web::CSS {{
-
-enum class MediaFeatureValueType {{
-    Boolean,
-    Integer,
-    Length,
-    Ratio,
-    Resolution,
-}};
 
 enum class MediaFeatureID : {underlying_type} {{""")
 
@@ -57,7 +50,7 @@ Optional<MediaFeatureID> media_feature_id_from_string(StringView);
 StringView string_from_media_feature_id(MediaFeatureID);
 
 bool media_feature_type_is_range(MediaFeatureID);
-bool media_feature_accepts_type(MediaFeatureID, MediaFeatureValueType);
+bool media_feature_accepts_type(MediaFeatureID, QueryValueType);
 bool media_feature_accepts_keyword(MediaFeatureID, Keyword);
 
 bool media_feature_keyword_is_falsey(MediaFeatureID, Keyword);
@@ -115,7 +108,7 @@ bool media_feature_type_is_range(MediaFeatureID media_feature_id)
     VERIFY_NOT_REACHED();
 }
 
-bool media_feature_accepts_type(MediaFeatureID media_feature_id, MediaFeatureValueType value_type)
+bool media_feature_accepts_type(MediaFeatureID media_feature_id, QueryValueType value_type)
 {
     switch (media_feature_id) {""")
 
@@ -138,7 +131,7 @@ bool media_feature_accepts_type(MediaFeatureID media_feature_id, MediaFeatureVal
                     have_output_value_type_switch = True
                 value_type = VALUE_TYPE_NAMES[type_name]
                 out.write(f"""
-        case MediaFeatureValueType::{value_type}:
+        case QueryValueType::{value_type}:
             return true;""")
 
         if have_output_value_type_switch:

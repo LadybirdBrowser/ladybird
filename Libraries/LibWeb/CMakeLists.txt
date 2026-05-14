@@ -165,6 +165,7 @@ set(SOURCES
     CSS/Display.cpp
     CSS/EasingFunction.cpp
     CSS/EdgeRect.cpp
+    CSS/FeatureQuery.cpp
     CSS/Fetch.cpp
     CSS/Filter.cpp
     CSS/Flex.cpp

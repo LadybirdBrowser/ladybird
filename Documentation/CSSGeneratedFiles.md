@@ -315,12 +315,11 @@ The definitions here are like a simplified version of the `Properties.json` defi
 | `false-keywords` | Array of strings. These are any keywords that should be considered false when the media feature is evaluated as `@media (foo)`. Generally this will be a single value, such as `"none"`.          |
 
 The generated code provides:
-- A `MediaFeatureValueType` enum listing the possible value types
 - A `MediaFeatureID` enum, listing each media-feature
 - `Optional<MediaFeatureID> media_feature_id_from_string(StringView)` to convert a string to a `MediaFeatureID`
 - `StringView string_from_media_feature_id(MediaFeatureID)` to convert a `MediaFeatureID` back to a string
 - `bool media_feature_type_is_range(MediaFeatureID)` returns whether the media feature is a `range` type, as opposed to a `discrete` type
-- `bool media_feature_accepts_type(MediaFeatureID, MediaFeatureValueType)` returns whether the media feature will accept values of this type
+- `bool media_feature_accepts_type(MediaFeatureID, QueryValueType)` returns whether the media feature will accept values of this type
 - `bool media_feature_accepts_keyword(MediaFeatureID, Keyword)` returns whether the media feature accepts this keyword
 - `bool media_feature_keyword_is_falsey(MediaFeatureID, Keyword)` returns whether the given keyword is considered false when the media-feature is evaluated in a boolean context. (Like `@media (foo)`)
 

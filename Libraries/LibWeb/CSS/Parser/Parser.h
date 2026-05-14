@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020-2021, the SerenityOS developers.
- * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -592,7 +592,10 @@ private:
     OwnPtr<BooleanExpression> parse_media_condition(TokenStream<ComponentValue>&);
     OwnPtr<MediaFeature> parse_media_feature(TokenStream<ComponentValue>&);
     Optional<MediaQuery::MediaType> parse_media_type(TokenStream<ComponentValue>&);
-    Optional<MediaFeatureValue> parse_media_feature_value(MediaFeatureID, TokenStream<ComponentValue>&);
+    Optional<FeatureValue> parse_media_feature_value(MediaFeatureID, TokenStream<ComponentValue>&);
+
+    template<typename FeatureID, typename FeatureAcceptsKeyword, typename FeatureAcceptsType>
+    Optional<FeatureValue> parse_feature_value(FeatureID, TokenStream<ComponentValue>&, FeatureAcceptsKeyword, FeatureAcceptsType);
 
     using ParseTest = AK::Function<OwnPtr<BooleanExpression>(TokenStream<ComponentValue>&)> const&;
     OwnPtr<BooleanExpression> parse_boolean_expression(TokenStream<ComponentValue>&, MatchResult result_for_general_enclosed, ParseTest parse_test);
