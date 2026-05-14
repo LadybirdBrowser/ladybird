@@ -52,6 +52,11 @@ void HTMLCollection::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_root);
 }
 
+GC::Cell const& HTMLCollection::owner_cell(Badge<GC::Heap>) const
+{
+    return *this;
+}
+
 void HTMLCollection::remove_dead_cells(Badge<GC::Heap>)
 {
     m_cached_elements.remove_all_matching([](GC::RawPtr<Element> const& element) {

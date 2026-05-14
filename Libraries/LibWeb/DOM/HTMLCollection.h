@@ -59,6 +59,7 @@ protected:
 private:
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void remove_dead_cells(Badge<GC::Heap>) override;
+    virtual GC::Cell const& owner_cell(Badge<GC::Heap>) const override;
 
     void update_cache_if_needed() const;
     void update_name_to_element_mappings_if_needed() const;
