@@ -75,10 +75,10 @@ void DeclarativeEnvironment::append_binding(Binding binding)
     } else {
         m_bindings_assoc.set(binding.name, index);
         m_binding_names.append(move(binding.name));
+        m_binding_flags.append(flags);
     }
 
     m_binding_values.append(binding.initialized ? binding.value : js_special_empty_value());
-    m_binding_flags.append(flags);
 }
 
 void DeclarativeEnvironment::clear_binding(Utf16FlyString const& name, size_t index)
@@ -94,7 +94,7 @@ void DeclarativeEnvironment::clear_binding(Utf16FlyString const& name, size_t in
     auto local_index = local_binding_index(index);
     m_binding_names[local_index] = Utf16FlyString {};
     m_binding_values[index] = js_special_empty_value();
-    m_binding_flags[index] = 0;
+    m_binding_flags[local_index] = 0;
 }
 
 DeclarativeEnvironment::Binding DeclarativeEnvironment::binding_at(size_t index) const
@@ -127,6 +127,7 @@ void DeclarativeEnvironment::set_environment_shape(GC::Ref<EnvironmentShape> sha
 
     m_shape = shape;
     m_binding_names.clear();
+    m_binding_flags.clear();
     m_bindings_assoc.clear();
 }
 

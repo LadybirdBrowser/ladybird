@@ -82,11 +82,11 @@ public:
     void ensure_capacity(size_t needed_capacity)
     {
         m_binding_values.ensure_capacity(needed_capacity);
-        m_binding_flags.ensure_capacity(needed_capacity);
         if (m_shape)
             return;
 
         m_binding_names.ensure_capacity(needed_capacity);
+        m_binding_flags.ensure_capacity(needed_capacity);
     }
 
     [[nodiscard]] u64 environment_serial_number() const { return m_environment_serial_number; }
@@ -123,7 +123,7 @@ private:
     {
         if (index < shape_binding_count())
             return m_shape->binding_flags(index);
-        return m_binding_flags[index];
+        return m_binding_flags[local_binding_index(index)];
     }
     bool binding_is_strict(size_t index) const { return (binding_flags(index) & BindingFlagStrict) != 0; }
     bool binding_is_mutable(size_t index) const { return (binding_flags(index) & BindingFlagMutable) != 0; }
@@ -191,6 +191,8 @@ private:
     GC::Ptr<EnvironmentShape> m_shape;
     Vector<Utf16FlyString> m_binding_names;
     Vector<Value> m_binding_values;
+    // When m_shape is set, this only stores flags for local bindings after
+    // the shared shape bindings.
     Vector<u8> m_binding_flags;
     Bitmap m_deleted_bindings;
     HashMap<Utf16FlyString, size_t> m_bindings_assoc;

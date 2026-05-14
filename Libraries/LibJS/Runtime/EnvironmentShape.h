@@ -30,25 +30,21 @@ public:
         BindingFlagCanBeDeleted = 1 << 2,
     };
 
-    struct BindingDescriptor {
-        Utf16FlyString name;
-        u8 flags { 0 };
-    };
-
-    EnvironmentShape(Vector<BindingDescriptor>, HashMap<Utf16FlyString, size_t>);
+    EnvironmentShape(Vector<Utf16FlyString>, Vector<u8>, HashMap<Utf16FlyString, size_t>);
     virtual ~EnvironmentShape() override = default;
 
     [[nodiscard]] static GC::Ref<EnvironmentShape> create(VM&, ReadonlySpan<Utf16FlyString> names, ReadonlySpan<u8> flags);
 
-    [[nodiscard]] size_t size() const { return m_bindings.size(); }
-    [[nodiscard]] Utf16FlyString const& binding_name(size_t index) const { return m_bindings[index].name; }
-    [[nodiscard]] u8 binding_flags(size_t index) const { return m_bindings[index].flags; }
+    [[nodiscard]] size_t size() const { return m_binding_names.size(); }
+    [[nodiscard]] Utf16FlyString const& binding_name(size_t index) const { return m_binding_names[index]; }
+    [[nodiscard]] u8 binding_flags(size_t index) const { return m_binding_flags[index]; }
     [[nodiscard]] Optional<size_t> find_binding(Utf16FlyString const&) const;
 
 private:
     virtual size_t external_memory_size() const override;
 
-    Vector<BindingDescriptor> m_bindings;
+    Vector<Utf16FlyString> m_binding_names;
+    Vector<u8> m_binding_flags;
     HashMap<Utf16FlyString, size_t> m_binding_indices;
 };
 

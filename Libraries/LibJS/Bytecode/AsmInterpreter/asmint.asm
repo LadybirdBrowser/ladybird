@@ -994,9 +994,27 @@ macro store_binding_value(env, idx, binding_values, value)
 end
 
 macro load_binding_flags(env, idx, flags, flag)
+    temp shape, shape_size, local_index
+    load64 shape, [env, DECLARATIVE_ENVIRONMENT_SHAPE]
+    branch_zero shape, .load_environment_flags
+    load64 shape_size, [shape, ENVIRONMENT_SHAPE_BINDING_FLAGS]
+    branch_ge_unsigned idx, shape_size, .load_environment_local_flags
+    load64 flags, [shape, ENVIRONMENT_SHAPE_BINDING_FLAGS_DATA_PTR]
+    assert_nonzero flags
+    load8 flag, [flags, idx]
+    jmp .done
+.load_environment_local_flags:
+    load64 flags, [env, BINDING_FLAGS_DATA_PTR]
+    assert_nonzero flags
+    mov local_index, idx
+    sub local_index, shape_size
+    load8 flag, [flags, local_index]
+    jmp .done
+.load_environment_flags:
     load64 flags, [env, BINDING_FLAGS_DATA_PTR]
     assert_nonzero flags
     load8 flag, [flags, idx]
+.done:
 end
 
 # Inline environment chain walk + binding value load with TDZ check.

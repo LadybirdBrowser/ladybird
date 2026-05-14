@@ -12,8 +12,9 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(EnvironmentShape);
 
-EnvironmentShape::EnvironmentShape(Vector<BindingDescriptor> bindings, HashMap<Utf16FlyString, size_t> binding_indices)
-    : m_bindings(move(bindings))
+EnvironmentShape::EnvironmentShape(Vector<Utf16FlyString> binding_names, Vector<u8> binding_flags, HashMap<Utf16FlyString, size_t> binding_indices)
+    : m_binding_names(move(binding_names))
+    , m_binding_flags(move(binding_flags))
     , m_binding_indices(move(binding_indices))
 {
 }
@@ -22,20 +23,24 @@ GC::Ref<EnvironmentShape> EnvironmentShape::create(VM& vm, ReadonlySpan<Utf16Fly
 {
     VERIFY(names.size() == flags.size());
 
-    Vector<BindingDescriptor> bindings;
-    bindings.ensure_capacity(names.size());
+    Vector<Utf16FlyString> binding_names;
+    binding_names.ensure_capacity(names.size());
+
+    Vector<u8> binding_flags;
+    binding_flags.ensure_capacity(flags.size());
 
     HashMap<Utf16FlyString, size_t> binding_indices;
     binding_indices.ensure_capacity(names.size());
 
     for (size_t i = 0; i < names.size(); ++i) {
-        bindings.unchecked_append({ names[i], flags[i] });
+        binding_names.unchecked_append(names[i]);
+        binding_flags.unchecked_append(flags[i]);
 
         if (!names[i].is_empty())
             binding_indices.set(names[i], i);
     }
 
-    return vm.heap().allocate<EnvironmentShape>(move(bindings), move(binding_indices));
+    return vm.heap().allocate<EnvironmentShape>(move(binding_names), move(binding_flags), move(binding_indices));
 }
 
 Optional<size_t> EnvironmentShape::find_binding(Utf16FlyString const& name) const
@@ -48,7 +53,8 @@ Optional<size_t> EnvironmentShape::find_binding(Utf16FlyString const& name) cons
 
 size_t EnvironmentShape::external_memory_size() const
 {
-    auto size = vector_external_memory_size(m_bindings);
+    auto size = vector_external_memory_size(m_binding_names);
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(m_binding_flags));
     size = saturating_add_external_memory_size(size, hash_map_external_memory_size(m_binding_indices));
     return size;
 }
