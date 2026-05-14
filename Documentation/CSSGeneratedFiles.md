@@ -257,17 +257,18 @@ This generated `PseudoElement.h` and `PseudoElement.cpp`.
 
 Each entry has the following properties:
 
-| Field                | Required | Default        | Description                                                                                                                                                            |
-|----------------------|----------|----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `alias-for`          | No       | Nothing        | Use to specify that this should be treated as an alias for the named pseudo-element.                                                                                   |
-| `function-syntax`    | No       | Nothing        | Syntax for the function arguments if this is a function-type pseudo-element. Copied directly from the spec.                                                            |
-| `is-allowed-in-has`  | No       | `false`        | Whether this is a [`:has`-allowed pseudo-element](https://drafts.csswg.org/selectors/#has-allowed-pseudo-element).                                                     |
-| `is-element-backed`  | No       | `false`        | Whether this is an [element-backed pseudo-element](https://drafts.csswg.org/css-pseudo-4/#element-backed).                                                             |
-| `is-pseudo-root`     | No       | `false`        | Whether this is a [pseudo-element root](https://drafts.csswg.org/css-view-transitions/#pseudo-element-root).                                                           |
-| `is-tree-abiding`    | No       | `false`        | Whether this is a [tree-abiding pseudo-element](https://drafts.csswg.org/css-pseudo-4/#tree-abiding).                                                                  |
-| `property-whitelist` | No       | Nothing        | Some pseudo-elements only permit certain properties. If so, name them in an array here. Some special values are allowed here for categories of properties - see below. |
-| `spec`               | No       | Nothing        | Link to the spec definition, for reference. Not used in generated code.                                                                                                |
-| `type`               | No       | `"identifier"` | What type of pseudo-element is this. Either "identifier", "function", or "both".                                                                                       |
+| Field                | Required                   | Default        | Description                                                                                                                                                            |
+|----------------------|----------------------------|----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `alias-for`          | No                         | Nothing        | Use to specify that this should be treated as an alias for the named pseudo-element.                                                                                   |
+| `function-syntax`    | No                         | Nothing        | Syntax for the function arguments if this is a function-type pseudo-element. Copied directly from the spec.                                                            |
+| `implementation`     | Unless `type` is "function | Nothing        | How this pseudo-element is implemented, either `"synthetic"` or `"element-reference"` - see below.                                                                     |
+| `is-allowed-in-has`  | No                         | `false`        | Whether this is a [`:has`-allowed pseudo-element](https://drafts.csswg.org/selectors/#has-allowed-pseudo-element).                                                     |
+| `is-element-backed`  | No                         | `false`        | Whether this is an [element-backed pseudo-element](https://drafts.csswg.org/css-pseudo-4/#element-backed).                                                             |
+| `is-pseudo-root`     | No                         | `false`        | Whether this is a [pseudo-element root](https://drafts.csswg.org/css-view-transitions/#pseudo-element-root).                                                           |
+| `is-tree-abiding`    | No                         | `false`        | Whether this is a [tree-abiding pseudo-element](https://drafts.csswg.org/css-pseudo-4/#tree-abiding).                                                                  |
+| `property-whitelist` | No                         | Nothing        | Some pseudo-elements only permit certain properties. If so, name them in an array here. Some special values are allowed here for categories of properties - see below. |
+| `spec`               | No                         | Nothing        | Link to the spec definition, for reference. Not used in generated code.                                                                                                |
+| `type`               | No                         | `"identifier"` | What type of pseudo-element is this. Either "identifier", "function", or "both".                                                                                       |
 
 The generated code provides:
 - A `PseudoElement` enum listing every pseudo-element name
@@ -297,6 +298,19 @@ The following categories are supported:
 - `#margin-properties`: `margin` and its longhands
 - `#padding-properties`: `padding` and its longhands
 - `#text-decoration-properties`: `text-decoration` and its longhands
+
+### `implementation`
+
+Pseudo-elements are implemented in two ways, either:
+ - "synthetic": The originating element is authoritative for the pseudo-element's data (e.g. animations, computed
+  style, etc) and handles it's behavior (such as generating layout nodes) itself. This includes pseudo-elements such
+  as "::first-line" and "::before"
+ - "element-reference": The pseudo-element refers to a "real" element elsewhere in the DOM, usually in the originating
+  element's shadow tree, and is thus not authoritative. This includes, among others, form pseudo-elements such as "::placeholder".
+
+NOTE: "element-reference" is an implementation detail and is distinct from the spec concept of "element-backed"
+    pseudo-elements, at time of writing all "element-backed" pseudo-elements are "element-reference", but not vice
+    versa.
 
 ## MediaFeatures.json
 
