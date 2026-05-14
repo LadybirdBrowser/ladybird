@@ -62,6 +62,10 @@ public:
         return Validator { m_context };
     }
 
+    // Drives the Cranelift disk-cache hooks around validate(CodeSection). Set on the
+    // top-level Validator (the one AbstractMachine creates); forks do not propagate it.
+    void set_cache_config(CompileCacheConfig config) { m_cache_config = move(config); }
+
     // Module
     ErrorOr<void, ValidationError> validate(Module&);
     ErrorOr<void, ValidationError> validate(ImportSection const&);
@@ -420,6 +424,7 @@ private:
     Vector<Frame, 16> m_frames;
     size_t m_max_frame_size { 0 };
     COWVector<GlobalType> m_globals_without_internal_globals;
+    Optional<CompileCacheConfig> m_cache_config;
 };
 
 }

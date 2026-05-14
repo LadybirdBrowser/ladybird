@@ -10,6 +10,7 @@
 #include <AK/ByteString.h>
 #include <AK/DistinctNumeric.h>
 #include <AK/FixedArray.h>
+#include <AK/Function.h>
 #include <AK/LEB128.h>
 #include <AK/NumericLimits.h>
 #include <AK/Optional.h>
@@ -1546,5 +1547,35 @@ private:
 CompiledInstructions try_compile_instructions(Expression const&, Span<FunctionType const> functions);
 bool try_cranelift_compile(CompiledInstructions& compiled, u32 result_arity = 0);
 void flush_cranelift_batch();
+
+// Caller-supplied hooks for the Cranelift on-disk cache.
+//   - `wasm_hash` is a 32-byte digest of the wasm bytes; embedded in produced blobs
+//     and verified against `existing_blob` before any install.
+//   - `existing_blob` is the prior cache hit (or empty for a miss); validator tries
+//     to install it before falling through to cranelift.
+//   - `on_compiled` is invoked exactly once if a fresh blob was produced; never
+//     invoked on a cache hit nor when no cranelift output was captured.
+struct CompileCacheConfig {
+    Array<u8, 32> wasm_hash {};
+    ReadonlyBytes existing_blob;
+    AK::Function<void(ByteBuffer)> on_compiled;
+};
+
+// Cranelift disk-cache plumbing. Validator drives these around CodeSection validation:
+//   1. set_cranelift_active_function_index() before each function so cache-hit installs
+//      and post-compile capture know which function they're talking about.
+//   2. begin_cranelift_cache_capture() to start collecting compiled bytes + relocs.
+//   3. try_install_cranelift_cache_blob() with the wasm-bytes hash + stored blob; if
+//      it returns true, individual try_cranelift_compile calls will short-circuit by
+//      installing from the stashed records instead of queueing fresh compiles.
+//   4. After flush, serialize_cranelift_cache_blob() returns a blob to hand to the
+//      cache store (or {} if nothing was captured); abort_cranelift_cache_capture()
+//      throws the capture away.
+void set_cranelift_active_function_index(u32 function_index);
+void begin_cranelift_cache_capture();
+void abort_cranelift_cache_capture();
+void abort_cranelift_cache_install();
+Optional<ByteBuffer> serialize_cranelift_cache_blob(ReadonlyBytes wasm_hash);
+bool try_install_cranelift_cache_blob(ReadonlyBytes expected_wasm_hash, ReadonlyBytes blob);
 
 }

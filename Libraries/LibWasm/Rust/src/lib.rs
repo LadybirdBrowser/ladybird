@@ -87,11 +87,71 @@ pub struct RuntimeHelpers {
     pub compiled_call_result_scratch_offset: u32,
 }
 
+/// Stable index assigned to each runtime helper. Embedded in cranelift `ExternalName`
+/// entries so we can recover, post-codegen, which helper a given relocation targets.
+/// The numeric values are part of the cache blob format -- do NOT reorder.
+#[repr(u32)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[allow(non_camel_case_types)]
+pub enum HelperId {
+    call_function = 0,
+    set_trap = 1,
+    memory_load8_s = 2,
+    memory_load8_u = 3,
+    memory_load16_s = 4,
+    memory_load16_u = 5,
+    memory_load32_s = 6,
+    memory_load32_u = 7,
+    memory_load64 = 8,
+    memory_store8 = 9,
+    memory_store16 = 10,
+    memory_store32 = 11,
+    memory_store64 = 12,
+    memory_size = 13,
+    memory_grow = 14,
+    read_global = 15,
+    write_global = 16,
+    stack_push = 17,
+    stack_pop = 18,
+    stack_size = 19,
+    stack_cleanup = 20,
+    callrec_read = 21,
+    callrec_write = 22,
+    call_with_record = 23,
+    direct_call_0 = 24,
+    direct_call_1 = 25,
+    direct_call_2 = 26,
+    direct_call_3 = 27,
+    call_indirect = 28,
+    memory_copy = 29,
+    memory_fill = 30,
+}
+
+pub const HELPER_COUNT: u32 = 31;
+
+/// One relocation slot in the generated machine code. `code_offset` is the byte offset
+/// from the start of the function where 8 contiguous bytes hold the absolute helper
+/// address; on cache install, those bytes get rewritten to the current process's
+/// helper pointer.
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct HelperReloc {
+    pub code_offset: u32,
+    pub helper_id: u32,
+    pub addend: i64,
+}
+
+/// Output of `compile_to_bytes`: the machine code plus the patch table.
+pub struct CompiledFunction {
+    pub code: Vec<u8>,
+    pub relocs: Vec<HelperReloc>,
+}
+
 pub fn compile_to_bytes(
     insns: &[CraneliftInsn],
     helpers: &RuntimeHelpers,
     outcome_return_value: u64,
     result_arity: u32,
-) -> Result<Vec<u8>, &'static str> {
+) -> Result<CompiledFunction, &'static str> {
     CraneliftCompiler::compile_to_bytes(insns, helpers, outcome_return_value, result_arity)
 }

@@ -6,7 +6,7 @@
 
 #![allow(clippy::manual_let_else)]
 
-use libwasm_cranelift::{CraneliftInsn, RuntimeHelpers, compile_to_bytes};
+use libwasm_cranelift::{CompiledFunction, CraneliftInsn, HelperReloc, RuntimeHelpers, compile_to_bytes};
 use std::env;
 use std::mem::{size_of, size_of_val};
 
@@ -26,6 +26,7 @@ struct InputHeader {
     helpers_offset: u32,
     outcome_return: u64,
     code_region_start: u64,
+    reloc_region_start: u64,
     total_size: u64,
 }
 
@@ -43,6 +44,9 @@ struct OutputFunctionEntry {
     code_offset: u64,
     code_size: u32,
     compiled: u32,
+    reloc_offset: u64,
+    reloc_count: u32,
+    _pad: u32,
 }
 
 fn as_bytes_slice<T>(value: &[T]) -> &[u8] {
@@ -230,7 +234,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let out_entries_offset = code_region_start;
     let code_base_offset = out_entries_offset + func_count * size_of::<OutputFunctionEntry>();
-    let code_capacity = mapped.len().checked_sub(code_base_offset).ok_or("bad code region")?;
+    let reloc_region_start = usize::try_from(header.reloc_region_start).map_err(|_| "reloc_region_start overflow")?;
+    let code_capacity = reloc_region_start
+        .checked_sub(code_base_offset)
+        .ok_or("bad code region")?;
+    let reloc_capacity = mapped.len().checked_sub(reloc_region_start).ok_or("bad reloc region")?;
 
     let mut entries: Vec<InputFunctionEntry> = Vec::with_capacity(func_count);
     for i in 0..func_count {
@@ -247,7 +255,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let helpers_ref = &helpers;
     let outcome_return = header.outcome_return;
 
-    let compiled_chunks: Vec<Vec<(usize, Vec<u8>)>> = std::thread::scope(|scope| {
+    let compiled_chunks: Vec<Vec<(usize, CompiledFunction)>> = std::thread::scope(|scope| {
         let mut handles = Vec::with_capacity(thread_count);
         for chunk_idx in 0..thread_count {
             let start = chunk_idx * chunk_size;
@@ -257,7 +265,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let end = (start + chunk_size).min(func_count);
             let chunk_entries = &entries[start..end];
             handles.push(scope.spawn(move || {
-                let mut out: Vec<(usize, Vec<u8>)> = Vec::with_capacity(end - start);
+                let mut out: Vec<(usize, CompiledFunction)> = Vec::with_capacity(end - start);
                 for (offset_in_chunk, entry) in chunk_entries.iter().enumerate() {
                     let i = start + offset_in_chunk;
                     if entry.insn_count == 0 {
@@ -278,8 +286,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     };
                     let insns =
                         unsafe { std::slice::from_raw_parts(insn_bytes.as_ptr().cast::<CraneliftInsn>(), insn_count) };
-                    if let Ok(code) = compile_to_bytes(insns, helpers_ref, outcome_return, entry.result_arity) {
-                        out.push((i, code));
+                    if let Ok(compiled) = compile_to_bytes(insns, helpers_ref, outcome_return, entry.result_arity) {
+                        out.push((i, compiled));
                     }
                 }
                 out
@@ -289,26 +297,43 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let mut code_cursor = 0usize;
+    let mut reloc_cursor = 0usize;
     for chunk in compiled_chunks {
-        for (i, code) in chunk {
+        for (i, compiled) in chunk {
+            let code = compiled.code;
+            let relocs = compiled.relocs;
             let aligned = (code.len() + 15) & !15;
+            let reloc_bytes_len = relocs.len() * size_of::<HelperReloc>();
             if code_cursor + aligned > code_capacity {
+                continue;
+            }
+            if reloc_cursor + reloc_bytes_len > reloc_capacity {
                 continue;
             }
             let code_offset = code_cursor;
             let code_dst = code_base_offset + code_offset;
             mapped[code_dst..code_dst + code.len()].copy_from_slice(&code);
 
+            let reloc_offset = reloc_cursor;
+            if !relocs.is_empty() {
+                let reloc_dst = reloc_region_start + reloc_offset;
+                mapped[reloc_dst..reloc_dst + reloc_bytes_len].copy_from_slice(as_bytes_slice(&relocs));
+            }
+
             let entry = OutputFunctionEntry {
                 code_offset: u64::try_from(code_offset).map_err(|_| "code offset overflow")?,
                 code_size: u32::try_from(code.len()).map_err(|_| "code size overflow")?,
                 compiled: 1,
+                reloc_offset: u64::try_from(reloc_offset).map_err(|_| "reloc offset overflow")?,
+                reloc_count: u32::try_from(relocs.len()).map_err(|_| "reloc count overflow")?,
+                _pad: 0,
             };
             let entry_dst = out_entries_offset + i * size_of::<OutputFunctionEntry>();
             let entry_bytes = as_bytes_slice(std::slice::from_ref(&entry));
             mapped[entry_dst..entry_dst + size_of::<OutputFunctionEntry>()].copy_from_slice(entry_bytes);
 
             code_cursor += aligned;
+            reloc_cursor += reloc_bytes_len;
         }
     }
 
@@ -324,13 +349,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &mapped[code_base_offset..code_base_offset + code_cursor],
             u64::try_from(code_base_offset)?,
         )?;
+        if reloc_cursor > 0 {
+            write_all_at_offset(
+                &file,
+                &mapped[reloc_region_start..reloc_region_start + reloc_cursor],
+                u64::try_from(reloc_region_start)?,
+            )?;
+        }
         let _ = file.sync_all();
     }
     // On macOS we mmap'd the parent's shm fd with MAP_SHARED, so the writes
     // above are already visible in the parent's mapping. Nothing to flush.
     #[cfg(target_os = "macos")]
     {
-        let _ = (out_entries_offset, code_base_offset, code_cursor);
+        let _ = (
+            out_entries_offset,
+            code_base_offset,
+            code_cursor,
+            reloc_region_start,
+            reloc_cursor,
+        );
     }
 
     Ok(())

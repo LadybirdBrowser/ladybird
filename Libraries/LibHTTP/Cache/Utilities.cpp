@@ -117,6 +117,8 @@ static constexpr StringView cache_entry_associated_data_suffix(CacheEntryAssocia
     switch (associated_data) {
     case CacheEntryAssociatedData::JavaScriptBytecode:
         return "jsbc"sv;
+    case CacheEntryAssociatedData::WebAssemblyCompiledCode:
+        return "wasmjit"sv;
     }
     VERIFY_NOT_REACHED();
 }

@@ -269,7 +269,38 @@ ErrorOr<void, ValidationError> Validator::validate(TableSection const& section)
 
 ErrorOr<void, ValidationError> Validator::validate(CodeSection const& section)
 {
-    ScopeGuard flush_batch = [] { flush_cranelift_batch(); };
+    bool installing = false;
+    bool capturing = false;
+    bool validation_succeeded = false;
+
+    if (m_cache_config.has_value()) {
+        auto hash = ReadonlyBytes { m_cache_config->wasm_hash.data(), 32 };
+        if (!m_cache_config->existing_blob.is_empty())
+            installing = try_install_cranelift_cache_blob(hash, m_cache_config->existing_blob);
+        if (!installing && m_cache_config->on_compiled) {
+            begin_cranelift_cache_capture();
+            capturing = true;
+        }
+    }
+
+    ScopeGuard cleanup = [&] {
+        flush_cranelift_batch();
+        if (installing)
+            abort_cranelift_cache_install();
+        if (capturing) {
+            if (validation_succeeded) {
+                auto hash = ReadonlyBytes { m_cache_config->wasm_hash.data(), 32 };
+                if (auto blob = serialize_cranelift_cache_blob(hash); blob.has_value() && m_cache_config->on_compiled) {
+                    m_cache_config->on_compiled(blob.release_value());
+                } else {
+                    abort_cranelift_cache_capture();
+                }
+            } else {
+                abort_cranelift_cache_capture();
+            }
+        }
+        set_cranelift_active_function_index(NumericLimits<u32>::max());
+    };
 
     size_t index = m_context.imported_function_count;
     for (auto& entry : section.functions()) {
@@ -291,6 +322,8 @@ ErrorOr<void, ValidationError> Validator::validate(CodeSection const& section)
         function_validator.m_frames.empend(function_type, FrameKind::Function, (size_t)0);
         function_validator.m_max_frame_size = max(function_validator.m_max_frame_size, function_validator.m_frames.size());
 
+        set_cranelift_active_function_index(static_cast<u32>(function_index));
+
         auto results = TRY(function_validator.validate(function.body(), function_type.results()));
         if (results.result_types.size() != function_type.results().size())
             return Errors::invalid("function result"sv, function_type.results(), results.result_types);
@@ -309,6 +342,7 @@ ErrorOr<void, ValidationError> Validator::validate(CodeSection const& section)
         }
     }
 
+    validation_succeeded = true;
     return {};
 }
 

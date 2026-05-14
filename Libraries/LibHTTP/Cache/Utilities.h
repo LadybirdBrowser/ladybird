@@ -26,8 +26,12 @@ constexpr inline u64 DEFAULT_MAXIMUM_DISK_CACHE_SIZE = 5 * GiB;
 
 enum class CacheEntryAssociatedData {
     JavaScriptBytecode,
+    WebAssemblyCompiledCode,
 };
-constexpr inline Array CACHE_ENTRY_ASSOCIATED_DATA_TYPES { CacheEntryAssociatedData::JavaScriptBytecode };
+constexpr inline Array CACHE_ENTRY_ASSOCIATED_DATA_TYPES {
+    CacheEntryAssociatedData::JavaScriptBytecode,
+    CacheEntryAssociatedData::WebAssemblyCompiledCode,
+};
 
 u64 compute_maximum_disk_cache_size(u64 free_bytes, u64 limit_maximum_disk_cache_size = DEFAULT_MAXIMUM_DISK_CACHE_SIZE);
 u64 compute_maximum_disk_cache_entry_size(u64 maximum_disk_cache_size);
