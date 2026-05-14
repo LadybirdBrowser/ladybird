@@ -169,7 +169,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     bool force_fontconfig = false;
     bool collect_garbage_on_every_allocation = false;
     bool disable_scrollbar_painting = false;
-    bool enable_async_scrolling = false;
+    bool disable_async_scrolling = false;
     bool file_scheme_urls_have_tuple_origins = false;
     Optional<u64> style_invalidation_counter_dump_interval;
 
@@ -241,7 +241,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(force_fontconfig, "Force using fontconfig for font loading", "force-fontconfig");
     args_parser.add_option(collect_garbage_on_every_allocation, "Collect garbage after every JS heap allocation", "collect-garbage-on-every-allocation", 'g');
     args_parser.add_option(disable_scrollbar_painting, "Don't paint horizontal or vertical scrollbars on the main viewport", "disable-scrollbar-painting");
-    args_parser.add_option(enable_async_scrolling, "Enable experimental async scrolling", "enable-async-scrolling");
+    args_parser.add_option(disable_async_scrolling, "Disable async scrolling", "disable-async-scrolling");
     args_parser.add_option(dns_server_address, "Set the DNS server address", "dns-server", 0, "host|address");
     args_parser.add_option(dns_server_port, "Set the DNS server port", "dns-port", 0, "port (default: 53 or 853 if --dot)");
     args_parser.add_option(use_dns_over_tls, "Use DNS over TLS", "dot");
@@ -369,7 +369,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .enable_autoplay = enable_autoplay ? EnableAutoplay::Yes : EnableAutoplay::No,
         .collect_garbage_on_every_allocation = collect_garbage_on_every_allocation ? CollectGarbageOnEveryAllocation::Yes : CollectGarbageOnEveryAllocation::No,
         .paint_viewport_scrollbars = disable_scrollbar_painting ? PaintViewportScrollbars::No : PaintViewportScrollbars::Yes,
-        .enable_async_scrolling = enable_async_scrolling ? EnableAsyncScrolling::Yes : EnableAsyncScrolling::No,
+        .enable_async_scrolling = disable_async_scrolling ? EnableAsyncScrolling::No : EnableAsyncScrolling::Yes,
         .file_scheme_urls_have_tuple_origins = file_scheme_urls_have_tuple_origins ? FileSchemeUrlsHaveTupleOrigins::Yes : FileSchemeUrlsHaveTupleOrigins::No,
         .default_time_zone = default_time_zone,
         .style_invalidation_counter_dump_interval = style_invalidation_counter_dump_interval,
