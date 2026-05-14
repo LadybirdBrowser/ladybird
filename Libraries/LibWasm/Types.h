@@ -10,6 +10,8 @@
 #include <AK/ByteString.h>
 #include <AK/DistinctNumeric.h>
 #include <AK/LEB128.h>
+#include <AK/NumericLimits.h>
+#include <AK/Optional.h>
 #include <AK/Result.h>
 #include <AK/String.h>
 #include <AK/UFixedBigInt.h>
@@ -80,6 +82,26 @@ AK_TYPEDEF_DISTINCT_ORDERED_ID(u32, GlobalIndex);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(u32, LabelIndex);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(u32, DataIndex);
 AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(u32, InstructionPointer, Arithmetic, Comparison, Flags, Increment);
+
+}
+
+namespace AK {
+
+template<>
+struct SentinelOptionalTraits<Wasm::InstructionPointer> {
+    static constexpr Wasm::InstructionPointer sentinel_value() { return { NumericLimits<Wasm::InstructionPointer::Type>::max() }; }
+    static constexpr bool is_sentinel(Wasm::InstructionPointer const& value) { return value.value() == NumericLimits<Wasm::InstructionPointer::Type>::max(); }
+};
+
+template<>
+class Optional<Wasm::InstructionPointer> : public SentinelOptional<Wasm::InstructionPointer> {
+public:
+    using SentinelOptional::SentinelOptional;
+};
+
+}
+
+namespace Wasm {
 
 constexpr static inline auto LocalArgumentMarker = static_cast<LocalIndex::Type>(1) << (sizeof(LocalIndex::Type) * 8 - 1);
 
@@ -689,6 +711,30 @@ private:
         u8> // Empty state
         m_arguments;
 };
+
+}
+
+namespace AK {
+
+template<>
+struct SentinelOptionalTraits<Wasm::Instruction> {
+    static Wasm::Instruction sentinel_value() { return Wasm::Instruction { Wasm::OpCode { NumericLimits<Wasm::OpCode::Type>::max() } }; }
+    static bool is_sentinel(Wasm::Instruction const& value) { return value.opcode().value() == NumericLimits<Wasm::OpCode::Type>::max(); }
+};
+
+template<>
+class Optional<Wasm::Instruction> : public SentinelOptional<Wasm::Instruction> {
+public:
+    using SentinelOptional::SentinelOptional;
+};
+
+}
+
+namespace Wasm {
+
+static_assert(sizeof(Optional<Instruction>) == sizeof(Instruction));
+
+static_assert(sizeof(Optional<InstructionPointer>) == sizeof(InstructionPointer));
 
 struct Dispatch {
     enum RegisterOrStack : u8 {
