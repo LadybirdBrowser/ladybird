@@ -10,7 +10,6 @@
 #include <LibJS/SyntheticModule.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/Scripting/Script.h>
-#include <LibWeb/WebAssembly/WebAssemblyModule.h>
 
 namespace JS::FFI {
 

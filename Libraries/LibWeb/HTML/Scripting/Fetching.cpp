@@ -41,6 +41,7 @@
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/MimeSniff/MimeType.h>
+#include <LibWeb/WebAssembly/WebAssemblyModule.h>
 
 namespace Web::HTML {
 
