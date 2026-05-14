@@ -19,8 +19,8 @@ void AsyncScrollTree::set_state(AsyncScrollingState&& state)
     m_main_thread_wheel_event_regions = move(state.main_thread_wheel_event_regions);
     m_blocking_wheel_event_regions = move(state.blocking_wheel_event_regions);
     m_has_blocking_wheel_event_region_covering_viewport = state.has_blocking_wheel_event_region_covering_viewport;
-    m_wheel_hit_test_targets.clear();
-    m_main_thread_wheel_event_targets.clear();
+    m_cached_wheel_hit_test_targets.clear();
+    m_cached_main_thread_wheel_event_targets.clear();
     m_cached_blocking_wheel_event_targets.clear();
     m_visual_context_tree = nullptr;
 }
@@ -270,8 +270,8 @@ Vector<AsyncScrollOffset> AsyncScrollTree::apply_scroll_delta(AsyncScrollNodeID 
 
 void AsyncScrollTree::rebuild_wheel_hit_test_targets(RefPtr<Painting::DisplayList> const& display_list, Painting::ScrollStateSnapshot const& scroll_state_snapshot)
 {
-    m_wheel_hit_test_targets.clear();
-    m_main_thread_wheel_event_targets.clear();
+    m_cached_wheel_hit_test_targets.clear();
+    m_cached_main_thread_wheel_event_targets.clear();
     m_cached_blocking_wheel_event_targets.clear();
     m_visual_context_tree = nullptr;
     m_scroll_state_snapshot = scroll_state_snapshot;
@@ -281,9 +281,9 @@ void AsyncScrollTree::rebuild_wheel_hit_test_targets(RefPtr<Painting::DisplayLis
     auto const& visual_context_tree = display_list->visual_context_tree();
     m_visual_context_tree = &visual_context_tree;
 
-    m_wheel_hit_test_targets.ensure_capacity(m_wheel_hit_test_regions.size());
+    m_cached_wheel_hit_test_targets.ensure_capacity(m_wheel_hit_test_regions.size());
     for (auto const& target : m_wheel_hit_test_regions) {
-        m_wheel_hit_test_targets.append({
+        m_cached_wheel_hit_test_targets.append({
             .target_node_id = target.target_node_id,
             .visual_context_index = target.visual_context_index,
             .rect = target.rect,
@@ -292,9 +292,9 @@ void AsyncScrollTree::rebuild_wheel_hit_test_targets(RefPtr<Painting::DisplayLis
         });
     }
 
-    m_main_thread_wheel_event_targets.ensure_capacity(m_main_thread_wheel_event_regions.size());
+    m_cached_main_thread_wheel_event_targets.ensure_capacity(m_main_thread_wheel_event_regions.size());
     for (auto const& region : m_main_thread_wheel_event_regions) {
-        m_main_thread_wheel_event_targets.append({
+        m_cached_main_thread_wheel_event_targets.append({
             .visual_context_index = region.visual_context_index,
             .rect = region.rect,
             .viewport_rect = visual_context_tree.transform_rect_to_viewport(region.visual_context_index, region.rect, scroll_state_snapshot),
@@ -312,8 +312,8 @@ void AsyncScrollTree::rebuild_wheel_hit_test_targets(RefPtr<Painting::DisplayLis
 
 void AsyncScrollTree::clear_wheel_hit_test_targets()
 {
-    m_wheel_hit_test_targets.clear();
-    m_main_thread_wheel_event_targets.clear();
+    m_cached_wheel_hit_test_targets.clear();
+    m_cached_main_thread_wheel_event_targets.clear();
     m_cached_blocking_wheel_event_targets.clear();
     m_visual_context_tree = nullptr;
 }
@@ -358,7 +358,7 @@ WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Gfx::FloatPoi
     if (m_has_blocking_wheel_event_region_covering_viewport)
         return { {}, false, true };
 
-    for (auto const& target : m_main_thread_wheel_event_targets) {
+    for (auto const& target : m_cached_main_thread_wheel_event_targets) {
         if (!target.viewport_rect.contains(position))
             continue;
 
@@ -376,7 +376,7 @@ WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Gfx::FloatPoi
             return { {}, false, true };
     }
 
-    for (auto const& target : m_wheel_hit_test_targets.in_reverse()) {
+    for (auto const& target : m_cached_wheel_hit_test_targets.in_reverse()) {
         if (!target.viewport_rect.contains(position))
             continue;
 

@@ -32,7 +32,7 @@ struct CachedWheelHitTestTarget {
     Gfx::FloatRect viewport_rect;
 };
 
-struct MainThreadWheelEventTarget {
+struct CachedMainThreadWheelEventTarget {
     Painting::VisualContextIndex visual_context_index;
     Gfx::FloatRect rect;
     Gfx::FloatRect viewport_rect;
@@ -82,9 +82,9 @@ private:
     Vector<AsyncStickyArea> m_sticky_areas;
     Vector<WheelHitTestTarget> m_wheel_hit_test_regions;
     Vector<MainThreadWheelEventRegion> m_main_thread_wheel_event_regions;
-    Vector<CachedWheelHitTestTarget> m_wheel_hit_test_targets;
+    Vector<CachedWheelHitTestTarget> m_cached_wheel_hit_test_targets;
     Vector<BlockingWheelEventRegion> m_blocking_wheel_event_regions;
-    Vector<MainThreadWheelEventTarget> m_main_thread_wheel_event_targets;
+    Vector<CachedMainThreadWheelEventTarget> m_cached_main_thread_wheel_event_targets;
     Vector<CachedBlockingWheelEventTarget> m_cached_blocking_wheel_event_targets;
     RefPtr<Painting::AccumulatedVisualContextTree const> m_visual_context_tree;
     Painting::ScrollStateSnapshot m_scroll_state_snapshot;
