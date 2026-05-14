@@ -17,16 +17,12 @@
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibJS/Runtime/DescriptorArray.h>
 #include <LibJS/Runtime/PropertyAttributes.h>
 #include <LibJS/Runtime/PropertyKey.h>
 #include <LibJS/Runtime/Value.h>
 
 namespace JS {
-
-struct PropertyMetadata {
-    u32 offset { 0 };
-    PropertyAttributes attributes { 0 };
-};
 
 struct TransitionKey {
     PropertyKey property_key;
@@ -102,7 +98,7 @@ public:
     Object const* prototype() const { return m_prototype; }
 
     Optional<PropertyMetadata> lookup(PropertyKey const&) const;
-    OrderedHashMap<PropertyKey, PropertyMetadata> const& property_table() const;
+    void for_each_property_in_insertion_order(Function<void(PropertyKey const&, PropertyMetadata const&)> const&) const;
     u32 property_count() const { return m_property_count; }
 
     void set_prototype_without_transition(Object* new_prototype);
@@ -127,6 +123,9 @@ private:
     [[nodiscard]] GC::Ptr<Shape> get_or_prune_cached_delete_transition(PropertyKey const&);
 
     void ensure_property_table() const;
+    void ensure_descriptor_array();
+    [[nodiscard]] GC::Ref<DescriptorArray> copy_descriptors() const;
+    void copy_properties_to_dictionary_shape(Shape&) const;
 
     PropertyAttributes m_attributes { 0 };
     TransitionType m_transition_type { TransitionType::Invalid };
@@ -138,6 +137,7 @@ private:
     GC::Ref<Realm> m_realm;
 
     mutable OwnPtr<OrderedHashMap<PropertyKey, PropertyMetadata>> m_property_table;
+    GC::Ptr<DescriptorArray> m_descriptors;
 
     OwnPtr<HashMap<TransitionKey, GC::Weak<Shape>>> m_forward_transitions;
     OwnPtr<HashMap<GC::Ptr<Object>, GC::Weak<Shape>>> m_prototype_transitions;
@@ -152,11 +152,12 @@ private:
     OwnPtr<Vector<GC::Weak<Shape>>> m_child_prototype_shapes;
 
     u32 m_property_count { 0 };
+    u32 m_own_descriptor_count { 0 };
     u32 m_dictionary_generation { 0 };
 };
 
 #if !defined(AK_OS_WINDOWS)
-static_assert(sizeof(Shape) == 104, "Keep the size of JS::Shape down!");
+static_assert(sizeof(Shape) == 120, "Keep the size of JS::Shape down!");
 #endif
 
 }

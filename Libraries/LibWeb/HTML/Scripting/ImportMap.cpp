@@ -85,7 +85,11 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteStr
     }
 
     // 9. If parsed's keys contains any items besides "imports", "scopes", or "integrity", then the user agent should report a warning to the console indicating that an invalid top-level key was present in the import map.
-    for (auto& key : parsed_object.shape().property_table().keys()) {
+    Vector<JS::PropertyKey> parsed_keys;
+    parsed_object.shape().for_each_property_in_insertion_order([&](auto const& key, auto const&) {
+        parsed_keys.append(key);
+    });
+    for (auto& key : parsed_keys) {
         if (key.as_string().is_one_of("imports"sv, "scopes"sv, "integrity"sv))
             continue;
 
@@ -132,7 +136,11 @@ WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(
     ModuleSpecifierMap normalized;
 
     // 2. For each specifierKey → value of originalMap:
-    for (auto& specifier_key : original_map.shape().property_table().keys()) {
+    Vector<JS::PropertyKey> specifier_keys;
+    original_map.shape().for_each_property_in_insertion_order([&](auto const& specifier_key, auto const&) {
+        specifier_keys.append(specifier_key);
+    });
+    for (auto& specifier_key : specifier_keys) {
         auto value = TRY(original_map.get(specifier_key.as_string()));
 
         // 1. Let normalizedSpecifierKey be the result of normalizing a specifier key given specifierKey and baseURL.
@@ -200,7 +208,11 @@ WebIDL::ExceptionOr<HashMap<URL::URL, ModuleSpecifierMap>> sort_and_normalise_sc
     HashMap<URL::URL, ModuleSpecifierMap> normalized;
 
     // 2. For each scopePrefix → potentialSpecifierMap of originalMap:
-    for (auto& scope_prefix : original_map.shape().property_table().keys()) {
+    Vector<JS::PropertyKey> scope_prefixes;
+    original_map.shape().for_each_property_in_insertion_order([&](auto const& scope_prefix, auto const&) {
+        scope_prefixes.append(scope_prefix);
+    });
+    for (auto& scope_prefix : scope_prefixes) {
         auto potential_specifier_map = TRY(original_map.get(scope_prefix.as_string()));
 
         // 1. If potentialSpecifierMap is not an ordered map, then throw a TypeError indicating that the value of the scope with prefix scopePrefix needs to be a JSON object.
@@ -237,7 +249,11 @@ WebIDL::ExceptionOr<ModuleIntegrityMap> normalize_module_integrity_map(JS::Realm
     ModuleIntegrityMap normalized;
 
     // 2. For each key → value of originalMap:
-    for (auto& key : original_map.shape().property_table().keys()) {
+    Vector<JS::PropertyKey> keys;
+    original_map.shape().for_each_property_in_insertion_order([&](auto const& key, auto const&) {
+        keys.append(key);
+    });
+    for (auto& key : keys) {
         auto value = TRY(original_map.get(key.as_string()));
 
         // 1. Let resolvedURL be the result of resolving a URL-like module specifier given key and baseURL.

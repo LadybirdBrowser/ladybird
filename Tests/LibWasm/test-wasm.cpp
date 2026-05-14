@@ -174,15 +174,15 @@ TESTJS_GLOBAL_FUNCTION(parse_webassembly_module, parseWebAssemblyModule)
     HashMap<Wasm::Linker::Name, Wasm::ExternValue> imports;
     auto import_value = vm.argument(1);
     if (auto import_object = import_value.template as_if<JS::Object>()) {
-        for (auto const& property : import_object->shape().property_table()) {
-            auto module_object = import_object->get_without_side_effects(property.key).as_if<WebAssemblyModule>();
+        import_object->shape().for_each_property_in_insertion_order([&](auto const& property_key, auto const&) {
+            auto module_object = import_object->get_without_side_effects(property_key).template as_if<WebAssemblyModule>();
             if (!module_object)
-                continue;
+                return;
             for (auto& entry : module_object->module_instance().exports()) {
                 // FIXME: Don't pretend that everything is a function
-                imports.set({ property.key.as_string().to_utf16_string().to_byte_string(), entry.name(), Wasm::TypeIndex(0) }, entry.value());
+                imports.set({ property_key.as_string().to_utf16_string().to_byte_string(), entry.name(), Wasm::TypeIndex(0) }, entry.value());
             }
-        }
+        });
     }
 
     return JS::Value(TRY(WebAssemblyModule::create(realm, result.release_value(), imports)));

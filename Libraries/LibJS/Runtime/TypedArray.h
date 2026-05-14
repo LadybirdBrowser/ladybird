@@ -477,20 +477,20 @@ public:
         }
 
         // 4. For each own property key P of O such that P is a String and P is not an integer index, in ascending chronological order of property creation, do
-        for (auto& it : shape().property_table()) {
-            if (it.key.is_string()) {
+        shape().for_each_property_in_insertion_order([&](auto const& property_key, auto const&) {
+            if (property_key.is_string()) {
                 // a. Append P to keys.
-                keys.append(it.key.to_value(vm));
+                keys.append(property_key.to_value(vm));
             }
-        }
+        });
 
         // 5. For each own property key P of O such that P is a Symbol, in ascending chronological order of property creation, do
-        for (auto& it : shape().property_table()) {
-            if (it.key.is_symbol()) {
+        shape().for_each_property_in_insertion_order([&](auto const& property_key, auto const&) {
+            if (property_key.is_symbol()) {
                 // a. Append P to keys.
-                keys.append(it.key.to_value(vm));
+                keys.append(property_key.to_value(vm));
             }
-        }
+        });
 
         // 6. Return keys.
         return { move(keys) };

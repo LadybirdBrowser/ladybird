@@ -1447,11 +1447,12 @@ struct FastPropertyNameIteratorData {
 
 static bool shape_has_enumerable_string_property(Shape const& shape)
 {
-    for (auto const& [property_key, metadata] : shape.property_table()) {
+    bool has_enumerable_string_property = false;
+    shape.for_each_property_in_insertion_order([&](auto const& property_key, auto const& metadata) {
         if (property_key.is_string() && metadata.attributes.is_enumerable())
-            return true;
-    }
-    return false;
+            has_enumerable_string_property = true;
+    });
+    return has_enumerable_string_property;
 }
 
 static bool property_name_iterator_fast_path_is_still_eligible(Object& object, PropertyNameIterator::FastPath fast_path, u32 indexed_property_count)
@@ -1550,10 +1551,10 @@ static ThrowCompletionOr<Optional<FastPropertyNameIteratorData>> try_get_fast_pr
         // Common case: only the receiver contributes enumerable string keys, so
         // we can copy them straight from the shape without any shadowing work.
         result.properties.ensure_capacity(object.shape().property_count());
-        for (auto const& [property_key, metadata] : object.shape().property_table()) {
+        object.shape().for_each_property_in_insertion_order([&](auto const& property_key, auto const& metadata) {
             if (property_key.is_string() && metadata.attributes.is_enumerable())
                 result.properties.append(property_key);
-        }
+        });
         return result;
     }
 
@@ -1583,25 +1584,25 @@ static ThrowCompletionOr<Optional<FastPropertyNameIteratorData>> try_get_fast_pr
         if (object_to_check->has_magical_length_property())
             seen_non_enumerable_properties.set(vm.names.length);
 
-        for (auto const& [property_key, metadata] : object_to_check->shape().property_table()) {
+        object_to_check->shape().for_each_property_in_insertion_order([&](auto const& property_key, auto const& metadata) {
             if (!property_key.is_string())
-                continue;
+                return;
 
             bool enumerable = metadata.attributes.is_enumerable();
             if (!enumerable)
                 seen_non_enumerable_properties.set(property_key);
             if (in_prototype_chain && enumerable) {
                 if (seen_non_enumerable_properties.contains(property_key))
-                    continue;
+                    return;
                 ensure_seen_properties();
                 if (seen_properties->contains(property_key))
-                    continue;
+                    return;
             }
             if (enumerable)
                 result.properties.append(property_key);
             if (seen_properties.has_value())
                 seen_properties->set(property_key);
-        }
+        });
         in_prototype_chain = true;
     }
 

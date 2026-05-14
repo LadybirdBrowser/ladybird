@@ -69,6 +69,7 @@ set(SOURCES
     Runtime/DataView.cpp
     Runtime/DataViewConstructor.cpp
     Runtime/DataViewPrototype.cpp
+    Runtime/DescriptorArray.cpp
     Runtime/Date.cpp
     Runtime/DateConstructor.cpp
     Runtime/DatePrototype.cpp
