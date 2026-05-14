@@ -328,7 +328,7 @@ ExceptionInstance* Store::get(ExceptionAddress address)
     return &m_exceptions[value];
 }
 
-ErrorOr<void, ValidationError> AbstractMachine::validate(Module& module)
+ErrorOr<void, ValidationError> AbstractMachine::validate(Module& module, Optional<CompileCacheConfig> cache_config)
 {
     if (module.validation_status() != Module::ValidationStatus::Unchecked) {
         if (module.validation_status() == Module::ValidationStatus::Valid)
@@ -337,7 +337,10 @@ ErrorOr<void, ValidationError> AbstractMachine::validate(Module& module)
         return ValidationError { module.validation_error() };
     }
 
-    auto result = Validator {}.validate(module);
+    Validator validator;
+    if (cache_config.has_value())
+        validator.set_cache_config(cache_config.release_value());
+    auto result = validator.validate(module);
     if (result.is_error()) {
         module.set_validation_error(result.error().error_string);
         return result.release_error();

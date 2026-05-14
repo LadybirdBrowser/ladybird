@@ -40,6 +40,7 @@ struct InputHeader {
     u32 helpers_offset;
     u64 outcome_return;
     u64 code_region_start;
+    u64 reloc_region_start;
     u64 total_size;
 };
 
@@ -53,6 +54,13 @@ struct OutputFunctionEntry {
     u64 code_offset;
     u32 code_size;
     u32 compiled;
+    // Offset (relative to the start of the reloc region) and count of `HelperReloc`
+    // entries describing the absolute helper addresses baked into this function's code.
+    // On cache install we walk these and rewrite the 8 bytes at code+code_offset+offset
+    // with the live address of helper N for the current process.
+    u64 reloc_offset;
+    u32 reloc_count;
+    u32 _pad;
 };
 
 struct CodeMapping {
@@ -62,6 +70,8 @@ struct CodeMapping {
 
 static constexpr size_t oop_code_region_min_size = 256 * KiB;
 static constexpr size_t oop_code_bytes_per_insn = 256;
+static constexpr size_t oop_reloc_region_min_size = 64 * KiB;
+static constexpr size_t oop_reloc_bytes_per_insn = 128;
 
 static size_t align_up(size_t value, size_t alignment)
 {
@@ -73,8 +83,172 @@ static size_t align_up(size_t value, size_t alignment)
 struct BatchInput {
     Vector<CraneliftInsn> insns;
     u32 result_arity;
+    u32 function_index;
     CompiledInstructions* target;
 };
+
+// Disk-cache blob format. Stable: cached files name format_version + layout_hash so
+// any rebuild that changes those will simply miss the cache rather than try to
+// execute incompatible bytes.
+constexpr u64 cache_blob_magic = 0x4354494A4D534157ULL; // "WASMJITC" little-endian
+constexpr u32 cache_blob_format_version = 1;
+
+struct CacheBlobHeader {
+    u64 magic;
+    u32 format_version;
+    u32 helper_count;
+    u64 layout_hash;
+    u8 wasm_hash[32];
+    u32 function_count;
+    u32 _pad;
+};
+static_assert(sizeof(CacheBlobHeader) == 64);
+
+struct CacheBlobFunctionEntry {
+    u32 function_index;
+    u32 code_size;
+    u32 reloc_count;
+    u32 _pad;
+};
+static_assert(sizeof(CacheBlobFunctionEntry) == 16);
+
+struct CacheRecord {
+    u32 function_index;
+    ByteBuffer unpatched_code;
+    Vector<HelperReloc> relocs;
+};
+
+// On a cache miss we capture every successful compile so we can hand the blob to a
+// store callback after validation finishes. On a cache hit we populate the install
+// map up front; the per-function lookup happens inside try_cranelift_compile when
+// the dispatch table for that function has just been built and is ready to receive
+// a handler_ptr.
+struct CacheCaptureState {
+    bool capturing { false };
+    Vector<CacheRecord> records;
+};
+struct PendingInstallState {
+    bool active { false };
+    HashMap<u32, CacheRecord> records;
+};
+struct CacheState {
+    CacheCaptureState cache_capture;
+    PendingInstallState pending_install;
+    Vector<BatchInput> pending_batch;
+};
+
+static CacheState s_cranelift_cache_state;
+static thread_local u32 s_active_function_index = NumericLimits<u32>::max();
+
+static u64 compute_layout_hash(RuntimeHelpers const& h)
+{
+    auto fnv1a = [](u64 hash, u64 value) {
+        for (int i = 0; i < 8; ++i) {
+            hash ^= (value >> (i * 8)) & 0xff;
+            hash *= 0x100000001b3ULL;
+        }
+        return hash;
+    };
+    u64 hash = 0xcbf29ce484222325ULL;
+    hash = fnv1a(hash, h.regs_offset);
+    hash = fnv1a(hash, h.value_size);
+    hash = fnv1a(hash, h.locals_base_offset);
+    hash = fnv1a(hash, h.default_memory_base_offset);
+    hash = fnv1a(hash, h.compiled_call_result_scratch_offset);
+    return hash;
+}
+
+// `HelperId` values are assigned in lockstep with the field order of `RuntimeHelpers`,
+// so the helper address for id N is simply the N-th `size_t` field of the struct.
+static_assert(offsetof(RuntimeHelpers, call_function) == 0);
+static_assert(offsetof(RuntimeHelpers, memory_fill) == sizeof(size_t) * 30);
+static_assert(HELPER_COUNT == 31);
+
+static bool apply_helper_relocs(u8* code_bytes, size_t code_size, HelperReloc const* relocs, size_t reloc_count, RuntimeHelpers const& helpers)
+{
+    auto const* helper_table = reinterpret_cast<size_t const*>(&helpers);
+    for (size_t i = 0; i < reloc_count; ++i) {
+        auto const& r = relocs[i];
+        if (r.helper_id >= HELPER_COUNT)
+            return false;
+        if (static_cast<size_t>(r.code_offset) + sizeof(u64) > code_size)
+            return false;
+        u64 addr = static_cast<u64>(helper_table[r.helper_id]) + static_cast<u64>(r.addend);
+        __builtin_memcpy(code_bytes + r.code_offset, &addr, sizeof(addr));
+    }
+    return true;
+}
+
+// Allocate an RX-able page, copy the (still unpatched) machine code into it, apply the
+// helper-address patches, and install the resulting function pointer into `target`.
+// Used by both the fresh-compile path (bytes come from the subprocess shm) and the
+// cache-install path (bytes come from a `.wasmjit` blob).
+static bool install_compiled_function(CompiledInstructions& target, ReadonlyBytes code_bytes, HelperReloc const* relocs, size_t reloc_count, RuntimeHelpers const& helpers)
+{
+    if (target.dispatches.is_empty())
+        return false;
+
+    auto const code_size = code_bytes.size();
+    if (code_size == 0)
+        return false;
+
+#if defined(AK_OS_WINDOWS)
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    auto const page_size = static_cast<size_t>(si.dwPageSize);
+    auto const rx_aligned_size = (code_size + page_size - 1) & ~(page_size - 1);
+    auto* jit_mem = VirtualAlloc(nullptr, rx_aligned_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    if (!jit_mem)
+        return false;
+    __builtin_memcpy(jit_mem, code_bytes.data(), code_size);
+    if (!apply_helper_relocs(static_cast<u8*>(jit_mem), code_size, relocs, reloc_count, helpers)) {
+        VirtualFree(jit_mem, 0, MEM_RELEASE);
+        return false;
+    }
+    DWORD old_protect;
+    VirtualProtect(jit_mem, rx_aligned_size, PAGE_EXECUTE_READ, &old_protect);
+    FlushInstructionCache(GetCurrentProcess(), jit_mem, code_size);
+    auto* func_ptr = static_cast<u8 const*>(jit_mem);
+    auto* handle = new CodeMapping { jit_mem, rx_aligned_size };
+#elif defined(AK_OS_MACOS)
+    auto const page_size = static_cast<size_t>(sysconf(_SC_PAGESIZE));
+    auto const rx_aligned_size = (code_size + page_size - 1) & ~(page_size - 1);
+    auto* jit_mapping = mmap(nullptr, rx_aligned_size, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANON | MAP_JIT, -1, 0);
+    if (jit_mapping == MAP_FAILED)
+        return false;
+
+    pthread_jit_write_protect_np(0);
+    __builtin_memcpy(jit_mapping, code_bytes.data(), code_size);
+    if (!apply_helper_relocs(static_cast<u8*>(jit_mapping), code_size, relocs, reloc_count, helpers)) {
+        munmap(jit_mapping, rx_aligned_size);
+        return false;
+    }
+    pthread_jit_write_protect_np(1);
+    sys_icache_invalidate(jit_mapping, code_size);
+    auto* func_ptr = static_cast<u8 const*>(jit_mapping);
+    auto* handle = new CodeMapping { jit_mapping, rx_aligned_size };
+#else
+    auto const page_size = static_cast<size_t>(sysconf(_SC_PAGESIZE));
+    auto const rx_aligned_size = (code_size + page_size - 1) & ~(page_size - 1);
+    auto* rw_mapping = mmap(nullptr, rx_aligned_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+    if (rw_mapping == MAP_FAILED)
+        return false;
+    __builtin_memcpy(rw_mapping, code_bytes.data(), code_size);
+    if (!apply_helper_relocs(static_cast<u8*>(rw_mapping), code_size, relocs, reloc_count, helpers) || mprotect(rw_mapping, rx_aligned_size, PROT_READ | PROT_EXEC) != 0) {
+        munmap(rw_mapping, rx_aligned_size);
+        return false;
+    }
+    __builtin___clear_cache(static_cast<char*>(rw_mapping), static_cast<char*>(rw_mapping) + code_size);
+    auto* func_ptr = static_cast<u8 const*>(rw_mapping);
+    auto* handle = new CodeMapping { rw_mapping, rx_aligned_size };
+#endif
+
+    target.dispatches[0].handler_ptr = bit_cast<FlatPtr>(func_ptr);
+    target.cranelift_code_handle = handle;
+    target.cranelift_code_size = code_size;
+    target.cranelift_compiled = true;
+    return true;
+}
 
 }
 
@@ -887,7 +1061,9 @@ static void try_cranelift_compile_batch(Vector<BatchInput>& batch)
     auto const helpers_offset = align_up(insn_region_offset + insn_bytes, alignof(RuntimeHelpers));
     auto const code_region_start = align_up(helpers_offset + sizeof(RuntimeHelpers), alignof(OutputFunctionEntry));
     auto const code_region_size = max(oop_code_region_min_size, total_insn_count * oop_code_bytes_per_insn);
-    auto const total_size = code_region_start + sizeof(OutputFunctionEntry) * function_count + code_region_size;
+    auto const reloc_region_start = align_up(code_region_start + sizeof(OutputFunctionEntry) * function_count + code_region_size, alignof(HelperReloc));
+    auto const reloc_region_size = max(oop_reloc_region_min_size, total_insn_count * oop_reloc_bytes_per_insn);
+    auto const total_size = reloc_region_start + reloc_region_size;
 
 #if defined(AK_OS_WINDOWS)
     DWORD size_hi = static_cast<DWORD>(static_cast<u64>(total_size) >> 32);
@@ -947,6 +1123,7 @@ static void try_cranelift_compile_batch(Vector<BatchInput>& batch)
         .helpers_offset = static_cast<u32>(helpers_offset),
         .outcome_return = outcome_return,
         .code_region_start = code_region_start,
+        .reloc_region_start = reloc_region_start,
         .total_size = total_size,
     };
 
@@ -997,60 +1174,33 @@ static void try_cranelift_compile_batch(Vector<BatchInput>& batch)
         if (code_start + code_size > total_size)
             continue;
 
-#if defined(AK_OS_WINDOWS)
-        SYSTEM_INFO si;
-        GetSystemInfo(&si);
-        auto const page_size = static_cast<size_t>(si.dwPageSize);
-        auto const rx_aligned_size = (code_size + page_size - 1) & ~(page_size - 1);
-        auto* jit_mem = VirtualAlloc(nullptr, rx_aligned_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-        if (!jit_mem)
-            continue;
-        __builtin_memcpy(jit_mem, base + code_start, code_size);
-        DWORD old_protect;
-        VirtualProtect(jit_mem, rx_aligned_size, PAGE_EXECUTE_READ, &old_protect);
-        FlushInstructionCache(GetCurrentProcess(), jit_mem, code_size);
-
-        auto* func_ptr = static_cast<u8 const*>(jit_mem);
-        auto* handle = new CodeMapping { jit_mem, rx_aligned_size };
-#elif defined(AK_OS_MACOS)
-        // We can't pull the map-as-rx/rw-across-processes trick on macos, so just do MAP_JIT with the typical jit mapping dance.
-        auto const page_size = static_cast<size_t>(sysconf(_SC_PAGESIZE));
-        auto const rx_aligned_size = (code_size + page_size - 1) & ~(page_size - 1);
-        auto* jit_mapping = mmap(nullptr, rx_aligned_size, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANON | MAP_JIT, -1, 0);
-        if (jit_mapping == MAP_FAILED)
+        auto const reloc_offset = static_cast<size_t>(output->reloc_offset);
+        auto const reloc_count = static_cast<size_t>(output->reloc_count);
+        auto const reloc_bytes = reloc_count * sizeof(HelperReloc);
+        if (reloc_region_start + reloc_offset + reloc_bytes > total_size)
             continue;
 
-        pthread_jit_write_protect_np(0);
-        __builtin_memcpy(jit_mapping, base + code_start, code_size);
-        pthread_jit_write_protect_np(1);
-        sys_icache_invalidate(jit_mapping, code_size);
+        auto code_bytes = ReadonlyBytes { base + code_start, code_size };
+        auto const* relocs = reloc_count == 0
+            ? nullptr
+            : reinterpret_cast<HelperReloc const*>(base + reloc_region_start + reloc_offset);
 
-        auto* func_ptr = static_cast<u8 const*>(jit_mapping);
-        auto* handle = new CodeMapping { jit_mapping, rx_aligned_size };
-#else
-        auto const page_size = static_cast<size_t>(sysconf(_SC_PAGESIZE));
-        auto const page_aligned_offset = code_start & ~(page_size - 1);
-        auto const offset_within_page = code_start - page_aligned_offset;
-        auto const rx_map_size = offset_within_page + code_size;
-        auto const rx_aligned_size = (rx_map_size + page_size - 1) & ~(page_size - 1);
+        auto& capture = s_cranelift_cache_state.cache_capture;
+        if (capture.capturing && batch[i].function_index != NumericLimits<u32>::max()) {
+            if (auto copy = ByteBuffer::copy(code_bytes.data(), code_bytes.size()); !copy.is_error()) {
+                CacheRecord rec;
+                rec.function_index = batch[i].function_index;
+                rec.unpatched_code = copy.release_value();
+                rec.relocs.ensure_capacity(reloc_count);
+                for (size_t j = 0; j < reloc_count; ++j)
+                    rec.relocs.unchecked_append(relocs[j]);
+                capture.records.append(move(rec));
+            }
+        }
 
-        auto* rx_mapping = mmap(nullptr, rx_aligned_size, PROT_READ | PROT_EXEC, MAP_PRIVATE, fd, static_cast<off_t>(page_aligned_offset));
-        if (rx_mapping == MAP_FAILED)
-            continue;
-
-        auto* func_ptr = static_cast<u8 const*>(rx_mapping) + offset_within_page;
-        auto* handle = new CodeMapping { rx_mapping, rx_aligned_size };
-#endif
-
-        auto& compiled = *batch[i].target;
-        compiled.dispatches[0].handler_ptr = bit_cast<FlatPtr>(func_ptr);
-        compiled.cranelift_code_handle = handle;
-        compiled.cranelift_code_size = code_size;
-        compiled.cranelift_compiled = true;
+        install_compiled_function(*batch[i].target, code_bytes, relocs, reloc_count, helpers);
     }
 }
-
-static Vector<BatchInput> s_pending_batch;
 
 bool try_cranelift_compile(CompiledInstructions& compiled, u32 result_arity)
 {
@@ -1064,6 +1214,29 @@ bool try_cranelift_compile(CompiledInstructions& compiled, u32 result_arity)
 
     if (dispatches.is_empty())
         return false;
+
+    // Already installed (either from a prior compile or a previous cache install in this
+    // same validation pass) -- nothing to do.
+    if (compiled.cranelift_compiled)
+        return true;
+
+    // Cache hit: install from the parsed blob instead of going through cranelift.
+    //            dispatches[] has just been populated by try_compile_instructions, so handler_ptr is ready to be set.
+    if (s_cranelift_cache_state.pending_install.active && s_active_function_index != NumericLimits<u32>::max()) {
+        auto record = s_cranelift_cache_state.pending_install.records.take(s_active_function_index);
+        if (record.has_value()) {
+            static auto cache_install_helpers = make_runtime_helpers();
+            if (install_compiled_function(
+                    compiled,
+                    record->unpatched_code.bytes(),
+                    record->relocs.is_empty() ? nullptr : record->relocs.data(),
+                    record->relocs.size(), cache_install_helpers)) {
+                return true;
+            }
+            // Put it back so we can try later.
+            s_cranelift_cache_state.pending_install.records.set(s_active_function_index, record.release_value());
+        }
+    }
 
     if constexpr (WASM_CRANELIFT_DEBUG) {
         // CRANELIFT_MAX_INSNS=N       skip functions with more than N dispatches.
@@ -1177,17 +1350,17 @@ bool try_cranelift_compile(CompiledInstructions& compiled, u32 result_arity)
         }
     }
 
-    s_pending_batch.append({ move(flat), result_arity, &compiled });
+    s_cranelift_cache_state.pending_batch.append({ move(flat), result_arity, s_active_function_index, &compiled });
     return false; // Not compiled yet, will be compiled in flush.
 #endif
 }
 
 void flush_cranelift_batch()
 {
-    if (s_pending_batch.is_empty())
+    if (s_cranelift_cache_state.pending_batch.is_empty())
         return;
-    try_cranelift_compile_batch(s_pending_batch);
-    s_pending_batch.clear();
+    try_cranelift_compile_batch(s_cranelift_cache_state.pending_batch);
+    s_cranelift_cache_state.pending_batch.clear();
 }
 
 void free_cranelift_code(void* handle)
@@ -1201,6 +1374,146 @@ void free_cranelift_code(void* handle)
 #endif
         delete mapping;
     }
+}
+
+void set_cranelift_active_function_index(u32 function_index)
+{
+    s_active_function_index = function_index;
+}
+
+void begin_cranelift_cache_capture()
+{
+    s_cranelift_cache_state.cache_capture.capturing = true;
+    s_cranelift_cache_state.cache_capture.records.clear();
+}
+
+void abort_cranelift_cache_capture()
+{
+    s_cranelift_cache_state.cache_capture.capturing = false;
+    s_cranelift_cache_state.cache_capture.records.clear();
+}
+
+void abort_cranelift_cache_install()
+{
+    s_cranelift_cache_state.pending_install.active = false;
+    s_cranelift_cache_state.pending_install.records.clear();
+}
+
+Optional<ByteBuffer> serialize_cranelift_cache_blob(ReadonlyBytes wasm_hash)
+{
+    ScopeGuard reset = [] {
+        s_cranelift_cache_state.cache_capture.capturing = false;
+        s_cranelift_cache_state.cache_capture.records.clear();
+    };
+
+    auto const& capture = s_cranelift_cache_state.cache_capture;
+
+    if (!capture.capturing || capture.records.is_empty())
+        return {};
+    if (wasm_hash.size() != 32)
+        return {};
+
+    static auto helpers = make_runtime_helpers();
+
+    size_t total_size = sizeof(CacheBlobHeader);
+    for (auto const& r : capture.records) {
+        total_size += sizeof(CacheBlobFunctionEntry);
+        total_size += align_up(r.unpatched_code.size(), 16);
+        total_size += r.relocs.size() * sizeof(HelperReloc);
+    }
+
+    auto blob_or_error = ByteBuffer::create_zeroed(total_size);
+    if (blob_or_error.is_error())
+        return {};
+    auto blob = blob_or_error.release_value();
+    auto* out = blob.data();
+
+    auto* header = reinterpret_cast<CacheBlobHeader*>(out);
+    header->magic = cache_blob_magic;
+    header->format_version = cache_blob_format_version;
+    header->helper_count = HELPER_COUNT;
+    header->layout_hash = compute_layout_hash(helpers);
+    __builtin_memcpy(header->wasm_hash, wasm_hash.data(), 32);
+    header->function_count = static_cast<u32>(capture.records.size());
+
+    size_t offset = sizeof(CacheBlobHeader);
+    for (auto const& r : capture.records) {
+        auto* entry = reinterpret_cast<CacheBlobFunctionEntry*>(out + offset);
+        entry->function_index = r.function_index;
+        entry->code_size = static_cast<u32>(r.unpatched_code.size());
+        entry->reloc_count = static_cast<u32>(r.relocs.size());
+        offset += sizeof(CacheBlobFunctionEntry);
+
+        __builtin_memcpy(out + offset, r.unpatched_code.data(), r.unpatched_code.size());
+        offset += align_up(r.unpatched_code.size(), 16);
+
+        auto reloc_bytes = r.relocs.size() * sizeof(HelperReloc);
+        if (reloc_bytes > 0)
+            __builtin_memcpy(out + offset, r.relocs.data(), reloc_bytes);
+        offset += reloc_bytes;
+    }
+
+    return blob;
+}
+
+bool try_install_cranelift_cache_blob(ReadonlyBytes expected_wasm_hash, ReadonlyBytes blob)
+{
+    abort_cranelift_cache_install();
+
+    if (expected_wasm_hash.size() != 32 || blob.size() < sizeof(CacheBlobHeader))
+        return false;
+
+    auto const* header = reinterpret_cast<CacheBlobHeader const*>(blob.data());
+    if (header->magic != cache_blob_magic)
+        return false;
+    if (header->format_version != cache_blob_format_version)
+        return false;
+    if (header->helper_count != HELPER_COUNT)
+        return false;
+    if (__builtin_memcmp(header->wasm_hash, expected_wasm_hash.data(), 32) != 0)
+        return false;
+
+    static auto helpers = make_runtime_helpers();
+    if (header->layout_hash != compute_layout_hash(helpers))
+        return false;
+
+    size_t offset = sizeof(CacheBlobHeader);
+    for (u32 i = 0; i < header->function_count; ++i) {
+        if (offset + sizeof(CacheBlobFunctionEntry) > blob.size())
+            return false;
+        auto const* entry = reinterpret_cast<CacheBlobFunctionEntry const*>(blob.data() + offset);
+        offset += sizeof(CacheBlobFunctionEntry);
+
+        auto code_off = offset;
+        auto aligned_code_size = align_up(entry->code_size, 16);
+        if (code_off + aligned_code_size > blob.size())
+            return false;
+        offset += aligned_code_size;
+
+        auto reloc_off = offset;
+        auto reloc_bytes = static_cast<size_t>(entry->reloc_count) * sizeof(HelperReloc);
+        if (reloc_off + reloc_bytes > blob.size())
+            return false;
+        offset += reloc_bytes;
+
+        auto code_copy = ByteBuffer::copy(blob.data() + code_off, entry->code_size);
+        if (code_copy.is_error())
+            return false;
+
+        CacheRecord rec;
+        rec.function_index = entry->function_index;
+        rec.unpatched_code = code_copy.release_value();
+        rec.relocs.ensure_capacity(entry->reloc_count);
+        for (u32 j = 0; j < entry->reloc_count; ++j) {
+            HelperReloc reloc;
+            __builtin_memcpy(&reloc, blob.data() + reloc_off + j * sizeof(HelperReloc), sizeof(HelperReloc));
+            rec.relocs.unchecked_append(reloc);
+        }
+        s_cranelift_cache_state.pending_install.records.set(entry->function_index, move(rec));
+    }
+
+    s_cranelift_cache_state.pending_install.active = true;
+    return true;
 }
 
 }

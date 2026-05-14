@@ -6,15 +6,20 @@
 
 use crate::{CraneliftInsn, RuntimeHelpers};
 
+use cranelift_codegen::FinalizedRelocTarget;
+use cranelift_codegen::binemit::Reloc;
 use cranelift_codegen::ir::condcodes::{FloatCC, IntCC};
 use cranelift_codegen::ir::types;
 use cranelift_codegen::ir::{
-    AbiParam, Function, InstBuilder, MemFlags, Signature, StackSlotData, StackSlotKind, UserFuncName,
+    AbiParam, ExtFuncData, ExternalName, Function, InstBuilder, MemFlags, Signature, StackSlotData, StackSlotKind,
+    UserExternalName, UserFuncName,
 };
 use cranelift_codegen::settings::{self, Configurable};
 use cranelift_codegen::{self, Context};
 use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Variable};
 use cranelift_native;
+
+use crate::{CompiledFunction, HelperId, HelperReloc};
 
 // Opcode constants generated from Opcode.h (see build.rs.)
 #[allow(dead_code)]
@@ -61,7 +66,7 @@ impl CraneliftCompiler {
         helpers: &RuntimeHelpers,
         outcome_return_value: u64,
         result_arity: u32,
-    ) -> Result<Vec<u8>, &'static str> {
+    ) -> Result<CompiledFunction, &'static str> {
         for insn in insns {
             if !Self::is_supported(insn) {
                 return Err("unsupported instruction");
@@ -179,43 +184,54 @@ impl CraneliftCompiler {
             callrec_write_sig: void fn(ptr, i32, i64);
         }
 
-        // Helper function pointers, rematerialized as iconst at each use site.
-        macro_rules! h {
-            ($($name:ident = helpers.$field:ident;)*) => { $(let $name = helpers.$field as i64;)* };
+        // Declare each runtime helper as an imported external function. At every use site
+        // we emit `func_addr` which lowers (with is_pic=false) to a load from an inline
+        // 8-byte literal marked with a `Reloc::Abs8` relocation -- the cache install path
+        // walks these and rewrites the 8 bytes with the current process's helper address.
+        macro_rules! decl_helper {
+            ($sig:expr, $id:expr) => {{
+                let user_ref = builder.func.declare_imported_user_function(UserExternalName {
+                    namespace: 0,
+                    index: $id as u32,
+                });
+                builder.func.import_function(ExtFuncData {
+                    name: ExternalName::user(user_ref),
+                    signature: $sig,
+                    colocated: false,
+                })
+            }};
         }
-        h! {
-            h_call_fn       = helpers.call_function;
-            h_direct_call_0 = helpers.direct_call_0;
-            h_direct_call_1 = helpers.direct_call_1;
-            h_direct_call_2 = helpers.direct_call_2;
-            h_direct_call_3 = helpers.direct_call_3;
-            h_set_trap      = helpers.set_trap;
-            h_mem_load8_s   = helpers.memory_load8_s;
-            h_mem_load8_u   = helpers.memory_load8_u;
-            h_mem_load16_s  = helpers.memory_load16_s;
-            h_mem_load16_u  = helpers.memory_load16_u;
-            h_mem_load32_s  = helpers.memory_load32_s;
-            h_mem_load32_u  = helpers.memory_load32_u;
-            h_mem_load64    = helpers.memory_load64;
-            h_mem_store8    = helpers.memory_store8;
-            h_mem_store16   = helpers.memory_store16;
-            h_mem_store32   = helpers.memory_store32;
-            h_mem_store64   = helpers.memory_store64;
-            h_mem_size      = helpers.memory_size;
-            h_mem_grow      = helpers.memory_grow;
-            h_read_global   = helpers.read_global;
-            h_write_global  = helpers.write_global;
-            h_stack_push    = helpers.stack_push;
-            h_stack_pop     = helpers.stack_pop;
-            h_stack_size    = helpers.stack_size;
-            h_stack_cleanup = helpers.stack_cleanup;
-            h_callrec_read  = helpers.callrec_read;
-            h_callrec_write = helpers.callrec_write;
-            h_call_wr       = helpers.call_with_record;
-            h_call_indirect = helpers.call_indirect;
-            h_memory_copy   = helpers.memory_copy;
-            h_memory_fill   = helpers.memory_fill;
-        }
+        let h_call_fn = decl_helper!(call_fn_sig, HelperId::call_function);
+        let h_direct_call_0 = decl_helper!(call_fn_sig, HelperId::direct_call_0);
+        let h_direct_call_1 = decl_helper!(call_fn1_sig, HelperId::direct_call_1);
+        let h_direct_call_2 = decl_helper!(call_fn2_sig, HelperId::direct_call_2);
+        let h_direct_call_3 = decl_helper!(call_fn3_sig, HelperId::direct_call_3);
+        let h_set_trap = decl_helper!(set_trap_sig, HelperId::set_trap);
+        let h_mem_load8_s = decl_helper!(mem_load_sig, HelperId::memory_load8_s);
+        let h_mem_load8_u = decl_helper!(mem_load_sig, HelperId::memory_load8_u);
+        let h_mem_load16_s = decl_helper!(mem_load_sig, HelperId::memory_load16_s);
+        let h_mem_load16_u = decl_helper!(mem_load_sig, HelperId::memory_load16_u);
+        let h_mem_load32_s = decl_helper!(mem_load_sig, HelperId::memory_load32_s);
+        let h_mem_load32_u = decl_helper!(mem_load_sig, HelperId::memory_load32_u);
+        let h_mem_load64 = decl_helper!(mem_load_sig, HelperId::memory_load64);
+        let h_mem_store8 = decl_helper!(mem_store_sig, HelperId::memory_store8);
+        let h_mem_store16 = decl_helper!(mem_store_sig, HelperId::memory_store16);
+        let h_mem_store32 = decl_helper!(mem_store_sig, HelperId::memory_store32);
+        let h_mem_store64 = decl_helper!(mem_store_sig, HelperId::memory_store64);
+        let h_mem_size = decl_helper!(mem_size_sig, HelperId::memory_size);
+        let h_mem_grow = decl_helper!(mem_grow_sig, HelperId::memory_grow);
+        let h_read_global = decl_helper!(read_global_sig, HelperId::read_global);
+        let h_write_global = decl_helper!(write_global_sig, HelperId::write_global);
+        let h_stack_push = decl_helper!(stack_push_sig, HelperId::stack_push);
+        let h_stack_pop = decl_helper!(stack_pop_sig, HelperId::stack_pop);
+        let h_stack_size = decl_helper!(stack_size_sig, HelperId::stack_size);
+        let h_stack_cleanup = decl_helper!(stack_cleanup_sig, HelperId::stack_cleanup);
+        let h_callrec_read = decl_helper!(callrec_read_sig, HelperId::callrec_read);
+        let h_callrec_write = decl_helper!(callrec_write_sig, HelperId::callrec_write);
+        let h_call_wr = decl_helper!(call_wr_sig, HelperId::call_with_record);
+        let h_call_indirect = decl_helper!(call_indirect_sig, HelperId::call_indirect);
+        let h_memory_copy = decl_helper!(memory_copy_sig, HelperId::memory_copy);
+        let h_memory_fill = decl_helper!(memory_fill_sig, HelperId::memory_fill);
         let locals_base_offset = helpers.locals_base_offset as i32;
         let default_memory_base_offset = helpers.default_memory_base_offset as i32;
         let compiled_call_result_scratch_offset = helpers.compiled_call_result_scratch_offset as i32;
@@ -273,7 +289,7 @@ impl CraneliftCompiler {
         let mut next_var_id: u32 = VSTACK_VAR_BASE + max_stack_depth as u32 + 1;
 
         if has_raw_call {
-            let stack_size_fp = builder.ins().iconst(ptr_type, h_stack_size);
+            let stack_size_fp = builder.ins().func_addr(ptr_type, h_stack_size);
             let cfg_for_size = builder.use_var(config_var);
             let stack_size_call = builder
                 .ins()
@@ -297,13 +313,13 @@ impl CraneliftCompiler {
                         sp -= 1;
                         $builder.use_var(stack_vars[sp])
                     } else {
-                        let fp = $builder.ins().iconst(ptr_type, h_stack_pop);
+                        let fp = $builder.ins().func_addr(ptr_type, h_stack_pop);
                         let cfg = $builder.use_var(config_var);
                         let call = $builder.ins().call_indirect(stack_pop_sig, fp, &[cfg]);
                         $builder.inst_results(call)[0]
                     }
                 } else {
-                    let fp = $builder.ins().iconst(ptr_type, h_callrec_read);
+                    let fp = $builder.ins().func_addr(ptr_type, h_callrec_read);
                     let cfg = $builder.use_var(config_var);
                     let idx = $builder.ins().iconst(types::I32, i64::from(src - CALLREC_BASE));
                     let call = $builder.ins().call_indirect(callrec_read_sig, fp, &[cfg, idx]);
@@ -318,7 +334,7 @@ impl CraneliftCompiler {
                 if max_stack_depth > 0 {
                     for i in 0..sp {
                         let val = $builder.use_var(stack_vars[i]);
-                        let fp = $builder.ins().iconst(ptr_type, h_stack_push);
+                        let fp = $builder.ins().func_addr(ptr_type, h_stack_push);
                         let cfg = $builder.use_var(config_var);
                         $builder.ins().call_indirect(stack_push_sig, fp, &[cfg, val]);
                     }
@@ -335,7 +351,7 @@ impl CraneliftCompiler {
                     for i in 0..n {
                         let idx = sp - n + i;
                         let val = $builder.use_var(stack_vars[idx]);
-                        let fp = $builder.ins().iconst(ptr_type, h_stack_push);
+                        let fp = $builder.ins().func_addr(ptr_type, h_stack_push);
                         let cfg = $builder.use_var(config_var);
                         $builder.ins().call_indirect(stack_push_sig, fp, &[cfg, val]);
                     }
@@ -355,12 +371,12 @@ impl CraneliftCompiler {
                         $builder.def_var(stack_vars[sp], val);
                         sp += 1;
                     } else {
-                        let fp = $builder.ins().iconst(ptr_type, h_stack_push);
+                        let fp = $builder.ins().func_addr(ptr_type, h_stack_push);
                         let cfg = $builder.use_var(config_var);
                         $builder.ins().call_indirect(stack_push_sig, fp, &[cfg, val]);
                     }
                 } else {
-                    let fp = $builder.ins().iconst(ptr_type, h_callrec_write);
+                    let fp = $builder.ins().func_addr(ptr_type, h_callrec_write);
                     let cfg = $builder.use_var(config_var);
                     let idx = $builder.ins().iconst(types::I32, i64::from(dst - CALLREC_BASE));
                     $builder
@@ -564,7 +580,7 @@ impl CraneliftCompiler {
                     }
                     let msg_ptr = builder.ins().stack_addr(ptr_type, ss, 0);
                     let msg_len = builder.ins().iconst(types::I32, msg.len() as i64);
-                    let st_ptr = builder.ins().iconst(ptr_type, h_set_trap);
+                    let st_ptr = builder.ins().func_addr(ptr_type, h_set_trap);
                     let interp = builder.use_var(interp_var);
                     builder
                         .ins()
@@ -584,7 +600,7 @@ impl CraneliftCompiler {
                         let var = Variable::from_u32(next_var_id);
                         next_var_id += 1;
                         builder.declare_var(var, types::I64);
-                        let stack_size_fp = builder.ins().iconst(ptr_type, h_stack_size);
+                        let stack_size_fp = builder.ins().func_addr(ptr_type, h_stack_size);
                         let cfg = builder.use_var(config_var);
                         let call = builder.ins().call_indirect(stack_size_sig, stack_size_fp, &[cfg]);
                         let cur = builder.inst_results(call)[0];
@@ -614,7 +630,7 @@ impl CraneliftCompiler {
                         let var = Variable::from_u32(next_var_id);
                         next_var_id += 1;
                         builder.declare_var(var, types::I64);
-                        let stack_size_fp = builder.ins().iconst(ptr_type, h_stack_size);
+                        let stack_size_fp = builder.ins().func_addr(ptr_type, h_stack_size);
                         let cfg = builder.use_var(config_var);
                         let call = builder.ins().call_indirect(stack_size_sig, stack_size_fp, &[cfg]);
                         let cur = builder.inst_results(call)[0];
@@ -651,7 +667,7 @@ impl CraneliftCompiler {
                         let var = Variable::from_u32(next_var_id);
                         next_var_id += 1;
                         builder.declare_var(var, types::I64);
-                        let stack_size_fp = builder.ins().iconst(ptr_type, h_stack_size);
+                        let stack_size_fp = builder.ins().func_addr(ptr_type, h_stack_size);
                         let cfg = builder.use_var(config_var);
                         let call = builder.ins().call_indirect(stack_size_sig, stack_size_fp, &[cfg]);
                         let cur = builder.inst_results(call)[0];
@@ -745,7 +761,7 @@ impl CraneliftCompiler {
                                 let result = if sp > 0 {
                                     builder.use_var(stack_vars[sp - 1])
                                 } else {
-                                    let fp = builder.ins().iconst(ptr_type, h_stack_pop);
+                                    let fp = builder.ins().func_addr(ptr_type, h_stack_pop);
                                     let cfg = builder.use_var(config_var);
                                     let call = builder.ins().call_indirect(stack_pop_sig, fp, &[cfg]);
                                     builder.inst_results(call)[0]
@@ -760,7 +776,7 @@ impl CraneliftCompiler {
                             let target_size = builder.use_var(entry_depth_var);
                             let arity_val = builder.ins().iconst(types::I32, arity as i64);
                             let cfg = builder.use_var(config_var);
-                            let cleanup_fp = builder.ins().iconst(ptr_type, h_stack_cleanup);
+                            let cleanup_fp = builder.ins().func_addr(ptr_type, h_stack_cleanup);
                             builder
                                 .ins()
                                 .call_indirect(stack_cleanup_sig, cleanup_fp, &[cfg, target_size, arity_val]);
@@ -808,7 +824,7 @@ impl CraneliftCompiler {
                             let target_size = builder.use_var(entry_depth_var);
                             let arity_val = builder.ins().iconst(types::I32, arity as i64);
                             let cfg = builder.use_var(config_var);
-                            let cleanup_fp = builder.ins().iconst(ptr_type, h_stack_cleanup);
+                            let cleanup_fp = builder.ins().func_addr(ptr_type, h_stack_cleanup);
                             builder
                                 .ins()
                                 .call_indirect(stack_cleanup_sig, cleanup_fp, &[cfg, target_size, arity_val]);
@@ -902,7 +918,7 @@ impl CraneliftCompiler {
                 op::GLOBAL_GET => {
                     let idx = builder.ins().iconst(types::I32, insn.imm1);
                     let _uv_config_var = builder.use_var(config_var);
-                    let _ic_0 = builder.ins().iconst(ptr_type, h_read_global);
+                    let _ic_0 = builder.ins().func_addr(ptr_type, h_read_global);
                     let call = builder
                         .ins()
                         .call_indirect(read_global_sig, _ic_0, &[_uv_config_var, idx]);
@@ -913,7 +929,7 @@ impl CraneliftCompiler {
                     let val = read_src!(builder, insn.sources[0]);
                     let idx = builder.ins().iconst(types::I32, insn.imm1);
                     let _uv_config_var = builder.use_var(config_var);
-                    let _ic_0 = builder.ins().iconst(ptr_type, h_write_global);
+                    let _ic_0 = builder.ins().func_addr(ptr_type, h_write_global);
                     builder
                         .ins()
                         .call_indirect(write_global_sig, _ic_0, &[_uv_config_var, idx, val]);
@@ -977,7 +993,7 @@ impl CraneliftCompiler {
                                 let result = if sp > 0 {
                                     builder.use_var(stack_vars[sp - 1])
                                 } else {
-                                    let fp = builder.ins().iconst(ptr_type, h_stack_pop);
+                                    let fp = builder.ins().func_addr(ptr_type, h_stack_pop);
                                     let cfg = builder.use_var(config_var);
                                     let call = builder.ins().call_indirect(stack_pop_sig, fp, &[cfg]);
                                     builder.inst_results(call)[0]
@@ -990,7 +1006,7 @@ impl CraneliftCompiler {
                                 let target_size = builder.use_var(entry_depth_var);
                                 let arity_val = builder.ins().iconst(types::I32, arity as i64);
                                 let cfg = builder.use_var(config_var);
-                                let cleanup_fp = builder.ins().iconst(ptr_type, h_stack_cleanup);
+                                let cleanup_fp = builder.ins().func_addr(ptr_type, h_stack_cleanup);
                                 builder.ins().call_indirect(
                                     stack_cleanup_sig,
                                     cleanup_fp,
@@ -1447,7 +1463,7 @@ impl CraneliftCompiler {
                     } else {
                         let mem_idx = builder.ins().iconst(types::I32, i64::from(insn.imm3 & 0x7fff_ffff));
                         let _xv_config_var = builder.use_var(config_var);
-                        let _xc_0 = builder.ins().iconst(ptr_type, memory_load_helper);
+                        let _xc_0 = builder.ins().func_addr(ptr_type, memory_load_helper);
                         let call = builder
                             .ins()
                             .call_indirect(mem_load_sig, _xc_0, &[_xv_config_var, mem_idx, addr]);
@@ -1510,7 +1526,7 @@ impl CraneliftCompiler {
                     } else {
                         let mem_idx = builder.ins().iconst(types::I32, i64::from(insn.imm3 & 0x7fff_ffff));
                         let _xv_config_var = builder.use_var(config_var);
-                        let _xc_0 = builder.ins().iconst(ptr_type, memory_store_helper);
+                        let _xc_0 = builder.ins().func_addr(ptr_type, memory_store_helper);
                         let call =
                             builder
                                 .ins()
@@ -1527,7 +1543,7 @@ impl CraneliftCompiler {
                 op::MEMORY_SIZE => {
                     let mem_idx = builder.ins().iconst(types::I32, insn.imm1);
                     let _xv_config_var = builder.use_var(config_var);
-                    let _xc_0 = builder.ins().iconst(ptr_type, h_mem_size);
+                    let _xc_0 = builder.ins().func_addr(ptr_type, h_mem_size);
                     let call = builder
                         .ins()
                         .call_indirect(mem_size_sig, _xc_0, &[_xv_config_var, mem_idx]);
@@ -1540,7 +1556,7 @@ impl CraneliftCompiler {
                     let pages_i32 = builder.ins().ireduce(types::I32, pages);
                     let mem_idx = builder.ins().iconst(types::I32, insn.imm1);
                     let _xv_config_var = builder.use_var(config_var);
-                    let _xc_0 = builder.ins().iconst(ptr_type, h_mem_grow);
+                    let _xc_0 = builder.ins().func_addr(ptr_type, h_mem_grow);
                     let call = builder
                         .ins()
                         .call_indirect(mem_grow_sig, _xc_0, &[_xv_config_var, mem_idx, pages_i32]);
@@ -1567,7 +1583,7 @@ impl CraneliftCompiler {
                     let dst_i32 = builder.ins().ireduce(types::I32, dst_offset);
                     let dst_mem = builder.ins().iconst(types::I32, insn.imm1);
                     let src_mem = builder.ins().iconst(types::I32, insn.imm2);
-                    let cfp = builder.ins().iconst(ptr_type, h_memory_copy);
+                    let cfp = builder.ins().func_addr(ptr_type, h_memory_copy);
                     let iv = builder.use_var(interp_var);
                     let cv = builder.use_var(config_var);
                     do_call_and_check!(
@@ -1588,7 +1604,7 @@ impl CraneliftCompiler {
                     let value_i32 = builder.ins().ireduce(types::I32, value);
                     let offset_i32 = builder.ins().ireduce(types::I32, offset);
                     let mem_idx = builder.ins().iconst(types::I32, insn.imm1);
-                    let cfp = builder.ins().iconst(ptr_type, h_memory_fill);
+                    let cfp = builder.ins().func_addr(ptr_type, h_memory_fill);
                     let iv = builder.use_var(interp_var);
                     let cv = builder.use_var(config_var);
                     do_call_and_check!(
@@ -1604,13 +1620,13 @@ impl CraneliftCompiler {
                     // Flush virtual stack, args are already on it from previous instructions.
                     flush_vstack_to_real!(builder);
                     let func_idx = builder.ins().iconst(types::I32, insn.imm1);
-                    let cfp = builder.ins().iconst(ptr_type, h_call_fn);
+                    let cfp = builder.ins().func_addr(ptr_type, h_call_fn);
                     let iv = builder.use_var(interp_var);
                     let cv = builder.use_var(config_var);
                     do_call_and_check!(builder, call_fn_sig, cfp, &[iv, cv, func_idx]);
                     // The helper pushes results to value_stack; pop to the actual destination.
                     if insn.destination != STACK_MARKER {
-                        let pop_fp = builder.ins().iconst(ptr_type, h_stack_pop);
+                        let pop_fp = builder.ins().func_addr(ptr_type, h_stack_pop);
                         let cfg = builder.use_var(config_var);
                         let call = builder.ins().call_indirect(stack_pop_sig, pop_fp, &[cfg]);
                         let result = builder.inst_results(call)[0];
@@ -1624,7 +1640,7 @@ impl CraneliftCompiler {
                     let element_index = builder.ins().ireduce(types::I32, element_index);
                     let type_idx = builder.ins().iconst(types::I32, insn.imm1);
                     let table_idx = builder.ins().iconst(types::I32, insn.imm2);
-                    let cfp = builder.ins().iconst(ptr_type, h_call_indirect);
+                    let cfp = builder.ins().func_addr(ptr_type, h_call_indirect);
                     let iv = builder.use_var(interp_var);
                     let cv = builder.use_var(config_var);
                     do_call_and_check!(
@@ -1634,7 +1650,7 @@ impl CraneliftCompiler {
                         &[iv, cv, table_idx, type_idx, element_index]
                     );
                     if insn.destination != STACK_MARKER {
-                        let pop_fp = builder.ins().iconst(ptr_type, h_stack_pop);
+                        let pop_fp = builder.ins().func_addr(ptr_type, h_stack_pop);
                         let cfg = builder.use_var(config_var);
                         let call = builder.ins().call_indirect(stack_pop_sig, pop_fp, &[cfg]);
                         let result = builder.inst_results(call)[0];
@@ -1651,25 +1667,25 @@ impl CraneliftCompiler {
                     let cv = builder.use_var(config_var);
                     match param_count {
                         0 => {
-                            let cfp = builder.ins().iconst(ptr_type, h_direct_call_0);
+                            let cfp = builder.ins().func_addr(ptr_type, h_direct_call_0);
                             do_call_and_check!(builder, call_fn_sig, cfp, &[iv, cv, func_idx]);
                         }
                         1 => {
                             let arg0 = read_src!(builder, insn.sources[0]);
-                            let cfp = builder.ins().iconst(ptr_type, h_direct_call_1);
+                            let cfp = builder.ins().func_addr(ptr_type, h_direct_call_1);
                             do_call_and_check!(builder, call_fn1_sig, cfp, &[iv, cv, func_idx, arg0]);
                         }
                         2 => {
                             let s0 = read_src!(builder, insn.sources[0]); // last param (top)
                             let s1 = read_src!(builder, insn.sources[1]); // first param
-                            let cfp = builder.ins().iconst(ptr_type, h_direct_call_2);
+                            let cfp = builder.ins().func_addr(ptr_type, h_direct_call_2);
                             do_call_and_check!(builder, call_fn2_sig, cfp, &[iv, cv, func_idx, s1, s0]);
                         }
                         3 => {
                             let s0 = read_src!(builder, insn.sources[0]); // last param (top)
                             let s1 = read_src!(builder, insn.sources[1]); // middle param
                             let s2 = read_src!(builder, insn.sources[2]); // first param
-                            let cfp = builder.ins().iconst(ptr_type, h_direct_call_3);
+                            let cfp = builder.ins().func_addr(ptr_type, h_direct_call_3);
                             do_call_and_check!(builder, call_fn3_sig, cfp, &[iv, cv, func_idx, s2, s1, s0]);
                         }
                         _ => unreachable!(),
@@ -1689,7 +1705,7 @@ impl CraneliftCompiler {
 
                 op::SYNTHETIC_CALL_WITH_RECORD_0 | op::SYNTHETIC_CALL_WITH_RECORD_1 => {
                     let func_idx = builder.ins().iconst(types::I32, insn.imm1);
-                    let cwp = builder.ins().iconst(ptr_type, h_call_wr);
+                    let cwp = builder.ins().func_addr(ptr_type, h_call_wr);
                     let iv = builder.use_var(interp_var);
                     let cv = builder.use_var(config_var);
                     do_call_and_check!(builder, call_wr_sig, cwp, &[iv, cv, func_idx]);
@@ -1823,7 +1839,7 @@ impl CraneliftCompiler {
                             h_mem_store64
                         };
                         let _uv_config_var = builder.use_var(config_var);
-                        let _ic_0 = builder.ins().iconst(ptr_type, memory_store_helper);
+                        let _ic_0 = builder.ins().func_addr(ptr_type, memory_store_helper);
                         let call =
                             builder
                                 .ins()
@@ -1861,7 +1877,7 @@ impl CraneliftCompiler {
         builder.seal_block(epilogue_block);
         // Clean up excess values on the real stack (e.g. from BR out of nested blocks); nothing to touch if we have vstack info.
         if has_raw_call {
-            let cleanup_fp = builder.ins().iconst(ptr_type, h_stack_cleanup);
+            let cleanup_fp = builder.ins().func_addr(ptr_type, h_stack_cleanup);
             let cfg = builder.use_var(config_var);
             let init_size = builder.use_var(initial_stack_size_var);
             let arity = builder.ins().iconst(types::I32, result_arity as i64);
@@ -1883,11 +1899,41 @@ impl CraneliftCompiler {
         builder.finalize();
 
         let mut ctx = Context::for_function(func);
-        let code = ctx
-            .compile(&*isa, &mut Default::default())
-            .map_err(|_| "cranelift compilation failed")?;
+        // Snapshot the code bytes + raw reloc list before we drop the borrow on ctx so we
+        // can map UserExternalNameRefs back to helper ids via ctx.func.params below.
+        let (bytes, raw_relocs) = {
+            let code = ctx
+                .compile(&*isa, &mut Default::default())
+                .map_err(|_| "cranelift compilation failed")?;
+            let bytes = code.code_buffer().to_vec();
+            let raw = code.buffer.relocs().to_vec();
+            (bytes, raw)
+        };
 
-        Ok(code.code_buffer().to_vec())
+        let mut relocs: Vec<HelperReloc> = Vec::with_capacity(raw_relocs.len());
+        let user_names = ctx.func.params.user_named_funcs();
+        for r in &raw_relocs {
+            // We only ever ask cranelift to relocate helper-function addresses, so any
+            // other reloc means it lowered something we didn't expect -- bail rather than
+            // produce machine code that the cache layer can't faithfully reproduce.
+            if r.kind != Reloc::Abs8 {
+                return Err("unexpected non-Abs8 relocation");
+            }
+            let name = match &r.target {
+                FinalizedRelocTarget::ExternalName(ExternalName::User(user_ref)) => &user_names[*user_ref],
+                _ => return Err("unexpected relocation target"),
+            };
+            if name.namespace != 0 || name.index >= crate::HELPER_COUNT {
+                return Err("relocation refers to an unknown helper id");
+            }
+            relocs.push(HelperReloc {
+                code_offset: r.offset,
+                helper_id: name.index,
+                addend: r.addend,
+            });
+        }
+
+        Ok(CompiledFunction { code: bytes, relocs })
     }
 
     fn is_supported(insn: &CraneliftInsn) -> bool {
