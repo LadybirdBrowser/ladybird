@@ -586,6 +586,19 @@ void ConnectionFromClient::websocket_send(u64 websocket_id, bool is_text, ByteBu
         connection->send(WebSocket::Message { move(data), is_text });
 }
 
+void ConnectionFromClient::websocket_send_shared(u64 websocket_id, bool is_text, Core::AnonymousBuffer data)
+{
+    auto* connection = m_websockets.get(websocket_id).value_or({});
+    if (!connection || connection->ready_state() != WebSocket::ReadyState::Open)
+        return;
+    auto byte_buffer_or_error = ByteBuffer::copy(data.bytes());
+    if (byte_buffer_or_error.is_error()) {
+        dbgln("websocket_send_shared: failed to copy {} bytes from shared buffer: {}", data.size(), byte_buffer_or_error.error());
+        return;
+    }
+    connection->send(WebSocket::Message { byte_buffer_or_error.release_value(), is_text });
+}
+
 void ConnectionFromClient::websocket_close(u64 websocket_id, u16 code, ByteString reason)
 {
     if (m_pending_websockets.remove(websocket_id)) {
