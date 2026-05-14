@@ -19,11 +19,43 @@ GC_DEFINE_ALLOCATOR(PrototypeChainValidity);
 
 Shape::~Shape() = default;
 
+void Shape::finalize()
+{
+    Base::finalize();
+    if (m_dictionary)
+        m_property_storage.property_table.~PropertyTablePtr();
+}
+
+GC::Ptr<DescriptorArray> Shape::descriptors() const
+{
+    VERIFY(!m_dictionary);
+    return m_property_storage.descriptors;
+}
+
+void Shape::set_descriptors(GC::Ptr<DescriptorArray> descriptors)
+{
+    VERIFY(!m_dictionary);
+    m_property_storage.descriptors = descriptors;
+}
+
+Shape::PropertyTablePtr& Shape::property_table() const
+{
+    VERIFY(m_dictionary);
+    return m_property_storage.property_table;
+}
+
+void Shape::become_dictionary_shape()
+{
+    VERIFY(!m_dictionary);
+    new (&m_property_storage.property_table) PropertyTablePtr();
+    m_dictionary = true;
+}
+
 size_t Shape::external_memory_size() const
 {
     size_t size = 0;
-    if (m_dictionary && m_property_table)
-        size += hash_map_external_memory_size(*m_property_table);
+    if (m_dictionary && property_table())
+        size += hash_map_external_memory_size(*property_table());
     if (m_forward_transitions)
         size += hash_map_external_memory_size(*m_forward_transitions);
     if (m_prototype_transitions)
@@ -38,7 +70,7 @@ size_t Shape::external_memory_size() const
 GC::Ref<Shape> Shape::create_dictionary_transition()
 {
     auto new_shape = heap().allocate<Shape>(m_realm);
-    new_shape->m_dictionary = true;
+    new_shape->become_dictionary_shape();
     new_shape->m_has_parameter_map = m_has_parameter_map;
     new_shape->m_prototype = m_prototype;
     invalidate_prototype_if_needed_for_new_prototype(new_shape);
@@ -104,14 +136,13 @@ GC::Ref<Shape> Shape::create_put_transition(PropertyKey const& property_key, Pro
         return *existing_shape;
     auto new_shape = heap().allocate<Shape>(*this, property_key, attributes, TransitionType::Put);
 
-    if (m_descriptors && m_descriptors->size() == m_own_descriptor_count) {
-        m_descriptors->set(property_key, { m_property_count, attributes }, m_own_descriptor_count);
-        new_shape->m_descriptors = m_descriptors;
+    if (descriptors() && descriptors()->size() == m_property_count) {
+        descriptors()->set(property_key, { m_property_count, attributes }, m_property_count);
+        new_shape->set_descriptors(descriptors());
     } else {
-        new_shape->m_descriptors = copy_descriptors();
-        new_shape->m_descriptors->set(property_key, { m_property_count, attributes }, m_property_count);
+        new_shape->set_descriptors(copy_descriptors());
+        new_shape->descriptors()->set(property_key, { m_property_count, attributes }, m_property_count);
     }
-    new_shape->m_own_descriptor_count = new_shape->m_property_count;
     invalidate_prototype_if_needed_for_new_prototype(new_shape);
     if (!m_is_prototype_shape) {
         if (!m_forward_transitions)
@@ -127,9 +158,8 @@ GC::Ref<Shape> Shape::create_configure_transition(PropertyKey const& property_ke
     if (auto existing_shape = get_or_prune_cached_forward_transition(key))
         return *existing_shape;
     auto new_shape = heap().allocate<Shape>(*this, property_key, attributes, TransitionType::Configure);
-    new_shape->m_descriptors = copy_descriptors();
-    new_shape->m_descriptors->set_attributes(property_key, attributes, m_own_descriptor_count);
-    new_shape->m_own_descriptor_count = new_shape->m_property_count;
+    new_shape->set_descriptors(copy_descriptors());
+    new_shape->descriptors()->set_attributes(property_key, attributes, m_property_count);
     invalidate_prototype_if_needed_for_new_prototype(new_shape);
     if (!m_is_prototype_shape) {
         if (!m_forward_transitions)
@@ -147,14 +177,12 @@ GC::Ref<Shape> Shape::create_prototype_transition(Object* new_prototype)
         return *existing_shape;
     auto new_shape = heap().allocate<Shape>(*this, new_prototype);
     if (m_dictionary && m_property_count > DescriptorArray::max_descriptor_count) {
-        new_shape->m_dictionary = true;
+        new_shape->become_dictionary_shape();
         copy_properties_to_dictionary_shape(*new_shape);
     } else if (m_dictionary) {
-        new_shape->m_descriptors = copy_descriptors();
-        new_shape->m_own_descriptor_count = new_shape->m_property_count;
+        new_shape->set_descriptors(copy_descriptors());
     } else {
-        new_shape->m_descriptors = m_descriptors;
-        new_shape->m_own_descriptor_count = m_own_descriptor_count;
+        new_shape->set_descriptors(descriptors());
     }
     invalidate_prototype_if_needed_for_new_prototype(new_shape);
     if (!m_is_prototype_shape) {
@@ -179,7 +207,6 @@ Shape::Shape(Shape& previous_shape, PropertyKey const& property_key, PropertyAtt
     , m_property_key(property_key)
     , m_prototype(previous_shape.m_prototype)
     , m_property_count(transition_type == TransitionType::Put ? previous_shape.m_property_count + 1 : previous_shape.m_property_count)
-    , m_own_descriptor_count(m_property_count)
 {
 }
 
@@ -191,7 +218,6 @@ Shape::Shape(Shape& previous_shape, PropertyKey const& property_key, TransitionT
     , m_property_key(property_key)
     , m_prototype(previous_shape.m_prototype)
     , m_property_count(previous_shape.m_property_count - 1)
-    , m_own_descriptor_count(m_property_count)
 {
     VERIFY(transition_type == TransitionType::Delete);
 }
@@ -203,7 +229,6 @@ Shape::Shape(Shape& previous_shape, Object* new_prototype)
     , m_previous(&previous_shape)
     , m_prototype(new_prototype)
     , m_property_count(previous_shape.m_property_count)
-    , m_own_descriptor_count(m_property_count)
 {
 }
 
@@ -211,7 +236,8 @@ void Shape::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_realm);
-    visitor.visit(m_descriptors);
+    if (!m_dictionary)
+        visitor.visit(m_property_storage.descriptors);
     visitor.visit(m_prototype);
     visitor.visit(m_previous);
     if (m_property_key.has_value())
@@ -236,23 +262,9 @@ void Shape::visit_edges(Cell::Visitor& visitor)
 
     visitor.visit(m_prototype_chain_validity);
 
-    // Only dictionary shapes actually need us to mark the keys in m_property_table.
-    //
-    // For non-dictionary shapes, m_property_table is a lazily-built cache of the
-    // transition chain: every key it contains was originally inserted into some
-    // ancestor's m_property_key, and that ancestor is kept alive by m_previous
-    // (which we already visit above). So those keys are guaranteed to be marked
-    // transitively via the chain, and re-marking them here is pure overhead.
-    //
-    // The exception used to be the handful of intrinsic shapes populated via
-    // add_property_without_transition() in Intrinsics.cpp (iterator-result,
-    // function, arguments, regexp-exec-array, ...). Those shapes are not
-    // dictionaries and have no m_previous to reach their property keys through.
-    // However, every key they hold is a vm.names.* string or a well-known
-    // symbol, both of which are strongly rooted by the VM for its entire
-    // lifetime, so skipping them here is safe.
-    if (m_dictionary && m_property_table) {
-        for (auto& it : *m_property_table)
+    // Descriptor arrays mark their own keys; dictionary tables are not cells, so Shape marks their keys directly.
+    if (m_dictionary && property_table()) {
+        for (auto& it : *property_table())
             it.key.visit_edges(visitor);
     }
 }
@@ -263,50 +275,50 @@ Optional<PropertyMetadata> Shape::lookup(PropertyKey const& property_key) const
         return {};
     if (m_dictionary) {
         ensure_property_table();
-        auto property = m_property_table->get(property_key);
+        auto property = property_table()->get(property_key);
         if (!property.has_value())
             return {};
         return property;
     }
-    if (!m_descriptors)
+    if (!descriptors())
         return {};
-    return m_descriptors->lookup(property_key, m_own_descriptor_count);
+    return descriptors()->lookup(property_key, m_property_count);
 }
 
 void Shape::for_each_property_in_insertion_order(Function<void(PropertyKey const&, PropertyMetadata const&)> const& callback) const
 {
     if (m_dictionary) {
         ensure_property_table();
-        for (auto const& [property_key, metadata] : *m_property_table)
+        for (auto const& [property_key, metadata] : *property_table())
             callback(property_key, metadata);
         return;
     }
-    if (!m_descriptors)
+    if (!descriptors())
         return;
-    m_descriptors->for_each_in_insertion_order(callback, m_own_descriptor_count);
+    descriptors()->for_each_in_insertion_order(callback, m_property_count);
 }
 
 void Shape::ensure_property_table() const
 {
     VERIFY(m_dictionary);
-    if (m_property_table)
+    if (property_table())
         return;
-    m_property_table = make<OrderedHashMap<PropertyKey, PropertyMetadata>>();
+    property_table() = make<PropertyTable>();
 }
 
 void Shape::ensure_descriptor_array()
 {
     VERIFY(!m_dictionary);
-    if (m_descriptors)
+    if (descriptors())
         return;
-    m_descriptors = heap().allocate<DescriptorArray>();
+    set_descriptors(heap().allocate<DescriptorArray>());
 }
 
 GC::Ref<DescriptorArray> Shape::copy_descriptors() const
 {
     VERIFY(m_property_count <= DescriptorArray::max_descriptor_count);
-    if (!m_dictionary && m_descriptors)
-        return heap().allocate<DescriptorArray>(*m_descriptors, m_own_descriptor_count);
+    if (!m_dictionary && descriptors())
+        return heap().allocate<DescriptorArray>(*descriptors(), m_property_count);
 
     auto descriptors = heap().allocate<DescriptorArray>();
     for_each_property_in_insertion_order([&](auto const& property_key, auto const& metadata) {
@@ -320,9 +332,9 @@ void Shape::copy_properties_to_dictionary_shape(Shape& shape) const
     VERIFY(shape.m_dictionary);
     shape.ensure_property_table();
     for_each_property_in_insertion_order([&](auto const& property_key, auto const& metadata) {
-        shape.m_property_table->set(property_key, metadata);
+        shape.property_table()->set(property_key, metadata);
     });
-    shape.m_property_count = shape.m_property_table->size();
+    shape.m_property_count = shape.property_table()->size();
 }
 
 GC::Ref<Shape> Shape::create_delete_transition(PropertyKey const& property_key)
@@ -330,9 +342,8 @@ GC::Ref<Shape> Shape::create_delete_transition(PropertyKey const& property_key)
     if (auto existing_shape = get_or_prune_cached_delete_transition(property_key))
         return *existing_shape;
     auto new_shape = heap().allocate<Shape>(*this, property_key, TransitionType::Delete);
-    new_shape->m_descriptors = copy_descriptors();
-    new_shape->m_descriptors->remove(property_key, m_own_descriptor_count);
-    new_shape->m_own_descriptor_count = new_shape->m_property_count;
+    new_shape->set_descriptors(copy_descriptors());
+    new_shape->descriptors()->remove(property_key, m_property_count);
     invalidate_prototype_if_needed_for_new_prototype(new_shape);
     if (!m_delete_transitions)
         m_delete_transitions = make<HashMap<PropertyKey, GC::Weak<Shape>>>();
@@ -345,7 +356,7 @@ void Shape::add_property_without_transition(PropertyKey const& property_key, Pro
     invalidate_prototype_if_needed_for_change_without_transition();
     if (m_dictionary) {
         ensure_property_table();
-        if (m_property_table->set(property_key, { m_property_count, attributes }) == AK::HashSetResult::InsertedNewEntry) {
+        if (property_table()->set(property_key, { m_property_count, attributes }) == AK::HashSetResult::InsertedNewEntry) {
             VERIFY(m_property_count < NumericLimits<u32>::max());
             ++m_property_count;
             ++m_dictionary_generation;
@@ -354,26 +365,25 @@ void Shape::add_property_without_transition(PropertyKey const& property_key, Pro
     }
 
     ensure_descriptor_array();
-    if (!m_descriptors->lookup(property_key, m_own_descriptor_count).has_value()) {
+    if (!descriptors()->lookup(property_key, m_property_count).has_value()) {
         VERIFY(m_property_count < NumericLimits<u32>::max());
-        m_descriptors->set(property_key, { m_property_count, attributes }, m_own_descriptor_count);
+        descriptors()->set(property_key, { m_property_count, attributes }, m_property_count);
         ++m_property_count;
-        ++m_own_descriptor_count;
         ++m_dictionary_generation;
         return;
     }
-    m_descriptors->set(property_key, { m_property_count, attributes }, m_own_descriptor_count);
+    descriptors()->set(property_key, { m_property_count, attributes }, m_property_count);
 }
 
 void Shape::set_property_attributes_without_transition(PropertyKey const& property_key, PropertyAttributes attributes)
 {
     invalidate_prototype_if_needed_for_change_without_transition();
     VERIFY(is_dictionary());
-    VERIFY(m_property_table);
-    auto it = m_property_table->find(property_key);
-    VERIFY(it != m_property_table->end());
+    VERIFY(property_table());
+    auto it = property_table()->find(property_key);
+    VERIFY(it != property_table()->end());
     it->value.attributes = attributes;
-    m_property_table->set(property_key, it->value);
+    property_table()->set(property_key, it->value);
     ++m_dictionary_generation;
 }
 
@@ -381,10 +391,10 @@ void Shape::remove_property_without_transition(PropertyKey const& property_key, 
 {
     invalidate_prototype_if_needed_for_change_without_transition();
     VERIFY(is_dictionary());
-    VERIFY(m_property_table);
-    if (m_property_table->remove(property_key))
+    VERIFY(property_table());
+    if (property_table()->remove(property_key))
         --m_property_count;
-    for (auto& it : *m_property_table) {
+    for (auto& it : *property_table()) {
         VERIFY(it.value.offset != offset);
         if (it.value.offset > offset)
             --it.value.offset;
@@ -401,12 +411,11 @@ GC::Ref<Shape> Shape::clone_for_prototype()
     new_shape->m_has_parameter_map = m_has_parameter_map;
     new_shape->m_prototype = m_prototype;
     if (m_dictionary && m_property_count > DescriptorArray::max_descriptor_count) {
-        new_shape->m_dictionary = true;
+        new_shape->become_dictionary_shape();
         copy_properties_to_dictionary_shape(*new_shape);
     } else {
-        new_shape->m_descriptors = copy_descriptors();
+        new_shape->set_descriptors(copy_descriptors());
         new_shape->m_property_count = m_property_count;
-        new_shape->m_own_descriptor_count = m_property_count;
     }
     new_shape->m_prototype_chain_validity = heap().allocate<PrototypeChainValidity>();
     if (new_shape->m_prototype)

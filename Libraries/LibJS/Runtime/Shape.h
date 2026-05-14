@@ -57,7 +57,10 @@ class JS_API Shape final : public Cell {
     GC_DECLARE_ALLOCATOR(Shape);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     virtual ~Shape() override;
+    virtual void finalize() override;
 
     enum class TransitionType : u8 {
         Invalid,
@@ -127,6 +130,28 @@ private:
     [[nodiscard]] GC::Ref<DescriptorArray> copy_descriptors() const;
     void copy_properties_to_dictionary_shape(Shape&) const;
 
+    using PropertyTable = OrderedHashMap<PropertyKey, PropertyMetadata>;
+    using PropertyTablePtr = OwnPtr<PropertyTable>;
+
+    static_assert(IsTriviallyDestructible<GC::Ptr<DescriptorArray>>);
+
+    GC::Ptr<DescriptorArray> descriptors() const;
+    void set_descriptors(GC::Ptr<DescriptorArray>);
+    PropertyTablePtr& property_table() const;
+    void become_dictionary_shape();
+
+    union PropertyStorage {
+        PropertyStorage()
+            : descriptors(nullptr)
+        {
+        }
+
+        ~PropertyStorage() { }
+
+        GC::Ptr<DescriptorArray> descriptors;
+        PropertyTablePtr property_table;
+    };
+
     PropertyAttributes m_attributes { 0 };
     TransitionType m_transition_type { TransitionType::Invalid };
 
@@ -136,8 +161,7 @@ private:
 
     GC::Ref<Realm> m_realm;
 
-    mutable OwnPtr<OrderedHashMap<PropertyKey, PropertyMetadata>> m_property_table;
-    GC::Ptr<DescriptorArray> m_descriptors;
+    mutable PropertyStorage m_property_storage;
 
     OwnPtr<HashMap<TransitionKey, GC::Weak<Shape>>> m_forward_transitions;
     OwnPtr<HashMap<GC::Ptr<Object>, GC::Weak<Shape>>> m_prototype_transitions;
@@ -152,12 +176,11 @@ private:
     OwnPtr<Vector<GC::Weak<Shape>>> m_child_prototype_shapes;
 
     u32 m_property_count { 0 };
-    u32 m_own_descriptor_count { 0 };
     u32 m_dictionary_generation { 0 };
 };
 
 #if !defined(AK_OS_WINDOWS)
-static_assert(sizeof(Shape) == 120, "Keep the size of JS::Shape down!");
+static_assert(sizeof(Shape) == 104, "Keep the size of JS::Shape down!");
 #endif
 
 }
