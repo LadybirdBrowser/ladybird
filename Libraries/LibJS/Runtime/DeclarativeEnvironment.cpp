@@ -52,7 +52,6 @@ size_t DeclarativeEnvironment::external_memory_size() const
     auto size = vector_external_memory_size(m_binding_names);
     size = saturating_add_external_memory_size(size, vector_external_memory_size(m_binding_values));
     size = saturating_add_external_memory_size(size, vector_external_memory_size(m_binding_flags));
-    size = saturating_add_external_memory_size(size, m_initialized_bindings.size_in_bytes());
     size = saturating_add_external_memory_size(size, m_deleted_bindings.size_in_bytes());
     size = saturating_add_external_memory_size(size, hash_map_external_memory_size(m_bindings_assoc));
     return size;
@@ -61,7 +60,6 @@ size_t DeclarativeEnvironment::external_memory_size() const
 void DeclarativeEnvironment::append_binding(Binding binding)
 {
     auto index = m_binding_values.size();
-    ensure_initialized_bindings_capacity(index + 1);
 
     u8 flags = 0;
     if (binding.strict)
@@ -79,9 +77,8 @@ void DeclarativeEnvironment::append_binding(Binding binding)
         m_binding_names.append(move(binding.name));
     }
 
-    m_binding_values.append(binding.value);
+    m_binding_values.append(binding.initialized ? binding.value : js_special_empty_value());
     m_binding_flags.append(flags);
-    set_binding_initialized(index, binding.initialized);
 }
 
 void DeclarativeEnvironment::clear_binding(Utf16FlyString const& name, size_t index)
@@ -89,17 +86,15 @@ void DeclarativeEnvironment::clear_binding(Utf16FlyString const& name, size_t in
     if (index < shape_binding_count()) {
         ensure_deleted_bindings_capacity(index + 1);
         m_deleted_bindings.set(index, true);
-        m_binding_values[index] = {};
-        set_binding_initialized(index, false);
+        m_binding_values[index] = js_special_empty_value();
         return;
     }
 
     m_bindings_assoc.remove(name);
     auto local_index = local_binding_index(index);
     m_binding_names[local_index] = Utf16FlyString {};
-    m_binding_values[index] = {};
+    m_binding_values[index] = js_special_empty_value();
     m_binding_flags[index] = 0;
-    set_binding_initialized(index, false);
 }
 
 DeclarativeEnvironment::Binding DeclarativeEnvironment::binding_at(size_t index) const
@@ -224,6 +219,7 @@ ThrowCompletionOr<void> DeclarativeEnvironment::initialize_binding_direct(VM& vm
 {
     // 1. Assert: envRec must have an uninitialized binding for N.
     VERIFY(!binding_is_initialized(index));
+    VERIFY(!value.is_special_empty_value());
 
     // 2. If hint is not normal, perform ? AddDisposableResource(envRec.[[DisposeCapability]], V, hint).
     if (hint != Environment::InitializeBindingHint::Normal)
@@ -231,9 +227,6 @@ ThrowCompletionOr<void> DeclarativeEnvironment::initialize_binding_direct(VM& vm
 
     // 3. Set the bound value for N in envRec to V.
     m_binding_values[index] = value;
-
-    // 4. Record that the binding for N in envRec has been initialized.
-    set_binding_initialized(index, true);
 
     // 5. Return unused.
     return {};
@@ -371,15 +364,8 @@ void DeclarativeEnvironment::shrink_to_fit()
     m_binding_values.shrink_to_fit();
     m_binding_flags.shrink_to_fit();
 
-    if (m_binding_values.is_empty()) {
-        m_initialized_bindings = {};
+    if (m_binding_values.is_empty())
         return;
-    }
-
-    auto initialized_bindings = MUST(Bitmap::create(m_binding_values.size(), false));
-    for (size_t i = 0; i < m_binding_values.size(); ++i)
-        initialized_bindings.set(i, binding_is_initialized(i));
-    m_initialized_bindings = move(initialized_bindings);
 
     if (m_deleted_bindings.is_null())
         return;

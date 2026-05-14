@@ -83,7 +83,6 @@ public:
     {
         m_binding_values.ensure_capacity(needed_capacity);
         m_binding_flags.ensure_capacity(needed_capacity);
-        ensure_initialized_bindings_capacity(needed_capacity);
         if (m_shape)
             return;
 
@@ -105,12 +104,6 @@ private:
     [[nodiscard]] size_t local_binding_index(size_t index) const { return index - shape_binding_count(); }
     void append_binding(Binding);
     void clear_binding(Utf16FlyString const& name, size_t index);
-    void ensure_initialized_bindings_capacity(size_t needed_capacity)
-    {
-        if (needed_capacity <= m_initialized_bindings.size())
-            return;
-        m_initialized_bindings.grow(ceil_div(needed_capacity, static_cast<size_t>(8)) * 8, false);
-    }
     void ensure_deleted_bindings_capacity(size_t needed_capacity)
     {
         if (needed_capacity <= m_deleted_bindings.size())
@@ -135,9 +128,8 @@ private:
     bool binding_is_strict(size_t index) const { return (binding_flags(index) & BindingFlagStrict) != 0; }
     bool binding_is_mutable(size_t index) const { return (binding_flags(index) & BindingFlagMutable) != 0; }
     bool binding_can_be_deleted(size_t index) const { return (binding_flags(index) & BindingFlagCanBeDeleted) != 0; }
-    bool binding_is_initialized(size_t index) const { return m_initialized_bindings.get(index); }
+    bool binding_is_initialized(size_t index) const { return !m_binding_values[index].is_special_empty_value(); }
     bool binding_is_deleted(size_t index) const { return !m_deleted_bindings.is_null() && m_deleted_bindings.get(index); }
-    void set_binding_initialized(size_t index, bool initialized) { m_initialized_bindings.set(index, initialized); }
 
     ThrowCompletionOr<Value> get_binding_value_direct(VM&, Binding const&) const;
     ThrowCompletionOr<void> set_mutable_binding_direct(VM&, Binding&, Value, bool strict);
@@ -200,7 +192,6 @@ private:
     Vector<Utf16FlyString> m_binding_names;
     Vector<Value> m_binding_values;
     Vector<u8> m_binding_flags;
-    Bitmap m_initialized_bindings;
     Bitmap m_deleted_bindings;
     HashMap<Utf16FlyString, size_t> m_bindings_assoc;
     DisposeCapability m_dispose_capability;
