@@ -1,5 +1,5 @@
-test("length is 0", () => {
-    expect(FinalizationRegistry.prototype.cleanupSome).toHaveLength(0);
+test("cleanupSome is not exposed", () => {
+    expect(FinalizationRegistry.prototype.cleanupSome).toBeUndefined();
 });
 
 function registerInDifferentScope(registry) {
@@ -16,7 +16,7 @@ test.xfail("basic functionality", () => {
         count++;
     };
 
-    registry.cleanupSome(increment);
+    cleanupFinalizationRegistry(registry, increment);
 
     expect(count).toBe(0);
 
@@ -24,7 +24,7 @@ test.xfail("basic functionality", () => {
     markAsGarbage("target");
     gc();
 
-    registry.cleanupSome(increment);
+    cleanupFinalizationRegistry(registry, increment);
 
     expect(count).toBe(1);
 });
@@ -45,16 +45,20 @@ test("callback can unregister the next record after the current record dies", ()
     markAsGarbage("__finalizationRegistrySecond");
     gc();
 
-    registry.cleanupSome();
+    cleanupFinalizationRegistry(registry);
 
     expect(heldValues).toEqual(["first"]);
     expect(registry.unregister(token2)).toBeFalse();
 });
 
-test("errors", () => {
+test("cleanup helper errors", () => {
     var registry = new FinalizationRegistry(() => {});
 
     expect(() => {
-        registry.cleanupSome(5);
+        cleanupFinalizationRegistry(registry, 5);
     }).toThrowWithMessage(TypeError, "is not a function");
+
+    expect(() => {
+        cleanupFinalizationRegistry({});
+    }).toThrowWithMessage(TypeError, "Not an object of type FinalizationRegistry");
 });

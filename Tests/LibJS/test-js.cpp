@@ -9,6 +9,7 @@
 #include <AK/StringView.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Date.h>
+#include <LibJS/Runtime/FinalizationRegistry.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibTest/JavaScriptTestRunner.h>
@@ -95,6 +96,24 @@ TESTJS_GLOBAL_FUNCTION(mark_as_garbage, markAsGarbage)
     vm.heap().uproot_cell(&value.as_cell());
     TRY(reference.delete_(vm));
 
+    return JS::js_undefined();
+}
+
+TESTJS_GLOBAL_FUNCTION(cleanup_finalization_registry, cleanupFinalizationRegistry)
+{
+    auto finalization_registry = vm.argument(0).as_if<JS::FinalizationRegistry>();
+    if (!finalization_registry)
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "FinalizationRegistry");
+
+    auto callback = vm.argument(1);
+    if (vm.argument_count() > 1 && !callback.is_function())
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAFunction, callback);
+
+    GC::Ptr<JS::JobCallback> cleanup_callback;
+    if (!callback.is_undefined())
+        cleanup_callback = vm.host_make_job_callback(callback.as_function());
+
+    TRY(finalization_registry->cleanup(cleanup_callback));
     return JS::js_undefined();
 }
 

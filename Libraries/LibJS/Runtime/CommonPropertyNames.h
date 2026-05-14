@@ -74,7 +74,6 @@ namespace JS {
     P(ceil)                                  \
     P(charAt)                                \
     P(charCodeAt)                            \
-    P(cleanupSome)                           \
     P(clear)                                 \
     P(clz32)                                 \
     P(codePointAt)                           \
