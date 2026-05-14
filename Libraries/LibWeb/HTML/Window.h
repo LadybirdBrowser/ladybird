@@ -124,7 +124,7 @@ public:
     DOM::Event const* current_event() const { return m_current_event.ptr(); }
     void set_current_event(DOM::Event* event);
 
-    Optional<CSS::MediaFeatureValue> query_media_feature(CSS::MediaFeatureID) const;
+    Optional<CSS::FeatureValue> query_media_feature(CSS::MediaFeatureID) const;
 
     void fire_a_page_transition_event(FlyString const& event_name, bool persisted);
 
