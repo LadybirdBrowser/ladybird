@@ -1,0 +1,5 @@
+uncovered scroller wheel target: non-viewport
+covered scroller wheel target: viewport
+covered scroller with pointer-events none wheel target: non-viewport
+scroller scrollTop after covered wheel: 0
+window scrollY after covered wheel: 100

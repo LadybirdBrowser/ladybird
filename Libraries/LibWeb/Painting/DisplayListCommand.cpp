@@ -183,6 +183,18 @@ void CompositorBlockingWheelEventRegion::dump(StringBuilder& builder) const
     builder.appendff(" rect={}", rect);
 }
 
+void CompositorWheelHitTestTarget::dump(StringBuilder& builder) const
+{
+    builder.appendff(" target_scroll_frame_index={} rect={}", target_scroll_frame_index, rect);
+    if (corner_radii.has_any_radius()) {
+        builder.appendff(" corner_radii=[{}x{},{}x{},{}x{},{}x{}]",
+            corner_radii.top_left.horizontal_radius, corner_radii.top_left.vertical_radius,
+            corner_radii.top_right.horizontal_radius, corner_radii.top_right.vertical_radius,
+            corner_radii.bottom_right.horizontal_radius, corner_radii.bottom_right.vertical_radius,
+            corner_radii.bottom_left.horizontal_radius, corner_radii.bottom_left.vertical_radius);
+    }
+}
+
 void CompositorMainThreadWheelEventRegion::dump(StringBuilder& builder) const
 {
     builder.appendff(" rect={}", rect);

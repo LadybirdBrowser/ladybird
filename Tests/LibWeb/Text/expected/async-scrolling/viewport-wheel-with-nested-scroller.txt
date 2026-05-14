@@ -5,10 +5,18 @@ scroller wheel target: non-viewport
 display list:
 AccumulatedVisualContext Tree:
   [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+    [2] clip=[0,0 100x100]
+      [3] scroll_frame_id=2 (PaintableWithLines(BlockContainer<DIV>#scroller-spacer))
 
 DisplayList:
 SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=1 rect=[0,0 800x600]
   CompositorScrollNode@0 scroll_frame_index=1 parent_scroll_frame_index=0 scrollport_rect=[0,0 800x600] max_scroll_offset=[0,1513] is_viewport=true
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=1 rect=[0,0 800x2113]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=1 rect=[0,0 800x2100]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=2 rect=[0,0 100x100]
   CompositorScrollNode@1 scroll_frame_index=2 parent_scroll_frame_index=1 scrollport_rect=[0,0 100x100] max_scroll_offset=[0,400] is_viewport=false
+  CompositorWheelHitTestTarget@3 target_scroll_frame_index=2 rect=[0,0 100x500]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=1 rect=[0,100 800x2000]
   PaintScrollBar@1
 Restore@0

@@ -3,8 +3,13 @@ listener generation increased: true
 after routing admission: blocking wheel event listeners
 display list:
 AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
 
 DisplayList:
 SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=1 rect=[0,0 800x600]
   CompositorScrollNode@0 scroll_frame_index=1 parent_scroll_frame_index=0 scrollport_rect=[0,0 800x600] max_scroll_offset=[0,1413] is_viewport=true
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=1 rect=[0,0 800x2013]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=1 rect=[0,0 800x2000]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=1 rect=[0,0 800x2000]
 Restore@0

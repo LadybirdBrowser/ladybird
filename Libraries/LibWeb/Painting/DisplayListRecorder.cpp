@@ -722,6 +722,11 @@ void DisplayListRecorder::compositor_sticky_area(CompositorStickyArea const& sti
     append_command(sticky_area);
 }
 
+void DisplayListRecorder::compositor_wheel_hit_test_target(CompositorWheelHitTestTarget const& target)
+{
+    append_command(target);
+}
+
 void DisplayListRecorder::set_async_scrolling_metadata(DisplayList::AsyncScrollingMetadata metadata)
 {
     m_display_list.set_async_scrolling_metadata(metadata);

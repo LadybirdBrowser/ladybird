@@ -63,6 +63,7 @@ class DisplayList;
     V(PaintNestedDisplayList, paint_nested_display_list)                               \
     V(CompositorScrollNode, compositor_scroll_node)                                    \
     V(CompositorStickyArea, compositor_sticky_area)                                    \
+    V(CompositorWheelHitTestTarget, compositor_wheel_hit_test_target)                  \
     V(CompositorMainThreadWheelEventRegion, compositor_main_thread_wheel_event_region) \
     V(CompositorViewportScrollbar, compositor_viewport_scrollbar)                      \
     V(CompositorBlockingWheelEventRegion, compositor_blocking_wheel_event_region)      \
@@ -546,6 +547,18 @@ struct CompositorBlockingWheelEventRegion {
     static constexpr DisplayListCommandType command_type = DisplayListCommandType::CompositorBlockingWheelEventRegion;
 
     Gfx::FloatRect rect;
+
+    void dump(StringBuilder&) const;
+};
+
+struct CompositorWheelHitTestTarget {
+    static constexpr StringView command_name = "CompositorWheelHitTestTarget"sv;
+    static constexpr DisplayListCommandType command_type = DisplayListCommandType::CompositorWheelHitTestTarget;
+
+    UniqueNodeID document_id;
+    ScrollFrameIndex target_scroll_frame_index;
+    Gfx::FloatRect rect;
+    Gfx::CornerRadii corner_radii;
 
     void dump(StringBuilder&) const;
 };

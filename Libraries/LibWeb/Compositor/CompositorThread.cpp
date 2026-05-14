@@ -678,7 +678,7 @@ public:
                                 if (auto reconciled_scroll_offset = m_async_scroll_tree.set_scroll_offset(viewport_node->node_id, *pending_async_viewport_scroll_offset, m_cached_scroll_state_snapshot); reconciled_scroll_offset.has_value())
                                     async_scrolling_viewport_rect.set_location(reconciled_scroll_offset->to_type<int>());
                             }
-                            m_async_scroll_tree.rebuild_wheel_scroll_targets(m_cached_display_list, m_cached_scroll_state_snapshot);
+                            m_async_scroll_tree.rebuild_wheel_hit_test_targets(m_cached_display_list, m_cached_scroll_state_snapshot);
                         }
                         {
                             Sync::MutexLocker const locker { m_mutex };
@@ -698,7 +698,7 @@ public:
                                 return;
                             }
                             scroll_offset = m_async_scroll_tree.scroll_offset_for_node(cmd.scroll_target, m_cached_scroll_state_snapshot);
-                            m_async_scroll_tree.rebuild_wheel_scroll_targets(m_cached_display_list, m_cached_scroll_state_snapshot);
+                            m_async_scroll_tree.rebuild_wheel_hit_test_targets(m_cached_display_list, m_cached_scroll_state_snapshot);
                         }
                         if (scroll_offset.has_value()) {
                             async_scroll_viewport_rect.set_location(scroll_offset->to_type<int>());
@@ -747,7 +747,7 @@ public:
                                         reconciled_viewport_scroll_offset = m_async_scroll_tree.set_scroll_offset(*viewport_node_id, *pending_async_viewport_scroll_offset, m_cached_scroll_state_snapshot);
                                     }
                                 }
-                                m_async_scroll_tree.rebuild_wheel_scroll_targets(m_cached_display_list, m_cached_scroll_state_snapshot);
+                                m_async_scroll_tree.rebuild_wheel_hit_test_targets(m_cached_display_list, m_cached_scroll_state_snapshot);
                             }
                             if (reconciled_viewport_scroll_offset.has_value()) {
                                 Sync::MutexLocker const mutex_locker { m_mutex };
@@ -900,7 +900,7 @@ private:
             if (!m_async_scroll_tree.apply_scroll_delta(scrollbar.scroll_node_id, delta, m_cached_scroll_state_snapshot))
                 return false;
             scroll_offset = m_async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id, m_cached_scroll_state_snapshot);
-            m_async_scroll_tree.rebuild_wheel_scroll_targets(m_cached_display_list, m_cached_scroll_state_snapshot);
+            m_async_scroll_tree.rebuild_wheel_hit_test_targets(m_cached_display_list, m_cached_scroll_state_snapshot);
         }
 
         if (!scroll_offset.has_value())

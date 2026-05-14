@@ -7,10 +7,20 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x45]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 784x24]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 784x24]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 202x22]
   FillRect@1 rect=[8,8 202x22] color=rgb(255, 255, 255)
   FillPath@1 path_bounding_rect=[8,8 202x22]
+  CompositorWheelHitTestTarget@2 target_scroll_frame_index=0 rect=[9,9 200x20]
+  CompositorWheelHitTestTarget@2 target_scroll_frame_index=0 rect=[11,10 196x18]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[218,8 202x22]
   FillRect@1 rect=[218,8 202x22] color=rgb(255, 255, 255)
   FillPath@1 path_bounding_rect=[218,8 202x22]
+  CompositorWheelHitTestTarget@4 target_scroll_frame_index=0 rect=[219,9 200x20]
+  CompositorWheelHitTestTarget@4 target_scroll_frame_index=0 rect=[221,10 196x18]
   DrawGlyphRun@1 rect=[210,14 8x18] translation=[210,27.796875] color=rgb(0, 0, 0)
   DrawGlyphRun@3 rect=[11,10 28x18] translation=[11,23.796875] color=rgb(0, 0, 0)
   DrawGlyphRun@5 rect=[221,10 28x18] translation=[221,23.796875] color=rgb(0, 0, 0)

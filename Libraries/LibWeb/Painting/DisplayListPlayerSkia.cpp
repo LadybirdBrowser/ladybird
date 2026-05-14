@@ -829,6 +829,10 @@ void DisplayListPlayerSkia::compositor_sticky_area(CompositorStickyArea const&)
 {
 }
 
+void DisplayListPlayerSkia::compositor_wheel_hit_test_target(CompositorWheelHitTestTarget const&)
+{
+}
+
 void DisplayListPlayerSkia::compositor_main_thread_wheel_event_region(CompositorMainThreadWheelEventRegion const&)
 {
 }

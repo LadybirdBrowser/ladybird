@@ -12,6 +12,11 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x13]
+  CompositorWheelHitTestTarget@2 target_scroll_frame_index=0 rect=[20,20 100x100]
   CompositorBlockingWheelEventRegion@2 rect=[20,20 100x100]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[20,160 100x100]
+  CompositorWheelHitTestTarget@4 target_scroll_frame_index=0 rect=[20,160 200x100]
   CompositorBlockingWheelEventRegion@4 rect=[20,160 200x100]
 Restore@0

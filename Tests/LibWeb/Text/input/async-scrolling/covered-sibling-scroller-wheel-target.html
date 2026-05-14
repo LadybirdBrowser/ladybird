@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #scroller {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+    }
+
+    #spacer {
+        height: 800px;
+    }
+
+    #overlay {
+        position: absolute;
+        z-index: 1;
+        left: 0;
+        top: 0;
+        width: 100px;
+        height: 100px;
+        background-color: red;
+    }
+
+    #page-spacer {
+        height: 2000px;
+        margin-top: 200px;
+    }
+</style>
+<div id="scroller"><div id="spacer"></div></div>
+<div id="overlay"></div>
+<div id="page-spacer"></div>
+<script>
+    promiseTest(async () => {
+        println(`uncovered scroller wheel target: ${internals.asyncScrollingStateWheelTargetAt(150, 150, 0, 100)}`);
+        println(`covered scroller wheel target: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 0, 100)}`);
+
+        overlay.style.pointerEvents = "none";
+        println(`covered scroller with pointer-events none wheel target: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 0, 100)}`);
+        overlay.style.pointerEvents = "auto";
+
+        internals.wheel(50, 50, 0, 100);
+        await animationFrame();
+
+        println(`scroller scrollTop after covered wheel: ${scroller.scrollTop}`);
+        println(`window scrollY after covered wheel: ${window.scrollY}`);
+    });
+</script>

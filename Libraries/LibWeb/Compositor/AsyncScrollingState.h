@@ -10,6 +10,7 @@
 #include <AK/StringView.h>
 #include <AK/Vector.h>
 #include <LibGfx/Color.h>
+#include <LibGfx/CornerRadii.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibWeb/Forward.h>
@@ -61,6 +62,13 @@ struct BlockingWheelEventRegion {
     Gfx::FloatRect rect;
 };
 
+struct WheelHitTestTarget {
+    Painting::VisualContextIndex visual_context_index;
+    Gfx::FloatRect rect;
+    Gfx::CornerRadii corner_radii;
+    Optional<AsyncScrollNodeID> target_node_id;
+};
+
 // A region that must always use main-thread wheel routing even without a blocking listener, such as a nested navigable.
 struct MainThreadWheelEventRegion {
     Painting::VisualContextIndex visual_context_index;
@@ -85,6 +93,7 @@ struct ViewportScrollbar {
 struct AsyncScrollingState {
     Vector<AsyncScrollNode> scroll_nodes;
     Vector<AsyncStickyArea> sticky_areas;
+    Vector<WheelHitTestTarget> wheel_hit_test_targets;
     Vector<MainThreadWheelEventRegion> main_thread_wheel_event_regions;
     Vector<ViewportScrollbar> viewport_scrollbars;
 

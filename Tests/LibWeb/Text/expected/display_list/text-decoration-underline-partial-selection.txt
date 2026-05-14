@@ -3,6 +3,11 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x71]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 784x50]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 784x50]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 168.54688x50]
   FillRect@1 rect=[69,-17 47x100] color=rgba(61, 174, 233, 0.5)
   Save@1
     AddClipRect@1 rect=[8,-17 61x100]

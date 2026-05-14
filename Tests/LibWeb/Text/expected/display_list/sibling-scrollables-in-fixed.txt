@@ -1,4 +1,5 @@
 AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
   [2] clip=[23,23 91x150]
     [3] scroll_frame_id=2 (PaintableWithLines(BlockContainer(anonymous)))
   [4] clip=[126,23 92x150]
@@ -8,16 +9,25 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x21]
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[10,10 324x224]
   FillRect@0 rect=[10,10 324x224] color=rgb(211, 211, 211)
   FillPath@0 path_bounding_rect=[10,10 324x224]
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=2 rect=[22,22 93.328125x152]
   CompositorScrollNode@0 scroll_frame_index=2 parent_scroll_frame_index=0 scrollport_rect=[23,23 91x150] max_scroll_offset=[108.671875,150] is_viewport=false
   FillPath@0 path_bounding_rect=[22,22 93x152]
+  CompositorWheelHitTestTarget@3 target_scroll_frame_index=2 rect=[23,23 200x300]
   FillRect@3 rect=[23,23 200x300] color=rgb(240, 128, 128)
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=3 rect=[125.328125,22 93.328125x152]
   CompositorScrollNode@0 scroll_frame_index=3 parent_scroll_frame_index=0 scrollport_rect=[126,23 92x150] max_scroll_offset=[108.671875,150] is_viewport=false
   FillPath@0 path_bounding_rect=[125,22 94x152]
+  CompositorWheelHitTestTarget@5 target_scroll_frame_index=3 rect=[126.328125,23 200x300]
   FillRect@5 rect=[126,23 200x300] color=rgb(144, 238, 144)
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=4 rect=[228.65625,22 93.328125x152]
   CompositorScrollNode@0 scroll_frame_index=4 parent_scroll_frame_index=0 scrollport_rect=[230,23 91x150] max_scroll_offset=[108.671875,150] is_viewport=false
   FillPath@0 path_bounding_rect=[229,22 93x152]
+  CompositorWheelHitTestTarget@7 target_scroll_frame_index=4 rect=[229.65625,23 200x300]
   FillRect@7 rect=[230,23 200x300] color=rgb(173, 216, 230)
   DrawGlyphRun@3 rect=[23,23 71x18] translation=[23,36.796875] color=rgb(0, 0, 0)
   PaintScrollBar@0

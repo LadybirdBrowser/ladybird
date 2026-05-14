@@ -121,6 +121,7 @@ private:
     virtual void paint_nested_display_list(PaintNestedDisplayList const&) = 0;
     virtual void compositor_scroll_node(CompositorScrollNode const&) = 0;
     virtual void compositor_sticky_area(CompositorStickyArea const&) = 0;
+    virtual void compositor_wheel_hit_test_target(CompositorWheelHitTestTarget const&) = 0;
     virtual void compositor_main_thread_wheel_event_region(CompositorMainThreadWheelEventRegion const&) = 0;
     virtual void compositor_viewport_scrollbar(CompositorViewportScrollbar const&) = 0;
     virtual void compositor_blocking_wheel_event_region(CompositorBlockingWheelEventRegion const&) = 0;

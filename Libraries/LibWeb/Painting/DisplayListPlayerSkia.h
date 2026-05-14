@@ -52,6 +52,7 @@ private:
     void add_rounded_rect_clip(AddRoundedRectClip const&) override;
     void compositor_scroll_node(CompositorScrollNode const&) override;
     void compositor_sticky_area(CompositorStickyArea const&) override;
+    void compositor_wheel_hit_test_target(CompositorWheelHitTestTarget const&) override;
     void compositor_main_thread_wheel_event_region(CompositorMainThreadWheelEventRegion const&) override;
     void compositor_viewport_scrollbar(CompositorViewportScrollbar const&) override;
     void compositor_blocking_wheel_event_region(CompositorBlockingWheelEventRegion const&) override;

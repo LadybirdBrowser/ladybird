@@ -4,6 +4,11 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x200]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x200]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x200]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 200x200]
   FillPath@2 path_bounding_rect=[10,10 100x100]
 Restore@0
 

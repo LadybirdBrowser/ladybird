@@ -6,12 +6,21 @@ display list:
 AccumulatedVisualContext Tree:
   [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
     [2] scroll_frame_id=2 (sticky) (PaintableWithLines(BlockContainer(anonymous)))
+      [3] clip=[0,0 100x100]
+        [4] scroll_frame_id=3 (PaintableWithLines(BlockContainer<DIV>#spacer))
 
 DisplayList:
 SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=1 rect=[0,0 800x600]
   CompositorScrollNode@0 scroll_frame_index=1 parent_scroll_frame_index=0 scrollport_rect=[0,0 800x600] max_scroll_offset=[0,1513] is_viewport=true
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=1 rect=[0,0 800x2113]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=1 rect=[0,0 800x2100]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=1 rect=[0,100 800x2000]
+  CompositorWheelHitTestTarget@2 target_scroll_frame_index=1 rect=[0,0 800x100]
   CompositorStickyArea@2 scroll_frame_index=2 parent_scroll_frame_index=1 nearest_scrolling_ancestor_index=1 position_relative_to_scroll_ancestor=[0,0] border_box_size=[800x100] scrollport_size=[800x600] containing_block_region=[0,0 800x2100] needs_parent_offset_adjustment=true inset_top=0 inset_right=none inset_bottom=none inset_left=none
+  CompositorWheelHitTestTarget@2 target_scroll_frame_index=3 rect=[0,0 100x100]
   CompositorScrollNode@2 scroll_frame_index=3 parent_scroll_frame_index=1 scrollport_rect=[0,0 100x100] max_scroll_offset=[400,400] is_viewport=false
+  CompositorWheelHitTestTarget@4 target_scroll_frame_index=3 rect=[0,0 500x500]
   PaintScrollBar@2
   PaintScrollBar@2
 Restore@0

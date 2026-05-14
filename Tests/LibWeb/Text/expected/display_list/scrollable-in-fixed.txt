@@ -1,13 +1,19 @@
 AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
   [2] clip=[33,33 180x100]
     [3] scroll_frame_id=2 (PaintableWithLines(BlockContainer(anonymous)))
 
 DisplayList:
 SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x21]
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[20,20 204x154]
   FillRect@0 rect=[20,20 204x154] color=rgb(211, 211, 211)
   FillPath@0 path_bounding_rect=[20,20 204x154]
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=2 rect=[32,32 182x102]
   CompositorScrollNode@0 scroll_frame_index=2 parent_scroll_frame_index=0 scrollport_rect=[33,33 180x100] max_scroll_offset=[120,100] is_viewport=false
   FillPath@0 path_bounding_rect=[32,32 182x102]
+  CompositorWheelHitTestTarget@3 target_scroll_frame_index=2 rect=[33,33 300x200]
   FillRect@3 rect=[33,33 300x200] color=rgb(240, 128, 128)
   DrawGlyphRun@3 rect=[33,33 179x18] translation=[33,46.796875] color=rgb(0, 0, 0)
   PaintScrollBar@0

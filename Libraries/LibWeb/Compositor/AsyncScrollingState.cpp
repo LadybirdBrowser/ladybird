@@ -104,6 +104,34 @@ static void record_main_thread_wheel_event_region(Painting::PaintableBox const& 
     });
 }
 
+static Optional<Painting::ScrollFrameIndex> wheel_hit_test_target_scroll_frame_index_for(Painting::PaintableBox const& paintable_box)
+{
+    if (paintable_box.own_scroll_frame_index().value() && paintable_box.could_be_scrolled_by_wheel_event())
+        return paintable_box.own_scroll_frame_index();
+    if (auto scrollable_ancestor = paintable_box.nearest_scrollable_ancestor())
+        return scrollable_ancestor->own_scroll_frame_index();
+    if (auto viewport_paintable = paintable_box.document().paintable(); viewport_paintable && viewport_paintable->could_be_scrolled_by_wheel_event())
+        return viewport_paintable->own_scroll_frame_index();
+    return {};
+}
+
+static void record_wheel_hit_test_target(Painting::PaintableBox const& paintable_box, DisplayListRecordingContext& context)
+{
+    if (!paintable_box.is_visible() || !paintable_box.visible_for_hit_testing())
+        return;
+
+    auto rect = css_rect_to_device_rect(paintable_box.absolute_border_box_rect(), context.device_pixels_per_css_pixel());
+    if (rect.is_empty())
+        return;
+
+    context.display_list_recorder().compositor_wheel_hit_test_target({
+        .document_id = paintable_box.document().unique_id(),
+        .target_scroll_frame_index = wheel_hit_test_target_scroll_frame_index_for(paintable_box).value_or({}),
+        .rect = rect,
+        .corner_radii = paintable_box.border_radii_data().as_corners(context.device_pixel_converter()),
+    });
+}
+
 static void record_viewport_scrollbar_state(Painting::PaintableBox const& paintable_box, DisplayListRecordingContext& context)
 {
     if (!paintable_box.is_viewport_paintable())
@@ -200,6 +228,8 @@ void record_async_scrolling_metadata_for_paintable(Painting::PaintableBox const&
     auto device_pixels_per_css_pixel = context.device_pixels_per_css_pixel();
     auto& recorder = context.display_list_recorder();
 
+    record_wheel_hit_test_target(paintable_box, context);
+
     if (!context.has_blocking_wheel_event_region_covering_viewport()) {
         if (auto node = paintable_box.dom_node(); node && !is_root_wheel_event_target(*node) && has_blocking_wheel_event_listener(*node)) {
             context.set_has_blocking_wheel_event_listeners(true);
@@ -259,6 +289,8 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
 {
     AsyncScrollingState async_scrolling_state;
     Vector<Painting::ScrollFrameIndex> parent_scroll_frame_indices;
+    Vector<Painting::ScrollFrameIndex> wheel_hit_test_target_scroll_frame_indices;
+    Vector<UniqueNodeID> wheel_hit_test_target_document_ids;
 
     if (auto const& metadata = display_list.async_scrolling_metadata(); metadata.has_value()) {
         async_scrolling_state.viewport_rect = metadata->viewport_rect;
@@ -310,6 +342,18 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
             parent_scroll_frame_indices.append(command.parent_scroll_frame_index);
             break;
         }
+        case Painting::DisplayListCommandType::CompositorWheelHitTestTarget: {
+            auto command = Painting::read_display_list_command_payload<Painting::CompositorWheelHitTestTarget>(payload);
+            async_scrolling_state.wheel_hit_test_targets.append({
+                .visual_context_index = header.context_index,
+                .rect = command.rect,
+                .corner_radii = command.corner_radii,
+                .target_node_id = {},
+            });
+            wheel_hit_test_target_scroll_frame_indices.append(command.target_scroll_frame_index);
+            wheel_hit_test_target_document_ids.append(command.document_id);
+            break;
+        }
         case Painting::DisplayListCommandType::CompositorMainThreadWheelEventRegion: {
             auto command = Painting::read_display_list_command_payload<Painting::CompositorMainThreadWheelEventRegion>(payload);
             async_scrolling_state.main_thread_wheel_event_regions.append({
@@ -346,6 +390,14 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
         auto parent_scroll_frame_index = parent_scroll_frame_indices[i];
         if (parent_scroll_frame_index.value())
             async_scrolling_state.scroll_nodes[i].parent_node_id = scroll_node_id_for(async_scrolling_state.scroll_nodes[i].node_id.document_id, parent_scroll_frame_index);
+    }
+
+    VERIFY(wheel_hit_test_target_scroll_frame_indices.size() == async_scrolling_state.wheel_hit_test_targets.size());
+    VERIFY(wheel_hit_test_target_document_ids.size() == async_scrolling_state.wheel_hit_test_targets.size());
+    for (size_t i = 0; i < async_scrolling_state.wheel_hit_test_targets.size(); ++i) {
+        auto target_scroll_frame_index = wheel_hit_test_target_scroll_frame_indices[i];
+        if (target_scroll_frame_index.value())
+            async_scrolling_state.wheel_hit_test_targets[i].target_node_id = scroll_node_id_for(wheel_hit_test_target_document_ids[i], target_scroll_frame_index);
     }
     return async_scrolling_state;
 }
@@ -412,7 +464,7 @@ static WheelHitTestResult hit_test_scroll_node_at_position(AsyncScrollingState c
     AsyncScrollTree scroll_tree;
     auto async_scrolling_state_copy = async_scrolling_state;
     scroll_tree.set_state(move(async_scrolling_state_copy));
-    scroll_tree.rebuild_wheel_scroll_targets(display_list, scroll_state_snapshot);
+    scroll_tree.rebuild_wheel_hit_test_targets(display_list, scroll_state_snapshot);
     return scroll_tree.hit_test_scroll_node_for_wheel(position, delta);
 }
 

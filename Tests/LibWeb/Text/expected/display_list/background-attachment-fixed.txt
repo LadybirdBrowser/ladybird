@@ -4,9 +4,12 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=1 rect=[0,0 800x600]
   CompositorScrollNode@0 scroll_frame_index=1 parent_scroll_frame_index=0 scrollport_rect=[0,0 800x600] max_scroll_offset=[0,613] is_viewport=true
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=1 rect=[0,0 800x1213]
   Save@1
     PaintLinearGradient@2 rect=[0,0 800x600]
   Restore@1
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=1 rect=[0,13 800x1200]
 Restore@0
 
