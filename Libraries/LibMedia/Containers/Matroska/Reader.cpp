@@ -15,6 +15,7 @@
 #include <AK/Time.h>
 #include <AK/Utf8View.h>
 #include <LibMedia/CodecID.h>
+#include <LibMedia/Codecs/Opus.h>
 #include <LibMedia/Containers/Matroska/ElementIDs.h>
 #include <LibMedia/Containers/Matroska/Utilities.h>
 #include <LibMedia/MediaStream.h>
@@ -719,47 +720,8 @@ static DecoderErrorOr<void> maybe_parse_opus_frame_duration(Streamer& streamer, 
         return {};
     if (codec_id_from_matroska_id_string(context.codec_id) != CodecID::Opus)
         return {};
-    if (block.data_size() == 0)
-        return DecoderError::corrupted("Opus frame is too small"sv);
 
-    // https://datatracker.ietf.org/doc/html/rfc6716#section-3.1
-    auto toc_byte = TRY(streamer.read_octet());
-    auto configuration_number = (toc_byte >> 3) & 0b1'1111;
-    auto packet_code = toc_byte & 0b11;
-    // clang-format off
-    constexpr Array frame_durations = {
-            10000, 20000, 40000, 60000, // SILK-only NB
-            10000, 20000, 40000, 60000, // SILK-only MB
-            10000, 20000, 40000, 60000, // SILK-only WB
-            10000, 20000,               // Hybrid SWB
-            10000, 20000,               // Hybrid FB
-            2500,  5000,  10000, 20000, // CELT-only NB
-            2500,  5000,  10000, 20000, // CELT-only WB
-            2500,  5000,  10000, 20000, // CELT-only SWB
-            2500,  5000,  10000, 20000, // CELT-only FB
-    };
-    // clang-format on
-
-    auto frame_duration = frame_durations[configuration_number];
-    auto block_duration = TRY([&] -> DecoderErrorOr<int> {
-        switch (packet_code) {
-        case 0:
-            return frame_duration;
-        case 1:
-        case 2:
-            return frame_duration * 2;
-        case 3: {
-            if (block.data_size() == 1)
-                return DecoderError::corrupted("Opus frame is too small"sv);
-            auto frame_count_byte = TRY(streamer.read_octet());
-            auto frame_count = frame_count_byte & 0b11'1111;
-            return frame_duration * frame_count;
-        }
-        default:
-            VERIFY_NOT_REACHED();
-        }
-    }());
-    block.set_duration(AK::Duration::from_microseconds(block_duration));
+    block.set_duration(TRY(Codecs::Opus::parse_frame_duration(streamer.cursor(), block.data_size())));
     return {};
 }
 

@@ -42,6 +42,8 @@ public:
 
     DecoderErrorOr<void> seek_to_position(size_t position);
 
+    MediaStreamCursor& cursor() { return *m_stream_cursor; }
+
 private:
     NonnullRefPtr<MediaStreamCursor> m_stream_cursor;
 };
