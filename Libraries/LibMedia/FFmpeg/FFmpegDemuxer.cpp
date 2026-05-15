@@ -13,6 +13,7 @@
 #include <LibMedia/Containers/FLACNavigator.h>
 #include <LibMedia/Containers/IndexedContainerNavigator.h>
 #include <LibMedia/Containers/MP3Navigator.h>
+#include <LibMedia/Containers/OggNavigator.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/FFmpeg/FFmpegHelpers.h>
 #include <LibMedia/MediaStream.h>
@@ -239,6 +240,37 @@ OwnPtr<ContainerNavigator> FFmpegDemuxer::create_container_navigator(AVFormatCon
 
         if (av_read_frame(&context, packet) >= 0 && packet->pos >= 0)
             return make<MP3Navigator>(stream, static_cast<size_t>(packet->pos), total_duration);
+    }
+
+    if (format_name == "ogg"sv) {
+        if (context.nb_streams != 1)
+            return nullptr;
+
+        auto& av_stream = *context.streams[0];
+        if (av_stream.time_base.num <= 0 || av_stream.time_base.den <= 0)
+            return nullptr;
+
+        auto cursor = stream->create_cursor();
+        cursor->set_is_blocking(false);
+
+        auto codec_id = FFmpeg::media_codec_id_from_ffmpeg_codec_id(av_stream.codecpar->codec_id);
+        ReadonlyBytes first_packet;
+        AVPacket* packet = nullptr;
+        ScopeGuard free_packet = [&] { av_packet_free(&packet); };
+
+        if (codec_id == CodecID::FLAC) {
+            if (av_stream.codecpar->sample_rate <= 0)
+                return nullptr;
+
+            packet = av_packet_alloc();
+            VERIFY(packet);
+            if (av_read_frame(&context, packet) >= 0 && packet->size >= 0)
+                first_packet = { packet->data, static_cast<size_t>(packet->size) };
+        }
+
+        auto sample_rate = av_stream.codecpar->sample_rate > 0 ? static_cast<u32>(av_stream.codecpar->sample_rate) : 0;
+        auto codec_initialization_data = ReadonlyBytes { av_stream.codecpar->extradata, static_cast<size_t>(av_stream.codecpar->extradata_size) };
+        return OggNavigator::create(first_packet, move(cursor), codec_id, static_cast<u32>(av_stream.time_base.num), static_cast<u32>(av_stream.time_base.den), sample_rate, codec_initialization_data);
     }
 
     return create_container_navigator_from_index(context);

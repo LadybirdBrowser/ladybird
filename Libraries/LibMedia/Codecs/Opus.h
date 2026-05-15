@@ -15,6 +15,7 @@ namespace Media::Codecs {
 class Opus {
 public:
     static DecoderErrorOr<AK::Duration> parse_frame_duration(MediaStreamCursor&, size_t frame_size);
+    static DecoderErrorOr<u32> parse_frame_duration_in_samples(MediaStreamCursor&, size_t frame_size);
 };
 
 }

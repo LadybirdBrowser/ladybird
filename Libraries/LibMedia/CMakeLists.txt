@@ -4,10 +4,12 @@ set(SOURCES
     Audio/AudioDevices.cpp
     Codecs/FLAC.cpp
     Codecs/Opus.cpp
+    Codecs/Vorbis.cpp
     Containers/ConstantBitrateContainerNavigator.cpp
     Containers/FLACNavigator.cpp
     Containers/IndexedContainerNavigator.cpp
     Containers/MP3Navigator.cpp
+    Containers/OggNavigator.cpp
     Containers/Matroska/MatroskaDemuxer.cpp
     Containers/Matroska/Reader.cpp
     Containers/Matroska/SampleIterator.cpp
