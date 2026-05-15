@@ -28,7 +28,9 @@
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
+#include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
+#include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Navigator.h>
@@ -465,7 +467,10 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
         if (fire_click_events(*node, coordinates, screen_position, button, buttons, modifiers, click_count)
             && !chrome_widget) {
             // NB: Event dispatches above may have run JS that invalidated layout.
-            m_navigable->active_document()->update_layout(DOM::UpdateLayoutReason::EventHandlerRunActivationBehavior);
+            document->update_layout(DOM::UpdateLayoutReason::EventHandlerRunActivationBehavior);
+
+            if (button == UIEvents::MouseButton::Middle && maybe_request_paste_for_middle_click(*document, visual_viewport_position))
+                return EventResult::Handled;
 
             // FIXME: Currently cannot spawn a new top-level browsing context for new tab operations, because the
             //        new top-level browsing context would be in another process. To fix this, there needs to be
@@ -1323,7 +1328,7 @@ void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPix
             return;
 
         for (GC::Ptr<DOM::Node const> node = hit->paintable->dom_node(); node; node = node->parent_or_shadow_host_node()) {
-            if (is<HTML::FormAssociatedTextControlElement>(*node))
+            if (node->is_editable_or_editing_host() || is<HTML::FormAssociatedTextControlElement>(*node))
                 return;
             if (auto const* anchor = as_if<HTML::HTMLAnchorElement>(*node); anchor && anchor->has_attribute(HTML::AttributeNames::href))
                 return;
@@ -1480,6 +1485,42 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
             m_navigable->page().client().page_did_request_context_menu(top_level_viewport_position, for_input_events_target);
         }
     }
+}
+
+static bool is_middle_click_paste_target(DOM::Node const& node)
+{
+    if (node.is_editable_or_editing_host())
+        return true;
+
+    return node.find_in_shadow_including_ancestry([](DOM::Node const& node) {
+        if (auto const* input_element = as_if<HTML::HTMLInputElement>(node))
+            return input_element->has_selectable_text();
+        return is<HTML::HTMLTextAreaElement>(node);
+    }) != nullptr;
+}
+
+bool EventHandler::maybe_request_paste_for_middle_click(DOM::Document& document, CSSPixelPoint visual_viewport_position)
+{
+    auto cursor_hit = paint_root()->hit_test(visual_viewport_position, Painting::HitTestType::TextCursor);
+    if (!cursor_hit.has_value())
+        return false;
+
+    auto hit_node = cursor_hit->paintable->dom_node();
+    if (!hit_node || !is_middle_click_paste_target(*hit_node))
+        return false;
+
+    if (auto focus_candidate = focus_candidate_for_position(visual_viewport_position))
+        HTML::run_focusing_steps(focus_candidate, nullptr, HTML::FocusTrigger::Click);
+    else if (auto editing_host = hit_node->editing_host())
+        HTML::run_focusing_steps(editing_host, nullptr, HTML::FocusTrigger::Click);
+
+    auto* target = document.active_input_events_target(hit_node);
+    if (!target)
+        return false;
+
+    target->set_selection_anchor(*hit_node, cursor_hit->index_in_node);
+    m_navigable->page().client().page_did_request_paste();
+    return true;
 }
 
 // https://drafts.csswg.org/css-ui/#propdef-user-select

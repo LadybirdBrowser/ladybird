@@ -187,6 +187,7 @@ private:
     virtual void page_did_change_theme_color(Gfx::Color color) override;
     virtual void page_did_insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation const&, StringView presentation_style) override;
     virtual void page_did_request_clipboard_entries(u64 request_id) override;
+    virtual void page_did_request_paste() override;
     virtual void page_did_change_audio_play_state(Web::HTML::AudioPlayState) override;
     virtual WorkerAgentResponse request_worker_agent(Web::Bindings::AgentType) override;
     virtual void page_did_mutate_dom(FlyString const& type, Web::DOM::Node const& target, Web::DOM::NodeList& added_nodes, Web::DOM::NodeList& removed_nodes, GC::Ptr<Web::DOM::Node> previous_sibling, GC::Ptr<Web::DOM::Node> next_sibling, Optional<String> const& attribute_name) override;

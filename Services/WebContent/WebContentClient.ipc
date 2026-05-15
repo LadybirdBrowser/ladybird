@@ -113,6 +113,7 @@ endpoint WebContentClient
 
     did_insert_clipboard_entry(u64 page_id, Web::Clipboard::SystemClipboardRepresentation entry, String presentation_style) =|
     did_request_clipboard_entries(u64 page_id, u64 request_id) =|
+    did_request_paste(u64 page_id) =|
 
     did_update_navigation_buttons_state(u64 page_id, bool back_enabled, bool forward_enabled) =|
 
