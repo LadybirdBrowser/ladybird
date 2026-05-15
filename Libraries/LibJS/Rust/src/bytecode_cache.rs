@@ -1067,10 +1067,10 @@ unsafe fn materialize_executable(
             .map(|value| value.to_utf16_string())
             .collect();
         generator.string_table = string_table.into_iter().map(|value| value.to_utf16_string()).collect();
-        generator.constants = constants
-            .into_iter()
-            .map(DecodedConstantValue::into_constant_value)
-            .collect();
+        let Some(constants) = constants.into_constant_values() else {
+            return std::ptr::null_mut();
+        };
+        generator.constants = constants;
         generator.local_variables = local_variables
             .into_iter()
             .map(DecodedLocalVariable::into_local_variable)
@@ -2207,7 +2207,7 @@ struct DecodedExecutableRecord {
     identifier_table: Vec<DecodedUtf16String>,
     property_key_table: Vec<DecodedUtf16String>,
     string_table: Vec<DecodedUtf16String>,
-    constants: Vec<DecodedConstantValue>,
+    constants: DecodedConstantTable,
     exception_handlers: Vec<ExceptionHandler>,
     source_map: Vec<SourceMapEntry>,
     local_variables: Vec<DecodedLocalVariable>,
@@ -2372,13 +2372,44 @@ struct ConstantTable<'a>(&'a [ConstantValue]);
 
 impl Encode for ConstantTable<'_> {
     fn encode(&self, encoder: &mut Encoder) {
-        encoder.sequence(self.0, |constant, encoder| constant.encode(encoder));
+        u32_from_usize(self.0.len()).encode(encoder);
+
+        let mut constant_encoder = Encoder::new();
+        for constant in self.0 {
+            constant.encode(&mut constant_encoder);
+        }
+        Bytes(&constant_encoder.finish()).encode(encoder);
     }
 }
 
 impl ConstantTable<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<DecodedConstantValue>> {
-        decoder.sequence_values(DecodedConstantValue::decode)
+    fn decode(decoder: &mut Decoder<'_>) -> Option<DecodedConstantTable> {
+        let count: usize = u32::decode(decoder)?.try_into().ok()?;
+        let byte_length: usize = u32::decode(decoder)?.try_into().ok()?;
+        Some(DecodedConstantTable {
+            count,
+            bytes: decoder.bytecode_bytes(byte_length)?,
+        })
+    }
+}
+
+struct DecodedConstantTable {
+    count: usize,
+    bytes: DecodedBytecodeBytes,
+}
+
+impl DecodedConstantTable {
+    fn len(&self) -> usize {
+        self.count
+    }
+
+    fn into_constant_values(self) -> Option<Vec<ConstantValue>> {
+        let mut decoder = Decoder::new(self.bytes.as_slice(), None);
+        let mut constants = Vec::with_capacity(self.count);
+        for _ in 0..self.count {
+            constants.push(DecodedConstantValue::decode(&mut decoder)?.into_constant_value());
+        }
+        decoder.is_empty().then_some(constants)
     }
 }
 
