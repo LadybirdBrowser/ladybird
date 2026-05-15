@@ -31,7 +31,7 @@ use crate::bytecode::validator::{
 use crate::{CompiledProgram, CompiledProgramBytecode, ModuleCallbacks, ast, u32_from_usize};
 
 const MAGIC: &[u8; 8] = b"LBJSBC\0\0";
-const FORMAT_VERSION: u32 = 5;
+const FORMAT_VERSION: u32 = 6;
 const SOURCE_HASH_SIZE: usize = 32;
 const COMPLETION_TYPE_VARIANT_COUNT: u32 = 6;
 const ITERATOR_HINT_VARIANT_COUNT: u32 = 2;
@@ -124,6 +124,11 @@ impl Encoder {
         self.bytes.extend_from_slice(bytes);
     }
 
+    fn align_to(&mut self, alignment: usize) {
+        let padding = self.bytes.len().next_multiple_of(alignment) - self.bytes.len();
+        self.bytes.extend(std::iter::repeat_n(0, padding));
+    }
+
     fn sequence<T>(&mut self, items: &[T], mut encode_item: impl FnMut(&T, &mut Self)) {
         u32_from_usize(items.len()).encode(self);
         for item in items {
@@ -183,6 +188,12 @@ impl<'a> Decoder<'a> {
         self.bytes = rest;
         self.offset = self.offset.checked_add(length)?;
         Some(bytes)
+    }
+
+    fn align_to(&mut self, alignment: usize) -> Option<()> {
+        let padding = self.offset.next_multiple_of(alignment) - self.offset;
+        self.bytes(padding)?;
+        Some(())
     }
 
     fn bytecode_bytes(&mut self, length: usize) -> Option<DecodedBytecodeBytes> {
@@ -345,6 +356,7 @@ impl<T: Decode> Decode for Option<T> {
 
 impl Decode for ast::Utf16String {
     fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+        decoder.align_to(align_of::<u16>())?;
         let length: usize = u32::decode(decoder)?.try_into().ok()?;
         let bytes = decoder.bytes(length.checked_mul(size_of::<u16>())?)?;
         let mut code_units = Vec::with_capacity(length);
@@ -360,17 +372,19 @@ enum DecodedUtf16String {
     // The surrounding decoded executable keeps the mapped blob alive through its
     // DecodedBytecodeBytes. Store only the payload pointer here so large string
     // tables do not clone an owner handle for every string.
-    Foreign { data: *const u8, length: usize },
+    Foreign { data: *const u16, length: usize },
 }
 
 impl Decode for DecodedUtf16String {
     fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+        decoder.align_to(align_of::<u16>())?;
         let length: usize = u32::decode(decoder)?.try_into().ok()?;
         let byte_length = length.checked_mul(size_of::<u16>())?;
         let bytes = decoder.bytes(byte_length)?;
         if decoder.foreign_blob.is_some() {
+            debug_assert_eq!((bytes.as_ptr() as usize) % align_of::<u16>(), 0);
             return Some(Self::Foreign {
-                data: bytes.as_ptr(),
+                data: bytes.as_ptr().cast(),
                 length,
             });
         }
@@ -400,13 +414,12 @@ impl DecodedUtf16String {
     fn to_vec(&self) -> Vec<u16> {
         match self {
             Self::Owned(value) => value.to_vec(),
-            Self::Foreign { data, length } => {
-                let bytes = unsafe { std::slice::from_raw_parts(*data, length * size_of::<u16>()) };
-                bytes
-                    .chunks_exact(size_of::<u16>())
-                    .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
+            Self::Foreign { data, length } => unsafe {
+                std::slice::from_raw_parts(*data, *length)
+                    .iter()
+                    .map(|code_unit| u16::from_le(*code_unit))
                     .collect()
-            }
+            },
         }
     }
 
@@ -415,12 +428,72 @@ impl DecodedUtf16String {
     }
 }
 
+struct PreparedUtf16Slice {
+    _storage: Option<Vec<u16>>,
+    slice: FFIUtf16Slice,
+}
+
+impl PreparedUtf16Slice {
+    fn new(value: &DecodedUtf16String) -> Self {
+        match value {
+            DecodedUtf16String::Owned(value) => Self {
+                _storage: None,
+                slice: FFIUtf16Slice::from(value.as_ref()),
+            },
+            DecodedUtf16String::Foreign { data, length } => {
+                #[cfg(target_endian = "little")]
+                {
+                    Self {
+                        _storage: None,
+                        slice: FFIUtf16Slice {
+                            data: *data,
+                            length: *length,
+                        },
+                    }
+                }
+                #[cfg(not(target_endian = "little"))]
+                {
+                    let storage = value.to_vec();
+                    let slice = FFIUtf16Slice::from(storage.as_slice());
+                    Self {
+                        _storage: Some(storage),
+                        slice,
+                    }
+                }
+            }
+        }
+    }
+
+    fn as_ptr_len(&self) -> (*const u16, usize) {
+        (self.slice.data, self.slice.length)
+    }
+}
+
 fn utf16_slice_storage(strings: &[DecodedUtf16String]) -> (Vec<Vec<u16>>, Vec<FFIUtf16Slice>) {
-    let storage: Vec<Vec<u16>> = strings.iter().map(DecodedUtf16String::to_vec).collect();
-    let slices = storage
-        .iter()
-        .map(|string| FFIUtf16Slice::from(string.as_slice()))
-        .collect();
+    #[cfg(target_endian = "little")]
+    let storage = Vec::new();
+    #[cfg(not(target_endian = "little"))]
+    let mut storage = Vec::new();
+    let mut slices = Vec::with_capacity(strings.len());
+    for string in strings {
+        match string {
+            DecodedUtf16String::Owned(value) => slices.push(FFIUtf16Slice::from(value.as_ref())),
+            DecodedUtf16String::Foreign { data, length } => {
+                #[cfg(target_endian = "little")]
+                {
+                    slices.push(FFIUtf16Slice {
+                        data: *data,
+                        length: *length,
+                    });
+                }
+                #[cfg(not(target_endian = "little"))]
+                {
+                    storage.push(string.to_vec());
+                    slices.push(FFIUtf16Slice::from(storage.last().unwrap().as_slice()));
+                }
+            }
+        }
+    }
     (storage, slices)
 }
 
@@ -475,6 +548,7 @@ struct Utf16<'a>(&'a [u16]);
 
 impl Encode for Utf16<'_> {
     fn encode(&self, encoder: &mut Encoder) {
+        encoder.align_to(align_of::<u16>());
         u32_from_usize(self.0.len()).encode(encoder);
         for code_unit in self.0 {
             encoder.bytes(&code_unit.to_le_bytes());
@@ -872,10 +946,10 @@ unsafe fn materialize_function(
             .as_ref()
             .map(|names| utf16_slice_storage(names))
             .unwrap_or_default();
-        let name_storage = function.name.as_ref().map(DecodedUtf16String::to_vec);
+        let name_storage = function.name.as_ref().map(PreparedUtf16Slice::new);
         let (name, name_len) = name_storage
             .as_ref()
-            .map(|name| (name.as_ptr(), name.len()))
+            .map(PreparedUtf16Slice::as_ptr_len)
             .unwrap_or((std::ptr::null(), 0));
         let source_text_offset = function.source_text_start as usize;
         let source_text_length = function
@@ -908,13 +982,9 @@ unsafe fn materialize_function(
         }
 
         if let Some((name, is_private)) = &function.class_field_initializer_name {
-            let name_storage = name.to_vec();
-            crate::bytecode::ffi::rust_sfd_set_class_field_initializer_name(
-                sfd_ptr,
-                name_storage.as_ptr(),
-                name_storage.len(),
-                *is_private,
-            );
+            let name_storage = PreparedUtf16Slice::new(name);
+            let (name, name_len) = name_storage.as_ptr_len();
+            crate::bytecode::ffi::rust_sfd_set_class_field_initializer_name(sfd_ptr, name, name_len, *is_private);
         }
 
         let cached_executable_ptr = Box::into_raw(Box::new(function.precompiled)) as *mut c_void;

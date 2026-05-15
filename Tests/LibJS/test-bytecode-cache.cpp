@@ -39,6 +39,12 @@ public:
         m_offset += length;
     }
 
+    void align_to(size_t alignment)
+    {
+        auto padding = (alignment - (m_offset % alignment)) % alignment;
+        skip(padding);
+    }
+
     bool read_bool()
     {
         return read_u8() != 0;
@@ -63,6 +69,7 @@ public:
 
     void skip_utf16()
     {
+        align_to(alignof(u16));
         auto length = read_u32();
         skip(length * sizeof(u16));
     }
