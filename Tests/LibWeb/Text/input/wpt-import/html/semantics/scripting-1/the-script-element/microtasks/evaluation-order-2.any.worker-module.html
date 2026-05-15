@@ -1,0 +1,9 @@
+<!doctype html>
+<meta charset=utf-8>
+
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+fetch_tests_from_worker(new Worker("/html/semantics/scripting-1/the-script-element/microtasks/evaluation-order-2.any.worker-module.js", { type: "module" }));
+</script>

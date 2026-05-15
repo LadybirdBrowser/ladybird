@@ -301,10 +301,9 @@ WebIDL::Promise* ModuleScript::run(PreventErrorReporting prevent_error_reporting
     // 8. If preventErrorReporting is false, then upon rejection of evaluationPromise with reason, report the exception given by reason for script.
     if (prevent_error_reporting == PreventErrorReporting::No) {
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
-        evaluation_promise = WebIDL::upon_rejection(*evaluation_promise, GC::create_function(realm.heap(), [&realm](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
-            auto& window_or_worker = as<WindowOrWorkerGlobalScopeMixin>(realm.global_object());
-            window_or_worker.report_an_exception(reason);
-            return throw_completion(reason);
+        WebIDL::upon_rejection(*evaluation_promise, GC::create_function(realm.heap(), [&realm](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+            as<WindowOrWorkerGlobalScopeMixin>(realm.global_object()).report_an_exception(reason);
+            return JS::js_undefined();
         }));
     }
 
