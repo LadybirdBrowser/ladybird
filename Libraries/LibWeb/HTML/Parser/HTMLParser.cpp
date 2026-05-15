@@ -263,7 +263,15 @@ void HTMLParser::initialize(JS::Realm& realm)
 void HTMLParser::run(HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point)
 {
     if (m_backend == HTMLParserBackend::Rust) {
-        auto result = rust_html_parser_run_document(m_rust_parser);
+        auto result = rust_html_parser_run_document(
+            m_rust_parser,
+            m_tokenizer.ffi_handle({}),
+            this,
+            stop_at_insertion_point == HTMLTokenizer::StopAtInsertionPoint::Yes);
+        if (result == RustFfiHtmlParserRunResult::Ok) {
+            m_tokenizer.parser_did_run({});
+            return;
+        }
         VERIFY(result == RustFfiHtmlParserRunResult::Unsupported);
     }
 
@@ -5974,54 +5982,27 @@ static String string_from_html_parser_ffi(u8 const* ptr, size_t len)
     return MUST(String::from_utf8(html_parser_ffi_string_view(ptr, len)));
 }
 
-enum class LadybirdHtmlParserNamespace {
-    HTML,
-    MathML,
-    SVG,
-};
-
-enum class LadybirdHtmlParserQuirksMode {
-    No,
-    Limited,
-    Yes,
-};
-
-struct LadybirdHtmlParserAttribute {
-    u8 const* local_name_ptr;
-    size_t local_name_len;
-    u8 const* value_ptr;
-    size_t value_len;
-};
-
-extern "C" uintptr_t ladybird_html_parser_document_node(void*);
-extern "C" void ladybird_html_parser_set_document_quirks_mode(void*, LadybirdHtmlParserQuirksMode);
-extern "C" uintptr_t ladybird_html_parser_create_document_type(void*, u8 const*, size_t, u8 const*, size_t, u8 const*, size_t);
-extern "C" uintptr_t ladybird_html_parser_create_comment(void*, u8 const*, size_t);
-extern "C" uintptr_t ladybird_html_parser_create_text_node(void*, u8 const*, size_t);
-extern "C" uintptr_t ladybird_html_parser_create_element(void*, LadybirdHtmlParserNamespace, u8 const*, size_t, LadybirdHtmlParserAttribute const*, size_t);
-extern "C" void ladybird_html_parser_append_child(uintptr_t, uintptr_t);
-
-static Optional<FlyString> namespace_from_html_parser_ffi(LadybirdHtmlParserNamespace namespace_)
+static Optional<FlyString> namespace_from_html_parser_ffi(RustFfiHtmlNamespace namespace_)
 {
     switch (namespace_) {
-    case LadybirdHtmlParserNamespace::HTML:
+    case RustFfiHtmlNamespace::Html:
         return Namespace::HTML;
-    case LadybirdHtmlParserNamespace::MathML:
+    case RustFfiHtmlNamespace::MathMl:
         return Namespace::MathML;
-    case LadybirdHtmlParserNamespace::SVG:
+    case RustFfiHtmlNamespace::Svg:
         return Namespace::SVG;
     }
     VERIFY_NOT_REACHED();
 }
 
-static DOM::QuirksMode quirks_mode_from_html_parser_ffi(LadybirdHtmlParserQuirksMode mode)
+static DOM::QuirksMode quirks_mode_from_html_parser_ffi(RustFfiHtmlQuirksMode mode)
 {
     switch (mode) {
-    case LadybirdHtmlParserQuirksMode::No:
+    case RustFfiHtmlQuirksMode::No:
         return DOM::QuirksMode::No;
-    case LadybirdHtmlParserQuirksMode::Limited:
+    case RustFfiHtmlQuirksMode::Limited:
         return DOM::QuirksMode::Limited;
-    case LadybirdHtmlParserQuirksMode::Yes:
+    case RustFfiHtmlQuirksMode::Yes:
         return DOM::QuirksMode::Yes;
     }
     VERIFY_NOT_REACHED();
@@ -6033,47 +6014,47 @@ static HTMLParser& parser_from_html_parser_ffi(void* parser)
     return *reinterpret_cast<HTMLParser*>(parser);
 }
 
-static DOM::Node& node_from_html_parser_ffi(uintptr_t node)
+static DOM::Node& node_from_html_parser_ffi(size_t node)
 {
     VERIFY(node);
     return *reinterpret_cast<DOM::Node*>(node);
 }
 
-extern "C" uintptr_t ladybird_html_parser_document_node(void* parser)
+extern "C" size_t ladybird_html_parser_document_node(void* parser)
 {
-    return reinterpret_cast<uintptr_t>(&parser_from_html_parser_ffi(parser).document());
+    return reinterpret_cast<size_t>(&parser_from_html_parser_ffi(parser).document());
 }
 
-extern "C" void ladybird_html_parser_set_document_quirks_mode(void* parser, LadybirdHtmlParserQuirksMode mode)
+extern "C" void ladybird_html_parser_set_document_quirks_mode(void* parser, RustFfiHtmlQuirksMode mode)
 {
     parser_from_html_parser_ffi(parser).document().set_quirks_mode(quirks_mode_from_html_parser_ffi(mode));
 }
 
-extern "C" uintptr_t ladybird_html_parser_create_document_type(void* parser, u8 const* name_ptr, size_t name_len, u8 const* public_id_ptr, size_t public_id_len, u8 const* system_id_ptr, size_t system_id_len)
+extern "C" size_t ladybird_html_parser_create_document_type(void* parser, u8 const* name_ptr, size_t name_len, u8 const* public_id_ptr, size_t public_id_len, u8 const* system_id_ptr, size_t system_id_len)
 {
     auto& html_parser = parser_from_html_parser_ffi(parser);
     auto document_type = html_parser.document().realm().create<DOM::DocumentType>(html_parser.document());
     document_type->set_name(string_from_html_parser_ffi(name_ptr, name_len));
     document_type->set_public_id(string_from_html_parser_ffi(public_id_ptr, public_id_len));
     document_type->set_system_id(string_from_html_parser_ffi(system_id_ptr, system_id_len));
-    return reinterpret_cast<uintptr_t>(document_type.ptr());
+    return reinterpret_cast<size_t>(document_type.ptr());
 }
 
-extern "C" uintptr_t ladybird_html_parser_create_comment(void* parser, u8 const* data_ptr, size_t data_len)
+extern "C" size_t ladybird_html_parser_create_comment(void* parser, u8 const* data_ptr, size_t data_len)
 {
     auto& html_parser = parser_from_html_parser_ffi(parser);
     auto comment = html_parser.document().realm().create<DOM::Comment>(html_parser.document(), Utf16String::from_utf8(string_from_html_parser_ffi(data_ptr, data_len)));
-    return reinterpret_cast<uintptr_t>(comment.ptr());
+    return reinterpret_cast<size_t>(comment.ptr());
 }
 
-extern "C" uintptr_t ladybird_html_parser_create_text_node(void* parser, u8 const* data_ptr, size_t data_len)
+extern "C" size_t ladybird_html_parser_create_text_node(void* parser, u8 const* data_ptr, size_t data_len)
 {
     auto& html_parser = parser_from_html_parser_ffi(parser);
     auto text = html_parser.document().realm().create<DOM::Text>(html_parser.document(), Utf16String::from_utf8(string_from_html_parser_ffi(data_ptr, data_len)));
-    return reinterpret_cast<uintptr_t>(text.ptr());
+    return reinterpret_cast<size_t>(text.ptr());
 }
 
-extern "C" uintptr_t ladybird_html_parser_create_element(void* parser, LadybirdHtmlParserNamespace namespace_, u8 const* local_name_ptr, size_t local_name_len, LadybirdHtmlParserAttribute const* attributes, size_t attribute_count)
+extern "C" size_t ladybird_html_parser_create_element(void* parser, RustFfiHtmlNamespace namespace_, u8 const* local_name_ptr, size_t local_name_len, RustFfiHtmlParserAttribute const* attributes, size_t attribute_count)
 {
     auto& html_parser = parser_from_html_parser_ffi(parser);
     auto local_name = fly_string_from_html_parser_ffi(local_name_ptr, local_name_len);
@@ -6086,12 +6067,52 @@ extern "C" uintptr_t ladybird_html_parser_create_element(void* parser, LadybirdH
         element->append_attribute(dom_attribute);
     }
 
-    return reinterpret_cast<uintptr_t>(element.ptr());
+    return reinterpret_cast<size_t>(element.ptr());
 }
 
-extern "C" void ladybird_html_parser_append_child(uintptr_t parent, uintptr_t child)
+extern "C" void ladybird_html_parser_append_child(size_t parent, size_t child)
 {
     MUST(node_from_html_parser_ffi(parent).append_child(node_from_html_parser_ffi(child)));
+}
+
+extern "C" void ladybird_html_parser_insert_before(size_t parent, size_t child, size_t before)
+{
+    node_from_html_parser_ffi(parent).insert_before(node_from_html_parser_ffi(child), &node_from_html_parser_ffi(before));
+}
+
+extern "C" size_t ladybird_html_parser_template_content(size_t element)
+{
+    auto& template_element = as<HTMLTemplateElement>(node_from_html_parser_ffi(element));
+    return reinterpret_cast<size_t>(template_element.content().ptr());
+}
+
+extern "C" size_t ladybird_html_parser_attach_declarative_shadow_root(size_t host, RustFfiHtmlShadowRootMode mode, bool clonable, bool serializable, bool delegates_focus, bool keep_custom_element_registry_null)
+{
+    auto& host_element = as<DOM::Element>(node_from_html_parser_ffi(host));
+    if (host_element.is_shadow_host())
+        return 0;
+
+    GC::Ptr<CustomElementRegistry> registry;
+    if (!keep_custom_element_registry_null)
+        registry = host_element.document().custom_element_registry();
+
+    auto result = host_element.attach_a_shadow_root(
+        mode == RustFfiHtmlShadowRootMode::Open ? Bindings::ShadowRootMode::Open : Bindings::ShadowRootMode::Closed,
+        clonable,
+        serializable,
+        delegates_focus,
+        Bindings::SlotAssignmentMode::Named,
+        registry);
+    if (result.is_error())
+        return 0;
+
+    auto shadow_root = host_element.shadow_root();
+    VERIFY(shadow_root);
+    shadow_root->set_declarative(true);
+    shadow_root->set_available_to_element_internals(true);
+    if (keep_custom_element_registry_null)
+        shadow_root->set_keep_custom_element_registry_null(true);
+    return reinterpret_cast<size_t>(shadow_root.ptr());
 }
 
 }

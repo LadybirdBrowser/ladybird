@@ -16,7 +16,7 @@ use tokenizer::{HtmlTokenizer, State};
 
 /// Opaque handle for the Rust tokenizer, passed across the FFI boundary.
 pub struct RustFfiTokenizerHandle {
-    tokenizer: HtmlTokenizer,
+    pub(crate) tokenizer: HtmlTokenizer,
     /// Temporary storage for the last token's string data, kept alive
     /// so that pointers in RustFfiToken remain valid until the next call.
     last_tag_name: Vec<u8>,

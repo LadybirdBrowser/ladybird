@@ -153,6 +153,7 @@ public:
     void abort();
 
     void parser_did_run(Badge<HTMLParser>);
+    RustFfiTokenizerHandle* ffi_handle(Badge<HTMLParser>) { return m_tokenizer; }
 
     void visit_edges(GC::Cell::Visitor&);
 
