@@ -6,6 +6,7 @@ members = [
     "Libraries/LibUnicode/Rust",
     "Libraries/LibWasm/Rust",
     "Libraries/LibWeb/Rust",
+    "Libraries/LibWeb/HTML/Parser/Rust",
 ]
 exclude = [
     "Libraries/LibJS/AsmIntGen",

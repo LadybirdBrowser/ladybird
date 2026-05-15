@@ -1253,6 +1253,8 @@ target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP
 
 import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libweb_rust FFI_HEADER RustFFI.h)
 target_link_libraries(LibWeb PRIVATE libweb_rust)
+get_target_property(_libweb_rust_lib libweb_rust IMPORTED_LOCATION)
+set_property(SOURCE HTML/Parser/HTMLTokenizer.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
 if ((LINUX OR BSD) AND NOT BUILD_SHARED_LIBS)
     target_link_options(LibWeb INTERFACE LINKER:--allow-multiple-definition)
 endif()
@@ -1273,7 +1275,6 @@ if(NOT BUILD_SHARED_LIBS)
     # stale Rust objects. Force the C++ FFI bridge file to depend on the
     # Rust archive: when it changes, RustTokenizer.cpp recompiles, LibWeb
     # re-archives, and POST_BUILD re-merges the fresh Rust objects.
-    get_target_property(_libweb_rust_lib libweb_rust IMPORTED_LOCATION)
     set_property(SOURCE CSS/Parser/RustTokenizer.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
 endif()
 

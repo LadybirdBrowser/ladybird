@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<meta http-equiv="Content-Security-Policy" content="script-src 'nonce-good'">
+<script nonce=good nonce=bad>
+    globalThis.duplicateNonceScriptExecuted = true;
+</script>
+<script nonce=good>
+    globalThis.validNonceScriptExecuted = true;
+</script>
+<script nonce=good>
+    test(() => {
+        println(globalThis.duplicateNonceScriptExecuted ? "FAIL: duplicate nonce script executed" : "PASS: duplicate nonce script blocked");
+        println(globalThis.validNonceScriptExecuted ? "PASS: valid nonce script executed" : "FAIL: valid nonce script blocked");
+    });
+</script>

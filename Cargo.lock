@@ -586,10 +586,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "libweb_html_tokenizer"
+version = "0.1.0"
+dependencies = [
+ "cbindgen",
+]
+
+[[package]]
 name = "libweb_rust"
 version = "0.1.0"
 dependencies = [
  "cbindgen",
+ "libweb_html_tokenizer",
 ]
 
 [[package]]
