@@ -2,6 +2,7 @@ include(audio)
 
 set(TEST_SOURCES
     TestCICP.cpp
+    TestBufferedRanges.cpp
     TestDataProducers.cpp
     TestDecodedAudioProducer.cpp
     TestFFmpegAudioNormalization.cpp
