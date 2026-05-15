@@ -31,15 +31,9 @@ jobs:
             artifact_name: app-debug-ubuntu
 
     steps:
-      # For push events check out the branch directly; for pull requests use the
-      # auto-generated merge commit so we validate the merged result.
+      # For pull_request events, actions/checkout defaults to github.sha, which
+      # is already the synthetic merge commit.
       - uses: actions/checkout@v6.0.2
-        if: ${{ github.event_name != 'pull_request' }}
-
-      - uses: actions/checkout@v6.0.2
-        if: ${{ github.event_name == 'pull_request' }}
-        with:
-          ref: refs/pull/${{ github.event.pull_request.number }}/merge
 
       # Sets up Clang, CMake, ninja, nasm, Rust, wasm-tools, vcpkg, and all
       # other host-side build prerequisites required by Meta/ladybird.py.
@@ -94,7 +88,9 @@ jobs:
 
       - name: Build Android Debug APK
         working-directory: ${{ github.workspace }}/UI/Android
-        run: ./gradlew assembleDebug
+        run: |
+          set -o pipefail
+          ./gradlew --stacktrace --info assembleDebug 2>&1 | tee "${{ github.workspace }}/android-debug-build.log"
         env:
           GRADLE_OPTS: '-Xmx4096m'
           LADYBIRD_CACHE_DIR: ${{ github.workspace }}/Build/caches
@@ -108,6 +104,14 @@ jobs:
           name: ${{ matrix.artifact_name }}
           path: ${{ github.workspace }}/UI/Android/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Upload Gradle Build Log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-debug-gradle-log-${{ matrix.label }}
+          path: ${{ github.workspace }}/android-debug-build.log
+          if-no-files-found: warn
 
       # === SAVE CACHES ===
 
