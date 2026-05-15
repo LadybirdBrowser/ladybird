@@ -107,8 +107,10 @@ private:
     CacheEntryWriter(DiskCache&, CacheIndex&, u64 cache_key, String url, CacheHeader, UnixDateTime request_time, AK::Duration current_time_offset_for_testing);
 
     ErrorOr<void> flush_impl(NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers, CacheEntryBodyFile*);
+    void remove_incomplete_temporary_file();
 
     OwnPtr<Core::OutputBufferedFile> m_file;
+    Optional<LexicalPath> m_temporary_path;
     u64 m_data_offset { 0 };
 
     UnixDateTime m_request_time;
