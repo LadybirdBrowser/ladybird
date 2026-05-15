@@ -1,0 +1,25 @@
+<!doctype html>
+<details id="details" open>
+    <summary>summary</summary>
+</details>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // Force a layout update
+        getComputedStyle(details, "::details-content").width;
+
+        println(
+            `details-content open content-visibility: ${
+                getComputedStyle(details, "::details-content").contentVisibility
+            }`
+        );
+
+        details.removeAttribute("open");
+
+        println(
+            `details-content closed content-visibility: ${
+                getComputedStyle(details, "::details-content").contentVisibility
+            }`
+        );
+    });
+</script>

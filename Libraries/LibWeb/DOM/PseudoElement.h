@@ -78,4 +78,32 @@ protected:
     }
 };
 
+class WEB_API ElementReferencePseudoElement : public PseudoElement {
+    GC_CELL(ElementReferencePseudoElement, PseudoElement);
+    GC_DECLARE_ALLOCATOR(ElementReferencePseudoElement);
+
+    ElementReferencePseudoElement(GC::Ref<Element> referenced_element)
+        : m_referenced_element(referenced_element)
+    {
+    }
+
+    GC::Ptr<Layout::NodeWithStyle> layout_node() const override;
+    GC::Ptr<Layout::NodeWithStyle> unsafe_layout_node() const override;
+
+    GC::Ptr<CSS::ComputedProperties> computed_properties() const override;
+
+    RefPtr<CSS::CustomPropertyData const> custom_property_data() const override;
+    void set_custom_property_data(RefPtr<CSS::CustomPropertyData const> value) override;
+
+protected:
+    virtual void visit_edges(JS::Cell::Visitor& visitor) override
+    {
+        Base::visit_edges(visitor);
+        visitor.visit(m_referenced_element);
+    }
+
+private:
+    GC::Ref<Element> m_referenced_element;
+};
+
 }

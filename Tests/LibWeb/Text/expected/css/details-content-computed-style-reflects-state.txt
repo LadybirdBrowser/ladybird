@@ -1,0 +1,2 @@
+details-content open content-visibility: visible
+details-content closed content-visibility: hidden

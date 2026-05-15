@@ -3568,6 +3568,21 @@ void Element::set_computed_properties(Optional<CSS::PseudoElement> pseudo_elemen
     computed_properties_changed();
 }
 
+void Element::set_associated_shadow_host_pseudo_element(CSS::PseudoElement type)
+{
+    VERIFY(CSS::is_element_reference_pseudo_element(type));
+
+    auto& root = this->root();
+    VERIFY(is<ShadowRoot>(root));
+
+    auto& shadow_root = as<ShadowRoot>(root);
+    VERIFY(shadow_root.host());
+
+    shadow_root.host()->register_element_reference_pseudo_element(type, *this);
+
+    m_associated_shadow_host_pseudo_element = type;
+}
+
 Optional<SyntheticPseudoElement&> Element::get_synthetic_pseudo_element(CSS::PseudoElement type) const
 {
     VERIFY(is_synthetic_pseudo_element(type));
@@ -3594,6 +3609,25 @@ Optional<PseudoElement&> Element::get_pseudo_element(CSS::PseudoElement type) co
         return {};
 
     return *(pseudo_element.value());
+}
+
+void Element::register_element_reference_pseudo_element(CSS::PseudoElement type, GC::Ref<Element> element)
+{
+    VERIFY(CSS::is_element_reference_pseudo_element(type));
+
+    if (!m_pseudo_element_data)
+        m_pseudo_element_data = make<PseudoElementData>();
+
+    m_pseudo_element_data->set(type, heap().allocate<ElementReferencePseudoElement>(element));
+}
+
+void Element::clear_element_reference_pseudo_elements()
+{
+    if (!m_pseudo_element_data)
+        return;
+
+    for (auto i = to_underlying(CSS::first_element_reference_pseudo_element); i <= to_underlying(CSS::last_element_reference_pseudo_element); ++i)
+        m_pseudo_element_data->remove(static_cast<CSS::PseudoElement>(i));
 }
 
 SyntheticPseudoElement& Element::ensure_synthetic_pseudo_element(CSS::PseudoElement type) const

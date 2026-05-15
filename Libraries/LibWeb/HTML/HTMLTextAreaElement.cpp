@@ -358,8 +358,8 @@ void HTMLTextAreaElement::create_shadow_tree_if_needed()
     MUST(m_inner_text_element->append_child(*m_text_node));
 
     m_placeholder_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
-    m_placeholder_element->set_associated_shadow_host_pseudo_element(CSS::PseudoElement::Placeholder);
     MUST(element->append_child(*m_placeholder_element));
+    m_placeholder_element->set_associated_shadow_host_pseudo_element(CSS::PseudoElement::Placeholder);
 
     m_placeholder_text_node = realm().create<DOM::Text>(document(), Utf16String::from_utf8(get_attribute_value(HTML::AttributeNames::placeholder)));
     MUST(m_placeholder_element->append_child(*m_placeholder_text_node));

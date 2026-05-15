@@ -112,12 +112,12 @@ void HTMLProgressElement::create_shadow_tree_if_needed()
     set_shadow_root(shadow_root);
 
     auto progress_bar_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
-    progress_bar_element->set_associated_shadow_host_pseudo_element(CSS::PseudoElement::SliderTrack);
     MUST(shadow_root->append_child(*progress_bar_element));
+    progress_bar_element->set_associated_shadow_host_pseudo_element(CSS::PseudoElement::SliderTrack);
 
     m_progress_value_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
-    m_progress_value_element->set_associated_shadow_host_pseudo_element(CSS::PseudoElement::SliderFill);
     MUST(progress_bar_element->append_child(*m_progress_value_element));
+    m_progress_value_element->set_associated_shadow_host_pseudo_element(CSS::PseudoElement::SliderFill);
     update_progress_value_element();
 }
 
