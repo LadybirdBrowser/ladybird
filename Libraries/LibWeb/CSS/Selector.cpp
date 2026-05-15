@@ -968,15 +968,7 @@ SelectorList absolutize_selectors_relative_to(SelectorList const& selectors, GC:
     // or if we have no such ancestor, with `:scope`.
 
     // If we don't have any nesting selectors, we can just use our selectors as they are.
-    bool has_any_nesting = false;
-    for (auto const& selector : selectors) {
-        if (selector->contains_the_nesting_selector()) {
-            has_any_nesting = true;
-            break;
-        }
-    }
-
-    if (!has_any_nesting)
+    if (!any_of(selectors, [](auto const& selector) { return selector->contains_the_nesting_selector(); }))
         return selectors;
 
     // Otherwise, build up a new list of selectors with the `&` replaced.
