@@ -328,13 +328,14 @@ int main()
     outln("\n# DeclarativeEnvironment binding storage layout");
     EMIT_OFFSET(DECLARATIVE_ENVIRONMENT_SHAPE, DeclarativeEnvironment, m_shape);
     EMIT_OFFSET(DECLARATIVE_ENVIRONMENT_BINDING_VALUES, DeclarativeEnvironment, m_binding_values);
-    EMIT_OFFSET(DECLARATIVE_ENVIRONMENT_BINDING_FLAGS, DeclarativeEnvironment, m_binding_flags);
+    EMIT_OFFSET(DECLARATIVE_ENVIRONMENT_RARE_DATA, DeclarativeEnvironment, m_rare_data);
+    EMIT_OFFSET(DECLARATIVE_ENVIRONMENT_RARE_DATA_BINDING_FLAGS, DeclarativeEnvironment::RareData, m_binding_flags);
     EMIT_OFFSET(ENVIRONMENT_SHAPE_BINDING_FLAGS, EnvironmentShape, m_binding_flags);
     outln("const BINDING_FLAG_MUTABLE = {}", 1 << 1);
 
     // Vector<T> layout: m_size(0), m_capacity(8), m_metadata.outline_buffer(16)
     outln("const BINDING_VALUES_DATA_PTR = {}", offsetof(DeclarativeEnvironment, m_binding_values) + sizeof(size_t) * 2);
-    outln("const BINDING_FLAGS_DATA_PTR = {}", offsetof(DeclarativeEnvironment, m_binding_flags) + sizeof(size_t) * 2);
+    outln("const BINDING_FLAGS_DATA_PTR = {}", offsetof(DeclarativeEnvironment::RareData, m_binding_flags) + sizeof(size_t) * 2);
     outln("const ENVIRONMENT_SHAPE_BINDING_FLAGS_DATA_PTR = {}", offsetof(EnvironmentShape, m_binding_flags) + sizeof(size_t) * 2);
 
     // EnvironmentCoordinate layout

@@ -8,6 +8,7 @@
 
 #include <AK/Bitmap.h>
 #include <AK/HashMap.h>
+#include <AK/OwnPtr.h>
 #include <AK/Utf16FlyString.h>
 #include <LibJS/Export.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -63,9 +64,11 @@ public:
                 names.unchecked_append(name);
         }
 
-        for (auto const& name : m_binding_names) {
-            if (!name.is_empty())
-                names.unchecked_append(name);
+        if (m_rare_data) {
+            for (auto const& name : m_rare_data->m_binding_names) {
+                if (!name.is_empty())
+                    names.unchecked_append(name);
+            }
         }
 
         return names;
@@ -82,19 +85,35 @@ public:
     void ensure_capacity(size_t needed_capacity)
     {
         m_binding_values.ensure_capacity(needed_capacity);
-        if (m_shape)
+        if (m_shape || needed_capacity == 0)
             return;
 
-        m_binding_names.ensure_capacity(needed_capacity);
-        m_binding_flags.ensure_capacity(needed_capacity);
+        auto& rare_data = ensure_rare_data();
+        rare_data.m_binding_names.ensure_capacity(needed_capacity);
+        rare_data.m_binding_flags.ensure_capacity(needed_capacity);
     }
 
     [[nodiscard]] u64 environment_serial_number() const { return m_environment_serial_number; }
 
-    DisposeCapability const& dispose_capability() const { return m_dispose_capability; }
-    DisposeCapability& dispose_capability() { return m_dispose_capability; }
+    DisposeCapability const& dispose_capability() const;
+    DisposeCapability& dispose_capability();
+    DisposeCapability* dispose_capability_if_exists();
 
 private:
+    struct RareData {
+        void visit_edges(Visitor&) const;
+        [[nodiscard]] size_t external_memory_size() const;
+        [[nodiscard]] bool is_empty() const;
+
+        Vector<Utf16FlyString> m_binding_names;
+        Vector<u8> m_binding_flags;
+        Bitmap m_deleted_bindings;
+        HashMap<Utf16FlyString, size_t> m_bindings_assoc;
+        DisposeCapability m_dispose_capability;
+        GC::Ptr<EnvironmentShape>* m_environment_shape_cache { nullptr };
+        size_t m_expected_binding_count { 0 };
+    };
+
     static constexpr u8 BindingFlagStrict = EnvironmentShape::BindingFlagStrict;
     static constexpr u8 BindingFlagMutable = EnvironmentShape::BindingFlagMutable;
     static constexpr u8 BindingFlagCanBeDeleted = EnvironmentShape::BindingFlagCanBeDeleted;
@@ -106,10 +125,13 @@ private:
     void clear_binding(Utf16FlyString const& name, size_t index);
     void ensure_deleted_bindings_capacity(size_t needed_capacity)
     {
-        if (needed_capacity <= m_deleted_bindings.size())
+        auto& rare_data = ensure_rare_data();
+        if (needed_capacity <= rare_data.m_deleted_bindings.size())
             return;
-        m_deleted_bindings.grow(ceil_div(needed_capacity, static_cast<size_t>(8)) * 8, false);
+        rare_data.m_deleted_bindings.grow(ceil_div(needed_capacity, static_cast<size_t>(8)) * 8, false);
     }
+    RareData& ensure_rare_data();
+    void drop_rare_data_if_empty();
     void maybe_finalize_environment_shape(VM&);
     void set_environment_shape(GC::Ref<EnvironmentShape>);
     Binding binding_at(size_t index) const;
@@ -117,19 +139,21 @@ private:
     {
         if (index < shape_binding_count())
             return m_shape->binding_name(index);
-        return m_binding_names[local_binding_index(index)];
+        VERIFY(m_rare_data);
+        return m_rare_data->m_binding_names[local_binding_index(index)];
     }
     u8 binding_flags(size_t index) const
     {
         if (index < shape_binding_count())
             return m_shape->binding_flags(index);
-        return m_binding_flags[local_binding_index(index)];
+        VERIFY(m_rare_data);
+        return m_rare_data->m_binding_flags[local_binding_index(index)];
     }
     bool binding_is_strict(size_t index) const { return (binding_flags(index) & BindingFlagStrict) != 0; }
     bool binding_is_mutable(size_t index) const { return (binding_flags(index) & BindingFlagMutable) != 0; }
     bool binding_can_be_deleted(size_t index) const { return (binding_flags(index) & BindingFlagCanBeDeleted) != 0; }
     bool binding_is_initialized(size_t index) const { return !m_binding_values[index].is_special_empty_value(); }
-    bool binding_is_deleted(size_t index) const { return !m_deleted_bindings.is_null() && m_deleted_bindings.get(index); }
+    bool binding_is_deleted(size_t index) const { return m_rare_data && !m_rare_data->m_deleted_bindings.is_null() && m_rare_data->m_deleted_bindings.get(index); }
 
     ThrowCompletionOr<Value> get_binding_value_direct(VM&, Binding const&) const;
     ThrowCompletionOr<void> set_mutable_binding_direct(VM&, Binding&, Value, bool strict);
@@ -180,8 +204,9 @@ protected:
                 return BindingAndIndex { *this, *index };
         }
 
-        if (auto it = m_bindings_assoc.find(name); it != m_bindings_assoc.end()) {
-            return BindingAndIndex { *this, it->value };
+        if (m_rare_data) {
+            if (auto it = m_rare_data->m_bindings_assoc.find(name); it != m_rare_data->m_bindings_assoc.end())
+                return BindingAndIndex { *this, it->value };
         }
 
         return {};
@@ -189,17 +214,8 @@ protected:
 
 private:
     GC::Ptr<EnvironmentShape> m_shape;
-    Vector<Utf16FlyString> m_binding_names;
     Vector<Value> m_binding_values;
-    // When m_shape is set, this only stores flags for local bindings after
-    // the shared shape bindings.
-    Vector<u8> m_binding_flags;
-    Bitmap m_deleted_bindings;
-    HashMap<Utf16FlyString, size_t> m_bindings_assoc;
-    DisposeCapability m_dispose_capability;
-    GC::Ptr<EnvironmentShape>* m_environment_shape_cache { nullptr };
-    size_t m_expected_binding_count { 0 };
-
+    OwnPtr<RareData> m_rare_data;
     u64 m_environment_serial_number { 0 };
     bool m_is_catch_environment { false };
 };

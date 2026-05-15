@@ -655,7 +655,8 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
         auto& env = as<DeclarativeEnvironment>(*module_context->lexical_environment);
 
         // e. Set result to Completion(DisposeResources(env.[[DisposeCapability]], result)).
-        result = dispose_resources(vm, env.dispose_capability(), result);
+        if (auto* dispose_capability = env.dispose_capability_if_exists())
+            result = dispose_resources(vm, *dispose_capability, result);
 
         // f. Suspend moduleContext and remove it from the execution context stack.
         vm.pop_execution_context();

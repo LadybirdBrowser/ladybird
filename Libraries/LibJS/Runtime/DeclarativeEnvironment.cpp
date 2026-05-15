@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
 #include <LibJS/Runtime/Error.h>
@@ -18,29 +19,70 @@ GC_DEFINE_ALLOCATOR(DeclarativeEnvironment);
 
 DeclarativeEnvironment::DeclarativeEnvironment()
     : Environment(nullptr, IsDeclarative::Yes)
-    , m_dispose_capability(new_dispose_capability())
 {
 }
 
 DeclarativeEnvironment::DeclarativeEnvironment(Environment* parent_environment)
     : Environment(parent_environment, IsDeclarative::Yes)
-    , m_dispose_capability(new_dispose_capability())
 {
 }
 
 DeclarativeEnvironment::DeclarativeEnvironment(Environment* parent_environment, ReadonlySpan<Binding> bindings)
     : Environment(parent_environment, IsDeclarative::Yes)
-    , m_dispose_capability(new_dispose_capability())
 {
     ensure_capacity(bindings.size());
     for (auto binding : bindings)
         append_binding(move(binding));
 }
 
+void DeclarativeEnvironment::RareData::visit_edges(Visitor& visitor) const
+{
+    m_dispose_capability.visit_edges(visitor);
+}
+
+size_t DeclarativeEnvironment::RareData::external_memory_size() const
+{
+    auto size = sizeof(RareData);
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(m_binding_names));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(m_binding_flags));
+    size = saturating_add_external_memory_size(size, m_deleted_bindings.size_in_bytes());
+    size = saturating_add_external_memory_size(size, hash_map_external_memory_size(m_bindings_assoc));
+    if (m_dispose_capability.disposable_resource_stack) {
+        size = saturating_add_external_memory_size(size, sizeof(Vector<DisposableResource>));
+        size = saturating_add_external_memory_size(size, vector_external_memory_size(*m_dispose_capability.disposable_resource_stack));
+    }
+    return size;
+}
+
+bool DeclarativeEnvironment::RareData::is_empty() const
+{
+    return m_binding_names.is_empty()
+        && m_binding_flags.is_empty()
+        && m_deleted_bindings.is_null()
+        && m_bindings_assoc.is_empty()
+        && !m_dispose_capability.disposable_resource_stack
+        && !m_environment_shape_cache
+        && m_expected_binding_count == 0;
+}
+
+DeclarativeEnvironment::RareData& DeclarativeEnvironment::ensure_rare_data()
+{
+    if (!m_rare_data)
+        m_rare_data = make<RareData>();
+    return *m_rare_data;
+}
+
+void DeclarativeEnvironment::drop_rare_data_if_empty()
+{
+    if (m_rare_data && m_rare_data->is_empty())
+        m_rare_data.clear();
+}
+
 void DeclarativeEnvironment::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    m_dispose_capability.visit_edges(visitor);
+    if (m_rare_data)
+        m_rare_data->visit_edges(visitor);
     visitor.visit(m_shape);
 
     for (auto& value : m_binding_values)
@@ -49,12 +91,30 @@ void DeclarativeEnvironment::visit_edges(Visitor& visitor)
 
 size_t DeclarativeEnvironment::external_memory_size() const
 {
-    auto size = vector_external_memory_size(m_binding_names);
-    size = saturating_add_external_memory_size(size, vector_external_memory_size(m_binding_values));
-    size = saturating_add_external_memory_size(size, vector_external_memory_size(m_binding_flags));
-    size = saturating_add_external_memory_size(size, m_deleted_bindings.size_in_bytes());
-    size = saturating_add_external_memory_size(size, hash_map_external_memory_size(m_bindings_assoc));
+    auto size = vector_external_memory_size(m_binding_values);
+    if (m_rare_data)
+        size = saturating_add_external_memory_size(size, m_rare_data->external_memory_size());
     return size;
+}
+
+DisposeCapability const& DeclarativeEnvironment::dispose_capability() const
+{
+    static NeverDestroyed<DisposeCapability> empty_dispose_capability;
+    if (!m_rare_data)
+        return *empty_dispose_capability;
+    return m_rare_data->m_dispose_capability;
+}
+
+DisposeCapability& DeclarativeEnvironment::dispose_capability()
+{
+    return ensure_rare_data().m_dispose_capability;
+}
+
+DisposeCapability* DeclarativeEnvironment::dispose_capability_if_exists()
+{
+    if (!m_rare_data || !m_rare_data->m_dispose_capability.disposable_resource_stack)
+        return nullptr;
+    return &m_rare_data->m_dispose_capability;
 }
 
 void DeclarativeEnvironment::append_binding(Binding binding)
@@ -73,9 +133,10 @@ void DeclarativeEnvironment::append_binding(Binding binding)
         VERIFY(m_shape->binding_name(index) == binding.name);
         VERIFY(m_shape->binding_flags(index) == flags);
     } else {
-        m_bindings_assoc.set(binding.name, index);
-        m_binding_names.append(move(binding.name));
-        m_binding_flags.append(flags);
+        auto& rare_data = ensure_rare_data();
+        rare_data.m_bindings_assoc.set(binding.name, index);
+        rare_data.m_binding_names.append(move(binding.name));
+        rare_data.m_binding_flags.append(flags);
     }
 
     m_binding_values.append(binding.initialized ? binding.value : js_special_empty_value());
@@ -85,16 +146,17 @@ void DeclarativeEnvironment::clear_binding(Utf16FlyString const& name, size_t in
 {
     if (index < shape_binding_count()) {
         ensure_deleted_bindings_capacity(index + 1);
-        m_deleted_bindings.set(index, true);
+        m_rare_data->m_deleted_bindings.set(index, true);
         m_binding_values[index] = js_special_empty_value();
         return;
     }
 
-    m_bindings_assoc.remove(name);
+    VERIFY(m_rare_data);
+    m_rare_data->m_bindings_assoc.remove(name);
     auto local_index = local_binding_index(index);
-    m_binding_names[local_index] = Utf16FlyString {};
+    m_rare_data->m_binding_names[local_index] = Utf16FlyString {};
     m_binding_values[index] = js_special_empty_value();
-    m_binding_flags[local_index] = 0;
+    m_rare_data->m_binding_flags[local_index] = 0;
 }
 
 DeclarativeEnvironment::Binding DeclarativeEnvironment::binding_at(size_t index) const
@@ -111,13 +173,18 @@ DeclarativeEnvironment::Binding DeclarativeEnvironment::binding_at(size_t index)
 
 void DeclarativeEnvironment::set_environment_shape_cache(GC::Ptr<EnvironmentShape>& cache, size_t expected_binding_count)
 {
-    m_environment_shape_cache = &cache;
-    m_expected_binding_count = expected_binding_count;
-    if (expected_binding_count == 0 || !cache)
+    if (expected_binding_count == 0)
         return;
 
-    VERIFY(cache->size() == expected_binding_count);
-    set_environment_shape(GC::Ref { *cache });
+    if (cache) {
+        VERIFY(cache->size() == expected_binding_count);
+        set_environment_shape(GC::Ref { *cache });
+        return;
+    }
+
+    auto& rare_data = ensure_rare_data();
+    rare_data.m_environment_shape_cache = &cache;
+    rare_data.m_expected_binding_count = expected_binding_count;
 }
 
 void DeclarativeEnvironment::set_environment_shape(GC::Ref<EnvironmentShape> shape)
@@ -126,29 +193,34 @@ void DeclarativeEnvironment::set_environment_shape(GC::Ref<EnvironmentShape> sha
     VERIFY(m_binding_values.size() <= shape->size());
 
     m_shape = shape;
-    m_binding_names.clear();
-    m_binding_flags.clear();
-    m_bindings_assoc.clear();
+    if (m_rare_data) {
+        m_rare_data->m_binding_names.clear();
+        m_rare_data->m_binding_flags.clear();
+        m_rare_data->m_bindings_assoc.clear();
+        m_rare_data->m_environment_shape_cache = nullptr;
+        m_rare_data->m_expected_binding_count = 0;
+        drop_rare_data_if_empty();
+    }
 }
 
 void DeclarativeEnvironment::maybe_finalize_environment_shape(VM& vm)
 {
-    if (!m_environment_shape_cache || m_shape || m_expected_binding_count == 0 || m_binding_values.size() != m_expected_binding_count)
+    if (!m_rare_data || !m_rare_data->m_environment_shape_cache || m_shape || m_rare_data->m_expected_binding_count == 0 || m_binding_values.size() != m_rare_data->m_expected_binding_count)
         return;
 
-    if (*m_environment_shape_cache) {
-        auto shape = GC::Ref { **m_environment_shape_cache };
+    if (*m_rare_data->m_environment_shape_cache) {
+        auto shape = GC::Ref { **m_rare_data->m_environment_shape_cache };
         VERIFY(shape->size() == m_binding_values.size());
         for (size_t i = 0; i < m_binding_values.size(); ++i) {
-            VERIFY(shape->binding_name(i) == m_binding_names[i]);
-            VERIFY(shape->binding_flags(i) == m_binding_flags[i]);
+            VERIFY(shape->binding_name(i) == m_rare_data->m_binding_names[i]);
+            VERIFY(shape->binding_flags(i) == m_rare_data->m_binding_flags[i]);
         }
         set_environment_shape(shape);
         return;
     }
 
-    auto shape = EnvironmentShape::create(vm, m_binding_names, m_binding_flags);
-    *m_environment_shape_cache = shape;
+    auto shape = EnvironmentShape::create(vm, m_rare_data->m_binding_names, m_rare_data->m_binding_flags);
+    *m_rare_data->m_environment_shape_cache = shape;
     set_environment_shape(shape);
 }
 
@@ -224,7 +296,7 @@ ThrowCompletionOr<void> DeclarativeEnvironment::initialize_binding_direct(VM& vm
 
     // 2. If hint is not normal, perform ? AddDisposableResource(envRec.[[DisposeCapability]], V, hint).
     if (hint != Environment::InitializeBindingHint::Normal)
-        TRY(add_disposable_resource(vm, m_dispose_capability, value, hint));
+        TRY(add_disposable_resource(vm, ensure_rare_data().m_dispose_capability, value, hint));
 
     // 3. Set the bound value for N in envRec to V.
     m_binding_values[index] = value;
@@ -361,20 +433,30 @@ ThrowCompletionOr<void> DeclarativeEnvironment::initialize_or_set_mutable_bindin
 
 void DeclarativeEnvironment::shrink_to_fit()
 {
-    m_binding_names.shrink_to_fit();
     m_binding_values.shrink_to_fit();
-    m_binding_flags.shrink_to_fit();
 
-    if (m_binding_values.is_empty())
+    if (!m_rare_data)
         return;
 
-    if (m_deleted_bindings.is_null())
+    m_rare_data->m_binding_names.shrink_to_fit();
+    m_rare_data->m_binding_flags.shrink_to_fit();
+
+    if (m_binding_values.is_empty()) {
+        m_rare_data->m_deleted_bindings = {};
+        drop_rare_data_if_empty();
         return;
+    }
+
+    if (m_rare_data->m_deleted_bindings.is_null()) {
+        drop_rare_data_if_empty();
+        return;
+    }
 
     auto deleted_bindings = MUST(Bitmap::create(m_binding_values.size(), false));
     for (size_t i = 0; i < m_binding_values.size(); ++i)
         deleted_bindings.set(i, binding_is_deleted(i));
-    m_deleted_bindings = move(deleted_bindings);
+    m_rare_data->m_deleted_bindings = move(deleted_bindings);
+    drop_rare_data_if_empty();
 }
 
 }
