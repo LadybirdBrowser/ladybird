@@ -9,7 +9,7 @@
 
 namespace Media::Codecs {
 
-DecoderErrorOr<AK::Duration> Opus::parse_frame_duration(MediaStreamCursor& cursor, size_t frame_size)
+DecoderErrorOr<u32> Opus::parse_frame_duration_in_samples(MediaStreamCursor& cursor, size_t frame_size)
 {
     if (frame_size == 0)
         return DecoderError::corrupted("Opus frame is too small"sv);
@@ -53,7 +53,12 @@ DecoderErrorOr<AK::Duration> Opus::parse_frame_duration(MediaStreamCursor& curso
         }
     }());
 
-    return AK::Duration::from_microseconds(packet_duration);
+    return packet_duration * 48 / 1000;
+}
+
+DecoderErrorOr<AK::Duration> Opus::parse_frame_duration(MediaStreamCursor& cursor, size_t frame_size)
+{
+    return AK::Duration::from_time_units(TRY(parse_frame_duration_in_samples(cursor, frame_size)), 1, 48000);
 }
 
 }
