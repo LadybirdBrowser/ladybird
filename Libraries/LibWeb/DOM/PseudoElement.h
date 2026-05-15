@@ -21,15 +21,29 @@ class WEB_API PseudoElement : public JS::Cell {
     GC_CELL(PseudoElement, JS::Cell);
     GC_DECLARE_ALLOCATOR(PseudoElement);
 
-    GC::Ptr<Layout::NodeWithStyle> layout_node() const { return m_layout_node; }
-    GC::Ptr<Layout::NodeWithStyle> unsafe_layout_node() const { return m_layout_node; }
+public:
+    virtual GC::Ptr<Layout::NodeWithStyle> layout_node() const = 0;
+    virtual GC::Ptr<Layout::NodeWithStyle> unsafe_layout_node() const = 0;
+
+    virtual GC::Ptr<CSS::ComputedProperties> computed_properties() const = 0;
+
+    virtual RefPtr<CSS::CustomPropertyData const> custom_property_data() const = 0;
+    virtual void set_custom_property_data(RefPtr<CSS::CustomPropertyData const> value) = 0;
+};
+
+class WEB_API SyntheticPseudoElement : public PseudoElement {
+    GC_CELL(SyntheticPseudoElement, PseudoElement);
+    GC_DECLARE_ALLOCATOR(SyntheticPseudoElement);
+
+    GC::Ptr<Layout::NodeWithStyle> layout_node() const override { return m_layout_node; }
+    GC::Ptr<Layout::NodeWithStyle> unsafe_layout_node() const override { return m_layout_node; }
     void set_layout_node(GC::Ptr<Layout::NodeWithStyle> value) { m_layout_node = value; }
 
-    GC::Ptr<CSS::ComputedProperties> computed_properties() const { return m_computed_properties; }
+    GC::Ptr<CSS::ComputedProperties> computed_properties() const override { return m_computed_properties; }
     void set_computed_properties(GC::Ptr<CSS::ComputedProperties> value) { m_computed_properties = value; }
 
-    RefPtr<CSS::CustomPropertyData const> custom_property_data() const { return m_custom_property_data; }
-    void set_custom_property_data(RefPtr<CSS::CustomPropertyData const> value) { m_custom_property_data = move(value); }
+    RefPtr<CSS::CustomPropertyData const> custom_property_data() const override { return m_custom_property_data; }
+    void set_custom_property_data(RefPtr<CSS::CustomPropertyData const> value) override { m_custom_property_data = move(value); }
 
     bool has_non_empty_counters_set() const { return m_counters_set; }
     Optional<CSS::CountersSet const&> counters_set() const;
@@ -50,11 +64,11 @@ private:
 };
 
 // https://drafts.csswg.org/css-view-transitions/#pseudo-element-tree
-class PseudoElementTreeNode
-    : public PseudoElement
-    , public TreeNode<PseudoElementTreeNode> {
-    GC_CELL(PseudoElementTreeNode, PseudoElement);
-    GC_DECLARE_ALLOCATOR(PseudoElementTreeNode);
+class SyntheticPseudoElementTreeNode
+    : public SyntheticPseudoElement
+    , public TreeNode<SyntheticPseudoElementTreeNode> {
+    GC_CELL(SyntheticPseudoElementTreeNode, SyntheticPseudoElement);
+    GC_DECLARE_ALLOCATOR(SyntheticPseudoElementTreeNode);
 
 protected:
     virtual void visit_edges(JS::Cell::Visitor& visitor) override

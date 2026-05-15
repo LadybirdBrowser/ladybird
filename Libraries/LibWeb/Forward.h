@@ -566,6 +566,7 @@ class ShadowRoot;
 class SlotRegistry;
 class StaticNodeList;
 class StaticRange;
+class SyntheticPseudoElement;
 class Text;
 class TreeWalker;
 class XMLDocument;

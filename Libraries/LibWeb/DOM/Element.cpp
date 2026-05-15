@@ -1036,7 +1036,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
             set_needs_repaint();
 
         // Do the same for pseudo-elements.
-        for_each_synthetic_pseudo_element([&](CSS::PseudoElement pseudo_element_type, PseudoElement const& pseudo_element) {
+        for_each_synthetic_pseudo_element([&](CSS::PseudoElement pseudo_element_type, SyntheticPseudoElement const& pseudo_element) {
             auto pseudo_element_style = computed_properties(pseudo_element_type);
             if (!pseudo_element_style)
                 return;
@@ -1904,7 +1904,7 @@ bool Element::has_synthetic_pseudo_elements() const
     if (m_pseudo_element_data) {
         bool has_any_synthetic_pseudo_elements = false;
 
-        for_each_synthetic_pseudo_element([&](CSS::PseudoElement, PseudoElement const& pseudo_element) {
+        for_each_synthetic_pseudo_element([&](CSS::PseudoElement, SyntheticPseudoElement const& pseudo_element) {
             if (pseudo_element.layout_node()) {
                 has_any_synthetic_pseudo_elements = true;
                 return IterationDecision::Break;
@@ -1920,7 +1920,7 @@ bool Element::has_synthetic_pseudo_elements() const
 
 void Element::clear_synthetic_pseudo_element_layout_nodes()
 {
-    for_each_synthetic_pseudo_element([&](CSS::PseudoElement, PseudoElement& pseudo_element) {
+    for_each_synthetic_pseudo_element([&](CSS::PseudoElement, SyntheticPseudoElement& pseudo_element) {
         pseudo_element.set_layout_node(nullptr);
     });
 }
@@ -3561,11 +3561,16 @@ void Element::set_computed_properties(Optional<CSS::PseudoElement> pseudo_elemen
     computed_properties_changed();
 }
 
-Optional<PseudoElement&> Element::get_synthetic_pseudo_element(CSS::PseudoElement type) const
+Optional<SyntheticPseudoElement&> Element::get_synthetic_pseudo_element(CSS::PseudoElement type) const
 {
     VERIFY(is_synthetic_pseudo_element(type));
 
-    return get_pseudo_element(type);
+    auto pseudo_element = get_pseudo_element(type);
+
+    if (!pseudo_element.has_value())
+        return {};
+
+    return as<SyntheticPseudoElement>(pseudo_element.value());
 }
 
 Optional<PseudoElement&> Element::get_pseudo_element(CSS::PseudoElement type) const
@@ -3584,7 +3589,7 @@ Optional<PseudoElement&> Element::get_pseudo_element(CSS::PseudoElement type) co
     return *(pseudo_element.value());
 }
 
-PseudoElement& Element::ensure_synthetic_pseudo_element(CSS::PseudoElement type) const
+SyntheticPseudoElement& Element::ensure_synthetic_pseudo_element(CSS::PseudoElement type) const
 {
     if (!m_pseudo_element_data)
         m_pseudo_element_data = make<PseudoElementData>();
@@ -3593,12 +3598,12 @@ PseudoElement& Element::ensure_synthetic_pseudo_element(CSS::PseudoElement type)
 
     if (!m_pseudo_element_data->get(type).has_value()) {
         if (is_pseudo_element_root(type))
-            m_pseudo_element_data->set(type, heap().allocate<PseudoElementTreeNode>());
+            m_pseudo_element_data->set(type, heap().allocate<SyntheticPseudoElementTreeNode>());
         else
-            m_pseudo_element_data->set(type, heap().allocate<PseudoElement>());
+            m_pseudo_element_data->set(type, heap().allocate<SyntheticPseudoElement>());
     }
 
-    return *(m_pseudo_element_data->get(type).value());
+    return as<SyntheticPseudoElement>(*m_pseudo_element_data->get(type).value());
 }
 
 void Element::set_custom_property_data(Optional<CSS::PseudoElement> pseudo_element, RefPtr<CSS::CustomPropertyData const> data)

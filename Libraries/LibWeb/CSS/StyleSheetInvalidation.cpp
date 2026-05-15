@@ -672,7 +672,7 @@ static bool element_or_pseudo_references_animation_name(DOM::Element const& elem
         return true;
 
     bool synthetic_pseudo_element_references_animation_name = false;
-    element.for_each_synthetic_pseudo_element([&](Web::CSS::PseudoElement, Web::DOM::PseudoElement const& pseudo_element) {
+    element.for_each_synthetic_pseudo_element([&](Web::CSS::PseudoElement, Web::DOM::SyntheticPseudoElement const& pseudo_element) {
         if (auto computed_properties = pseudo_element.computed_properties(); computed_properties && references_animation_name_in_properties(*computed_properties)) {
             synthetic_pseudo_element_references_animation_name = true;
             return IterationDecision::Break;

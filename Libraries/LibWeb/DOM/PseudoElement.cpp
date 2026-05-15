@@ -11,9 +11,10 @@
 namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(PseudoElement);
-GC_DEFINE_ALLOCATOR(PseudoElementTreeNode);
+GC_DEFINE_ALLOCATOR(SyntheticPseudoElement);
+GC_DEFINE_ALLOCATOR(SyntheticPseudoElementTreeNode);
 
-void PseudoElement::visit_edges(JS::Cell::Visitor& visitor)
+void SyntheticPseudoElement::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
 
@@ -23,21 +24,21 @@ void PseudoElement::visit_edges(JS::Cell::Visitor& visitor)
         m_counters_set->visit_edges(visitor);
 }
 
-Optional<CSS::CountersSet const&> PseudoElement::counters_set() const
+Optional<CSS::CountersSet const&> SyntheticPseudoElement::counters_set() const
 {
     if (!m_counters_set)
         return {};
     return *m_counters_set;
 }
 
-CSS::CountersSet& PseudoElement::ensure_counters_set()
+CSS::CountersSet& SyntheticPseudoElement::ensure_counters_set()
 {
     if (!m_counters_set)
         m_counters_set = make<CSS::CountersSet>();
     return *m_counters_set;
 }
 
-void PseudoElement::set_counters_set(OwnPtr<CSS::CountersSet>&& counters_set)
+void SyntheticPseudoElement::set_counters_set(OwnPtr<CSS::CountersSet>&& counters_set)
 {
     m_counters_set = move(counters_set);
 }
