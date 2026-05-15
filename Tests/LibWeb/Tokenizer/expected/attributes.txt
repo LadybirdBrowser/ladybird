@@ -1,0 +1,4 @@
+StartTag <div> [id="main" class="container" data-value="foo" hidden=""] @0:1-0:54
+EndTag </div> @0:57-0:60
+Character U+000A @1:0
+EndOfFile @1:0

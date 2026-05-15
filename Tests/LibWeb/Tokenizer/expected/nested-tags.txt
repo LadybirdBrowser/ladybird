@@ -1,0 +1,14 @@
+StartTag <div> [] @0:1-0:4
+StartTag <p> [] @0:6-0:7
+Character U+006F 'o' @0:9
+Character U+006E 'n' @0:10
+Character U+0065 'e' @0:11
+EndTag </p> @0:13-0:14
+StartTag <p> [] @0:16-0:17
+Character U+0074 't' @0:19
+Character U+0077 'w' @0:20
+Character U+006F 'o' @0:21
+EndTag </p> @0:23-0:24
+EndTag </div> @0:27-0:30
+Character U+000A @1:0
+EndOfFile @1:0

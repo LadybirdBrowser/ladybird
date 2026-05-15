@@ -1,0 +1,3 @@
+Comment "[CDATA[some cdata content]]" @0:9-0:30
+Character U+000A @1:0
+EndOfFile @1:0

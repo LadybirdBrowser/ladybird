@@ -1,0 +1,11 @@
+Character U+0026 '&' @0:5
+Character U+003C '<' @0:9
+Character U+003E '>' @0:13
+Character U+0022 '"' @0:19
+Character U+0027 ''' @0:25
+Character U+0041 'A' @0:30
+Character U+0041 'A' @0:36
+Character U+22F6 @0:45
+Character U+00AC @0:50
+Character U+000A @1:0
+EndOfFile @1:0
