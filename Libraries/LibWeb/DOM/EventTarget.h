@@ -58,6 +58,7 @@ public:
     void set_event_handler_attribute(FlyString const& name, WebIDL::CallbackType*);
 
     bool has_event_listener(FlyString const& type) const;
+    bool has_blocking_wheel_event_listener() const;
     bool has_event_listeners() const;
 
     virtual bool is_universal_global_scope_mixin() const { return false; }

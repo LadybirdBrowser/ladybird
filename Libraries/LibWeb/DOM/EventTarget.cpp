@@ -906,6 +906,11 @@ bool EventTarget::has_event_listener(FlyString const& type) const
     return m_data && m_data->event_listener_list.contains([&type](auto listener) { return listener->type == type; });
 }
 
+bool EventTarget::has_blocking_wheel_event_listener() const
+{
+    return m_data && m_data->event_listener_list.contains(is_blocking_wheel_event_listener);
+}
+
 bool EventTarget::has_event_listeners() const
 {
     return m_data && !m_data->event_listener_list.is_empty();

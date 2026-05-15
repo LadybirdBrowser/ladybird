@@ -237,15 +237,6 @@ static void record_viewport_scrollbar_state(Painting::PaintableBox const& painta
     }
 }
 
-static bool has_blocking_wheel_event_listener(DOM::EventTarget const& event_target)
-{
-    for (auto listener : event_target.event_listener_list()) {
-        if (AK::first_is_one_of(listener->type, "wheel"sv, "mousewheel"sv) && listener->passive != true)
-            return true;
-    }
-    return false;
-}
-
 static bool is_root_wheel_event_target(DOM::Node const& node)
 {
     auto& document = node.document();
@@ -261,7 +252,7 @@ static void collect_root_blocking_wheel_event_regions(AsyncScrollingState& async
         document.body(),
     };
     for (auto* target : roots) {
-        if (target && has_blocking_wheel_event_listener(*target)) {
+        if (target && target->has_blocking_wheel_event_listener()) {
             async_scrolling_state.has_blocking_wheel_event_listeners = true;
             async_scrolling_state.has_blocking_wheel_event_region_covering_viewport = true;
             return;
@@ -291,7 +282,7 @@ void record_async_scrolling_metadata_for_paintable(Painting::PaintableBox const&
     record_wheel_hit_test_target(paintable_box, context);
 
     if (!context.has_blocking_wheel_event_region_covering_viewport()) {
-        if (auto node = paintable_box.dom_node(); node && !is_root_wheel_event_target(*node) && has_blocking_wheel_event_listener(*node)) {
+        if (auto node = paintable_box.dom_node(); node && !is_root_wheel_event_target(*node) && node->has_blocking_wheel_event_listener()) {
             context.set_has_blocking_wheel_event_listeners(true);
             recorder.compositor_blocking_wheel_event_region({
                 .rect = css_rect_to_device_rect(paintable_box.absolute_united_border_box_rect(), device_pixels_per_css_pixel),
