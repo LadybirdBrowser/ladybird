@@ -31,7 +31,7 @@ use crate::bytecode::validator::{
 use crate::{CompiledProgram, CompiledProgramBytecode, ModuleCallbacks, ast, u32_from_usize};
 
 const MAGIC: &[u8; 8] = b"LBJSBC\0\0";
-const FORMAT_VERSION: u32 = 6;
+const FORMAT_VERSION: u32 = 7;
 const SOURCE_HASH_SIZE: usize = 32;
 const COMPLETION_TYPE_VARIANT_COUNT: u32 = 6;
 const ITERATOR_HINT_VARIANT_COUNT: u32 = 2;
@@ -541,6 +541,58 @@ impl DecodedBytecodeBytes {
 
     fn len(&self) -> usize {
         self.as_slice().len()
+    }
+
+    fn decoder(&self) -> Decoder<'_> {
+        match self {
+            Self::Owned(bytes) => Decoder {
+                bytes,
+                offset: 0,
+                foreign_blob: None,
+            },
+            Self::Foreign { blob, range } => Decoder {
+                bytes: self.as_slice(),
+                offset: range.start,
+                foreign_blob: Some(blob.clone()),
+            },
+        }
+    }
+}
+
+struct DecodedRecordSequence {
+    count: usize,
+    bytes: DecodedBytecodeBytes,
+}
+
+impl DecodedRecordSequence {
+    fn encode<T>(encoder: &mut Encoder, items: &[T], mut encode_item: impl FnMut(&T, &mut Encoder)) {
+        u32_from_usize(items.len()).encode(encoder);
+
+        let mut payload_encoder = Encoder::new();
+        for item in items {
+            encode_item(item, &mut payload_encoder);
+        }
+
+        encoder.align_to(align_of::<u16>());
+        Bytes(&payload_encoder.finish()).encode(encoder);
+    }
+
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+        let count: usize = u32::decode(decoder)?.try_into().ok()?;
+        decoder.align_to(align_of::<u16>())?;
+        let byte_length: usize = u32::decode(decoder)?.try_into().ok()?;
+        Some(Self {
+            count,
+            bytes: decoder.bytecode_bytes(byte_length)?,
+        })
+    }
+
+    fn len(&self) -> usize {
+        self.count
+    }
+
+    fn decoder(&self) -> Decoder<'_> {
+        self.bytes.decoder()
     }
 }
 
@@ -1058,25 +1110,40 @@ unsafe fn materialize_executable(
         generator.next_template_object_cache = cache_counters.template_object_cache_count;
         generator.next_object_shape_cache = cache_counters.object_shape_cache_count;
         generator.next_object_property_iterator_cache = cache_counters.object_property_iterator_cache_count;
+        let Some(identifier_table) = identifier_table.into_values() else {
+            return std::ptr::null_mut();
+        };
         generator.identifier_table = identifier_table
             .into_iter()
             .map(|value| value.to_utf16_string())
             .collect();
+        let Some(property_key_table) = property_key_table.into_values() else {
+            return std::ptr::null_mut();
+        };
         generator.property_key_table = property_key_table
             .into_iter()
             .map(|value| value.to_utf16_string())
             .collect();
+        let Some(string_table) = string_table.into_values() else {
+            return std::ptr::null_mut();
+        };
         generator.string_table = string_table.into_iter().map(|value| value.to_utf16_string()).collect();
         let Some(constants) = constants.into_constant_values() else {
             return std::ptr::null_mut();
         };
         generator.constants = constants;
+        let Some(local_variables) = local_variables.into_values() else {
+            return std::ptr::null_mut();
+        };
         generator.local_variables = local_variables
             .into_iter()
             .map(DecodedLocalVariable::into_local_variable)
             .collect();
         generator.length_identifier = length_identifier.map(PropertyKeyTableIndex);
 
+        let Some(shared_functions) = shared_functions.into_values() else {
+            return std::ptr::null_mut();
+        };
         let sfd_ptrs: Vec<*const c_void> = shared_functions
             .into_iter()
             .map(|function| materialize_function(function, generator.strict, vm_ptr, source_code_ptr) as *const c_void)
@@ -1085,6 +1152,9 @@ unsafe fn materialize_executable(
             return std::ptr::null_mut();
         }
 
+        let Some(class_blueprints) = class_blueprints.into_values() else {
+            return std::ptr::null_mut();
+        };
         let class_blueprints: Vec<PendingClassBlueprint> =
             class_blueprints.into_iter().map(PendingClassBlueprint::from).collect();
         let bp_ptrs: Vec<*mut c_void> = class_blueprints
@@ -1094,6 +1164,12 @@ unsafe fn materialize_executable(
         if bp_ptrs.iter().any(|ptr| ptr.is_null()) {
             return std::ptr::null_mut();
         }
+        let Some(exception_handlers) = exception_handlers.into_values() else {
+            return std::ptr::null_mut();
+        };
+        let Some(source_map) = source_map.into_values() else {
+            return std::ptr::null_mut();
+        };
 
         crate::bytecode::ffi::create_executable_with_dependencies_from_parts(
             &generator,
@@ -2204,15 +2280,15 @@ struct DecodedExecutableRecord {
     this_value_needs_environment_resolution: bool,
     length_identifier: Option<u32>,
     bytecode: DecodedBytecodeBytes,
-    identifier_table: Vec<DecodedUtf16String>,
-    property_key_table: Vec<DecodedUtf16String>,
-    string_table: Vec<DecodedUtf16String>,
+    identifier_table: DecodedUtf16Table,
+    property_key_table: DecodedUtf16Table,
+    string_table: DecodedUtf16Table,
     constants: DecodedConstantTable,
-    exception_handlers: Vec<ExceptionHandler>,
-    source_map: Vec<SourceMapEntry>,
-    local_variables: Vec<DecodedLocalVariable>,
-    shared_functions: Vec<DecodedFunctionRecord>,
-    class_blueprints: Vec<DecodedClassBlueprintRecord>,
+    exception_handlers: DecodedExceptionHandlerTable,
+    source_map: DecodedSourceMapTable,
+    local_variables: DecodedLocalVariableTable,
+    shared_functions: DecodedFunctionTable,
+    class_blueprints: DecodedClassBlueprintTable,
 }
 
 impl DecodedExecutableRecord {
@@ -2232,12 +2308,8 @@ impl DecodedExecutableRecord {
             + self.local_variables.len()
             + self.shared_functions.len()
             + self.class_blueprints.len();
-        for function in &self.shared_functions {
-            function.validate();
-        }
-        for blueprint in &self.class_blueprints {
-            blueprint.validate();
-        }
+        self.shared_functions.validate();
+        self.class_blueprints.validate();
     }
 
     fn validate_cached_bytecode(&self) -> Result<(), ValidationErrorKind> {
@@ -2265,8 +2337,11 @@ impl DecodedExecutableRecord {
             before_cache_fixup: true,
         };
 
-        let exception_handlers: Vec<FFIExceptionHandlerOffsets> = self
+        let exception_handlers = self
             .exception_handlers
+            .values()
+            .ok_or(ValidationErrorKind::InvalidLength)?;
+        let exception_handlers: Vec<FFIExceptionHandlerOffsets> = exception_handlers
             .iter()
             .map(|handler| FFIExceptionHandlerOffsets {
                 start: handler.start_offset,
@@ -2274,7 +2349,8 @@ impl DecodedExecutableRecord {
                 handler: handler.handler_offset,
             })
             .collect();
-        let source_map_offsets: Vec<u32> = self.source_map.iter().map(|entry| entry.bytecode_offset).collect();
+        let source_map = self.source_map.values().ok_or(ValidationErrorKind::InvalidLength)?;
+        let source_map_offsets: Vec<u32> = source_map.iter().map(|entry| entry.bytecode_offset).collect();
 
         validate_bytecode(
             self.bytecode.as_slice(),
@@ -2285,30 +2361,20 @@ impl DecodedExecutableRecord {
         )
         .map_err(|error| error.kind)?;
 
-        for function in &self.shared_functions {
-            function.precompiled.validate_cached_bytecode()?;
-        }
+        self.shared_functions.validate_cached_bytecode()?;
 
         Ok(())
     }
 
     fn source_ranges_are_valid(&self, source_len: usize) -> bool {
-        self.shared_functions
-            .iter()
-            .all(|function| function.source_ranges_are_valid(source_len))
-            && self
-                .class_blueprints
-                .iter()
-                .all(|blueprint| blueprint.source_range_is_valid(source_len))
+        self.shared_functions.source_ranges_are_valid(source_len)
+            && self.class_blueprints.source_ranges_are_valid(source_len)
     }
 
     fn indices_are_valid(&self) -> bool {
         self.length_identifier
             .is_none_or(|index| (index as usize) < self.property_key_table.len())
-            && self
-                .class_blueprints
-                .iter()
-                .all(|blueprint| blueprint.indices_are_valid(self.shared_functions.len()))
+            && self.class_blueprints.indices_are_valid(self.shared_functions.len())
     }
 }
 
@@ -2358,13 +2424,34 @@ struct Utf16Table<'a>(&'a [ast::Utf16String]);
 
 impl Encode for Utf16Table<'_> {
     fn encode(&self, encoder: &mut Encoder) {
-        encoder.sequence(self.0, |value, encoder| Utf16(value).encode(encoder));
+        DecodedRecordSequence::encode(encoder, self.0, |value, encoder| Utf16(value).encode(encoder));
     }
 }
 
 impl Utf16Table<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<DecodedUtf16String>> {
-        decoder.sequence_values(DecodedUtf16String::decode)
+    fn decode(decoder: &mut Decoder<'_>) -> Option<DecodedUtf16Table> {
+        Some(DecodedUtf16Table {
+            sequence: DecodedRecordSequence::decode(decoder)?,
+        })
+    }
+}
+
+struct DecodedUtf16Table {
+    sequence: DecodedRecordSequence,
+}
+
+impl DecodedUtf16Table {
+    fn len(&self) -> usize {
+        self.sequence.len()
+    }
+
+    fn into_values(self) -> Option<Vec<DecodedUtf16String>> {
+        let mut decoder = self.sequence.decoder();
+        let mut values = Vec::with_capacity(self.sequence.len());
+        for _ in 0..self.sequence.len() {
+            values.push(DecodedUtf16String::decode(&mut decoder)?);
+        }
+        decoder.is_empty().then_some(values)
     }
 }
 
@@ -2537,7 +2624,7 @@ struct ExceptionHandlerTable<'a>(&'a AssembledBytecode);
 
 impl Encode for ExceptionHandlerTable<'_> {
     fn encode(&self, encoder: &mut Encoder) {
-        encoder.sequence(&self.0.exception_handlers, |handler, encoder| {
+        DecodedRecordSequence::encode(encoder, &self.0.exception_handlers, |handler, encoder| {
             handler.start_offset.encode(encoder);
             handler.end_offset.encode(encoder);
             handler.handler_offset.encode(encoder);
@@ -2546,14 +2633,37 @@ impl Encode for ExceptionHandlerTable<'_> {
 }
 
 impl ExceptionHandlerTable<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<ExceptionHandler>> {
-        decoder.sequence_values(|decoder| {
-            Some(ExceptionHandler {
-                start_offset: u32::decode(decoder)?,
-                end_offset: u32::decode(decoder)?,
-                handler_offset: u32::decode(decoder)?,
-            })
+    fn decode(decoder: &mut Decoder<'_>) -> Option<DecodedExceptionHandlerTable> {
+        Some(DecodedExceptionHandlerTable {
+            sequence: DecodedRecordSequence::decode(decoder)?,
         })
+    }
+}
+
+struct DecodedExceptionHandlerTable {
+    sequence: DecodedRecordSequence,
+}
+
+impl DecodedExceptionHandlerTable {
+    fn len(&self) -> usize {
+        self.sequence.len()
+    }
+
+    fn values(&self) -> Option<Vec<ExceptionHandler>> {
+        let mut decoder = self.sequence.decoder();
+        let mut values = Vec::with_capacity(self.sequence.len());
+        for _ in 0..self.sequence.len() {
+            values.push(ExceptionHandler {
+                start_offset: u32::decode(&mut decoder)?,
+                end_offset: u32::decode(&mut decoder)?,
+                handler_offset: u32::decode(&mut decoder)?,
+            });
+        }
+        decoder.is_empty().then_some(values)
+    }
+
+    fn into_values(self) -> Option<Vec<ExceptionHandler>> {
+        self.values()
     }
 }
 
@@ -2561,7 +2671,7 @@ struct SourceMapTable<'a>(&'a AssembledBytecode);
 
 impl Encode for SourceMapTable<'_> {
     fn encode(&self, encoder: &mut Encoder) {
-        encoder.sequence(&self.0.source_map, |entry, encoder| {
+        DecodedRecordSequence::encode(encoder, &self.0.source_map, |entry, encoder| {
             entry.bytecode_offset.encode(encoder);
             entry.line.encode(encoder);
             entry.column.encode(encoder);
@@ -2570,14 +2680,37 @@ impl Encode for SourceMapTable<'_> {
 }
 
 impl SourceMapTable<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<SourceMapEntry>> {
-        decoder.sequence_values(|decoder| {
-            Some(SourceMapEntry {
-                bytecode_offset: u32::decode(decoder)?,
-                line: u32::decode(decoder)?,
-                column: u32::decode(decoder)?,
-            })
+    fn decode(decoder: &mut Decoder<'_>) -> Option<DecodedSourceMapTable> {
+        Some(DecodedSourceMapTable {
+            sequence: DecodedRecordSequence::decode(decoder)?,
         })
+    }
+}
+
+struct DecodedSourceMapTable {
+    sequence: DecodedRecordSequence,
+}
+
+impl DecodedSourceMapTable {
+    fn len(&self) -> usize {
+        self.sequence.len()
+    }
+
+    fn values(&self) -> Option<Vec<SourceMapEntry>> {
+        let mut decoder = self.sequence.decoder();
+        let mut values = Vec::with_capacity(self.sequence.len());
+        for _ in 0..self.sequence.len() {
+            values.push(SourceMapEntry {
+                bytecode_offset: u32::decode(&mut decoder)?,
+                line: u32::decode(&mut decoder)?,
+                column: u32::decode(&mut decoder)?,
+            });
+        }
+        decoder.is_empty().then_some(values)
+    }
+
+    fn into_values(self) -> Option<Vec<SourceMapEntry>> {
+        self.values()
     }
 }
 
@@ -2585,7 +2718,7 @@ struct LocalVariableTable<'a>(&'a Generator);
 
 impl Encode for LocalVariableTable<'_> {
     fn encode(&self, encoder: &mut Encoder) {
-        encoder.sequence(&self.0.local_variables, |local_variable, encoder| {
+        DecodedRecordSequence::encode(encoder, &self.0.local_variables, |local_variable, encoder| {
             Utf16(&local_variable.name).encode(encoder);
             local_variable.is_lexically_declared.encode(encoder);
             local_variable
@@ -2596,14 +2729,33 @@ impl Encode for LocalVariableTable<'_> {
 }
 
 impl LocalVariableTable<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<DecodedLocalVariable>> {
-        decoder.sequence_values(|decoder| {
-            Some(DecodedLocalVariable {
-                name: DecodedUtf16String::decode(decoder)?,
-                is_lexically_declared: bool::decode(decoder)?,
-                is_initialized_during_declaration_instantiation: bool::decode(decoder)?,
-            })
+    fn decode(decoder: &mut Decoder<'_>) -> Option<DecodedLocalVariableTable> {
+        Some(DecodedLocalVariableTable {
+            sequence: DecodedRecordSequence::decode(decoder)?,
         })
+    }
+}
+
+struct DecodedLocalVariableTable {
+    sequence: DecodedRecordSequence,
+}
+
+impl DecodedLocalVariableTable {
+    fn len(&self) -> usize {
+        self.sequence.len()
+    }
+
+    fn into_values(self) -> Option<Vec<DecodedLocalVariable>> {
+        let mut decoder = self.sequence.decoder();
+        let mut values = Vec::with_capacity(self.sequence.len());
+        for _ in 0..self.sequence.len() {
+            values.push(DecodedLocalVariable {
+                name: DecodedUtf16String::decode(&mut decoder)?,
+                is_lexically_declared: bool::decode(&mut decoder)?,
+                is_initialized_during_declaration_instantiation: bool::decode(&mut decoder)?,
+            });
+        }
+        decoder.is_empty().then_some(values)
     }
 }
 
@@ -2627,7 +2779,7 @@ struct SharedFunctionTable<'a>(&'a Generator);
 
 impl Encode for SharedFunctionTable<'_> {
     fn encode(&self, encoder: &mut Encoder) {
-        encoder.sequence(&self.0.shared_function_data, |shared_data, encoder| {
+        DecodedRecordSequence::encode(encoder, &self.0.shared_function_data, |shared_data, encoder| {
             FunctionRecord {
                 shared_data,
                 arena: &self.0.arena,
@@ -2638,8 +2790,58 @@ impl Encode for SharedFunctionTable<'_> {
 }
 
 impl SharedFunctionTable<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<DecodedFunctionRecord>> {
-        decoder.sequence_values(FunctionRecord::decode)
+    fn decode(decoder: &mut Decoder<'_>) -> Option<DecodedFunctionTable> {
+        Some(DecodedFunctionTable {
+            sequence: DecodedRecordSequence::decode(decoder)?,
+        })
+    }
+}
+
+struct DecodedFunctionTable {
+    sequence: DecodedRecordSequence,
+}
+
+impl DecodedFunctionTable {
+    fn len(&self) -> usize {
+        self.sequence.len()
+    }
+
+    fn validate(&self) {
+        let _ = self.sequence.len();
+    }
+
+    fn into_values(self) -> Option<Vec<DecodedFunctionRecord>> {
+        let mut decoder = self.sequence.decoder();
+        let mut values = Vec::with_capacity(self.sequence.len());
+        for _ in 0..self.sequence.len() {
+            values.push(FunctionRecord::decode(&mut decoder)?);
+        }
+        decoder.is_empty().then_some(values)
+    }
+
+    fn for_each(&self, mut callback: impl FnMut(DecodedFunctionRecord) -> Option<()>) -> Option<()> {
+        let mut decoder = self.sequence.decoder();
+        for _ in 0..self.sequence.len() {
+            callback(FunctionRecord::decode(&mut decoder)?)?;
+        }
+        decoder.is_empty().then_some(())
+    }
+
+    fn validate_cached_bytecode(&self) -> Result<(), ValidationErrorKind> {
+        let mut decoder = self.sequence.decoder();
+        for _ in 0..self.sequence.len() {
+            let function = FunctionRecord::decode(&mut decoder).ok_or(ValidationErrorKind::InvalidLength)?;
+            function.precompiled.validate_cached_bytecode()?;
+        }
+        decoder
+            .is_empty()
+            .then_some(())
+            .ok_or(ValidationErrorKind::InvalidLength)
+    }
+
+    fn source_ranges_are_valid(&self, source_len: usize) -> bool {
+        self.for_each(|function| function.source_ranges_are_valid(source_len).then_some(()))
+            .is_some()
     }
 }
 
@@ -2908,15 +3110,58 @@ struct ClassBlueprintTable<'a>(&'a Generator);
 
 impl Encode for ClassBlueprintTable<'_> {
     fn encode(&self, encoder: &mut Encoder) {
-        encoder.sequence(&self.0.class_blueprints, |blueprint, encoder| {
+        DecodedRecordSequence::encode(encoder, &self.0.class_blueprints, |blueprint, encoder| {
             ClassBlueprintRecord(blueprint).encode(encoder);
         });
     }
 }
 
 impl ClassBlueprintTable<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<DecodedClassBlueprintRecord>> {
-        decoder.sequence_values(ClassBlueprintRecord::decode)
+    fn decode(decoder: &mut Decoder<'_>) -> Option<DecodedClassBlueprintTable> {
+        Some(DecodedClassBlueprintTable {
+            sequence: DecodedRecordSequence::decode(decoder)?,
+        })
+    }
+}
+
+struct DecodedClassBlueprintTable {
+    sequence: DecodedRecordSequence,
+}
+
+impl DecodedClassBlueprintTable {
+    fn len(&self) -> usize {
+        self.sequence.len()
+    }
+
+    fn validate(&self) {
+        let _ = self.sequence.len();
+    }
+
+    fn into_values(self) -> Option<Vec<DecodedClassBlueprintRecord>> {
+        let mut decoder = self.sequence.decoder();
+        let mut values = Vec::with_capacity(self.sequence.len());
+        for _ in 0..self.sequence.len() {
+            values.push(ClassBlueprintRecord::decode(&mut decoder)?);
+        }
+        decoder.is_empty().then_some(values)
+    }
+
+    fn for_each(&self, mut callback: impl FnMut(DecodedClassBlueprintRecord) -> Option<()>) -> Option<()> {
+        let mut decoder = self.sequence.decoder();
+        for _ in 0..self.sequence.len() {
+            callback(ClassBlueprintRecord::decode(&mut decoder)?)?;
+        }
+        decoder.is_empty().then_some(())
+    }
+
+    fn source_ranges_are_valid(&self, source_len: usize) -> bool {
+        self.for_each(|blueprint| blueprint.source_range_is_valid(source_len).then_some(()))
+            .is_some()
+    }
+
+    fn indices_are_valid(&self, shared_function_count: usize) -> bool {
+        self.for_each(|blueprint| blueprint.indices_are_valid(shared_function_count).then_some(()))
+            .is_some()
     }
 }
 
@@ -2961,17 +3206,6 @@ struct DecodedClassBlueprintRecord {
 }
 
 impl DecodedClassBlueprintRecord {
-    fn validate(&self) {
-        let _ = self.name.as_ref().map(DecodedUtf16String::len);
-        let _ = self.source_text_offset;
-        let _ = self.source_text_length;
-        let _ = self.constructor_sfd_index;
-        let _ = self.has_super_class || self.has_name;
-        for element in &self.elements {
-            element.validate();
-        }
-    }
-
     fn source_range_is_valid(&self, source_len: usize) -> bool {
         source_range_is_valid(self.source_text_offset, self.source_text_length, source_len)
     }
@@ -3044,16 +3278,6 @@ struct DecodedClassElementRecord {
 }
 
 impl DecodedClassElementRecord {
-    fn validate(&self) {
-        let _ = self.kind;
-        let _ = self.is_static || self.is_private || self.has_initializer;
-        let _ = self.private_identifier.as_ref().map(DecodedUtf16String::len);
-        let _ = self.shared_function_data_index;
-        let _ = literal_value_kind_tag(self.literal_value_kind);
-        let _ = self.literal_value_number;
-        let _ = self.literal_value_string.as_ref().map(DecodedUtf16String::len);
-    }
-
     fn indices_are_valid(&self, shared_function_count: usize) -> bool {
         let shared_function_data_index_is_valid = || {
             self.shared_function_data_index
