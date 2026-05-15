@@ -25,9 +25,7 @@
 <script src="include.js"></script>
 <script>
     promiseTest(async () => {
-        internals.wheel(10, 10, 0, 1000);
-        await animationFrame();
-        await animationFrame();
+        await internals.wheel(10, 10, 0, 1000);
 
         const scrollable = document.getElementById("scrollable");
         println("scrollable.scrollTop: " + scrollable.scrollTop);

@@ -39,6 +39,18 @@ public:
 
     using BackingStorePresentationCallback = Function<void(u64 page_id, i32 front_bitmap_id, Gfx::SharedImage, i32 back_bitmap_id, Gfx::SharedImage)>;
     using FramePresentationCallback = Function<void(u64 page_id, Gfx::IntRect const&, i32 bitmap_id)>;
+    struct PendingAsyncScrollUpdates {
+        Vector<AsyncScrollOffset> scroll_offsets;
+        Vector<AsyncScrollOperationID> completed_operation_ids;
+    };
+    struct AsyncScrollEnqueueResult {
+        bool accepted { false };
+        Optional<AsyncScrollOperationID> operation_id;
+    };
+    enum class AsyncScrollOperationTracking {
+        No,
+        Yes,
+    };
     struct PresentToUI {
     };
     struct PublishToExternalContent {
@@ -62,11 +74,11 @@ public:
     void update_display_list(NonnullRefPtr<Painting::DisplayList>, Painting::ScrollStateSnapshot&&);
     void update_scroll_state(Painting::ScrollStateSnapshot&&);
     void invalidate_wheel_event_listener_state(u64 generation);
-    bool async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels,
-        Gfx::IntRect viewport_rect);
+    AsyncScrollEnqueueResult async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels,
+        Gfx::IntRect viewport_rect, AsyncScrollOperationTracking = AsyncScrollOperationTracking::No);
     bool should_defer_async_scroll_offset_adoption() const;
     bool should_defer_main_thread_present_for_async_scroll() const;
-    Vector<AsyncScrollOffset> take_pending_async_scroll_offsets();
+    PendingAsyncScrollUpdates take_pending_async_scroll_updates();
     void update_backing_stores(Gfx::IntSize, i32 front_id, i32 back_id);
     u64 present_frame(Gfx::IntRect);
     void wait_for_frame(u64 frame_id);

@@ -66,6 +66,7 @@ struct AsyncScrollByCommand {
     Gfx::FloatPoint delta_in_device_pixels;
     Gfx::IntRect viewport_rect;
     AsyncScrollNodeID scroll_target;
+    Optional<AsyncScrollOperationID> operation_id;
 };
 
 struct ViewportScrollbarDragCommand {
@@ -355,12 +356,13 @@ public:
             m_frame_completed.wait();
     }
 
-    Vector<AsyncScrollOffset> take_pending_async_scroll_offsets()
+    CompositorThread::PendingAsyncScrollUpdates take_pending_async_scroll_updates()
     {
         Sync::MutexLocker const locker { m_mutex };
-        Vector<AsyncScrollOffset> scroll_offsets;
-        AK::swap(scroll_offsets, m_pending_async_scroll_offsets);
-        return scroll_offsets;
+        CompositorThread::PendingAsyncScrollUpdates updates;
+        AK::swap(updates.scroll_offsets, m_pending_async_scroll_offsets);
+        AK::swap(updates.completed_operation_ids, m_completed_async_scroll_operation_ids);
+        return updates;
     }
 
     bool should_defer_async_scroll_offset_adoption() const
@@ -403,8 +405,8 @@ public:
         };
     }
 
-    bool enqueue_async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position,
-        Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect)
+    CompositorThread::AsyncScrollEnqueueResult enqueue_async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position,
+        Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect, CompositorThread::AsyncScrollOperationTracking operation_tracking)
     {
         if (!m_can_accept_async_wheel_events.load()) {
             auto wheel_routing_admission = [this] {
@@ -413,34 +415,37 @@ public:
             }();
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: compositor cannot accept async wheel events ({})",
                 wheel_routing_admission_to_string(wheel_routing_admission));
-            return false;
+            return {};
         }
         auto scroll_target = hit_test_scroll_node_for_wheel(position, delta_in_device_pixels);
         if (scroll_target.blocked_by_main_thread_region) {
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: main-thread wheel region at {},{} device delta {},{}",
                 position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y());
-            return false;
+            return {};
         }
         if (scroll_target.blocked_by_wheel_event_region) {
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: blocking wheel event region at {},{} device delta {},{}",
                 position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y());
-            return false;
+            return {};
         }
         if (!scroll_target.node_id.has_value()) {
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: no wheel target at {},{} for device delta {},{}",
                 position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y());
-            return false;
+            return {};
         }
         if (scroll_target.node_id->document_id != expected_document_id) {
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: stale wheel target at {},{} for current document",
                 position.x(), position.y());
-            return false;
+            return {};
         }
 
+        Optional<AsyncScrollOperationID> operation_id;
+        if (operation_tracking == CompositorThread::AsyncScrollOperationTracking::Yes)
+            operation_id = next_async_scroll_operation_id();
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor accepted main-thread async scroll enqueue at {},{} device delta {},{} for scroll node {} viewport={}x{} at {},{}",
             position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y(), scroll_target.node_id->scroll_frame_index.value(), viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
-        enqueue_command(AsyncScrollByCommand { position, delta_in_device_pixels, viewport_rect, *scroll_target.node_id });
-        return true;
+        enqueue_command(AsyncScrollByCommand { position, delta_in_device_pixels, viewport_rect, *scroll_target.node_id, operation_id });
+        return { true, operation_id };
     }
 
     bool enqueue_async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels)
@@ -478,7 +483,7 @@ public:
 
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor accepted async scroll enqueue at {},{} device delta {},{} for scroll node {} viewport={}x{} at {},{}",
             position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y(), scroll_target.node_id->scroll_frame_index.value(), viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
-        enqueue_command(AsyncScrollByCommand { position, delta_in_device_pixels, viewport_rect, *scroll_target.node_id });
+        enqueue_command(AsyncScrollByCommand { position, delta_in_device_pixels, viewport_rect, *scroll_target.node_id, {} });
         return true;
     }
 
@@ -707,13 +712,16 @@ public:
                             scroll_offsets = m_async_scroll_tree.apply_scroll_delta(cmd.scroll_target, cmd.delta_in_device_pixels, m_cached_scroll_state_snapshot);
                             if (scroll_offsets.is_empty()) {
                                 dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Dropping async scroll command: scroll tree consumed no delta");
+                                // The operation produced no scroll offset (e.g. already at the scroll boundary), so it
+                                // cannot be reported through the pending-offset path; report its completion separately.
+                                complete_async_scroll_operation(cmd.operation_id);
                                 return;
                             }
                             m_async_scroll_tree.rebuild_wheel_hit_test_targets(m_cached_display_list, m_cached_scroll_state_snapshot);
                         }
                         if (auto viewport_scroll_offset = viewport_scroll_offset_from(scroll_offsets); viewport_scroll_offset.has_value())
                             async_scroll_viewport_rect.set_location(viewport_scroll_offset->to_type<int>());
-                        store_pending_async_scroll_offsets(scroll_offsets);
+                        store_pending_async_scroll_offsets(scroll_offsets, cmd.operation_id);
                         {
                             Sync::MutexLocker const locker { m_mutex };
                             m_async_scrolling_viewport_rect = async_scroll_viewport_rect;
@@ -842,11 +850,50 @@ private:
         return m_presented_bitmap_id_awaiting_ack.has_value();
     }
 
-    void store_pending_async_scroll_offsets(Vector<AsyncScrollOffset> const& scroll_offsets)
+    AsyncScrollOperationID next_async_scroll_operation_id()
+    {
+        return m_next_async_scroll_operation_id.fetch_add(1) + 1;
+    }
+
+    void complete_async_scroll_operation(Optional<AsyncScrollOperationID> operation_id)
+    {
+        if (!operation_id.has_value())
+            return;
+
+        {
+            Sync::MutexLocker const locker { m_mutex };
+            m_completed_async_scroll_operation_ids.append(*operation_id);
+        }
+
+        // No scroll offset was produced, so nothing else will wake the main thread; schedule a rendering update so it
+        // drains the completed operation and resolves the awaiting promise.
+        invoke_on_main_thread([] {
+            HTML::main_thread_event_loop().queue_task_to_update_the_rendering();
+        });
+    }
+
+    void queue_rendering_update_if_async_scroll_updates_pending()
+    {
+        auto has_pending_updates = [this] {
+            Sync::MutexLocker const locker { m_mutex };
+            return !m_pending_async_scroll_offsets.is_empty()
+                || !m_completed_async_scroll_operation_ids.is_empty();
+        }();
+        if (!has_pending_updates)
+            return;
+
+        invoke_on_main_thread([] {
+            HTML::main_thread_event_loop().queue_task_to_update_the_rendering();
+        });
+    }
+
+    void store_pending_async_scroll_offsets(Vector<AsyncScrollOffset> const& scroll_offsets, Optional<AsyncScrollOperationID> operation_id = {})
     {
         Sync::MutexLocker const locker { m_mutex };
         for (auto const& scroll_offset : scroll_offsets)
             set_or_append_pending_scroll_offset(m_pending_async_scroll_offsets, scroll_offset);
+        if (operation_id.has_value())
+            m_completed_async_scroll_operation_ids.append(*operation_id);
     }
 
     Optional<Gfx::FloatPoint> reapply_pending_async_scroll_offsets(Vector<AsyncScrollOffset> const& pending_scroll_offsets)
@@ -1060,6 +1107,8 @@ private:
 
         if (presenting_frame_id.has_value())
             mark_frame_complete(*presenting_frame_id);
+
+        queue_rendering_update_if_async_scroll_updates_pending();
     }
 
     void initialize_skia_player(DisplayListPlayerType display_list_player_type)
@@ -1159,6 +1208,8 @@ private:
     u64 m_completed_frame_id { 0 };
     mutable Sync::ConditionVariable m_frame_completed { m_mutex };
     Vector<AsyncScrollOffset> m_pending_async_scroll_offsets;
+    Vector<AsyncScrollOperationID> m_completed_async_scroll_operation_ids;
+    Atomic<AsyncScrollOperationID> m_next_async_scroll_operation_id { 0 };
     Gfx::IntRect m_async_scrolling_viewport_rect;
     Atomic<bool> m_has_async_scrolling_state { false };
     Atomic<bool> m_can_accept_async_wheel_events { false };
@@ -1461,10 +1512,10 @@ void CompositorThread::invalidate_wheel_event_listener_state(u64 generation)
     m_thread_data->invalidate_wheel_event_listener_state(generation);
 }
 
-bool CompositorThread::async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position,
-    Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect)
+CompositorThread::AsyncScrollEnqueueResult CompositorThread::async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position,
+    Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect, AsyncScrollOperationTracking operation_tracking)
 {
-    return m_thread_data->enqueue_async_scroll_by(expected_document_id, position, delta_in_device_pixels, viewport_rect);
+    return m_thread_data->enqueue_async_scroll_by(expected_document_id, position, delta_in_device_pixels, viewport_rect, operation_tracking);
 }
 
 bool CompositorThread::should_defer_async_scroll_offset_adoption() const
@@ -1477,9 +1528,9 @@ bool CompositorThread::should_defer_main_thread_present_for_async_scroll() const
     return m_thread_data->should_defer_main_thread_present_for_async_scroll();
 }
 
-Vector<AsyncScrollOffset> CompositorThread::take_pending_async_scroll_offsets()
+CompositorThread::PendingAsyncScrollUpdates CompositorThread::take_pending_async_scroll_updates()
 {
-    return m_thread_data->take_pending_async_scroll_offsets();
+    return m_thread_data->take_pending_async_scroll_updates();
 }
 
 void CompositorThread::update_scroll_state(Painting::ScrollStateSnapshot&& scroll_state_snapshot)

@@ -36,7 +36,7 @@ interface Internals {
     // High-level mouse conveniences
     undefined click(double x, double y, optional unsigned short clickCount = 1, optional unsigned short button = 0, optional unsigned short modifiers = 0);
     undefined clickAndHold(double x, double y, optional unsigned short clickCount = 1, optional unsigned short button = 0, optional unsigned short modifiers = 0);
-    undefined wheel(double x, double y, double deltaX, double deltaY);
+    Promise<undefined> wheel(double x, double y, double deltaX, double deltaY);
     undefined pinch(double x, double y, double scaleDelta);
 
     DOMString currentCursor();

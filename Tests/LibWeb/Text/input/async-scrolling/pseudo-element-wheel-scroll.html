@@ -43,11 +43,7 @@
         println(`wheel scroll admission: ${internals.asyncScrollingStateWheelScrollAdmissionAt(50, 50, 0, 100)}`);
         println(`downward wheel target before wheel: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 0, 100)}`);
 
-        internals.wheel(50, 50, 0, 100);
-
-        // The compositor scroll offset is adopted during a rendering update.
-        await animationFrame();
-        await animationFrame();
+        await internals.wheel(50, 50, 0, 100);
 
         println(`scroll event count: ${scrollEventCount}`);
         println(`host scrollTop: ${host.scrollTop}`);

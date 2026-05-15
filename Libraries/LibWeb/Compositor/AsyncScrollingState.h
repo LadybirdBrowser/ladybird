@@ -20,6 +20,8 @@
 
 namespace Web::Compositor {
 
+using AsyncScrollOperationID = u64;
+
 // Stable identifier for a scroll frame in a document; the frame index alone is not unique across nested documents.
 struct AsyncScrollNodeID {
     UniqueNodeID document_id;

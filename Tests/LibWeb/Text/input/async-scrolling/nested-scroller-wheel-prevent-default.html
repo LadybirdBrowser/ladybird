@@ -36,8 +36,7 @@
 
         println(`async can scroll before wheel: ${internals.asyncScrollingStateCanWheelScrollAt(50, 50, 0, 100, false)}`);
 
-        internals.wheel(50, 50, 0, 100);
-        await animationFrame();
+        await internals.wheel(50, 50, 0, 100);
 
         println(`wheel event count: ${wheelEventCount}`);
         println(`wheel event cancelable: ${wheelEventWasCancelable}`);

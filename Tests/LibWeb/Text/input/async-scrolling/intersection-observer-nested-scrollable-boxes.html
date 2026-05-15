@@ -101,10 +101,7 @@
         println(`wheel scroll admission: ${internals.asyncScrollingStateWheelScrollAdmissionAt(60, 60, 0, 100)}`);
         println(`downward wheel target before wheel: ${internals.asyncScrollingStateWheelTargetAt(60, 60, 0, 100)}`);
 
-        internals.wheel(60, 60, 0, 100);
-
-        await animationFrame();
-        await animationFrame();
+        await internals.wheel(60, 60, 0, 100);
 
         const scrolledEntry = await nextIntersectionEntry();
         println(`scrolled isIntersecting: ${scrolledEntry.isIntersecting}`);

@@ -502,7 +502,7 @@ static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Painting
     return offset;
 }
 
-EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, double wheel_delta_x, double wheel_delta_y, bool async_scroll_performed_default_action)
+EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, double wheel_delta_x, double wheel_delta_y, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation)
 {
     if (should_ignore_device_input_event())
         return EventResult::Dropped;
@@ -540,8 +540,14 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
             auto async_scroll_position = Gfx::FloatPoint { static_cast<float>(device_position.x().value()), static_cast<float>(device_position.y().value()) };
             auto device_pixels_per_css_pixel = static_cast<float>(m_navigable->page().client().device_pixels_per_css_pixel());
             auto async_scroll_delta_in_device_pixels = async_scroll_delta.scaled(device_pixels_per_css_pixel);
-            async_scroll_performed_default_action = m_navigable->rendering_thread().async_scroll_by(
-                document->unique_id(), async_scroll_position, async_scroll_delta_in_device_pixels, viewport_rect);
+            auto operation_tracking = async_scroll_operation
+                ? Compositor::CompositorThread::AsyncScrollOperationTracking::Yes
+                : Compositor::CompositorThread::AsyncScrollOperationTracking::No;
+            auto enqueue_result = m_navigable->rendering_thread().async_scroll_by(
+                document->unique_id(), async_scroll_position, async_scroll_delta_in_device_pixels, viewport_rect, operation_tracking);
+            async_scroll_performed_default_action = enqueue_result.accepted;
+            if (enqueue_result.operation_id.has_value() && async_scroll_operation)
+                *async_scroll_operation = AsyncScrollOperation { m_navigable, *enqueue_result.operation_id };
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] {} wheel async scroll at {},{} with device delta {},{}",
                 async_scroll_performed_default_action ? "Enqueued"sv : "Could not enqueue"sv,
                 async_scroll_position.x(), async_scroll_position.y(),
@@ -593,8 +599,8 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
         };
 
         if (auto node = dom_node_for_event_dispatch(*paintable)) {
-            if (auto result = dispatch_event_to_nested_navigable(*paintable, visual_viewport_position, [screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, async_scroll_performed_default_action](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
-                    return event_handler.handle_mousewheel(position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, async_scroll_performed_default_action);
+            if (auto result = dispatch_event_to_nested_navigable(*paintable, visual_viewport_position, [screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, async_scroll_performed_default_action, async_scroll_operation](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
+                    return event_handler.handle_mousewheel(position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, async_scroll_performed_default_action, async_scroll_operation);
                 });
                 result.has_value()) {
                 if (result.value() == EventResult::Handled || result.value() == EventResult::Cancelled)

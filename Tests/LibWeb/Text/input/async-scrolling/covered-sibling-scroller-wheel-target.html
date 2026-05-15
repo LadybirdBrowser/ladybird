@@ -45,8 +45,7 @@
         println(`covered scroller with pointer-events none wheel target: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 0, 100)}`);
         overlay.style.pointerEvents = "auto";
 
-        internals.wheel(50, 50, 0, 100);
-        await animationFrame();
+        await internals.wheel(50, 50, 0, 100);
 
         println(`scroller scrollTop after covered wheel: ${scroller.scrollTop}`);
         println(`window scrollY after covered wheel: ${window.scrollY}`);

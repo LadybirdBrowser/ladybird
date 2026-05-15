@@ -57,7 +57,7 @@ public:
     // High-level mouse conveniences
     void click(double x, double y, WebIDL::UnsignedShort click_count, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers);
     void click_and_hold(double x, double y, WebIDL::UnsignedShort click_count, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers);
-    void wheel(double x, double y, double delta_x, double delta_y);
+    GC::Ref<WebIDL::Promise> wheel(double x, double y, double delta_x, double delta_y);
     void pinch(double x, double y, double scale_delta);
 
     String current_cursor();

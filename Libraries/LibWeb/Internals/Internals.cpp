@@ -37,6 +37,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Internals/InternalGamepad.h>
 #include <LibWeb/Internals/Internals.h>
+#include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintableBox.h>
@@ -331,12 +332,23 @@ void Internals::click_and_hold(double x, double y, WebIDL::UnsignedShort click_c
     page.handle_mousedown(position, position, mouse_button, 0, modifiers, click_count);
 }
 
-void Internals::wheel(double x, double y, double delta_x, double delta_y)
+GC::Ref<WebIDL::Promise> Internals::wheel(double x, double y, double delta_x, double delta_y)
 {
+    auto& realm = this->realm();
+    auto promise = WebIDL::create_promise(realm);
     auto& page = this->page();
 
     auto position = page.css_to_device_point({ x, y });
-    page.handle_mousewheel(position, position, 0, 0, 0, delta_x, delta_y);
+    Optional<AsyncScrollOperation> async_scroll_operation;
+    page.handle_mousewheel(position, position, 0, 0, 0, delta_x, delta_y, false, &async_scroll_operation);
+
+    if (async_scroll_operation.has_value() && async_scroll_operation->navigable) {
+        async_scroll_operation->navigable->wait_for_async_scroll_operation(async_scroll_operation->operation_id, promise);
+        return promise;
+    }
+
+    WebIDL::resolve_promise(realm, promise);
+    return promise;
 }
 
 void Internals::pinch(double x, double y, double scale_delta)

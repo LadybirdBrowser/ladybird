@@ -34,9 +34,7 @@
         await animationFrame();
         await animationFrame();
 
-        internals.wheel(50, 50, 0, 100);
-        await animationFrame();
-        await animationFrame();
+        await internals.wheel(50, 50, 0, 100);
 
         printOutputAndDisplayList([
             `scroller scrollTop: ${scroller.scrollTop}`,

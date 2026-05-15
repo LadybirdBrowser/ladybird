@@ -18,6 +18,7 @@
 
 namespace Web {
 
+struct AsyncScrollOperation;
 class AutoScrollHandler;
 class CSSPixels;
 class DisplayListRecordingContext;

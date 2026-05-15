@@ -45,9 +45,7 @@
         println(`iframe.scrollHeight: ${scrollingElement.scrollHeight}`);
         println(`iframe.clientHeight: ${scrollingElement.clientHeight}`);
 
-        internals.wheel(50, 50, 0, 100);
-        await animationFrame();
-        await animationFrame();
+        await internals.wheel(50, 50, 0, 100);
 
         println(`window.scrollY: ${window.scrollY}`);
         println(`iframe.scrollTop after wheel: ${scrollingElement.scrollTop}`);

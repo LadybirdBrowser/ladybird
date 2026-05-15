@@ -197,6 +197,7 @@ public:
     void set_viewport_size(CSSPixelSize, InvalidateDisplayList = InvalidateDisplayList::No);
     void perform_scroll_of_viewport_scrolling_box(CSSPixelPoint position);
     void adopt_pending_async_scroll_offsets();
+    void wait_for_async_scroll_operation(Compositor::AsyncScrollOperationID, GC::Ref<WebIDL::Promise>);
     void clamp_viewport_scroll_offset();
 
     Painting::BackingStoreManager& backing_store_manager() { return *m_backing_store_manager; }
@@ -280,6 +281,8 @@ private:
     void scroll_offset_did_change();
 
     void inform_the_navigation_api_about_aborting_navigation();
+    void resolve_async_scroll_operation(Compositor::AsyncScrollOperationID);
+    void resolve_all_pending_async_scroll_operations();
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-id
     String m_id;
@@ -333,6 +336,12 @@ private:
     GC::Ref<Painting::BackingStoreManager> m_backing_store_manager;
     Compositor::CompositorThread m_rendering_thread;
     RefPtr<Painting::ExternalContentSource> m_external_content_source;
+
+    struct PendingAsyncScrollOperation {
+        Compositor::AsyncScrollOperationID operation_id { 0 };
+        GC::Ref<WebIDL::Promise> promise;
+    };
+    Vector<PendingAsyncScrollOperation> m_pending_async_scroll_operations;
 };
 
 struct PopulateSessionHistoryEntryDocumentOutput final : public JS::Cell {
