@@ -2233,6 +2233,10 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
         fetched_data_receiver->handle_network_data(move(data), FetchedDataReceiver::NetworkState::Ongoing);
     });
 
+    auto on_cached_body_available = GC::create_function(vm.heap(), [fetched_data_receiver](Core::ImmutableBytes data) {
+        fetched_data_receiver->set_cached_response_body(move(data));
+    });
+
     auto on_complete = GC::create_function(vm.heap(), [&vm, &realm, pending_response, stream, fetched_data_receiver](bool success, Requests::RequestTimingInfo const&, Optional<StringView> error_message) {
         // FIXME: Implement on_complete timing info for unbuffered requests
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
@@ -2251,7 +2255,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
         }
     });
 
-    auto network_request = ResourceLoader::the().load(load_request, on_headers_received, on_data_received, on_complete);
+    auto network_request = ResourceLoader::the().load(load_request, on_headers_received, on_data_received, on_cached_body_available, on_complete);
     fetch_params.controller()->set_pending_request(network_request);
 
     return pending_response;

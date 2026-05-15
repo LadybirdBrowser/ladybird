@@ -153,6 +153,7 @@ ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optiona
         TRY(m_file->write_until_depleted(m_url));
         if (reason_phrase.has_value())
             TRY(m_file->write_until_depleted(*reason_phrase));
+        m_data_offset = TRY(m_file->tell());
 
         return {};
     }();
@@ -191,6 +192,18 @@ ErrorOr<void> CacheEntryWriter::write_data(ReadonlyBytes data)
 
 ErrorOr<void> CacheEntryWriter::flush(NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers)
 {
+    return flush_impl(move(request_headers), move(response_headers), nullptr);
+}
+
+ErrorOr<CacheEntryBodyFile> CacheEntryWriter::flush_and_take_body_file(NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers)
+{
+    CacheEntryBodyFile body_file;
+    TRY(flush_impl(move(request_headers), move(response_headers), &body_file));
+    return body_file;
+}
+
+ErrorOr<void> CacheEntryWriter::flush_impl(NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers, CacheEntryBodyFile* body_file)
+{
     ScopeGuard guard { [&]() { close_and_destroy_cache_entry(); } };
 
     if (m_marked_for_deletion)
@@ -203,6 +216,21 @@ ErrorOr<void> CacheEntryWriter::flush(NonnullRefPtr<HeaderList> request_headers,
         remove();
 
         return result.release_error();
+    }
+
+    TRY(m_file->flush_buffer());
+
+    int body_fd = -1;
+    ArmedScopeGuard close_body_fd = [&] {
+        if (body_fd != -1)
+            (void)Core::System::close(body_fd);
+    };
+    if (body_file) {
+        auto opened_body_file = TRY(Core::File::open(m_path->string(), Core::File::OpenMode::Read));
+        body_fd = TRY(Core::System::dup(opened_body_file->fd()));
+        body_file->fd = body_fd;
+        body_file->offset = m_data_offset;
+        body_file->size = m_cache_footer.data_size;
     }
 
     // Drop any sidecars left over from an older entry at the same (cache_key, vary_key). They are tied to the previous
@@ -220,6 +248,7 @@ ErrorOr<void> CacheEntryWriter::flush(NonnullRefPtr<HeaderList> request_headers,
     m_disk_cache.remove_entries_exceeding_cache_limit();
 
     dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[34;1mFinished caching\033[0m {} ({} bytes)", m_url, m_cache_footer.data_size);
+    close_body_fd.disarm();
     return {};
 }
 
@@ -331,7 +360,7 @@ void CacheEntryReader::send_to(int socket_fd, Function<void(u64)> on_complete, F
     send_without_blocking();
 }
 
-ErrorOr<CacheEntryReader::BodyFile> CacheEntryReader::take_body_file()
+ErrorOr<CacheEntryBodyFile> CacheEntryReader::take_body_file()
 {
     ScopeGuard guard { [&]() { close_and_destroy_cache_entry(); } };
 
@@ -347,7 +376,7 @@ ErrorOr<CacheEntryReader::BodyFile> CacheEntryReader::take_body_file()
     auto fd = TRY(Core::System::dup(m_fd));
     m_index.update_last_access_time(m_cache_key, m_vary_key);
 
-    return BodyFile {
+    return CacheEntryBodyFile {
         .fd = fd,
         .offset = m_data_offset,
         .size = m_data_size,

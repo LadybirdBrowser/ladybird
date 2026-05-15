@@ -97,7 +97,7 @@ void FetchedDataReceiver::handle_network_data(Requests::ResponseData data, Netwo
         m_pre_body_sniff_buffer.append(bytes.slice(0, min(bytes.size(), space_remaining)));
     }
 
-    if (m_http_cache) {
+    if (m_http_cache && !m_cache_body_replaces_network_buffer) {
         if (auto const& immutable_bytes = data.immutable_bytes(); immutable_bytes.has_value() && immutable_bytes->is_file_backed() && m_cache_buffer.is_empty() && !m_cache_body.has_value()) {
             m_cache_body = *immutable_bytes;
         } else {
@@ -114,6 +114,16 @@ void FetchedDataReceiver::handle_network_data(Requests::ResponseData data, Netwo
 
     // FIXME: 8. If the size of buffer is larger than an upper limit chosen by the user agent, ask the user agent
     //           to suspend the ongoing fetch.
+}
+
+void FetchedDataReceiver::set_cached_response_body(Core::ImmutableBytes body)
+{
+    if (!m_http_cache)
+        return;
+
+    m_cache_buffer.clear();
+    m_cache_body = move(body);
+    m_cache_body_replaces_network_buffer = true;
 }
 
 // This implements the parallel steps of the pullAlgorithm in HTTP-network-fetch.

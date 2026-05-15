@@ -13,6 +13,27 @@
 
 namespace Requests {
 
+static Optional<Core::ImmutableBytes> map_body_file(int fd, u64 offset, u64 size)
+{
+    ArmedScopeGuard close_fd = [fd] {
+        (void)Core::System::close(fd);
+    };
+
+    if (!AK::is_within_range<off_t>(offset) || !AK::is_within_range<size_t>(size)) {
+        dbgln("Request: Received body file outside mappable range");
+        return {};
+    }
+
+    close_fd.disarm();
+    auto payload = Core::ImmutableBytes::map_from_fd_range_and_close(fd, "request response"sv, static_cast<off_t>(offset), static_cast<size_t>(size));
+    if (payload.is_error()) {
+        dbgln("Request: Failed to map body file: {}", payload.error());
+        return {};
+    }
+
+    return payload.release_value();
+}
+
 ErrorOr<NonnullOwnPtr<ReadStream>> ReadStream::create(int reader_fd)
 {
 #if defined(AK_OS_WINDOWS)
@@ -64,25 +85,13 @@ void Request::set_request_fd(Badge<Requests::RequestClient>, int fd)
 
 void Request::set_request_body_file(Badge<Requests::RequestClient>, int fd, u64 offset, u64 size)
 {
-    ArmedScopeGuard close_fd = [fd] {
-        (void)Core::System::close(fd);
-    };
+    auto payload = map_body_file(fd, offset, size);
+    if (!payload.has_value())
+        return;
 
     // If the request was stopped while this IPC was in-flight, just bail.
     if (!m_internal_stream_data)
         return;
-
-    if (!AK::is_within_range<off_t>(offset) || !AK::is_within_range<size_t>(size)) {
-        dbgln("Request: Received cache body file outside mappable range");
-        return;
-    }
-
-    close_fd.disarm();
-    auto payload = Core::ImmutableBytes::map_from_fd_range_and_close(fd, "request response"sv, static_cast<off_t>(offset), static_cast<size_t>(size));
-    if (payload.is_error()) {
-        dbgln("Request: Failed to map cache body file: {}", payload.error());
-        return;
-    }
 
     if (m_mode == Mode::Buffered) {
         m_internal_buffered_data->payload = payload.release_value();
@@ -92,6 +101,26 @@ void Request::set_request_body_file(Badge<Requests::RequestClient>, int fd, u64 
     m_internal_stream_data->file_backed_payload = payload.release_value();
     if (m_internal_stream_data->on_data_available)
         m_internal_stream_data->on_data_available(ResponseData::from_immutable_bytes(*m_internal_stream_data->file_backed_payload));
+}
+
+void Request::set_request_cached_body_file(Badge<Requests::RequestClient>, int fd, u64 offset, u64 size)
+{
+    auto payload = map_body_file(fd, offset, size);
+    if (!payload.has_value())
+        return;
+
+    if (m_mode == Mode::Buffered) {
+        m_internal_buffered_data->payload = payload.release_value();
+        return;
+    }
+
+    // If the request was stopped while this IPC was in-flight, just bail.
+    if (!m_internal_stream_data)
+        return;
+
+    m_internal_stream_data->cached_payload = payload.release_value();
+    if (m_internal_stream_data->on_cached_body_available)
+        m_internal_stream_data->on_cached_body_available(*m_internal_stream_data->cached_payload);
 }
 
 void Request::set_buffered_request_finished_callback(BufferedRequestFinished on_buffered_request_finished)
@@ -137,7 +166,7 @@ void Request::set_buffered_request_finished_callback(BufferedRequestFinished on_
     });
 }
 
-void Request::set_unbuffered_request_callbacks(HeadersReceived on_headers_received, DataReceived on_data_received, RequestFinished on_finish)
+void Request::set_unbuffered_request_callbacks(HeadersReceived on_headers_received, DataReceived on_data_received, CachedBodyAvailable on_cached_body_available, RequestFinished on_finish)
 {
     VERIFY(m_mode == Mode::Unknown);
     m_mode = Mode::Unbuffered;
@@ -146,6 +175,7 @@ void Request::set_unbuffered_request_callbacks(HeadersReceived on_headers_receiv
     this->on_finish = move(on_finish);
 
     set_up_internal_stream_data(move(on_data_received));
+    m_internal_stream_data->on_cached_body_available = move(on_cached_body_available);
 }
 
 void Request::did_finish(Badge<RequestClient>, u64 total_size, RequestTimingInfo const& timing_info, Optional<NetworkError> const& network_error)

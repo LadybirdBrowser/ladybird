@@ -1031,10 +1031,20 @@ void Request::handle_complete_state()
         // Finalize the disk cache entry before notifying WebContent that the request is complete: WebContent may
         // immediately fire off a JavaScript bytecode cache store against this entry, and that store needs the cache
         // index row to already exist. If we notified first the store would race the index write and be rejected.
+        Optional<HTTP::CacheEntryBodyFile> cached_body_file;
         if (m_cache_entry_writer.has_value()) {
-            (void)m_cache_entry_writer->flush(m_request_headers, m_response_headers);
+            if (m_cache_entry_writer->body_size() >= static_cast<u64>(PAGE_SIZE)) {
+                auto body_file = m_cache_entry_writer->flush_and_take_body_file(m_request_headers, m_response_headers);
+                if (!body_file.is_error())
+                    cached_body_file = body_file.release_value();
+            } else {
+                (void)m_cache_entry_writer->flush(m_request_headers, m_response_headers);
+            }
             m_cache_entry_writer.clear();
         }
+
+        if (cached_body_file.has_value())
+            m_client.async_request_cached_body_file_available(m_request_id, IPC::File::adopt_fd(cached_body_file->fd), cached_body_file->offset, cached_body_file->size);
 
         m_client.async_request_finished(m_request_id, m_bytes_transferred_to_client, timing_info, m_network_error);
     }

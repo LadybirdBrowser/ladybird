@@ -35,9 +35,10 @@ public:
 
     using OnHeadersReceived = GC::Function<void(HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase, Optional<Core::AnonymousBuffer> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key)>;
     using OnDataReceived = GC::Function<void(Requests::ResponseData data)>;
+    using OnCachedBodyAvailable = GC::Function<void(Core::ImmutableBytes data)>;
     using OnComplete = GC::Function<void(bool success, Requests::RequestTimingInfo const& timing_info, Optional<StringView> error_message)>;
 
-    RefPtr<Requests::Request> load(LoadRequest&, GC::Root<OnHeadersReceived>, GC::Root<OnDataReceived>, GC::Root<OnComplete>);
+    RefPtr<Requests::Request> load(LoadRequest&, GC::Root<OnHeadersReceived>, GC::Root<OnDataReceived>, GC::Root<OnCachedBodyAvailable>, GC::Root<OnComplete>);
 
     RefPtr<Requests::RequestClient>& request_client() { return m_request_client; }
 

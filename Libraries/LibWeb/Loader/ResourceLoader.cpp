@@ -351,7 +351,7 @@ void ResourceLoader::handle_resource_load_request(LoadRequest const& request, Re
     on_resource(load_result);
 }
 
-RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<OnHeadersReceived> on_headers_received, GC::Root<OnDataReceived> on_data_received, GC::Root<OnComplete> on_complete)
+RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<OnHeadersReceived> on_headers_received, GC::Root<OnDataReceived> on_data_received, GC::Root<OnCachedBodyAvailable> on_cached_body_available, GC::Root<OnComplete> on_complete)
 {
     auto const& url = request.url().value();
 
@@ -453,7 +453,11 @@ RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<On
         }
     };
 
-    protocol_request->set_unbuffered_request_callbacks(move(protocol_headers_received), move(protocol_data_received), move(protocol_complete));
+    auto protocol_cached_body_available = [on_cached_body_available = move(on_cached_body_available)](auto data) {
+        on_cached_body_available->function()(move(data));
+    };
+
+    protocol_request->set_unbuffered_request_callbacks(move(protocol_headers_received), move(protocol_data_received), move(protocol_cached_body_available), move(protocol_complete));
     return protocol_request;
 }
 

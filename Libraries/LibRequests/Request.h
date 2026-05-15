@@ -98,11 +98,12 @@ public:
 
     using HeadersReceived = Function<void(NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::AnonymousBuffer> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key)>;
     using DataReceived = Function<void(ResponseData data)>;
+    using CachedBodyAvailable = Function<void(Core::ImmutableBytes data)>;
     using RequestFinished = Function<void(u64 total_size, RequestTimingInfo const& timing_info, Optional<NetworkError> network_error)>;
 
     // Configure the request such that the response data is provided unbuffered as it is received. Using this method is
     // mutually exclusive with `set_buffered_request_finished_callback`.
-    void set_unbuffered_request_callbacks(HeadersReceived, DataReceived, RequestFinished);
+    void set_unbuffered_request_callbacks(HeadersReceived, DataReceived, CachedBodyAvailable, RequestFinished);
 
     Function<CertificateAndKey()> on_certificate_requested;
 
@@ -113,6 +114,7 @@ public:
     RefPtr<Core::Notifier>& write_notifier(Badge<RequestClient>) { return m_write_notifier; }
     void set_request_fd(Badge<RequestClient>, int fd);
     void set_request_body_file(Badge<RequestClient>, int fd, u64 offset, u64 size);
+    void set_request_cached_body_file(Badge<RequestClient>, int fd, u64 offset, u64 size);
 
 private:
     Request(RequestClient&, u64 request_id);
@@ -156,9 +158,11 @@ private:
         bool request_done { false };
         RequestTimingInfo timing_info;
         DataReceived on_data_available;
+        CachedBodyAvailable on_cached_body_available;
         Function<void()> on_finish {};
         bool user_finish_called { false };
         Optional<Core::ImmutableBytes> file_backed_payload;
+        Optional<Core::ImmutableBytes> cached_payload;
     };
 
     OwnPtr<InternalBufferedData> m_internal_buffered_data;

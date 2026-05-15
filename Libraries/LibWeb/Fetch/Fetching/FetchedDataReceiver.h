@@ -33,6 +33,7 @@ public:
         Error,
     };
     void handle_network_data(Requests::ResponseData, NetworkState);
+    void set_cached_response_body(Core::ImmutableBytes);
 
 private:
     FetchedDataReceiver(GC::Ref<Infrastructure::FetchParams const>, GC::Ref<Streams::ReadableStream>, RefPtr<HTTP::MemoryCache>);
@@ -57,6 +58,7 @@ private:
     // Whole-response buffer retained only when m_http_cache is non-null, for finalize_entry().
     ByteBuffer m_cache_buffer;
     Optional<Core::ImmutableBytes> m_cache_body;
+    bool m_cache_body_replaces_network_buffer { false };
 
     bool m_network_complete { false };
 };
