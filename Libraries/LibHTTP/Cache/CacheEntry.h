@@ -137,6 +137,8 @@ public:
 
     ErrorOr<CacheEntryBodyFile> take_body_file();
 
+    u64 body_size() const { return m_data_size; }
+
     u32 status_code() const { return m_cache_header.status_code; }
     Optional<String> const& reason_phrase() const { return m_reason_phrase; }
     HeaderList& response_headers() { return m_response_headers; }
