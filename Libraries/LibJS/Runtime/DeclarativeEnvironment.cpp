@@ -62,7 +62,9 @@ bool DeclarativeEnvironment::RareData::is_empty() const
         && m_bindings_assoc.is_empty()
         && !m_dispose_capability.disposable_resource_stack
         && !m_environment_shape_cache
-        && m_expected_binding_count == 0;
+        && m_expected_binding_count == 0
+        && m_environment_serial_number == 0
+        && !m_is_catch_environment;
 }
 
 DeclarativeEnvironment::RareData& DeclarativeEnvironment::ensure_rare_data()
@@ -76,6 +78,30 @@ void DeclarativeEnvironment::drop_rare_data_if_empty()
 {
     if (m_rare_data && m_rare_data->is_empty())
         m_rare_data.clear();
+}
+
+void DeclarativeEnvironment::increment_environment_serial_number()
+{
+    if (m_shape)
+        return;
+    if (m_rare_data && m_rare_data->m_environment_shape_cache)
+        return;
+    ++ensure_rare_data().m_environment_serial_number;
+}
+
+bool DeclarativeEnvironment::is_catch_environment() const
+{
+    if (!m_rare_data)
+        return false;
+    return m_rare_data->m_is_catch_environment;
+}
+
+void DeclarativeEnvironment::set_is_catch_environment(bool value)
+{
+    if (!value && !m_rare_data)
+        return;
+    ensure_rare_data().m_is_catch_environment = value;
+    drop_rare_data_if_empty();
 }
 
 void DeclarativeEnvironment::visit_edges(Visitor& visitor)
@@ -115,6 +141,13 @@ DisposeCapability* DeclarativeEnvironment::dispose_capability_if_exists()
     if (!m_rare_data || !m_rare_data->m_dispose_capability.disposable_resource_stack)
         return nullptr;
     return &m_rare_data->m_dispose_capability;
+}
+
+u64 DeclarativeEnvironment::environment_serial_number() const
+{
+    if (!m_rare_data)
+        return 0;
+    return m_rare_data->m_environment_serial_number;
 }
 
 void DeclarativeEnvironment::append_binding(Binding binding)
@@ -252,7 +285,7 @@ ThrowCompletionOr<void> DeclarativeEnvironment::create_mutable_binding(VM& vm, U
     });
     maybe_finalize_environment_shape(vm);
 
-    ++m_environment_serial_number;
+    increment_environment_serial_number();
 
     // 3. Return unused.
     return {};
@@ -275,7 +308,7 @@ ThrowCompletionOr<void> DeclarativeEnvironment::create_immutable_binding(VM& vm,
     });
     maybe_finalize_environment_shape(vm);
 
-    ++m_environment_serial_number;
+    increment_environment_serial_number();
 
     // 3. Return unused.
     return {};
@@ -410,7 +443,7 @@ ThrowCompletionOr<bool> DeclarativeEnvironment::delete_binding(VM&, Utf16FlyStri
     // NOTE: We keep the entry in the parallel vectors to avoid disturbing indices.
     clear_binding(name, index);
 
-    ++m_environment_serial_number;
+    increment_environment_serial_number();
 
     // 4. Return true.
     return true;

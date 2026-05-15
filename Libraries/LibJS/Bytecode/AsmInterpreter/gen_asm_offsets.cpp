@@ -232,7 +232,8 @@ int main()
 
     // DeclarativeEnvironment layout
     outln("\n# DeclarativeEnvironment layout");
-    EMIT_OFFSET(DECLARATIVE_ENVIRONMENT_SERIAL, DeclarativeEnvironment, m_environment_serial_number);
+    EMIT_OFFSET(DECLARATIVE_ENVIRONMENT_RARE_DATA, DeclarativeEnvironment, m_rare_data);
+    EMIT_OFFSET(DECLARATIVE_ENVIRONMENT_RARE_DATA_SERIAL, DeclarativeEnvironment::RareData, m_environment_serial_number);
 
     // GlobalVariableCache layout
     outln("\n# GlobalVariableCache layout");
@@ -328,7 +329,6 @@ int main()
     outln("\n# DeclarativeEnvironment binding storage layout");
     EMIT_OFFSET(DECLARATIVE_ENVIRONMENT_SHAPE, DeclarativeEnvironment, m_shape);
     EMIT_OFFSET(DECLARATIVE_ENVIRONMENT_BINDING_VALUES, DeclarativeEnvironment, m_binding_values);
-    EMIT_OFFSET(DECLARATIVE_ENVIRONMENT_RARE_DATA, DeclarativeEnvironment, m_rare_data);
     EMIT_OFFSET(DECLARATIVE_ENVIRONMENT_RARE_DATA_BINDING_FLAGS, DeclarativeEnvironment::RareData, m_binding_flags);
     EMIT_OFFSET(ENVIRONMENT_SHAPE_BINDING_FLAGS, EnvironmentShape, m_binding_flags);
     outln("const BINDING_FLAG_MUTABLE = {}", 1 << 1);

@@ -35,8 +35,8 @@ class JS_API DeclarativeEnvironment : public Environment {
 public:
     virtual ~DeclarativeEnvironment() override = default;
 
-    virtual bool is_catch_environment() const override { return m_is_catch_environment; }
-    void set_is_catch_environment(bool value) { m_is_catch_environment = value; }
+    virtual bool is_catch_environment() const override;
+    void set_is_catch_environment(bool);
 
     virtual ThrowCompletionOr<bool> has_binding(Utf16FlyString const& name, Optional<size_t>* = nullptr) const override final;
     virtual ThrowCompletionOr<void> create_mutable_binding(VM&, Utf16FlyString const& name, bool can_be_deleted) override final;
@@ -93,7 +93,7 @@ public:
         rare_data.m_binding_flags.ensure_capacity(needed_capacity);
     }
 
-    [[nodiscard]] u64 environment_serial_number() const { return m_environment_serial_number; }
+    [[nodiscard]] u64 environment_serial_number() const;
 
     DisposeCapability const& dispose_capability() const;
     DisposeCapability& dispose_capability();
@@ -112,6 +112,8 @@ private:
         DisposeCapability m_dispose_capability;
         GC::Ptr<EnvironmentShape>* m_environment_shape_cache { nullptr };
         size_t m_expected_binding_count { 0 };
+        u64 m_environment_serial_number { 0 };
+        bool m_is_catch_environment { false };
     };
 
     static constexpr u8 BindingFlagStrict = EnvironmentShape::BindingFlagStrict;
@@ -132,6 +134,7 @@ private:
     }
     RareData& ensure_rare_data();
     void drop_rare_data_if_empty();
+    void increment_environment_serial_number();
     void maybe_finalize_environment_shape(VM&);
     void set_environment_shape(GC::Ref<EnvironmentShape>);
     Binding binding_at(size_t index) const;
@@ -216,8 +219,6 @@ private:
     GC::Ptr<EnvironmentShape> m_shape;
     Vector<Value> m_binding_values;
     OwnPtr<RareData> m_rare_data;
-    u64 m_environment_serial_number { 0 };
-    bool m_is_catch_environment { false };
 };
 
 inline ThrowCompletionOr<Value> DeclarativeEnvironment::get_binding_value_direct(VM& vm, size_t index) const

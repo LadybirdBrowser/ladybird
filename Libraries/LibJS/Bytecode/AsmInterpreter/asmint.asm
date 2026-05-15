@@ -1021,6 +1021,17 @@ macro load_binding_flags(env, idx, flags, flag)
 .done:
 end
 
+macro load_environment_serial(env, serial)
+    temp rare_data
+    load64 rare_data, [env, DECLARATIVE_ENVIRONMENT_RARE_DATA]
+    branch_zero rare_data, .zero
+    load64 serial, [rare_data, DECLARATIVE_ENVIRONMENT_RARE_DATA_SERIAL]
+    jmp .done
+.zero:
+    mov serial, 0
+.done:
+end
+
 # Inline environment chain walk + binding value load with TDZ check.
 handler GetBinding
     temp env, idx, binding_values, value, empty
@@ -1939,7 +1950,7 @@ handler GetGlobal
     load64 gvc, [pb, pc, m_cache]
     assert_nonzero gvc
     load64 cache_serial, [gvc, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_SERIAL]
-    load64 env_serial, [env, DECLARATIVE_ENVIRONMENT_SERIAL]
+    load_environment_serial env, env_serial
     branch_ne cache_serial, env_serial, .slow
     # Shape-based fast path: check entries[0].shape matches global_object.shape
     # (falls through to env binding path on shape mismatch)
@@ -1987,7 +1998,7 @@ handler SetGlobal
     load64 gvc, [pb, pc, m_cache]
     assert_nonzero gvc
     load64 cache_serial, [gvc, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_SERIAL]
-    load64 env_serial, [env, DECLARATIVE_ENVIRONMENT_SERIAL]
+    load_environment_serial env, env_serial
     branch_ne cache_serial, env_serial, .slow
     load64 shape, [global_object, OBJECT_SHAPE]
     assert_nonzero shape
