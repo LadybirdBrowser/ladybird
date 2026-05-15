@@ -2,13 +2,7 @@ test("cleanupSome is not exposed", () => {
     expect(FinalizationRegistry.prototype.cleanupSome).toBeUndefined();
 });
 
-function registerInDifferentScope(registry) {
-    const target = {};
-    registry.register(target, {});
-    return target;
-}
-
-test.xfail("basic functionality", () => {
+test("basic functionality", () => {
     var registry = new FinalizationRegistry(() => {});
 
     var count = 0;
@@ -20,8 +14,9 @@ test.xfail("basic functionality", () => {
 
     expect(count).toBe(0);
 
-    const target = registerInDifferentScope(registry);
-    markAsGarbage("target");
+    evaluateSource("var __finalizationRegistryTarget = {};");
+    registry.register(globalThis.__finalizationRegistryTarget, {});
+    markAsGarbage("__finalizationRegistryTarget");
     gc();
 
     cleanupFinalizationRegistry(registry, increment);
@@ -68,6 +63,39 @@ test("cleanup can process multiple dead records from one garbage collection", ()
     cleanupFinalizationRegistry(registry);
 
     expect(heldValues).toEqual(["first", "second"]);
+});
+
+test("held values are kept alive until cleanup", () => {
+    var heldValue;
+    var registry = new FinalizationRegistry(value => {
+        heldValue = value;
+    });
+
+    evaluateSource("var __finalizationRegistryHeldValueTarget = {};");
+    evaluateSource("var __finalizationRegistryHeldValue = { marker: 1 };");
+    registry.register(globalThis.__finalizationRegistryHeldValueTarget, globalThis.__finalizationRegistryHeldValue);
+    markAsGarbage("__finalizationRegistryHeldValueTarget");
+    markAsGarbage("__finalizationRegistryHeldValue");
+    gc();
+
+    cleanupFinalizationRegistry(registry);
+
+    expect(heldValue.marker).toBe(1);
+});
+
+test.xfail("unregister tokens are kept alive", () => {
+    var registry = new FinalizationRegistry(() => {});
+    var target = {};
+    evaluateSource("var __finalizationRegistryUnregisterToken = {};");
+    var tokenRef = new WeakRef(globalThis.__finalizationRegistryUnregisterToken);
+
+    registry.register(target, "held value", globalThis.__finalizationRegistryUnregisterToken);
+    markAsGarbage("__finalizationRegistryUnregisterToken");
+    clearKeptObjects();
+    gc();
+
+    expect(tokenRef.deref()).not.toBe(undefined);
+    expect(registry.unregister(tokenRef.deref())).toBeTrue();
 });
 
 test("automatic cleanup continues after a callback throws", () => {

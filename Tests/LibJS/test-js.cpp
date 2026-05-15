@@ -53,6 +53,12 @@ TESTJS_GLOBAL_FUNCTION(run_queued_promise_jobs, runQueuedPromiseJobs)
     return JS::js_undefined();
 }
 
+TESTJS_GLOBAL_FUNCTION(clear_kept_objects, clearKeptObjects)
+{
+    vm.finish_execution_generation();
+    return JS::js_undefined();
+}
+
 TESTJS_GLOBAL_FUNCTION(run_queued_finalization_registry_cleanup_jobs, runQueuedFinalizationRegistryCleanupJobs)
 {
     vm.run_queued_finalization_registry_cleanup_jobs();
@@ -99,8 +105,9 @@ TESTJS_GLOBAL_FUNCTION(mark_as_garbage, markAsGarbage)
     if (!can_be_held_weakly(value))
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::CannotBeHeldWeakly, ByteString::formatted("Variable with name {}", variable_name.utf8_string_view()));
 
+    TRY(reference.put_value(vm, JS::js_undefined()));
+    (void)TRY(reference.delete_(vm));
     vm.heap().uproot_cell(&value.as_cell());
-    TRY(reference.delete_(vm));
 
     return JS::js_undefined();
 }
