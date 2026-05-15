@@ -1255,6 +1255,7 @@ import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libweb_rust FFI_HEADE
 target_link_libraries(LibWeb PRIVATE libweb_rust)
 get_target_property(_libweb_rust_lib libweb_rust IMPORTED_LOCATION)
 set_property(SOURCE HTML/Parser/HTMLTokenizer.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
+set_property(SOURCE HTML/Parser/HTMLParser.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
 if ((LINUX OR BSD) AND NOT BUILD_SHARED_LIBS)
     target_link_options(LibWeb INTERFACE LINKER:--allow-multiple-definition)
 endif()

@@ -280,7 +280,7 @@ static void dump_tree(Web::DOM::Node const& node, size_t indent)
     }
 }
 
-static GC::Ref<Web::DOM::Document> parse_html(JS::Realm& realm, Web::DOM::Document const& origin_document, StringView input)
+static GC::Ref<Web::DOM::Document> parse_html(JS::Realm& realm, Web::DOM::Document const& origin_document, StringView input, Web::HTML::HTMLParserBackend backend)
 {
     auto document = Web::DOM::Document::create(realm, URL::about_blank());
     document->set_document_type(Web::DOM::Document::Type::HTML);
@@ -290,7 +290,7 @@ static GC::Ref<Web::DOM::Document> parse_html(JS::Realm& realm, Web::DOM::Docume
     document->set_allow_declarative_shadow_roots(true);
     document->set_custom_element_registry(realm.create<Web::HTML::CustomElementRegistry>(realm));
 
-    auto parser = Web::HTML::HTMLParser::create(document, input, Web::HTML::ParserScriptingMode::Disabled, "UTF-8"sv);
+    auto parser = Web::HTML::HTMLParser::create(document, input, Web::HTML::ParserScriptingMode::Disabled, "UTF-8"sv, backend);
     parser->run(URL::about_blank());
     return document;
 }
@@ -312,7 +312,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(iterations, "Run the parser N times, reporting timing unless --silent is used", "iterations", 'n', "count");
     args_parser.parse(arguments);
 
-    if (parser_name != "cpp"sv) {
+    auto backend = Web::HTML::html_parser_backend_from_string(parser_name);
+    if (!backend.has_value()) {
         warnln("Unknown or unavailable parser backend: '{}'", parser_name);
         return 1;
     }
@@ -353,7 +354,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto timer = Core::ElapsedTimer::start_new();
 
     for (int i = 0; i < iterations; i++) {
-        auto document = parse_html(realm, origin_document, input);
+        auto document = parse_html(realm, origin_document, input, backend.value());
         if (!silent && i == 0)
             dump_tree(document);
     }
@@ -362,7 +363,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         auto elapsed_ms = timer.elapsed_milliseconds();
         warnln("input={}B parser={} iterations={} total={}ms ({:.3f}ms/iter)",
             input_data.size(),
-            parser_name,
+            Web::HTML::html_parser_backend_name(backend.value()),
             iterations,
             elapsed_ms,
             static_cast<double>(elapsed_ms) / iterations);

@@ -19,6 +19,15 @@
 
 namespace Web::HTML {
 
+enum class HTMLParserBackend : u8 {
+    Cpp,
+    Rust,
+};
+
+WEB_API Optional<HTMLParserBackend> html_parser_backend_from_string(StringView);
+WEB_API StringView html_parser_backend_name(HTMLParserBackend);
+WEB_API HTMLParserBackend default_html_parser_backend();
+
 #define ENUMERATE_INSERTION_MODES              \
     __ENUMERATE_INSERTION_MODE(Initial)        \
     __ENUMERATE_INSERTION_MODE(BeforeHTML)     \
@@ -49,12 +58,14 @@ class WEB_API HTMLParser final : public JS::Cell {
     friend class HTMLTokenizer;
 
 public:
-    ~HTMLParser();
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
+    virtual ~HTMLParser() override;
 
     static GC::Ref<HTMLParser> create_for_scripting(DOM::Document&);
     static GC::Ref<HTMLParser> create_with_open_input_stream(DOM::Document&);
     static GC::Ref<HTMLParser> create_with_uncertain_encoding(DOM::Document&, ByteBuffer const& input, Optional<MimeSniff::MimeType> maybe_mime_type = {});
-    static GC::Ref<HTMLParser> create(DOM::Document&, StringView input, ParserScriptingMode, StringView encoding);
+    static GC::Ref<HTMLParser> create(DOM::Document&, StringView input, ParserScriptingMode, StringView encoding, HTMLParserBackend = default_html_parser_backend());
 
     void run(HTMLTokenizer::StopAtInsertionPoint = HTMLTokenizer::StopAtInsertionPoint::No);
     void run(URL::URL const&, HTMLTokenizer::StopAtInsertionPoint = HTMLTokenizer::StopAtInsertionPoint::No);
@@ -106,11 +117,12 @@ private:
         Yes,
     };
 
-    HTMLParser(DOM::Document&, ParserScriptingMode, StringView input, StringView encoding);
-    HTMLParser(DOM::Document&, ParserScriptingMode, ScriptCreatedParser);
+    HTMLParser(DOM::Document&, ParserScriptingMode, StringView input, StringView encoding, HTMLParserBackend);
+    HTMLParser(DOM::Document&, ParserScriptingMode, ScriptCreatedParser, HTMLParserBackend);
 
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void initialize(JS::Realm&) override;
+    virtual void finalize() override;
 
     char const* insertion_mode_name() const;
 
@@ -209,6 +221,8 @@ private:
     ListOfActiveFormattingElements m_list_of_active_formatting_elements;
 
     HTMLTokenizer m_tokenizer;
+    HTMLParserBackend m_backend { HTMLParserBackend::Cpp };
+    RustFfiHtmlParserHandle* m_rust_parser { nullptr };
 
     bool m_next_line_feed_can_be_ignored { false };
 

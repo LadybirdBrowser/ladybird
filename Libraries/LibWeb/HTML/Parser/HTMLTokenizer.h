@@ -17,6 +17,7 @@
 #include <LibWeb/HTML/Parser/HTMLToken.h>
 
 struct RustFfiTokenizerHandle;
+struct RustFfiHtmlParserHandle;
 
 namespace Web::HTML {
 

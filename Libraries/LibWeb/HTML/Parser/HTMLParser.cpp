@@ -46,6 +46,7 @@
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTMLTokenizerRustFFI.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Infra/Strings.h>
@@ -54,6 +55,8 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/SVG/SVGScriptElement.h>
 #include <LibWeb/SVG/TagNames.h>
+#include <stdlib.h>
+#include <string.h>
 
 namespace Web::HTML {
 
@@ -63,6 +66,40 @@ GC_DEFINE_ALLOCATOR(HTMLParserEndState);
 static inline void log_parse_error(SourceLocation const& location = SourceLocation::current())
 {
     dbgln_if(HTML_PARSER_DEBUG, "Parse error! {}", location);
+}
+
+Optional<HTMLParserBackend> html_parser_backend_from_string(StringView backend)
+{
+    if (backend == "cpp"sv)
+        return HTMLParserBackend::Cpp;
+    if (backend == "rust"sv)
+        return HTMLParserBackend::Rust;
+    return {};
+}
+
+StringView html_parser_backend_name(HTMLParserBackend backend)
+{
+    switch (backend) {
+    case HTMLParserBackend::Cpp:
+        return "cpp"sv;
+    case HTMLParserBackend::Rust:
+        return "rust"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+HTMLParserBackend default_html_parser_backend()
+{
+    static HTMLParserBackend s_backend = [] {
+        auto* backend = getenv("LIBWEB_HTML_PARSER");
+        if (!backend)
+            return HTMLParserBackend::Cpp;
+        if (auto parsed_backend = html_parser_backend_from_string(StringView { backend, strlen(backend) }); parsed_backend.has_value())
+            return parsed_backend.value();
+        dbgln("Unknown LIBWEB_HTML_PARSER value '{}'; using cpp", backend);
+        return HTMLParserBackend::Cpp;
+    }();
+    return s_backend;
 }
 
 static Vector<StringView> const s_quirks_public_ids = {
@@ -159,11 +196,14 @@ static bool is_html_integration_point(DOM::Element const& element)
     return false;
 }
 
-HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mode, StringView input, StringView encoding)
+HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mode, StringView input, StringView encoding, HTMLParserBackend backend)
     : m_tokenizer(input, encoding)
+    , m_backend(backend)
     , m_scripting_mode(scripting_mode)
     , m_document(document)
 {
+    if (m_backend == HTMLParserBackend::Rust)
+        m_rust_parser = rust_html_parser_create();
     m_tokenizer.set_parser({}, *this);
     m_document->set_parser({}, *this);
     m_stack_of_open_elements.set_on_element_popped([this](DOM::Element& element) {
@@ -174,11 +214,14 @@ HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mo
     m_document->set_encoding(MUST(String::from_utf8(standardized_encoding.value())));
 }
 
-HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mode, ScriptCreatedParser script_created)
-    : m_scripting_mode(scripting_mode)
+HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mode, ScriptCreatedParser script_created, HTMLParserBackend backend)
+    : m_backend(backend)
+    , m_scripting_mode(scripting_mode)
     , m_script_created(script_created == ScriptCreatedParser::Yes)
     , m_document(document)
 {
+    if (m_backend == HTMLParserBackend::Rust)
+        m_rust_parser = rust_html_parser_create();
     m_document->set_parser({}, *this);
     m_tokenizer.set_parser({}, *this);
     m_stack_of_open_elements.set_on_element_popped([this](DOM::Element& element) {
@@ -186,8 +229,15 @@ HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mo
     });
 }
 
-HTMLParser::~HTMLParser()
+HTMLParser::~HTMLParser() = default;
+
+void HTMLParser::finalize()
 {
+    Base::finalize();
+    if (m_rust_parser) {
+        rust_html_parser_destroy(m_rust_parser);
+        m_rust_parser = nullptr;
+    }
 }
 
 void HTMLParser::visit_edges(Cell::Visitor& visitor)
@@ -212,6 +262,11 @@ void HTMLParser::initialize(JS::Realm& realm)
 
 void HTMLParser::run(HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point)
 {
+    if (m_backend == HTMLParserBackend::Rust) {
+        auto result = rust_html_parser_run_document(m_rust_parser);
+        VERIFY(result == RustFfiHtmlParserRunResult::Unsupported);
+    }
+
     m_stop_parsing = false;
 
     for (;;) {
@@ -5189,28 +5244,28 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
 GC::Ref<HTMLParser> HTMLParser::create_for_scripting(DOM::Document& document)
 {
     auto scripting_mode = document.is_scripting_enabled() ? ParserScriptingMode::Normal : ParserScriptingMode::Disabled;
-    return document.realm().create<HTMLParser>(document, scripting_mode, ScriptCreatedParser::Yes);
+    return document.realm().create<HTMLParser>(document, scripting_mode, ScriptCreatedParser::Yes, default_html_parser_backend());
 }
 
 GC::Ref<HTMLParser> HTMLParser::create_with_open_input_stream(DOM::Document& document)
 {
     auto scripting_mode = document.is_scripting_enabled() ? ParserScriptingMode::Normal : ParserScriptingMode::Disabled;
-    return document.realm().create<HTMLParser>(document, scripting_mode, ScriptCreatedParser::No);
+    return document.realm().create<HTMLParser>(document, scripting_mode, ScriptCreatedParser::No, default_html_parser_backend());
 }
 
 GC::Ref<HTMLParser> HTMLParser::create_with_uncertain_encoding(DOM::Document& document, ByteBuffer const& input, Optional<MimeSniff::MimeType> maybe_mime_type)
 {
     auto scripting_mode = document.is_scripting_enabled() ? ParserScriptingMode::Normal : ParserScriptingMode::Disabled;
     if (document.has_encoding())
-        return document.realm().create<HTMLParser>(document, scripting_mode, input, document.encoding().value().to_byte_string());
+        return document.realm().create<HTMLParser>(document, scripting_mode, input, document.encoding().value().to_byte_string(), default_html_parser_backend());
     auto encoding = run_encoding_sniffing_algorithm(document, input, maybe_mime_type);
     dbgln_if(HTML_PARSER_DEBUG, "The encoding sniffing algorithm returned encoding '{}'", encoding);
-    return document.realm().create<HTMLParser>(document, scripting_mode, input, encoding);
+    return document.realm().create<HTMLParser>(document, scripting_mode, input, encoding, default_html_parser_backend());
 }
 
-GC::Ref<HTMLParser> HTMLParser::create(DOM::Document& document, StringView input, ParserScriptingMode scripting_mode, StringView encoding)
+GC::Ref<HTMLParser> HTMLParser::create(DOM::Document& document, StringView input, ParserScriptingMode scripting_mode, StringView encoding, HTMLParserBackend backend)
 {
-    return document.realm().create<HTMLParser>(document, scripting_mode, input, encoding);
+    return document.realm().create<HTMLParser>(document, scripting_mode, input, encoding, backend);
 }
 
 enum class AttributeMode {
@@ -5900,6 +5955,143 @@ void HTMLParser::insert_an_element_at_the_adjusted_insertion_location(GC::Ref<DO
         auto queue = relevant_similar_origin_window_agent(*element).custom_element_reactions_stack.element_queue_stack.take_last();
         Bindings::invoke_custom_element_reactions(queue);
     }
+}
+
+static StringView html_parser_ffi_string_view(u8 const* ptr, size_t len)
+{
+    if (ptr == nullptr || len == 0)
+        return {};
+    return { ptr, len };
+}
+
+static FlyString fly_string_from_html_parser_ffi(u8 const* ptr, size_t len)
+{
+    return MUST(FlyString::from_utf8(html_parser_ffi_string_view(ptr, len)));
+}
+
+static String string_from_html_parser_ffi(u8 const* ptr, size_t len)
+{
+    return MUST(String::from_utf8(html_parser_ffi_string_view(ptr, len)));
+}
+
+enum class LadybirdHtmlParserNamespace {
+    HTML,
+    MathML,
+    SVG,
+};
+
+enum class LadybirdHtmlParserQuirksMode {
+    No,
+    Limited,
+    Yes,
+};
+
+struct LadybirdHtmlParserAttribute {
+    u8 const* local_name_ptr;
+    size_t local_name_len;
+    u8 const* value_ptr;
+    size_t value_len;
+};
+
+extern "C" uintptr_t ladybird_html_parser_document_node(void*);
+extern "C" void ladybird_html_parser_set_document_quirks_mode(void*, LadybirdHtmlParserQuirksMode);
+extern "C" uintptr_t ladybird_html_parser_create_document_type(void*, u8 const*, size_t, u8 const*, size_t, u8 const*, size_t);
+extern "C" uintptr_t ladybird_html_parser_create_comment(void*, u8 const*, size_t);
+extern "C" uintptr_t ladybird_html_parser_create_text_node(void*, u8 const*, size_t);
+extern "C" uintptr_t ladybird_html_parser_create_element(void*, LadybirdHtmlParserNamespace, u8 const*, size_t, LadybirdHtmlParserAttribute const*, size_t);
+extern "C" void ladybird_html_parser_append_child(uintptr_t, uintptr_t);
+
+static Optional<FlyString> namespace_from_html_parser_ffi(LadybirdHtmlParserNamespace namespace_)
+{
+    switch (namespace_) {
+    case LadybirdHtmlParserNamespace::HTML:
+        return Namespace::HTML;
+    case LadybirdHtmlParserNamespace::MathML:
+        return Namespace::MathML;
+    case LadybirdHtmlParserNamespace::SVG:
+        return Namespace::SVG;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static DOM::QuirksMode quirks_mode_from_html_parser_ffi(LadybirdHtmlParserQuirksMode mode)
+{
+    switch (mode) {
+    case LadybirdHtmlParserQuirksMode::No:
+        return DOM::QuirksMode::No;
+    case LadybirdHtmlParserQuirksMode::Limited:
+        return DOM::QuirksMode::Limited;
+    case LadybirdHtmlParserQuirksMode::Yes:
+        return DOM::QuirksMode::Yes;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static HTMLParser& parser_from_html_parser_ffi(void* parser)
+{
+    VERIFY(parser);
+    return *reinterpret_cast<HTMLParser*>(parser);
+}
+
+static DOM::Node& node_from_html_parser_ffi(uintptr_t node)
+{
+    VERIFY(node);
+    return *reinterpret_cast<DOM::Node*>(node);
+}
+
+extern "C" uintptr_t ladybird_html_parser_document_node(void* parser)
+{
+    return reinterpret_cast<uintptr_t>(&parser_from_html_parser_ffi(parser).document());
+}
+
+extern "C" void ladybird_html_parser_set_document_quirks_mode(void* parser, LadybirdHtmlParserQuirksMode mode)
+{
+    parser_from_html_parser_ffi(parser).document().set_quirks_mode(quirks_mode_from_html_parser_ffi(mode));
+}
+
+extern "C" uintptr_t ladybird_html_parser_create_document_type(void* parser, u8 const* name_ptr, size_t name_len, u8 const* public_id_ptr, size_t public_id_len, u8 const* system_id_ptr, size_t system_id_len)
+{
+    auto& html_parser = parser_from_html_parser_ffi(parser);
+    auto document_type = html_parser.document().realm().create<DOM::DocumentType>(html_parser.document());
+    document_type->set_name(string_from_html_parser_ffi(name_ptr, name_len));
+    document_type->set_public_id(string_from_html_parser_ffi(public_id_ptr, public_id_len));
+    document_type->set_system_id(string_from_html_parser_ffi(system_id_ptr, system_id_len));
+    return reinterpret_cast<uintptr_t>(document_type.ptr());
+}
+
+extern "C" uintptr_t ladybird_html_parser_create_comment(void* parser, u8 const* data_ptr, size_t data_len)
+{
+    auto& html_parser = parser_from_html_parser_ffi(parser);
+    auto comment = html_parser.document().realm().create<DOM::Comment>(html_parser.document(), Utf16String::from_utf8(string_from_html_parser_ffi(data_ptr, data_len)));
+    return reinterpret_cast<uintptr_t>(comment.ptr());
+}
+
+extern "C" uintptr_t ladybird_html_parser_create_text_node(void* parser, u8 const* data_ptr, size_t data_len)
+{
+    auto& html_parser = parser_from_html_parser_ffi(parser);
+    auto text = html_parser.document().realm().create<DOM::Text>(html_parser.document(), Utf16String::from_utf8(string_from_html_parser_ffi(data_ptr, data_len)));
+    return reinterpret_cast<uintptr_t>(text.ptr());
+}
+
+extern "C" uintptr_t ladybird_html_parser_create_element(void* parser, LadybirdHtmlParserNamespace namespace_, u8 const* local_name_ptr, size_t local_name_len, LadybirdHtmlParserAttribute const* attributes, size_t attribute_count)
+{
+    auto& html_parser = parser_from_html_parser_ffi(parser);
+    auto local_name = fly_string_from_html_parser_ffi(local_name_ptr, local_name_len);
+    auto element = DOM::create_element(html_parser.document(), local_name, namespace_from_html_parser_ffi(namespace_)).release_value_but_fixme_should_propagate_errors();
+
+    for (size_t i = 0; i < attribute_count; ++i) {
+        auto const& attribute = attributes[i];
+        DOM::QualifiedName qualified_name { fly_string_from_html_parser_ffi(attribute.local_name_ptr, attribute.local_name_len), {}, {} };
+        auto dom_attribute = html_parser.document().realm().create<DOM::Attr>(html_parser.document(), move(qualified_name), string_from_html_parser_ffi(attribute.value_ptr, attribute.value_len), element);
+        element->append_attribute(dom_attribute);
+    }
+
+    return reinterpret_cast<uintptr_t>(element.ptr());
+}
+
+extern "C" void ladybird_html_parser_append_child(uintptr_t parent, uintptr_t child)
+{
+    MUST(node_from_html_parser_ffi(parent).append_child(node_from_html_parser_ffi(child)));
 }
 
 }
