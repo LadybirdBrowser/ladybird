@@ -52,7 +52,7 @@ ViewTransition::ViewTransition(JS::Realm& realm, GC::Ref<WebIDL::Promise> ready_
     , m_ready_promise(ready_promise)
     , m_update_callback_done_promise(update_callback_done_promise)
     , m_finished_promise(finished_promise)
-    , m_transition_root_pseudo_element(heap().allocate<DOM::PseudoElementTreeNode>())
+    , m_transition_root_pseudo_element(heap().allocate<DOM::SyntheticPseudoElementTreeNode>())
 
 {
 }
@@ -745,7 +745,7 @@ void ViewTransition::handle_transition_frame()
     bool has_active_animations = false;
 
     // 3. For each element of transition’s transition root pseudo-element’s inclusive descendants:
-    m_transition_root_pseudo_element->for_each_in_inclusive_subtree([&](DOM::PseudoElementTreeNode&) {
+    m_transition_root_pseudo_element->for_each_in_inclusive_subtree([&](DOM::SyntheticPseudoElementTreeNode&) {
         // For each animation whose timeline is a document timeline associated with document, and contains at
         // least one associated effect whose effect target is element, set hasActiveAnimations to true if any of the
         // following conditions are true:

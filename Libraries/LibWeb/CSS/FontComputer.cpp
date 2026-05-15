@@ -721,7 +721,7 @@ void FontComputer::clear_computed_font_cache(FlyString const& family_name)
 
         // Check pseudo-elements, which may use a different font-family than the element itself.
         bool synthetic_pseudo_element_uses_font_family = false;
-        element.for_each_synthetic_pseudo_element([&](Web::CSS::PseudoElement, Web::DOM::PseudoElement const& pseudo_element) {
+        element.for_each_synthetic_pseudo_element([&](Web::CSS::PseudoElement, Web::DOM::SyntheticPseudoElement const& pseudo_element) {
             if (auto style = pseudo_element.computed_properties()) {
                 if (style_value_references_font_family(style->property(PropertyID::FontFamily), family_name)) {
                     synthetic_pseudo_element_uses_font_family = true;

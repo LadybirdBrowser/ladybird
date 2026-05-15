@@ -206,7 +206,7 @@ public:
     GC::Ptr<CSS::ComputedProperties const> computed_properties(Optional<CSS::PseudoElement> = {}) const;
     void set_computed_properties(Optional<CSS::PseudoElement>, GC::Ptr<CSS::ComputedProperties>);
 
-    Optional<PseudoElement&> get_synthetic_pseudo_element(CSS::PseudoElement) const;
+    Optional<SyntheticPseudoElement&> get_synthetic_pseudo_element(CSS::PseudoElement) const;
     Optional<PseudoElement&> get_pseudo_element(CSS::PseudoElement) const;
 
     template<typename Callback>
@@ -221,13 +221,13 @@ public:
             if (!pseudo_element.has_value())
                 continue;
 
-            using ReturnType = InvokeResult<Callback, CSS::PseudoElement, PseudoElement&>;
+            using ReturnType = InvokeResult<Callback, CSS::PseudoElement, SyntheticPseudoElement&>;
             if constexpr (IsSame<ReturnType, IterationDecision>) {
-                if (callback(type, pseudo_element.release_value()) == IterationDecision::Break)
+                if (callback(type, as<SyntheticPseudoElement>(*pseudo_element.release_value())) == IterationDecision::Break)
                     return;
             } else {
                 static_assert(IsSame<ReturnType, void>);
-                callback(type, pseudo_element.release_value());
+                callback(type, as<SyntheticPseudoElement>(*pseudo_element.release_value()));
             }
         }
     }
@@ -244,13 +244,13 @@ public:
             if (!pseudo_element.has_value())
                 continue;
 
-            using ReturnType = InvokeResult<Callback, CSS::PseudoElement, PseudoElement const&>;
+            using ReturnType = InvokeResult<Callback, CSS::PseudoElement, SyntheticPseudoElement&>;
             if constexpr (IsSame<ReturnType, IterationDecision>) {
-                if (callback(type, pseudo_element.release_value()) == IterationDecision::Break)
+                if (callback(type, as<SyntheticPseudoElement>(*pseudo_element.release_value())) == IterationDecision::Break)
                     return;
             } else {
                 static_assert(IsSame<ReturnType, void>);
-                callback(type, pseudo_element.release_value());
+                callback(type, as<SyntheticPseudoElement>(*pseudo_element.release_value()));
             }
         }
     }
@@ -697,7 +697,7 @@ private:
 
     using PseudoElementData = HashMap<CSS::PseudoElement, GC::Ref<PseudoElement>>;
     mutable OwnPtr<PseudoElementData> m_pseudo_element_data;
-    PseudoElement& ensure_synthetic_pseudo_element(CSS::PseudoElement) const;
+    SyntheticPseudoElement& ensure_synthetic_pseudo_element(CSS::PseudoElement) const;
     void clear_synthetic_pseudo_element_layout_nodes();
 
     Optional<CSS::PseudoElement> m_use_pseudo_element;

@@ -23,8 +23,8 @@ namespace Web::ViewTransition {
 
 // https://drafts.csswg.org/css-view-transitions-1/#named-view-transition-pseudo
 class NamedViewTransitionPseudoElement
-    : public DOM::PseudoElementTreeNode {
-    GC_CELL(NamedViewTransitionPseudoElement, DOM::PseudoElementTreeNode);
+    : public DOM::SyntheticPseudoElementTreeNode {
+    GC_CELL(NamedViewTransitionPseudoElement, DOM::SyntheticPseudoElementTreeNode);
     GC_DECLARE_ALLOCATOR(NamedViewTransitionPseudoElement);
 
     NamedViewTransitionPseudoElement(CSS::PseudoElement, FlyString);
@@ -164,7 +164,7 @@ private:
     GC::Ref<WebIDL::Promise> m_finished_promise;
 
     // https://drafts.csswg.org/css-view-transitions-1/#viewtransition-transition-root-pseudo-element
-    GC::Ref<DOM::PseudoElementTreeNode> m_transition_root_pseudo_element;
+    GC::Ref<DOM::SyntheticPseudoElementTreeNode> m_transition_root_pseudo_element;
 
     // https://drafts.csswg.org/css-view-transitions-1/#viewtransition-initial-snapshot-containing-block-size
     Optional<CSSPixelSize> m_initial_snapshot_containing_block_size;
