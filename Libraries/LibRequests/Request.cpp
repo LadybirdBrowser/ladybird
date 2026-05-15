@@ -91,7 +91,7 @@ void Request::set_request_body_file(Badge<Requests::RequestClient>, int fd, u64 
 
     m_internal_stream_data->file_backed_payload = payload.release_value();
     if (m_internal_stream_data->on_data_available)
-        m_internal_stream_data->on_data_available(m_internal_stream_data->file_backed_payload->bytes());
+        m_internal_stream_data->on_data_available(ResponseData::from_immutable_bytes(*m_internal_stream_data->file_backed_payload));
 }
 
 void Request::set_buffered_request_finished_callback(BufferedRequestFinished on_buffered_request_finished)
@@ -131,9 +131,9 @@ void Request::set_buffered_request_finished_callback(BufferedRequestFinished on_
             move(payload));
     };
 
-    set_up_internal_stream_data([this](auto read_bytes) {
+    set_up_internal_stream_data([this](auto data) {
         // FIXME: What do we do if this fails?
-        m_internal_buffered_data->payload_stream.write_until_depleted(read_bytes).release_value_but_fixme_should_propagate_errors();
+        m_internal_buffered_data->payload_stream.write_until_depleted(data.bytes()).release_value_but_fixme_should_propagate_errors();
     });
 }
 
@@ -223,7 +223,7 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
             if (read_bytes.is_empty())
                 break;
 
-            m_internal_stream_data->on_data_available(read_bytes);
+            m_internal_stream_data->on_data_available(ResponseData::from_bytes(read_bytes));
         } while (true);
 
         if (m_internal_stream_data->read_stream->is_eof())

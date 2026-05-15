@@ -24,6 +24,34 @@ namespace Requests {
 
 class RequestClient;
 
+class ResponseData {
+public:
+    static ResponseData from_bytes(ReadonlyBytes bytes) { return ResponseData { bytes }; }
+    static ResponseData from_immutable_bytes(Core::ImmutableBytes bytes) { return ResponseData { move(bytes) }; }
+
+    [[nodiscard]] ReadonlyBytes bytes() const
+    {
+        if (m_immutable_bytes.has_value())
+            return m_immutable_bytes->bytes();
+        return m_bytes;
+    }
+    [[nodiscard]] Optional<Core::ImmutableBytes> const& immutable_bytes() const { return m_immutable_bytes; }
+
+private:
+    explicit ResponseData(ReadonlyBytes bytes)
+        : m_bytes(bytes)
+    {
+    }
+
+    explicit ResponseData(Core::ImmutableBytes bytes)
+        : m_immutable_bytes(move(bytes))
+    {
+    }
+
+    ReadonlyBytes m_bytes;
+    Optional<Core::ImmutableBytes> m_immutable_bytes;
+};
+
 class ReadStream {
 public:
     static ErrorOr<NonnullOwnPtr<ReadStream>> create(int reader_fd);
@@ -69,7 +97,7 @@ public:
     void set_buffered_request_finished_callback(BufferedRequestFinished);
 
     using HeadersReceived = Function<void(NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::AnonymousBuffer> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key)>;
-    using DataReceived = Function<void(ReadonlyBytes data)>;
+    using DataReceived = Function<void(ResponseData data)>;
     using RequestFinished = Function<void(u64 total_size, RequestTimingInfo const& timing_info, Optional<NetworkError> network_error)>;
 
     // Configure the request such that the response data is provided unbuffered as it is received. Using this method is

@@ -2229,8 +2229,8 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
 
     // 16. Run these steps in parallel:
     //     FIXME: 1. Run these steps, but abort when fetchParams is canceled:
-    auto on_data_received = GC::create_function(vm.heap(), [fetched_data_receiver](ReadonlyBytes bytes) {
-        fetched_data_receiver->handle_network_bytes(bytes, FetchedDataReceiver::NetworkState::Ongoing);
+    auto on_data_received = GC::create_function(vm.heap(), [fetched_data_receiver](Requests::ResponseData data) {
+        fetched_data_receiver->handle_network_data(move(data), FetchedDataReceiver::NetworkState::Ongoing);
     });
 
     auto on_complete = GC::create_function(vm.heap(), [&vm, &realm, pending_response, stream, fetched_data_receiver](bool success, Requests::RequestTimingInfo const&, Optional<StringView> error_message) {
@@ -2238,7 +2238,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         if (success) {
-            fetched_data_receiver->handle_network_bytes({}, FetchedDataReceiver::NetworkState::Complete);
+            fetched_data_receiver->handle_network_data(Requests::ResponseData::from_bytes({}), FetchedDataReceiver::NetworkState::Complete);
         } else {
             // 16.1.2.2. Otherwise, if stream is readable, error stream with a TypeError.
             auto error = MUST(String::formatted("Load failed: {}", error_message.value_or("Unknown error"sv)));

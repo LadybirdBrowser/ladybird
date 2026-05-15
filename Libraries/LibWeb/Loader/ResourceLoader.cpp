@@ -369,7 +369,7 @@ RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<On
             [on_headers_received = move(on_headers_received), on_data_received = move(on_data_received), on_complete = move(on_complete), request](ReadonlyBytes data, Requests::RequestTimingInfo const& timing_info, HTTP::HeaderList const& response_headers) {
                 log_success(request);
                 on_headers_received->function()(response_headers, {}, {}, {}, {});
-                on_data_received->function()(data);
+                on_data_received->function()(Requests::ResponseData::from_bytes(data));
                 on_complete->function()(true, timing_info, {});
             });
         return nullptr;
@@ -380,7 +380,7 @@ RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<On
             request,
             [on_headers_received = move(on_headers_received), on_data_received = move(on_data_received), on_complete](FileLoadResult const& load_result) {
                 on_headers_received->function()(load_result.response_headers, {}, {}, {}, {});
-                on_data_received->function()(load_result.data);
+                on_data_received->function()(Requests::ResponseData::from_bytes(load_result.data));
                 on_complete->function()(true, load_result.timing_info, {});
             },
             [on_complete](ByteString const& message) {
@@ -396,7 +396,7 @@ RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<On
             [request, on_headers_received = move(on_headers_received), on_data_received = move(on_data_received), on_complete](FileLoadResult const& load_result) {
                 log_success(request);
                 on_headers_received->function()(load_result.response_headers, {}, {}, {}, {});
-                on_data_received->function()(load_result.data);
+                on_data_received->function()(Requests::ResponseData::from_bytes(load_result.data));
                 on_complete->function()(true, load_result.timing_info, {});
             },
             [on_complete, request](ByteString const& message) {
@@ -431,8 +431,8 @@ RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<On
 
     auto protocol_data_received = [on_data_received = move(on_data_received), request, request_id = protocol_request->id()](auto data) {
         if (auto page = request.page())
-            page->client().page_did_receive_network_response_body(request_id, data);
-        on_data_received->function()(data);
+            page->client().page_did_receive_network_response_body(request_id, data.bytes());
+        on_data_received->function()(move(data));
     };
 
     auto protocol_complete = [this, on_complete = move(on_complete), request, &protocol_request = *protocol_request](u64 total_size, Requests::RequestTimingInfo const& timing_info, Optional<Requests::NetworkError> const& network_error) {

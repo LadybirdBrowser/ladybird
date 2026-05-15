@@ -8,9 +8,11 @@
 #pragma once
 
 #include <AK/ByteBuffer.h>
+#include <LibCore/ImmutableBytes.h>
 #include <LibGC/CellAllocator.h>
 #include <LibHTTP/Forward.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibRequests/Request.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Fetch::Fetching {
@@ -30,7 +32,7 @@ public:
         Complete,
         Error,
     };
-    void handle_network_bytes(ReadonlyBytes, NetworkState);
+    void handle_network_data(Requests::ResponseData, NetworkState);
 
 private:
     FetchedDataReceiver(GC::Ref<Infrastructure::FetchParams const>, GC::Ref<Streams::ReadableStream>, RefPtr<HTTP::MemoryCache>);
@@ -54,6 +56,7 @@ private:
 
     // Whole-response buffer retained only when m_http_cache is non-null, for finalize_entry().
     ByteBuffer m_cache_buffer;
+    Optional<Core::ImmutableBytes> m_cache_body;
 
     bool m_network_complete { false };
 };

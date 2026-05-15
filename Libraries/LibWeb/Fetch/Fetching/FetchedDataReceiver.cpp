@@ -40,7 +40,7 @@ void FetchedDataReceiver::set_body(GC::Ref<Fetch::Infrastructure::Body> body)
         m_pre_body_sniff_buffer.clear();
     }
     // If the stream already completed before the body was set,
-    // we missed the set_sniff_bytes_complete() call in handle_network_bytes.
+    // we missed the set_sniff_bytes_complete() call in handle_network_data.
     if (m_network_complete)
         m_body->set_sniff_bytes_complete();
 }
@@ -56,10 +56,10 @@ void FetchedDataReceiver::visit_edges(Visitor& visitor)
 
 // This implements the parallel steps of the pullAlgorithm in HTTP-network-fetch.
 // https://fetch.spec.whatwg.org/#ref-for-in-parallel⑤
-void FetchedDataReceiver::handle_network_bytes(ReadonlyBytes bytes, NetworkState state)
+void FetchedDataReceiver::handle_network_data(Requests::ResponseData data, NetworkState state)
 {
     if (state == NetworkState::Complete) {
-        VERIFY(bytes.is_empty());
+        VERIFY(data.bytes().is_empty());
         m_network_complete = true;
         // Mark sniff bytes as complete when the stream ends
         if (m_body)
@@ -77,6 +77,7 @@ void FetchedDataReceiver::handle_network_bytes(ReadonlyBytes bytes, NetworkState
         return;
 
     // 1. If one or more bytes have been transmitted from response’s message body, then:
+    auto bytes = data.bytes();
     if (bytes.is_empty())
         return;
 
@@ -96,8 +97,17 @@ void FetchedDataReceiver::handle_network_bytes(ReadonlyBytes bytes, NetworkState
         m_pre_body_sniff_buffer.append(bytes.slice(0, min(bytes.size(), space_remaining)));
     }
 
-    if (m_http_cache)
-        m_cache_buffer.append(bytes);
+    if (m_http_cache) {
+        if (auto const& immutable_bytes = data.immutable_bytes(); immutable_bytes.has_value() && immutable_bytes->is_file_backed() && m_cache_buffer.is_empty() && !m_cache_body.has_value()) {
+            m_cache_body = *immutable_bytes;
+        } else {
+            if (m_cache_body.has_value()) {
+                m_cache_buffer.append(m_cache_body->bytes());
+                m_cache_body.clear();
+            }
+            m_cache_buffer.append(bytes);
+        }
+    }
 
     // 7. Append bytes to buffer.
     enqueue_into_stream(bytes);
@@ -138,10 +148,14 @@ void FetchedDataReceiver::close_stream()
         auto request = m_fetch_params->request();
         if (m_stream->is_readable() && !m_fetch_params->is_canceled()
             && m_response && request->cache_mode() != HTTP::CacheMode::NoStore) {
-            m_http_cache->finalize_entry(request->current_url(), request->method(), request->header_list(), m_response->status(), m_response->header_list(), move(m_cache_buffer));
+            auto response_body = m_cache_body.has_value()
+                ? m_cache_body.release_value()
+                : Core::ImmutableBytes::adopt(move(m_cache_buffer));
+            m_http_cache->finalize_entry(request->current_url(), request->method(), request->header_list(), m_response->status(), m_response->header_list(), move(response_body));
         }
 
         m_http_cache.clear();
+        m_cache_body.clear();
     }
 
     if (!m_stream->is_readable())
