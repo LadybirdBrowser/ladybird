@@ -332,7 +332,6 @@ public:
 
     void set_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::PseudoElement, GC::Ptr<Layout::NodeWithStyle>);
     GC::Ptr<Layout::NodeWithStyle> get_pseudo_element_node(CSS::PseudoElement) const;
-    bool has_pseudo_element(CSS::PseudoElement) const;
     bool has_pseudo_elements() const;
     void clear_pseudo_element_layout_nodes(Badge<Layout::TreeBuilder>) { clear_pseudo_element_layout_nodes(); }
     void clear_pseudo_element_layout_nodes(Badge<Document>) { clear_pseudo_element_layout_nodes(); }
@@ -771,18 +770,6 @@ inline bool Element::has_class(FlyString const& class_name, CaseSensitivity case
     return any_of(m_classes, [&](auto& it) {
         return it.equals_ignoring_ascii_case(class_name);
     });
-}
-
-inline bool Element::has_pseudo_element(CSS::PseudoElement type) const
-{
-    if (!m_pseudo_element_data)
-        return false;
-    if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(type))
-        return false;
-    auto pseudo_element = m_pseudo_element_data->get(type);
-    if (!pseudo_element.has_value())
-        return false;
-    return pseudo_element.value()->layout_node();
 }
 
 bool is_valid_namespace_prefix(FlyString const&);
