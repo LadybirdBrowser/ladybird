@@ -2,7 +2,9 @@ include(audio)
 
 set(SOURCES
     Audio/AudioDevices.cpp
+    Codecs/FLAC.cpp
     Containers/ConstantBitrateContainerNavigator.cpp
+    Containers/FLACNavigator.cpp
     Containers/IndexedContainerNavigator.cpp
     Containers/Matroska/MatroskaDemuxer.cpp
     Containers/Matroska/Reader.cpp

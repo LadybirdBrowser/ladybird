@@ -10,6 +10,7 @@
 #include <AK/Stream.h>
 #include <AK/Time.h>
 #include <LibMedia/Containers/ConstantBitrateContainerNavigator.h>
+#include <LibMedia/Containers/FLACNavigator.h>
 #include <LibMedia/Containers/IndexedContainerNavigator.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/FFmpeg/FFmpegHelpers.h>
@@ -174,7 +175,7 @@ DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_stream(NonnullR
             demuxer->m_preferred_track_for_type[type_index] = static_cast<int>(i);
     }
 
-    demuxer->m_container_navigator = create_container_navigator(*format_context);
+    demuxer->m_container_navigator = create_container_navigator(*format_context, stream);
 
     avformat_close_input(&format_context);
     return demuxer;
@@ -194,9 +195,25 @@ static inline i64 duration_to_time_units(AK::Duration duration, AVRational const
     return duration.to_time_units(time_base.num, time_base.den);
 }
 
-OwnPtr<ContainerNavigator> FFmpegDemuxer::create_container_navigator(AVFormatContext& context)
+OwnPtr<ContainerNavigator> FFmpegDemuxer::create_container_navigator(AVFormatContext& context, NonnullRefPtr<MediaStream> const& stream)
 {
     auto format_name = StringView(context.iformat->name, strlen(context.iformat->name));
+
+    if (format_name == "flac"sv && context.nb_streams == 1) {
+        auto& av_stream = *context.streams[0];
+        if (av_stream.codecpar->sample_rate > 0) {
+            auto sample_rate = static_cast<u32>(av_stream.codecpar->sample_rate);
+            AVPacket* packet = av_packet_alloc();
+            ScopeGuard free_packet = [&] { av_packet_free(&packet); };
+
+            if (av_read_frame(&context, packet) >= 0) {
+                VERIFY(packet->size >= 0);
+                auto cursor = stream->create_cursor();
+                cursor->set_is_blocking(false);
+                return FLACNavigator::create({ packet->data, static_cast<size_t>(packet->size) }, move(cursor), sample_rate);
+            }
+        }
+    }
 
     if (format_name == "wav"sv && context.nb_streams > 0) {
         auto* stream = context.streams[0];

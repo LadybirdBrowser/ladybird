@@ -80,7 +80,7 @@ private:
 
     FFmpegDemuxer(NonnullRefPtr<MediaStream> const&);
 
-    static OwnPtr<ContainerNavigator> create_container_navigator(AVFormatContext&);
+    static OwnPtr<ContainerNavigator> create_container_navigator(AVFormatContext&, NonnullRefPtr<MediaStream> const&);
     static OwnPtr<ContainerNavigator> create_container_navigator_from_index(AVFormatContext&);
 
     StreamInfo const& get_track_info(Track const&) const;
