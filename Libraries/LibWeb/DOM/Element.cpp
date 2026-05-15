@@ -1758,7 +1758,7 @@ void Element::set_synthetic_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS:
     ensure_synthetic_pseudo_element(pseudo_element).set_layout_node(move(pseudo_element_node));
 }
 
-GC::Ptr<Layout::NodeWithStyle> Element::get_pseudo_element_node(CSS::PseudoElement pseudo_element) const
+GC::Ptr<Layout::NodeWithStyle> Element::pseudo_element_layout_node(CSS::PseudoElement pseudo_element) const
 {
     if (auto element_data = get_pseudo_element(pseudo_element); element_data.has_value())
         return element_data->layout_node();

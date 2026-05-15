@@ -74,7 +74,7 @@ AbstractElement::TreeCountingFunctionResolutionContext AbstractElement::tree_cou
 GC::Ptr<Layout::NodeWithStyle> AbstractElement::layout_node()
 {
     if (m_pseudo_element.has_value())
-        return m_element->get_pseudo_element_node(*m_pseudo_element);
+        return m_element->pseudo_element_layout_node(*m_pseudo_element);
     return m_element->layout_node();
 }
 
