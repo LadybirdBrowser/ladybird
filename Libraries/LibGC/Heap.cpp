@@ -1283,6 +1283,9 @@ void Heap::finish_incremental_sweep()
     m_incremental_sweep_active = false;
 
     stop_incremental_sweep_timer();
+
+    // Sweep is done; kick the global decommit worker so the slots we just freed get madvise()'d off the GC pause path.
+    BlockAllocator::wake_decommit_worker_async();
 }
 
 void Heap::finish_pending_incremental_sweep()
