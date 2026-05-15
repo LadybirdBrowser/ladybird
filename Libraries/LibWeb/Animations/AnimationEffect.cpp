@@ -835,7 +835,7 @@ AnimationUpdateContext::~AnimationUpdateContext()
             if (target->unsafe_layout_node())
                 target->unsafe_layout_node()->apply_style(*style);
         } else {
-            if (auto pseudo_element_node = target->get_pseudo_element_node(element.pseudo_element().value()))
+            if (auto pseudo_element_node = target->pseudo_element_unsafe_layout_node(element.pseudo_element().value()))
                 pseudo_element_node->apply_style(*style);
         }
 

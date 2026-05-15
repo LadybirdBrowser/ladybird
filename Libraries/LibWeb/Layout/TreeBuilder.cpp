@@ -875,7 +875,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
             auto& element = static_cast<DOM::Element&>(dom_node);
             // ::backdrop is a sibling of the element, not a child, so unlike other pseudo-elements, it's not
             // automatically discarded when element's layout is recomputed. We must remove it manually.
-            if (auto old_backdrop_node = element.get_pseudo_element_node(CSS::PseudoElement::Backdrop))
+            if (auto old_backdrop_node = element.pseudo_element_unsafe_layout_node(CSS::PseudoElement::Backdrop))
                 old_backdrop_node->remove();
             element.clear_synthetic_pseudo_element_layout_nodes(Badge<TreeBuilder> {});
             // Elements inside a `display:none` subtree are skipped by
