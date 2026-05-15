@@ -106,7 +106,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload Gradle Build Log
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: android-debug-gradle-log-${{ matrix.label }}
