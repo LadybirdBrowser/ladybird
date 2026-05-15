@@ -95,6 +95,35 @@ void IncrementallyPopulatedStream::add_chunk_at(u64 offset, ReadonlyBytes data)
     m_state_changed.broadcast();
 }
 
+void IncrementallyPopulatedStream::remove_byte_range(u64 start, u64 end)
+{
+    VERIFY(start < end);
+
+    Sync::MutexLocker locker { m_mutex };
+
+    auto chunk_iterator = m_chunks.find_largest_not_above_iterator(start);
+    if (chunk_iterator.is_end() || chunk_iterator->end() <= start)
+        chunk_iterator = m_chunks.find_smallest_not_below_iterator(start);
+
+    while (!chunk_iterator.is_end() && chunk_iterator->offset() < end) {
+        auto chunk = m_chunks.remove_and_advance(chunk_iterator);
+        auto chunk_start = chunk.offset();
+        auto chunk_end = chunk.end();
+
+        if (chunk_start < start) {
+            auto left_size = start - chunk_start;
+            m_chunks.insert(chunk_start, DataChunk { chunk_start, MUST(ByteBuffer::copy(chunk.data().bytes().trim(left_size))) });
+        }
+
+        if (chunk_end > end) {
+            auto right_offset_in_chunk = end - chunk_start;
+            m_chunks.insert(end, DataChunk { end, MUST(ByteBuffer::copy(chunk.data().bytes().slice(right_offset_in_chunk))) });
+        }
+    }
+
+    m_state_changed.broadcast();
+}
+
 Vector<MediaStream::ByteRange> IncrementallyPopulatedStream::available_byte_ranges() const
 {
     Sync::MutexLocker locker { m_mutex };
