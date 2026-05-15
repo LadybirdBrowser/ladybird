@@ -1,0 +1,21 @@
+option end tag closes option before p: true
+optgroup end tag closes optgroup before p: true
+MathML annotation-xml keeps breakout HTML inside form: true
+annotation-xml innerHTML child namespace: true
+namespaced annotation-xml encoding attribute stays foreign: true
+namespace-only annotation-xml encoding attribute stays foreign: true
+custom namespace innerHTML child namespace: true
+template innerHTML starts in template mode for table rows: true
+form innerHTML uses context as form pointer: true
+annotation-xml contextual fragment child namespace: true
+HTML script from contextual fragment executes when applied: true
+SVG script from contextual fragment executes when applied: true
+SVG title innerHTML tokenizes in data state: true
+SVG title innerHTML treats title end tag as markup: true
+SVG title contextual fragment creates HTML child: true
+SVG desc innerHTML ignores frameset start tag: true
+prefixed SVG desc innerHTML ignores frameset start tag: true
+param start tag skips active formatting reconstruction: true
+source start tag skips active formatting reconstruction: true
+track start tag skips active formatting reconstruction: true
+adoption agency fallback after marker closes stale span: true

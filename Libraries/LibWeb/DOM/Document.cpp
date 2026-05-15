@@ -984,9 +984,17 @@ WebIDL::ExceptionOr<void> Document::close()
     // 4. Insert an explicit "EOF" character at the end of the parser's input stream.
     m_parser->tokenizer().insert_eof();
 
+    auto finish_script_created_parser = [this] {
+        m_parser->tokenizer().undefine_insertion_point();
+        m_parser->pop_all_open_elements();
+
+        // AD-HOC: This ensures that a load event is fired if the node navigable's container is an iframe.
+        completely_finish_loading();
+    };
+
     // 5. If there is a pending parsing-blocking script, then return.
     if (has_pending_parsing_blocking_script()) {
-        m_parser->set_post_parse_action([this] { completely_finish_loading(); });
+        m_parser->set_post_parse_action(move(finish_script_created_parser));
         return {};
     }
 
@@ -995,12 +1003,11 @@ WebIDL::ExceptionOr<void> Document::close()
 
     // run() may have paused on a blocking script (e.g. from document.write inside an inline script).
     if (has_pending_parsing_blocking_script()) {
-        m_parser->set_post_parse_action([this] { completely_finish_loading(); });
+        m_parser->set_post_parse_action(move(finish_script_created_parser));
         return {};
     }
 
-    // AD-HOC: This ensures that a load event is fired if the node navigable's container is an iframe.
-    completely_finish_loading();
+    finish_script_created_parser();
 
     return {};
 }

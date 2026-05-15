@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    let reactions = [];
+    customElements.define("parser-insertion-reaction", class extends HTMLElement {
+        constructor() {
+            super();
+            reactions.push("constructor");
+        }
+
+        connectedCallback() {
+            reactions.push("connected");
+        }
+    });
+</script>
+<parser-insertion-reaction></parser-insertion-reaction>
+<script>
+    let reactionsAfterParserInsertion = reactions.join(",");
+    test(() => {
+        println(`after parser insertion: ${reactionsAfterParserInsertion}`);
+        println(`at DOMContentLoaded: ${reactions.join(",")}`);
+    });
+</script>

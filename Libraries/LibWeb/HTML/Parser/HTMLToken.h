@@ -327,6 +327,7 @@ public:
 
     void set_start_position(Badge<HTMLTokenizer>, Position start_position) { m_start_position = start_position; }
     void set_end_position(Badge<HTMLTokenizer>, Position end_position) { m_end_position = end_position; }
+    void set_had_duplicate_attribute(Badge<HTMLTokenizer>) { m_had_duplicate_attribute = true; }
 
     void normalize_attributes();
     bool had_duplicate_attribute() const { return m_had_duplicate_attribute; }

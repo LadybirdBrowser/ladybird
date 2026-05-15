@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg xmlns="http://www.w3.org/2000/svg">
+    <script>
+        document.write("<span id='from-svg'>svg</span>");
+    </script>
+</svg>
+<script>
+    test(() => {
+        let fromSVG = document.getElementById("from-svg");
+        println(`svg write parent: ${fromSVG.parentElement.localName}`);
+        let bodyChildren = Array.from(document.body.children)
+            .filter(element => element.id !== "out")
+            .map(element => element.localName);
+        println(`body children: ${bodyChildren.join(",")}`);
+    });
+</script>

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    let events = [];
+    customElements.define("reentrant-writer", class extends HTMLElement {
+        connectedCallback() {
+            events.push("connected");
+            document.write("<span id='written'>written</span>");
+        }
+    });
+    document.write("<reentrant-writer id='host'></reentrant-writer>");
+</script>
+<script>
+    test(() => {
+        let host = document.getElementById("host");
+        let written = document.getElementById("written");
+        println(events.join(","));
+        println(`written parent: ${written.parentElement.localName}`);
+        println(`host child count: ${host.childNodes.length}`);
+        let bodyChildren = Array.from(document.body.children)
+            .filter(element => element.id !== "out")
+            .map(element => element.localName);
+        println(`body children: ${bodyChildren.join(",")}`);
+    });
+</script>

@@ -42,6 +42,7 @@ pub struct RustFfiToken {
     pub token_type: u8,
     pub code_point: u32,
     pub self_closing: bool,
+    pub had_duplicate_attribute: bool,
 
     /// If nonzero, an interned tag-name id (1-based index into
     /// `interned_names::INTERNED_TAG_NAMES`). When set, `tag_name_ptr` /
@@ -101,6 +102,7 @@ impl Default for RustFfiToken {
             token_type: TokenType::Invalid as u8,
             code_point: 0,
             self_closing: false,
+            had_duplicate_attribute: false,
             tag_name_id: 0,
             tag_name_ptr: ptr::null(),
             tag_name_len: 0,
@@ -304,10 +306,11 @@ fn next_token_slow(
             tag_name,
             tag_name_id,
             self_closing,
-            had_duplicate_attribute: _,
+            had_duplicate_attribute,
             attributes,
         } => {
             out.self_closing = self_closing;
+            out.had_duplicate_attribute = had_duplicate_attribute;
             // Tokenizer already resolved intern ids, so we trust tag_name_id.
             out.tag_name_id = tag_name_id;
             if tag_name_id == 0 {

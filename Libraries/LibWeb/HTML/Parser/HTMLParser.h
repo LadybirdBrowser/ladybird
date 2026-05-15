@@ -17,6 +17,12 @@
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Platform/Timer.h>
 
+namespace Web::SVG {
+
+class SVGScriptElement;
+
+}
+
 namespace Web::HTML {
 
 class HTMLScriptElement;
@@ -72,6 +78,7 @@ public:
     void run(HTMLTokenizer::StopAtInsertionPoint = HTMLTokenizer::StopAtInsertionPoint::No);
     void run(URL::URL const&, HTMLTokenizer::StopAtInsertionPoint = HTMLTokenizer::StopAtInsertionPoint::No);
     void run_until_completion(HTMLTokenizer::StopAtInsertionPoint = HTMLTokenizer::StopAtInsertionPoint::No);
+    void pop_all_open_elements();
 
     static void the_end(GC::Ref<DOM::Document>, GC::Ptr<HTMLParser> = nullptr);
 
@@ -102,7 +109,12 @@ public:
 
     void configure_element_created_by_rust_parser(DOM::Element&);
     GC::Ref<DOM::Element> create_element_for_rust_parser(HTMLToken const&, Optional<FlyString> const& namespace_, DOM::Node& intended_parent, bool had_duplicate_attribute, GC::Ptr<HTMLFormElement>, bool has_template_element_on_stack);
+    void prepare_svg_script_for_rust_parser(SVG::SVGScriptElement&, size_t source_line_number);
+    void set_script_source_line_from_rust_parser(DOM::Element&, size_t source_line_number);
+    void mark_script_already_started_from_rust_parser(HTMLScriptElement&);
+    void stop_parsing_from_rust_parser();
     bool process_script_end_tag_from_rust_parser(HTMLScriptElement&);
+    bool process_svg_script_end_tag_from_rust_parser(SVG::SVGScriptElement&);
 
     // https://html.spec.whatwg.org/multipage/parsing.html#abort-a-parser
     void abort();

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const HTML_NS = "http://www.w3.org/1999/xhtml";
+        const MATHML_NS = "http://www.w3.org/1998/Math/MathML";
+        const SVG_NS = "http://www.w3.org/2000/svg";
+
+        let container = document.createElement("div");
+        container.innerHTML = "<option id=option><annotation-xml><img></option><p id=after></p>";
+        let option = container.querySelector("#option");
+        let after = container.querySelector("#after");
+        println(`option end tag closes option before p: ${after.parentElement === container && !option.contains(after)}`);
+
+        container.innerHTML = "<optgroup id=optgroup><annotation-xml><img></optgroup><p id=after></p>";
+        let optgroup = container.querySelector("#optgroup");
+        after = container.querySelector("#after");
+        println(`optgroup end tag closes optgroup before p: ${after.parentElement === container && !optgroup.contains(after)}`);
+
+        container.innerHTML = "<form id=form><math><annotation-xml></form><b id=bold>bold</b>";
+        let form = container.querySelector("#form");
+        let bold = container.querySelector("#bold");
+        println(`MathML annotation-xml keeps breakout HTML inside form: ${bold.closest("form") === form}`);
+
+        let annotation = document.createElementNS(MATHML_NS, "annotation-xml");
+        annotation.setAttribute("encoding", "text/html");
+        annotation.innerHTML = "<span></span>";
+        println(`annotation-xml innerHTML child namespace: ${annotation.firstElementChild.namespaceURI === HTML_NS}`);
+
+        let namespacedAnnotation = document.createElementNS(MATHML_NS, "annotation-xml");
+        namespacedAnnotation.setAttributeNS("urn:ladybird:test", "x:encoding", "text/html");
+        namespacedAnnotation.innerHTML = "<foo></foo>";
+        println(`namespaced annotation-xml encoding attribute stays foreign: ${namespacedAnnotation.firstElementChild.namespaceURI === MATHML_NS}`);
+
+        let namespaceOnlyAnnotation = document.createElementNS(MATHML_NS, "annotation-xml");
+        namespaceOnlyAnnotation.setAttributeNS("urn:ladybird:test", "encoding", "text/html");
+        namespaceOnlyAnnotation.innerHTML = "<foo></foo>";
+        println(`namespace-only annotation-xml encoding attribute stays foreign: ${namespaceOnlyAnnotation.firstElementChild.namespaceURI === MATHML_NS}`);
+
+        const CUSTOM_NS = "urn:ladybird:test";
+        let custom = document.createElementNS(CUSTOM_NS, "x");
+        custom.innerHTML = "<y></y>";
+        println(`custom namespace innerHTML child namespace: ${custom.firstElementChild.namespaceURI === CUSTOM_NS}`);
+
+        let template = document.createElement("template");
+        template.innerHTML = "<tr><td id=template-cell>x</td></tr>";
+        let templateCell = template.content.querySelector("#template-cell");
+        println(`template innerHTML starts in template mode for table rows: ${templateCell?.parentElement?.localName === "tr" && templateCell.textContent === "x"}`);
+
+        let formFragmentContext = document.createElement("form");
+        formFragmentContext.innerHTML = "<form id=inner-form><input id=form-input></form><span id=form-after></span>";
+        let formInput = formFragmentContext.querySelector("#form-input");
+        let formAfter = formFragmentContext.querySelector("#form-after");
+        println(`form innerHTML uses context as form pointer: ${formFragmentContext.querySelector("#inner-form") === null && formInput?.parentElement === formFragmentContext && formAfter?.parentElement === formFragmentContext}`);
+
+        let range = document.createRange();
+        range.selectNodeContents(annotation);
+        let fragment = range.createContextualFragment("<span></span>");
+        println(`annotation-xml contextual fragment child namespace: ${fragment.firstElementChild.namespaceURI === HTML_NS}`);
+
+        window.htmlFragmentScriptRan = false;
+        range.selectNodeContents(document.body);
+        fragment = range.createContextualFragment("<script>window.htmlFragmentScriptRan = true;<\/script>");
+        document.body.appendChild(fragment);
+        println(`HTML script from contextual fragment executes when applied: ${window.htmlFragmentScriptRan}`);
+        document.body.lastElementChild.remove();
+
+        window.svgFragmentScriptRan = false;
+        range.selectNodeContents(document.body);
+        fragment = range.createContextualFragment("<svg><script>window.svgFragmentScriptRan = true;<\/script></svg>");
+        document.body.appendChild(fragment);
+        println(`SVG script from contextual fragment executes when applied: ${window.svgFragmentScriptRan}`);
+        document.body.lastElementChild.remove();
+
+        let svgTitle = document.createElementNS(SVG_NS, "title");
+        svgTitle.innerHTML = "<div id=svg-title-div></div>";
+        let svgTitleDiv = svgTitle.querySelector("#svg-title-div");
+        println(`SVG title innerHTML tokenizes in data state: ${svgTitleDiv?.namespaceURI === HTML_NS && svgTitle.childNodes.length === 1}`);
+
+        svgTitle.innerHTML = "</title>X";
+        println(`SVG title innerHTML treats title end tag as markup: ${svgTitle.childNodes.length === 1 && svgTitle.textContent === "X"}`);
+
+        range.selectNodeContents(svgTitle);
+        fragment = range.createContextualFragment("<figure></figure>");
+        println(`SVG title contextual fragment creates HTML child: ${fragment.firstElementChild?.namespaceURI === HTML_NS && fragment.firstElementChild?.localName === "figure"}`);
+
+        let svgDesc = document.createElementNS(SVG_NS, "desc");
+        svgDesc.innerHTML = "<frameset>X";
+        println(`SVG desc innerHTML ignores frameset start tag: ${svgDesc.childNodes.length === 1 && svgDesc.textContent === "X"}`);
+
+        let prefixedSvgDesc = document.createElementNS(SVG_NS, "svg:desc");
+        prefixedSvgDesc.innerHTML = "<frameset>X";
+        println(`prefixed SVG desc innerHTML ignores frameset start tag: ${prefixedSvgDesc.childNodes.length === 1 && prefixedSvgDesc.textContent === "X"}`);
+
+        for (const tagName of ["param", "source", "track"]) {
+            container.innerHTML = `<p><b>text</p><${tagName} id=void-element><span>after`;
+            let voidElement = container.querySelector("#void-element");
+            println(`${tagName} start tag skips active formatting reconstruction: ${voidElement.parentElement === container && !voidElement.closest("b")}`);
+        }
+
+        container.innerHTML = "<applet><b><b><b><b></b></b></b><span id=stale></b><p id=after></p>";
+        let stale = container.querySelector("#stale");
+        after = container.querySelector("#after");
+        println(`adoption agency fallback after marker closes stale span: ${!stale.contains(after) && !after.closest("b")}`);
+    });
+</script>

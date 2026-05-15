@@ -1,0 +1,2 @@
+HTML split start tag line: 17
+SVG split start tag line: 19

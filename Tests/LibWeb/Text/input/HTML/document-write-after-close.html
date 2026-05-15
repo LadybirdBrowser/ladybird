@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+
+        let frameDocument = iframe.contentDocument;
+        frameDocument.open();
+        frameDocument.write("<p id=closed>closed</p>");
+        frameDocument.close();
+        frameDocument.write("<span id=after>after</span>");
+
+        let reopened = frameDocument.getElementById("closed") === null
+            && frameDocument.getElementById("after") !== null;
+        println(`document.write after document.close reopens document: ${reopened}`);
+    });
+</script>

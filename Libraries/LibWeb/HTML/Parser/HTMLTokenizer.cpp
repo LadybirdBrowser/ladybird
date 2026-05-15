@@ -167,6 +167,8 @@ Optional<HTMLToken> HTMLTokenizer::next_token(StopAtInsertionPoint stop_at_inser
             token.add_attribute(move(attribute));
         }
         token.normalize_attributes();
+        if (ffi.had_duplicate_attribute)
+            token.set_had_duplicate_attribute({});
         break;
     }
     case HTMLToken::Type::Comment:

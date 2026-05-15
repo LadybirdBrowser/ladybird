@@ -66,6 +66,7 @@ pub enum TokenPayload {
         tag_name: String,
         tag_name_id: u16,
         self_closing: bool,
+        // AD-HOC: See AD-HOC comment on Element.m_had_duplicate_attribute_during_tokenization about why this is tracked.
         had_duplicate_attribute: bool,
         attributes: Vec<Attribute>,
     },

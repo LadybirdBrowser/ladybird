@@ -9,6 +9,7 @@
 
 #include <AK/Debug.h>
 #include <AK/SourceLocation.h>
+#include <AK/TemporaryChange.h>
 #include <AK/Utf32View.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
@@ -23,6 +24,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/DOM/NamedNodeMap.h>
 #include <LibWeb/DOM/ProcessingInstruction.h>
 #include <LibWeb/DOM/QualifiedName.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -69,7 +71,36 @@ static inline void log_parse_error(SourceLocation const& location = SourceLocati
 }
 
 static DOM::Node& node_from_html_parser_ffi(size_t);
+static HTMLParser& parser_from_html_parser_ffi(void*);
 static RustFfiHtmlNamespace namespace_to_html_parser_ffi(Optional<FlyString> const&);
+static RustFfiHtmlAttributeNamespace attribute_namespace_to_html_parser_ffi(Optional<FlyString> const&);
+static RustFfiHtmlQuirksMode quirks_mode_to_html_parser_ffi(DOM::QuirksMode);
+
+extern "C" void ladybird_html_parser_log_parse_error(void*, u8 const*, size_t);
+extern "C" void ladybird_html_parser_stop_parsing(void*);
+extern "C" bool ladybird_html_parser_parse_errors_enabled();
+extern "C" void ladybird_html_parser_visit_node(void*, size_t);
+extern "C" size_t ladybird_html_parser_document_node(void*);
+extern "C" size_t ladybird_html_parser_document_html_element(void*);
+extern "C" void ladybird_html_parser_set_document_quirks_mode(void*, RustFfiHtmlQuirksMode);
+extern "C" size_t ladybird_html_parser_create_document_type(void*, u8 const*, size_t, u8 const*, size_t, u8 const*, size_t);
+extern "C" size_t ladybird_html_parser_create_comment(void*, u8 const*, size_t);
+extern "C" void ladybird_html_parser_insert_text(size_t, size_t, u8 const*, size_t);
+extern "C" void ladybird_html_parser_add_missing_attribute(size_t, u8 const*, size_t, u8 const*, size_t);
+extern "C" void ladybird_html_parser_remove_node(size_t);
+extern "C" void ladybird_html_parser_handle_element_popped(size_t);
+extern "C" void ladybird_html_parser_prepare_svg_script(void*, size_t, size_t);
+extern "C" void ladybird_html_parser_set_script_source_line(void*, size_t, size_t);
+extern "C" void ladybird_html_parser_mark_script_already_started(void*, size_t);
+extern "C" size_t ladybird_html_parser_parent_node(size_t);
+extern "C" size_t ladybird_html_parser_create_element(void*, size_t, RustFfiHtmlNamespace, u8 const*, size_t, u8 const*, size_t, RustFfiHtmlParserAttribute const*, size_t, bool, size_t, bool);
+extern "C" void ladybird_html_parser_append_child(size_t, size_t);
+extern "C" void ladybird_html_parser_insert_node(size_t, size_t, size_t, bool);
+extern "C" void ladybird_html_parser_move_all_children(size_t, size_t);
+extern "C" size_t ladybird_html_parser_template_content(size_t);
+extern "C" size_t ladybird_html_parser_attach_declarative_shadow_root(size_t, RustFfiHtmlShadowRootMode, RustFfiHtmlSlotAssignmentMode, bool, bool, bool, bool);
+extern "C" void ladybird_html_parser_set_template_content(size_t, size_t);
+extern "C" bool ladybird_html_parser_allows_declarative_shadow_roots(size_t);
 
 Optional<HTMLParserBackend> html_parser_backend_from_string(StringView backend)
 {
@@ -256,6 +287,8 @@ void HTMLParser::visit_edges(Cell::Visitor& visitor)
     m_stack_of_open_elements.visit_edges(visitor);
     m_list_of_active_formatting_elements.visit_edges(visitor);
     m_tokenizer.visit_edges(visitor);
+    if (m_rust_parser)
+        rust_html_parser_visit_edges(m_rust_parser, &visitor);
 }
 
 void HTMLParser::initialize(JS::Realm& realm)
@@ -276,14 +309,27 @@ void HTMLParser::run(HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point
                 m_rust_parser,
                 m_tokenizer.ffi_handle({}),
                 this,
+                m_scripting_mode != ParserScriptingMode::Disabled,
                 stop_at_insertion_point == HTMLTokenizer::StopAtInsertionPoint::Yes);
             if (result == RustFfiHtmlParserRunResult::Ok)
                 break;
 
-            VERIFY(result == RustFfiHtmlParserRunResult::ExecuteScript);
-            auto script = rust_html_parser_take_pending_script(m_rust_parser);
-            VERIFY(script);
-            process_script_end_tag_from_rust_parser(as<HTMLScriptElement>(node_from_html_parser_ffi(script)));
+            if (result == RustFfiHtmlParserRunResult::ExecuteScript) {
+                auto script = rust_html_parser_take_pending_script(m_rust_parser);
+                VERIFY(script);
+                process_script_end_tag_from_rust_parser(as<HTMLScriptElement>(node_from_html_parser_ffi(script)));
+                continue;
+            }
+
+            if (result == RustFfiHtmlParserRunResult::ExecuteSvgScript) {
+                auto script = rust_html_parser_take_pending_svg_script(m_rust_parser);
+                VERIFY(script);
+                if (process_svg_script_end_tag_from_rust_parser(as<SVG::SVGScriptElement>(node_from_html_parser_ffi(script))))
+                    break;
+                continue;
+            }
+
+            VERIFY_NOT_REACHED();
         }
 
         m_tokenizer.parser_did_run({});
@@ -358,9 +404,22 @@ void HTMLParser::run(URL::URL const& url, HTMLTokenizer::StopAtInsertionPoint st
     run_until_completion(stop_at_insertion_point);
 }
 
+void HTMLParser::pop_all_open_elements()
+{
+    if (m_backend == HTMLParserBackend::Rust) {
+        rust_html_parser_pop_all_open_elements(m_rust_parser);
+        return;
+    }
+
+    while (!m_stack_of_open_elements.is_empty())
+        (void)m_stack_of_open_elements.pop();
+}
+
 void HTMLParser::configure_element_created_by_rust_parser(DOM::Element& element)
 {
     if (element.local_name() == HTML::TagNames::link && element.namespace_uri() == Namespace::HTML) {
+        // AD-HOC: Let <link> elements know which document they were originally parsed for.
+        //         This is used for the render-blocking logic.
         auto& link_element = as<HTMLLinkElement>(element);
         link_element.set_parser_document({}, document());
         link_element.set_was_enabled_when_created_by_parser({}, !element.has_attribute(HTML::AttributeNames::disabled));
@@ -380,9 +439,11 @@ void HTMLParser::configure_element_created_by_rust_parser(DOM::Element& element)
 
 GC::Ref<DOM::Element> HTMLParser::create_element_for_rust_parser(HTMLToken const& token, Optional<FlyString> const& namespace_, DOM::Node& intended_parent, bool had_duplicate_attribute, GC::Ptr<HTMLFormElement> form_element, bool has_template_element_on_stack)
 {
+    TemporaryChange<GC::Ptr<HTMLFormElement>> suppress_cpp_form_element { m_form_element, {} };
     auto element = create_element_for(token, namespace_, intended_parent);
     configure_element_created_by_rust_parser(element);
 
+    // AD-HOC: See AD-HOC comment on Element.m_had_duplicate_attribute_during_tokenization about why this is done.
     if (had_duplicate_attribute)
         element->set_had_duplicate_attribute_during_tokenization({});
 
@@ -464,6 +525,82 @@ bool HTMLParser::process_script_end_tag_from_rust_parser(HTMLScriptElement& scri
     return m_parser_pause_flag;
 }
 
+void HTMLParser::prepare_svg_script_for_rust_parser(SVG::SVGScriptElement& script, size_t source_line_number)
+{
+    // AD-HOC: For SVG script elements, set the parser-inserted flag before the element is inserted into the DOM.
+    // Otherwise inserted()/attribute_changed() would invoke process_the_script_element() with the flag still unset
+    // and bypass the parser-blocking fetch handling.
+    //
+    // https://html.spec.whatwg.org/multipage/parsing.html#scripting-mode
+    // The Fragment scripting mode treats parser-inserted scripts as if they were not parser-inserted, allowing, for
+    // example, executing scripts when applying a fragment created by createContextualFragment().
+    if (m_scripting_mode != ParserScriptingMode::Fragment)
+        script.set_parser_inserted({});
+    script.set_source_line_number({}, source_line_number);
+}
+
+void HTMLParser::set_script_source_line_from_rust_parser(DOM::Element& element, size_t source_line_number)
+{
+    if (auto* html_script_element = as_if<HTML::HTMLScriptElement>(element)) {
+        html_script_element->set_source_line_number({}, source_line_number);
+        return;
+    }
+    if (auto* svg_script_element = as_if<SVG::SVGScriptElement>(element))
+        svg_script_element->set_source_line_number({}, source_line_number);
+}
+
+void HTMLParser::mark_script_already_started_from_rust_parser(HTMLScriptElement& script)
+{
+    script.set_already_started(Badge<HTMLParser> {}, true);
+}
+
+void HTMLParser::stop_parsing_from_rust_parser()
+{
+    stop_parsing();
+}
+
+bool HTMLParser::process_svg_script_end_tag_from_rust_parser(SVG::SVGScriptElement& script)
+{
+    // Let the old insertion point have the same value as the current insertion point.
+    m_tokenizer.store_old_insertion_point();
+
+    // Let the insertion point be just before the next input character.
+    m_tokenizer.update_insertion_point();
+
+    // Increment the parser's script nesting level by one.
+    increment_script_nesting_level();
+
+    // Set the parser pause flag to true.
+    m_parser_pause_flag = true;
+
+    // Non-standard: Make sure the <script> element has up-to-date text content before processing the script.
+    flush_character_insertions();
+
+    // If the active speculative HTML parser is null and the user agent supports SVG, then Process the SVG script element according to the SVG rules. [SVG]
+    // The active speculative HTML parser is null here.
+    script.process_the_script_element();
+
+    // Decrement the parser's script nesting level by one.
+    decrement_script_nesting_level();
+
+    // If the parser's script nesting level is zero, then set the parser pause flag to false.
+    if (script_nesting_level() == 0)
+        m_parser_pause_flag = false;
+
+    // Let the insertion point have the value of the old insertion point.
+    m_tokenizer.restore_old_insertion_point();
+
+    // If the SVG script registered itself as a pending parsing-blocking script (external fetch in flight),
+    // pause the parser and schedule a resume check. The parser will resume from
+    // resume_after_parser_blocking_script when the fetch completes.
+    if (document().pending_parsing_blocking_svg_script()) {
+        m_parser_pause_flag = true;
+        schedule_resume_check();
+    }
+
+    return m_parser_pause_flag;
+}
+
 void HTMLParser::run_until_completion(HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point)
 {
     m_post_parse_action = [this] { the_end(*m_document, this); };
@@ -520,10 +657,8 @@ void HTMLParser::the_end(GC::Ref<DOM::Document> document, GC::Ptr<HTMLParser> pa
     document->update_readiness(HTML::DocumentReadyState::Interactive);
 
     // 4. Pop all the nodes off the stack of open elements.
-    if (parser) {
-        while (!parser->m_stack_of_open_elements.is_empty())
-            (void)parser->m_stack_of_open_elements.pop();
-    }
+    if (parser)
+        parser->pop_all_open_elements();
 
     // AD-HOC: Skip remaining steps when there's no browsing context.
     // This happens when parsing HTML via DOMParser or similar mechanisms.
@@ -5289,14 +5424,18 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
     // 9. Set the parser's scripting mode to scriptingMode.
     if (context_element.document().is_scripting_disabled())
         scripting_mode = HTML::ParserScriptingMode::Disabled;
-    auto parser = HTMLParser::create(*temp_document, markup, scripting_mode, "utf-8"sv);
+    auto backend = default_html_parser_backend();
+
+    auto parser = HTMLParser::create(*temp_document, markup, scripting_mode, "utf-8"sv, backend);
     parser->m_context_element = context_element;
     parser->m_parsing_fragment = true;
 
     // 10. Set the state of the HTML parser's tokenization stage as follows, switching on the context element:
+    bool const context_element_is_html = context_element.namespace_uri() == Namespace::HTML;
     // - title
     // - textarea
-    if (context_element.local_name().is_one_of(HTML::TagNames::title, HTML::TagNames::textarea)) {
+    if (context_element_is_html
+        && context_element.local_name().is_one_of(HTML::TagNames::title, HTML::TagNames::textarea)) {
         // Switch the tokenizer to the RCDATA state.
         parser->m_tokenizer.switch_to({}, HTMLTokenizer::State::RCDATA);
     }
@@ -5305,23 +5444,24 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
     // - iframe
     // - noembed
     // - noframes
-    else if (context_element.local_name().is_one_of(HTML::TagNames::style, HTML::TagNames::xmp, HTML::TagNames::iframe, HTML::TagNames::noembed, HTML::TagNames::noframes)) {
+    else if (context_element_is_html
+        && context_element.local_name().is_one_of(HTML::TagNames::style, HTML::TagNames::xmp, HTML::TagNames::iframe, HTML::TagNames::noembed, HTML::TagNames::noframes)) {
         // Switch the tokenizer to the RAWTEXT state.
         parser->m_tokenizer.switch_to({}, HTMLTokenizer::State::RAWTEXT);
     }
     // - script
-    else if (context_element.local_name().is_one_of(HTML::TagNames::script)) {
+    else if (context_element_is_html && context_element.local_name().is_one_of(HTML::TagNames::script)) {
         // Switch the tokenizer to the script data state.
         parser->m_tokenizer.switch_to({}, HTMLTokenizer::State::ScriptData);
     }
     // - noscript
-    else if (context_element.local_name().is_one_of(HTML::TagNames::noscript)) {
+    else if (context_element_is_html && context_element.local_name().is_one_of(HTML::TagNames::noscript)) {
         // If scripting mode is not Disabled, switch the tokenizer to the RAWTEXT state. Otherwise, leave the tokenizer in the data state.
         if (scripting_mode != HTML::ParserScriptingMode::Disabled)
             parser->m_tokenizer.switch_to({}, HTMLTokenizer::State::RAWTEXT);
     }
     // - plaintext
-    else if (context_element.local_name().is_one_of(HTML::TagNames::plaintext)) {
+    else if (context_element_is_html && context_element.local_name().is_one_of(HTML::TagNames::plaintext)) {
         // Switch the tokenizer to the PLAINTEXT state.
         parser->m_tokenizer.switch_to({}, HTMLTokenizer::State::PLAINTEXT);
     }
@@ -5354,16 +5494,48 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
     // 17. Set the HTML parser's form element pointer to the nearest node to context that is a form element
     //     (going straight up the ancestor chain, and including the element itself, if it is a form element), if any.
     //     (If there is no such form element, the form element pointer keeps its initial value, null.)
-    parser->m_form_element = context_element.first_ancestor_of_type<HTMLFormElement>();
+    parser->m_form_element = as_if<HTMLFormElement>(context_element);
+    if (!parser->m_form_element)
+        parser->m_form_element = context_element.first_ancestor_of_type<HTMLFormElement>();
 
     if (parser->m_backend == HTMLParserBackend::Rust) {
         auto context_local_name = context_element.local_name().bytes_as_string_view();
+        auto context_namespace = context_element.namespace_uri();
+        auto context_namespace_ffi = namespace_to_html_parser_ffi(context_namespace);
+        StringView context_namespace_uri;
+        if (context_namespace_ffi == RustFfiHtmlNamespace::Other && context_namespace.has_value())
+            context_namespace_uri = context_namespace->bytes_as_string_view();
+        Vector<RustFfiHtmlParserAttribute> context_attributes;
+        if (auto attributes = context_element.attributes()) {
+            context_attributes.ensure_capacity(attributes->length());
+            for (size_t i = 0; i < attributes->length(); ++i) {
+                auto const* attribute = attributes->item(i);
+                auto local_name = attribute->local_name().bytes_as_string_view();
+                auto value = attribute->value().bytes_as_string_view();
+                auto prefix = attribute->prefix().map([](auto const& prefix) { return prefix.bytes_as_string_view(); });
+                context_attributes.unchecked_append({
+                    reinterpret_cast<u8 const*>(local_name.characters_without_null_termination()),
+                    local_name.length(),
+                    prefix.has_value() ? reinterpret_cast<u8 const*>(prefix->characters_without_null_termination()) : nullptr,
+                    prefix.has_value() ? prefix->length() : 0,
+                    attribute_namespace_to_html_parser_ffi(attribute->namespace_uri()),
+                    reinterpret_cast<u8 const*>(value.characters_without_null_termination()),
+                    value.length(),
+                });
+            }
+        }
         rust_html_parser_begin_fragment(
             parser->m_rust_parser,
             reinterpret_cast<size_t>(root.ptr()),
-            namespace_to_html_parser_ffi(context_element.namespace_uri()),
+            reinterpret_cast<size_t>(&context_element),
+            context_namespace_ffi,
+            reinterpret_cast<u8 const*>(context_namespace_uri.characters_without_null_termination()),
+            context_namespace_uri.length(),
             reinterpret_cast<u8 const*>(context_local_name.characters_without_null_termination()),
             context_local_name.length(),
+            context_attributes.data(),
+            context_attributes.size(),
+            quirks_mode_to_html_parser_ffi(temp_document->mode()),
             parser->m_form_element ? reinterpret_cast<size_t>(parser->m_form_element.ptr()) : 0);
     }
 
@@ -6061,8 +6233,7 @@ void HTMLParser::abort()
     m_document->update_readiness(DocumentReadyState::Interactive);
 
     // 4. Pop all the nodes off the stack of open elements.
-    while (!m_stack_of_open_elements.is_empty())
-        m_stack_of_open_elements.pop();
+    pop_all_open_elements();
 
     // 5. Update the current document readiness to "complete".
     m_document->update_readiness(DocumentReadyState::Complete);
@@ -6114,7 +6285,30 @@ static String string_from_html_parser_ffi(u8 const* ptr, size_t len)
     return MUST(String::from_utf8(html_parser_ffi_string_view(ptr, len)));
 }
 
-static Optional<FlyString> namespace_from_html_parser_ffi(RustFfiHtmlNamespace namespace_)
+extern "C" void ladybird_html_parser_log_parse_error(void* parser, u8 const* message_ptr, size_t message_len)
+{
+    (void)parser_from_html_parser_ffi(parser);
+    dbgln_if(HTML_PARSER_DEBUG, "Rust parser parse error: {}", html_parser_ffi_string_view(message_ptr, message_len));
+}
+
+extern "C" void ladybird_html_parser_stop_parsing(void* parser)
+{
+    parser_from_html_parser_ffi(parser).stop_parsing_from_rust_parser();
+}
+
+extern "C" bool ladybird_html_parser_parse_errors_enabled()
+{
+    return HTML_PARSER_DEBUG;
+}
+
+extern "C" void ladybird_html_parser_visit_node(void* visitor, size_t node)
+{
+    if (node == 0)
+        return;
+    static_cast<GC::Cell::Visitor*>(visitor)->visit(node_from_html_parser_ffi(node));
+}
+
+static Optional<FlyString> namespace_from_html_parser_ffi(RustFfiHtmlNamespace namespace_, u8 const* namespace_uri_ptr, size_t namespace_uri_len)
 {
     switch (namespace_) {
     case RustFfiHtmlNamespace::Html:
@@ -6123,6 +6317,10 @@ static Optional<FlyString> namespace_from_html_parser_ffi(RustFfiHtmlNamespace n
         return Namespace::MathML;
     case RustFfiHtmlNamespace::Svg:
         return Namespace::SVG;
+    case RustFfiHtmlNamespace::Other:
+        if (namespace_uri_len == 0)
+            return {};
+        return fly_string_from_html_parser_ffi(namespace_uri_ptr, namespace_uri_len);
     }
     VERIFY_NOT_REACHED();
 }
@@ -6138,17 +6336,38 @@ static Optional<FlyString> attribute_namespace_from_html_parser_ffi(RustFfiHtmlA
         return Namespace::XML;
     case RustFfiHtmlAttributeNamespace::Xmlns:
         return Namespace::XMLNS;
+    case RustFfiHtmlAttributeNamespace::Other:
+        // Only fragment context attributes use this sentinel; parser-created attributes do not cross this path with
+        // arbitrary namespace URIs.
+        VERIFY_NOT_REACHED();
     }
     VERIFY_NOT_REACHED();
 }
 
+static RustFfiHtmlAttributeNamespace attribute_namespace_to_html_parser_ffi(Optional<FlyString> const& namespace_)
+{
+    if (namespace_ == Namespace::XLink)
+        return RustFfiHtmlAttributeNamespace::XLink;
+    if (namespace_ == Namespace::XML)
+        return RustFfiHtmlAttributeNamespace::Xml;
+    if (namespace_ == Namespace::XMLNS)
+        return RustFfiHtmlAttributeNamespace::Xmlns;
+    if (namespace_.has_value())
+        return RustFfiHtmlAttributeNamespace::Other;
+    return RustFfiHtmlAttributeNamespace::None;
+}
+
 static RustFfiHtmlNamespace namespace_to_html_parser_ffi(Optional<FlyString> const& namespace_)
 {
+    if (!namespace_.has_value())
+        return RustFfiHtmlNamespace::Other;
+    if (namespace_ == Namespace::HTML)
+        return RustFfiHtmlNamespace::Html;
     if (namespace_ == Namespace::MathML)
         return RustFfiHtmlNamespace::MathMl;
     if (namespace_ == Namespace::SVG)
         return RustFfiHtmlNamespace::Svg;
-    return RustFfiHtmlNamespace::Html;
+    return RustFfiHtmlNamespace::Other;
 }
 
 static DOM::QuirksMode quirks_mode_from_html_parser_ffi(RustFfiHtmlQuirksMode mode)
@@ -6160,6 +6379,19 @@ static DOM::QuirksMode quirks_mode_from_html_parser_ffi(RustFfiHtmlQuirksMode mo
         return DOM::QuirksMode::Limited;
     case RustFfiHtmlQuirksMode::Yes:
         return DOM::QuirksMode::Yes;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static RustFfiHtmlQuirksMode quirks_mode_to_html_parser_ffi(DOM::QuirksMode mode)
+{
+    switch (mode) {
+    case DOM::QuirksMode::No:
+        return RustFfiHtmlQuirksMode::No;
+    case DOM::QuirksMode::Limited:
+        return RustFfiHtmlQuirksMode::Limited;
+    case DOM::QuirksMode::Yes:
+        return RustFfiHtmlQuirksMode::Yes;
     }
     VERIFY_NOT_REACHED();
 }
@@ -6181,9 +6413,19 @@ extern "C" size_t ladybird_html_parser_document_node(void* parser)
     return reinterpret_cast<size_t>(&parser_from_html_parser_ffi(parser).document());
 }
 
+extern "C" size_t ladybird_html_parser_document_html_element(void* parser)
+{
+    auto* html_element = parser_from_html_parser_ffi(parser).document().document_element();
+    if (!html_element || !is<HTMLHtmlElement>(*html_element))
+        return 0;
+    return reinterpret_cast<size_t>(html_element);
+}
+
 extern "C" void ladybird_html_parser_set_document_quirks_mode(void* parser, RustFfiHtmlQuirksMode mode)
 {
-    parser_from_html_parser_ffi(parser).document().set_quirks_mode(quirks_mode_from_html_parser_ffi(mode));
+    auto& document = parser_from_html_parser_ffi(parser).document();
+    if (!document.parser_cannot_change_the_mode())
+        document.set_quirks_mode(quirks_mode_from_html_parser_ffi(mode));
 }
 
 extern "C" size_t ladybird_html_parser_create_document_type(void* parser, u8 const* name_ptr, size_t name_len, u8 const* public_id_ptr, size_t public_id_len, u8 const* system_id_ptr, size_t system_id_len)
@@ -6230,7 +6472,54 @@ extern "C" void ladybird_html_parser_insert_text(size_t parent, size_t before, u
     MUST(parent_node.append_child(*text));
 }
 
-extern "C" size_t ladybird_html_parser_create_element(void* parser, size_t intended_parent, RustFfiHtmlNamespace namespace_, u8 const* local_name_ptr, size_t local_name_len, RustFfiHtmlParserAttribute const* attributes, size_t attribute_count, bool had_duplicate_attribute, size_t form_element, bool has_template_element_on_stack)
+extern "C" void ladybird_html_parser_add_missing_attribute(size_t element, u8 const* local_name_ptr, size_t local_name_len, u8 const* value_ptr, size_t value_len)
+{
+    auto& dom_element = as<DOM::Element>(node_from_html_parser_ffi(element));
+    auto local_name = fly_string_from_html_parser_ffi(local_name_ptr, local_name_len);
+    if (dom_element.has_attribute(local_name))
+        return;
+    dom_element.append_attribute(local_name, string_from_html_parser_ffi(value_ptr, value_len));
+}
+
+extern "C" void ladybird_html_parser_remove_node(size_t node)
+{
+    node_from_html_parser_ffi(node).remove(true);
+}
+
+extern "C" void ladybird_html_parser_handle_element_popped(size_t element)
+{
+    // https://html.spec.whatwg.org/multipage/form-elements.html#the-option-element
+    // When an option element is popped off the stack of open elements of an HTML parser or XML parser,
+    // the user agent must run maybe clone an option into selectedcontent given the option element.
+    // AD-HOC: The Rust tree builder flushes buffered text before invoking this hook, so the option's content is
+    // up-to-date before cloning.
+    if (auto* option_element = as_if<HTML::HTMLOptionElement>(node_from_html_parser_ffi(element)))
+        MUST(option_element->maybe_clone_into_selectedcontent());
+}
+
+extern "C" void ladybird_html_parser_prepare_svg_script(void* parser, size_t element, size_t source_line_number)
+{
+    parser_from_html_parser_ffi(parser).prepare_svg_script_for_rust_parser(as<SVG::SVGScriptElement>(node_from_html_parser_ffi(element)), source_line_number);
+}
+
+extern "C" void ladybird_html_parser_set_script_source_line(void* parser, size_t element, size_t source_line_number)
+{
+    parser_from_html_parser_ffi(parser).set_script_source_line_from_rust_parser(as<DOM::Element>(node_from_html_parser_ffi(element)), source_line_number);
+}
+
+extern "C" void ladybird_html_parser_mark_script_already_started(void* parser, size_t element)
+{
+    if (auto* script = as_if<HTMLScriptElement>(node_from_html_parser_ffi(element)))
+        parser_from_html_parser_ffi(parser).mark_script_already_started_from_rust_parser(*script);
+}
+
+extern "C" size_t ladybird_html_parser_parent_node(size_t node)
+{
+    auto* parent = node_from_html_parser_ffi(node).parent();
+    return reinterpret_cast<size_t>(parent);
+}
+
+extern "C" size_t ladybird_html_parser_create_element(void* parser, size_t intended_parent, RustFfiHtmlNamespace namespace_, u8 const* namespace_uri_ptr, size_t namespace_uri_len, u8 const* local_name_ptr, size_t local_name_len, RustFfiHtmlParserAttribute const* attributes, size_t attribute_count, bool had_duplicate_attribute, size_t form_element, bool has_template_element_on_stack)
 {
     auto& html_parser = parser_from_html_parser_ffi(parser);
     auto local_name = fly_string_from_html_parser_ffi(local_name_ptr, local_name_len);
@@ -6253,7 +6542,7 @@ extern "C" size_t ladybird_html_parser_create_element(void* parser, size_t inten
     GC::Ptr<HTMLFormElement> form_element_ptr;
     if (form_element)
         form_element_ptr = as<HTMLFormElement>(node_from_html_parser_ffi(form_element));
-    auto element = html_parser.create_element_for_rust_parser(token, namespace_from_html_parser_ffi(namespace_), intended_parent_node, had_duplicate_attribute, form_element_ptr, has_template_element_on_stack);
+    auto element = html_parser.create_element_for_rust_parser(token, namespace_from_html_parser_ffi(namespace_, namespace_uri_ptr, namespace_uri_len), intended_parent_node, had_duplicate_attribute, form_element_ptr, has_template_element_on_stack);
 
     return reinterpret_cast<size_t>(element.ptr());
 }
@@ -6261,6 +6550,35 @@ extern "C" size_t ladybird_html_parser_create_element(void* parser, size_t inten
 extern "C" void ladybird_html_parser_append_child(size_t parent, size_t child)
 {
     MUST(node_from_html_parser_ffi(parent).append_child(node_from_html_parser_ffi(child)));
+}
+
+extern "C" void ladybird_html_parser_insert_node(size_t parent, size_t before, size_t child, bool queue_custom_element_reactions)
+{
+    auto& parent_node = node_from_html_parser_ffi(parent);
+    auto& child_node = node_from_html_parser_ffi(child);
+    auto* child_element = as_if<DOM::Element>(child_node);
+    if (queue_custom_element_reactions && child_element)
+        relevant_similar_origin_window_agent(*child_element).custom_element_reactions_stack.element_queue_stack.append({});
+
+    if (!before) {
+        MUST(parent_node.append_child(child_node));
+    } else {
+        auto& before_node = node_from_html_parser_ffi(before);
+        parent_node.insert_before(child_node, &before_node, false);
+    }
+
+    if (queue_custom_element_reactions && child_element) {
+        auto queue = relevant_similar_origin_window_agent(*child_element).custom_element_reactions_stack.element_queue_stack.take_last();
+        Bindings::invoke_custom_element_reactions(queue);
+    }
+}
+
+extern "C" void ladybird_html_parser_move_all_children(size_t from, size_t to)
+{
+    auto& from_node = node_from_html_parser_ffi(from);
+    auto& to_node = node_from_html_parser_ffi(to);
+    for (auto& child : from_node.children_as_vector())
+        MUST(to_node.append_child(from_node.remove_child(*child).release_value()));
 }
 
 extern "C" size_t ladybird_html_parser_template_content(size_t element)

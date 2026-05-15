@@ -1,0 +1,10 @@
+<!DOCTYPE quirks>
+<script src="../include.js"></script>
+<div id="container"></div>
+<script>
+    test(() => {
+        println(document.compatMode);
+        container.innerHTML = "<p><table><tr><td>cell</td></tr></table>";
+        println(container.innerHTML);
+    });
+</script>
