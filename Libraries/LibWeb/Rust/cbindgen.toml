@@ -6,7 +6,6 @@ header = """/*
  */"""
 pragma_once = true
 include_version = true
-namespaces = ["Web", "CSS", "Parser", "FFI"]
 line_length  = 120
 tab_width = 4
 no_includes = true
@@ -18,9 +17,6 @@ parse_deps = false
 
 [parse.expand]
 all_features = false
-
-[export]
-include = ["CssHashType", "CssNumberType", "CssToken", "CssTokenType"]
 
 [export.mangle]
 rename_types = "PascalCase"
