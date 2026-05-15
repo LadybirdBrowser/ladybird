@@ -499,6 +499,8 @@ void HTMLLinkElement::fetch_and_process_linked_dns_prefetch_resource()
 
     // 4. The user agent should resolve an origin given partitionKey and url's origin.
     // FIXME: This should go through Fetch: https://fetch.spec.whatwg.org/#resolve-an-origin
+    if (!ResourceLoader::is_initialized())
+        return;
     ResourceLoader::the().prefetch_dns(url.value());
 }
 
@@ -622,6 +624,8 @@ void HTMLLinkElement::preconnect(LinkProcessingOptions const& options)
 
     // 8. The user agent should obtain a connection given partitionKey, url's origin, and useCredentials.
     // FIXME: This should go through Fetch: https://fetch.spec.whatwg.org/#concept-connection-obtain
+    if (!ResourceLoader::is_initialized())
+        return;
     ResourceLoader::the().preconnect(*url);
 }
 

@@ -312,7 +312,10 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
     //     (`Accept-Language, an appropriate header value) to request’s header list.
     if (!request.header_list()->contains("Accept-Language"sv)) {
         StringBuilder accept_language;
-        accept_language.join(","sv, ResourceLoader::the().preferred_languages());
+        if (ResourceLoader::is_initialized())
+            accept_language.join(","sv, ResourceLoader::the().preferred_languages());
+        else
+            accept_language.append("en-US"sv);
 
         auto header = HTTP::Header::isomorphic_encode("Accept-Language"sv, accept_language.string_view());
         request.header_list()->append(move(header));
@@ -1794,7 +1797,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
         //       more details.
         //
         // https://w3c.github.io/gpc/#the-sec-gpc-header-field-for-http-requests
-        if (ResourceLoader::the().enable_global_privacy_control() && !http_request->header_list()->contains("Sec-GPC"sv))
+        if (ResourceLoader::is_initialized() && ResourceLoader::the().enable_global_privacy_control() && !http_request->header_list()->contains("Sec-GPC"sv))
             http_request->header_list()->append({ "Sec-GPC"sv, "1"sv });
 
         // 21. If includeCredentials is true, then:
@@ -2159,6 +2162,11 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     if constexpr (WEB_FETCH_DEBUG) {
         dbgln("Fetch: Invoking ResourceLoader");
         log_load_request(load_request);
+    }
+
+    if (!ResourceLoader::is_initialized()) {
+        pending_response->resolve(Infrastructure::Response::network_error(vm, "ResourceLoader is not initialized"_string));
+        return pending_response;
     }
 
     HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };

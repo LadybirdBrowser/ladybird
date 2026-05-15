@@ -10,6 +10,7 @@
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
+#include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 
 namespace Web::CSS {
@@ -141,6 +142,9 @@ GC::Ptr<Fetch::Infrastructure::FetchController> fetch_a_style_resource(StyleReso
 // https://drafts.csswg.org/css-images-4/#fetch-an-external-image-for-a-stylesheet
 GC::Ptr<HTML::SharedResourceRequest> fetch_an_external_image_for_a_stylesheet(StyleResourceURL const& url_value, RuleOrDeclaration declaration, DOM::Document& document)
 {
+    if (!ResourceLoader::is_initialized())
+        return {};
+
     // To fetch an external image for a stylesheet, given a <url> url and a CSS declaration block declaration, fetch a
     // style resource given url, with ruleOrDeclaration being declaration, destination "image", CORS mode "no-cors",
     // and processResponse being the following steps given response res and null, failure or a byte stream byteStream:

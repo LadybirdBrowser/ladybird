@@ -20,6 +20,7 @@
 #include <LibWeb/HTML/BitmapDecodedImageData.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
+#include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
@@ -107,6 +108,11 @@ void SharedResourceRequest::set_fetch_controller(GC::Ptr<Fetch::Infrastructure::
 
 void SharedResourceRequest::fetch_resource(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Request> request)
 {
+    if (!ResourceLoader::is_initialized()) {
+        handle_failed_fetch();
+        return;
+    }
+
     GC::Weak weak_this { *this };
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
     fetch_algorithms_input.process_response = [weak_this, &realm, request](GC::Ref<Fetch::Infrastructure::Response> response) {
