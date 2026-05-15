@@ -109,7 +109,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: android-debug-gradle-log-${{ matrix.label }}
+          name: android-debug-gradle-log-${{ matrix.artifact_name }}
           path: ${{ github.workspace }}/android-debug-build.log
           if-no-files-found: warn
 
