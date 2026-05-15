@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<title>@scope - ShadowDOM</title>
+<link rel="help" href="https://drafts.csswg.org/css-cascade-6/#scope-atrule">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/9025">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<div id=host_plain>
+  <template shadowrootmode=open>
+    <style>
+      @scope (:host) {
+        .a {
+          z-index: 1;
+        }
+      }
+    </style>
+    <div class=a>
+    </div>
+  </template>
+</div>
+<script>
+  test(() => {
+    let a = host_plain.shadowRoot.querySelector('.a');
+    assert_equals(getComputedStyle(a).zIndex, '1');
+  }, '@scope can match :host');
+</script>
+
+<div id=host_functional>
+  <template shadowrootmode=open>
+    <style>
+      @scope (:host(div)) {
+        .a {
+          z-index: 1;
+        }
+      }
+      /* Should not match: */
+      @scope (:host(span)) {
+        .a {
+          z-index: 42;
+        }
+      }
+    </style>
+    <div class=a>
+    </div>
+  </template>
+</div>
+<script>
+  test(() => {
+    let a = host_functional.shadowRoot.querySelector('.a');
+    assert_equals(getComputedStyle(a).zIndex, '1');
+  }, '@scope can match :host(...)');
+</script>
+
+<div id=host_scope_subject>
+  <template shadowrootmode=open>
+    <style>
+      @scope (:host) {
+        :scope {
+          z-index: 1;
+        }
+      }
+    </style>
+    <div class=a>
+    </div>
+  </template>
+</div>
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(host_scope_subject).zIndex, '1');
+  }, ':scope matches host via the scoping root');
+</script>
+
+<div id=host_scope_subject_is>
+  <div class=host>
+    <template shadowrootmode=open>
+      <style>
+        /* Should not match host, nor outside shadow. */
+        :is(:scope, .a, .host) {
+          z-index: 2;
+        }
+
+        @scope (:host) {
+          :is(:scope, .a) {
+            z-index: 1;
+          }
+        }
+      </style>
+      <div class=a>
+      </div>
+    </template>
+  </div>
+  <div class=a>
+  </div>
+</div>
+<script>
+  test(() => {
+    let host = host_scope_subject_is.querySelector('.host');
+    assert_equals(getComputedStyle(host).zIndex, '1');
+    let a = host.shadowRoot.querySelector('.a');
+    assert_equals(getComputedStyle(a).zIndex, '1');
+
+    let a_outside = host_scope_subject_is.querySelector('.a');
+    assert_equals(getComputedStyle(a_outside).zIndex, 'auto');
+  }, ':scope within :is() matches host via the scoping root');
+</script>
+
+<div id=implicit_scope_shadow_parent>
+  <div class=host>
+    <template shadowrootmode=open>
+      <style>
+          @scope {
+            /* Matches host */
+            :scope {
+              z-index: 1;
+            }
+            :scope > .a {
+              z-index: 2;
+            }
+          }
+      </style>
+      <div class=a>
+      </div>
+    </template>
+  </div>
+</div>
+<script>
+  test(() => {
+    let host = implicit_scope_shadow_parent.querySelector('.host');
+    let a = host.shadowRoot.querySelector('.a');
+    assert_equals(getComputedStyle(host).zIndex, '1');
+    assert_equals(getComputedStyle(a).zIndex, '2');
+  }, 'Implicit @scope as direct child of shadow root');
+</script>
+
+<div id=implicit_scope_constructed>
+  <div class=host>
+    <template shadowrootmode=open>
+      <div class=a>
+      </div>
+    </template>
+  </div>
+</div>
+<script>
+  test(() => {
+    let host = implicit_scope_constructed.querySelector('.host');
+    let sheet = new CSSStyleSheet();
+    sheet.replaceSync(`
+      @scope {
+        :scope {
+          z-index: 1;
+        }
+        :scope .a {
+          z-index: 2;
+        }
+    `);
+    host.shadowRoot.adoptedStyleSheets = [sheet];
+    let a = host.shadowRoot.querySelector('.a');
+    assert_equals(getComputedStyle(host).zIndex, '1');
+    assert_equals(getComputedStyle(a).zIndex, '2');
+  }, 'Implicit @scope in construted stylesheet');
+</script>
+
+<div id=scope_via_parent_pseudo_subject>
+  <div class=host>
+    <template shadowrootmode=open>
+      <style>
+          @scope (:host) {
+            :scope {
+              & {
+                z-index: 1;
+              }
+            }
+          }
+      </style>
+    </template>
+  </div>
+</div>
+<script>
+  test(() => {
+    let host = scope_via_parent_pseudo_subject.querySelector('.host');
+    assert_equals(getComputedStyle(host).zIndex, '1');
+  }, 'Matching :host via &, :scope (subject)');
+</script>
+
+<div id=scope_via_parent_pseudo_non_subject>
+  <div class=host>
+    <template shadowrootmode=open>
+      <style>
+          @scope (:host) {
+            :scope .a {
+              & {
+                z-index: 1;
+              }
+            }
+          }
+      </style>
+      <div class=a>
+      </div>
+    </template>
+  </div>
+</div>
+<script>
+  test(() => {
+    let host = scope_via_parent_pseudo_non_subject.querySelector('.host');
+    let a = host.shadowRoot.querySelector('.a');
+    assert_equals(getComputedStyle(a).zIndex, '1');
+  }, 'Matching :host via &, :scope (non-subject)');
+</script>
+
+<div id=scope_via_parent_pseudo_non_subject_child>
+  <div class=host>
+    <template shadowrootmode=open>
+      <style>
+          @scope (:host) {
+            :scope > .a {
+              & {
+                z-index: 1;
+              }
+            }
+          }
+      </style>
+      <div class=a>
+      </div>
+    </template>
+  </div>
+</div>
+<script>
+  test(() => {
+    let host = scope_via_parent_pseudo_non_subject_child.querySelector('.host');
+    let a = host.shadowRoot.querySelector('.a');
+    assert_equals(getComputedStyle(a).zIndex, '1');
+  }, 'Matching :host via &, :scope (non-subject, >)');
+</script>

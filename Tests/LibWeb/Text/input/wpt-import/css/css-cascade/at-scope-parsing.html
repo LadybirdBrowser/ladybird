@@ -1,0 +1,77 @@
+<!doctype html>
+<title>@scope: parsing</title>
+<link rel="help" href="https://drafts.csswg.org/css-cascade-6/#scope-atrule">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<main id=main></main>
+<script>
+  function test_valid(actual, expected) {
+    if (expected === undefined)
+      expected = actual;
+    test(t => {
+      t.add_cleanup(() => main.replaceChildren());
+      let style = document.createElement('style');
+      style.textContent = `${actual}{}`;
+      main.append(style);
+      assert_equals(style.sheet.rules.length, 1);
+      let rule = style.sheet.rules[0];
+      assert_equals(rule.cssText, `${expected} {\n}`);
+    }, `${actual} is valid`);
+  }
+
+  function test_invalid(actual) {
+    test(t => {
+      t.add_cleanup(() => main.replaceChildren());
+      let style = document.createElement('style');
+      style.textContent = `${actual}{}`;
+      main.append(style);
+      assert_equals(style.sheet.rules.length, 0);
+    }, `${actual} is not valid`);
+  }
+
+  test_valid('@scope (.a)');
+  test_valid('@scope (.a + .b)');
+  test_valid('@scope (.a:hover)');
+  test_valid('@scope (.a:hover, #b, div)');
+  test_valid('@scope (:is(div, span))');
+
+  test_valid('@scope (.a) to (.b)');
+  test_valid('@scope (.a)to (.b)', '@scope (.a) to (.b)');
+  test_valid('@scope (.a) to (.b:hover, #c, div)');
+  test_valid('@scope');
+  test_valid('@scope to (.a)');
+  test_valid('@scope (.a) to (&)');
+  test_valid('@scope (.a) to (& > &)');
+  test_valid('@scope (.a) to (> .b)');
+  test_valid('@scope (.a) to (+ .b)');
+  test_valid('@scope (.a) to (~ .b)');
+
+  test_invalid('@scope ()');
+  test_invalid('@scope to ()');
+  test_invalid('@scope () to ()');
+  test_invalid('@scope (.c <> .d)');
+  test_invalid('@scope (.a, .c <> .d)');
+  test_invalid('@scope (.a <> .b, .c)');
+  test_invalid('@scope (div::before)');
+  test_invalid('@scope (div::after)');
+  test_invalid('@scope (slotted(div))');
+  test_invalid('@scope (.a) to (div::before)');
+  test_invalid('@scope (> &) to (>>)');
+  test_invalid('@scope div');
+  test_invalid('@scope (.a) unknown (.c)');
+  test_invalid('@scope (.a) to unknown (.c)');
+  test_invalid('@scope (.a) 1px (.c)');
+  test_invalid('@scope (.a) to unknown(c)');
+  test_invalid('@scope unknown(.a)');
+  test_invalid('@scope 1px');
+  test_invalid('@scope creep');
+  test_invalid('@scope )))');
+  test_invalid('@scope (');
+  test_invalid('@scope ( {}');
+  test_invalid('@scope to');
+  test_invalid('@scope }');
+  test_invalid('@scope (.a');
+  test_invalid('@scope (.a to (.b)');
+  test_invalid('@scope ( to (.b)');
+  test_invalid('@scope (.a) from (.c)');
+</script>

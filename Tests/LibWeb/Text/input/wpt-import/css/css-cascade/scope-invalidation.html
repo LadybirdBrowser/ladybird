@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<title>@scope - invalidation</title>
+<link rel="help" href="https://drafts.csswg.org/css-cascade-6/#scope-atrule">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+
+function test_scope_invalidation(script_element, callback_fn, description) {
+  test((t) => {
+    // The provided <script> element must be an immedate subsequent sibling of
+    // a <template> element.
+    let template_element = script_element.previousElementSibling;
+    assert_equals(template_element.tagName, 'TEMPLATE');
+
+    t.add_cleanup(() => {
+      while (main.firstChild)
+        main.firstChild.remove()
+    });
+
+    main.append(template_element.content.cloneNode(true));
+
+    callback_fn();
+  }, description);
+}
+
+function assert_green(element) {
+  assert_equals(getComputedStyle(element).backgroundColor, 'rgb(0, 128, 0)');
+}
+function assert_red(element) {
+  assert_equals(getComputedStyle(element).backgroundColor, 'rgb(255, 0, 0)');
+}
+function assert_not_green(element) {
+  assert_equals(getComputedStyle(element).backgroundColor, 'rgb(0, 0, 0)');
+}
+</script>
+<style>
+  main * {
+    background-color: black;
+  }
+</style>
+<main id=main>
+</main>
+
+<!-- Tests follow -->
+
+<template>
+  <style>
+    @scope (.a) {
+      span { background-color: green; }
+    }
+  </style>
+  <div>
+    <span></span>
+  </div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let div = main.querySelector('div');
+  let span = main.querySelector('div > span');
+  assert_not_green(span);
+  div.classList.add('a');
+  assert_green(span);
+  div.classList.remove('a');
+  assert_not_green(span);
+}, 'Element becoming scope root');
+</script>
+
+<template>
+  <style>
+    @scope (.a, .b) {
+      span { background-color: green; }
+    }
+  </style>
+  <div>
+    <span></span>
+  </div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let div = main.querySelector('div');
+  let span = main.querySelector('div > span');
+
+  // .a
+  assert_not_green(span);
+  div.classList.add('a');
+  assert_green(span);
+  div.classList.remove('a');
+  assert_not_green(span);
+
+  // .b
+  assert_not_green(span);
+  div.classList.add('b');
+  assert_green(span);
+  div.classList.remove('b');
+  assert_not_green(span);
+}, 'Element becoming scope root (selector list)');
+</script>
+
+<template>
+  <style>
+    @scope (.a) {
+      :scope { background-color: green; }
+    }
+  </style>
+  <div class=b></div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let b = main.querySelector('.b');
+  assert_not_green(b);
+  b.classList.add('a');
+  assert_green(b);
+  b.classList.remove('a');
+  assert_not_green(b);
+}, 'Element becoming scope root, with inner :scope rule');
+</script>
+
+<template>
+  <style>
+    @scope (.a) to (.b) {
+      span { background-color: green; }
+    }
+  </style>
+  <div class=a>
+    <div>
+      <span></span>
+    </div>
+  </div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let inner_div = main.querySelector('.a > div');
+  let span = main.querySelector('.a > div > span');
+  assert_green(span);
+  inner_div.classList.add('b');
+  assert_not_green(span);
+  inner_div.classList.remove('b');
+  assert_green(span);
+}, 'Parent element becoming scope limit');
+</script>
+
+<template>
+  <style>
+    @scope (.a) to (.b, .c) {
+      span { background-color: green; }
+    }
+  </style>
+  <div class=a>
+    <div>
+      <span></span>
+    </div>
+  </div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let inner_div = main.querySelector('.a > div');
+  let span = main.querySelector('.a > div > span');
+
+  // .b
+  assert_green(span);
+  inner_div.classList.add('b');
+  assert_not_green(span);
+  inner_div.classList.remove('b');
+  assert_green(span);
+
+  // .c
+  assert_green(span);
+  inner_div.classList.add('c');
+  assert_not_green(span);
+  inner_div.classList.remove('c');
+  assert_green(span);
+}, 'Parent element becoming scope limit (selector list)');
+</script>
+
+<template>
+  <style>
+    @scope (.a) to (.b) {
+      span { background-color: green; }
+    }
+  </style>
+  <div class=a>
+    <div>
+      <span></span>
+    </div>
+  </div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let span = main.querySelector('.a > div > span');
+  assert_green(span);
+  span.classList.add('b');
+  assert_not_green(span);
+  span.classList.remove('b');
+  assert_green(span);
+}, 'Subject element becoming scope limit');
+</script>
+
+<template>
+  <style>
+    @scope (.a) to (.b .c) {
+      span { background-color: green; }
+    }
+  </style>
+  <div class=a>
+    <div>
+      <div class=c>
+        <span></span>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let intermediate_div = main.querySelector('.a > div');
+  let span = main.querySelector('span');
+  assert_green(span);
+  intermediate_div.classList.add('b');
+  assert_not_green(span);
+  intermediate_div.classList.remove('b');
+  assert_green(span);
+}, 'Parent element affecting scope limit');
+</script>
+
+<template>
+  <style>
+    @scope (.a) to (.b ~ .c) {
+      span { background-color: green; }
+    }
+  </style>
+  <div class=a>
+    <div></div>
+    <div></div>
+    <div></div>
+    <div></div>
+    <div class=c>
+      <span></span>
+    </div>
+  </div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let sibling_div = main.querySelector('.a > div');
+  let span = main.querySelector('span');
+  assert_green(span);
+  sibling_div.classList.add('b');
+  assert_not_green(span);
+  sibling_div.classList.remove('b');
+  assert_green(span);
+}, 'Sibling element affecting scope limit');
+</script>
+
+<template>
+  <style>
+    @scope (.a) {
+      @scope (.b) {
+        span { background-color: green; }
+      }
+    }
+  </style>
+  <div>
+    <div>
+      <span></span>
+    </div>
+  </div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let outer_div = main.querySelector(':scope > div');
+  let inner_div = main.querySelector(':scope > div > div');
+  let span = main.querySelector('div > div > span');
+
+  assert_not_green(span);
+
+  outer_div.classList.add('a');
+  assert_not_green(span);
+
+  inner_div.classList.add('b');
+  assert_green(span);
+
+  // Toggle .b while .a remains.
+  inner_div.classList.remove('b');
+  assert_not_green(span);
+  inner_div.classList.add('b');
+  assert_green(span);
+
+  // Toggle .a while .b remains.
+  outer_div.classList.remove('a');
+  assert_not_green(span);
+  outer_div.classList.add('a');
+  assert_green(span);
+}, 'Toggling inner/outer scope roots');
+</script>
+
+
+<template>
+  <style>
+    @scope (.a) {
+      :scope { background-color:green; }
+    }
+  </style>
+  <div></div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let div = main.querySelector('main > div');
+  assert_not_green(div);
+  div.classList.add('a');
+  assert_green(div);
+  div.classList.remove('a');
+  assert_not_green(div);
+}, 'Element becoming root, with :scope in subject');
+</script>
+
+
+<template>
+  <style>
+    @scope (.a:has(.c)) {
+      .b { background-color:green; }
+    }
+  </style>
+  <div class=a>
+    <div class=b>
+      <div></div>
+    </div>
+  </div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let b = main.querySelector('.b');
+  let innermost = main.querySelector('.b > div');
+  assert_not_green(b);
+  innermost.classList.add('c');
+  assert_green(b);
+  innermost.classList.remove('c');
+  assert_not_green(b);
+}, 'Scope root with :has()');
+</script>
+
+
+<template>
+  <style>
+    @scope (.a:has(.c)) {
+      :scope { background-color:green; }
+    }
+  </style>
+  <div class=a>
+    <div class=b>
+      <div></div>
+    </div>
+  </div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let a = main.querySelector('.a');
+  let innermost = main.querySelector('.b > div');
+  assert_not_green(a);
+  innermost.classList.add('c');
+  assert_green(a);
+  innermost.classList.remove('c');
+  assert_not_green(a);
+}, 'Scope root with :has(), :scope subject');
+</script>
+
+
+<template>
+  <style>
+    @scope (.a:has(.c)) {
+      :scope { background-color:green; }
+      :scope .b { background-color:green; }
+    }
+  </style>
+  <div class=a>
+    <div class=b>
+      <div></div>
+    </div>
+  </div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let a = main.querySelector('.a');
+  let b = main.querySelector('.b');
+  let innermost = main.querySelector('.b > div');
+  assert_not_green(a);
+  assert_not_green(b);
+  innermost.classList.add('c');
+  assert_green(a);
+  assert_green(b);
+  innermost.classList.remove('c');
+  assert_not_green(a);
+  assert_not_green(b);
+}, 'Scope root with :has(), :scope both subject and non-subject');
+</script>
+
+
+<template>
+  <style>
+    @scope (.a) to (.b:has(.c)) {
+      .b { background-color:green; }
+    }
+  </style>
+  <div class=a>
+    <div class=b>
+      <div></div>
+    </div>
+  </div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let b = main.querySelector('.b');
+  let innermost = main.querySelector('.b > div');
+  assert_green(b);
+  innermost.classList.add('c');
+  assert_not_green(b);
+  innermost.classList.remove('c');
+  assert_green(b);
+}, 'Scope limit with :has()');
+</script>
+
+<template>
+  <style>
+    @scope (.a) {
+      .b ~ :scope { background-color:green; }
+    }
+  </style>
+  <div></div>
+  <div></div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let div1 = main.querySelector('main > div:nth-of-type(1)');
+  let div2 = main.querySelector('main > div:nth-of-type(2)');
+
+  assert_not_green(div2);
+  div1.classList.add('b');
+  assert_not_green(div2);
+  div2.classList.add('a');
+  assert_green(div2);
+  div1.classList.remove('b');
+  assert_not_green(div2);
+}, 'Element becoming root, with :scope selected by ~ combinator');
+</script>
+
+<template>
+  <style>
+    @scope (.a ~ .b) {
+      .c { background-color:green; }
+    }
+  </style>
+  <div>
+    <div></div>
+    <div></div>
+    <div></div>
+    <div class=b>
+      <div class=c></div>
+    </div>
+  </div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let root = main.querySelector('div > div:first-child');
+  let c = main.querySelector('.c');
+  assert_not_green(c);
+  root.classList.add('a');
+  assert_green(c);
+  root.classList.remove('a');
+  assert_not_green(c);
+}, 'Element becoming root via ~ combinator');
+</script>
+
+<template>
+  <style>
+    @scope (.a + .b) {
+      .c { background-color:green; }
+    }
+  </style>
+  <div>
+    <div></div>
+    <div class=b>
+      <div class=c></div>
+    </div>
+  </div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let root = main.querySelector('div > div:first-child');
+  let c = main.querySelector('.c');
+  assert_not_green(c);
+  root.classList.add('a');
+  assert_green(c);
+  root.classList.remove('a');
+  assert_not_green(c);
+}, 'Element becoming root via + combinator');
+</script>
+
+<template>
+  <style>
+    @scope (.root) {
+      :not(:scope) { background-color:green; }
+    }
+  </style>
+  <div class=root>
+    <div class=a></div>
+    <div class=b></div>
+    <div class=c></div>
+  </div>
+  <div class=a></div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let root = main.querySelector('.root');
+  let a1 = main.querySelector('.root > .a');
+  let b = main.querySelector('.root > .b');
+  let c = main.querySelector('.root > .c');
+  let a2 = main.querySelector('main > .a');
+
+  assert_not_green(root);
+  assert_green(a1);
+  assert_green(b);
+  assert_green(c);
+  assert_not_green(a2);
+
+  root.classList.remove('root');
+  assert_not_green(root);
+  assert_not_green(a1);
+  assert_not_green(b);
+  assert_not_green(c);
+  assert_not_green(a2);
+
+  root.classList.add('root');
+  assert_not_green(root);
+  assert_green(a1);
+  assert_green(b);
+  assert_green(c);
+  assert_not_green(a2);
+}, ':not(scope) in subject');
+</script>
+
+<template>
+  <style>
+    @scope (.root) {
+      :not(:scope) > .a { background-color:green; }
+    }
+  </style>
+  <div class=root>
+    <div class=a></div>
+    <div>
+      <div class=a></div>
+    </div>
+  </div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let root = main.querySelector('.root');
+  let outer_a = main.querySelector('.root > .a');
+  let inner_a = main.querySelector('.root > div > .a');
+
+  assert_not_green(outer_a);
+  assert_green(inner_a);
+
+  root.classList.remove('root');
+  assert_not_green(outer_a);
+  assert_not_green(inner_a);
+
+  root.classList.add('root');
+  assert_not_green(outer_a);
+  assert_green(inner_a);
+}, ':not(scope) in ancestor');
+</script>
+
+<template>
+  <style>
+    @scope (.root) to (:not(:scope)) {
+      :is(div, :scope) { background-color: green; }
+    }
+  </style>
+  <div class=root>
+    <div class=a></div>
+  </div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let root = main.querySelector('.root');
+  let a = main.querySelector('.root > .a');
+
+  assert_green(root);
+  assert_not_green(a);
+
+  root.classList.remove('root');
+  assert_not_green(root);
+  assert_not_green(a);
+
+  root.classList.add('root');
+  assert_green(root);
+  assert_not_green(a);
+}, ':not(scope) in limit subject');
+</script>
+
+<template>
+  <style>
+    @scope (.root) to (:not(:scope) > .a) {
+      :is(div, :scope) { background-color: green; }
+    }
+  </style>
+  <div class=root>
+    <div class=a>
+      <div class=a></div>
+    </div>
+  </div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let root = main.querySelector('.root');
+  let outer_a = main.querySelector('.root > .a');
+  let inner_a = main.querySelector('.root > .a > .a');
+
+  assert_green(root);
+  assert_green(outer_a);
+  assert_not_green(inner_a);
+
+  root.classList.remove('root');
+  assert_not_green(root);
+  assert_not_green(outer_a);
+  assert_not_green(inner_a);
+
+  root.classList.add('root');
+  assert_green(root);
+  assert_green(outer_a);
+  assert_not_green(inner_a);
+}, ':not(scope) in limit ancestor');
+</script>
+
+<template>
+  <style>
+    @scope (:nth-child(2n of .a)) {
+      :scope { background-color: green; }
+    }
+  </style>
+  <div id=wrapper>
+    <div class=a></div>
+    <div></div>
+    <div class=a></div>
+    <div></div>
+    <div class=a></div>
+    <div></div>
+    <div class=a></div>
+    <div></div>
+  </div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let e = main.querySelectorAll('#wrapper > div');
+  assert_equals(e.length, 8);
+
+  // <div class=a></div>
+  // <div></div>
+  // <div class=a></div>
+  // <div></div>
+  // <div class=a></div>
+  // <div></div>
+  // <div class=a></div>
+  // <div></div>
+  assert_not_green(e[0]);
+  assert_not_green(e[1]);
+  assert_green(e[2]);
+  assert_not_green(e[3]);
+  assert_not_green(e[4]);
+  assert_not_green(e[5]);
+  assert_green(e[6]);
+  assert_not_green(e[7]);
+
+  e[1].classList.add('a');
+  // <div class=a></div>
+  // <div class=a></div>
+  // <div class=a></div>
+  // <div></div>
+  // <div class=a></div>
+  // <div></div>
+  // <div class=a></div>
+  // <div></div>
+  assert_not_green(e[0]);
+  assert_green(e[1]);
+  assert_not_green(e[2]);
+  assert_not_green(e[3]);
+  assert_green(e[4]);
+  assert_not_green(e[5]);
+  assert_not_green(e[6]);
+  assert_not_green(e[7]);
+
+  e[1].classList.remove('a');
+  // <div class=a></div>
+  // <div></div>
+  // <div class=a></div>
+  // <div></div>
+  // <div class=a></div>
+  // <div></div>
+  // <div class=a></div>
+  // <div></div>
+  assert_not_green(e[0]);
+  assert_not_green(e[1]);
+  assert_green(e[2]);
+  assert_not_green(e[3]);
+  assert_not_green(e[4]);
+  assert_not_green(e[5]);
+  assert_green(e[6]);
+  assert_not_green(e[7]);
+}, ':nth-child() in scope root');
+</script>
+
+<template>
+  <style>
+    @scope (#wrapper) to (:nth-child(4n of .a)) {
+      div { background-color: green; }
+    }
+  </style>
+  <div id=wrapper>
+    <div class=a></div>
+    <div></div>
+    <div class=a></div>
+    <div></div>
+    <div class=a></div>
+    <div></div>
+    <div class=a></div>
+    <div></div>
+  </div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let e = main.querySelectorAll('#wrapper > div');
+  assert_equals(e.length, 8);
+
+  // <div class=a></div>
+  // <div></div>
+  // <div class=a></div>
+  // <div></div>
+  // <div class=a></div>
+  // <div></div>
+  // <div class=a></div>  <= limit
+  // <div></div>
+  assert_green(e[0]);
+  assert_green(e[1]);
+  assert_green(e[2]);
+  assert_green(e[3]);
+  assert_green(e[4]);
+  assert_green(e[5]);
+  assert_not_green(e[6]);
+  assert_green(e[7]);
+
+  e[1].classList.add('a');
+  // <div class=a></div>
+  // <div class=a></div>
+  // <div class=a></div>
+  // <div></div>
+  // <div class=a></div>  <= limit
+  // <div></div>
+  // <div class=a></div>
+  // <div></div>
+  assert_green(e[0]);
+  assert_green(e[1]);
+  assert_green(e[2]);
+  assert_green(e[3]);
+  assert_not_green(e[4]);
+  assert_green(e[5]);
+  assert_green(e[6]);
+  assert_green(e[7]);
+
+  e[1].classList.remove('a');
+  // <div class=a></div>
+  // <div></div>
+  // <div class=a></div>
+  // <div></div>
+  // <div class=a></div>
+  // <div></div>
+  // <div class=a></div>  <= limit
+  // <div></div>
+  assert_green(e[0]);
+  assert_green(e[1]);
+  assert_green(e[2]);
+  assert_green(e[3]);
+  assert_green(e[4]);
+  assert_green(e[5]);
+  assert_not_green(e[6]);
+  assert_green(e[7]);
+}, ':nth-child() in scope limit');
+
+</script>
+
+<template>
+  <style>
+    @scope (.a) {
+      .nomatch { background-color: green; }
+    }
+  </style>
+  <div id=wrapper>
+    <div class=a>
+      <div class=b></div>
+    </div>
+  </div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let b = main.querySelector('.b');
+  assert_not_green(b);
+  let scope_rule = main.querySelector('style').sheet.cssRules[0];
+  assert_true(scope_rule instanceof CSSScopeRule);
+  scope_rule.cssRules[0].selectorText = '.b';
+  assert_green(b);
+}, 'Modifying selectorText invalidates affected elements');
+</script>
+
+<template>
+  <style>
+    @scope (.a) {
+      .nomatch { background-color: green; }
+    }
+  </style>
+  <div id=wrapper>
+    <div class=a>
+      <div class=b></div>
+    </div>
+  </div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let b = main.querySelector('.b');
+  assert_not_green(b);
+  let scope_rule = main.querySelector('style').sheet.cssRules[0];
+  assert_true(scope_rule instanceof CSSScopeRule);
+  scope_rule.cssRules[0].selectorText = '> .b';
+  assert_green(b);
+}, 'Modifying selectorText invalidates affected elements (>)');
+</script>
+
+<template>
+  <style>
+    .a {
+      > .b, > .c {
+        background-color: green; /* Specificity: (0, 2, 0) */
+      }
+    }
+    @scope (.a.a) {
+      .nomatch1 {
+        background-color: red; /* Specificity: (0, 1, 0) */
+      }
+      .nomatch2 {
+        background-color: red; /* Specificity: (0, 1, 0) */
+      }
+    }
+  </style>
+  <div id=wrapper>
+    <div class=a>
+      <div class=b></div>
+      <div class=c></div>
+    </div>
+  </div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let b = main.querySelector('.b');
+  let c = main.querySelector('.c');
+  assert_green(b);
+  assert_green(c);
+  let scope_rule = main.querySelector('style').sheet.cssRules[1];
+  assert_true(scope_rule instanceof CSSScopeRule);
+  scope_rule.cssRules[0].selectorText = '> .b'; /* Still (0, 1, 0) */
+  scope_rule.cssRules[1].selectorText = '& > .c'; /* Still (0, 1, 0) */
+  assert_green(b);
+  assert_green(c);
+}, 'Relative selectors set with selectorText are relative to :scope and &');
+</script>
+
+<template>
+  <style>
+    @scope (.a .b) {
+      @scope(.c .d, .e .f) {
+        .g {
+          background-color: green;
+        }
+      }
+    }
+  </style>
+  <div class=a>
+    <div class=b>
+      <div class=e>
+        <div class=f>
+          <div class=g>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let a = main.querySelector('.a');
+  let g = main.querySelector('.g');
+  assert_green(g);
+  a.classList.remove('a');
+  assert_not_green(g);
+  a.classList.add('a');
+  assert_green(g);
+}, 'Ancestor element affecting nested scope root (Through latter selector in list)')
+</script>
+
+<template>
+  <style>
+    @scope (.a) to (.b .c) {
+      :scope .d .f{
+        background-color: green;
+      }
+    }
+    </style>
+
+  <div class=a>
+    <div class=b>
+      <div class=d>
+        <div class=c>
+          <div class=f>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+  test_scope_invalidation(document.currentScript, () => {
+  let b = main.querySelector('.b');
+  let f = main.querySelector('.f');
+  assert_not_green(f);
+  b.classList.remove('b');
+  assert_green(f);
+  b.classList.add('b');
+  assert_not_green(f);
+}, 'Parent element of subject affecting scope limit')
+</script>
+
+<template>
+  <div class=a>
+    <div><div><div><div>
+      <style>
+        @scope(.a) {
+          @scope {
+            @scope(> .b) {
+              :scope { background: green; }
+            }
+          }
+        }
+      </style>
+      <div class=b></div>
+    </div></div></div></div>
+  </div>
+</template>
+<script>
+test_scope_invalidation(document.currentScript, () => {
+  let a = main.querySelector('.a');
+  let b = main.querySelector('.b');
+  assert_green(b);
+  a.classList.remove('a');
+  assert_not_green(b);
+  a.classList.add('a');
+  assert_green(b);
+}, 'Sandwiched deep implicit scope root, :scope in subject')
+</script>

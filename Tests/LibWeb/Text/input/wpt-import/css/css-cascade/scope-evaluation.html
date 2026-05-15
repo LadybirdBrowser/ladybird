@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<title>@scope - evaluation</title>
+<link rel="help" href="https://drafts.csswg.org/css-cascade-6/#scope-atrule">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+
+function test_scope(script_element, callback_fn, description) {
+  test((t) => {
+    // The provided <script> element must be an immedate subsequent sibling of
+    // a <template> element.
+    let template_element = script_element.previousElementSibling;
+    assert_equals(template_element.tagName, 'TEMPLATE');
+
+    t.add_cleanup(() => main.replaceChildren());
+
+    main.append(template_element.content.cloneNode(true));
+
+    callback_fn();
+  }, description);
+}
+
+function assert_green(selector) {
+  assert_equals(getComputedStyle(main.querySelector(selector)).backgroundColor, 'rgb(0, 128, 0)');
+}
+function assert_not_green(selector) {
+  assert_equals(getComputedStyle(main.querySelector(selector)).backgroundColor, 'rgb(0, 0, 0)');
+}
+</script>
+<style>
+  :where(main *) {
+    background-color: black;
+  }
+</style>
+<main id=main>
+</main>
+
+<!-- Tests follow -->
+
+<template>
+  <style>
+    @scope (.a) {
+      span { background-color: green; }
+    }
+  </style>
+  <div class=a>
+    <span>green</span>
+  </div>
+  <div class=b>
+    <span>not green</span>
+  </div>
+  <span>not green</span>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  assert_green('.a > span');
+  assert_not_green('.b > span');
+  assert_not_green(':scope > span');
+}, 'Single scope');
+</script>
+
+<template>
+  <style>
+    @scope (.a) {
+      .a { background-color: green; }
+    }
+  </style>
+  <div class=a> <!-- green -->
+    <span>not green</span>
+  </div>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  assert_not_green('.a');
+  assert_not_green('.a > span');
+}, 'Scope can not match its own root without :scope');
+</script>
+
+<template>
+  <style>
+    @scope (.a) {
+      :scope { background-color: green; }
+    }
+  </style>
+  <div class=a> <!-- green -->
+    <span>not green</span>
+  </div>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  assert_green('.a');
+  assert_not_green('.a > span');
+}, 'Selecting self with :scope');
+</script>
+
+<template>
+  <style>
+    @scope (.a) to (.c) {
+      span { background-color: green; }
+    }
+  </style>
+  <div class=a>
+    <div class=b>
+      <span>green</span>
+    </div>
+    <div class=c>
+      <span>not green</span>
+    </div>
+  </div>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  assert_green('.b > span');
+  assert_not_green('.c > span');
+}, 'Single scope with limit');
+</script>
+
+<template>
+  <style>
+    @scope (.a) {
+      :scope > span { background-color: green; }
+    }
+  </style>
+  <div class=a>
+    <span>green</span>
+    <div class=b>
+      <span>not green</span>
+    </div>
+  </div>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  assert_green('.a > span');
+  assert_not_green('.b > span');
+}, 'Single scope, :scope pseudo in main selector');
+</script>
+
+<template>
+  <style>
+    @scope (.a) to (:scope > .b) {
+      span { background-color: green; }
+    }
+  </style>
+  <div class=a>
+    <div class=b>
+      <span>not green</span>
+    </div>
+    <div class=c>
+      <div class=b>
+        <span>green</span>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  assert_not_green('.a > .b > span');
+  assert_green('.a > .c > .b > span');
+}, 'Single scope, :scope pseudo in to-selector');
+</script>
+
+<template>
+  <style>
+    @scope (.a) to (:scope > .b) {
+      span { background-color: green; }
+    }
+  </style>
+  <div class=a>
+    <div class=b>
+      <span>not green</span>
+    </div>
+    <div class=a>
+      <div class=b>
+        <span>green</span>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  assert_not_green('.a > .b > span');
+  // Note that this span is in the outer .a-scope, but not in the inner scope.
+  assert_green('.a > .a > .b > span');
+}, 'Multiple scopes, :scope pseudo in to-selector');
+</script>
+
+<template>
+  <style>
+    @scope (.a) {
+      @scope (:scope > .b) {
+        span { background-color: green; }
+      }
+    }
+  </style>
+  <div class=a>
+    <div class=b>
+      <span>green</span>
+    </div>
+    <div>
+      <div class=b>
+        <span>not green</span>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  assert_green('.a > .b > span');
+  assert_not_green('.a > div > .b > span');
+}, 'Inner @scope with :scope in from-selector');
+</script>
+
+<template>
+  <style>
+    @scope (.a) to (:scope > .b) {
+      .c { background-color: green; }
+    }
+  </style>
+  <div class=a>
+    <div>
+      <div class=a>
+        <div class=b>
+          <div class=c></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  // Not in the inner scope, but is in the outer scope.
+  assert_green('.c');
+}, 'Multiple scopes from same @scope-rule, only one limited');
+</script>
+
+<template>
+  <style>
+    @scope (.a) to (.b) {
+      .c { background-color: green; }
+    }
+  </style>
+  <div class=a>
+    <div>
+      <div class=a>
+        <div class=b>
+          <div class=c></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  assert_not_green('.c');
+}, 'Multiple scopes from same @scope-rule, both limited');
+</script>
+
+<template>
+  <style>
+    @scope (.a) {
+      @scope (.b) {
+        span { background-color: green; }
+      }
+    }
+  </style>
+  <div class=a>
+    <div class=b>
+      <span>green</span>
+    </div>
+    <span>not green</span>
+  </div>
+  <div class=b>
+    <span>not green</span>
+  </div>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  assert_green('.a > .b > span');
+  assert_not_green('.a > span');
+  assert_not_green(':scope > .b > span');
+}, 'Nested scopes');
+</script>
+
+<template>
+  <style>
+    @scope (.b) {
+      @scope (.a) {
+        span { background-color: green; }
+      }
+    }
+  </style>
+  <div class=a>
+    <div class=b>
+      <span>not green</span>
+    </div>
+    <span>not green</span>
+  </div>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  assert_not_green('.a > .b > span');
+  assert_not_green('.a > span');
+}, 'Nested scopes, reverse');
+</script>
+
+
+<template>
+  <style>
+    @scope (.a) {
+      @scope (.b) to (.c) {
+        span { background-color: green; }
+      }
+    }
+  </style>
+  <div class=a>
+    <div class=b>
+      <span>green</span>
+    </div>
+    <div class=b>
+      <div class=c>
+        <span>not green</span>
+      </div>
+    </div>
+    <span>not green</span>
+  </div>
+  <div class=b>
+    <span>not green</span>
+  </div>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  assert_green('.a > .b > span');
+  assert_not_green('.a > span');
+  assert_not_green('.a > .b > .c > span');
+  assert_not_green(':scope > .b > span');
+}, 'Nested scopes, with to-selector');
+</script>
+
+<template>
+  <style>
+    @scope (.a) {
+      :scope { background-color: green; }
+    }
+  </style>
+  <div class=a></div>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  assert_green('.a');
+}, ':scope selecting itself');
+</script>
+
+<template>
+  <style>
+    @scope (.a) to (.b) {
+      * { background-color: green; }
+    }
+  </style>
+  <div id=above>
+    <div class=a>
+      <div>
+        <div class=b>
+          <div id=below></div>
+        </div>
+      </div>
+    </div>
+    <div id=adjacent></div>
+  </div>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  assert_not_green('#above');
+  assert_not_green('#adjacent');
+  assert_not_green('.a');
+  assert_green('.a > div');
+  assert_not_green('.b');
+  assert_not_green('#below');
+}, 'The scoping limit is not in scope');
+</script>
+
+<template>
+  <style>
+    @scope (.a) to (.b > *) {
+      * { background-color: green; }
+    }
+  </style>
+  <div id=above>
+    <div class=a>
+      <div>
+        <div class=b>
+          <div id=limit></div>
+        </div>
+      </div>
+    </div>
+    <div id=adjacent></div>
+  </div>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  assert_not_green('#above');
+  assert_not_green('#adjacent');
+  assert_not_green('.a');
+  assert_green('.a > div');
+  assert_green('.b');
+  assert_not_green('#limit');
+}, 'Simulated inclusive scoping limit');
+</script>
+
+<template>
+  <style>
+    @scope (.a) to (:scope) {
+      * { background-color: green; }
+    }
+  </style>
+  <div id=above>
+    <div class=a>
+      <div>
+        <div class=b>
+          <div id=inner></div>
+        </div>
+      </div>
+    </div>
+    <div id=adjacent></div>
+  </div>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  assert_not_green('#above');
+  assert_not_green('#adjacent');
+  assert_not_green('.a');
+  assert_not_green('.a > div');
+  assert_not_green('.b');
+  assert_not_green('#inner');
+}, 'Scope with no elements');
+</script>
+
+
+<template>
+  <style>
+    @scope (.a) {
+      :scope + .c { background-color: green; }
+    }
+  </style>
+  <div class=a>
+    <div class=a></div>
+    <div class=c></div>
+  </div>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  // A :scope sibling can never match, as the scoping element must
+  // be on the ancestor chain.
+  assert_not_green('.c');
+}, ':scope direct adjacent sibling');
+</script>
+
+
+<template>
+  <style>
+    @scope (.a) {
+      :scope + .c { background-color: green; }
+    }
+  </style>
+  <div class=a>
+    <div class=a></div>
+    <div></div>
+    <div class=c></div>
+  </div>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  // A :scope sibling can never match, as the scoping element must
+  // be on the ancestor chain.
+  assert_not_green('.c');
+}, ':scope indirect adjacent sibling');
+</script>
+
+
+<template>
+  <style>
+    @scope (.a) {
+      > span { background-color: green; }
+    }
+  </style>
+  <div class=a>
+    <span>green</span>
+  </div>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  assert_green('.a > span');
+}, 'Relative selector inside @scope');
+</script>
+
+
+<template>
+  <style>
+    @scope (.a) {
+      /* Can never match anything. */
+      :scope > :scope { background-color: green; }
+    }
+  </style>
+  <div class=a>
+    <div id=inner class=a>
+    </div>
+  </div>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  assert_not_green('.a');
+  assert_not_green('#inner');
+}, ':scope in two different compounds');
+</script>
+
+<template>
+  <style>
+    @scope (.a:has(.c)) {
+      .b { background-color:green; }
+    }
+  </style>
+  <div class=first>
+    <div class=a>
+      <div class=b>
+        <div class=c></div>
+      </div>
+    </div>
+  </div>
+  <div class=second>
+    <div class=a>
+      <div class=b>
+        <div class=d></div>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  assert_not_green('.first .a');
+  assert_green('.first .b');
+  assert_not_green('.first .c');
+
+  assert_not_green('.second .a');
+  assert_not_green('.second .b');
+  assert_not_green('.second .d');
+}, 'Scope root with :has()');
+</script>
+
+<template>
+  <style>
+    @scope (.a) to (.b, .c) {
+      * { background-color:green; }
+    }
+  </style>
+  <div class=a>
+    <span id="in"></span>
+    <div class=b>
+      <span id="out"></span>
+      <div class=c></div>
+    </div>
+  </div>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  assert_green('#in');
+  assert_not_green('#out');
+}, 'Any scope limit makes the element out of scope');
+</script>
