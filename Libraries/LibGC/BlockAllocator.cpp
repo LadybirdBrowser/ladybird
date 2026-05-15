@@ -372,7 +372,7 @@ void* BlockAllocator::allocate_block([[maybe_unused]] char const* name)
     return block;
 }
 
-void BlockAllocator::deallocate_block(void* block)
+void BlockAllocator::deallocate_block(void* block, DeferDecommit defer_decommit)
 {
     VERIFY(block);
 
@@ -385,12 +385,12 @@ void BlockAllocator::deallocate_block(void* block)
     {
         Sync::MutexLocker locker(m_mutex);
         m_freshly_freed.append(block);
-        if (!m_in_decommit_registry) {
+        if (defer_decommit == DeferDecommit::Yes && !m_in_decommit_registry) {
             m_in_decommit_registry = true;
             need_to_register = true;
         }
     }
-    if (need_to_register)
+    if (need_to_register && defer_decommit == DeferDecommit::Yes)
         DecommitWorker::the().register_pending(*this);
 }
 

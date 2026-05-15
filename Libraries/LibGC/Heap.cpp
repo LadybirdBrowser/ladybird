@@ -1125,7 +1125,7 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
         ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.sweep_block_reclassify_us };
         for (auto* block : empty_blocks) {
             dbgln_if(HEAP_DEBUG, " - HeapBlock empty @ {}: cell_size={}", block, block->cell_size());
-            block->cell_allocator().block_did_become_empty({}, *block);
+            block->cell_allocator().block_did_become_empty({}, *block, DeferDecommit::No);
         }
 
         for (auto* block : full_blocks_that_became_usable) {
@@ -1158,9 +1158,9 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
     }
     (void)measurement_timer;
 
-    // Sweep is done; kick the global decommit worker so the slots we just
-    // freed get madvise()'d off the GC pause path.
-    BlockAllocator::wake_decommit_worker_async();
+    // CollectEverything finishes synchronously, and is currently only used
+    // when the heap is going away. Do not spin up background decommit work
+    // from process teardown.
 }
 
 void Heap::sweep_block(HeapBlock& block)

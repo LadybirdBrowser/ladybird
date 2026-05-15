@@ -46,7 +46,7 @@ public:
         return IterationDecision::Continue;
     }
 
-    void block_did_become_empty(Badge<Heap>, HeapBlock&);
+    void block_did_become_empty(Badge<Heap>, HeapBlock&, DeferDecommit = DeferDecommit::Yes);
     void block_did_become_usable(Badge<Heap>, HeapBlock&);
 
     bool has_blocks_pending_sweep() const { return !m_blocks_pending_sweep.is_empty(); }

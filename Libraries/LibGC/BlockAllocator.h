@@ -14,6 +14,11 @@
 
 namespace GC {
 
+enum class DeferDecommit {
+    No,
+    Yes,
+};
+
 class DecommitWorker;
 
 class GC_API BlockAllocator {
@@ -22,7 +27,7 @@ public:
     ~BlockAllocator();
 
     void* allocate_block(char const* name);
-    void deallocate_block(void*);
+    void deallocate_block(void*, DeferDecommit = DeferDecommit::Yes);
 
     size_t block_count();
 
