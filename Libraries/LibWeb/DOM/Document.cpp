@@ -2359,7 +2359,7 @@ GC::Ptr<Layout::Node> Document::highlighted_layout_node()
         return m_highlighted_node->unsafe_layout_node();
 
     auto const& element = static_cast<Element const&>(*m_highlighted_node);
-    return element.get_pseudo_element_node(m_highlighted_pseudo_element.value());
+    return element.pseudo_element_unsafe_layout_node(m_highlighted_pseudo_element.value());
 }
 
 static Node* find_common_ancestor(Node* a, Node* b)

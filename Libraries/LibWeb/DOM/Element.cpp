@@ -1006,7 +1006,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
         // TODO: Can we be smarter about invalidation?
         if (pseudo_element_style && new_pseudo_element_style) {
             DOM::AbstractElement abstract_element { *this, pseudo_element };
-            invalidation |= compute_required_invalidation(*pseudo_element_style, *new_pseudo_element_style, document().font_computer(), get_pseudo_element_node(pseudo_element), abstract_element);
+            invalidation |= compute_required_invalidation(*pseudo_element_style, *new_pseudo_element_style, document().font_computer(), pseudo_element_unsafe_layout_node(pseudo_element), abstract_element);
         } else if (pseudo_element_style || new_pseudo_element_style) {
             invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
         }
@@ -1762,6 +1762,13 @@ GC::Ptr<Layout::NodeWithStyle> Element::get_pseudo_element_node(CSS::PseudoEleme
 {
     if (auto element_data = get_pseudo_element(pseudo_element); element_data.has_value())
         return element_data->layout_node();
+    return nullptr;
+}
+
+GC::Ptr<Layout::NodeWithStyle> Element::pseudo_element_unsafe_layout_node(CSS::PseudoElement pseudo_element) const
+{
+    if (auto element_data = get_pseudo_element(pseudo_element); element_data.has_value())
+        return element_data->unsafe_layout_node();
     return nullptr;
 }
 

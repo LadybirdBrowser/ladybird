@@ -378,7 +378,10 @@ public:
     }
 
     void set_synthetic_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::PseudoElement, GC::Ptr<Layout::NodeWithStyle>);
+
     GC::Ptr<Layout::NodeWithStyle> get_pseudo_element_node(CSS::PseudoElement) const;
+    GC::Ptr<Layout::NodeWithStyle> pseudo_element_unsafe_layout_node(CSS::PseudoElement) const;
+
     bool has_synthetic_pseudo_elements() const;
     void clear_synthetic_pseudo_element_layout_nodes(Badge<Layout::TreeBuilder>) { clear_synthetic_pseudo_element_layout_nodes(); }
     void clear_synthetic_pseudo_element_layout_nodes(Badge<Document>) { clear_synthetic_pseudo_element_layout_nodes(); }
