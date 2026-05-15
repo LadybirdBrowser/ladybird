@@ -612,7 +612,7 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
             // so the fallback compile path below can reuse them if decode or materialization is rejected.
             if (auto const& bytecode = response->javascript_bytecode_cache(); bytecode.has_value()) {
                 auto source_hash = bytecode_cache_source_hash(*source_code);
-                if (auto* bytecode_cache = JS::RustIntegration::decode_bytecode_cache_blob(bytecode->bytes(), JS::RustIntegration::ProgramType::Script, source_hash.bytes())) {
+                if (auto* bytecode_cache = JS::RustIntegration::decode_bytecode_cache_blob(*bytecode, JS::RustIntegration::ProgramType::Script, source_hash.bytes())) {
                     auto script = ClassicScript::create_from_bytecode_cache(response_url_string, source_code, settings_object, response_url, bytecode_cache, muted_errors);
                     // Bytecode validation runs during materialization and may reject a structurally valid blob whose
                     // bytecode is corrupt. Treat that as a cache miss and fall through to off-thread source compile.
@@ -998,7 +998,7 @@ void fetch_single_module_script(JS::Realm& realm,
                     auto bytecode_cache_context = bytecode_cache_context_for_request(*request, *internal_response, response_url);
                     if (auto const& bytecode = internal_response->javascript_bytecode_cache(); bytecode.has_value()) {
                         auto source_hash = bytecode_cache_source_hash(*source_code);
-                        if (auto* bytecode_cache = JS::RustIntegration::decode_bytecode_cache_blob(bytecode->bytes(), JS::RustIntegration::ProgramType::Module, source_hash.bytes())) {
+                        if (auto* bytecode_cache = JS::RustIntegration::decode_bytecode_cache_blob(*bytecode, JS::RustIntegration::ProgramType::Module, source_hash.bytes())) {
                             auto module_script = ModuleScript::create_from_bytecode_cache(url_string, source_code, settings_object, response_url, bytecode_cache).release_value_but_fixme_should_propagate_errors();
                             if (module_script && module_script->parse_error().is_null()) {
                                 settings_object.module_map().set(url, module_type_string, { ModuleMap::EntryType::ModuleScript, module_script });

@@ -5,6 +5,10 @@
  */
 
 #include <AK/ScopeGuard.h>
+#include <LibCore/File.h>
+#include <LibCore/ImmutableBytes.h>
+#include <LibCore/StandardPaths.h>
+#include <LibCore/System.h>
 #include <LibCrypto/Hash/SHA2.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/ModuleRequest.h>
@@ -354,6 +358,37 @@ TEST_CASE(bytecode_cache_materializes_function_executables_lazily)
     VERIFY(!result.is_throw_completion());
     EXPECT(shared_data.m_executable);
     EXPECT(!shared_data.m_cached_bytecode_executable);
+}
+
+TEST_CASE(bytecode_cache_materializes_from_mapped_blob)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    auto test_data = create_bytecode_cache_blob("let f = function mapped() { return 1; }; f();"_string);
+    auto path = ByteString::formatted("{}/bytecode-cache-test-{}.blob", Core::StandardPaths::tempfile_directory(), Core::System::getpid());
+    ScopeGuard remove_file = [&] {
+        (void)Core::System::unlink(path);
+    };
+
+    {
+        auto file = TRY_OR_FAIL(Core::File::open(path, Core::File::OpenMode::Write | Core::File::OpenMode::Truncate));
+        TRY_OR_FAIL(file->write_until_depleted(test_data.blob.bytes()));
+    }
+
+    auto file = TRY_OR_FAIL(Core::File::open(path, Core::File::OpenMode::Read));
+    auto mapped_blob = TRY_OR_FAIL(Core::ImmutableBytes::map_from_fd_range_and_close(file->leak_fd(), path, 0, test_data.blob.size()));
+    EXPECT(mapped_blob.is_file_backed());
+
+    auto* decoded_blob = JS::RustIntegration::decode_bytecode_cache_blob(mapped_blob, JS::RustIntegration::ProgramType::Script, test_data.source_hash.bytes());
+    VERIFY(decoded_blob);
+
+    auto script_or_error = JS::Script::create_from_bytecode_cache(decoded_blob, test_data.source_code, realm);
+    VERIFY(!script_or_error.is_error());
+
+    auto result = vm->run(script_or_error.release_value());
+    VERIFY(!result.is_throw_completion());
 }
 
 TEST_CASE(fresh_precompiled_function_executables_materialize_lazily)

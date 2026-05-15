@@ -409,6 +409,17 @@ DecodedBytecodeCacheBlob* decode_bytecode_cache_blob(ReadonlyBytes bytes, Progra
     return rust_decode_bytecode_cache_blob(bytes.data(), bytes.size(), static_cast<u8>(expected_type), source_hash.data(), source_hash.size());
 }
 
+static void free_bytecode_cache_blob_owner(void* owner)
+{
+    delete static_cast<Core::ImmutableBytes*>(owner);
+}
+
+DecodedBytecodeCacheBlob* decode_bytecode_cache_blob(Core::ImmutableBytes bytes, ProgramType expected_type, ReadonlyBytes source_hash)
+{
+    auto* owner = new Core::ImmutableBytes(move(bytes));
+    return rust_decode_bytecode_cache_blob_with_owner(owner->bytes().data(), owner->bytes().size(), static_cast<u8>(expected_type), source_hash.data(), source_hash.size(), owner, free_bytecode_cache_blob_owner);
+}
+
 void free_decoded_bytecode_cache_blob(DecodedBytecodeCacheBlob* blob)
 {
     rust_free_decoded_bytecode_cache_blob(blob);

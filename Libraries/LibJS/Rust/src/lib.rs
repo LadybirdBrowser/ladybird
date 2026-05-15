@@ -861,10 +861,55 @@ pub unsafe extern "C" fn rust_decode_bytecode_cache_blob(
             let expected_source_hash = std::slice::from_raw_parts(expected_source_hash, expected_source_hash_len)
                 .try_into()
                 .expect("source hash length was checked");
-            let Some(blob) = bytecode_cache::decode_blob(
+            let bytes = std::slice::from_raw_parts(data, length);
+            let Some(blob) = bytecode_cache::decode_blob(bytes, expected_program_type, expected_source_hash) else {
+                return std::ptr::null_mut();
+            };
+            Box::into_raw(Box::new(DecodedBytecodeCacheBlob { _blob: blob }))
+        })
+    }
+}
+
+/// Decode an mmap-backed bytecode cache blob into an owned parser-free cache handle.
+///
+/// # Safety
+/// - `data` must point to `length` readable bytes.
+/// - `owner` must keep `data` alive until `free_owner` is called.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_decode_bytecode_cache_blob_with_owner(
+    data: *const u8,
+    length: usize,
+    expected_program_type: u8,
+    expected_source_hash: *const u8,
+    expected_source_hash_len: usize,
+    owner: *mut c_void,
+    free_owner: bytecode_cache::FreeBytecodeCacheBlobOwner,
+) -> *mut DecodedBytecodeCacheBlob {
+    unsafe {
+        abort_on_panic(|| {
+            if owner.is_null() {
+                return std::ptr::null_mut();
+            }
+            let reject = || {
+                free_owner(owner);
+                std::ptr::null_mut()
+            };
+            if data.is_null() || expected_source_hash.is_null() || expected_source_hash_len != 32 {
+                return reject();
+            }
+            let expected_program_type = match expected_program_type {
+                0 => ast::ProgramType::Script,
+                1 => ast::ProgramType::Module,
+                _ => return reject(),
+            };
+            let expected_source_hash = std::slice::from_raw_parts(expected_source_hash, expected_source_hash_len)
+                .try_into()
+                .expect("source hash length was checked");
+            let Some(blob) = bytecode_cache::decode_blob_with_foreign_owner(
                 std::slice::from_raw_parts(data, length),
                 expected_program_type,
                 expected_source_hash,
+                bytecode_cache::ForeignBytecodeCacheBlobOwner { owner, free_owner },
             ) else {
                 return std::ptr::null_mut();
             };
@@ -3407,5 +3452,59 @@ pub unsafe extern "C" fn rust_validate_bytecode(
                 }
             }
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    static FREED_FOREIGN_OWNERS: AtomicUsize = AtomicUsize::new(0);
+
+    unsafe extern "C" fn count_freed_foreign_owner(owner: *mut c_void) {
+        FREED_FOREIGN_OWNERS.fetch_add(1, Ordering::Relaxed);
+        unsafe {
+            drop(Box::from_raw(owner.cast::<u8>()));
+        }
+    }
+
+    fn new_foreign_owner() -> *mut c_void {
+        Box::into_raw(Box::new(0u8)).cast()
+    }
+
+    #[test]
+    fn decode_blob_with_owner_frees_owner_on_early_rejection() {
+        FREED_FOREIGN_OWNERS.store(0, Ordering::Relaxed);
+        let source_hash = [0u8; 32];
+
+        let blob = unsafe {
+            rust_decode_bytecode_cache_blob_with_owner(
+                std::ptr::null(),
+                0,
+                0,
+                source_hash.as_ptr(),
+                source_hash.len(),
+                new_foreign_owner(),
+                count_freed_foreign_owner,
+            )
+        };
+        assert!(blob.is_null());
+        assert_eq!(FREED_FOREIGN_OWNERS.load(Ordering::Relaxed), 1);
+
+        let bytes = [0u8; 1];
+        let blob = unsafe {
+            rust_decode_bytecode_cache_blob_with_owner(
+                bytes.as_ptr(),
+                bytes.len(),
+                2,
+                source_hash.as_ptr(),
+                source_hash.len(),
+                new_foreign_owner(),
+                count_freed_foreign_owner,
+            )
+        };
+        assert!(blob.is_null());
+        assert_eq!(FREED_FOREIGN_OWNERS.load(Ordering::Relaxed), 2);
     }
 }

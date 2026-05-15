@@ -24,9 +24,11 @@
 use std::ffi::c_void;
 
 use super::generator::{
-    AssembledBytecode, ConstantValue, Generator, PendingClassBlueprint, PendingClassElement, PendingLiteralValueKind,
+    AssembledBytecode, ConstantValue, ExceptionHandler, Generator, PendingClassBlueprint, PendingClassElement,
+    PendingLiteralValueKind,
 };
 use crate::ast::Utf16String;
+use crate::bytecode::basic_block::SourceMapEntry;
 use crate::u32_from_usize;
 
 /// Opaque pointer returned from rust_create_executable.
@@ -659,6 +661,45 @@ pub unsafe fn create_executable_with_dependencies(
     bp_ptrs: &[*mut c_void],
 ) -> ExecutableHandle {
     unsafe {
+        let parts = ExecutableParts {
+            bytecode: &assembled.bytecode,
+            exception_handlers: &assembled.exception_handlers,
+            source_map: &assembled.source_map,
+            basic_block_start_offsets: &assembled.basic_block_start_offsets,
+            number_of_registers: assembled.number_of_registers,
+            number_of_arguments: assembled.number_of_arguments,
+        };
+        create_executable_with_dependencies_from_parts(generator, parts, vm_ptr, source_code_ptr, sfd_ptrs, bp_ptrs)
+    }
+}
+
+pub struct ExecutableParts<'a> {
+    pub bytecode: &'a [u8],
+    pub exception_handlers: &'a [ExceptionHandler],
+    pub source_map: &'a [SourceMapEntry],
+    pub basic_block_start_offsets: &'a [usize],
+    pub number_of_registers: u32,
+    pub number_of_arguments: u32,
+}
+
+/// Create a C++ Executable from already materialized dependency objects and
+/// borrowed bytecode/table slices.
+///
+/// This variant lets bytecode cache materialization point at mmap-backed cache
+/// blob bytes without first cloning executable bytecode into a Rust Vec.
+///
+/// # Safety
+/// `vm_ptr`, `source_code_ptr`, all dependency pointers, and all borrowed
+/// slices must be valid for the duration of the call.
+pub unsafe fn create_executable_with_dependencies_from_parts(
+    generator: &Generator,
+    parts: ExecutableParts<'_>,
+    vm_ptr: *mut c_void,
+    source_code_ptr: *const c_void,
+    sfd_ptrs: &[*const c_void],
+    bp_ptrs: &[*mut c_void],
+) -> ExecutableHandle {
+    unsafe {
         // Build FFI slices for tables
         let ident_slices: Vec<FFIUtf16Slice> = generator
             .identifier_table
@@ -682,7 +723,7 @@ pub unsafe fn create_executable_with_dependencies(
         let constants_buffer = encode_constants(&generator.constants);
 
         // Build FFI exception handlers
-        let ffi_handlers: Vec<FFIExceptionHandler> = assembled
+        let ffi_handlers: Vec<FFIExceptionHandler> = parts
             .exception_handlers
             .iter()
             .map(|h| FFIExceptionHandler {
@@ -693,7 +734,7 @@ pub unsafe fn create_executable_with_dependencies(
             .collect();
 
         // Build FFI source map
-        let ffi_source_map: Vec<FFISourceMapEntry> = assembled
+        let ffi_source_map: Vec<FFISourceMapEntry> = parts
             .source_map
             .iter()
             .map(|e| FFISourceMapEntry {
@@ -711,8 +752,8 @@ pub unsafe fn create_executable_with_dependencies(
             .collect();
 
         let ffi_data = FFIExecutableData {
-            bytecode: assembled.bytecode.as_ptr(),
-            bytecode_length: assembled.bytecode.len(),
+            bytecode: parts.bytecode.as_ptr(),
+            bytecode_length: parts.bytecode.len(),
             identifier_table: ident_slices.as_ptr(),
             identifier_count: ident_slices.len(),
             property_key_table: property_key_slices.as_ptr(),
@@ -726,8 +767,8 @@ pub unsafe fn create_executable_with_dependencies(
             exception_handler_count: ffi_handlers.len(),
             source_map: ffi_source_map.as_ptr(),
             source_map_count: ffi_source_map.len(),
-            basic_block_offsets: assembled.basic_block_start_offsets.as_ptr(),
-            basic_block_count: assembled.basic_block_start_offsets.len(),
+            basic_block_offsets: parts.basic_block_start_offsets.as_ptr(),
+            basic_block_count: parts.basic_block_start_offsets.len(),
             local_variable_names: local_var_slices.as_ptr(),
             local_variable_count: local_var_slices.len(),
             property_lookup_cache_count: generator.next_property_lookup_cache,
@@ -735,8 +776,8 @@ pub unsafe fn create_executable_with_dependencies(
             template_object_cache_count: generator.next_template_object_cache,
             object_shape_cache_count: generator.next_object_shape_cache,
             object_property_iterator_cache_count: generator.next_object_property_iterator_cache,
-            number_of_registers: assembled.number_of_registers,
-            number_of_arguments: assembled.number_of_arguments,
+            number_of_registers: parts.number_of_registers,
+            number_of_arguments: parts.number_of_arguments,
             is_strict: generator.strict,
             length_identifier: FFIOptionalU32::from(generator.length_identifier.map(|index| index.0)),
             shared_function_data: sfd_ptrs.as_ptr(),

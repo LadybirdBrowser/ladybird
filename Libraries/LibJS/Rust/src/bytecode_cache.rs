@@ -12,6 +12,8 @@
 
 use std::collections::HashMap;
 use std::ffi::c_void;
+use std::ops::Range;
+use std::rc::Rc;
 
 use crate::bytecode::basic_block::SourceMapEntry;
 use crate::bytecode::ffi::{
@@ -67,7 +69,32 @@ pub(crate) fn decode_blob(
     expected_program_type: ast::ProgramType,
     expected_source_hash: &[u8; SOURCE_HASH_SIZE],
 ) -> Option<DecodedCacheBlob> {
-    let mut decoder = Decoder::new(bytes);
+    decode_blob_impl(bytes, expected_program_type, expected_source_hash, None)
+}
+
+pub(crate) type FreeBytecodeCacheBlobOwner = unsafe extern "C" fn(*mut c_void);
+
+pub(crate) struct ForeignBytecodeCacheBlobOwner {
+    pub(crate) owner: *mut c_void,
+    pub(crate) free_owner: FreeBytecodeCacheBlobOwner,
+}
+
+pub(crate) fn decode_blob_with_foreign_owner(
+    bytes: &[u8],
+    expected_program_type: ast::ProgramType,
+    expected_source_hash: &[u8; SOURCE_HASH_SIZE],
+    owner: ForeignBytecodeCacheBlobOwner,
+) -> Option<DecodedCacheBlob> {
+    decode_blob_impl(bytes, expected_program_type, expected_source_hash, Some(owner))
+}
+
+fn decode_blob_impl(
+    bytes: &[u8],
+    expected_program_type: ast::ProgramType,
+    expected_source_hash: &[u8; SOURCE_HASH_SIZE],
+    owner: Option<ForeignBytecodeCacheBlobOwner>,
+) -> Option<DecodedCacheBlob> {
+    let mut decoder = Decoder::new(bytes, owner);
     let blob = CacheBlob::decode(&mut decoder, expected_program_type, expected_source_hash)?;
     if !decoder.is_empty() {
         return None;
@@ -105,13 +132,42 @@ impl Encoder {
     }
 }
 
+struct ForeignBytecodeCacheBlob {
+    data: *const u8,
+    length: usize,
+    owner: *mut c_void,
+    free_owner: FreeBytecodeCacheBlobOwner,
+}
+
+impl Drop for ForeignBytecodeCacheBlob {
+    fn drop(&mut self) {
+        unsafe {
+            (self.free_owner)(self.owner);
+        }
+    }
+}
+
 struct Decoder<'a> {
     bytes: &'a [u8],
+    offset: usize,
+    foreign_blob: Option<Rc<ForeignBytecodeCacheBlob>>,
 }
 
 impl<'a> Decoder<'a> {
-    fn new(bytes: &'a [u8]) -> Self {
-        Self { bytes }
+    fn new(bytes: &'a [u8], owner: Option<ForeignBytecodeCacheBlobOwner>) -> Self {
+        let foreign_blob = owner.map(|owner| {
+            Rc::new(ForeignBytecodeCacheBlob {
+                data: bytes.as_ptr(),
+                length: bytes.len(),
+                owner: owner.owner,
+                free_owner: owner.free_owner,
+            })
+        });
+        Self {
+            bytes,
+            offset: 0,
+            foreign_blob,
+        }
     }
 
     fn is_empty(&self) -> bool {
@@ -125,7 +181,21 @@ impl<'a> Decoder<'a> {
 
         let (bytes, rest) = self.bytes.split_at(length);
         self.bytes = rest;
+        self.offset = self.offset.checked_add(length)?;
         Some(bytes)
+    }
+
+    fn bytecode_bytes(&mut self, length: usize) -> Option<DecodedBytecodeBytes> {
+        let offset = self.offset;
+        let bytes = self.bytes(length)?;
+        if let Some(foreign_blob) = &self.foreign_blob {
+            return Some(DecodedBytecodeBytes::Foreign {
+                blob: foreign_blob.clone(),
+                range: offset..offset + length,
+            });
+        }
+
+        Some(DecodedBytecodeBytes::Owned(bytes.to_vec()))
     }
 
     fn expect_bytes(&mut self, expected: &[u8]) -> Option<()> {
@@ -300,6 +370,35 @@ impl ByteVector {
     fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<u8>> {
         let length: usize = u32::decode(decoder)?.try_into().ok()?;
         Some(decoder.bytes(length)?.to_vec())
+    }
+}
+
+enum DecodedBytecodeBytes {
+    Owned(Vec<u8>),
+    Foreign {
+        blob: Rc<ForeignBytecodeCacheBlob>,
+        range: Range<usize>,
+    },
+}
+
+impl DecodedBytecodeBytes {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+        let length: usize = u32::decode(decoder)?.try_into().ok()?;
+        decoder.bytecode_bytes(length)
+    }
+
+    fn as_slice(&self) -> &[u8] {
+        match self {
+            Self::Owned(bytes) => bytes,
+            Self::Foreign { blob, range } => {
+                debug_assert!(range.end <= blob.length);
+                unsafe { std::slice::from_raw_parts(blob.data.add(range.start), range.len()) }
+            }
+        }
+    }
+
+    fn len(&self) -> usize {
+        self.as_slice().len()
     }
 }
 
@@ -792,23 +891,41 @@ unsafe fn materialize_executable(
     source_code_ptr: *const c_void,
 ) -> *mut c_void {
     unsafe {
-        let mut generator = Generator::new();
-        generator.strict = executable.strict;
-        generator.this_value_needs_environment_resolution = executable.this_value_needs_environment_resolution;
-        generator.next_property_lookup_cache = executable.cache_counters.property_lookup_cache_count;
-        generator.next_global_variable_cache = executable.cache_counters.global_variable_cache_count;
-        generator.next_template_object_cache = executable.cache_counters.template_object_cache_count;
-        generator.next_object_shape_cache = executable.cache_counters.object_shape_cache_count;
-        generator.next_object_property_iterator_cache = executable.cache_counters.object_property_iterator_cache_count;
-        generator.identifier_table = executable.identifier_table;
-        generator.property_key_table = executable.property_key_table;
-        generator.string_table = executable.string_table;
-        generator.constants = executable.constants;
-        generator.local_variables = executable.local_variables;
-        generator.length_identifier = executable.length_identifier.map(PropertyKeyTableIndex);
+        let DecodedExecutableRecord {
+            strict,
+            number_of_registers,
+            number_of_arguments,
+            cache_counters,
+            this_value_needs_environment_resolution,
+            length_identifier,
+            bytecode,
+            identifier_table,
+            property_key_table,
+            string_table,
+            constants,
+            exception_handlers,
+            source_map,
+            local_variables,
+            shared_functions,
+            class_blueprints,
+        } = executable;
 
-        let sfd_ptrs: Vec<*const c_void> = executable
-            .shared_functions
+        let mut generator = Generator::new();
+        generator.strict = strict;
+        generator.this_value_needs_environment_resolution = this_value_needs_environment_resolution;
+        generator.next_property_lookup_cache = cache_counters.property_lookup_cache_count;
+        generator.next_global_variable_cache = cache_counters.global_variable_cache_count;
+        generator.next_template_object_cache = cache_counters.template_object_cache_count;
+        generator.next_object_shape_cache = cache_counters.object_shape_cache_count;
+        generator.next_object_property_iterator_cache = cache_counters.object_property_iterator_cache_count;
+        generator.identifier_table = identifier_table;
+        generator.property_key_table = property_key_table;
+        generator.string_table = string_table;
+        generator.constants = constants;
+        generator.local_variables = local_variables;
+        generator.length_identifier = length_identifier.map(PropertyKeyTableIndex);
+
+        let sfd_ptrs: Vec<*const c_void> = shared_functions
             .into_iter()
             .map(|function| materialize_function(function, generator.strict, vm_ptr, source_code_ptr) as *const c_void)
             .collect();
@@ -816,11 +933,8 @@ unsafe fn materialize_executable(
             return std::ptr::null_mut();
         }
 
-        let class_blueprints: Vec<PendingClassBlueprint> = executable
-            .class_blueprints
-            .into_iter()
-            .map(PendingClassBlueprint::from)
-            .collect();
+        let class_blueprints: Vec<PendingClassBlueprint> =
+            class_blueprints.into_iter().map(PendingClassBlueprint::from).collect();
         let bp_ptrs: Vec<*mut c_void> = class_blueprints
             .iter()
             .map(|blueprint| crate::bytecode::ffi::materialize_class_blueprint(blueprint, vm_ptr, source_code_ptr))
@@ -829,18 +943,16 @@ unsafe fn materialize_executable(
             return std::ptr::null_mut();
         }
 
-        let assembled = AssembledBytecode {
-            bytecode: executable.bytecode,
-            source_map: executable.source_map,
-            exception_handlers: executable.exception_handlers,
-            basic_block_start_offsets: Vec::new(),
-            number_of_registers: executable.number_of_registers,
-            number_of_arguments: executable.number_of_arguments,
-        };
-
-        crate::bytecode::ffi::create_executable_with_dependencies(
+        crate::bytecode::ffi::create_executable_with_dependencies_from_parts(
             &generator,
-            &assembled,
+            crate::bytecode::ffi::ExecutableParts {
+                bytecode: bytecode.as_slice(),
+                exception_handlers: &exception_handlers,
+                source_map: &source_map,
+                basic_block_start_offsets: &[],
+                number_of_registers,
+                number_of_arguments,
+            },
             vm_ptr,
             source_code_ptr,
             &sfd_ptrs,
@@ -1918,7 +2030,7 @@ impl ExecutableRecord<'_> {
             cache_counters: CacheCounters::decode(decoder)?,
             this_value_needs_environment_resolution: bool::decode(decoder)?,
             length_identifier: Option::<u32>::decode(decoder)?,
-            bytecode: ByteVector::decode(decoder)?,
+            bytecode: DecodedBytecodeBytes::decode(decoder)?,
             identifier_table: Utf16Table::decode(decoder)?,
             property_key_table: Utf16Table::decode(decoder)?,
             string_table: Utf16Table::decode(decoder)?,
@@ -1939,7 +2051,7 @@ struct DecodedExecutableRecord {
     cache_counters: DecodedCacheCounters,
     this_value_needs_environment_resolution: bool,
     length_identifier: Option<u32>,
-    bytecode: Vec<u8>,
+    bytecode: DecodedBytecodeBytes,
     identifier_table: Vec<ast::Utf16String>,
     property_key_table: Vec<ast::Utf16String>,
     string_table: Vec<ast::Utf16String>,
@@ -2012,8 +2124,14 @@ impl DecodedExecutableRecord {
             .collect();
         let source_map_offsets: Vec<u32> = self.source_map.iter().map(|entry| entry.bytecode_offset).collect();
 
-        validate_bytecode(&self.bytecode, &bounds, &[], &exception_handlers, &source_map_offsets)
-            .map_err(|error| error.kind)?;
+        validate_bytecode(
+            self.bytecode.as_slice(),
+            &bounds,
+            &[],
+            &exception_handlers,
+            &source_map_offsets,
+        )
+        .map_err(|error| error.kind)?;
 
         for function in &self.shared_functions {
             function.precompiled.validate_cached_bytecode()?;
