@@ -355,6 +355,75 @@ impl Decode for ast::Utf16String {
     }
 }
 
+enum DecodedUtf16String {
+    Owned(ast::Utf16String),
+    // The surrounding decoded executable keeps the mapped blob alive through its
+    // DecodedBytecodeBytes. Store only the payload pointer here so large string
+    // tables do not clone an owner handle for every string.
+    Foreign { data: *const u8, length: usize },
+}
+
+impl Decode for DecodedUtf16String {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+        let length: usize = u32::decode(decoder)?.try_into().ok()?;
+        let byte_length = length.checked_mul(size_of::<u16>())?;
+        let bytes = decoder.bytes(byte_length)?;
+        if decoder.foreign_blob.is_some() {
+            return Some(Self::Foreign {
+                data: bytes.as_ptr(),
+                length,
+            });
+        }
+
+        let mut code_units = Vec::with_capacity(length);
+        for chunk in bytes.chunks_exact(size_of::<u16>()) {
+            code_units.push(u16::from_le_bytes(chunk.try_into().ok()?));
+        }
+        Some(Self::Owned(code_units.into()))
+    }
+}
+
+impl From<ast::Utf16String> for DecodedUtf16String {
+    fn from(value: ast::Utf16String) -> Self {
+        Self::Owned(value)
+    }
+}
+
+impl DecodedUtf16String {
+    fn len(&self) -> usize {
+        match self {
+            Self::Owned(value) => value.len(),
+            Self::Foreign { length, .. } => *length,
+        }
+    }
+
+    fn to_vec(&self) -> Vec<u16> {
+        match self {
+            Self::Owned(value) => value.to_vec(),
+            Self::Foreign { data, length } => {
+                let bytes = unsafe { std::slice::from_raw_parts(*data, length * size_of::<u16>()) };
+                bytes
+                    .chunks_exact(size_of::<u16>())
+                    .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
+                    .collect()
+            }
+        }
+    }
+
+    fn to_utf16_string(&self) -> ast::Utf16String {
+        self.to_vec().into()
+    }
+}
+
+fn utf16_slice_storage(strings: &[DecodedUtf16String]) -> (Vec<Vec<u16>>, Vec<FFIUtf16Slice>) {
+    let storage: Vec<Vec<u16>> = strings.iter().map(DecodedUtf16String::to_vec).collect();
+    let slices = storage
+        .iter()
+        .map(|string| FFIUtf16Slice::from(string.as_slice()))
+        .collect();
+    (storage, slices)
+}
+
 struct Bytes<'a>(&'a [u8]);
 
 impl Encode for Bytes<'_> {
@@ -798,13 +867,13 @@ unsafe fn materialize_function(
             return std::ptr::null_mut();
         }
 
-        let parameter_names: Vec<FFIUtf16Slice> = function
+        let (_parameter_name_storage, parameter_names): (Vec<Vec<u16>>, Vec<FFIUtf16Slice>) = function
             .parameter_names
             .as_ref()
-            .map(|names| names.iter().map(|name| FFIUtf16Slice::from(name.as_ref())).collect())
+            .map(|names| utf16_slice_storage(names))
             .unwrap_or_default();
-        let (name, name_len) = function
-            .name
+        let name_storage = function.name.as_ref().map(DecodedUtf16String::to_vec);
+        let (name, name_len) = name_storage
             .as_ref()
             .map(|name| (name.as_ptr(), name.len()))
             .unwrap_or((std::ptr::null(), 0));
@@ -839,10 +908,11 @@ unsafe fn materialize_function(
         }
 
         if let Some((name, is_private)) = &function.class_field_initializer_name {
+            let name_storage = name.to_vec();
             crate::bytecode::ffi::rust_sfd_set_class_field_initializer_name(
                 sfd_ptr,
-                name.as_ptr(),
-                name.len(),
+                name_storage.as_ptr(),
+                name_storage.len(),
                 *is_private,
             );
         }
@@ -918,11 +988,23 @@ unsafe fn materialize_executable(
         generator.next_template_object_cache = cache_counters.template_object_cache_count;
         generator.next_object_shape_cache = cache_counters.object_shape_cache_count;
         generator.next_object_property_iterator_cache = cache_counters.object_property_iterator_cache_count;
-        generator.identifier_table = identifier_table;
-        generator.property_key_table = property_key_table;
-        generator.string_table = string_table;
-        generator.constants = constants;
-        generator.local_variables = local_variables;
+        generator.identifier_table = identifier_table
+            .into_iter()
+            .map(|value| value.to_utf16_string())
+            .collect();
+        generator.property_key_table = property_key_table
+            .into_iter()
+            .map(|value| value.to_utf16_string())
+            .collect();
+        generator.string_table = string_table.into_iter().map(|value| value.to_utf16_string()).collect();
+        generator.constants = constants
+            .into_iter()
+            .map(DecodedConstantValue::into_constant_value)
+            .collect();
+        generator.local_variables = local_variables
+            .into_iter()
+            .map(DecodedLocalVariable::into_local_variable)
+            .collect();
         generator.length_identifier = length_identifier.map(PropertyKeyTableIndex);
 
         let sfd_ptrs: Vec<*const c_void> = shared_functions
@@ -2052,13 +2134,13 @@ struct DecodedExecutableRecord {
     this_value_needs_environment_resolution: bool,
     length_identifier: Option<u32>,
     bytecode: DecodedBytecodeBytes,
-    identifier_table: Vec<ast::Utf16String>,
-    property_key_table: Vec<ast::Utf16String>,
-    string_table: Vec<ast::Utf16String>,
-    constants: Vec<ConstantValue>,
+    identifier_table: Vec<DecodedUtf16String>,
+    property_key_table: Vec<DecodedUtf16String>,
+    string_table: Vec<DecodedUtf16String>,
+    constants: Vec<DecodedConstantValue>,
     exception_handlers: Vec<ExceptionHandler>,
     source_map: Vec<SourceMapEntry>,
-    local_variables: Vec<LocalVariable>,
+    local_variables: Vec<DecodedLocalVariable>,
     shared_functions: Vec<DecodedFunctionRecord>,
     class_blueprints: Vec<DecodedClassBlueprintRecord>,
 }
@@ -2211,8 +2293,8 @@ impl Encode for Utf16Table<'_> {
 }
 
 impl Utf16Table<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<ast::Utf16String>> {
-        decoder.sequence_values(ast::Utf16String::decode)
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<DecodedUtf16String>> {
+        decoder.sequence_values(DecodedUtf16String::decode)
     }
 }
 
@@ -2225,8 +2307,8 @@ impl Encode for ConstantTable<'_> {
 }
 
 impl ConstantTable<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<ConstantValue>> {
-        decoder.sequence_values(ConstantValue::decode)
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<DecodedConstantValue>> {
+        decoder.sequence_values(DecodedConstantValue::decode)
     }
 }
 
@@ -2289,6 +2371,63 @@ impl Decode for ConstantValue {
                 _ => None,
             },
             _ => None,
+        }
+    }
+}
+
+enum DecodedConstantValue {
+    Number(f64),
+    Boolean(bool),
+    Null,
+    Undefined,
+    Empty,
+    String(DecodedUtf16String),
+    BigInt(String),
+    WellKnownSymbol(WellKnownSymbolKind),
+    AbstractOperation(AbstractOperationKind),
+}
+
+impl DecodedConstantValue {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+        match u8::decode(decoder)? {
+            tag if tag == ConstantTag::Number as u8 => Some(Self::Number(f64::decode(decoder)?)),
+            tag if tag == ConstantTag::BooleanTrue as u8 => Some(Self::Boolean(true)),
+            tag if tag == ConstantTag::BooleanFalse as u8 => Some(Self::Boolean(false)),
+            tag if tag == ConstantTag::Null as u8 => Some(Self::Null),
+            tag if tag == ConstantTag::Undefined as u8 => Some(Self::Undefined),
+            tag if tag == ConstantTag::Empty as u8 => Some(Self::Empty),
+            tag if tag == ConstantTag::String as u8 => Some(Self::String(DecodedUtf16String::decode(decoder)?)),
+            tag if tag == ConstantTag::BigInt as u8 => {
+                Some(Self::BigInt(String::from_utf8(ByteVector::decode(decoder)?).ok()?))
+            }
+            tag if tag == ConstantTag::WellKnownSymbol as u8 => match u8::decode(decoder)? {
+                0 => Some(Self::WellKnownSymbol(WellKnownSymbolKind::SymbolIterator)),
+                1 => Some(Self::WellKnownSymbol(WellKnownSymbolKind::SymbolAsyncIterator)),
+                _ => None,
+            },
+            tag if tag == ConstantTag::AbstractOperation as u8 => match u8::decode(decoder)? {
+                0 => Some(Self::AbstractOperation(AbstractOperationKind::AsyncIteratorClose)),
+                1 => Some(Self::AbstractOperation(AbstractOperationKind::GetMethod)),
+                2 => Some(Self::AbstractOperation(AbstractOperationKind::GetIteratorDirect)),
+                3 => Some(Self::AbstractOperation(AbstractOperationKind::GetIteratorFromMethod)),
+                4 => Some(Self::AbstractOperation(AbstractOperationKind::IteratorComplete)),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    fn into_constant_value(self) -> ConstantValue {
+        match self {
+            Self::Number(value) => ConstantValue::Number(value),
+            Self::Boolean(value) => ConstantValue::Boolean(value),
+            Self::Null => ConstantValue::Null,
+            Self::Undefined => ConstantValue::Undefined,
+            Self::Empty => ConstantValue::Empty,
+            Self::String(value) => ConstantValue::String(value.to_utf16_string()),
+            Self::BigInt(value) => ConstantValue::BigInt(value),
+            Self::WellKnownSymbol(value) => ConstantValue::WellKnownSymbol(value),
+            Self::AbstractOperation(value) => ConstantValue::AbstractOperation(value),
         }
     }
 }
@@ -2356,14 +2495,30 @@ impl Encode for LocalVariableTable<'_> {
 }
 
 impl LocalVariableTable<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<LocalVariable>> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<DecodedLocalVariable>> {
         decoder.sequence_values(|decoder| {
-            Some(LocalVariable {
-                name: ast::Utf16String::decode(decoder)?,
+            Some(DecodedLocalVariable {
+                name: DecodedUtf16String::decode(decoder)?,
                 is_lexically_declared: bool::decode(decoder)?,
                 is_initialized_during_declaration_instantiation: bool::decode(decoder)?,
             })
         })
+    }
+}
+
+struct DecodedLocalVariable {
+    name: DecodedUtf16String,
+    is_lexically_declared: bool,
+    is_initialized_during_declaration_instantiation: bool,
+}
+
+impl DecodedLocalVariable {
+    fn into_local_variable(self) -> LocalVariable {
+        LocalVariable {
+            name: self.name.to_utf16_string(),
+            is_lexically_declared: self.is_lexically_declared,
+            is_initialized_during_declaration_instantiation: self.is_initialized_during_declaration_instantiation,
+        }
     }
 }
 
@@ -2452,7 +2607,7 @@ impl Encode for FunctionRecord<'_> {
 impl FunctionRecord<'_> {
     fn decode(decoder: &mut Decoder<'_>) -> Option<DecodedFunctionRecord> {
         Some(DecodedFunctionRecord {
-            name: Option::<ast::Utf16String>::decode(decoder)?,
+            name: Option::<DecodedUtf16String>::decode(decoder)?,
             source_text_start: u32::decode(decoder)?,
             source_text_end: u32::decode(decoder)?,
             function_length: i32::decode(decoder)?,
@@ -2471,7 +2626,7 @@ impl FunctionRecord<'_> {
 }
 
 struct DecodedFunctionRecord {
-    name: Option<ast::Utf16String>,
+    name: Option<DecodedUtf16String>,
     source_text_start: u32,
     source_text_end: u32,
     function_length: i32,
@@ -2479,17 +2634,17 @@ struct DecodedFunctionRecord {
     kind: ast::FunctionKind,
     is_strict_mode: bool,
     is_arrow_function: bool,
-    parameter_names: Option<Vec<ast::Utf16String>>,
+    parameter_names: Option<Vec<DecodedUtf16String>>,
     uses_this: bool,
     uses_this_from_environment: bool,
-    class_field_initializer_name: Option<(ast::Utf16String, bool)>,
+    class_field_initializer_name: Option<(DecodedUtf16String, bool)>,
     metadata: FunctionSfdMetadata,
     precompiled: DecodedExecutableRecord,
 }
 
 impl DecodedFunctionRecord {
     fn validate(&self) {
-        let _ = self.name.as_ref().map(|name| name.as_slice().len());
+        let _ = self.name.as_ref().map(DecodedUtf16String::len);
         let _ = self.source_text_start;
         let _ = self.source_text_end;
         let _ = self.formal_parameter_count;
@@ -2497,10 +2652,7 @@ impl DecodedFunctionRecord {
         let _ = self.kind as u8;
         let _ = self.is_strict_mode || self.is_arrow_function || self.uses_this || self.uses_this_from_environment;
         let _ = self.parameter_names.as_ref().map(|names| names.len());
-        let _ = self
-            .class_field_initializer_name
-            .as_ref()
-            .map(|(name, _)| name.as_slice().len());
+        let _ = self.class_field_initializer_name.as_ref().map(|(name, _)| name.len());
         self.precompiled.validate();
         validate_function_metadata(&self.metadata);
     }
@@ -2541,9 +2693,9 @@ impl Encode for SimpleParameterList<'_> {
 }
 
 impl SimpleParameterList<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<Option<Vec<ast::Utf16String>>> {
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Option<Vec<DecodedUtf16String>>> {
         if bool::decode(decoder)? {
-            Some(Some(decoder.sequence_values(ast::Utf16String::decode)?))
+            Some(Some(decoder.sequence_values(DecodedUtf16String::decode)?))
         } else {
             Some(None)
         }
@@ -2580,8 +2732,8 @@ impl Encode for ClassFieldInitializerName<'_> {
 }
 
 impl ClassFieldInitializerName<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<Option<(ast::Utf16String, bool)>> {
-        Option::<(ast::Utf16String, bool)>::decode(decoder)
+    fn decode(decoder: &mut Decoder<'_>) -> Option<Option<(DecodedUtf16String, bool)>> {
+        Option::<(DecodedUtf16String, bool)>::decode(decoder)
     }
 }
 
@@ -2592,9 +2744,9 @@ impl Encode for (Utf16<'_>, bool) {
     }
 }
 
-impl Decode for (ast::Utf16String, bool) {
+impl Decode for (DecodedUtf16String, bool) {
     fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
-        Some((ast::Utf16String::decode(decoder)?, bool::decode(decoder)?))
+        Some((DecodedUtf16String::decode(decoder)?, bool::decode(decoder)?))
     }
 }
 
@@ -2686,7 +2838,7 @@ impl Encode for ClassBlueprintRecord<'_> {
 impl ClassBlueprintRecord<'_> {
     fn decode(decoder: &mut Decoder<'_>) -> Option<DecodedClassBlueprintRecord> {
         Some(DecodedClassBlueprintRecord {
-            name: Option::<ast::Utf16String>::decode(decoder)?,
+            name: Option::<DecodedUtf16String>::decode(decoder)?,
             source_text_offset: usize::decode(decoder)?,
             source_text_length: usize::decode(decoder)?,
             constructor_sfd_index: u32::decode(decoder)?,
@@ -2698,7 +2850,7 @@ impl ClassBlueprintRecord<'_> {
 }
 
 struct DecodedClassBlueprintRecord {
-    name: Option<ast::Utf16String>,
+    name: Option<DecodedUtf16String>,
     source_text_offset: usize,
     source_text_length: usize,
     constructor_sfd_index: u32,
@@ -2709,7 +2861,7 @@ struct DecodedClassBlueprintRecord {
 
 impl DecodedClassBlueprintRecord {
     fn validate(&self) {
-        let _ = self.name.as_ref().map(|name| name.as_slice().len());
+        let _ = self.name.as_ref().map(DecodedUtf16String::len);
         let _ = self.source_text_offset;
         let _ = self.source_text_length;
         let _ = self.constructor_sfd_index;
@@ -2735,7 +2887,7 @@ impl DecodedClassBlueprintRecord {
 impl From<DecodedClassBlueprintRecord> for PendingClassBlueprint {
     fn from(record: DecodedClassBlueprintRecord) -> Self {
         Self {
-            name: record.name,
+            name: record.name.map(|name| name.to_utf16_string()),
             source_text_offset: record.source_text_offset,
             source_text_length: record.source_text_length,
             constructor_sfd_index: record.constructor_sfd_index,
@@ -2768,12 +2920,12 @@ impl ClassElementRecord<'_> {
             kind: u8::decode(decoder)?,
             is_static: bool::decode(decoder)?,
             is_private: bool::decode(decoder)?,
-            private_identifier: Option::<ast::Utf16String>::decode(decoder)?,
+            private_identifier: Option::<DecodedUtf16String>::decode(decoder)?,
             shared_function_data_index: Option::<u32>::decode(decoder)?,
             has_initializer: bool::decode(decoder)?,
             literal_value_kind: PendingLiteralValueKind::decode(decoder)?,
             literal_value_number: f64::decode(decoder)?,
-            literal_value_string: Option::<ast::Utf16String>::decode(decoder)?,
+            literal_value_string: Option::<DecodedUtf16String>::decode(decoder)?,
         })
     }
 }
@@ -2782,23 +2934,23 @@ struct DecodedClassElementRecord {
     kind: u8,
     is_static: bool,
     is_private: bool,
-    private_identifier: Option<ast::Utf16String>,
+    private_identifier: Option<DecodedUtf16String>,
     shared_function_data_index: Option<u32>,
     has_initializer: bool,
     literal_value_kind: PendingLiteralValueKind,
     literal_value_number: f64,
-    literal_value_string: Option<ast::Utf16String>,
+    literal_value_string: Option<DecodedUtf16String>,
 }
 
 impl DecodedClassElementRecord {
     fn validate(&self) {
         let _ = self.kind;
         let _ = self.is_static || self.is_private || self.has_initializer;
-        let _ = self.private_identifier.as_ref().map(|name| name.as_slice().len());
+        let _ = self.private_identifier.as_ref().map(DecodedUtf16String::len);
         let _ = self.shared_function_data_index;
         let _ = literal_value_kind_tag(self.literal_value_kind);
         let _ = self.literal_value_number;
-        let _ = self.literal_value_string.as_ref().map(|value| value.as_slice().len());
+        let _ = self.literal_value_string.as_ref().map(DecodedUtf16String::len);
     }
 
     fn indices_are_valid(&self, shared_function_count: usize) -> bool {
@@ -2828,12 +2980,12 @@ impl From<DecodedClassElementRecord> for PendingClassElement {
             kind: record.kind,
             is_static: record.is_static,
             is_private: record.is_private,
-            private_identifier: record.private_identifier,
+            private_identifier: record.private_identifier.map(|identifier| identifier.to_utf16_string()),
             shared_function_data_index: record.shared_function_data_index,
             has_initializer: record.has_initializer,
             literal_value_kind: record.literal_value_kind,
             literal_value_number: record.literal_value_number,
-            literal_value_string: record.literal_value_string,
+            literal_value_string: record.literal_value_string.map(|value| value.to_utf16_string()),
         }
     }
 }
@@ -2871,7 +3023,7 @@ mod tests {
     fn sequence_decode_rejects_lengths_larger_than_remaining_bytes() {
         let bytes = u32::MAX.to_le_bytes();
 
-        let mut decoder = Decoder::new(&bytes);
+        let mut decoder = Decoder::new(&bytes, None);
         assert!(decoder.sequence_values(u8::decode).is_none());
     }
 
@@ -2881,7 +3033,7 @@ mod tests {
         bytes.extend_from_slice(&4u32.to_le_bytes());
         bytes.extend_from_slice(&[1, 2, 3]);
 
-        let mut decoder = Decoder::new(&bytes);
+        let mut decoder = Decoder::new(&bytes, None);
         assert!(decoder.sequence_values(u8::decode).is_none());
     }
 
@@ -2897,5 +3049,27 @@ mod tests {
         bytes.extend_from_slice(&stored_source_hash);
 
         assert!(decode_blob(&bytes, ast::ProgramType::Script, &expected_source_hash).is_none());
+    }
+
+    unsafe extern "C" fn ignore_foreign_owner(_: *mut c_void) {}
+
+    #[test]
+    fn utf16_decode_borrows_from_foreign_blob() {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&3u32.to_le_bytes());
+        bytes.extend_from_slice(&0x41u16.to_le_bytes());
+        bytes.extend_from_slice(&0x2262u16.to_le_bytes());
+        bytes.extend_from_slice(&0x0391u16.to_le_bytes());
+
+        let mut decoder = Decoder::new(
+            &bytes,
+            Some(ForeignBytecodeCacheBlobOwner {
+                owner: std::ptr::null_mut(),
+                free_owner: ignore_foreign_owner,
+            }),
+        );
+        let decoded = DecodedUtf16String::decode(&mut decoder).unwrap();
+        assert!(matches!(decoded, DecodedUtf16String::Foreign { .. }));
+        assert_eq!(decoded.to_vec(), vec![0x41, 0x2262, 0x0391]);
     }
 }
