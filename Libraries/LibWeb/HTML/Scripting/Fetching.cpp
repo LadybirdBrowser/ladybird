@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
 #include <AK/Utf16String.h>
 #include <LibCore/EventLoop.h>
 #include <LibCrypto/Hash/SHA2.h>
@@ -59,6 +60,23 @@ struct BytecodeCacheContext {
 
 static ::Crypto::Hash::Digest<::Crypto::Hash::SHA256::DigestSize * 8> bytecode_cache_source_hash(JS::SourceCode const& source_code)
 {
+    if (source_code.code_view().has_ascii_storage()) {
+        auto hasher = ::Crypto::Hash::SHA256::create();
+        auto ascii = source_code.code_view().ascii_span();
+
+        constexpr size_t chunk_size = 4096;
+        Array<u16, chunk_size> utf16_data;
+        for (size_t offset = 0; offset < ascii.size(); offset += chunk_size) {
+            auto current_chunk_size = min(chunk_size, ascii.size() - offset);
+            for (size_t i = 0; i < current_chunk_size; ++i)
+                utf16_data[i] = static_cast<u16>(ascii[offset + i]);
+
+            hasher->update(reinterpret_cast<u8 const*>(utf16_data.data()), current_chunk_size * sizeof(u16));
+        }
+
+        return hasher->digest();
+    }
+
     return ::Crypto::Hash::SHA256::hash(reinterpret_cast<u8 const*>(source_code.utf16_data()), source_code.length_in_code_units() * sizeof(u16));
 }
 
