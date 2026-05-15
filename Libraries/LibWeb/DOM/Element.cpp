@@ -2754,11 +2754,12 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
 
     // AD-HOC: The spec doesn't specify when to do this, but we need to apply scroll-margin and scroll-margin to target
     //         bounding border box (https://drafts.csswg.org/cssom-view-1/#example-51af1565).
-    auto target_computed_properties = target.computed_properties();
-    auto scroll_margin_top = target_computed_properties->length(CSS::PropertyID::ScrollMarginTop).absolute_length_to_px();
-    auto scroll_margin_right = target_computed_properties->length(CSS::PropertyID::ScrollMarginRight).absolute_length_to_px();
-    auto scroll_margin_bottom = target_computed_properties->length(CSS::PropertyID::ScrollMarginBottom).absolute_length_to_px();
-    auto scroll_margin_left = target_computed_properties->length(CSS::PropertyID::ScrollMarginLeft).absolute_length_to_px();
+    auto scroll_margin = target.computed_properties()->length_box(CSS::PropertyID::ScrollMarginLeft, CSS::PropertyID::ScrollMarginTop, CSS::PropertyID::ScrollMarginRight, CSS::PropertyID::ScrollMarginBottom, CSS::Length::make_px(0));
+    auto& target_layout_node = *target.layout_node();
+    auto scroll_margin_top = scroll_margin.top().to_px_or_zero(target_layout_node, CSSPixels { 0 });
+    auto scroll_margin_right = scroll_margin.right().to_px_or_zero(target_layout_node, CSSPixels { 0 });
+    auto scroll_margin_bottom = scroll_margin.bottom().to_px_or_zero(target_layout_node, CSSPixels { 0 });
+    auto scroll_margin_left = scroll_margin.left().to_px_or_zero(target_layout_node, CSSPixels { 0 });
 
     target_bounding_border_box.set_top(target_bounding_border_box.top() - scroll_margin_top);
     target_bounding_border_box.set_right(target_bounding_border_box.right() + scroll_margin_left + scroll_margin_right);
@@ -2777,23 +2778,16 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
         return nullptr;
     }();
 
-    auto padding_resolution_context = [&scrolling_box]() -> Optional<CSS::Length::ResolutionContext> {
-        if (scrolling_box.is_document()) {
-            return CSS::Length::ResolutionContext::for_document(scrolling_box.document());
-        }
+    if (scrolling_box_computed_properties) {
+        auto scroll_padding = scrolling_box_computed_properties->length_box(CSS::PropertyID::ScrollPaddingLeft, CSS::PropertyID::ScrollPaddingTop, CSS::PropertyID::ScrollPaddingRight, CSS::PropertyID::ScrollPaddingBottom, CSS::Length::make_px(0));
+        auto& scrolling_box_layout_node = *scrolling_box.layout_node();
+        auto scrolling_box_width = scrolling_box_rect.width();
+        auto scrolling_box_height = scrolling_box_rect.height();
 
-        if (auto const* element = as_if<DOM::Element>(scrolling_box)) {
-            return CSS::Length::ResolutionContext::for_element(*element);
-        }
-
-        return {};
-    }();
-
-    if (scrolling_box_computed_properties && padding_resolution_context.has_value()) {
-        auto scroll_padding_top = scrolling_box_computed_properties->length(CSS::PropertyID::ScrollPaddingTop).to_px(padding_resolution_context.value());
-        auto scroll_padding_right = scrolling_box_computed_properties->length(CSS::PropertyID::ScrollPaddingRight).to_px(padding_resolution_context.value());
-        auto scroll_padding_bottom = scrolling_box_computed_properties->length(CSS::PropertyID::ScrollPaddingBottom).to_px(padding_resolution_context.value());
-        auto scroll_padding_left = scrolling_box_computed_properties->length(CSS::PropertyID::ScrollPaddingLeft).to_px(padding_resolution_context.value());
+        auto scroll_padding_top = scroll_padding.top().to_px_or_zero(scrolling_box_layout_node, scrolling_box_height);
+        auto scroll_padding_right = scroll_padding.right().to_px_or_zero(scrolling_box_layout_node, scrolling_box_width);
+        auto scroll_padding_bottom = scroll_padding.bottom().to_px_or_zero(scrolling_box_layout_node, scrolling_box_height);
+        auto scroll_padding_left = scroll_padding.left().to_px_or_zero(scrolling_box_layout_node, scrolling_box_width);
 
         target_bounding_border_box.set_top(target_bounding_border_box.top() - scroll_padding_top);
         target_bounding_border_box.set_right(target_bounding_border_box.right() + scroll_padding_left + scroll_padding_right);

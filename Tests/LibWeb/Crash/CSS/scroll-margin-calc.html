@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+    <style>
+        #wrapper {
+            width: 100px;
+            height: 200px;
+            overflow-y: auto;
+        }
+
+        #wrapper div {
+            height: 400px;
+            scroll-margin-top: calc(20px);
+        }
+    </style>
+    <div id="wrapper">
+        <div id="target"></div>
+    </div>
+    <script>
+        document.getElementById("target").scrollIntoView();
+    </script>
+</html>
