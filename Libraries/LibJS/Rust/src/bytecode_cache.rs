@@ -581,6 +581,12 @@ impl DecodedRecordSequence {
         let count: usize = u32::decode(decoder)?.try_into().ok()?;
         decoder.align_to(align_of::<u16>())?;
         let byte_length: usize = u32::decode(decoder)?.try_into().ok()?;
+        // Every record currently has at least one byte in the payload. Reject
+        // impossible counts up front so corrupt cache files cannot ask later
+        // materialization to reserve huge vectors for tiny payloads.
+        if count > byte_length {
+            return None;
+        }
         Some(Self {
             count,
             bytes: decoder.bytecode_bytes(byte_length)?,
@@ -2473,6 +2479,10 @@ impl ConstantTable<'_> {
     fn decode(decoder: &mut Decoder<'_>) -> Option<DecodedConstantTable> {
         let count: usize = u32::decode(decoder)?.try_into().ok()?;
         let byte_length: usize = u32::decode(decoder)?.try_into().ok()?;
+        // Constants are encoded as at least their one-byte tag.
+        if count > byte_length {
+            return None;
+        }
         Some(DecodedConstantTable {
             count,
             bytes: decoder.bytecode_bytes(byte_length)?,
@@ -3360,6 +3370,28 @@ mod tests {
 
         let mut decoder = Decoder::new(&bytes, None);
         assert!(decoder.sequence_values(u8::decode).is_none());
+    }
+
+    #[test]
+    fn record_sequence_decode_rejects_impossible_count_without_large_allocation() {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&4u32.to_le_bytes());
+        bytes.extend_from_slice(&1u32.to_le_bytes());
+        bytes.push(0);
+
+        let mut decoder = Decoder::new(&bytes, None);
+        assert!(DecodedRecordSequence::decode(&mut decoder).is_none());
+    }
+
+    #[test]
+    fn constant_table_decode_rejects_impossible_count_without_large_allocation() {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&4u32.to_le_bytes());
+        bytes.extend_from_slice(&1u32.to_le_bytes());
+        bytes.push(0);
+
+        let mut decoder = Decoder::new(&bytes, None);
+        assert!(ConstantTable::decode(&mut decoder).is_none());
     }
 
     #[test]
