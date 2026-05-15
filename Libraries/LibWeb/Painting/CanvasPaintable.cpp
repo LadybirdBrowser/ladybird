@@ -33,13 +33,10 @@ void CanvasPaintable::paint(DisplayListRecordingContext& context, PaintPhase pha
 
         auto& canvas_element = as<HTML::HTMLCanvasElement>(*dom_node());
         if (canvas_element.surface()) {
-            // present() snapshots the surface and publishes to ExternalContentSource.
-            // FIXME: Remove this const_cast.
-            auto& mutable_canvas_element = const_cast<HTML::HTMLCanvasElement&>(canvas_element);
-            mutable_canvas_element.present();
             auto canvas_int_rect = canvas_rect.to_type<int>();
             auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(),
                 canvas_element.surface()->size(), canvas_int_rect.size());
+            auto& mutable_canvas_element = const_cast<HTML::HTMLCanvasElement&>(canvas_element);
             context.display_list_recorder().draw_external_content(canvas_int_rect,
                 mutable_canvas_element.ensure_external_content_source(), scaling_mode);
         }

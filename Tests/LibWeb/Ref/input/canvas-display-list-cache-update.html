@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/canvas-display-list-cache-update-ref.html">
+<canvas id="canvas" height="100" width="100"></canvas>
+<script>
+    const context = canvas.getContext("2d");
+    context.fillStyle = "rgb(255, 0, 0)";
+    context.fillRect(0, 0, 100, 100);
+
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            context.fillStyle = "rgb(0, 255, 0)";
+            context.fillRect(0, 0, 100, 100);
+
+            requestAnimationFrame(() => {
+                if (window.internals)
+                    internals.signalTestIsDone("PASS");
+                else
+                    document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    });
+</script>
+</html>

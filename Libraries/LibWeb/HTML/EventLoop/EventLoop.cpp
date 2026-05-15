@@ -358,10 +358,6 @@ void EventLoop::update_the_rendering()
     for (auto& document : docs)
         document->page().update_all_media_element_video_sinks();
 
-    // AD-HOC: Present all canvas element surfaces in documents' pages.
-    for (auto& document : docs)
-        document->page().present_all_canvas_element_surfaces();
-
     // FIXME: 4. Unnecessary rendering: Remove from docs any Document object doc for which all of the following are true:
 
     // FIXME: 5. Remove from docs all Document objects for which the user agent believes that it's preferable to skip updating the rendering for other reasons.
@@ -527,6 +523,11 @@ void EventLoop::update_the_rendering()
     // FIXME: 20. For each doc of docs, record rendering time for doc given unsafeStyleAndLayoutStartTime.
 
     // FIXME: 21. For each doc of docs, mark paint timing for doc.
+
+    // AD-HOC: Present all canvas element surfaces in documents' pages after callbacks
+    // have had a chance to update them, and before painting snapshots the frame.
+    for (auto& document : docs)
+        document->page().present_all_canvas_element_surfaces();
 
     // 22. For each doc of docs, update the rendering or user interface of doc and its node navigable to reflect the current state.
     for (auto& doc : docs.in_reverse()) {
