@@ -3,6 +3,7 @@ include(audio)
 set(SOURCES
     Audio/AudioDevices.cpp
     Codecs/FLAC.cpp
+    Codecs/Opus.cpp
     Containers/ConstantBitrateContainerNavigator.cpp
     Containers/FLACNavigator.cpp
     Containers/IndexedContainerNavigator.cpp
