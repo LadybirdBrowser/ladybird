@@ -17,6 +17,7 @@
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 
 namespace Web::CSS {
 
@@ -69,7 +70,12 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
         return;
     }
 
-    auto const coordinating_value_list_shorthand_serialize = [&](StringView entry_when_all_longhands_initial, Vector<PropertyID> const& required_longhands = {}, Vector<PropertyID> const& reset_only_longhands = {}) {
+    enum class AllowResolvedZeroDurationAsInitial {
+        No,
+        Yes,
+    };
+
+    auto const coordinating_value_list_shorthand_serialize = [&](StringView entry_when_all_longhands_initial, Vector<PropertyID> const& required_longhands = {}, Vector<PropertyID> const& reset_only_longhands = {}, AllowResolvedZeroDurationAsInitial allow_resolved_zero_duration_as_initial = AllowResolvedZeroDurationAsInitial::No) {
         for (auto reset_only_longhand : reset_only_longhands) {
             if (!longhand(reset_only_longhand)->equals(property_initial_value(reset_only_longhand)))
                 return;
@@ -87,6 +93,17 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
         if (any_of(m_properties.sub_properties, [&](auto longhand_id) { return !reset_only_longhands.contains_slow(longhand_id) && longhand(longhand_id)->as_value_list().size() != entry_count; }))
             return;
 
+        auto longhand_value_is_initial = [&](PropertyID longhand_id, StyleValue const& value) {
+            if (allow_resolved_zero_duration_as_initial == AllowResolvedZeroDurationAsInitial::Yes
+                && longhand_id == PropertyID::AnimationDuration
+                && value.is_time()
+                && value.as_time().time().to_seconds() == 0) {
+                return true;
+            }
+
+            return value.equals(*property_initial_value(longhand_id)->as_value_list().values()[0]);
+        };
+
         // We should serialize a longhand if it is not a reset-only longhand and one of the following is true:
         // - The longhand is required
         // - The value is not the initial value
@@ -102,7 +119,7 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
 
             auto longhand_value = longhand(longhand_id)->as_value_list().values()[entry_index];
 
-            if (!longhand_value->equals(property_initial_value(longhand_id)->as_value_list().values()[0]))
+            if (!longhand_value_is_initial(longhand_id, *longhand_value))
                 return true;
 
             for (size_t other_longhand_index = longhand_index + 1; other_longhand_index < m_properties.sub_properties.size(); other_longhand_index++) {
@@ -114,7 +131,7 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
                 auto other_longhand_value = longhand(other_longhand_id)->as_value_list().values()[entry_index];
 
                 // FIXME: This should really account for the other longhand being included in the serialization for any reason, not just because it is not the initial value.
-                if (other_longhand_value->equals(property_initial_value(other_longhand_id)->as_value_list().values()[0]))
+                if (longhand_value_is_initial(other_longhand_id, *other_longhand_value))
                     continue;
 
                 if (parse_css_value(Parser::ParsingParams {}, other_longhand_value->to_string(mode), longhand_id))
@@ -192,7 +209,7 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
         return;
     }
     case PropertyID::Animation:
-        coordinating_value_list_shorthand_serialize("none"sv, {}, { PropertyID::AnimationTimeline });
+        coordinating_value_list_shorthand_serialize("none"sv, {}, { PropertyID::AnimationTimeline }, AllowResolvedZeroDurationAsInitial::Yes);
         return;
     case PropertyID::Background: {
         auto color = longhand(PropertyID::BackgroundColor);

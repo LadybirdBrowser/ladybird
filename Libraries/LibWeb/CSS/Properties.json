@@ -313,7 +313,7 @@
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
-    "initial": "0s",
+    "initial": "auto",
     "multiplicity": "coordinating-list",
     "needs-layout-node-for-resolved-value": true,
     "requires-computation": "cascaded-value",

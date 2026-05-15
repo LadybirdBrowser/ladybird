@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<style>
+    html {
+        min-height: 100vh;
+        padding-bottom: 100px;
+    }
+
+    body {
+        margin: 0;
+    }
+
+    #bar {
+        animation: grow linear;
+        animation-timeline: scroll(root block);
+        background: red;
+        height: 10px;
+        transform-origin: 0 50%;
+        width: 100px;
+    }
+
+    @keyframes grow {
+        from {
+            transform: scaleX(0);
+        }
+
+        to {
+            transform: scaleX(1);
+        }
+    }
+</style>
+<body>
+    <div id="bar"></div>
+    <script src="../include.js"></script>
+    <script>
+        function scaleX(element) {
+            const transform = getComputedStyle(element).transform;
+            const match = transform.match(/^matrix\(([^,]+)/);
+            return match ? Number.parseFloat(match[1]).toFixed(2) : transform;
+        }
+
+        promiseTest(async () => {
+            await animationFrame();
+
+            document.scrollingElement.scrollTop = 25;
+            await animationFrame();
+
+            println(`animation duration: ${getComputedStyle(bar).animationDuration}`);
+            println(`scale at 25% scroll: ${scaleX(bar)}`);
+
+            document.scrollingElement.scrollTop = 0;
+        });
+    </script>
+</body>

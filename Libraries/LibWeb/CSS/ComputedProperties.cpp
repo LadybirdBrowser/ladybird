@@ -2001,12 +2001,9 @@ Vector<ComputedProperties::AnimationProperties> ComputedProperties::animations(D
         auto duration = [&] -> Variant<double, String> {
             // auto
             if (animation_duration_style_value->to_keyword() == Keyword::Auto) {
-                // For time-driven animations, equivalent to 0s.
-                return 0;
-
-                // FIXME: For scroll-driven animations, equivalent to the duration necessary to fill the timeline in
-                //        consideration of animation-range, animation-delay, and animation-iteration-count. See
-                //        Scroll-driven Animations § 4.1 Finite Timeline Calculations.
+                // Preserve auto until the animation effect is associated with its timeline. Time-driven animations
+                // will resolve this to 0s, while scroll-driven animations fill the progress-based timeline.
+                return "auto"_string;
             }
 
             // <time [0s,∞]>
