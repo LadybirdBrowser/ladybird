@@ -11,6 +11,7 @@ import sys
 from dataclasses import dataclass
 from dataclasses import field
 from pathlib import Path
+from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Set
@@ -19,6 +20,7 @@ from typing import TextIO
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from Utils.webidl_parser import Interface
+from Utils.webidl_parser import Module
 from Utils.webidl_parser import parse_module
 
 ALL_WORKERS_EXPOSURE = {
@@ -676,6 +678,63 @@ def write_namespace_global_accessor(out: TextIO, interface: Interface) -> None:
     )
 
 
+def cpp_namespace_for_module_path(path: Path) -> str:
+    """A path of Libraries/LibWeb/<namespace>/... should have a namespace of Web::<namespace>."""
+    parts = path.parts
+    return parts[parts.index("LibWeb") + 1]
+
+
+def write_forward_header(out: TextIO, modules: List[Module]) -> None:
+    out.write(
+        """#pragma once
+
+"""
+    )
+
+    interface_names_by_namespace: Dict[str, Set[str]] = {}
+
+    for module in modules:
+        interface = module.interface
+        if interface is None or interface.is_namespace:
+            continue
+
+        namespace_name = cpp_namespace_for_module_path(interface.path)
+        if not namespace_name:
+            continue
+
+        interface_names_by_namespace.setdefault(namespace_name, set()).add(interface.implemented_name)
+
+    for namespace_name in sorted(interface_names_by_namespace):
+        out.write(f"namespace Web::{namespace_name} {{\n\n")
+
+        for class_name in sorted(interface_names_by_namespace[namespace_name]):
+            out.write(f"class {class_name};\n")
+
+        out.write(
+            """
+}
+
+"""
+        )
+
+    dictionary_names = {dictionary.name for module in modules for dictionary in module.dictionaries}
+
+    out.write(
+        """namespace Web::Bindings {
+
+"""
+    )
+
+    for dictionary_name in sorted(dictionary_names):
+        out.write(f"struct {dictionary_name};\n")
+
+    out.write(
+        """
+}
+"""
+    )
+
+
 def write_generated_file(path: Path, writer, *args) -> None:
     with path.open("w", encoding="utf-8", newline="\n") as output_file:
         writer(output_file, *args)
@@ -687,9 +746,13 @@ def main() -> int:
     output_directory.mkdir(parents=True, exist_ok=True)
 
     interface_sets = InterfaceSets()
+    modules: List[Module] = []
 
     for path in read_input_paths(arguments.paths):
-        interface = parse_module(path, path.read_text(encoding="utf-8")).interface
+        module = parse_module(path, path.read_text(encoding="utf-8"))
+        modules.append(module)
+
+        interface = module.interface
         if interface is None:
             continue
         if not should_have_interface_object(interface):
@@ -730,6 +793,7 @@ def main() -> int:
         "SharedWorker",
         interface_sets.shared_worker_exposed,
     )
+    write_generated_file(output_directory / "Forward.h", write_forward_header, modules)
 
     return 0
 

@@ -292,6 +292,7 @@ function (generate_js_bindings target)
             "${LADYBIRD_SOURCE_DIR}/Meta/Utils/webidl_parser.py")
 
         set(exposed_interface_sources
+            Forward.h
             IntrinsicDefinitions.cpp IntrinsicDefinitions.h
             DedicatedWorkerExposedInterfaces.cpp DedicatedWorkerExposedInterfaces.h
             SharedWorkerExposedInterfaces.cpp SharedWorkerExposedInterfaces.h
@@ -301,6 +302,7 @@ function (generate_js_bindings target)
             OUTPUT  ${exposed_interface_sources}
             COMMAND "${CMAKE_COMMAND}" -E make_directory "tmp"
             COMMAND "${Python3_EXECUTABLE}" "${window_or_worker_generator}" -o "${CMAKE_CURRENT_BINARY_DIR}/tmp" ${LIBWEB_ALL_IDL_FILES_ARGUMENT}
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different tmp/Forward.h "Bindings/Forward.h"
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different tmp/IntrinsicDefinitions.h "Bindings/IntrinsicDefinitions.h"
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different tmp/IntrinsicDefinitions.cpp "Bindings/IntrinsicDefinitions.cpp"
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different tmp/DedicatedWorkerExposedInterfaces.h "Bindings/DedicatedWorkerExposedInterfaces.h"
@@ -333,7 +335,6 @@ function (generate_js_bindings target)
 
     include("idl_files.cmake")
     list(REMOVE_DUPLICATES LIBWEB_ALL_PARSED_IDL_FILES)
-    list(APPEND LIBWEB_ALL_BINDINGS_SOURCES "Bindings/Forward.h")
 
     set(LIBWEB_ALL_IDL_FILES_ARGUMENT ${LIBWEB_ALL_IDL_FILES})
     set(LIBWEB_ALL_PARSED_IDL_FILES_ARGUMENT ${LIBWEB_ALL_PARSED_IDL_FILES})
@@ -365,6 +366,5 @@ function (generate_js_bindings target)
 
     generate_exposed_interface_files()
 
-    list(APPEND LIBWEB_ALL_GENERATED_HEADERS "${CMAKE_CURRENT_BINARY_DIR}/Bindings/Forward.h")
     set(LIBWEB_ALL_GENERATED_HEADERS ${LIBWEB_ALL_GENERATED_HEADERS} PARENT_SCOPE)
 endfunction()

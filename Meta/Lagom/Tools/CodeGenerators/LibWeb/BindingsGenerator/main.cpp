@@ -168,10 +168,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         output_files.append(implementation_path);
     }
 
-    auto forward_header_path = ByteString::formatted("{}/Forward.h", output_path);
-    TRY(write_if_changed(&IDL::generate_forward_header, context, forward_header_path));
-    output_files.append(forward_header_path);
-
     if (!depfile_path.is_empty()) {
         TRY(generate_depfile(depfile_path, dependency_paths, output_files));
     }
