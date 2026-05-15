@@ -45,7 +45,15 @@ static DecoderErrorOr<void> initialize_format_context(AVFormatContext*& format_c
         return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate format context"sv);
     format_context->pb = &io_context;
     format_context->flags |= AVFMT_FLAG_FAST_SEEK;
-    if (avformat_open_input(&format_context, nullptr, nullptr, nullptr) < 0)
+
+    AVDictionary* options = nullptr;
+    ScopeGuard free_options = [&] { av_dict_free(&options); };
+
+    // Reduce the maximum packet size for the WAV demuxer, so that playback begins sooner.
+    av_dict_set(&options, "max_size", "4096", 0);
+
+    auto open_result = avformat_open_input(&format_context, nullptr, nullptr, &options);
+    if (open_result < 0)
         return DecoderError::with_description(DecoderErrorCategory::Corrupted, "Failed to open input for format parsing"sv);
 
     // Read stream info; doing this is required for headerless formats like MPEG
