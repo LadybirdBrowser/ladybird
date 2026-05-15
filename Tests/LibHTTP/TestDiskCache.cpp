@@ -75,6 +75,11 @@ TEST_CASE(associated_data_round_trips_with_cache_entry)
     VERIFY(retrieved_bytecode.has_value());
     EXPECT_EQ(retrieved_bytecode->bytes(), bytecode.bytes());
 
+    auto retrieved_bytecode_file = TRY_OR_FAIL(disk_cache.retrieve_associated_data_file(url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode));
+    VERIFY(retrieved_bytecode_file.has_value());
+    auto mapped_bytecode = TRY_OR_FAIL(Core::ImmutableBytes::map_from_fd_range_and_close(retrieved_bytecode_file->fd, "bytecode"sv, retrieved_bytecode_file->offset, retrieved_bytecode_file->size));
+    EXPECT_EQ(mapped_bytecode.bytes(), bytecode.bytes());
+
     disk_cache.remove_entries_accessed_since(UnixDateTime::earliest());
 
     retrieved_bytecode = TRY_OR_FAIL(disk_cache.retrieve_associated_data(url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode));

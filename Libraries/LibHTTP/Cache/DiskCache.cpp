@@ -286,6 +286,42 @@ ErrorOr<Optional<ByteBuffer>> DiskCache::retrieve_associated_data(URL::URL const
     return TRY(file.value()->read_until_eof());
 }
 
+ErrorOr<Optional<CacheEntryBodyFile>> DiskCache::retrieve_associated_data_file(URL::URL const& url, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData associated_data)
+{
+    if (!is_cacheable(method, request_headers))
+        return Optional<CacheEntryBodyFile> {};
+
+    auto serialized_url = serialize_url_for_cache_storage(url);
+    auto cache_key = create_cache_key(serialized_url, method, m_partitioned_cache_key);
+    if (!vary_key.has_value()) {
+        auto index_entry = m_index.find_entry(cache_key, request_headers);
+        if (!index_entry.has_value())
+            return Optional<CacheEntryBodyFile> {};
+        vary_key = index_entry->vary_key;
+    }
+
+    if (!m_index.has_entry(cache_key, *vary_key))
+        return Optional<CacheEntryBodyFile> {};
+
+    auto path = path_for_cache_entry_associated_data(m_cache_directory, cache_key, *vary_key, associated_data);
+    auto file = Core::File::open(path.string(), Core::File::OpenMode::Read);
+    if (file.is_error()) {
+        if (file.error().is_errno() && file.error().code() == ENOENT)
+            return Optional<CacheEntryBodyFile> {};
+        return file.release_error();
+    }
+
+    auto size = TRY(file.value()->size());
+    if (!AK::is_within_range<u64>(size))
+        return Error::from_errno(EOVERFLOW);
+
+    return CacheEntryBodyFile {
+        .fd = file.value()->leak_fd(),
+        .offset = 0,
+        .size = static_cast<u64>(size),
+    };
+}
+
 bool DiskCache::check_if_cache_has_open_entry(CacheRequest& request, u64 cache_key, URL::URL const& url, CheckReaderEntries check_reader_entries)
 {
     // FIXME: We purposefully do not use the vary key here, as we do not yet have it when creating a CacheEntryWriter

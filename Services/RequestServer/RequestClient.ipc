@@ -1,4 +1,3 @@
-#include <LibCore/AnonymousBuffer.h>
 #include <LibHTTP/Header.h>
 #include <LibRequests/CacheSizes.h>
 #include <LibRequests/NetworkError.h>
@@ -12,7 +11,7 @@ endpoint RequestClient
     request_body_file_available(u64 request_id, IPC::File fd, u64 offset, u64 size) =|
     request_cached_body_file_available(u64 request_id, IPC::File fd, u64 offset, u64 size) =|
     request_finished(u64 request_id, u64 total_size, Requests::RequestTimingInfo timing_info, Optional<Requests::NetworkError> network_error) =|
-    headers_became_available(u64 request_id, Vector<HTTP::Header> response_headers, Optional<u32> status_code, Optional<String> reason_phrase, Optional<Core::AnonymousBuffer> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key) =|
+    headers_became_available(u64 request_id, Vector<HTTP::Header> response_headers, Optional<u32> status_code, Optional<String> reason_phrase, Optional<IPC::File> javascript_bytecode, u64 javascript_bytecode_size, Optional<u64> javascript_bytecode_cache_vary_key) =|
 
     retrieve_http_cookie(int client_id, u64 request_id, ::RequestServer::RequestType request_type, URL::URL url) =|
 

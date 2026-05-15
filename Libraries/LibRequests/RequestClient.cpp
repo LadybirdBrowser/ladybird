@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ScopeGuard.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Promise.h>
 #include <LibCore/System.h>
@@ -11,6 +12,27 @@
 #include <LibRequests/RequestClient.h>
 
 namespace Requests {
+
+static Optional<Core::ImmutableBytes> map_javascript_bytecode_file(int fd, u64 size)
+{
+    ArmedScopeGuard close_fd = [fd] {
+        (void)Core::System::close(fd);
+    };
+
+    if (!AK::is_within_range<size_t>(size)) {
+        dbgln("RequestClient: Received JavaScript bytecode cache file outside mappable range");
+        return {};
+    }
+
+    close_fd.disarm();
+    auto payload = Core::ImmutableBytes::map_from_fd_range_and_close(fd, "javascript bytecode cache"sv, 0, static_cast<size_t>(size));
+    if (payload.is_error()) {
+        dbgln("RequestClient: Failed to map JavaScript bytecode cache file: {}", payload.error());
+        return {};
+    }
+
+    return payload.release_value();
+}
 
 RequestClient::RequestClient(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionToServer<RequestClientEndpoint, RequestServerEndpoint>(*this, move(transport))
@@ -162,8 +184,12 @@ void RequestClient::request_finished(u64 request_id, u64 total_size, RequestTimi
     }
 }
 
-void RequestClient::headers_became_available(u64 request_id, Vector<HTTP::Header> response_headers, Optional<u32> status_code, Optional<String> reason_phrase, Optional<Core::AnonymousBuffer> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key)
+void RequestClient::headers_became_available(u64 request_id, Vector<HTTP::Header> response_headers, Optional<u32> status_code, Optional<String> reason_phrase, Optional<IPC::File> javascript_bytecode_file, u64 javascript_bytecode_size, Optional<u64> javascript_bytecode_cache_vary_key)
 {
+    Optional<Core::ImmutableBytes> javascript_bytecode;
+    if (javascript_bytecode_file.has_value())
+        javascript_bytecode = map_javascript_bytecode_file(javascript_bytecode_file->take_fd(), javascript_bytecode_size);
+
     if (auto request = m_requests.get(request_id); request.has_value())
         (*request)->did_receive_headers({}, HTTP::HeaderList::create(move(response_headers)), status_code, reason_phrase, move(javascript_bytecode), javascript_bytecode_cache_vary_key);
     else
