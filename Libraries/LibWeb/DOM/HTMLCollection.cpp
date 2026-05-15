@@ -59,12 +59,14 @@ GC::Cell const& HTMLCollection::owner_cell(Badge<GC::Heap>) const
 
 void HTMLCollection::remove_dead_cells(Badge<GC::Heap>)
 {
-    m_cached_elements.remove_all_matching([](GC::RawPtr<Element> const& element) {
-        return element->state() != GC::Cell::State::Live;
+    m_cached_elements.remove_all_matching([&](GC::RawPtr<Element> const& element) {
+        auto* block = GC::HeapBlock::from_cell(element);
+        return !heap().is_live_heap_block(block) || element->state() != Cell::State::Live || !element->is_marked();
     });
     if (m_cached_name_to_element_mappings) {
-        m_cached_name_to_element_mappings->remove_all_matching([](FlyString const&, GC::RawPtr<Element> const& element) {
-            return element->state() != GC::Cell::State::Live;
+        m_cached_name_to_element_mappings->remove_all_matching([&](FlyString const&, GC::RawPtr<Element> const& element) {
+            auto* block = GC::HeapBlock::from_cell(element);
+            return !heap().is_live_heap_block(block) || element->state() != Cell::State::Live || !element->is_marked();
         });
     }
 }
