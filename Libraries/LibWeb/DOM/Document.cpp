@@ -1279,7 +1279,7 @@ void Document::clear_layout_and_paintable_nodes_for_inactive_document()
     for_each_in_inclusive_subtree([&](auto& node) {
         node.clear_layout_node_and_paintable({});
         if (auto* element = as_if<Element>(node))
-            element->clear_pseudo_element_layout_nodes(Badge<Document> {});
+            element->clear_synthetic_pseudo_element_layout_nodes(Badge<Document> {});
         return TraversalDecision::Continue;
     });
 }

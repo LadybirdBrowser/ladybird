@@ -468,7 +468,7 @@ void TreeBuilder::create_first_letter_wrapper_if_needed(DOM::Element& element, B
     first_letter_wrapper->set_generated_for(CSS::PseudoElement::FirstLetter, element);
     first_letter_wrapper->set_children_are_inline(true);
     first_letter_wrapper->append_child(*first_letter_slice);
-    element.set_pseudo_element_node({}, CSS::PseudoElement::FirstLetter, first_letter_wrapper);
+    element.set_synthetic_pseudo_element_node({}, CSS::PseudoElement::FirstLetter, first_letter_wrapper);
 
     auto* parent = text_node.parent();
     VERIFY(parent);
@@ -528,7 +528,7 @@ GC::Ptr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element
                 *pseudo_element_style);
             list_box->set_marker(list_item_marker);
             element.set_computed_properties(CSS::PseudoElement::Marker, pseudo_element_style);
-            element.set_pseudo_element_node({}, CSS::PseudoElement::Marker, list_item_marker);
+            element.set_synthetic_pseudo_element_node({}, CSS::PseudoElement::Marker, list_item_marker);
             list_box->prepend_child(*list_item_marker);
             return list_item_marker;
         }
@@ -549,7 +549,7 @@ GC::Ptr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element
             element,
             marker_style);
         static_cast<ListItemBox&>(*pseudo_element_node).set_marker(list_item_marker);
-        element.set_pseudo_element_node({}, CSS::PseudoElement::Marker, list_item_marker);
+        element.set_synthetic_pseudo_element_node({}, CSS::PseudoElement::Marker, list_item_marker);
         pseudo_element_node->prepend_child(*list_item_marker);
 
         // FIXME: Support counters on element::pseudo::marker
@@ -558,7 +558,7 @@ GC::Ptr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element
     pseudo_element_node->set_generated_for(pseudo_element, element);
     pseudo_element_node->set_initial_quote_nesting_level(initial_quote_nesting_level);
 
-    element.set_pseudo_element_node({}, pseudo_element, pseudo_element_node);
+    element.set_synthetic_pseudo_element_node({}, pseudo_element, pseudo_element_node);
     if (insertion_mode.has_value())
         insert_node_into_inline_or_block_ancestor(*pseudo_element_node, pseudo_element_display, insertion_mode.value());
     pseudo_element_node->mutable_computed_values().set_content(pseudo_element_content);
@@ -810,7 +810,7 @@ TraversalDecision TreeBuilder::clear_stale_layout_and_paint_node(DOM::Node& node
     node.clear_paintable();
 
     if (is<DOM::Element>(node))
-        static_cast<DOM::Element&>(node).clear_pseudo_element_layout_nodes(Badge<TreeBuilder> {});
+        static_cast<DOM::Element&>(node).clear_synthetic_pseudo_element_layout_nodes(Badge<TreeBuilder> {});
 
     return TraversalDecision::Continue;
 }
@@ -877,7 +877,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
             // automatically discarded when element's layout is recomputed. We must remove it manually.
             if (auto old_backdrop_node = element.get_pseudo_element_node(CSS::PseudoElement::Backdrop))
                 old_backdrop_node->remove();
-            element.clear_pseudo_element_layout_nodes(Badge<TreeBuilder> {});
+            element.clear_synthetic_pseudo_element_layout_nodes(Badge<TreeBuilder> {});
             // Elements inside a `display:none` subtree are skipped by
             // `Document::update_style_recursively`, so a bypass path (top-layer iteration, slot
             // projection, SVG mask/clip-path or pattern reference) may reach an element whose

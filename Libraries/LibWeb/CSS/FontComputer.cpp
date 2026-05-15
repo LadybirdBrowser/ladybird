@@ -720,14 +720,18 @@ void FontComputer::clear_computed_font_cache(FlyString const& family_name)
         }
 
         // Check pseudo-elements, which may use a different font-family than the element itself.
-        for (size_t i = 0; i < to_underlying(PseudoElement::KnownPseudoElementCount); ++i) {
-            if (auto style = element.computed_properties(static_cast<PseudoElement>(i))) {
-                if (style_value_references_font_family(style->property(PropertyID::FontFamily), family_name))
-                    return true;
+        bool synthetic_pseudo_element_uses_font_family = false;
+        element.for_each_synthetic_pseudo_element([&](Web::CSS::PseudoElement, Web::DOM::PseudoElement const& pseudo_element) {
+            if (auto style = pseudo_element.computed_properties()) {
+                if (style_value_references_font_family(style->property(PropertyID::FontFamily), family_name)) {
+                    synthetic_pseudo_element_uses_font_family = true;
+                    return IterationDecision::Break;
+                }
             }
-        }
+            return IterationDecision::Continue;
+        });
 
-        return false;
+        return synthetic_pseudo_element_uses_font_family;
     };
 
     if (document().needs_full_style_update())

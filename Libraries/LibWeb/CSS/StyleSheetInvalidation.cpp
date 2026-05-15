@@ -671,13 +671,16 @@ static bool element_or_pseudo_references_animation_name(DOM::Element const& elem
     if (auto computed_properties = element.computed_properties(); computed_properties && references_animation_name_in_properties(*computed_properties))
         return true;
 
-    for (u8 i = 0; i < to_underlying(CSS::PseudoElement::KnownPseudoElementCount); ++i) {
-        auto pseudo_element = static_cast<CSS::PseudoElement>(i);
-        if (auto computed_properties = element.computed_properties(pseudo_element); computed_properties && references_animation_name_in_properties(*computed_properties))
-            return true;
-    }
+    bool synthetic_pseudo_element_references_animation_name = false;
+    element.for_each_synthetic_pseudo_element([&](Web::CSS::PseudoElement, Web::DOM::PseudoElement const& pseudo_element) {
+        if (auto computed_properties = pseudo_element.computed_properties(); computed_properties && references_animation_name_in_properties(*computed_properties)) {
+            synthetic_pseudo_element_references_animation_name = true;
+            return IterationDecision::Break;
+        }
+        return IterationDecision::Continue;
+    });
 
-    return false;
+    return synthetic_pseudo_element_references_animation_name;
 }
 
 static void invalidate_elements_affected_by_inserted_keyframes_rule(DOM::Node& root, FlyString const& animation_name)
