@@ -206,7 +206,54 @@ public:
     GC::Ptr<CSS::ComputedProperties const> computed_properties(Optional<CSS::PseudoElement> = {}) const;
     void set_computed_properties(Optional<CSS::PseudoElement>, GC::Ptr<CSS::ComputedProperties>);
 
+    Optional<PseudoElement&> get_synthetic_pseudo_element(CSS::PseudoElement) const;
     Optional<PseudoElement&> get_pseudo_element(CSS::PseudoElement) const;
+
+    template<typename Callback>
+    void for_each_synthetic_pseudo_element(Callback const& callback)
+    {
+        if (!m_pseudo_element_data)
+            return;
+
+        for (auto i = to_underlying(CSS::first_synthetic_pseudo_element); i <= to_underlying(CSS::last_synthetic_pseudo_element); ++i) {
+            auto type = static_cast<CSS::PseudoElement>(i);
+            auto pseudo_element = m_pseudo_element_data->get(type);
+            if (!pseudo_element.has_value())
+                continue;
+
+            using ReturnType = InvokeResult<Callback, CSS::PseudoElement, PseudoElement&>;
+            if constexpr (IsSame<ReturnType, IterationDecision>) {
+                if (callback(type, pseudo_element.release_value()) == IterationDecision::Break)
+                    return;
+            } else {
+                static_assert(IsSame<ReturnType, void>);
+                callback(type, pseudo_element.release_value());
+            }
+        }
+    }
+
+    template<typename Callback>
+    void for_each_synthetic_pseudo_element(Callback const& callback) const
+    {
+        if (!m_pseudo_element_data)
+            return;
+
+        for (auto i = to_underlying(CSS::first_synthetic_pseudo_element); i <= to_underlying(CSS::last_synthetic_pseudo_element); ++i) {
+            auto type = static_cast<CSS::PseudoElement>(i);
+            auto pseudo_element = m_pseudo_element_data->get(type);
+            if (!pseudo_element.has_value())
+                continue;
+
+            using ReturnType = InvokeResult<Callback, CSS::PseudoElement, PseudoElement const&>;
+            if constexpr (IsSame<ReturnType, IterationDecision>) {
+                if (callback(type, pseudo_element.release_value()) == IterationDecision::Break)
+                    return;
+            } else {
+                static_assert(IsSame<ReturnType, void>);
+                callback(type, pseudo_element.release_value());
+            }
+        }
+    }
 
     GC::Ptr<CSS::CSSStyleProperties> inline_style() { return m_inline_style; }
     GC::Ptr<CSS::CSSStyleProperties const> inline_style() const { return m_inline_style; }
@@ -330,11 +377,11 @@ public:
             m_removed_attributes_for_style_invalidation.append(attribute_name);
     }
 
-    void set_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::PseudoElement, GC::Ptr<Layout::NodeWithStyle>);
+    void set_synthetic_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::PseudoElement, GC::Ptr<Layout::NodeWithStyle>);
     GC::Ptr<Layout::NodeWithStyle> get_pseudo_element_node(CSS::PseudoElement) const;
-    bool has_pseudo_elements() const;
-    void clear_pseudo_element_layout_nodes(Badge<Layout::TreeBuilder>) { clear_pseudo_element_layout_nodes(); }
-    void clear_pseudo_element_layout_nodes(Badge<Document>) { clear_pseudo_element_layout_nodes(); }
+    bool has_synthetic_pseudo_elements() const;
+    void clear_synthetic_pseudo_element_layout_nodes(Badge<Layout::TreeBuilder>) { clear_synthetic_pseudo_element_layout_nodes(); }
+    void clear_synthetic_pseudo_element_layout_nodes(Badge<Document>) { clear_synthetic_pseudo_element_layout_nodes(); }
 
     void serialize_children_as_json(JsonObjectSerializer<StringBuilder>&) const;
 
@@ -650,8 +697,8 @@ private:
 
     using PseudoElementData = HashMap<CSS::PseudoElement, GC::Ref<PseudoElement>>;
     mutable OwnPtr<PseudoElementData> m_pseudo_element_data;
-    PseudoElement& ensure_pseudo_element(CSS::PseudoElement) const;
-    void clear_pseudo_element_layout_nodes();
+    PseudoElement& ensure_synthetic_pseudo_element(CSS::PseudoElement) const;
+    void clear_synthetic_pseudo_element_layout_nodes();
 
     Optional<CSS::PseudoElement> m_use_pseudo_element;
 

@@ -377,12 +377,12 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
                     auto styles = doc->style_computer().compute_style({ *element });
                     dump_style(MUST(String::formatted("Element {}", node->debug_description())), styles, element->custom_property_data({}));
 
-                    for (auto pseudo_element_index = 0; pseudo_element_index < to_underlying(Web::CSS::PseudoElement::KnownPseudoElementCount); ++pseudo_element_index) {
-                        auto pseudo_element_type = static_cast<Web::CSS::PseudoElement>(pseudo_element_index);
-                        if (auto pseudo_element = element->get_pseudo_element(pseudo_element_type); pseudo_element.has_value() && pseudo_element->computed_properties()) {
-                            dump_style(MUST(String::formatted("PseudoElement {}::{}", node->debug_description(), Web::CSS::pseudo_element_name(pseudo_element_type))), *pseudo_element->computed_properties(), pseudo_element->custom_property_data());
-                        }
-                    }
+                    element->for_each_synthetic_pseudo_element([&](Web::CSS::PseudoElement pseudo_element_type, Web::DOM::PseudoElement const& pseudo_element) {
+                        if (!pseudo_element.computed_properties())
+                            return;
+
+                        dump_style(MUST(String::formatted("PseudoElement {}::{}", node->debug_description(), Web::CSS::pseudo_element_name(pseudo_element_type))), *pseudo_element.computed_properties(), pseudo_element.custom_property_data());
+                    });
                 }
             }
         }

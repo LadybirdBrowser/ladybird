@@ -168,28 +168,28 @@ RefPtr<CSS::StyleValue const> AbstractElement::get_custom_property(FlyString con
 bool AbstractElement::has_non_empty_counters_set() const
 {
     if (m_pseudo_element.has_value())
-        return m_element->get_pseudo_element(*m_pseudo_element)->has_non_empty_counters_set();
+        return m_element->get_synthetic_pseudo_element(*m_pseudo_element)->has_non_empty_counters_set();
     return m_element->has_non_empty_counters_set();
 }
 
 Optional<CSS::CountersSet const&> AbstractElement::counters_set() const
 {
     if (m_pseudo_element.has_value())
-        return m_element->get_pseudo_element(*m_pseudo_element)->counters_set();
+        return m_element->get_synthetic_pseudo_element(*m_pseudo_element)->counters_set();
     return m_element->counters_set();
 }
 
 CSS::CountersSet& AbstractElement::ensure_counters_set()
 {
     if (m_pseudo_element.has_value())
-        return m_element->get_pseudo_element(*m_pseudo_element)->ensure_counters_set();
+        return m_element->get_synthetic_pseudo_element(*m_pseudo_element)->ensure_counters_set();
     return m_element->ensure_counters_set();
 }
 
 void AbstractElement::set_counters_set(OwnPtr<CSS::CountersSet>&& counters_set)
 {
     if (m_pseudo_element.has_value()) {
-        m_element->get_pseudo_element(*m_pseudo_element)->set_counters_set(move(counters_set));
+        m_element->get_synthetic_pseudo_element(*m_pseudo_element)->set_counters_set(move(counters_set));
     } else {
         m_element->set_counters_set(move(counters_set));
     }
