@@ -86,8 +86,11 @@ void Request::set_request_fd(Badge<Requests::RequestClient>, int fd)
 void Request::set_request_body_file(Badge<Requests::RequestClient>, int fd, u64 offset, u64 size)
 {
     auto payload = map_body_file(fd, offset, size);
-    if (!payload.has_value())
+    if (!payload.has_value()) {
+        if (m_internal_stream_data)
+            m_body_delivery_error = NetworkError::CacheReadFailed;
         return;
+    }
 
     // If the request was stopped while this IPC was in-flight, just bail.
     if (!m_internal_stream_data)
@@ -180,8 +183,9 @@ void Request::set_unbuffered_request_callbacks(HeadersReceived on_headers_receiv
 
 void Request::did_finish(Badge<RequestClient>, u64 total_size, RequestTimingInfo const& timing_info, Optional<NetworkError> const& network_error)
 {
+    auto effective_network_error = m_body_delivery_error.has_value() ? m_body_delivery_error : network_error;
     if (on_finish)
-        on_finish(total_size, timing_info, network_error);
+        on_finish(total_size, timing_info, effective_network_error);
 }
 
 void Request::did_receive_headers(Badge<RequestClient>, NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::AnonymousBuffer> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key)

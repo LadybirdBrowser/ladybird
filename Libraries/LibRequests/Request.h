@@ -167,6 +167,7 @@ private:
 
     OwnPtr<InternalBufferedData> m_internal_buffered_data;
     OwnPtr<InternalStreamData> m_internal_stream_data;
+    Optional<NetworkError> m_body_delivery_error;
 };
 
 }
