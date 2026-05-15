@@ -78,6 +78,7 @@ CSSRotate
 CSSRule
 CSSRuleList
 CSSScale
+CSSScopeRule
 CSSSkew
 CSSSkewX
 CSSSkewY

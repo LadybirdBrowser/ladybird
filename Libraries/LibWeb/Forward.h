@@ -288,6 +288,7 @@ class CSSRotate;
 class CSSRule;
 class CSSRuleList;
 class CSSScale;
+class CSSScopeRule;
 class CSSSkew;
 class CSSSkewX;
 class CSSSkewY;

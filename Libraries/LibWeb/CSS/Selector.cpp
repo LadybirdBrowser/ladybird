@@ -904,7 +904,7 @@ size_t Selector::sibling_invalidation_distance() const
     return *m_sibling_invalidation_distance;
 }
 
-SelectorList adapt_nested_relative_selector_list(SelectorList const& selectors)
+SelectorList adapt_nested_relative_selector_list(SelectorList const& selectors, StyleNestingParent style_nesting_parent)
 {
     // "Nested style rules differ from non-nested rules in the following ways:
     // - A nested style rule accepts a <relative-selector-list> as its prelude (rather than just a <selector-list>).
@@ -914,24 +914,28 @@ SelectorList adapt_nested_relative_selector_list(SelectorList const& selectors)
     // https://drafts.csswg.org/css-nesting-1/#syntax
     // NOTE: We already parsed the selectors as a <relative-selector-list>
 
-    // Nested relative selectors get a `&` inserted at the beginning.
-    // This is, handily, how the spec wants them serialized:
-    // "When serializing a relative selector in a nested style rule, the selector must be absolutized,
-    // with the implied nesting selector inserted."
-    // - https://drafts.csswg.org/css-nesting-1/#cssom
-
-    CSS::SelectorList new_list;
+    SelectorList new_list;
     new_list.ensure_capacity(selectors.size());
     for (auto const& selector : selectors) {
         auto first_combinator = selector->compound_selectors().first().combinator;
-        if (!first_is_one_of(first_combinator, CSS::Selector::Combinator::None, CSS::Selector::Combinator::Descendant)
-            || !selector->contains_the_nesting_selector()) {
-            new_list.append(selector->relative_to(CSS::Selector::SimpleSelector { .type = CSS::Selector::SimpleSelector::Type::Nesting }));
-        } else if (first_combinator == CSS::Selector::Combinator::Descendant) {
+
+        // Nested relative selectors get a `&` inserted at the beginning.
+        // This is, handily, how the spec wants them serialized:
+        // "When serializing a relative selector in a nested style rule, the selector must be absolutized, with the
+        // implied nesting selector inserted."
+        // - https://drafts.csswg.org/css-nesting-1/#cssom
+        // However, if we are directly inside a @scope rule and contain `:scope`, then we do not insert the `&`.
+        bool insert_leading_ampersand = !first_is_one_of(first_combinator, Selector::Combinator::None, Selector::Combinator::Descendant);
+        if (!selector->contains_the_nesting_selector() && style_nesting_parent != StyleNestingParent::Scope)
+            insert_leading_ampersand = true;
+
+        if (insert_leading_ampersand) {
+            new_list.append(selector->relative_to(Selector::SimpleSelector { .type = Selector::SimpleSelector::Type::Nesting }));
+        } else if (first_combinator == Selector::Combinator::Descendant) {
             // Replace leading descendant combinator (whitespace) with none, because we're not actually relative.
             auto copied_compound_selectors = selector->compound_selectors();
-            copied_compound_selectors.first().combinator = CSS::Selector::Combinator::None;
-            new_list.append(CSS::Selector::create(move(copied_compound_selectors)));
+            copied_compound_selectors.first().combinator = Selector::Combinator::None;
+            new_list.append(Selector::create(move(copied_compound_selectors)));
         } else {
             new_list.append(selector);
         }

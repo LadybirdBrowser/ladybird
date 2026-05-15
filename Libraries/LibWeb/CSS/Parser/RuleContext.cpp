@@ -33,6 +33,8 @@ RuleContext rule_context_type_for_rule(CSSRule::Type rule_type)
         return RuleContext::Keyframe;
     case CSSRule::Type::Supports:
         return RuleContext::AtSupports;
+    case CSSRule::Type::Scope:
+        return RuleContext::AtScope;
     case CSSRule::Type::LayerBlock:
         return RuleContext::AtLayer;
     case CSSRule::Type::Margin:
@@ -73,6 +75,8 @@ RuleContext rule_context_type_for_at_rule(FlyString const& name)
         return RuleContext::FontFeatureValue;
     if (name.equals_ignoring_ascii_case("supports"sv))
         return RuleContext::AtSupports;
+    if (name.equals_ignoring_ascii_case("scope"sv))
+        return RuleContext::AtScope;
     if (name.equals_ignoring_ascii_case("layer"sv))
         return RuleContext::AtLayer;
     if (name.equals_ignoring_ascii_case("property"sv))

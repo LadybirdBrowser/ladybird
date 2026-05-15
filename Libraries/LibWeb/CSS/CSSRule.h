@@ -45,6 +45,7 @@ public:
         Function = 104,
         FunctionDeclarations = 105,
         Container = 106,
+        Scope = 107,
     };
 
     Type type() const { return m_type; }

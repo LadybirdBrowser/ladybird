@@ -30,6 +30,7 @@
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
 #include <LibWeb/CSS/CSSPageRule.h>
 #include <LibWeb/CSS/CSSPropertyRule.h>
+#include <LibWeb/CSS/CSSScopeRule.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSSupportsRule.h>
@@ -144,6 +145,9 @@ GC::Ptr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
             if (at_rule.name.equals_ignoring_ascii_case("property"sv))
                 return convert_to_property_rule(at_rule);
 
+            if (at_rule.name.equals_ignoring_ascii_case("scope"sv))
+                return convert_to_scope_rule<NestedDeclarationsRule>(at_rule, nested);
+
             if (at_rule.name.equals_ignoring_ascii_case("supports"sv))
                 return convert_to_supports_rule<NestedDeclarationsRule>(at_rule, nested);
 
@@ -156,8 +160,21 @@ GC::Ptr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
         });
 }
 
+static StyleNestingParent parent_rule_for_style_nesting(Vector<RuleContext> rule_context)
+{
+    for (auto& context : rule_context.in_reverse()) {
+        if (context == RuleContext::Style)
+            return StyleNestingParent::Style;
+        if (context == RuleContext::AtScope)
+            return StyleNestingParent::Scope;
+    }
+    return StyleNestingParent::None;
+}
+
 GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualified_rule, Nested nested)
 {
+    auto nesting_parent = parent_rule_for_style_nesting(m_rule_context);
+
     m_rule_context.append(RuleContext::Style);
     ScopeGuard guard = [&] {
         [[maybe_unused]] auto last = m_rule_context.take_last();
@@ -190,7 +207,7 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
 
     SelectorList selectors = maybe_selectors.release_value();
     if (nested == Nested::Yes)
-        selectors = adapt_nested_relative_selector_list(selectors);
+        selectors = adapt_nested_relative_selector_list(selectors, nesting_parent);
 
     auto declaration = convert_to_style_declaration(qualified_rule.declarations);
 
@@ -866,6 +883,124 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
     }
 
     return CSSPropertyRule::create(realm(), name, syntax_maybe.value(), inherits_maybe.value(), move(initial_value_maybe));
+}
+
+static bool selector_list_contains_pseudo_element(SelectorList const& selectors)
+{
+    for (auto const& selector : selectors) {
+        if (selector->target_pseudo_element().has_value())
+            return true;
+    }
+    return false;
+}
+
+// https://drafts.csswg.org/css-cascade-6/#scope-atrule
+template<typename NestedDeclarationsRule>
+GC::Ptr<CSSScopeRule> Parser::convert_to_scope_rule(AtRule const& rule, Nested nested)
+{
+    auto nesting_parent = parent_rule_for_style_nesting(m_rule_context);
+
+    m_rule_context.append(RuleContext::AtScope);
+    ScopeGuard guard = [&] {
+        [[maybe_unused]] auto last = m_rule_context.take_last();
+        VERIFY(last == RuleContext::AtScope);
+    };
+
+    TokenStream prelude_stream { rule.prelude };
+    if (!rule.is_block_rule) {
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@scope"_fly_string,
+            .prelude = prelude_stream.dump_string(),
+            .description = "Must be a block, not a statement."_string,
+        });
+        return nullptr;
+    }
+
+    Optional<SelectorList> start_selectors;
+    Optional<SelectorList> end_selectors;
+
+    prelude_stream.discard_whitespace();
+    if (prelude_stream.next_token().is_block() && prelude_stream.next_token().block().is_paren()) {
+        auto const& start_block = prelude_stream.consume_a_token().block();
+        TokenStream start_tokens { start_block.value };
+        auto maybe_start_selectors = parse_a_selector_list(start_tokens, nested == Nested::Yes ? SelectorType::Relative : SelectorType::Standalone);
+        start_tokens.discard_whitespace();
+        if (maybe_start_selectors.is_error() || maybe_start_selectors.value().is_empty() || start_tokens.has_next_token()) {
+            ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+                .rule_name = "@scope"_fly_string,
+                .prelude = prelude_stream.dump_string(),
+                .description = "Invalid scope start selector."_string,
+            });
+            return nullptr;
+        }
+        start_selectors = maybe_start_selectors.release_value();
+        if (nested == Nested::Yes)
+            start_selectors = adapt_nested_relative_selector_list(*start_selectors, nesting_parent);
+        if (selector_list_contains_pseudo_element(*start_selectors))
+            return nullptr;
+        prelude_stream.discard_whitespace();
+    }
+
+    if (prelude_stream.next_token().is_ident("to"sv)) {
+        prelude_stream.discard_a_token(); // to
+        prelude_stream.discard_whitespace();
+        if (!(prelude_stream.next_token().is_block() && prelude_stream.next_token().block().is_paren())) {
+            ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+                .rule_name = "@scope"_fly_string,
+                .prelude = prelude_stream.dump_string(),
+                .description = "Missing scope end selector."_string,
+            });
+            return nullptr;
+        }
+
+        auto const& end_block = prelude_stream.consume_a_token().block();
+        TokenStream end_tokens { end_block.value };
+        auto maybe_end_selectors = parse_a_selector_list(end_tokens, SelectorType::Relative);
+        end_tokens.discard_whitespace();
+        if (maybe_end_selectors.is_error() || maybe_end_selectors.value().is_empty() || end_tokens.has_next_token()) {
+            ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+                .rule_name = "@scope"_fly_string,
+                .prelude = prelude_stream.dump_string(),
+                .description = "Invalid scope end selector."_string,
+            });
+            return nullptr;
+        }
+        end_selectors = maybe_end_selectors.release_value();
+        if (selector_list_contains_pseudo_element(*end_selectors))
+            return nullptr;
+        prelude_stream.discard_whitespace();
+    }
+
+    if (prelude_stream.has_next_token()) {
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@scope"_fly_string,
+            .prelude = prelude_stream.dump_string(),
+            .description = "Trailing tokens after scope bounds."_string,
+        });
+        return nullptr;
+    }
+
+    GC::RootVector<GC::Ref<CSSRule>> child_rules;
+    for (auto const& child : rule.child_rules_and_lists_of_declarations) {
+        child.visit(
+            [&](Rule const& child_rule) {
+                child_rule.visit(
+                    [&](AtRule const& at_rule) {
+                        if (auto converted_rule = convert_to_rule<NestedDeclarationsRule>(at_rule, Nested::Yes))
+                            child_rules.append(*converted_rule);
+                    },
+                    [&](QualifiedRule const& qualified_rule) {
+                        if (auto converted_rule = convert_to_style_rule(qualified_rule, Nested::Yes))
+                            child_rules.append(*converted_rule);
+                    });
+            },
+            [&](Vector<Declaration> const& declarations) {
+                child_rules.append(NestedDeclarationsRule::create(realm(), *this, declarations));
+            });
+    }
+
+    auto rule_list = CSSRuleList::create(realm(), child_rules);
+    return CSSScopeRule::create(realm(), move(start_selectors), move(end_selectors), rule_list);
 }
 
 // https://drafts.csswg.org/css-conditional-5/#container-rule
@@ -1584,6 +1719,8 @@ template GC::Ptr<CSSRule> Parser::convert_to_rule<CSSFunctionDeclarations>(Rule 
 
 template GC::Ptr<CSSContainerRule> Parser::convert_to_container_rule<CSSNestedDeclarations>(AtRule const&, Nested);
 template GC::Ptr<CSSContainerRule> Parser::convert_to_container_rule<CSSFunctionDeclarations>(AtRule const&, Nested);
+template GC::Ptr<CSSScopeRule> Parser::convert_to_scope_rule<CSSNestedDeclarations>(AtRule const&, Nested);
+template GC::Ptr<CSSScopeRule> Parser::convert_to_scope_rule<CSSFunctionDeclarations>(AtRule const&, Nested);
 
 template GC::Ptr<CSSRule> Parser::convert_to_layer_rule<CSSNestedDeclarations>(AtRule const& rule, Nested);
 

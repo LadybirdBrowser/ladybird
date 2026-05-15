@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2023, the SerenityOS developers.
- * Copyright (c) 2021-2024, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2026, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2022, MacDue <macdue@dueutil.tech>
  * Copyright (c) 2025, Lorenz Ackermann <me@lorenzackermann.xyz>
@@ -12,7 +12,6 @@
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
-#include <LibWeb/CSS/CSSMediaRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Keyword.h>
@@ -106,7 +105,7 @@ Optional<CSS::SelectorList> parse_selector(CSS::Parser::ParsingParams const& con
     return CSS::Parser::Parser::create(context, selector_text).parse_as_selector();
 }
 
-Optional<CSS::SelectorList> parse_selector_for_nested_style_rule(CSS::Parser::ParsingParams const& context, StringView selector_text)
+Optional<CSS::SelectorList> parse_selector_for_nested_style_rule(CSS::Parser::ParsingParams const& context, StringView selector_text, CSS::StyleNestingParent parent_is_scope_rule)
 {
     auto parser = CSS::Parser::Parser::create(context, selector_text);
 
@@ -114,7 +113,7 @@ Optional<CSS::SelectorList> parse_selector_for_nested_style_rule(CSS::Parser::Pa
     if (!maybe_selectors.has_value())
         return {};
 
-    return adapt_nested_relative_selector_list(*maybe_selectors);
+    return adapt_nested_relative_selector_list(*maybe_selectors, parent_is_scope_rule);
 }
 
 Optional<CSS::PageSelectorList> parse_page_selector_list(CSS::Parser::ParsingParams const& params, StringView selector_text)

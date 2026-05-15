@@ -1693,6 +1693,10 @@ bool Parser::is_valid_in_the_current_context(Declaration const& declaration) con
         // Grouping rules can contain declarations if they are themselves inside a style or function rule
         return m_rule_context.contains([](auto const& context) { return context == RuleContext::Style || context == RuleContext::AtFunction; });
 
+    case RuleContext::AtScope:
+        // @scope can contain declarations directly, matching the scoping root with zero specificity.
+        return true;
+
     case RuleContext::FontFeatureValue:
         // Each feature value block accepts a list of declarations
         return true;
@@ -1730,7 +1734,7 @@ bool Parser::is_valid_in_the_current_context(AtRule const& at_rule) const
 
     // Only grouping rules can be nested within style rules
     if (m_rule_context.contains_slow(RuleContext::Style))
-        return first_is_one_of(at_rule.name, "container", "layer", "media", "supports");
+        return first_is_one_of(at_rule.name, "container", "layer", "media", "scope", "supports");
 
     if (m_rule_context.contains_slow(RuleContext::AtFunction)) {
         // https://drafts.csswg.org/css-mixins-1/#function-body
@@ -1750,6 +1754,7 @@ bool Parser::is_valid_in_the_current_context(AtRule const& at_rule) const
     case RuleContext::AtContainer:
     case RuleContext::AtLayer:
     case RuleContext::AtMedia:
+    case RuleContext::AtScope:
     case RuleContext::AtSupports:
         // Grouping rules can contain anything except @import or @namespace
         return !first_is_one_of(at_rule.name, "import", "namespace");
@@ -1801,6 +1806,7 @@ bool Parser::is_valid_in_the_current_context(QualifiedRule const&) const
     case RuleContext::AtContainer:
     case RuleContext::AtLayer:
     case RuleContext::AtMedia:
+    case RuleContext::AtScope:
     case RuleContext::AtSupports:
         // Grouping rules can contain style rules
         return true;

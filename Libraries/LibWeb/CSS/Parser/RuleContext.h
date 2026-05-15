@@ -24,6 +24,7 @@ enum class RuleContext : u8 {
     AtKeyframes,
     Keyframe,
     AtSupports,
+    AtScope,
     SupportsCondition,
     AtLayer,
     AtProperty,

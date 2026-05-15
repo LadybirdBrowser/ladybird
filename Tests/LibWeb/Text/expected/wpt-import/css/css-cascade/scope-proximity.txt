@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-5 Fail
-Fail	Alternating light/dark
-Fail	Proximity wins over order of appearance
-Fail	Specificity wins over proximity
-Fail	Identical root with further proximity is not ignored
-Fail	Most proximate match wins under multiple scoping roots
+5 Pass
+Pass	Alternating light/dark
+Pass	Proximity wins over order of appearance
+Pass	Specificity wins over proximity
+Pass	Identical root with further proximity is not ignored
+Pass	Most proximate match wins under multiple scoping roots

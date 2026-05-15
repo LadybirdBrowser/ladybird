@@ -144,6 +144,7 @@ set(SOURCES
     CSS/CSSRule.cpp
     CSS/CSSRuleList.cpp
     CSS/CSSScale.cpp
+    CSS/CSSScopeRule.cpp
     CSS/CSSSkew.cpp
     CSS/CSSSkewX.cpp
     CSS/CSSSkewY.cpp

@@ -14,6 +14,7 @@
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
 #include <LibWeb/CSS/CSSLayerStatementRule.h>
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
+#include <LibWeb/CSS/CSSScopeRule.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/CounterStyle.h>
@@ -77,6 +78,7 @@ void MatchingRule::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(rule);
     visitor.visit(sheet);
     visitor.visit(container_rule);
+    visitor.visit(scope_rule);
 }
 
 void RuleCache::visit_edges(GC::Cell::Visitor& visitor)
@@ -225,26 +227,29 @@ static GC::Ptr<CSSContainerRule const> current_container_rule(Vector<GC::Ptr<CSS
     return container_rule_stack.last();
 }
 
-using RuleCacheStyleRuleCallback = Function<void(CSSRule const&, GC::Ptr<CSSContainerRule const>)>;
+using RuleCacheStyleRuleCallback = Function<void(CSSRule const&, GC::Ptr<CSSContainerRule const>, GC::Ptr<CSSScopeRule const>)>;
 
 static void for_each_style_producing_rule_for_rule_cache(
     CSSRuleList const& rule_list,
     Vector<GC::Ptr<CSSContainerRule const>>& container_rule_stack,
+    GC::Ptr<CSSScopeRule const> scope_rule,
     RuleCacheStyleRuleCallback const& callback);
 
 static void for_each_style_producing_rule_for_rule_cache(
     CSSStyleSheet const& sheet,
     Vector<GC::Ptr<CSSContainerRule const>>& container_rule_stack,
+    GC::Ptr<CSSScopeRule const> scope_rule,
     RuleCacheStyleRuleCallback const& callback)
 {
     if (!sheet.media()->matches())
         return;
-    for_each_style_producing_rule_for_rule_cache(sheet.rules(), container_rule_stack, callback);
+    for_each_style_producing_rule_for_rule_cache(sheet.rules(), container_rule_stack, scope_rule, callback);
 }
 
 static void for_each_style_producing_rule_for_rule_cache(
     CSSRuleList const& rule_list,
     Vector<GC::Ptr<CSSContainerRule const>>& container_rule_stack,
+    GC::Ptr<CSSScopeRule const> scope_rule,
     RuleCacheStyleRuleCallback const& callback)
 {
     for (auto const& rule : rule_list) {
@@ -252,7 +257,7 @@ static void for_each_style_producing_rule_for_rule_cache(
         case CSSRule::Type::Import: {
             auto const& import_rule = as<CSSImportRule>(*rule);
             if (import_rule.loaded_style_sheet())
-                for_each_style_producing_rule_for_rule_cache(*import_rule.loaded_style_sheet(), container_rule_stack, callback);
+                for_each_style_producing_rule_for_rule_cache(*import_rule.loaded_style_sheet(), container_rule_stack, scope_rule, callback);
             break;
         }
 
@@ -260,29 +265,35 @@ static void for_each_style_producing_rule_for_rule_cache(
             auto const& container_rule = as<CSSContainerRule>(*rule);
             // @container conditions are element-dependent, so keep their style rules and evaluate the container later.
             container_rule_stack.append(&container_rule);
-            for_each_style_producing_rule_for_rule_cache(container_rule.css_rules(), container_rule_stack, callback);
+            for_each_style_producing_rule_for_rule_cache(container_rule.css_rules(), container_rule_stack, scope_rule, callback);
             container_rule_stack.take_last();
+            break;
+        }
+
+        case CSSRule::Type::Scope: {
+            auto const& nested_scope_rule = as<CSSScopeRule>(*rule);
+            for_each_style_producing_rule_for_rule_cache(nested_scope_rule.css_rules(), container_rule_stack, &nested_scope_rule, callback);
             break;
         }
 
         case CSSRule::Type::Media:
         case CSSRule::Type::Supports:
             if (as<CSSConditionRule>(*rule).condition_matches())
-                for_each_style_producing_rule_for_rule_cache(as<CSSGroupingRule>(*rule).css_rules(), container_rule_stack, callback);
+                for_each_style_producing_rule_for_rule_cache(as<CSSGroupingRule>(*rule).css_rules(), container_rule_stack, scope_rule, callback);
             break;
 
         case CSSRule::Type::LayerBlock:
         case CSSRule::Type::Page:
-            for_each_style_producing_rule_for_rule_cache(as<CSSGroupingRule>(*rule).css_rules(), container_rule_stack, callback);
+            for_each_style_producing_rule_for_rule_cache(as<CSSGroupingRule>(*rule).css_rules(), container_rule_stack, scope_rule, callback);
             break;
 
         case CSSRule::Type::Style:
-            callback(*rule, current_container_rule(container_rule_stack));
-            for_each_style_producing_rule_for_rule_cache(as<CSSGroupingRule>(*rule).css_rules(), container_rule_stack, callback);
+            callback(*rule, current_container_rule(container_rule_stack), scope_rule);
+            for_each_style_producing_rule_for_rule_cache(as<CSSGroupingRule>(*rule).css_rules(), container_rule_stack, scope_rule, callback);
             break;
 
         case CSSRule::Type::NestedDeclarations:
-            callback(*rule, current_container_rule(container_rule_stack));
+            callback(*rule, current_container_rule(container_rule_stack), scope_rule);
             break;
 
         case CSSRule::Type::CounterStyle:
@@ -341,11 +352,11 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
 
         size_t rule_index = 0;
         Vector<GC::Ptr<CSSContainerRule const>> container_rule_stack;
-        for_each_style_producing_rule_for_rule_cache(sheet, container_rule_stack, [&](auto const& rule, auto container_rule) {
+        for_each_style_producing_rule_for_rule_cache(sheet, container_rule_stack, nullptr, [&](auto const& rule, auto container_rule, auto scope_rule) {
             if (container_rule && container_rule->contains_size_feature())
                 style_cache.has_size_container_queries = true;
 
-            SelectorList const& absolutized_selectors = [&]() {
+            SelectorList const& absolutized_selectors = [&]() -> SelectorList const& {
                 if (rule.type() == CSSRule::Type::Style)
                     return static_cast<CSSStyleRule const&>(rule).absolutized_selectors();
                 if (rule.type() == CSSRule::Type::NestedDeclarations)
@@ -362,6 +373,7 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
                     .rule = &rule,
                     .sheet = sheet,
                     .container_rule = container_rule,
+                    .scope_rule = scope_rule,
                     .default_namespace = sheet.default_namespace(),
                     .selector = selector,
                     .style_sheet_index = style_sheet_index,
@@ -586,6 +598,7 @@ void StyleScope::build_qualified_layer_names_cache(StyleCache& style_cache)
             case CSSRule::Type::NestedDeclarations:
             case CSSRule::Type::Page:
             case CSSRule::Type::Property:
+            case CSSRule::Type::Scope:
             case CSSRule::Type::Supports:
                 break;
             }

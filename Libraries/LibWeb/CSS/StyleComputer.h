@@ -109,6 +109,8 @@ public:
     struct ScopedMatchingRule {
         MatchingRule const* rule { nullptr };
         GC::Ptr<DOM::ShadowRoot const> shadow_root;
+        GC::Ptr<DOM::Element const> scope_root;
+        size_t scope_proximity { NumericLimits<size_t>::max() };
     };
 
     [[nodiscard]] Vector<ScopedMatchingRule> collect_matching_rules(DOM::AbstractElement, CascadeOrigin, PseudoClassBitmap& attempted_pseudo_class_matches, Optional<FlyString const> qualified_layer_name = {}) const;

@@ -19,6 +19,7 @@
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
+#include <LibWeb/CSS/CSSScopeRule.h>
 #include <LibWeb/CSS/CSSSupportsRule.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/HTML/Window.h>
@@ -221,6 +222,7 @@ void CSSRuleList::for_each_effective_rule(TraversalOrder order, Function<void(We
         case CSSRule::Type::LayerBlock:
         case CSSRule::Type::Media:
         case CSSRule::Type::Page:
+        case CSSRule::Type::Scope:
         case CSSRule::Type::Style:
         case CSSRule::Type::Supports:
             static_cast<CSSGroupingRule const&>(*rule).for_each_effective_rule(order, callback);
@@ -285,6 +287,12 @@ bool CSSRuleList::evaluate_media_queries(DOM::Document const& document)
             if (!was_first_evaluation && did_match != now_matches)
                 any_media_queries_changed_match_state = true;
             if (now_matches && media_rule.css_rules().evaluate_media_queries(document))
+                any_media_queries_changed_match_state = true;
+            break;
+        }
+        case CSSRule::Type::Scope: {
+            auto& scope_rule = as<CSSScopeRule>(*rule);
+            if (scope_rule.css_rules().evaluate_media_queries(document))
                 any_media_queries_changed_match_state = true;
             break;
         }
