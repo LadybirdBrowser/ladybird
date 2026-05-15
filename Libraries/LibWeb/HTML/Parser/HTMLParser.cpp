@@ -3509,6 +3509,11 @@ void HTMLParser::resume_after_parser_blocking_script()
     VERIFY(script_nesting_level() == 0);
     increment_script_nesting_level();
 
+    // Step 8 unblocked the tokenizer above. Our async "spin the event loop" implementation uses the parser pause flag
+    // to yield while waiting for the pending script, so clear it before executing the script. This allows
+    // document.write() calls made by the script to synchronously re-enter the parser up to the insertion point.
+    m_parser_pause_flag = false;
+
     // 1. Let the script be the pending parsing-blocking script.
     // 2. Set the pending parsing-blocking script to null.
     // 11. Execute the script element the script.
@@ -3527,6 +3532,14 @@ void HTMLParser::resume_after_parser_blocking_script()
 
     // 13. Let the insertion point be undefined again.
     m_tokenizer.undefine_insertion_point();
+
+    // The spec's loop would handle the next pending parsing-blocking script before continuing normal tokenization.
+    // In this async implementation, pause again and resume when that next script is ready.
+    if (document().has_pending_parsing_blocking_script()) {
+        m_parser_pause_flag = true;
+        schedule_resume_check();
+        return;
+    }
 
     // The spec's "While the pending parsing-blocking script is not null" iteration is realized by run() pausing again
     // on the next </script> end tag if the executed script set up a new pending blocking script (e.g. via

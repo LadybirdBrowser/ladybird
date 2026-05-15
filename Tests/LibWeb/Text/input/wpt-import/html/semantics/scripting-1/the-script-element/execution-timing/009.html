@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html><head>
+  <title> scheduler: document.write external - multiple with doc.write</title>
+  <script src="../../../../../resources/testharness.js"></script>
+  <script src="../../../../../resources/testharnessreport.js"></script>
+  <script src="testlib/testlib.js"></script>
+</head>
+<body>
+
+  <div id="log">FAILED (This TC requires JavaScript enabled)</div>
+
+  <script>log('inline script #1');
+    document.write( '<script src="scripts/include-1.js">log(\'ignore this\')<\/script>' );
+    document.write( '<script src="scripts/include-3.js">log(\'ignore this\')<\/script>' );
+    document.write( '<script src="scripts/include-2.js">log(\'ignore this\')<\/script>' );
+    log('end script #1');
+  </script>
+
+  <script type="text/javascript">
+  var t = async_test()
+
+  function test() {
+    assert_array_equals(eventOrder, ['inline script #1', 'end script #1', 'external script #1', 'external script before doc write', 'document.write external script', 'external script after doc write', 'external script #2' ]);
+    t.done();
+  }
+  onload = t.step_func(test)
+  </script>
+
+</body></html>
