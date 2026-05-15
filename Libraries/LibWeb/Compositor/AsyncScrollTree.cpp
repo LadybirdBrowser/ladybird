@@ -221,17 +221,19 @@ void AsyncScrollTree::update_sticky_offsets(Painting::ScrollStateSnapshot& scrol
     }
 }
 
-static void set_or_append_scroll_offset(Vector<AsyncScrollOffset>& scroll_offsets, AsyncScrollNode const& node, Gfx::FloatPoint scroll_offset)
+static void set_or_append_scroll_offset(Vector<AsyncScrollOffset>& scroll_offsets, AsyncScrollNode const& node, Gfx::FloatPoint compositor_scroll_offset, Gfx::FloatPoint unadopted_scroll_delta)
 {
     for (auto& existing : scroll_offsets) {
         if (existing.stable_node_id == node.stable_node_id) {
-            existing.scroll_offset = scroll_offset;
+            existing.compositor_scroll_offset = compositor_scroll_offset;
+            existing.unadopted_scroll_delta.translate_by(unadopted_scroll_delta);
             return;
         }
     }
     scroll_offsets.append({
         .stable_node_id = node.stable_node_id,
-        .scroll_offset = scroll_offset,
+        .compositor_scroll_offset = compositor_scroll_offset,
+        .unadopted_scroll_delta = unadopted_scroll_delta,
     });
 }
 
@@ -249,7 +251,11 @@ Vector<AsyncScrollOffset> AsyncScrollTree::apply_scroll_delta(AsyncScrollNodeID 
         auto delta_before_scroll = remaining_delta;
         remaining_delta = apply_scroll_delta_to_node(*node, remaining_delta, scroll_state_snapshot);
         if (remaining_delta != delta_before_scroll) {
-            set_or_append_scroll_offset(scroll_offsets, *node, scroll_offset_for_node(*node, scroll_state_snapshot));
+            Gfx::FloatPoint consumed_delta {
+                delta_before_scroll.x() - remaining_delta.x(),
+                delta_before_scroll.y() - remaining_delta.y(),
+            };
+            set_or_append_scroll_offset(scroll_offsets, *node, scroll_offset_for_node(*node, scroll_state_snapshot), consumed_delta);
             break;
         }
 

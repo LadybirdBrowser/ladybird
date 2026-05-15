@@ -132,7 +132,8 @@ static void set_or_append_pending_scroll_offset(Vector<AsyncScrollOffset>& pendi
 {
     for (auto& existing : pending_scroll_offsets) {
         if (existing.stable_node_id == scroll_offset.stable_node_id) {
-            existing.scroll_offset = scroll_offset.scroll_offset;
+            existing.compositor_scroll_offset = scroll_offset.compositor_scroll_offset;
+            existing.unadopted_scroll_delta.translate_by(scroll_offset.unadopted_scroll_delta);
             return;
         }
     }
@@ -903,7 +904,10 @@ private:
             auto node_id = m_async_scroll_tree.scroll_node_id_for_stable_id(pending_scroll_offset.stable_node_id);
             if (!node_id.has_value())
                 continue;
-            auto reconciled_scroll_offset = m_async_scroll_tree.set_scroll_offset(*node_id, pending_scroll_offset.scroll_offset, m_cached_scroll_state_snapshot);
+            auto current_scroll_offset = m_async_scroll_tree.scroll_offset_for_node(*node_id, m_cached_scroll_state_snapshot);
+            if (!current_scroll_offset.has_value())
+                continue;
+            auto reconciled_scroll_offset = m_async_scroll_tree.set_scroll_offset(*node_id, current_scroll_offset->translated(pending_scroll_offset.unadopted_scroll_delta), m_cached_scroll_state_snapshot);
             if (reconciled_scroll_offset.has_value() && m_async_scroll_tree.scroll_node_is_viewport(*node_id))
                 viewport_scroll_offset = *reconciled_scroll_offset;
         }
@@ -914,7 +918,7 @@ private:
     {
         for (auto const& scroll_offset : scroll_offsets) {
             if (scroll_offset.stable_node_id.kind == AsyncScrollNodeKind::Viewport)
-                return scroll_offset.scroll_offset;
+                return scroll_offset.compositor_scroll_offset;
         }
         return {};
     }

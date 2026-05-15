@@ -2937,7 +2937,7 @@ static DOM::Element* element_for_async_scroll_node_stable_id(DOM::Document& docu
     return element;
 }
 
-static bool adopt_async_element_scroll_offset(DOM::Document& document, Compositor::AsyncScrollNodeStableID const& stable_id, CSSPixelPoint scroll_offset)
+static bool adopt_async_element_scroll_delta(DOM::Document& document, Compositor::AsyncScrollNodeStableID const& stable_id, CSSPixelPoint scroll_delta)
 {
     auto* element = element_for_async_scroll_node_stable_id(document, stable_id);
     if (!element)
@@ -2958,6 +2958,8 @@ static bool adopt_async_element_scroll_offset(DOM::Document& document, Composito
         break;
     }
 
+    auto scroll_offset = element->scroll_offset(pseudo_element);
+    scroll_offset.translate_by(scroll_delta);
     if (element->scroll_offset(pseudo_element) == scroll_offset)
         return false;
 
@@ -3012,6 +3014,16 @@ void Navigable::resolve_all_pending_async_scroll_operations()
     }
 }
 
+static bool adopt_async_viewport_scroll_delta(Navigable& navigable, CSSPixelPoint scroll_delta)
+{
+    auto scroll_offset = navigable.viewport_scroll_offset();
+    scroll_offset.translate_by(scroll_delta);
+    if (scroll_offset == navigable.viewport_scroll_offset())
+        return false;
+    navigable.perform_scroll_of_viewport_scrolling_box(scroll_offset);
+    return true;
+}
+
 void Navigable::adopt_pending_async_scroll_offsets()
 {
     if (!page().async_scrolling_enabled())
@@ -3037,19 +3049,20 @@ void Navigable::adopt_pending_async_scroll_offsets()
 
     auto device_pixels_per_css_pixel = page().client().device_pixels_per_css_pixel();
     for (auto const& async_scroll_offset : async_scroll_updates.scroll_offsets) {
-        auto css_scroll_offset = async_scroll_offset_to_css_pixels(async_scroll_offset.scroll_offset, device_pixels_per_css_pixel);
+        auto css_scroll_delta = async_scroll_offset_to_css_pixels(async_scroll_offset.unadopted_scroll_delta, device_pixels_per_css_pixel);
         if (async_scroll_offset.stable_node_id.kind == Compositor::AsyncScrollNodeKind::Viewport) {
             if (async_scroll_offset.stable_node_id.node_id != document->unique_id())
                 continue;
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread adopting async viewport offset {},{}",
-                async_scroll_offset.scroll_offset.x(), async_scroll_offset.scroll_offset.y());
-            perform_scroll_of_viewport_scrolling_box(css_scroll_offset);
+            if (adopt_async_viewport_scroll_delta(*this, css_scroll_delta)) {
+                dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread adopting async viewport delta {},{}",
+                    async_scroll_offset.unadopted_scroll_delta.x(), async_scroll_offset.unadopted_scroll_delta.y());
+            }
             continue;
         }
 
-        if (adopt_async_element_scroll_offset(*document, async_scroll_offset.stable_node_id, css_scroll_offset)) {
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread adopting async element offset {},{}",
-                async_scroll_offset.scroll_offset.x(), async_scroll_offset.scroll_offset.y());
+        if (adopt_async_element_scroll_delta(*document, async_scroll_offset.stable_node_id, css_scroll_delta)) {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread adopting async element delta {},{}",
+                async_scroll_offset.unadopted_scroll_delta.x(), async_scroll_offset.unadopted_scroll_delta.y());
         }
     }
 

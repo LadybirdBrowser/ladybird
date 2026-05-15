@@ -47,7 +47,8 @@ struct AsyncScrollNodeStableID {
 
 struct AsyncScrollOffset {
     AsyncScrollNodeStableID stable_node_id;
-    Gfx::FloatPoint scroll_offset;
+    Gfx::FloatPoint compositor_scroll_offset;
+    Gfx::FloatPoint unadopted_scroll_delta;
 };
 
 // One scrollable area from the paint snapshot. Non-viewport scrollports are stored in hit_test_visual_context_index
