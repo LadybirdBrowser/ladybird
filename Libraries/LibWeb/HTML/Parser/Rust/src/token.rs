@@ -66,6 +66,7 @@ pub enum TokenPayload {
         tag_name: String,
         tag_name_id: u16,
         self_closing: bool,
+        had_duplicate_attribute: bool,
         attributes: Vec<Attribute>,
     },
     Comment(String),
@@ -177,10 +178,45 @@ impl Token {
     }
 
     #[inline(always)]
+    pub fn had_duplicate_attribute(&self) -> bool {
+        match &self.payload {
+            TokenPayload::Tag {
+                had_duplicate_attribute,
+                ..
+            } => *had_duplicate_attribute,
+            _ => false,
+        }
+    }
+
+    #[inline(always)]
     pub fn attributes_mut(&mut self) -> &mut Vec<Attribute> {
         match &mut self.payload {
             TokenPayload::Tag { attributes, .. } => attributes,
             _ => panic!("attributes_mut called on non-tag token"),
+        }
+    }
+
+    pub fn normalize_attributes(&mut self) {
+        let TokenPayload::Tag {
+            attributes,
+            had_duplicate_attribute,
+            ..
+        } = &mut self.payload
+        else {
+            return;
+        };
+
+        let mut i = 0;
+        while i < attributes.len() {
+            let is_duplicate = (0..i).any(|seen_index| {
+                attribute_local_name_bytes(&attributes[seen_index]) == attribute_local_name_bytes(&attributes[i])
+            });
+            if is_duplicate {
+                *had_duplicate_attribute = true;
+                attributes.remove(i);
+            } else {
+                i += 1;
+            }
         }
     }
 
@@ -198,5 +234,13 @@ impl Token {
             TokenPayload::Doctype(dd) => dd,
             _ => panic!("doctype_data_mut called on non-doctype token"),
         }
+    }
+}
+
+fn attribute_local_name_bytes(attribute: &Attribute) -> &[u8] {
+    if attribute.local_name_id != 0 {
+        crate::interned_names::attr_name_by_id(attribute.local_name_id).unwrap_or_default()
+    } else {
+        attribute.local_name.as_bytes()
     }
 }

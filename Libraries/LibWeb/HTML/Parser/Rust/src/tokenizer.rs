@@ -634,6 +634,7 @@ impl HtmlTokenizer {
                 tag_name: String::new(),
                 tag_name_id: 0,
                 self_closing: false,
+                had_duplicate_attribute: false,
                 attributes: Vec::new(),
             },
             TokenType::Comment => TokenPayload::Comment(String::new()),
@@ -674,6 +675,11 @@ impl HtmlTokenizer {
         // token_idx: 0 = current_token, 1+ = queued_tokens index
         // For simplicity, we handle position setting here.
         if token_idx == 0 {
+            if self.current_token.token_type == TokenType::StartTag
+                || self.current_token.token_type == TokenType::EndTag
+            {
+                self.current_token.normalize_attributes();
+            }
             if self.current_token.token_type == TokenType::StartTag {
                 self.last_emitted_start_tag_name = Some(self.current_token.tag_name().to_string());
             }

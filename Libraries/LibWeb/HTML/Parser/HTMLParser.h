@@ -19,6 +19,8 @@
 
 namespace Web::HTML {
 
+class HTMLScriptElement;
+
 enum class HTMLParserBackend : u8 {
     Cpp,
     Rust,
@@ -97,6 +99,10 @@ public:
     static bool is_special_tag(FlyString const& tag_name, Optional<FlyString> const& namespace_);
 
     HTMLTokenizer& tokenizer() { return m_tokenizer; }
+
+    void configure_element_created_by_rust_parser(DOM::Element&);
+    GC::Ref<DOM::Element> create_element_for_rust_parser(HTMLToken const&, Optional<FlyString> const& namespace_, DOM::Node& intended_parent, bool had_duplicate_attribute, GC::Ptr<HTMLFormElement>, bool has_template_element_on_stack);
+    bool process_script_end_tag_from_rust_parser(HTMLScriptElement&);
 
     // https://html.spec.whatwg.org/multipage/parsing.html#abort-a-parser
     void abort();

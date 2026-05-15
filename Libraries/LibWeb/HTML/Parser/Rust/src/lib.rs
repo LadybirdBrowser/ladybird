@@ -304,6 +304,7 @@ fn next_token_slow(
             tag_name,
             tag_name_id,
             self_closing,
+            had_duplicate_attribute: _,
             attributes,
         } => {
             out.self_closing = self_closing;
