@@ -273,6 +273,88 @@ TEST_CASE(redundant_chunk_within_existing_chunk_at_nonzero_offset)
         EXPECT_EQ(buffer[i], static_cast<u8>(100 + i));
 }
 
+TEST_CASE(remove_byte_range_splits_chunk)
+{
+    auto data = make_test_data(100);
+    auto stream = Media::IncrementallyPopulatedStream::create_from_data(data.bytes());
+
+    stream->remove_byte_range(30, 70);
+
+    auto ranges = stream->available_byte_ranges();
+    EXPECT_EQ(ranges.size(), 2u);
+    EXPECT_EQ(ranges[0].start, 0u);
+    EXPECT_EQ(ranges[0].end, 30u);
+    EXPECT_EQ(ranges[1].start, 70u);
+    EXPECT_EQ(ranges[1].end, 100u);
+
+    auto cursor = stream->create_cursor();
+    Array<u8, 30> buffer;
+    auto bytes_read = MUST(cursor->read_into(buffer));
+    EXPECT_EQ(bytes_read, 30u);
+    for (size_t i = 0; i < 30; i++)
+        EXPECT_EQ(buffer[i], static_cast<u8>(i));
+
+    MUST(cursor->seek(70, SeekMode::SetPosition));
+    bytes_read = MUST(cursor->read_into(buffer));
+    EXPECT_EQ(bytes_read, 30u);
+    for (size_t i = 0; i < 30; i++)
+        EXPECT_EQ(buffer[i], static_cast<u8>(70 + i));
+}
+
+TEST_CASE(remove_byte_range_trims_chunk)
+{
+    auto data = make_test_data(100);
+    auto stream = Media::IncrementallyPopulatedStream::create_from_data(data.bytes());
+
+    stream->remove_byte_range(0, 20);
+    stream->remove_byte_range(80, 100);
+
+    auto ranges = stream->available_byte_ranges();
+    EXPECT_EQ(ranges.size(), 1u);
+    EXPECT_EQ(ranges[0].start, 20u);
+    EXPECT_EQ(ranges[0].end, 80u);
+
+    auto cursor = stream->create_cursor();
+    MUST(cursor->seek(20, SeekMode::SetPosition));
+
+    Array<u8, 60> buffer;
+    auto bytes_read = MUST(cursor->read_into(buffer));
+    EXPECT_EQ(bytes_read, 60u);
+    for (size_t i = 0; i < 60; i++)
+        EXPECT_EQ(buffer[i], static_cast<u8>(20 + i));
+}
+
+TEST_CASE(remove_byte_range_across_disjoint_chunks)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    auto data = make_test_data(100);
+
+    stream->add_chunk_at(0, data.bytes().trim(20));
+    stream->add_chunk_at(40, data.bytes().slice(40, 20));
+    stream->add_chunk_at(80, data.bytes().slice(80));
+    stream->remove_byte_range(10, 90);
+
+    auto ranges = stream->available_byte_ranges();
+    EXPECT_EQ(ranges.size(), 2u);
+    EXPECT_EQ(ranges[0].start, 0u);
+    EXPECT_EQ(ranges[0].end, 10u);
+    EXPECT_EQ(ranges[1].start, 90u);
+    EXPECT_EQ(ranges[1].end, 100u);
+
+    auto cursor = stream->create_cursor();
+    Array<u8, 10> buffer;
+    auto bytes_read = MUST(cursor->read_into(buffer));
+    EXPECT_EQ(bytes_read, 10u);
+    for (size_t i = 0; i < 10; i++)
+        EXPECT_EQ(buffer[i], static_cast<u8>(i));
+
+    MUST(cursor->seek(90, SeekMode::SetPosition));
+    bytes_read = MUST(cursor->read_into(buffer));
+    EXPECT_EQ(bytes_read, 10u);
+    for (size_t i = 0; i < 10; i++)
+        EXPECT_EQ(buffer[i], static_cast<u8>(90 + i));
+}
+
 TEST_CASE(add_touching_chunks_forward)
 {
     auto stream = Media::IncrementallyPopulatedStream::create_empty();
