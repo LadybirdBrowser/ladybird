@@ -941,6 +941,29 @@ SelectorList adapt_nested_relative_selector_list(SelectorList const& selectors)
 
 SelectorList absolutize_selectors_relative_to(SelectorList const& selectors, GC::Ptr<CSSRule const> parent)
 {
+    // NB: We use `:where(:scope)` to avoid adding specificity.
+    static Selector::SimpleSelector const s_where_scope_selector {
+        .type = Selector::SimpleSelector::Type::PseudoClass,
+        .value = Selector::SimpleSelector::PseudoClassSelector {
+            .type = PseudoClass::Where,
+            .argument_selector_list = {
+                Selector::create({
+                    Selector::CompoundSelector {
+                        .combinator = Selector::Combinator::None,
+                        .simple_selectors = {
+                            Selector::SimpleSelector {
+                                .type = Selector::SimpleSelector::Type::PseudoClass,
+                                .value = Selector::SimpleSelector::PseudoClassSelector {
+                                    .type = PseudoClass::Scope,
+                                },
+                            },
+                        },
+                    },
+                }),
+            },
+        },
+    };
+
     // Replace all occurrences of `&` with the nearest ancestor style rule's selector list wrapped in `:is(...)`,
     // or if we have no such ancestor, with `:scope`.
 
@@ -963,26 +986,27 @@ SelectorList absolutize_selectors_relative_to(SelectorList const& selectors, GC:
     // parent rule. When used in any other context, it represents the same elements as :scope in that context (unless
     // otherwise defined)."
     // https://drafts.csswg.org/css-nesting-1/#nest-selector
-    if (auto const* parent_style_rule = as_if<CSSStyleRule const>(parent.ptr())) {
-        // TODO: If there's only 1, we don't have to use `:is()` for it
-        Selector::SimpleSelector parent_selector = {
-            .type = Selector::SimpleSelector::Type::PseudoClass,
-            .value = Selector::SimpleSelector::PseudoClassSelector {
-                .type = PseudoClass::Is,
-                .argument_selector_list = parent_style_rule->absolutized_selectors(),
-            },
-        };
-        SelectorList absolutized_selectors;
-        for (auto const& selector : selectors) {
-            if (auto absolutized = selector->absolutized(parent_selector))
-                absolutized_selectors.append(absolutized.release_nonnull());
+    auto parent_selector = [&] -> Selector::SimpleSelector {
+        if (auto const* parent_style_rule = as_if<CSSStyleRule const>(parent.ptr())) {
+            // TODO: If there's only 1, we don't have to use `:is()` for it
+            return Selector::SimpleSelector {
+                .type = Selector::SimpleSelector::Type::PseudoClass,
+                .value = Selector::SimpleSelector::PseudoClassSelector {
+                    .type = PseudoClass::Is,
+                    .argument_selector_list = parent_style_rule->absolutized_selectors(),
+                },
+            };
         }
-        return absolutized_selectors;
-    }
 
-    // NOTE: We can't actually replace & with :scope, because & has to have 0 specificity.
-    //       So we leave it, and treat & like :scope during matching.
-    return selectors;
+        return s_where_scope_selector;
+    }();
+
+    SelectorList absolutized_selectors;
+    for (auto const& selector : selectors) {
+        if (auto absolutized = selector->absolutized(parent_selector))
+            absolutized_selectors.append(absolutized.release_nonnull());
+    }
+    return absolutized_selectors;
 }
 
 // https://drafts.csswg.org/css-syntax-3/#anb-microsyntax
