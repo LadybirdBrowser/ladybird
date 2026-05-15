@@ -193,8 +193,8 @@ public:
     CSS::RequiredInvalidationAfterStyleChange recompute_style(bool& did_change_custom_properties);
     CSS::RequiredInvalidationAfterStyleChange recompute_inherited_style();
 
-    Optional<CSS::PseudoElement> use_pseudo_element() const { return m_use_pseudo_element; }
-    void set_use_pseudo_element(Optional<CSS::PseudoElement> use_pseudo_element) { m_use_pseudo_element = move(use_pseudo_element); }
+    Optional<CSS::PseudoElement> associated_shadow_host_pseudo_element() const { return m_associated_shadow_host_pseudo_element; }
+    void set_associated_shadow_host_pseudo_element(Optional<CSS::PseudoElement> pseudo_element) { m_associated_shadow_host_pseudo_element = move(pseudo_element); }
 
     GC::Ptr<Layout::NodeWithStyle> layout_node();
     GC::Ptr<Layout::NodeWithStyle const> layout_node() const;
@@ -700,7 +700,7 @@ private:
     SyntheticPseudoElement& ensure_synthetic_pseudo_element(CSS::PseudoElement) const;
     void clear_synthetic_pseudo_element_layout_nodes();
 
-    Optional<CSS::PseudoElement> m_use_pseudo_element;
+    Optional<CSS::PseudoElement> m_associated_shadow_host_pseudo_element;
 
     Vector<FlyString> m_classes;
     Vector<FlyString> m_parts;

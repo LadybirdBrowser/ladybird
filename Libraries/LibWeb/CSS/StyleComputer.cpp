@@ -1817,13 +1817,13 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
 
     // Special path for elements that represent a pseudo-element in some element's internal shadow tree.
     // FirstLetter is excluded so that ::first-letter rules can match against such elements normally.
-    if (abstract_element.element().use_pseudo_element().has_value() && abstract_element.pseudo_element() != CSS::PseudoElement::FirstLetter) {
+    if (abstract_element.element().associated_shadow_host_pseudo_element().has_value() && abstract_element.pseudo_element() != CSS::PseudoElement::FirstLetter) {
         auto& element = abstract_element.element();
         auto& host_element = *element.root().parent_or_shadow_host_element();
 
         // We have to decide where to inherit from. If the pseudo-element has a parent element,
         // we inherit from that. Otherwise, we inherit from the host element in the light DOM.
-        DOM::AbstractElement abstract_element_for_pseudo_element { host_element, element.use_pseudo_element() };
+        DOM::AbstractElement abstract_element_for_pseudo_element { host_element, element.associated_shadow_host_pseudo_element() };
         if (auto parent_element = element.parent_element())
             abstract_element_for_pseudo_element.set_inheritance_override(*parent_element);
         else

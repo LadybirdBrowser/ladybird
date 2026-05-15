@@ -107,10 +107,10 @@ void dump_tree(StringBuilder& builder, DOM::Node const& node)
             builder.appendff(" {}={}", name, value);
         });
         builder.append(">\n"sv);
-        if (element->use_pseudo_element().has_value()) {
+        if (element->associated_shadow_host_pseudo_element().has_value()) {
             for (int i = 0; i < indent; ++i)
                 builder.append("  "sv);
-            builder.appendff("  (pseudo-element: {})\n", CSS::pseudo_element_name(element->use_pseudo_element().value()));
+            builder.appendff("  (pseudo-element: {})\n", CSS::pseudo_element_name(element->associated_shadow_host_pseudo_element().value()));
         }
     } else if (auto const* text = as_if<DOM::Text>(node)) {
         builder.appendff("\"{}\"\n", text->data());
