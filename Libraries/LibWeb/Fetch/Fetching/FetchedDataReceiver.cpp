@@ -7,8 +7,6 @@
 
 #include <LibGC/Function.h>
 #include <LibHTTP/Cache/MemoryCache.h>
-#include <LibJS/Runtime/ArrayBuffer.h>
-#include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Fetch/Fetching/FetchedDataReceiver.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
@@ -123,12 +121,10 @@ void FetchedDataReceiver::enqueue_into_stream(ReadonlyBytes bytes)
 
     // 1. Pull from bytes buffer into stream.
     auto byte_buffer = MUST(ByteBuffer::copy(bytes));
-    auto array_buffer = JS::ArrayBuffer::create(realm, move(byte_buffer));
-    auto view = JS::Uint8Array::create(realm, array_buffer->byte_length(), *array_buffer);
 
     auto& controller = m_stream->controller()->get<GC::Ref<Streams::ReadableByteStreamController>>();
 
-    if (auto result = Streams::readable_byte_stream_controller_enqueue(*controller, view); result.is_error()) {
+    if (auto result = Streams::readable_byte_stream_controller_enqueue_native_bytes(*controller, move(byte_buffer)); result.is_error()) {
         auto throw_completion = Bindings::exception_to_throw_completion(realm.vm(), result.release_error());
         // 2. If stream is errored, then terminate fetchParams’s controller.
         Streams::readable_byte_stream_controller_error(*controller, throw_completion.value());
