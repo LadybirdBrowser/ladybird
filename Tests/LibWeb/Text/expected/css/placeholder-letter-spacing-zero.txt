@@ -1,0 +1,1 @@
+input placeholder 'letter-spacing: 0': normal

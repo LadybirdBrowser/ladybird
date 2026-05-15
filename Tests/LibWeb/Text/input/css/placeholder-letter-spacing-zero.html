@@ -1,0 +1,13 @@
+<!doctype html>
+<style>
+    input::placeholder {
+        letter-spacing: 0;
+    }
+</style>
+<input id="input" placeholder="placeholder" />
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`input placeholder 'letter-spacing: 0': ${getComputedStyle(input, "::placeholder").letterSpacing}`);
+    });
+</script>

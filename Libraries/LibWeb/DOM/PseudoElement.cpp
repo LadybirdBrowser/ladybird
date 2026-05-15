@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/PseudoElement.h>
 #include <LibWeb/Layout/Node.h>
 
@@ -13,6 +14,7 @@ namespace Web::DOM {
 GC_DEFINE_ALLOCATOR(PseudoElement);
 GC_DEFINE_ALLOCATOR(SyntheticPseudoElement);
 GC_DEFINE_ALLOCATOR(SyntheticPseudoElementTreeNode);
+GC_DEFINE_ALLOCATOR(ElementReferencePseudoElement);
 
 void SyntheticPseudoElement::visit_edges(JS::Cell::Visitor& visitor)
 {
@@ -41,6 +43,31 @@ CSS::CountersSet& SyntheticPseudoElement::ensure_counters_set()
 void SyntheticPseudoElement::set_counters_set(OwnPtr<CSS::CountersSet>&& counters_set)
 {
     m_counters_set = move(counters_set);
+}
+
+GC::Ptr<Layout::NodeWithStyle> ElementReferencePseudoElement::layout_node() const
+{
+    return m_referenced_element->layout_node();
+}
+
+GC::Ptr<Layout::NodeWithStyle> ElementReferencePseudoElement::unsafe_layout_node() const
+{
+    return m_referenced_element->unsafe_layout_node();
+}
+
+GC::Ptr<CSS::ComputedProperties> ElementReferencePseudoElement::computed_properties() const
+{
+    return m_referenced_element->computed_properties({});
+}
+
+RefPtr<CSS::CustomPropertyData const> ElementReferencePseudoElement::custom_property_data() const
+{
+    return m_referenced_element->custom_property_data({});
+}
+
+void ElementReferencePseudoElement::set_custom_property_data(RefPtr<CSS::CustomPropertyData const> value)
+{
+    m_referenced_element->set_custom_property_data({}, move(value));
 }
 
 }

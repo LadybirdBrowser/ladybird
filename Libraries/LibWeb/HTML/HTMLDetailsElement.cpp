@@ -242,8 +242,8 @@ WebIDL::ExceptionOr<void> HTMLDetailsElement::create_shadow_tree_if_needed()
 
     // The second child element is a slot that is expected to take the details element's remaining descendants, if any.
     auto descendants_slot = TRY(DOM::create_element(document(), HTML::TagNames::slot, Namespace::HTML));
-    descendants_slot->set_associated_shadow_host_pseudo_element(CSS::PseudoElement::DetailsContent);
     MUST(shadow_root->append_child(descendants_slot));
+    descendants_slot->set_associated_shadow_host_pseudo_element(CSS::PseudoElement::DetailsContent);
 
     // The third child element is either a link or style element with the following styles for the default summary:
     auto style = TRY(DOM::create_element(document(), HTML::TagNames::style, Namespace::HTML));

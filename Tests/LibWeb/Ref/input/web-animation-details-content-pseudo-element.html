@@ -1,0 +1,31 @@
+<!doctype html>
+<html class="reftest-wait">
+    <link rel="match" href="../expected/web-animation-details-content-pseudo-element-ref.html" />
+    <style>
+        details::details-content {
+            display: block;
+            background-color: red;
+            width: 100px;
+            height: 100px;
+        }
+    </style>
+    <details open id="foo">
+        <summary></summary>
+        <div></div>
+    </details>
+    <script>
+        getComputedStyle(foo, "::details-content").width;
+
+        const animation = foo.animate(
+            { backgroundColor: ["green", "green"] },
+            { duration: 1000, pseudoElement: "::details-content" }
+        );
+
+        animation.currentTime = 500;
+        animation.pause();
+
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    </script>
+</html>

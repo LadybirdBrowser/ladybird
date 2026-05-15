@@ -1,0 +1,15 @@
+<!doctype html>
+<style>
+    input[type="text"]::placeholder {
+        color: green;
+    }
+</style>
+<input id="target" type="text" placeholder="placeholder" />
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`before change: ${getComputedStyle(target, "::placeholder").color}`);
+        target.type = "file";
+        println(`after change: ${getComputedStyle(target, "::placeholder").color}`);
+    });
+</script>

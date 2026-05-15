@@ -1,0 +1,2 @@
+before change: rgb(0, 128, 0)
+after change: rgb(128, 128, 128)

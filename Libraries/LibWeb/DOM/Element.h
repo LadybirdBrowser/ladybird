@@ -194,7 +194,7 @@ public:
     CSS::RequiredInvalidationAfterStyleChange recompute_inherited_style();
 
     Optional<CSS::PseudoElement> associated_shadow_host_pseudo_element() const { return m_associated_shadow_host_pseudo_element; }
-    void set_associated_shadow_host_pseudo_element(Optional<CSS::PseudoElement> pseudo_element) { m_associated_shadow_host_pseudo_element = move(pseudo_element); }
+    void set_associated_shadow_host_pseudo_element(CSS::PseudoElement pseudo_element);
 
     GC::Ptr<Layout::NodeWithStyle> layout_node();
     GC::Ptr<Layout::NodeWithStyle const> layout_node() const;
@@ -662,6 +662,7 @@ protected:
     GC::Ptr<HTML::CustomElementDefinition> custom_element_definition() const { return m_custom_element_definition; }
 
     void play_or_cancel_animations_after_display_property_change();
+    void clear_element_reference_pseudo_elements();
 
 private:
     FlyString make_html_uppercased_qualified_name() const;
@@ -700,6 +701,7 @@ private:
 
     using PseudoElementData = HashMap<CSS::PseudoElement, GC::Ref<PseudoElement>>;
     mutable OwnPtr<PseudoElementData> m_pseudo_element_data;
+    void register_element_reference_pseudo_element(CSS::PseudoElement type, GC::Ref<Element> element);
     SyntheticPseudoElement& ensure_synthetic_pseudo_element(CSS::PseudoElement) const;
     void clear_synthetic_pseudo_element_layout_nodes();
 
