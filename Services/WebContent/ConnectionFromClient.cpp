@@ -1283,8 +1283,10 @@ void ConnectionFromClient::set_preferred_languages(u64, Vector<String> preferred
 
 void ConnectionFromClient::set_browsing_behavior(u64 page_id, WebView::BrowsingBehavior browsing_behavior)
 {
-    if (auto page = this->page(page_id); page.has_value())
+    if (auto page = this->page(page_id); page.has_value()) {
         page->page().set_enable_autoscroll(browsing_behavior.enable_autoscroll);
+        page->page().set_enable_primary_paste(browsing_behavior.enable_primary_paste);
+    }
 }
 
 void ConnectionFromClient::set_enable_global_privacy_control(u64, bool enable)

@@ -1501,6 +1501,10 @@ static bool is_middle_click_paste_target(DOM::Node const& node)
 
 bool EventHandler::maybe_request_paste_for_middle_click(DOM::Document& document, CSSPixelPoint visual_viewport_position)
 {
+    auto& page = m_navigable->page();
+    if (!page.enable_primary_paste())
+        return false;
+
     auto cursor_hit = paint_root()->hit_test(visual_viewport_position, Painting::HitTestType::TextCursor);
     if (!cursor_hit.has_value())
         return false;
@@ -1519,7 +1523,7 @@ bool EventHandler::maybe_request_paste_for_middle_click(DOM::Document& document,
         return false;
 
     target->set_selection_anchor(*hit_node, cursor_hit->index_in_node);
-    m_navigable->page().client().page_did_request_paste();
+    page.client().page_did_request_paste();
     return true;
 }
 
