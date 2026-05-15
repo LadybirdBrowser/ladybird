@@ -1,5 +1,6 @@
 set(TEST_SOURCES
     TestGCContainers.cpp
+    TestGCIdleCollection.cpp
     TestGCVisitor.cpp
 )
 

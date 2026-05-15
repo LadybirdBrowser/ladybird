@@ -22,6 +22,7 @@
 #include <LibGC/ConservativeVector.h>
 #include <LibGC/Forward.h>
 #include <LibGC/HeapRoot.h>
+#include <LibGC/IdleCollectionPolicy.h>
 #include <LibGC/Root.h>
 #include <LibGC/RootHashMap.h>
 #include <LibGC/RootVector.h>
@@ -152,6 +153,9 @@ private:
     void stop_incremental_sweep_timer();
     void sweep_on_timer();
 
+    void start_idle_gc_timer();
+    void idle_gc_on_timer();
+
     template<typename Callback>
     void for_each_block(Callback callback)
     {
@@ -197,6 +201,10 @@ private:
     Vector<GC::Ptr<Cell>> m_cells_allocated_during_sweep;
     CellAllocator::SweepList m_allocators_to_sweep;
     RefPtr<Core::Timer> m_incremental_sweep_timer;
+
+    RefPtr<Core::Timer> m_idle_gc_timer;
+    u64 m_total_allocated_bytes { 0 };
+    IdleCollectionPolicy m_idle_collection_policy;
 };
 
 inline void Heap::did_create_root(Badge<RootImpl>, RootImpl& impl)

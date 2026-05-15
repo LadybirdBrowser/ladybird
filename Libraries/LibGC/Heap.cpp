@@ -51,6 +51,10 @@ static constexpr size_t GC_HEAP_GROWTH_FACTOR_DENOMINATOR { 4 };
 static constexpr int GC_INCREMENTAL_SWEEP_INTERVAL_MS = 16;
 static constexpr int GC_INCREMENTAL_SWEEP_SLICE_MS = 5;
 
+// The idle GC timer ticks at this interval while the mutator is allocating; IdleCollectionPolicy decides on each tick
+// whether to proactively collect. See idle_gc_on_timer().
+static constexpr int GC_IDLE_GC_INTERVAL_MS = 4000;
+
 static Heap* s_the;
 
 namespace {
@@ -293,6 +297,12 @@ void Heap::will_allocate(size_t size)
     }
 
     m_allocated_bytes_since_last_gc += size;
+    m_total_allocated_bytes += size;
+
+    // Keep the idle GC timer armed while allocation is happening, so a proactive collection runs once the mutator's
+    // allocation rate drops.
+    if (!m_idle_gc_timer || !m_idle_gc_timer->is_active())
+        start_idle_gc_timer();
 }
 
 void Heap::did_allocate_external_memory(size_t size)
@@ -649,6 +659,10 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
         g_next_incremental_sweep_should_report = false;
 
     run_post_gc_tasks();
+
+    // A collection just happened: restart the idle policy's episode (peak rate and watchdog tick count) from here, so
+    // a threshold-driven GC mid-episode doesn't leave it comparing against stale state.
+    m_idle_collection_policy.reset(m_total_allocated_bytes);
 }
 
 void Heap::run_post_gc_tasks()
@@ -1351,6 +1365,39 @@ void Heap::sweep_on_timer()
         record_incremental_sweep_batch(blocks_swept, elapsed.to_microseconds(), false);
         dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep] Timer slice: {} blocks in {}ms",
             blocks_swept, elapsed.to_milliseconds());
+    }
+}
+
+void Heap::start_idle_gc_timer()
+{
+    if (!m_idle_gc_timer) {
+        m_idle_gc_timer = Core::Timer::create_repeating(GC_IDLE_GC_INTERVAL_MS, [this] {
+            idle_gc_on_timer();
+        });
+    }
+    m_idle_collection_policy.reset(m_total_allocated_bytes);
+    m_idle_gc_timer->start();
+}
+
+void Heap::idle_gc_on_timer()
+{
+    // Leave an in-progress incremental sweep alone; it is already reclaiming memory. A GC deferral means now is not a
+    // safe time to collect. In both cases we reconsider on the next tick.
+    if (m_incremental_sweep_active || is_gc_deferred())
+        return;
+
+    switch (m_idle_collection_policy.evaluate(m_total_allocated_bytes, m_allocated_bytes_since_last_gc, m_gc_bytes_threshold)) {
+    case IdleCollectionPolicy::Decision::KeepWaiting:
+        return;
+    case IdleCollectionPolicy::Decision::Park:
+        // Nothing left to collect; the next allocation will re-arm the timer.
+        m_idle_gc_timer->stop();
+        return;
+    case IdleCollectionPolicy::Decision::Collect:
+        m_allocated_bytes_since_last_gc = 0;
+        collect_garbage();
+        m_idle_gc_timer->stop();
+        return;
     }
 }
 
