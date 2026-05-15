@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Fail
+Fail	@scope can match :host
+Fail	@scope can match :host(...)
+Fail	:scope matches host via the scoping root
+Fail	:scope within :is() matches host via the scoping root
+Fail	Implicit @scope as direct child of shadow root
+Fail	Implicit @scope in construted stylesheet
+Fail	Matching :host via &, :scope (subject)
+Fail	Matching :host via &, :scope (non-subject)
+Fail	Matching :host via &, :scope (non-subject, >)

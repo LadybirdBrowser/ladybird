@@ -1,0 +1,49 @@
+Harness status: OK
+
+Found 43 tests
+
+28 Pass
+15 Fail
+Fail	@scope (.a) is valid
+Fail	@scope (.a + .b) is valid
+Fail	@scope (.a:hover) is valid
+Fail	@scope (.a:hover, #b, div) is valid
+Fail	@scope (:is(div, span)) is valid
+Fail	@scope (.a) to (.b) is valid
+Fail	@scope (.a)to (.b) is valid
+Fail	@scope (.a) to (.b:hover, #c, div) is valid
+Fail	@scope is valid
+Fail	@scope to (.a) is valid
+Fail	@scope (.a) to (&) is valid
+Fail	@scope (.a) to (& > &) is valid
+Fail	@scope (.a) to (> .b) is valid
+Fail	@scope (.a) to (+ .b) is valid
+Fail	@scope (.a) to (~ .b) is valid
+Pass	@scope () is not valid
+Pass	@scope to () is not valid
+Pass	@scope () to () is not valid
+Pass	@scope (.c <> .d) is not valid
+Pass	@scope (.a, .c <> .d) is not valid
+Pass	@scope (.a <> .b, .c) is not valid
+Pass	@scope (div::before) is not valid
+Pass	@scope (div::after) is not valid
+Pass	@scope (slotted(div)) is not valid
+Pass	@scope (.a) to (div::before) is not valid
+Pass	@scope (> &) to (>>) is not valid
+Pass	@scope div is not valid
+Pass	@scope (.a) unknown (.c) is not valid
+Pass	@scope (.a) to unknown (.c) is not valid
+Pass	@scope (.a) 1px (.c) is not valid
+Pass	@scope (.a) to unknown(c) is not valid
+Pass	@scope unknown(.a) is not valid
+Pass	@scope 1px is not valid
+Pass	@scope creep is not valid
+Pass	@scope ))) is not valid
+Pass	@scope ( is not valid
+Pass	@scope ( {} is not valid
+Pass	@scope to is not valid
+Pass	@scope } is not valid
+Pass	@scope (.a is not valid
+Pass	@scope (.a to (.b) is not valid
+Pass	@scope ( to (.b) is not valid
+Pass	@scope (.a) from (.c) is not valid

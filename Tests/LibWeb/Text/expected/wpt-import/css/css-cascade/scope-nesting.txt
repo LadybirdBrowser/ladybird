@@ -1,0 +1,29 @@
+Harness status: OK
+
+Found 24 tests
+
+24 Fail
+Fail	Nesting-selector in <scope-end>
+Fail	Implicit :scope in <scope-end>
+Fail	Relative selectors in <scope-end>
+Fail	Nested nesting-selectors within scope's <stylesheet> select inclusive descendants of the scope root
+Fail	Nesting-selector within :scope rule
+Fail	Nesting-selector within :scope rule (double nested)
+Fail	@scope nested within style rule
+Fail	Parent pseudo class within scope-start
+Fail	Parent pseudo class within body of nested @scope
+Fail	Implicit rule within nested @scope 
+Fail	Implicit rule within nested @scope (proximity)
+Fail	Nested :scope inside an :is
+Fail	:scope within nested and scoped rule
+Fail	:scope within nested and scoped rule (implied &)
+Fail	:scope within nested and scoped rule (relative)
+Fail	Scoped nested group rule
+Fail	Scoped nested within another scope
+Fail	Implicit (prelude-less) @scope as a nested group rule
+Fail	Insert a nested style rule within @scope, &
+Fail	Insert a nested style rule within @scope, :scope
+Fail	Insert a CSSNestedDeclarations rule directly in top-level @scope
+Fail	Mutating selectorText on outer style rule causes correct inner specificity
+Fail	Modifying selectorText invalidates inner scoped rules
+Fail	Modifying selectorText invalidates inner scoped rules (nested declarations)

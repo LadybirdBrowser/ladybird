@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<title>@scope - CSSOM</title>
+<link rel="help" href="https://drafts.csswg.org/css-cascade-6/#the-cssscoperule-interface">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style id=style>
+  @scope {}
+  @scope (.a) {}
+  @scope (.a) to (.b) {
+    div {
+      display: block;
+    }
+  }
+  @scope to (.b) {}
+</style>
+<script>
+
+// CSSScopeRule.cssText
+test(() => {
+  assert_equals(style.sheet.rules[0].cssText, '@scope {\n}');
+}, 'CSSScopeRule.cssText, implicit scope');
+
+test(() => {
+  assert_equals(style.sheet.rules[1].cssText, '@scope (.a) {\n}');
+}, 'CSSScopeRule.cssText, root only');
+
+test(() => {
+  assert_equals(style.sheet.rules[2].cssText, '@scope (.a) to (.b) {\n  div { display: block; }\n}');
+}, 'CSSScopeRule.cssText, root and limit');
+
+test(() => {
+  assert_equals(style.sheet.rules[3].cssText, '@scope to (.b) {\n}');
+}, 'CSSScopeRule.cssText, limit only');
+
+// start
+test(() => {
+  assert_equals(style.sheet.rules[0].start, null);
+}, 'CSSScopeRule.start, implicit scope');
+
+test(() => {
+  assert_equals(style.sheet.rules[1].start, '.a');
+}, 'CSSScopeRule.start, root only');
+
+test(() => {
+  assert_equals(style.sheet.rules[2].start, '.a');
+}, 'CSSScopeRule.start, root and limit');
+
+test(() => {
+  assert_equals(style.sheet.rules[3].start, null);
+}, 'CSSScopeRule.start, limit only');
+
+// end
+test(() => {
+  assert_equals(style.sheet.rules[0].end, null);
+}, 'CSSScopeRule.end, implicit scope');
+
+test(() => {
+  assert_equals(style.sheet.rules[1].end, null);
+}, 'CSSScopeRule.end, root only');
+
+test(() => {
+  assert_equals(style.sheet.rules[2].end, '.b');
+}, 'CSSScopeRule.end, root and limit');
+
+test(() => {
+  assert_equals(style.sheet.rules[3].end, '.b');
+}, 'CSSScopeRule.end, limit only');
+
+test(() => {
+  assert_true(style.sheet.rules[0] instanceof CSSGroupingRule);
+  assert_false(style.sheet.rules[0] instanceof CSSConditionRule);
+}, 'CSSScopeRule is a CSSGroupingRule');
+</script>

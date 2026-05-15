@@ -1,0 +1,69 @@
+<!doctype html>
+<title>@scope and Nesting: Parsing inner style rules with relative selector syntax</title>
+<link rel="help" href="https://drafts.csswg.org/css-cascade-6/#scoped-rules">
+<link rel="help" href="https://drafts.csswg.org/css-nesting/#nesting">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/10196">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<main id=main></main>
+<script>
+  function create_rule_string(prelude, inner) {
+    if (prelude.length === 0) {
+      return `${inner} {}`;
+    }
+    let outermost = prelude[0];
+    let rest = create_rule_string(prelude.slice(1), inner);
+    return `${outermost} { ${rest} }`;
+  }
+
+  function create_rule_by_string(style, prelude, inner) {
+    style.textContent = create_rule_string(prelude, inner);
+  }
+
+  function create_rule_by_insertion(style, prelude, inner) {
+    let current = style.sheet;
+    for (const p of prelude) {
+      let idx = current.insertRule(`${p} {}`);
+      current = current.cssRules[idx];
+    }
+    current.insertRule(`${inner} {}`);
+  }
+
+  function innermost_selector(depth, rules) {
+    let r = rules;
+    let d = depth + 1;
+    while (d != 0) {
+      assert_equals(r.cssRules.length, 1);
+      r = r.cssRules[0];
+      d--;
+    }
+    return r.selectorText;
+  }
+
+  const create_method = {
+    "string": create_rule_by_string,
+    "insertRule": create_rule_by_insertion,
+  };
+
+  function test_inner(prelude, method, actual, expected) {
+    if (expected === undefined) {
+      expected = actual;
+    }
+    test(t => {
+      t.add_cleanup(() => main.replaceChildren());
+      const style = document.createElement('style');
+      main.append(style);
+      create_method[method](style, prelude, actual);
+      const innerSelector = innermost_selector(prelude.length, style.sheet);
+      assert_equals(innerSelector, expected);
+    }, `${actual} in ${prelude} created by ${method} valid`);
+  }
+
+  for (const method of Object.keys(create_method)) {
+    test_inner(['@scope' , '.nest'], method, '> .foo', '& > .foo');
+    test_inner(['.nest', '@scope'], method, '> .foo');
+
+    test_inner(['@scope' , '.nest', '@media screen'], method, '> .foo', '& > .foo');
+    test_inner(['.nest', '@scope', '@media screen'], method, '> .foo');
+  }
+</script>

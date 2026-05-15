@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 13 tests
+
+13 Fail
+Fail	CSSScopeRule.cssText, implicit scope
+Fail	CSSScopeRule.cssText, root only
+Fail	CSSScopeRule.cssText, root and limit
+Fail	CSSScopeRule.cssText, limit only
+Fail	CSSScopeRule.start, implicit scope
+Fail	CSSScopeRule.start, root only
+Fail	CSSScopeRule.start, root and limit
+Fail	CSSScopeRule.start, limit only
+Fail	CSSScopeRule.end, implicit scope
+Fail	CSSScopeRule.end, root only
+Fail	CSSScopeRule.end, root and limit
+Fail	CSSScopeRule.end, limit only
+Fail	CSSScopeRule is a CSSGroupingRule

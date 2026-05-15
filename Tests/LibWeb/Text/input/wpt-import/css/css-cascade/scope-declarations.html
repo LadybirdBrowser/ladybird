@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<title>@scope - scoped declarations</title>
+<link rel="help" href="https://drafts.csswg.org/css-cascade-6/#scoped-declarations">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<main id=main></main>
+
+<template id=test_apply_root>
+  <style>
+    @scope (.a) {
+      z-index: 1;
+    }
+  </style>
+  <div class=a></div>
+</template>
+<script>
+test((t) => {
+  t.add_cleanup(() => main.replaceChildren());
+  main.append(test_apply_root.content.cloneNode(true));
+  assert_equals(getComputedStyle(main.querySelector('.a')).zIndex, '1');
+}, 'Scoped declarations apply to the scoping root');
+</script>
+
+<template id=test_apply_implicit_root>
+  <div class=a>
+    <style>
+      @scope {
+        z-index: 1;
+      }
+    </style>
+  </div>
+</template>
+<script>
+test((t) => {
+  t.add_cleanup(() => main.replaceChildren());
+  main.append(test_apply_implicit_root.content.cloneNode(true));
+  assert_equals(getComputedStyle(main.querySelector('.a')).zIndex, '1');
+}, 'Scoped declarations apply to implicit scoping root');
+</script>
+
+<template id=test_zero_specificity>
+  <style>
+    @scope (.a) {
+      :where(:scope) {
+        z-index: 1;
+      }
+      z-index: 2; /* Wins due to order */
+    }
+    @scope (.b) {
+      z-index: 1;
+      :where(:scope) {
+        z-index: 2; /* Wins due to order */
+      }
+    }
+    @scope (.c) {
+      :scope {
+        z-index: 1; /* Wins due to specificity */
+      }
+      z-index: 2;
+    }
+  </style>
+  <div class=a></div>
+  <div class=b></div>
+  <div class=c></div>
+</template>
+<script>
+test((t) => {
+  t.add_cleanup(() => main.replaceChildren());
+  main.append(test_zero_specificity.content.cloneNode(true));
+  assert_equals(getComputedStyle(main.querySelector('.a')).zIndex, '2');
+  assert_equals(getComputedStyle(main.querySelector('.b')).zIndex, '2');
+  assert_equals(getComputedStyle(main.querySelector('.c')).zIndex, '1');
+}, 'Scoped declarations apply with zero specificity');
+</script>
+
+<script>
+
+for (let prelude of ['(.a)', '']) {
+  test((t) => {
+    let sheet = new CSSStyleSheet();
+    sheet.replaceSync(`
+      @scope ${prelude} {
+        color: red;
+        width: 1px;
+        .b {}
+        left: 2px;
+        right: 3px;
+        .c {}
+        top: 4px;
+        bottom: 5px;
+      }
+    `);
+    assert_equals(sheet.cssRules.length, 1);
+    let scope_rule = sheet.cssRules[0];
+    assert_equals(scope_rule.cssRules.length, 5);
+
+    assert_true(scope_rule.cssRules[0] instanceof CSSNestedDeclarations);
+    assert_equals(scope_rule.cssRules[0].cssText, 'color: red; width: 1px;');
+    assert_true(scope_rule.cssRules[2] instanceof CSSNestedDeclarations);
+    assert_equals(scope_rule.cssRules[2].cssText, 'left: 2px; right: 3px;');
+    assert_true(scope_rule.cssRules[4] instanceof CSSNestedDeclarations);
+    assert_equals(scope_rule.cssRules[4].cssText, 'top: 4px; bottom: 5px;');
+  }, `Declarations are parsed into CSSNestedDeclarations, prelude=${prelude}`);
+}
+
+</script>

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<title>@scope - proximity to root</title>
+<link rel="help" href="https://drafts.csswg.org/css-cascade-6/#scope-proximity">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+
+function test_scope(script_element, callback_fn, description) {
+  test((t) => {
+    // The provided <script> element must be an immedate subsequent sibling of
+    // a <template> element.
+    let template_element = script_element.previousElementSibling;
+    assert_equals(template_element.tagName, 'TEMPLATE');
+
+    t.add_cleanup(() => {
+      while (main.firstChild)
+        main.firstChild.remove()
+    });
+
+    main.append(template_element.content.cloneNode(true));
+
+    callback_fn();
+  }, description);
+}
+
+function assert_green(selector) {
+  assert_equals(getComputedStyle(main.querySelector(selector)).backgroundColor, 'rgb(0, 128, 0)');
+}
+function assert_not_green(selector) {
+  assert_equals(getComputedStyle(main.querySelector(selector)).backgroundColor, 'rgb(0, 0, 0)');
+}
+</script>
+<style>
+  main * {
+    background-color: black;
+  }
+</style>
+<main id=main>
+</main>
+
+<template>
+  <style>
+    .item {
+      padding: 0px;
+      border: 5px solid red;
+    }
+
+    @scope (.light) {
+      [id] { border-color: rgb(100, 100, 100); }
+    }
+
+    @scope (.dark) {
+      [id] { border-color: rgb(200, 200, 200); }
+    }
+  </style>
+  <div class=light>
+    <div id=item1>
+      <div class=dark>
+        <div id=item2>
+          <div class=light>
+            <div id=item3>
+              <div class=dark>
+                <div id=item4></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  assert_equals(getComputedStyle(item1).borderColor, 'rgb(100, 100, 100)');
+  assert_equals(getComputedStyle(item2).borderColor, 'rgb(200, 200, 200)');
+  assert_equals(getComputedStyle(item3).borderColor, 'rgb(100, 100, 100)');
+  assert_equals(getComputedStyle(item4).borderColor, 'rgb(200, 200, 200)');
+}, 'Alternating light/dark');
+</script>
+
+
+<template>
+  <style>
+    @scope (.b) {
+      [id] { border-color:green; }
+    }
+    @scope (.a) {
+      [id] { border-color:red; }
+    }
+  </style>
+  <div class=a>
+    <div class=b>
+      <span id=item></span>
+    </div>
+  </div>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  assert_equals(getComputedStyle(item).borderColor, 'rgb(0, 128, 0)');
+}, 'Proximity wins over order of appearance');
+</script>
+
+
+<template>
+  <style>
+    @scope (.a) {
+      span[id] { border-color:green; }
+    }
+    @scope (.b) {
+      [id] { border-color:red; }
+    }
+  </style>
+  <div class=a>
+    <div class=b>
+      <span id=item></span>
+    </div>
+  </div>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  assert_equals(getComputedStyle(item).borderColor, 'rgb(0, 128, 0)');
+}, 'Specificity wins over proximity');
+</script>
+
+<template>
+  <style>
+    @scope (.foo) {
+      .bar span[id] { border-color:green; }
+    }
+  </style>
+  <div class=foo>
+    <div class="foo bar">
+      <span id=item></span>
+    </div>
+  </div>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  assert_equals(getComputedStyle(item).borderColor, 'rgb(0, 128, 0)');
+}, 'Identical root with further proximity is not ignored');
+</script>
+
+<template>
+  <style>
+    @scope (.scope) {
+      :where(&) { border-color:green; }
+    }
+    @scope (#outer) {
+      :where(:scope) :where(#inner) { border-color:red; }
+    }
+  </style>
+  <div id=outer class=scope>
+    <div>
+      <div id=inner class=scope>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+test_scope(document.currentScript, () => {
+  assert_equals(getComputedStyle(inner).borderColor, 'rgb(0, 128, 0)');
+}, 'Most proximate match wins under multiple scoping roots');
+</script>
