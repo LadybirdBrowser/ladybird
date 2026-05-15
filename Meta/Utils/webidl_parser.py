@@ -59,9 +59,16 @@ class Interface:
 
 
 @dataclass
+class Dictionary:
+    name: str
+    path: Path
+
+
+@dataclass
 class Module:
     path: Path
     interface: Optional[Interface] = None
+    dictionaries: List[Dictionary] = field(default_factory=list)
 
 
 @dataclass
@@ -117,7 +124,9 @@ class Parser:
                 extended_attributes = self.parse_extended_attributes()
 
             if self.next_is_keyword("dictionary") or self.next_is_keyword("partial dictionary"):
-                self.skip_braced_declaration()
+                dictionary = self.parse_dictionary()
+                if dictionary is not None:
+                    module.dictionaries.append(dictionary)
             elif self.next_is_keyword("enum"):
                 self.skip_braced_declaration()
             elif self.next_is_keyword("typedef"):
@@ -222,6 +231,33 @@ class Parser:
 
         interface.finalize()
         return interface
+
+    def parse_dictionary(self) -> Optional[Dictionary]:
+        is_partial = False
+        if self.next_is_keyword("partial"):
+            self.consume_keyword("partial")
+            self.consume_whitespace()
+            is_partial = True
+
+        self.consume_keyword("dictionary")
+        self.consume_whitespace()
+
+        dictionary_name = self.parse_identifier_ending_with_space_or(":", "{")
+        self.consume_whitespace()
+
+        if self.lexer.consume_specific(":"):
+            self.consume_whitespace()
+            self.parse_identifier_ending_with_space_or("{")
+            self.consume_whitespace()
+
+        self.consume_braced_block()
+        self.consume_whitespace()
+        self.assert_specific(";")
+
+        if is_partial:
+            return None
+
+        return Dictionary(name=dictionary_name, path=self.path)
 
     def parse_interface_body(self, interface: Interface, body_text: str) -> None:
         for statement in split_top_level_statements(remove_line_comments(body_text)):
