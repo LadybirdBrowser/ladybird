@@ -4,7 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Checked.h>
+#include <AK/ScopeGuard.h>
 #include <LibCore/File.h>
+#include <LibCore/System.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
 
@@ -59,6 +62,38 @@ void Request::set_request_fd(Badge<Requests::RequestClient>, int fd)
     m_internal_stream_data->read_stream = move(read_stream);
 }
 
+void Request::set_request_body_file(Badge<Requests::RequestClient>, int fd, u64 offset, u64 size)
+{
+    ArmedScopeGuard close_fd = [fd] {
+        (void)Core::System::close(fd);
+    };
+
+    // If the request was stopped while this IPC was in-flight, just bail.
+    if (!m_internal_stream_data)
+        return;
+
+    if (!AK::is_within_range<off_t>(offset) || !AK::is_within_range<size_t>(size)) {
+        dbgln("Request: Received cache body file outside mappable range");
+        return;
+    }
+
+    close_fd.disarm();
+    auto payload = Core::ImmutableBytes::map_from_fd_range_and_close(fd, "request response"sv, static_cast<off_t>(offset), static_cast<size_t>(size));
+    if (payload.is_error()) {
+        dbgln("Request: Failed to map cache body file: {}", payload.error());
+        return;
+    }
+
+    if (m_mode == Mode::Buffered) {
+        m_internal_buffered_data->payload = payload.release_value();
+        return;
+    }
+
+    m_internal_stream_data->file_backed_payload = payload.release_value();
+    if (m_internal_stream_data->on_data_available)
+        m_internal_stream_data->on_data_available(m_internal_stream_data->file_backed_payload->bytes());
+}
+
 void Request::set_buffered_request_finished_callback(BufferedRequestFinished on_buffered_request_finished)
 {
     VERIFY(m_mode == Mode::Unknown);
@@ -75,8 +110,14 @@ void Request::set_buffered_request_finished_callback(BufferedRequestFinished on_
     };
 
     on_finish = [this, on_buffered_request_finished = move(on_buffered_request_finished)](auto total_size, auto& timing_info, auto network_error) {
-        auto output_buffer = ByteBuffer::create_uninitialized(m_internal_buffered_data->payload_stream.used_buffer_size()).release_value_but_fixme_should_propagate_errors();
-        m_internal_buffered_data->payload_stream.read_until_filled(output_buffer).release_value_but_fixme_should_propagate_errors();
+        auto payload = [&] {
+            if (m_internal_buffered_data->payload.has_value())
+                return m_internal_buffered_data->payload.release_value();
+
+            auto output_buffer = ByteBuffer::create_uninitialized(m_internal_buffered_data->payload_stream.used_buffer_size()).release_value_but_fixme_should_propagate_errors();
+            m_internal_buffered_data->payload_stream.read_until_filled(output_buffer).release_value_but_fixme_should_propagate_errors();
+            return Core::ImmutableBytes::adopt(move(output_buffer));
+        }();
 
         on_buffered_request_finished(
             total_size,
@@ -87,7 +128,7 @@ void Request::set_buffered_request_finished_callback(BufferedRequestFinished on_
             m_internal_buffered_data->reason_phrase,
             move(m_internal_buffered_data->javascript_bytecode),
             m_internal_buffered_data->javascript_bytecode_cache_vary_key,
-            output_buffer);
+            move(payload));
     };
 
     set_up_internal_stream_data([this](auto read_bytes) {
@@ -134,6 +175,7 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
     VERIFY(!m_internal_stream_data);
 
     m_internal_stream_data = make<InternalStreamData>();
+    m_internal_stream_data->on_data_available = move(on_data_available);
     m_internal_stream_data->read_notifier = Core::Notifier::construct(fd(), Core::Notifier::Type::Read);
     if (fd() != -1)
         m_internal_stream_data->read_stream = MUST(ReadStream::create(fd()));
@@ -162,7 +204,7 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
         }
     };
 
-    m_internal_stream_data->read_notifier->on_activation = [this, on_data_available = move(on_data_available)]() {
+    m_internal_stream_data->read_notifier->on_activation = [this]() {
         static constexpr size_t buffer_size = 256 * KiB;
         static char buffer[buffer_size];
 
@@ -181,7 +223,7 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
             if (read_bytes.is_empty())
                 break;
 
-            on_data_available(read_bytes);
+            m_internal_stream_data->on_data_available(read_bytes);
         } while (true);
 
         if (m_internal_stream_data->read_stream->is_eof())

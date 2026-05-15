@@ -54,6 +54,7 @@ private:
     virtual void die() override;
 
     virtual void request_started(u64 request_id, IPC::File) override;
+    virtual void request_body_file_available(u64 request_id, IPC::File, u64 offset, u64 size) override;
     virtual void request_finished(u64 request_id, u64, RequestTimingInfo, Optional<NetworkError>) override;
     virtual void headers_became_available(u64 request_id, Vector<HTTP::Header>, Optional<u32>, Optional<String>, Optional<Core::AnonymousBuffer>, Optional<u64>) override;
 

@@ -130,6 +130,18 @@ void RequestClient::request_started(u64 request_id, IPC::File response_file)
     request.value()->set_request_fd({}, response_fd);
 }
 
+void RequestClient::request_body_file_available(u64 request_id, IPC::File response_file, u64 offset, u64 size)
+{
+    auto request = m_requests.get(request_id);
+    if (!request.has_value()) {
+        warnln("Received response body file for non-existent request {}", request_id);
+        return;
+    }
+
+    auto response_fd = response_file.take_fd();
+    request.value()->set_request_body_file({}, response_fd, offset, size);
+}
+
 void RequestClient::request_finished(u64 request_id, u64 total_size, RequestTimingInfo timing_info, Optional<NetworkError> network_error)
 {
     if (RefPtr<Request> request = m_requests.get(request_id).value_or(nullptr)) {

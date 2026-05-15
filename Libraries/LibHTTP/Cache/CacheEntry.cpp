@@ -331,6 +331,29 @@ void CacheEntryReader::send_to(int socket_fd, Function<void(u64)> on_complete, F
     send_without_blocking();
 }
 
+ErrorOr<CacheEntryReader::BodyFile> CacheEntryReader::take_body_file()
+{
+    ScopeGuard guard { [&]() { close_and_destroy_cache_entry(); } };
+
+    if (m_marked_for_deletion)
+        return Error::from_string_literal("Cache entry has been deleted");
+
+    if (auto result = read_and_validate_footer(); result.is_error()) {
+        dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mError validating cache entry for\033[0m {}: {}", m_url, result.error());
+        remove();
+        return result.release_error();
+    }
+
+    auto fd = TRY(Core::System::dup(m_fd));
+    m_index.update_last_access_time(m_cache_key, m_vary_key);
+
+    return BodyFile {
+        .fd = fd,
+        .offset = m_data_offset,
+        .size = m_data_size,
+    };
+}
+
 void CacheEntryReader::send_without_blocking()
 {
     if (m_marked_for_deletion) {

@@ -666,24 +666,44 @@ void Request::handle_read_cache_state()
     m_response_headers = m_cache_entry_reader->response_headers();
     m_cache_status = CacheStatus::ReadFromCache;
 
-    if (inform_client_request_started().is_error())
-        return;
     transfer_headers_to_client_if_needed();
 
-    m_cache_entry_reader->send_to(
-        m_client_request_pipe->writer_fd(),
-        weak_callback(*this, [](auto& self, auto bytes_sent) {
-            self.m_bytes_transferred_to_client = bytes_sent;
-            self.m_curl_result_code = CURLE_OK;
+    if (m_cache_entry_reader->body_size() < static_cast<u64>(PAGE_SIZE)) {
+        if (inform_client_request_started().is_error())
+            return;
 
-            self.transition_to_state(State::Complete);
-        }),
-        weak_callback(*this, [](auto& self, auto bytes_sent) {
-            self.m_bytes_transferred_to_client = bytes_sent;
-            self.m_network_error = Requests::NetworkError::CacheReadFailed;
+        m_cache_entry_reader->send_to(
+            m_client_request_pipe->writer_fd(),
+            weak_callback(*this, [](auto& self, auto bytes_sent) {
+                self.m_bytes_transferred_to_client = bytes_sent;
+                self.m_curl_result_code = CURLE_OK;
 
-            self.transition_to_state(State::Error);
-        }));
+                self.transition_to_state(State::Complete);
+            }),
+            weak_callback(*this, [](auto& self, auto bytes_sent) {
+                self.m_bytes_transferred_to_client = bytes_sent;
+                self.m_network_error = Requests::NetworkError::CacheReadFailed;
+
+                self.transition_to_state(State::Error);
+            }));
+        return;
+    }
+
+    auto body_file = m_cache_entry_reader->take_body_file();
+    if (body_file.is_error()) {
+        m_network_error = Requests::NetworkError::CacheReadFailed;
+        transition_to_state(State::Error);
+        return;
+    }
+
+    auto file = body_file.release_value();
+    m_bytes_transferred_to_client = file.size;
+    m_curl_result_code = CURLE_OK;
+
+    m_client.async_request_body_file_available(m_request_id, IPC::File::adopt_fd(file.fd), file.offset, file.size);
+    m_cache_entry_reader.clear();
+
+    transition_to_state(State::Complete);
 }
 
 void Request::handle_failed_cache_only_state()

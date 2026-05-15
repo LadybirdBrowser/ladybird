@@ -14,6 +14,7 @@
 #include <AK/RefCounted.h>
 #include <AK/WeakPtr.h>
 #include <LibCore/AnonymousBuffer.h>
+#include <LibCore/ImmutableBytes.h>
 #include <LibCore/Notifier.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibRequests/NetworkError.h>
@@ -61,7 +62,7 @@ public:
     int fd() const { return m_fd; }
     bool stop();
 
-    using BufferedRequestFinished = Function<void(u64 total_size, RequestTimingInfo const& timing_info, Optional<NetworkError> const& network_error, NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> reason_phrase, Optional<Core::AnonymousBuffer> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key, ReadonlyBytes payload)>;
+    using BufferedRequestFinished = Function<void(u64 total_size, RequestTimingInfo const& timing_info, Optional<NetworkError> const& network_error, NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> reason_phrase, Optional<Core::AnonymousBuffer> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key, Core::ImmutableBytes payload)>;
 
     // Configure the request such that the entirety of the response data is buffered. The callback receives that data and
     // the response headers all at once. Using this method is mutually exclusive with `set_unbuffered_data_received_callback`.
@@ -83,6 +84,7 @@ public:
 
     RefPtr<Core::Notifier>& write_notifier(Badge<RequestClient>) { return m_write_notifier; }
     void set_request_fd(Badge<RequestClient>, int fd);
+    void set_request_body_file(Badge<RequestClient>, int fd, u64 offset, u64 size);
 
 private:
     Request(RequestClient&, u64 request_id);
@@ -113,6 +115,7 @@ private:
         Optional<String> reason_phrase;
         Optional<Core::AnonymousBuffer> javascript_bytecode;
         Optional<u64> javascript_bytecode_cache_vary_key;
+        Optional<Core::ImmutableBytes> payload;
     };
 
     struct InternalStreamData {
@@ -120,12 +123,14 @@ private:
 
         OwnPtr<ReadStream> read_stream;
         RefPtr<Core::Notifier> read_notifier;
-        u32 total_size { 0 };
+        u64 total_size { 0 };
         Optional<NetworkError> network_error;
         bool request_done { false };
         RequestTimingInfo timing_info;
+        DataReceived on_data_available;
         Function<void()> on_finish {};
         bool user_finish_called { false };
+        Optional<Core::ImmutableBytes> file_backed_payload;
     };
 
     OwnPtr<InternalBufferedData> m_internal_buffered_data;

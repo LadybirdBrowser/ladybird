@@ -60,6 +60,7 @@ public:
 
     u64 cache_key() const { return m_cache_key; }
     u64 vary_key() const { return m_vary_key; }
+    u64 body_size() const { return m_cache_footer.data_size; }
 
     void remove();
 
@@ -123,6 +124,13 @@ public:
     void revalidation_failed();
 
     void send_to(int socket_fd, Function<void(u64 bytes_sent)> on_complete, Function<void(u64 bytes_sent)> on_error);
+
+    struct BodyFile {
+        int fd { -1 };
+        u64 offset { 0 };
+        u64 size { 0 };
+    };
+    ErrorOr<BodyFile> take_body_file();
 
     u32 status_code() const { return m_cache_header.status_code; }
     Optional<String> const& reason_phrase() const { return m_reason_phrase; }

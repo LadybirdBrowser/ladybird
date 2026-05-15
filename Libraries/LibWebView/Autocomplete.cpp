@@ -304,7 +304,7 @@ void Autocomplete::query_autocomplete_engine(String query, size_t max_suggestion
     m_request = Application::request_server_client().start_request("GET"sv, *url);
 
     m_request->set_buffered_request_finished_callback(
-        [this, engine = engine.release_value(), query = m_query, literal_suggestion, search_suggestion](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const& network_error, HTTP::HeaderList const& response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::AnonymousBuffer>, Optional<u64>, ReadonlyBytes payload) {
+        [this, engine = engine.release_value(), query = m_query, literal_suggestion, search_suggestion](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const& network_error, HTTP::HeaderList const& response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::AnonymousBuffer>, Optional<u64>, Core::ImmutableBytes payload) {
             Core::deferred_invoke([this]() { m_request.clear(); });
 
             if (m_query != query) {
@@ -325,7 +325,7 @@ void Autocomplete::query_autocomplete_engine(String query, size_t max_suggestion
 
             auto content_type = response_headers.get("Content-Type"sv);
 
-            if (auto result = received_autocomplete_respsonse(engine, content_type, payload); result.is_error()) {
+            if (auto result = received_autocomplete_respsonse(engine, content_type, payload.bytes()); result.is_error()) {
                 warnln("Unable to handle autocomplete response: {}", result.error());
                 invoke_autocomplete_query_complete(merge_suggestions(search_suggestion, literal_suggestion, m_history_suggestions, {}, m_max_suggestions), AutocompleteResultKind::Final);
             } else {
