@@ -9,6 +9,7 @@
 #include <AK/MaybeOwned.h>
 #include <AK/String.h>
 #include <LibCore/File.h>
+#include <LibCore/ImmutableBytes.h>
 #include <LibCore/MappedFile.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
@@ -126,6 +127,59 @@ TEST_CASE(mapped_file_adopt_fd)
     EXPECT_EQ(buffer_contents, expected_seek_contents1);
 
     // A single seek & read test should be fine for now.
+}
+
+TEST_CASE(mapped_file_adopt_fd_range)
+{
+    int rc = TRY_OR_FAIL(Core::System::open("./long_lines.txt"sv, O_RDONLY));
+    EXPECT(rc >= 0);
+
+    auto file = TRY_OR_FAIL(Core::MappedFile::map_from_fd_range_and_close(rc, "./long_lines.txt"sv, 500, 16));
+
+    EXPECT_EQ(file->size().release_value(), 16ul);
+    EXPECT_EQ(file->bytes(), expected_seek_contents1.bytes());
+
+    auto buffer = TRY_OR_FAIL(ByteBuffer::create_uninitialized(16));
+    TRY_OR_FAIL(file->read_until_filled(buffer));
+    EXPECT_EQ(buffer.bytes(), expected_seek_contents1.bytes());
+    EXPECT(file->is_eof());
+}
+
+TEST_CASE(mapped_file_adopt_empty_fd_range)
+{
+    int rc = TRY_OR_FAIL(Core::System::open("./long_lines.txt"sv, O_RDONLY));
+    EXPECT(rc >= 0);
+
+    auto file = TRY_OR_FAIL(Core::MappedFile::map_from_fd_range_and_close(rc, "./long_lines.txt"sv, 500, 0));
+
+    EXPECT_EQ(file->size().release_value(), 0ul);
+    EXPECT(file->bytes().is_empty());
+    EXPECT(file->is_eof());
+}
+
+TEST_CASE(mapped_file_adopt_invalid_fd_range)
+{
+    int rc = TRY_OR_FAIL(Core::System::open("./long_lines.txt"sv, O_RDONLY));
+    EXPECT(rc >= 0);
+
+    auto maybe_file = Core::MappedFile::map_from_fd_range_and_close(rc, "./long_lines.txt"sv, 8700, 16);
+    EXPECT(maybe_file.is_error());
+    EXPECT_EQ(maybe_file.error().code(), EINVAL);
+}
+
+TEST_CASE(immutable_bytes_from_mapped_file_range)
+{
+    int rc = TRY_OR_FAIL(Core::System::open("./long_lines.txt"sv, O_RDONLY));
+    EXPECT(rc >= 0);
+
+    auto bytes = TRY_OR_FAIL(Core::ImmutableBytes::map_from_fd_range_and_close(rc, "./long_lines.txt"sv, 500, 16));
+
+    EXPECT(bytes.is_file_backed());
+    EXPECT_EQ(bytes.size(), 16ul);
+    EXPECT_EQ(bytes.bytes(), expected_seek_contents1.bytes());
+
+    auto copied_bytes = TRY_OR_FAIL(bytes.copy_to_byte_buffer());
+    EXPECT_EQ(copied_bytes.bytes(), expected_seek_contents1.bytes());
 }
 
 TEST_CASE(mapped_file_adopt_invalid_fd)

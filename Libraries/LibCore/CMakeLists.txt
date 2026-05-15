@@ -11,6 +11,7 @@ set(SOURCES
     EventLoopImplementation.cpp
     EventReceiver.cpp
     File.cpp
+    ImmutableBytes.cpp
     MappedFile.cpp
     MimeData.cpp
     Notifier.cpp
