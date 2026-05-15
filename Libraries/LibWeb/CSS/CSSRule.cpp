@@ -117,6 +117,7 @@ FlyString CSSRule::parent_layer_internal_qualified_name_slow_case() const
         case Type::Property:
         case Type::Page:
         case Type::Margin:
+        case Type::Scope:
             break;
         }
     }

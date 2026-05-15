@@ -319,6 +319,8 @@ private:
 
     template<typename NestedDeclarationsRule>
     GC::Ptr<CSSSupportsRule> convert_to_supports_rule(AtRule const&, Nested);
+    template<typename NestedDeclarationsRule>
+    GC::Ptr<CSSScopeRule> convert_to_scope_rule(AtRule const&, Nested);
 
     Optional<StylePropertyAndName> convert_to_style_property(Declaration const&);
 
@@ -668,7 +670,7 @@ RefPtr<CSS::StyleValue const> parse_css_value(CSS::Parser::ParsingParams const&,
 RefPtr<CSS::StyleValue const> parse_css_type(CSS::Parser::ParsingParams const&, StringView, CSS::ValueType);
 RefPtr<CSS::StyleValue const> parse_css_descriptor(CSS::Parser::ParsingParams const&, CSS::AtRuleID, CSS::DescriptorNameAndID const&, StringView);
 Optional<CSS::SelectorList> parse_selector(CSS::Parser::ParsingParams const&, StringView);
-Optional<CSS::SelectorList> parse_selector_for_nested_style_rule(CSS::Parser::ParsingParams const&, StringView);
+Optional<CSS::SelectorList> parse_selector_for_nested_style_rule(CSS::Parser::ParsingParams const&, StringView, CSS::StyleNestingParent);
 Optional<CSS::PageSelectorList> parse_page_selector_list(CSS::Parser::ParsingParams const&, StringView);
 Optional<CSS::Selector::PseudoElementSelector> parse_pseudo_element_selector(CSS::Parser::ParsingParams const&, StringView);
 CSS::CSSRule* parse_css_rule(CSS::Parser::ParsingParams const&, StringView);

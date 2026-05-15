@@ -2,23 +2,22 @@ Harness status: OK
 
 Found 43 tests
 
-28 Pass
-15 Fail
-Fail	@scope (.a) is valid
-Fail	@scope (.a + .b) is valid
-Fail	@scope (.a:hover) is valid
-Fail	@scope (.a:hover, #b, div) is valid
-Fail	@scope (:is(div, span)) is valid
-Fail	@scope (.a) to (.b) is valid
-Fail	@scope (.a)to (.b) is valid
-Fail	@scope (.a) to (.b:hover, #c, div) is valid
-Fail	@scope is valid
-Fail	@scope to (.a) is valid
-Fail	@scope (.a) to (&) is valid
-Fail	@scope (.a) to (& > &) is valid
-Fail	@scope (.a) to (> .b) is valid
-Fail	@scope (.a) to (+ .b) is valid
-Fail	@scope (.a) to (~ .b) is valid
+43 Pass
+Pass	@scope (.a) is valid
+Pass	@scope (.a + .b) is valid
+Pass	@scope (.a:hover) is valid
+Pass	@scope (.a:hover, #b, div) is valid
+Pass	@scope (:is(div, span)) is valid
+Pass	@scope (.a) to (.b) is valid
+Pass	@scope (.a)to (.b) is valid
+Pass	@scope (.a) to (.b:hover, #c, div) is valid
+Pass	@scope is valid
+Pass	@scope to (.a) is valid
+Pass	@scope (.a) to (&) is valid
+Pass	@scope (.a) to (& > &) is valid
+Pass	@scope (.a) to (> .b) is valid
+Pass	@scope (.a) to (+ .b) is valid
+Pass	@scope (.a) to (~ .b) is valid
 Pass	@scope () is not valid
 Pass	@scope to () is not valid
 Pass	@scope () to () is not valid

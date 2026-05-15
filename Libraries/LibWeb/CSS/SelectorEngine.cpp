@@ -579,7 +579,7 @@ static inline DOM::Element const* next_sibling_with_same_type(DOM::Element const
 /// Returns true if this selector should be blocked from matching against the shadow host from within a shadow tree.
 /// Only :host pseudo-class is allowed to match the shadow host from within shadow tree, all other selectors (including other pseudo-classes) are blocked.
 /// Compound selectors (:has(), :is(), :where()), nesting, and pseudo-elements are allowed as they may contain or be contained within :host.
-static inline bool should_block_shadow_host_matching(CSS::Selector::SimpleSelector const& component, GC::Ptr<DOM::Element const> shadow_host, DOM::Element const& element)
+static inline bool should_block_shadow_host_matching(CSS::Selector::SimpleSelector const& component, GC::Ptr<DOM::Element const> shadow_host, DOM::Element const& element, GC::Ptr<DOM::ParentNode const> scope = nullptr)
 {
     if (!shadow_host || &element != shadow_host.ptr())
         return false;
@@ -590,7 +590,8 @@ static inline bool should_block_shadow_host_matching(CSS::Selector::SimpleSelect
         return pseudo_class.type != CSS::PseudoClass::Host
             && pseudo_class.type != CSS::PseudoClass::Has
             && pseudo_class.type != CSS::PseudoClass::Is
-            && pseudo_class.type != CSS::PseudoClass::Where;
+            && pseudo_class.type != CSS::PseudoClass::Where
+            && !(pseudo_class.type == CSS::PseudoClass::Scope && scope == &element);
     }
 
     // Allow nesting and PseudoElement as it may contain :host class
@@ -1507,7 +1508,7 @@ static Optional<PseudoElementTransitionResult> pseudo_element_transition_target(
 
 static inline bool matches_simple_selector(CSS::Selector::SimpleSelector const& component, DOM::AbstractElement const& target, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, GC::Ptr<DOM::ParentNode const> scope, SelectorKind selector_kind, [[maybe_unused]] GC::Ptr<DOM::Element const> anchor)
 {
-    if (should_block_shadow_host_matching(component, shadow_host, target.element()))
+    if (should_block_shadow_host_matching(component, shadow_host, target.element(), scope))
         return false;
     switch (component.type) {
     case CSS::Selector::SimpleSelector::Type::Universal:
@@ -1683,7 +1684,10 @@ bool matches(CSS::Selector const& selector, DOM::AbstractElement const& target, 
     MatchContext& context, GC::Ptr<DOM::ParentNode const> scope,
     SelectorKind selector_kind, GC::Ptr<DOM::Element const> anchor)
 {
-    if (selector_kind == SelectorKind::Normal && !target.pseudo_element().has_value() && selector.can_use_fast_matches())
+    if (selector_kind == SelectorKind::Normal
+        && !target.pseudo_element().has_value()
+        && selector.can_use_fast_matches()
+        && !(scope && (selector.contains_pseudo_class(CSS::PseudoClass::Scope) || selector.contains_the_nesting_selector())))
         return fast_matches(selector, target.element(), shadow_host, context);
 
     VERIFY(!selector.compound_selectors().is_empty());

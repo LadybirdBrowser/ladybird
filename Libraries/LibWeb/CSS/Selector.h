@@ -263,7 +263,12 @@ bool is_legacy_single_colon_pseudo_element(PseudoElement);
 
 String serialize_a_group_of_selectors(SelectorList const& selectors);
 
-SelectorList adapt_nested_relative_selector_list(SelectorList const&);
+enum class StyleNestingParent : u8 {
+    None,
+    Style,
+    Scope,
+};
+SelectorList adapt_nested_relative_selector_list(SelectorList const&, StyleNestingParent);
 
 SelectorList absolutize_selectors_relative_to(SelectorList const&, GC::Ptr<CSSRule const> parent);
 

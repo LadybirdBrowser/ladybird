@@ -143,9 +143,19 @@ void CSSStyleRule::set_selector_text(StringView selector_text)
         parsing_params.declared_namespaces = m_parent_style_sheet->declared_namespaces();
 
     Optional<SelectorList> parsed_selectors;
-    if (nesting_parent_rule()) {
+    if (auto nesting_parent = nesting_parent_rule()) {
         // AD-HOC: If we're a nested style rule, then we need to parse the selector as relative and then adapt it with implicit &s.
-        parsed_selectors = parse_selector_for_nested_style_rule(parsing_params, selector_text);
+        auto nesting_parent_type = [&] {
+            switch (nesting_parent->type()) {
+            case Type::Style:
+                return StyleNestingParent::Style;
+            case Type::Scope:
+                return StyleNestingParent::Scope;
+            default:
+                VERIFY_NOT_REACHED();
+            }
+        }();
+        parsed_selectors = parse_selector_for_nested_style_rule(parsing_params, selector_text, nesting_parent_type);
     } else {
         parsed_selectors = parse_selector(parsing_params, selector_text);
     }
@@ -191,7 +201,7 @@ void CSSStyleRule::set_parent_style_sheet(CSSStyleSheet* parent_style_sheet)
 GC::Ptr<CSSRule const> CSSStyleRule::nesting_parent_rule() const
 {
     for (auto const* parent = parent_rule(); parent; parent = parent->parent_rule()) {
-        if (parent->type() == Type::Style)
+        if (parent->type() == Type::Style || parent->type() == Type::Scope)
             return parent;
     }
     return nullptr;

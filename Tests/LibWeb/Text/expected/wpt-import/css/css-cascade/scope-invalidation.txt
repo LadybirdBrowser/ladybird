@@ -2,7 +2,8 @@ Harness status: OK
 
 Found 29 tests
 
-29 Fail
+3 Pass
+26 Fail
 Fail	Element becoming scope root
 Fail	Element becoming scope root (selector list)
 Fail	Element becoming scope root, with inner :scope rule
@@ -26,9 +27,9 @@ Fail	:not(scope) in limit subject
 Fail	:not(scope) in limit ancestor
 Fail	:nth-child() in scope root
 Fail	:nth-child() in scope limit
-Fail	Modifying selectorText invalidates affected elements
-Fail	Modifying selectorText invalidates affected elements (>)
-Fail	Relative selectors set with selectorText are relative to :scope and &
+Pass	Modifying selectorText invalidates affected elements
+Pass	Modifying selectorText invalidates affected elements (>)
+Pass	Relative selectors set with selectorText are relative to :scope and &
 Fail	Ancestor element affecting nested scope root (Through latter selector in list)
 Fail	Parent element of subject affecting scope limit
 Fail	Sandwiched deep implicit scope root, :scope in subject

@@ -2,10 +2,11 @@ Harness status: OK
 
 Found 8 tests
 
-8 Fail
-Fail	> .foo in @scope,.nest created by string valid
+2 Pass
+6 Fail
+Pass	> .foo in @scope,.nest created by string valid
 Fail	> .foo in .nest,@scope created by string valid
-Fail	> .foo in @scope,.nest,@media screen created by string valid
+Pass	> .foo in @scope,.nest,@media screen created by string valid
 Fail	> .foo in .nest,@scope,@media screen created by string valid
 Fail	> .foo in @scope,.nest created by insertRule valid
 Fail	> .foo in .nest,@scope created by insertRule valid
