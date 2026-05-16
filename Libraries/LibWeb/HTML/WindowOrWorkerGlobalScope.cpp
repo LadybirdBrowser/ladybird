@@ -1071,7 +1071,7 @@ void WindowOrWorkerGlobalScopeMixin::forcibly_close_all_event_sources()
 void WindowOrWorkerGlobalScopeMixin::close_all_idb_connections()
 {
     IndexedDB::Database::for_each_database([&](IndexedDB::Database& database) {
-        for (auto& connection : database.associated_connections_as_root_vector()) {
+        for (auto& connection : database.associated_connections_as_root_vector(this_impl().heap())) {
             if (connection->close_pending())
                 continue;
             if (&as<WindowOrWorkerGlobalScopeMixin>(relevant_global_object(*connection)) == this)

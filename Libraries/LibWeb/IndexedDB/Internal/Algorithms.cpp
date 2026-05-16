@@ -97,7 +97,7 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
         // 6. If db is null, let db be a new database with name name, version 0 (zero), and with no object stores.
         // If this fails for any reason, return an appropriate error (e.g. a "QuotaExceededError" or "UnknownError" DOMException).
         if (!maybe_db.has_value()) {
-            auto maybe_database = Database::create_for_key_and_name(realm, storage_key, name);
+            auto maybe_database = Database::create_for_key_and_name(realm.heap(), storage_key, name);
 
             if (maybe_database.is_error()) {
                 call_completion(queue, on_complete, WebIDL::OperationError::create(realm, "Unable to create a new database"_utf16));
@@ -125,7 +125,7 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
             dbgln_if(IDB_DEBUG, "open_a_database_connection: Upgrading database from version {} to {}", db->version(), version);
 
             // 1. Let openConnections be the set of all connections, except connection, associated with db.
-            auto open_connections = db->associated_connections_as_heap_vector_except(connection);
+            auto open_connections = db->associated_connections_as_heap_vector_except(realm.heap(), connection);
 
             // 2. For each entry of openConnections that does not have its close pending flag set to true,
             //    queue a database task to fire a version change event named versionchange at entry with db’s version and version.
@@ -504,7 +504,7 @@ void delete_a_database(JS::Realm& realm, StorageAPI::StorageKey storage_key, Str
         GC::Ref db = maybe_db.value();
 
         // 5. Let openConnections be the set of all connections associated with db.
-        auto open_connections = db->associated_connections_as_heap_vector();
+        auto open_connections = db->associated_connections_as_heap_vector(realm.heap());
 
         // 6. For each entry of openConnections that does not have its close pending flag set to true,
         //    queue a database task to fire a version change event named versionchange at entry with db’s version and null.
@@ -2221,7 +2221,7 @@ bool cleanup_indexed_database_transactions(GC::Ref<HTML::EventLoop> event_loop)
     bool has_matching_event_loop = false;
 
     Database::for_each_database([&has_matching_event_loop, event_loop](Database& database) {
-        for (auto const& connection : database.associated_connections_as_root_vector()) {
+        for (auto const& connection : database.associated_connections_as_root_vector(event_loop->heap())) {
             for (auto const& transaction : connection->transactions()) {
                 // 2. For each transaction transaction with cleanup event loop matching the current event loop:
                 if (transaction->cleanup_event_loop() == event_loop) {

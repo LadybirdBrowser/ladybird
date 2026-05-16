@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/IndexedDB/IDBDatabase.h>
 #include <LibWeb/IndexedDB/IDBTransaction.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
@@ -30,9 +31,9 @@ GC_DEFINE_ALLOCATOR(Database);
 
 Database::~Database() = default;
 
-GC::Ref<Database> Database::create(JS::Realm& realm, String const& name)
+GC::Ref<Database> Database::create(GC::Heap& heap, String const& name)
 {
-    return realm.create<Database>(realm, name);
+    return heap.allocate<Database>(name);
 }
 
 void Database::visit_edges(Visitor& visitor)
@@ -88,13 +89,13 @@ Optional<Database&> Database::for_key_and_name(StorageAPI::StorageKey const& key
     return {};
 }
 
-ErrorOr<GC::Ref<Database>> Database::create_for_key_and_name(JS::Realm& realm, StorageAPI::StorageKey const& key, String const& name)
+ErrorOr<GC::Ref<Database>> Database::create_for_key_and_name(GC::Heap& heap, StorageAPI::StorageKey const& key, String const& name)
 {
     auto database_mapping = TRY(m_databases.try_ensure(key, [] {
         return HashMap<String, GC::Root<Database>>();
     }));
 
-    auto value = Database::create(realm, name);
+    auto value = Database::create(heap, name);
 
     database_mapping.set(name, value);
     m_databases.set(key, database_mapping);
@@ -133,9 +134,9 @@ void Database::dissociate(IDBDatabase& connection)
     m_associated_connections.remove_first_matching([&](auto& entry) { return entry == &connection; });
 }
 
-GC::Ref<Database::AssociatedConnections> Database::associated_connections_as_heap_vector()
+GC::Ref<Database::AssociatedConnections> Database::associated_connections_as_heap_vector(GC::Heap& heap)
 {
-    auto connections = realm().heap().allocate<AssociatedConnections>();
+    auto connections = heap.allocate<AssociatedConnections>();
     for (auto& associated_connection : m_associated_connections) {
         if (associated_connection)
             connections->elements().append(*associated_connection);
@@ -143,9 +144,9 @@ GC::Ref<Database::AssociatedConnections> Database::associated_connections_as_hea
     return connections;
 }
 
-GC::RootVector<GC::Ref<IDBDatabase>> Database::associated_connections_as_root_vector()
+GC::RootVector<GC::Ref<IDBDatabase>> Database::associated_connections_as_root_vector(GC::Heap& heap)
 {
-    GC::RootVector<GC::Ref<IDBDatabase>> connections(realm().heap());
+    GC::RootVector<GC::Ref<IDBDatabase>> connections(heap);
     for (auto& connection : m_associated_connections) {
         if (connection)
             connections.append(*connection);
@@ -153,9 +154,9 @@ GC::RootVector<GC::Ref<IDBDatabase>> Database::associated_connections_as_root_ve
     return connections;
 }
 
-GC::Ref<Database::AssociatedConnections> Database::associated_connections_as_heap_vector_except(IDBDatabase& connection)
+GC::Ref<Database::AssociatedConnections> Database::associated_connections_as_heap_vector_except(GC::Heap& heap, IDBDatabase& connection)
 {
-    auto connections = realm().heap().allocate<AssociatedConnections>();
+    auto connections = heap.allocate<AssociatedConnections>();
     for (auto& associated_connection : m_associated_connections) {
         if (associated_connection && associated_connection != &connection)
             connections->elements().append(*associated_connection);
