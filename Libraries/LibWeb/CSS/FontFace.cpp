@@ -302,7 +302,7 @@ void FontFace::reparse_connected_css_font_face_rule_descriptors()
     set_family_impl(*descriptors->descriptor(DescriptorNameAndID::from_id(DescriptorID::FontFamily)));
     set_style_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontStyle))->absolutized(computation_context));
     set_weight_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontWeight))->absolutized(computation_context));
-    set_stretch_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontWidth))->absolutized(computation_context));
+    set_stretch_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontWidth)));
     set_unicode_range_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::UnicodeRange)));
     set_feature_settings_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontFeatureSettings)));
     set_variation_settings_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontVariationSettings)));
@@ -384,6 +384,18 @@ Optional<FontComputer&> FontFace::font_computer() const
         if (auto* window = as_if<HTML::Window>(global))
             return window->associated_document().font_computer();
     }
+    return {};
+}
+
+Optional<ComputationContext> FontFace::computation_context() const
+{
+    if (m_css_font_face_rule) {
+        if (auto document = m_css_font_face_rule->descriptors()->parent_rule()->parent_style_sheet()->owning_document())
+            return ComputationContext { .length_resolution_context = Length::ResolutionContext::for_document(*document) };
+    }
+    auto& global = HTML::relevant_global_object(*this);
+    if (auto* window = as_if<HTML::Window>(global))
+        return ComputationContext { .length_resolution_context = Length::ResolutionContext::for_document(window->associated_document()) };
     return {};
 }
 
@@ -542,8 +554,10 @@ WebIDL::ExceptionOr<void> FontFace::set_stretch(String const& string)
 
 void FontFace::set_stretch_impl(NonnullRefPtr<StyleValue const> const& value)
 {
-    m_stretch = value->to_string(SerializationMode::Normal);
-    m_cached_width = compute_width(*value);
+    auto context = computation_context();
+    NonnullRefPtr<StyleValue const> absolutized_value = context.has_value() ? value->absolutized(*context) : value;
+    m_stretch = absolutized_value->to_string(SerializationMode::Normal);
+    m_cached_width = compute_width(*absolutized_value);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-unicoderange
