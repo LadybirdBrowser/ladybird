@@ -57,6 +57,18 @@ jobs:
 
       # === PREPARE FOR BUILDING ===
 
+      - name: Free Disk Space
+        run: |
+          df -h "${GITHUB_WORKSPACE}" /
+          sudo rm -rf \
+            /opt/ghc \
+            /opt/hostedtoolcache/CodeQL \
+            /usr/local/.ghcup \
+            /usr/local/share/boost \
+            /usr/share/dotnet
+          docker image prune --all --force || true
+          df -h "${GITHUB_WORKSPACE}" /
+
       - name: Restore Caches
         uses: ./.github/actions/cache-restore
         id: cache-restore
@@ -89,8 +101,22 @@ jobs:
       - name: Build Android Debug APK
         working-directory: ${{ github.workspace }}/UI/Android
         run: |
-          set -o pipefail
-          ./gradlew --stacktrace --info assembleDebug 2>&1 | tee "${{ github.workspace }}/android-debug-build.log"
+          log_file="${{ github.workspace }}/android-debug-build.log"
+          ./gradlew --stacktrace --console=plain assembleDebug >"${log_file}" 2>&1 &
+          gradle_pid=$!
+          while kill -0 "${gradle_pid}" 2>/dev/null; do
+            sleep 300
+            if kill -0 "${gradle_pid}" 2>/dev/null; then
+              echo "assembleDebug still running; log size: $(du -h "${log_file}" | cut -f1)"
+            fi
+          done
+
+          if wait "${gradle_pid}"; then
+            tail -n 200 "${log_file}"
+          else
+            tail -n 400 "${log_file}"
+            exit 1
+          fi
         env:
           GRADLE_OPTS: '-Xmx4096m'
           LADYBIRD_CACHE_DIR: ${{ github.workspace }}/Build/caches
