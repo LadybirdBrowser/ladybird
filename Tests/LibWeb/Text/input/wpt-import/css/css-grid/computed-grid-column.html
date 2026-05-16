@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<title>CSS Grid Layout Test: row/column is complex calc()</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/">
+<style>
+.grid {
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: 100px 150px;
+  grid-template-rows: 150px 100px;
+}
+.firstRowSecondColumn {
+  grid-row: calc(2 * sign(100em - 1px) - 1);
+  grid-column: calc(3 - sign(100em - 1px));
+}
+.someHugeValue {
+  /* Just check that we don't crash. */
+  grid-row: calc(1e100);
+  grid-column: calc(-1e100);
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div class="grid">
+  <div class="firstRowSecondColumn" id="target">X XX X</div>
+  <div class="someHugeValue">X XX X</div>
+</div>
+<script>
+test(() => {
+  assert_equals(getComputedStyle(target).gridRow, '1');
+  assert_equals(getComputedStyle(target).gridColumn, '2');
+});
+</script>

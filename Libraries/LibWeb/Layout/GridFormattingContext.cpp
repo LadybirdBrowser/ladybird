@@ -14,6 +14,22 @@
 
 namespace Web::Layout {
 
+// https://drafts.csswg.org/css-grid/#overlarge-grids
+// Since memory is limited, UAs may clamp the possible size of the implicit grid to be within a UA-defined limit
+// (which should accommodate lines in the range [-10000, 10000]), dropping all lines outside that limit. If a grid item
+// is placed outside this limit, its grid area must be clamped to within this limited grid.
+static constexpr i32 MAX_GRID_LINE_NUMBER = 10000;
+
+static i32 clamp_grid_line(i32 value)
+{
+    return clamp(value, -MAX_GRID_LINE_NUMBER, MAX_GRID_LINE_NUMBER);
+}
+
+static i32 clamp_grid_span(i32 value)
+{
+    return clamp(value, 1, MAX_GRID_LINE_NUMBER);
+}
+
 static Alignment to_alignment(CSS::JustifyContent value)
 {
     switch (value) {
@@ -274,8 +290,8 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
     auto const& placement_start = dimension == GridDimension::Row ? computed_values.grid_row_start() : computed_values.grid_column_start();
     auto const& placement_end = dimension == GridDimension::Row ? computed_values.grid_row_end() : computed_values.grid_column_end();
 
-    Optional<i32> placement_start_line_number = placement_start.has_line_number() ? CSS::int_from_style_value(placement_start.line_number()) : Optional<i32> {};
-    Optional<i32> placement_end_line_number = placement_end.has_line_number() ? CSS::int_from_style_value(placement_end.line_number()) : Optional<i32> {};
+    Optional<i32> placement_start_line_number = placement_start.has_line_number() ? clamp_grid_line(CSS::int_from_style_value(placement_start.line_number())) : Optional<i32> {};
+    Optional<i32> placement_end_line_number = placement_end.has_line_number() ? clamp_grid_line(CSS::int_from_style_value(placement_end.line_number())) : Optional<i32> {};
 
     PlacementPosition result;
 
@@ -299,9 +315,9 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
     //        that name exist, all implicit grid lines on the side of the explicit grid corresponding to the search
     //        direction are assumed to have that name for the purpose of counting this span.
     if (placement_end.is_span())
-        result.span = CSS::int_from_style_value(placement_end.span());
+        result.span = clamp_grid_span(CSS::int_from_style_value(placement_end.span()));
     if (placement_start.is_span()) {
-        result.span = CSS::int_from_style_value(placement_start.span());
+        result.span = clamp_grid_span(CSS::int_from_style_value(placement_start.span()));
         result.start = result.end - result.span;
         // FIXME: Remove me once have implemented spans overflowing into negative indexes, e.g., grid-row: span 2 / 1
         if (result.start < 0)
@@ -356,7 +372,7 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
     // If the placement contains two spans, remove the one contributed by the end grid-placement
     // property.
     if (placement_start.is_span() && placement_end.is_span())
-        result.span = CSS::int_from_style_value(placement_start.span());
+        result.span = clamp_grid_span(CSS::int_from_style_value(placement_start.span()));
 
     return result;
 }
@@ -368,9 +384,9 @@ size_t GridFormattingContext::resolve_grid_span(Box const& child_box, GridDimens
     auto const& placement_end = dimension == GridDimension::Row ? computed_values.grid_row_end() : computed_values.grid_column_end();
 
     if (placement_start.is_span())
-        return CSS::int_from_style_value(placement_start.span());
+        return clamp_grid_span(CSS::int_from_style_value(placement_start.span()));
     if (placement_end.is_span())
-        return CSS::int_from_style_value(placement_end.span());
+        return clamp_grid_span(CSS::int_from_style_value(placement_end.span()));
     return 1;
 }
 
