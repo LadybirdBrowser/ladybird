@@ -448,6 +448,7 @@ void HTMLLinkElement::default_fetch_and_process_linked_resource(u64 fetch_genera
         // "if, since the resource in question was fetched, it has become appropriate to fetch it again"
         if (fetch_generation != m_current_fetch_generation)
             return;
+        m_fetch_controller = nullptr;
 
         // FIXME: If the response is CORS cross-origin, we must use its internal response to query any of its data. See:
         //        https://github.com/whatwg/html/issues/9355
@@ -529,9 +530,13 @@ void HTMLLinkElement::fetch_and_process_linked_preload_resource()
 
     // 6. Preload options, with the following steps given a response response:
     GC::Weak weak_this { *this };
-    preload(options, [weak_this](Fetch::Infrastructure::Response& response) {
+    auto fetch_generation = m_current_fetch_generation;
+    preload(options, [weak_this, fetch_generation](Fetch::Infrastructure::Response& response) {
         // 1. If response is a network error, fire an event named error at el. Otherwise, fire an event named load at el.
         if (auto link_element = weak_this.ptr()) {
+            if (fetch_generation != link_element->m_current_fetch_generation)
+                return;
+            link_element->m_fetch_controller = nullptr;
             if (response.is_network_error())
                 link_element->dispatch_event(DOM::Event::create(link_element->realm(), HTML::EventNames::error));
             else
