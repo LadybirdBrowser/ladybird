@@ -6367,8 +6367,7 @@ void Document::element_with_id_was_removed(Badge<DOM::Element>, GC::Ref<DOM::Ele
     for (auto* form_associated_element : m_form_associated_elements_with_form_attribute)
         form_associated_element->element_with_id_was_added_or_removed({});
 
-    if (is_potentially_named_element_by_id(*element))
-        (void)m_potentially_named_elements.remove_first_matching([element](auto& e) { return e == element; });
+    (void)m_potentially_named_elements.remove_first_matching([element](auto& e) { return e == element; });
 
     if (auto id = element->id(); id.has_value()) {
         element->document_or_shadow_root_element_by_id_map().remove(id.value(), element);
