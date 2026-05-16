@@ -1,4 +1,4 @@
-test.xfail("repeat-match-waldemar", () => {
+test("repeat-match-waldemar", () => {
     // WebKit assertion compatibility shim for Ladybird's test-js harness
 
     function description(msg) {
