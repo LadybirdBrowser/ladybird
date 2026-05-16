@@ -27,6 +27,10 @@
 
 namespace Gfx {
 
+#if defined(AK_OS_MACOS) || USE_VULKAN
+static constexpr size_t skia_resource_cache_limit = 256 * MiB;
+#endif
+
 static RefPtr<SkiaBackendContext> s_main_thread_context;
 
 void SkiaBackendContext::initialize_gpu_backend()
@@ -130,6 +134,7 @@ RefPtr<SkiaBackendContext> SkiaBackendContext::create_vulkan_context(VulkanConte
 
     sk_sp<GrDirectContext> ctx = GrDirectContexts::MakeVulkan(backend_context);
     VERIFY(ctx);
+    ctx->setResourceCacheLimit(skia_resource_cache_limit);
     return adopt_ref(*new SkiaVulkanBackendContext(ctx, vulkan_context, move(extensions)));
 }
 #endif
@@ -175,6 +180,8 @@ RefPtr<SkiaBackendContext> SkiaBackendContext::create_metal_context(NonnullRefPt
     backend_context.fDevice.retain(metal_context->device());
     backend_context.fQueue.retain(metal_context->queue());
     sk_sp<GrDirectContext> ctx = GrDirectContexts::MakeMetal(backend_context);
+    VERIFY(ctx);
+    ctx->setResourceCacheLimit(skia_resource_cache_limit);
     return adopt_ref(*new SkiaMetalBackendContext(move(ctx), move(metal_context)));
 }
 #endif

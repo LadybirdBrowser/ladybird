@@ -20,6 +20,8 @@
 namespace Gfx {
 
 static constexpr u64 image_cache_max_unused_generations = 120;
+static constexpr size_t image_cache_max_entries = 128;
+static constexpr size_t image_cache_max_bytes = 64 * MiB;
 
 struct DecodedImageFrameSkiaImageCache::Impl {
     Impl() = default;
@@ -55,10 +57,33 @@ struct DecodedImageFrameSkiaImageCache::Impl {
     struct CachedImage {
         sk_sp<SkImage> image;
         u64 last_used_generation { 0 };
+        size_t approximate_byte_size { 0 };
     };
+
+    void prune_to_limits()
+    {
+        while (images.size() > image_cache_max_entries || approximate_byte_size > image_cache_max_bytes) {
+            Optional<DecodedImageFrame> oldest_frame;
+            Optional<u64> oldest_generation;
+            for (auto const& image : images) {
+                if (!oldest_generation.has_value() || image.value.last_used_generation < oldest_generation.value()) {
+                    oldest_frame = image.key;
+                    oldest_generation = image.value.last_used_generation;
+                }
+            }
+
+            if (!oldest_frame.has_value())
+                break;
+
+            auto cached_image = images.get(oldest_frame.value()).release_value();
+            approximate_byte_size -= min(approximate_byte_size, cached_image.approximate_byte_size);
+            images.remove(oldest_frame.value());
+        }
+    }
 
     RefPtr<SkiaBackendContext> skia_backend_context;
     HashMap<DecodedImageFrame, CachedImage, DecodedImageFrameKeyTraits> images;
+    size_t approximate_byte_size { 0 };
     u64 generation { 0 };
 };
 
@@ -99,16 +124,23 @@ sk_sp<SkImage> DecodedImageFrameSkiaImageCache::image_for_frame(DecodedImageFram
     Impl::CachedImage cached_image {
         .image = image,
         .last_used_generation = m_impl->generation,
+        .approximate_byte_size = bitmap.size_in_bytes(),
     };
+    m_impl->approximate_byte_size += cached_image.approximate_byte_size;
     m_impl->images.set(frame, move(cached_image));
+    m_impl->prune_to_limits();
     return image;
 }
 
 void DecodedImageFrameSkiaImageCache::prune()
 {
     m_impl->images.remove_all_matching([this](auto const&, auto const& cached_image) {
-        return m_impl->generation - cached_image.last_used_generation > image_cache_max_unused_generations;
+        if (m_impl->generation - cached_image.last_used_generation <= image_cache_max_unused_generations)
+            return false;
+        m_impl->approximate_byte_size -= min(m_impl->approximate_byte_size, cached_image.approximate_byte_size);
+        return true;
     });
+    m_impl->prune_to_limits();
     ++m_impl->generation;
 }
 
