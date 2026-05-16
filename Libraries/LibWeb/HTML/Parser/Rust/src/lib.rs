@@ -561,28 +561,6 @@ pub unsafe extern "C" fn rust_html_tokenizer_is_insertion_point_reached(handle: 
 /// # Safety
 /// `handle` must be a valid pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_set_blocked(handle: *mut RustFfiTokenizerHandle, blocked: bool) {
-    if handle.is_null() {
-        return;
-    }
-    let handle = unsafe { &mut *handle };
-    handle.tokenizer.set_blocked(blocked);
-}
-
-/// # Safety
-/// `handle` must be a valid pointer.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_is_blocked(handle: *mut RustFfiTokenizerHandle) -> bool {
-    if handle.is_null() {
-        return false;
-    }
-    let handle = unsafe { &mut *handle };
-    handle.tokenizer.is_blocked()
-}
-
-/// # Safety
-/// `handle` must be a valid pointer.
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_html_tokenizer_set_input_stream_closed(
     handle: *mut RustFfiTokenizerHandle,
     closed: bool,
@@ -603,17 +581,6 @@ pub unsafe extern "C" fn rust_html_tokenizer_insert_eof(handle: *mut RustFfiToke
     }
     let handle = unsafe { &mut *handle };
     handle.tokenizer.insert_eof();
-}
-
-/// # Safety
-/// `handle` must be a valid pointer.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_is_eof_inserted(handle: *mut RustFfiTokenizerHandle) -> bool {
-    if handle.is_null() {
-        return false;
-    }
-    let handle = unsafe { &mut *handle };
-    handle.tokenizer.is_eof_inserted()
 }
 
 /// # Safety

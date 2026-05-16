@@ -10,16 +10,14 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
-#include <LibGC/Cell.h>
-#include <LibGC/Ptr.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Parser/HTMLToken.h>
 
 struct RustFfiTokenizerHandle;
-struct RustFfiHtmlParserHandle;
 
 namespace Web::HTML {
+
+class HTMLParser;
 
 #define ENUMERATE_TOKENIZER_STATES                                        \
     __ENUMERATE_TOKENIZER_STATE(Data)                                     \
@@ -121,13 +119,7 @@ public:
     };
     Optional<HTMLToken> next_token(StopAtInsertionPoint = StopAtInsertionPoint::No);
 
-    void set_parser(Badge<HTMLParser>, HTMLParser& parser) { m_parser = &parser; }
-
-    void switch_to(Badge<HTMLParser>, State new_state);
     void switch_to(State new_state);
-
-    void set_blocked(bool b);
-    bool is_blocked() const;
 
     auto const& source() const { return m_source; }
 
@@ -138,7 +130,6 @@ public:
     bool is_input_stream_closed() const { return m_input_stream_closed; }
     void insert_input_at_insertion_point(StringView input);
     void insert_eof();
-    bool is_eof_inserted();
 
     bool is_insertion_point_defined() const;
     bool is_insertion_point_reached();
@@ -155,8 +146,6 @@ public:
     void parser_did_run(Badge<HTMLParser>);
     RustFfiTokenizerHandle* ffi_handle(Badge<HTMLParser>) { return m_tokenizer; }
 
-    void visit_edges(GC::Cell::Visitor&);
-
 private:
     static char const* state_name(State state)
     {
@@ -169,8 +158,6 @@ private:
         };
         VERIFY_NOT_REACHED();
     }
-
-    GC::Ptr<HTMLParser> m_parser;
 
     State m_state { State::Data };
     String m_source;

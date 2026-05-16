@@ -765,7 +765,6 @@ class HTMLParamElement;
 class HTMLParser;
 class HTMLParserEndState;
 class SpeculativeHTMLParser;
-struct SpeculativeMockElement;
 class HTMLPictureElement;
 class HTMLPreElement;
 class HTMLProgressElement;

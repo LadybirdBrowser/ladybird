@@ -61,13 +61,6 @@ public:
         bool force_quirks { false };
     };
 
-    static HTMLToken make_character(u32 code_point)
-    {
-        HTMLToken token { Type::Character };
-        token.set_code_point(code_point);
-        return token;
-    }
-
     static HTMLToken make_start_tag(FlyString const& tag_name)
     {
         HTMLToken token { Type::StartTag };
@@ -107,23 +100,6 @@ public:
     {
         VERIFY(is_character());
         return m_data.get<u32>();
-    }
-
-    bool is_parser_whitespace() const
-    {
-        // NOTE: The parser considers '\r' to be whitespace, while the tokenizer does not.
-        if (!is_character())
-            return false;
-        switch (code_point()) {
-        case '\t':
-        case '\n':
-        case '\f':
-        case '\r':
-        case ' ':
-            return true;
-        default:
-            return false;
-        }
     }
 
     void set_code_point(u32 code_point)
@@ -168,25 +144,6 @@ public:
         m_tag_self_closing = self_closing;
     }
 
-    bool has_acknowledged_self_closing_flag() const
-    {
-        VERIFY(is_self_closing());
-        return m_tag_self_closing_acknowledged;
-    }
-
-    void acknowledge_self_closing_flag_if_set()
-    {
-        if (is_self_closing())
-            m_tag_self_closing_acknowledged = true;
-    }
-
-    bool has_attributes() const
-    {
-        VERIFY(is_start_tag() || is_end_tag());
-        auto* ptr = tag_attributes();
-        return ptr && !ptr->is_empty();
-    }
-
     size_t attribute_count() const
     {
         VERIFY(is_start_tag() || is_end_tag());
@@ -201,39 +158,7 @@ public:
         ensure_tag_attributes().append(move(attribute));
     }
 
-    Attribute const& last_attribute() const
-    {
-        VERIFY(is_start_tag() || is_end_tag());
-        VERIFY(has_attributes());
-        return tag_attributes()->last();
-    }
-
-    Attribute& last_attribute()
-    {
-        VERIFY(is_start_tag() || is_end_tag());
-        VERIFY(has_attributes());
-        return tag_attributes()->last();
-    }
-
-    void drop_attributes()
-    {
-        VERIFY(is_start_tag() || is_end_tag());
-        m_data.get<OwnPtr<Vector<Attribute>>>().clear();
-    }
-
     void for_each_attribute(Function<IterationDecision(Attribute const&)> callback) const
-    {
-        VERIFY(is_start_tag() || is_end_tag());
-        auto* ptr = tag_attributes();
-        if (!ptr)
-            return;
-        for (auto& attribute : *ptr) {
-            if (callback(attribute) == IterationDecision::Break)
-                break;
-        }
-    }
-
-    void for_each_attribute(Function<IterationDecision(Attribute&)> callback)
     {
         VERIFY(is_start_tag() || is_end_tag());
         auto* ptr = tag_attributes();
@@ -269,36 +194,6 @@ public:
     bool has_attribute(FlyString const& attribute_name) const
     {
         return attribute(attribute_name).has_value();
-    }
-
-    void adjust_tag_name(FlyString const& old_name, FlyString const& new_name)
-    {
-        VERIFY(is_start_tag() || is_end_tag());
-        if (old_name == tag_name())
-            set_tag_name(new_name);
-    }
-
-    void adjust_attribute_name(FlyString const& old_name, FlyString const& new_name)
-    {
-        VERIFY(is_start_tag() || is_end_tag());
-        for_each_attribute([&](Attribute& attribute) {
-            if (old_name == attribute.local_name)
-                attribute.local_name = new_name;
-            return IterationDecision::Continue;
-        });
-    }
-
-    void adjust_foreign_attribute(FlyString const& old_name, Optional<FlyString> const& prefix, FlyString const& local_name, Optional<FlyString> const& namespace_)
-    {
-        VERIFY(is_start_tag() || is_end_tag());
-        for_each_attribute([&](Attribute& attribute) {
-            if (old_name == attribute.local_name) {
-                attribute.prefix = prefix;
-                attribute.local_name = local_name;
-                attribute.namespace_ = namespace_;
-            }
-            return IterationDecision::Continue;
-        });
     }
 
     DoctypeData const& doctype_data() const
@@ -356,7 +251,6 @@ private:
 
     // Type::StartTag and Type::EndTag
     bool m_tag_self_closing { false };
-    bool m_tag_self_closing_acknowledged { false };
 
     // AD-HOC: We need to know if the token had duplicate attributes, as Content Security Policy disables the nonce
     //         attribute on the element that will be created from such a token.

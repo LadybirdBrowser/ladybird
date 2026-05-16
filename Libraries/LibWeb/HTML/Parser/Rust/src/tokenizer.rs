@@ -223,9 +223,7 @@ pub struct HtmlTokenizer {
     aborted: bool,
     insertion_point: Option<usize>,
     old_insertion_points: Vec<Option<usize>>,
-    explicit_eof_inserted: bool,
     input_stream_closed: bool,
-    blocked: bool,
     stop_at_insertion_point: bool,
     cdata_allowed: bool,
     entity_matcher: NamedCharacterReferenceMatcher,
@@ -352,9 +350,7 @@ impl HtmlTokenizer {
             aborted: false,
             insertion_point: None,
             old_insertion_points: Vec::new(),
-            explicit_eof_inserted: false,
             input_stream_closed: true,
-            blocked: false,
             stop_at_insertion_point: false,
             cdata_allowed: false,
             entity_matcher: NamedCharacterReferenceMatcher::new(),
@@ -439,21 +435,8 @@ impl HtmlTokenizer {
         self.current_column = last_position.column;
     }
 
-    pub fn set_blocked(&mut self, blocked: bool) {
-        self.blocked = blocked;
-    }
-
-    pub fn is_blocked(&self) -> bool {
-        self.blocked
-    }
-
     pub fn insert_eof(&mut self) {
-        self.explicit_eof_inserted = true;
         self.input_stream_closed = true;
-    }
-
-    pub fn is_eof_inserted(&self) -> bool {
-        self.explicit_eof_inserted
     }
 
     pub fn set_input_stream_closed(&mut self, closed: bool) {

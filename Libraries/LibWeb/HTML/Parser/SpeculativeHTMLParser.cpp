@@ -14,7 +14,6 @@
 #include <LibWeb/HTML/CORSSettingAttribute.h>
 #include <LibWeb/HTML/Parser/HTMLToken.h>
 #include <LibWeb/HTML/Parser/SpeculativeHTMLParser.h>
-#include <LibWeb/HTML/Parser/SpeculativeMockElement.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
 #include <LibWeb/HTML/PreloadEntry.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -44,7 +43,6 @@ void SpeculativeHTMLParser::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_document);
-    m_tokenizer.visit_edges(visitor);
 }
 
 void SpeculativeHTMLParser::stop()
@@ -74,6 +72,26 @@ void SpeculativeHTMLParser::run()
 
 namespace {
 
+// https://html.spec.whatwg.org/multipage/parsing.html#speculative-mock-element
+struct SpeculativeMockElement {
+    // local name
+    FlyString local_name;
+
+    // attribute list
+    Vector<HTMLToken::Attribute> attribute_list;
+
+    // FIXME: namespace and children: populate when speculative tree-building is implemented.
+
+    Optional<String> attribute(FlyString const& name) const
+    {
+        for (auto const& attribute : attribute_list) {
+            if (attribute.local_name == name)
+                return attribute.value;
+        }
+        return {};
+    }
+};
+
 Vector<HTMLToken::Attribute> attributes_from_token(HTMLToken const& token)
 {
     Vector<HTMLToken::Attribute> attributes;
@@ -82,6 +100,24 @@ Vector<HTMLToken::Attribute> attributes_from_token(HTMLToken const& token)
         return IterationDecision::Continue;
     });
     return attributes;
+}
+
+// https://html.spec.whatwg.org/multipage/parsing.html#create-a-speculative-mock-element
+SpeculativeMockElement create_a_speculative_mock_element(FlyString tag_name, Vector<HTMLToken::Attribute> attributes)
+{
+    // 1. Let element be a new speculative mock element.
+    // 2. FIXME: Set element's namespace to namespace.
+    // 3. Set element's local name to tagName.
+    // 4. Set element's attribute list to attributes.
+    // 5. FIXME: Set element's children to a new empty list.
+    // 6. Optionally, perform a speculative fetch for element.
+    // The speculative fetch is performed by the caller (see SpeculativeHTMLParser::process_start_tag).
+
+    // 7. Return element.
+    return SpeculativeMockElement {
+        .local_name = move(tag_name),
+        .attribute_list = move(attributes),
+    };
 }
 
 void issue_speculative_fetch(JS::Realm& realm, DOM::Document& document, URL::URL url, Optional<Fetch::Infrastructure::Request::Destination> destination, CORSSettingAttribute cors_setting)

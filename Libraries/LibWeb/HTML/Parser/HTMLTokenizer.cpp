@@ -9,12 +9,9 @@
 #include <AK/FlyString.h>
 #include <AK/Vector.h>
 #include <LibTextCodec/Decoder.h>
-#include <LibWeb/DOM/Node.h>
-#include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Parser/HTMLToken.h>
 #include <LibWeb/HTML/Parser/HTMLTokenizer.h>
 #include <LibWeb/HTMLTokenizerRustFFI.h>
-#include <LibWeb/Namespace.h>
 
 namespace Web::HTML {
 
@@ -106,9 +103,7 @@ Optional<HTMLToken> HTMLTokenizer::next_token(StopAtInsertionPoint stop_at_inser
 {
     RustFfiToken ffi;
     bool stop = stop_at_insertion_point == StopAtInsertionPoint::Yes;
-    bool cdata_allowed = m_parser != nullptr
-        && m_parser->adjusted_current_node()
-        && m_parser->adjusted_current_node()->namespace_uri() != Namespace::HTML;
+    bool cdata_allowed = false;
     if (!rust_html_tokenizer_next_token(m_tokenizer, &ffi, stop, cdata_allowed))
         return {};
 
@@ -242,21 +237,6 @@ void HTMLTokenizer::insert_eof()
     rust_html_tokenizer_insert_eof(m_tokenizer);
 }
 
-bool HTMLTokenizer::is_eof_inserted()
-{
-    return rust_html_tokenizer_is_eof_inserted(m_tokenizer);
-}
-
-void HTMLTokenizer::set_blocked(bool blocked)
-{
-    rust_html_tokenizer_set_blocked(m_tokenizer, blocked);
-}
-
-bool HTMLTokenizer::is_blocked() const
-{
-    return rust_html_tokenizer_is_blocked(m_tokenizer);
-}
-
 bool HTMLTokenizer::is_insertion_point_defined() const
 {
     return rust_html_tokenizer_is_insertion_point_defined(m_tokenizer);
@@ -292,22 +272,11 @@ void HTMLTokenizer::abort()
     rust_html_tokenizer_abort(m_tokenizer);
 }
 
-void HTMLTokenizer::switch_to(Badge<HTMLParser>, State new_state)
-{
-    dbgln_if(TOKENIZER_TRACE_DEBUG, "[{}] Parser switches tokenizer state to {}", state_name(m_state), state_name(new_state));
-    switch_to(new_state);
-}
-
 void HTMLTokenizer::switch_to(State new_state)
 {
     dbgln_if(TOKENIZER_TRACE_DEBUG, "[{}] Switch to {}", state_name(m_state), state_name(new_state));
     m_state = new_state;
     rust_html_tokenizer_switch_state(m_tokenizer, static_cast<uint8_t>(new_state));
-}
-
-void HTMLTokenizer::visit_edges(GC::Cell::Visitor& visitor)
-{
-    visitor.visit(m_parser);
 }
 
 }
