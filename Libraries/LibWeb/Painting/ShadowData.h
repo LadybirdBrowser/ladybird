@@ -10,6 +10,7 @@
 #pragma once
 
 #include <LibGfx/Color.h>
+#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Painting {
@@ -38,14 +39,14 @@ struct ShadowData {
     CSSPixels spread_distance;
     ShadowPlacement placement;
 
-    static ShadowData from_css(CSS::ShadowData const& shadow, Layout::Node const& layout_node)
+    static ShadowData from_css(CSS::ShadowData const& shadow)
     {
         return {
             shadow.color,
-            shadow.offset_x.to_px(layout_node),
-            shadow.offset_y.to_px(layout_node),
-            shadow.blur_radius.to_px(layout_node),
-            shadow.spread_distance.to_px(layout_node),
+            shadow.offset_x,
+            shadow.offset_y,
+            shadow.blur_radius,
+            shadow.spread_distance,
             shadow_placement_from_css(shadow.placement),
         };
     }

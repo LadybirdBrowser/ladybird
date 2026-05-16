@@ -349,7 +349,7 @@ Paintable::SelectionStyle Paintable::selection_style() const
             Vector<ShadowData> shadows;
             shadows.ensure_capacity(css_shadows.size());
             for (auto const& shadow : css_shadows)
-                shadows.unchecked_append(ShadowData::from_css(shadow, *element_layout_node));
+                shadows.unchecked_append(ShadowData::from_css(shadow));
             style.text_shadow = move(shadows);
         }
 

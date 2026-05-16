@@ -954,30 +954,30 @@ BackgroundBox ComputedProperties::background_color_clip() const
     return keyword_to_background_box(background_clip_values[final_layer_index]->to_keyword()).value();
 }
 
-Length ComputedProperties::border_spacing_horizontal() const
+CSSPixels ComputedProperties::border_spacing_horizontal() const
 {
     auto const& style_value = property(PropertyID::BorderSpacing);
 
     if (style_value.is_value_list()) {
         auto const& list = style_value.as_value_list();
         VERIFY(list.size() > 0);
-        return Length::from_style_value(list.value_at(0, false), {});
+        return Length::from_style_value(list.value_at(0, false), {}).absolute_length_to_px();
     }
 
-    return Length::from_style_value(style_value, {});
+    return Length::from_style_value(style_value, {}).absolute_length_to_px();
 }
 
-Length ComputedProperties::border_spacing_vertical() const
+CSSPixels ComputedProperties::border_spacing_vertical() const
 {
     auto const& style_value = property(PropertyID::BorderSpacing);
 
     if (style_value.is_value_list()) {
         auto const& list = style_value.as_value_list();
         VERIFY(list.size() > 1);
-        return Length::from_style_value(list.value_at(1, false), {});
+        return Length::from_style_value(list.value_at(1, false), {}).absolute_length_to_px();
     }
 
-    return Length::from_style_value(style_value, {});
+    return Length::from_style_value(style_value, {}).absolute_length_to_px();
 }
 
 CaptionSide ComputedProperties::caption_side() const
@@ -1280,13 +1280,13 @@ PointerEvents ComputedProperties::pointer_events() const
     return keyword_to_pointer_events(value.to_keyword()).release_value();
 }
 
-Variant<Length, double> ComputedProperties::tab_size() const
+Variant<CSSPixels, double> ComputedProperties::tab_size() const
 {
     auto const& value = property(PropertyID::TabSize);
     if (value.is_calculated()) {
         auto const& math_value = value.as_calculated();
         if (math_value.resolves_to_length()) {
-            return math_value.resolve_length({}).value();
+            return math_value.resolve_length({}).value().absolute_length_to_px();
         }
         if (math_value.resolves_to_number()) {
             return math_value.resolve_number({}).value();
@@ -1294,7 +1294,7 @@ Variant<Length, double> ComputedProperties::tab_size() const
     }
 
     if (value.is_length())
-        return value.as_length().length();
+        return value.as_length().length().absolute_length_to_px();
 
     return value.as_number().number();
 }
@@ -1643,10 +1643,10 @@ Vector<ShadowData> ComputedProperties::shadow(PropertyID property_id, Layout::No
     auto const& value = property(property_id);
 
     auto make_shadow_data = [&layout_node](ShadowStyleValue const& value) -> Optional<ShadowData> {
-        auto offset_x = Length::from_style_value(value.offset_x(), {});
-        auto offset_y = Length::from_style_value(value.offset_y(), {});
-        auto blur_radius = Length::from_style_value(value.blur_radius(), {});
-        auto spread_distance = Length::from_style_value(value.spread_distance(), {});
+        auto offset_x = Length::from_style_value(value.offset_x(), {}).absolute_length_to_px();
+        auto offset_y = Length::from_style_value(value.offset_y(), {}).absolute_length_to_px();
+        auto blur_radius = Length::from_style_value(value.blur_radius(), {}).absolute_length_to_px();
+        auto spread_distance = Length::from_style_value(value.spread_distance(), {}).absolute_length_to_px();
         return ShadowData {
             offset_x,
             offset_y,

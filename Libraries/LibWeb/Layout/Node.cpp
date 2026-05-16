@@ -861,9 +861,9 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
             auto const& value = computed_style.property(property_id);
             if (value.is_overflow_clip_margin()) {
                 auto const& overflow_clip_margin = value.as_overflow_clip_margin();
-                CSS::Length offset = CSS::Length::make_px(0);
+                CSSPixels offset = 0;
                 if (overflow_clip_margin.offset().is_length())
-                    offset = overflow_clip_margin.offset().as_length().length();
+                    offset = overflow_clip_margin.offset().as_length().length().absolute_length_to_px();
                 return { overflow_clip_margin.visual_box(), offset };
             }
             return {};
@@ -912,7 +912,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
         computed_values.set_outline_color(outline_color.to_color(color_resolution_context).value());
     // FIXME: Support calc()
     if (auto const& outline_offset = computed_style.property(CSS::PropertyID::OutlineOffset); outline_offset.is_length())
-        computed_values.set_outline_offset(outline_offset.as_length().length());
+        computed_values.set_outline_offset(outline_offset.as_length().length().absolute_length_to_px());
     computed_values.set_outline_style(computed_style.outline_style());
 
     // FIXME: Interpolation can cause negative values - we clamp here but should instead clamp as part of interpolation.
