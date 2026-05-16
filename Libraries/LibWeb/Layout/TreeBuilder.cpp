@@ -1101,6 +1101,10 @@ void TreeBuilder::wrap_in_button_layout_tree_if_needed(DOM::Node& dom_node, GC::
         flex_computed_values.set_min_height(parent.computed_values().min_height());
 
         auto content_box_wrapper = parent.create_anonymous_wrapper();
+        auto& content_computed_values = content_box_wrapper->mutable_computed_values();
+        // Let percentage-sized descendants shrink to fixed-height buttons instead of the flex
+        // item's automatic minimum size.
+        content_computed_values.set_min_height(CSS::Size::make_px(CSSPixels(0)));
         content_box_wrapper->set_children_are_inline(parent.children_are_inline());
 
         Vector<GC::Root<Node>> sequence;
