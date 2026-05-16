@@ -289,6 +289,11 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(PropertyID property_i
     return set_property_internal(PropertyNameAndID::from_id(property_id), css_text, priority);
 }
 
+static NonnullRefPtr<StyleValue const> style_value_for_css_pixels(CSSPixels css_pixels)
+{
+    return LengthStyleValue::create(Length::make_px(css_pixels));
+}
+
 static NonnullRefPtr<StyleValue const> style_value_for_length_percentage(LengthPercentage const& length_percentage)
 {
     if (length_percentage.is_percentage())
@@ -342,10 +347,10 @@ static RefPtr<StyleValue const> style_value_for_shadow(ShadowStyleValue::ShadowT
         return ShadowStyleValue::create(
             shadow_type,
             ColorStyleValue::create_from_color(shadow.color, ColorSyntax::Modern),
-            style_value_for_length_percentage(shadow.offset_x),
-            style_value_for_length_percentage(shadow.offset_y),
-            style_value_for_length_percentage(shadow.blur_radius),
-            style_value_for_length_percentage(shadow.spread_distance),
+            style_value_for_css_pixels(shadow.offset_x),
+            style_value_for_css_pixels(shadow.offset_y),
+            style_value_for_css_pixels(shadow.blur_radius),
+            style_value_for_css_pixels(shadow.spread_distance),
             shadow.placement);
     };
 

@@ -304,8 +304,8 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
 
             // https://drafts.csswg.org/css-text/#tab-size-property
             auto tab_width = text_node->computed_values().tab_size().visit(
-                [&](CSS::Length const& length) -> CSSPixels {
-                    return length.absolute_length_to_px();
+                [&](CSSPixels const& css_pixels) -> CSSPixels {
+                    return css_pixels;
                 },
                 [&](double tab_number) -> CSSPixels {
                     return CSSPixels::nearest_value_for(tab_number * (chunk.font->glyph_width(' ') + word_spacing.to_float() + letter_spacing.to_float()));

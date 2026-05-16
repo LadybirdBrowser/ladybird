@@ -2039,7 +2039,7 @@ CSSPixels TableFormattingContext::border_spacing_horizontal() const
     // https://www.w3.org/TR/css-tables-3/#collapsed-style-overrides
     if (computed_values.border_collapse() == CSS::BorderCollapse::Collapse)
         return 0;
-    return computed_values.border_spacing_horizontal().to_px(table_box());
+    return computed_values.border_spacing_horizontal();
 }
 
 CSSPixels TableFormattingContext::border_spacing_vertical() const
@@ -2049,7 +2049,7 @@ CSSPixels TableFormattingContext::border_spacing_vertical() const
     // https://www.w3.org/TR/css-tables-3/#collapsed-style-overrides
     if (computed_values.border_collapse() == CSS::BorderCollapse::Collapse)
         return 0;
-    return computed_values.border_spacing_vertical().to_px(table_box());
+    return computed_values.border_spacing_vertical();
 }
 
 StaticPositionRect TableFormattingContext::calculate_static_position_rect(Box const&) const
