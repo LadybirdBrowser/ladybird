@@ -15,6 +15,10 @@
 <div id="basicOpenSerializable">
 <template shadowrootmode="open" shadowrootserializable>open</template>
 </div>
+<div id="manualSlotAssignment">
+<template shadowrootmode="OpEn" shadowrootslotassignment="MANUAL" shadowrootserializable><slot name="slot"></slot></template>
+<span slot="slot">manual</span>
+</div>
 <script src="../include.js"></script>
 <script>
     test(() => {
@@ -40,5 +44,18 @@
         println(basicOpenSerializable.getHTML({ serializableShadowRoots: true}));
         println(basicOpenSerializable.getHTML({ serializableShadowRoots: false}));
         println(basicOpenSerializable.getHTML({ shadowRoots: [ basicOpenSerializable.shadowRoot ]}));
+
+        println(manualSlotAssignment.shadowRoot.slotAssignment);
+        println(manualSlotAssignment.querySelector("span").assignedSlot);
+        println(manualSlotAssignment.getHTML({ serializableShadowRoots: true}));
+
+        let template = document.createElement("template");
+        println(template.shadowRootSlotAssignment);
+        template.shadowRootSlotAssignment = "MANUAL";
+        println(template.shadowRootSlotAssignment);
+        template.shadowRootSlotAssignment = "invalid";
+        println(template.shadowRootSlotAssignment);
+        template.setAttribute("shadowrootslotassignment", "bogus");
+        println(template.shadowRootSlotAssignment);
     });
 </script>

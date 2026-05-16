@@ -6,6 +6,7 @@ interface HTMLTemplateElement : HTMLElement {
 
     [ImplementedAs=content_for_bindings] readonly attribute DocumentFragment content;
     [Reflect=shadowrootmode, Enumerated=ShadowRootMode, CEReactions] attribute DOMString shadowRootMode;
+    [Reflect=shadowrootslotassignment, Enumerated=SlotAssignmentMode, CEReactions] attribute DOMString shadowRootSlotAssignment;
     [Reflect=shadowrootdelegatesfocus, CEReactions] attribute boolean shadowRootDelegatesFocus;
     [Reflect=shadowrootclonable, CEReactions] attribute boolean shadowRootClonable;
     [Reflect=shadowrootserializable, CEReactions] attribute boolean shadowRootSerializable;

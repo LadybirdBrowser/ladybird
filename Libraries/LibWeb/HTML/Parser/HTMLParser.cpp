@@ -1640,9 +1640,9 @@ void HTMLParser::handle_in_head(HTMLToken& token)
         {
             auto shadowrootmode_attribute_value = template_start_tag.attribute(HTML::AttributeNames::shadowrootmode);
             if (shadowrootmode_attribute_value.has_value()) {
-                if (shadowrootmode_attribute_value.value() == "open"sv) {
+                if (shadowrootmode_attribute_value->equals_ignoring_ascii_case("open"sv)) {
                     shadowrootmode = Bindings::ShadowRootMode::Open;
-                } else if (shadowrootmode_attribute_value.value() == "closed"sv) {
+                } else if (shadowrootmode_attribute_value->equals_ignoring_ascii_case("closed"sv)) {
                     shadowrootmode = Bindings::ShadowRootMode::Closed;
                 }
             }
@@ -1671,17 +1671,25 @@ void HTMLParser::handle_in_head(HTMLToken& token)
             // 3. Let mode be templateStartTag's shadowrootmode attribute's value.
             auto mode = shadowrootmode.value();
 
-            // 4. Let clonable be true if templateStartTag has a shadowrootclonable attribute; otherwise false.
+            // 4. Let slotAssignment be "named".
+            auto slot_assignment = Bindings::SlotAssignmentMode::Named;
+
+            // 5. If templateStartTag's shadowrootslotassignment attribute is in the Manual state, then set
+            //    slotAssignment to "manual".
+            if (auto value = template_start_tag.attribute(HTML::AttributeNames::shadowrootslotassignment); value.has_value() && value->equals_ignoring_ascii_case("manual"sv))
+                slot_assignment = Bindings::SlotAssignmentMode::Manual;
+
+            // 6. Let clonable be true if templateStartTag has a shadowrootclonable attribute; otherwise false.
             auto clonable = template_start_tag.has_attribute(HTML::AttributeNames::shadowrootclonable);
 
-            // 5. Let serializable be true if templateStartTag has a shadowrootserializable attribute; otherwise false.
+            // 7. Let serializable be true if templateStartTag has a shadowrootserializable attribute; otherwise false.
             auto serializable = template_start_tag.has_attribute(HTML::AttributeNames::shadowrootserializable);
 
-            // 6. Let delegatesFocus be true if templateStartTag has a shadowrootdelegatesfocus attribute; otherwise
+            // 8. Let delegatesFocus be true if templateStartTag has a shadowrootdelegatesfocus attribute; otherwise
             //    false.
             auto delegates_focus = template_start_tag.has_attribute(HTML::AttributeNames::shadowrootdelegatesfocus);
 
-            // 7. If declarativeShadowHostElement is a shadow host, then insert an element at the adjusted insertion
+            // 9. If declarativeShadowHostElement is a shadow host, then insert an element at the adjusted insertion
             //    location with template.
             if (declarative_shadow_host_element.is_shadow_host()) {
                 // FIXME: We do manual "insert before" instead of "insert an element at the adjusted insertion location" here
@@ -1690,7 +1698,7 @@ void HTMLParser::handle_in_head(HTMLToken& token)
                 adjusted_insertion_location.parent->insert_before(*template_, adjusted_insertion_location.insert_before_sibling);
             }
 
-            // 8. Otherwise:
+            // 10. Otherwise:
             else {
                 // 1. Let registry be null if templateStartTag has a shadowrootcustomelementregistry attribute;
                 //    otherwise declarativeShadowHostElement's node document's custom element registry.
@@ -1699,8 +1707,8 @@ void HTMLParser::handle_in_head(HTMLToken& token)
                     registry = declarative_shadow_host_element.document().custom_element_registry();
 
                 // 2. Attach a shadow root with declarativeShadowHostElement, mode, clonable, serializable,
-                //    delegatesFocus, "named", and registry.
-                auto result = declarative_shadow_host_element.attach_a_shadow_root(mode, clonable, serializable, delegates_focus, Bindings::SlotAssignmentMode::Named, registry);
+                //    delegatesFocus, slotAssignment, and registry.
+                auto result = declarative_shadow_host_element.attach_a_shadow_root(mode, clonable, serializable, delegates_focus, slot_assignment, registry);
                 //    If an exception is thrown, then catch it and:
                 if (result.is_error()) {
                     // 1. Insert an element at the adjusted insertion location with template.
@@ -5767,7 +5775,11 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
                 if (shadow->serializable())
                     builder.append(" shadowrootserializable=\"\""sv);
 
-                // 6. If shadow's clonable is set, then append " shadowrootclonable=""".
+                // 6. If shadow's slot assignment is "manual", then append " shadowrootslotassignment="manual"".
+                if (shadow->slot_assignment() == Bindings::SlotAssignmentMode::Manual)
+                    builder.append(" shadowrootslotassignment=\"manual\""sv);
+
+                // 7. If shadow's clonable is set, then append " shadowrootclonable=""".
                 if (shadow->clonable())
                     builder.append(" shadowrootclonable=\"\""sv);
 
@@ -6587,7 +6599,7 @@ extern "C" size_t ladybird_html_parser_template_content(size_t element)
     return reinterpret_cast<size_t>(template_element.content().ptr());
 }
 
-extern "C" size_t ladybird_html_parser_attach_declarative_shadow_root(size_t host, RustFfiHtmlShadowRootMode mode, bool clonable, bool serializable, bool delegates_focus, bool keep_custom_element_registry_null)
+extern "C" size_t ladybird_html_parser_attach_declarative_shadow_root(size_t host, RustFfiHtmlShadowRootMode mode, RustFfiHtmlSlotAssignmentMode slot_assignment, bool clonable, bool serializable, bool delegates_focus, bool keep_custom_element_registry_null)
 {
     auto& host_element = as<DOM::Element>(node_from_html_parser_ffi(host));
     if (host_element.is_shadow_host())
@@ -6602,7 +6614,7 @@ extern "C" size_t ladybird_html_parser_attach_declarative_shadow_root(size_t hos
         clonable,
         serializable,
         delegates_focus,
-        Bindings::SlotAssignmentMode::Named,
+        slot_assignment == RustFfiHtmlSlotAssignmentMode::Manual ? Bindings::SlotAssignmentMode::Manual : Bindings::SlotAssignmentMode::Named,
         registry);
     if (result.is_error())
         return 0;
@@ -6614,6 +6626,16 @@ extern "C" size_t ladybird_html_parser_attach_declarative_shadow_root(size_t hos
     if (keep_custom_element_registry_null)
         shadow_root->set_keep_custom_element_registry_null(true);
     return reinterpret_cast<size_t>(shadow_root.ptr());
+}
+
+extern "C" void ladybird_html_parser_set_template_content(size_t element, size_t content)
+{
+    as<HTMLTemplateElement>(node_from_html_parser_ffi(element)).set_template_contents(as<DOM::DocumentFragment>(node_from_html_parser_ffi(content)));
+}
+
+extern "C" bool ladybird_html_parser_allows_declarative_shadow_roots(size_t node)
+{
+    return node_from_html_parser_ffi(node).document().allow_declarative_shadow_roots();
 }
 
 }
