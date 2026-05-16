@@ -2063,7 +2063,12 @@ void Document::set_needs_animated_style_update()
         return;
 
     m_needs_animated_style_update = true;
-    set_needs_repaint(InvalidateDisplayList::No);
+
+    auto navigable = this->navigable();
+    if (navigable && navigable->has_inclusive_ancestor_with_visibility_hidden())
+        return;
+
+    page().client().request_frame();
 }
 
 void Document::update_paint_and_hit_testing_properties_if_needed()
