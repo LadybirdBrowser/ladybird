@@ -301,7 +301,7 @@ void FontFace::reparse_connected_css_font_face_rule_descriptors()
 
     set_family_impl(*descriptors->descriptor(DescriptorNameAndID::from_id(DescriptorID::FontFamily)));
     set_style_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontStyle))->absolutized(computation_context));
-    set_weight_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontWeight))->absolutized(computation_context));
+    set_weight_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontWeight)));
     set_stretch_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontWidth)));
     set_unicode_range_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::UnicodeRange)));
     set_feature_settings_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontFeatureSettings)));
@@ -518,8 +518,10 @@ WebIDL::ExceptionOr<void> FontFace::set_weight(String const& string)
 
 void FontFace::set_weight_impl(NonnullRefPtr<StyleValue const> const& value)
 {
-    m_weight = value->to_string(SerializationMode::Normal);
-    m_cached_weight_range = compute_weight_range(*value);
+    auto context = computation_context();
+    NonnullRefPtr<StyleValue const> absolutized_value = context.has_value() ? value->absolutized(*context) : value;
+    m_weight = absolutized_value->to_string(SerializationMode::Normal);
+    m_cached_weight_range = compute_weight_range(*absolutized_value);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-stretch
