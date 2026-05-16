@@ -436,6 +436,8 @@ private:
     Vector<NonnullRefPtr<Type const>> m_member_types;
 };
 
+NonnullRefPtr<Type const> clone_type(Type const&, bool nullable);
+
 class Context {
 public:
     Interface& add_interface(NonnullOwnPtr<Interface>);

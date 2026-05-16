@@ -72,6 +72,27 @@ UnionType& Type::as_union()
     return as<UnionType>(*this);
 }
 
+NonnullRefPtr<Type const> clone_type(Type const& type, bool nullable)
+{
+    if (is<ParameterizedType>(type)) {
+        Vector<NonnullRefPtr<Type const>> parameters;
+        for (auto& parameter : type.as_parameterized().parameters())
+            parameters.append(clone_type(parameter, parameter->is_nullable()));
+
+        return adopt_ref(*new ParameterizedType(type.name(), nullable, move(parameters)));
+    }
+
+    if (is<UnionType>(type)) {
+        Vector<NonnullRefPtr<Type const>> member_types;
+        for (auto& member_type : type.as_union().member_types())
+            member_types.append(clone_type(member_type, member_type->is_nullable()));
+
+        return adopt_ref(*new UnionType(type.name(), nullable, move(member_types)));
+    }
+
+    return adopt_ref(*new Type(type.name(), nullable));
+}
+
 // https://webidl.spec.whatwg.org/#dfn-includes-a-nullable-type
 bool Type::includes_nullable_type() const
 {
