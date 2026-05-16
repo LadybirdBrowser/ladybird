@@ -366,7 +366,7 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
 
     if (mask_image) {
         auto mask_display_list = DisplayList::create(AccumulatedVisualContextTree::create());
-        DisplayListRecorder display_list_recorder(*mask_display_list);
+        DisplayListRecorder display_list_recorder(*mask_display_list, context.display_list_recorder().resource_storage());
         auto mask_painting_context = context.clone(display_list_recorder);
         auto mask_rect_in_device_pixels = context.enclosing_device_rect(paintable_box().absolute_padding_box_rect());
         mask_image->paint(mask_painting_context, { {}, mask_rect_in_device_pixels.size() }, CSS::ImageRendering::Auto);

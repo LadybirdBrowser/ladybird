@@ -85,7 +85,7 @@ static RefPtr<DisplayList> paint_mask_or_clip_to_display_list(
 {
     auto mask_rect = context.enclosing_device_rect(area);
     auto display_list = DisplayList::create(AccumulatedVisualContextTree::create());
-    DisplayListRecorder display_list_recorder(*display_list);
+    DisplayListRecorder display_list_recorder(*display_list, context.display_list_recorder().resource_storage());
     display_list_recorder.translate(-mask_rect.location().to_type<int>());
     auto paint_context = context.clone(display_list_recorder);
     auto const& mask_element = as<SVG::SVGGraphicsElement const>(*paintable.dom_node());

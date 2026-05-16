@@ -150,12 +150,12 @@ public:
 
     void apply_effects(float opacity = 1.0f, Gfx::CompositingAndBlendingOperator = Gfx::CompositingAndBlendingOperator::Normal, Optional<Gfx::Filter> filter = {}, Optional<Gfx::MaskKind> mask_kind = {});
 
-    DisplayListRecorder(DisplayList&);
+    DisplayListRecorder(DisplayList&, DisplayListResourceStorage&);
     ~DisplayListRecorder();
 
     DisplayList& display_list() { return m_display_list; }
     DisplayList const& display_list() const { return m_display_list; }
-    DisplayListResourceStorage& resource_storage() { return m_display_list.resource_storage(); }
+    DisplayListResourceStorage& resource_storage() { return m_resource_storage; }
 
     int m_save_nesting_level { 0 };
 
@@ -172,6 +172,7 @@ private:
     VisualContextIndex m_accumulated_visual_context_index {};
     Vector<size_t> m_push_sc_index_stack;
     DisplayList& m_display_list;
+    DisplayListResourceStorage& m_resource_storage;
     bool m_is_capturing { false };
     size_t m_capture_start_command_offset { 0 };
 };

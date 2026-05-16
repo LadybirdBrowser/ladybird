@@ -31,6 +31,7 @@
 #include <LibWeb/HTML/WindowType.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Page/EventHandler.h>
+#include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/XHR/FormDataEntry.h>
 
@@ -330,6 +331,8 @@ private:
     bool m_pending_set_browser_zoom_request { false };
     bool m_should_show_line_box_borders { false };
     Optional<PaintConfig> m_rendering_thread_display_list_paint_config;
+    Painting::DisplayListResourceStorage m_display_list_resource_storage;
+    Painting::DisplayListResourceSet m_rendering_thread_display_list_resources;
     Compositor::CompositorThread m_rendering_thread;
     RefPtr<Painting::ExternalContentSource> m_external_content_source;
 

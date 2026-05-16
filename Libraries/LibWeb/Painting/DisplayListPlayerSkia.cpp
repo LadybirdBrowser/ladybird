@@ -115,7 +115,7 @@ void DisplayListPlayerSkia::flush()
 
 void DisplayListPlayerSkia::draw_glyph_run(DrawGlyphRun const& command)
 {
-    auto const& font = active_display_list().resource_storage().font(command.font_id);
+    auto const& font = resource_storage().font(command.font_id);
     auto glyphs = inline_objects<Gfx::DrawGlyph>(command.glyphs);
     if (glyphs.is_empty())
         return;
@@ -167,7 +167,7 @@ void DisplayListPlayerSkia::fill_rect(FillRect const& command)
 
 void DisplayListPlayerSkia::draw_external_content(DrawExternalContent const& command)
 {
-    auto frame = active_display_list().resource_storage().external_content_source(command.source_id).current_frame();
+    auto frame = resource_storage().external_content_source(command.source_id).current_frame();
     if (!frame.has_value())
         return;
     auto image = m_image_cache.image_for_frame(*frame);
@@ -183,7 +183,7 @@ void DisplayListPlayerSkia::draw_external_content(DrawExternalContent const& com
 
 void DisplayListPlayerSkia::draw_video_frame_source(DrawVideoFrameSource const& command)
 {
-    auto frame = active_display_list().resource_storage().video_frame_source(command.source_id).current_frame();
+    auto frame = resource_storage().video_frame_source(command.source_id).current_frame();
     if (!frame)
         return;
 
@@ -226,7 +226,7 @@ void DisplayListPlayerSkia::draw_video_frame_source(DrawVideoFrameSource const& 
 
 void DisplayListPlayerSkia::draw_scaled_decoded_image_frame(DrawScaledDecodedImageFrame const& command)
 {
-    auto const& frame = active_display_list().resource_storage().image_frame(command.frame_id);
+    auto const& frame = resource_storage().image_frame(command.frame_id);
     auto image = m_image_cache.image_for_frame(frame);
     if (!image)
         return;
@@ -244,7 +244,7 @@ void DisplayListPlayerSkia::draw_scaled_decoded_image_frame(DrawScaledDecodedIma
 
 void DisplayListPlayerSkia::draw_repeated_decoded_image_frame(DrawRepeatedDecodedImageFrame const& command)
 {
-    auto const& frame = active_display_list().resource_storage().image_frame(command.frame_id);
+    auto const& frame = resource_storage().image_frame(command.frame_id);
     auto image = m_image_cache.image_for_frame(frame);
     if (!image)
         return;
@@ -581,7 +581,7 @@ SkPaint DisplayListPlayerSkia::paint_style_to_skia_paint(DisplayListPaintStyle c
 
         auto tile_surface = Gfx::PaintingSurface::create_with_size(tile_size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_skia_backend_context);
 
-        auto const& tile_display_list = active_display_list().resource_storage().display_list(paint_style.pattern_tile_display_list_id);
+        auto const& tile_display_list = resource_storage().display_list(paint_style.pattern_tile_display_list_id);
         execute_display_list_into_surface(tile_display_list, *tile_surface);
 
         auto image = tile_surface->sk_surface().makeImageSnapshot();
@@ -727,7 +727,7 @@ void DisplayListPlayerSkia::apply_backdrop_filter(ApplyBackdropFilter const& com
 
     if (command.has_backdrop_filter) {
         auto filter = Gfx::deserialize_filter(inline_data(command.backdrop_filter_data), [&](u64 image_id) {
-            return active_display_list().resource_storage().image_frame(ImageFrameResourceId { image_id });
+            return resource_storage().image_frame(ImageFrameResourceId { image_id });
         });
         auto image_filter = to_skia_image_filter(filter);
         canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, nullptr, image_filter.get(), 0));
@@ -817,7 +817,7 @@ void DisplayListPlayerSkia::paint_nested_display_list(PaintNestedDisplayList con
     canvas.translate(command.rect.x(), command.rect.y());
     ScrollStateSnapshot scroll_state_snapshot;
     auto command_bytes = inline_data(command.command_bytes);
-    auto& nested_display_list = active_display_list().resource_storage().display_list(command.display_list_id);
+    auto& nested_display_list = resource_storage().display_list(command.display_list_id);
     execute_nested_display_list(nested_display_list, scroll_state_snapshot, command_bytes);
 }
 
@@ -888,7 +888,7 @@ void DisplayListPlayerSkia::apply_effects(ApplyEffects const& command, Gfx::Filt
     if (command.has_filter) {
         if (!filter) {
             deserialized_filter = Gfx::deserialize_filter(inline_data(command.filter_data), [&](u64 image_id) {
-                return active_display_list().resource_storage().image_frame(ImageFrameResourceId { image_id });
+                return resource_storage().image_frame(ImageFrameResourceId { image_id });
             });
             filter = &deserialized_filter.value();
         }

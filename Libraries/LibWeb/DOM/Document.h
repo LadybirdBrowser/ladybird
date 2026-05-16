@@ -959,7 +959,7 @@ public:
         set_needs_repaint(should_invalidate_display_list);
     }
 
-    RefPtr<Painting::DisplayList> record_display_list(HTML::PaintConfig);
+    RefPtr<Painting::DisplayList> record_display_list(HTML::PaintConfig, Painting::DisplayListResourceStorage&);
 
     void set_needs_to_record_display_list();
 

@@ -45,6 +45,7 @@ static constexpr auto skia_resource_cache_critical_watermark = 512 * MiB;
 
 struct UpdateDisplayListCommand {
     NonnullRefPtr<Painting::DisplayList> display_list;
+    Painting::DisplayListResourceTransaction resource_transaction;
     Painting::ScrollStateSnapshot scroll_state_snapshot;
 };
 
@@ -594,6 +595,7 @@ public:
                     [this](UpdateDisplayListCommand& cmd) {
                         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor processing display list update (deferred_async_present={})",
                             m_has_deferred_async_scroll_present);
+                        m_display_list_resource_storage.apply_transaction(move(cmd.resource_transaction));
                         m_cached_display_list = move(cmd.display_list);
                         m_cached_scroll_state_snapshot = move(cmd.scroll_state_snapshot);
                         auto async_scrolling_state = async_scrolling_state_from_display_list(*m_cached_display_list);
@@ -728,7 +730,7 @@ public:
                     [this](ScreenshotCommand& cmd) {
                         if (!m_cached_display_list)
                             return;
-                        m_skia_player->execute(*m_cached_display_list, m_cached_scroll_state_snapshot, *cmd.target_surface);
+                        m_skia_player->execute(*m_cached_display_list, m_display_list_resource_storage, m_cached_scroll_state_snapshot, *cmd.target_surface);
                         paint_viewport_scrollbar_overlay(*cmd.target_surface);
                         flush_surface(*cmd.target_surface);
                         if (cmd.callback) {
@@ -1012,7 +1014,7 @@ private:
                 // cleared before repainting.
                 back_store.canvas().clear(SK_ColorTRANSPARENT);
             }
-            m_skia_player->execute(*m_cached_display_list, m_cached_scroll_state_snapshot, back_store);
+            m_skia_player->execute(*m_cached_display_list, m_display_list_resource_storage, m_cached_scroll_state_snapshot, back_store);
             paint_viewport_scrollbar_overlay(back_store);
             flush_surface(back_store);
             i32 rendered_bitmap_id = m_backing_store_manager.back_bitmap_id();
@@ -1107,6 +1109,7 @@ private:
 
     OwnPtr<Painting::DisplayListPlayerSkia> m_skia_player;
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
+    Painting::DisplayListResourceStorage m_display_list_resource_storage;
     RefPtr<Painting::DisplayList> m_cached_display_list;
     Painting::ScrollStateSnapshot m_cached_scroll_state_snapshot;
     Vector<ViewportScrollbar> m_viewport_scrollbars;
@@ -1432,9 +1435,12 @@ void CompositorThread::stop_presenting_to_client()
     unregister_page_compositor(m_thread_data->page_id(), *m_thread_data);
 }
 
-void CompositorThread::update_display_list(NonnullRefPtr<Painting::DisplayList> display_list, Painting::ScrollStateSnapshot&& scroll_state_snapshot)
+void CompositorThread::update_display_list(
+    NonnullRefPtr<Painting::DisplayList> display_list,
+    Painting::DisplayListResourceTransaction&& resource_transaction,
+    Painting::ScrollStateSnapshot&& scroll_state_snapshot)
 {
-    m_thread_data->enqueue_command(UpdateDisplayListCommand { move(display_list), move(scroll_state_snapshot) });
+    m_thread_data->enqueue_command(UpdateDisplayListCommand { move(display_list), move(resource_transaction), move(scroll_state_snapshot) });
 }
 
 void CompositorThread::invalidate_wheel_event_listener_state(u64 generation)

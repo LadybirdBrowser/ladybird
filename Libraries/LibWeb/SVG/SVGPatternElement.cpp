@@ -290,7 +290,7 @@ Optional<Painting::PaintStyle> SVGPatternElement::to_gfx_paint_style(SVGPaintCon
     tile_rect.translate_by(svg_offset);
 
     auto display_list = Painting::DisplayList::create(Painting::AccumulatedVisualContextTree::create());
-    Painting::DisplayListRecorder display_list_recorder(*display_list);
+    Painting::DisplayListRecorder display_list_recorder(*display_list, recording_context.display_list_recorder().resource_storage());
     auto content_origin = paint_context.paint_transform.map(Gfx::FloatPoint { 0, 0 }) + svg_offset;
     display_list_recorder.translate(-Gfx::IntPoint(content_origin.to_type<int>()));
     auto paint_context_copy = recording_context.clone(display_list_recorder);

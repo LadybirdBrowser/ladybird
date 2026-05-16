@@ -46,7 +46,7 @@ private:
 
     RefPtr<Gfx::PaintingSurface> surface(size_t frame_index, Gfx::IntSize) const;
     RefPtr<Gfx::PaintingSurface> render_to_surface(Gfx::IntSize) const;
-    RefPtr<Painting::DisplayList> record_display_list(Gfx::IntSize) const;
+    RefPtr<Painting::DisplayList> record_display_list(Gfx::IntSize, Painting::DisplayListResourceStorage&) const;
 
     // FIXME: Remove this once everything is using surfaces instead.
     mutable HashMap<Gfx::IntSize, Gfx::DecodedImageFrame> m_cached_rendered_frames;

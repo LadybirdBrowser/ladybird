@@ -29,11 +29,8 @@ static void set_command_sequence_visual_context(Bytes command_bytes, VisualConte
 
 DisplayListCommandSequence::DisplayListCommandSequence() = default;
 
-DisplayList::DisplayList(
-    NonnullRefPtr<AccumulatedVisualContextTree const> visual_context_tree,
-    DisplayListResourceStorage resource_storage)
+DisplayList::DisplayList(NonnullRefPtr<AccumulatedVisualContextTree const> visual_context_tree)
     : m_visual_context_tree(move(visual_context_tree))
-    , m_resource_storage(move(resource_storage))
     , m_id(s_next_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
 {
 }
@@ -73,12 +70,15 @@ bool DisplayList::append_bytes(
     return true;
 }
 
-void DisplayList::append_command_sequence(DisplayListCommandSequence const& sequence, VisualContextIndex context_index)
+void DisplayList::append_command_sequence(
+    DisplayListCommandSequence const& sequence,
+    VisualContextIndex context_index,
+    DisplayListResourceStorage& resource_storage)
 {
     auto command_bytes = MUST(ByteBuffer::copy(sequence.m_command_bytes.span()));
 
     set_command_sequence_visual_context(command_bytes.span(), context_index);
-    m_resource_storage.append_referenced_resources_from(sequence.m_resource_storage, command_bytes.span());
+    resource_storage.append_referenced_resources_from(sequence.m_resource_storage, command_bytes.span());
     VERIFY(m_command_bytes.size() % DisplayListCommandSequence::command_alignment == 0);
     VERIFY(command_bytes.size() % DisplayListCommandSequence::command_alignment == 0);
 
@@ -86,22 +86,30 @@ void DisplayList::append_command_sequence(DisplayListCommandSequence const& sequ
         m_command_bytes.append(command_bytes.data(), command_bytes.size());
 }
 
-DisplayListCommandSequence DisplayList::copy_command_sequence_from(size_t command_start_offset) const
+DisplayListCommandSequence DisplayList::copy_command_sequence_from(
+    size_t command_start_offset,
+    DisplayListResourceStorage const& resource_storage) const
 {
     VERIFY(command_start_offset <= m_command_bytes.size());
     DisplayListCommandSequence sequence;
     sequence.m_command_bytes = MUST(m_command_bytes.slice(command_start_offset, m_command_bytes.size() - command_start_offset));
-    sequence.m_resource_storage.append_referenced_resources_from(m_resource_storage, sequence.m_command_bytes.span());
+    sequence.m_resource_storage.append_referenced_resources_from(resource_storage, sequence.m_command_bytes.span());
     return sequence;
 }
 
-void DisplayListPlayer::execute(DisplayList const& display_list, ScrollStateSnapshot const& scroll_state_snapshot, RefPtr<Gfx::PaintingSurface> surface)
+void DisplayListPlayer::execute(
+    DisplayList const& display_list,
+    DisplayListResourceStorage const& resource_storage,
+    ScrollStateSnapshot const& scroll_state_snapshot,
+    RefPtr<Gfx::PaintingSurface> surface)
 {
     m_surface = surface;
     m_active_display_list = &display_list;
+    m_resource_storage = &resource_storage;
     execute_impl(display_list, scroll_state_snapshot);
     if (surface)
         flush();
+    m_resource_storage = nullptr;
     m_active_display_list = nullptr;
     m_surface = nullptr;
 }
@@ -110,6 +118,7 @@ void DisplayListPlayer::execute_display_list_into_surface(DisplayList const& dis
 {
     TemporaryChange surface_change { m_surface, RefPtr<Gfx::PaintingSurface> { target_surface } };
     TemporaryChange display_list_change { m_active_display_list, &display_list };
+    VERIFY(m_resource_storage);
     ScrollStateSnapshot scroll_state_snapshot;
     execute_impl(display_list, scroll_state_snapshot);
 }
@@ -120,6 +129,7 @@ void DisplayListPlayer::execute_nested_display_list(
     ReadonlyBytes command_bytes)
 {
     TemporaryChange display_list_change { m_active_display_list, &display_list };
+    VERIFY(m_resource_storage);
     execute_impl(display_list, scroll_state_snapshot, command_bytes);
 }
 

@@ -3303,10 +3303,17 @@ void Navigable::record_display_list_and_scroll_state(PaintConfig paint_config)
         || !(m_rendering_thread_display_list_paint_config.value() == paint_config);
 
     RefPtr<Painting::DisplayList> display_list;
+    Painting::DisplayListResourceTransaction resource_transaction;
     if (should_record_display_list) {
-        display_list = document->record_display_list(paint_config);
+        display_list = document->record_display_list(paint_config, m_display_list_resource_storage);
         if (!display_list)
             return;
+        auto display_list_resources = m_display_list_resource_storage.collect_referenced_resources(*display_list);
+        resource_transaction = m_display_list_resource_storage.create_transaction(
+            m_rendering_thread_display_list_resources,
+            display_list_resources);
+        m_display_list_resource_storage.retain_only(display_list_resources);
+        m_rendering_thread_display_list_resources = move(display_list_resources);
     }
 
     auto document_paintable = document->paintable();
@@ -3315,7 +3322,7 @@ void Navigable::record_display_list_and_scroll_state(PaintConfig paint_config)
 
     Painting::ScrollStateSnapshot scroll_state_snapshot { document_paintable->scroll_state_snapshot() };
     if (should_record_display_list) {
-        m_rendering_thread.update_display_list(*display_list, move(scroll_state_snapshot));
+        m_rendering_thread.update_display_list(*display_list, move(resource_transaction), move(scroll_state_snapshot));
         m_needs_to_record_display_list = false;
         m_rendering_thread_display_list_paint_config = paint_config;
     } else {

@@ -12,8 +12,9 @@
 
 namespace Web::Painting {
 
-DisplayListRecorder::DisplayListRecorder(DisplayList& command_list)
+DisplayListRecorder::DisplayListRecorder(DisplayList& command_list, DisplayListResourceStorage& resource_storage)
     : m_display_list(command_list)
+    , m_resource_storage(resource_storage)
 {
 }
 
@@ -33,7 +34,9 @@ DisplayListRecorder::CommandCapture::~CommandCapture()
 DisplayListCommandSequence DisplayListRecorder::CommandCapture::take()
 {
     VERIFY(m_recorder);
-    auto commands = m_recorder->m_display_list.copy_command_sequence_from(m_recorder->m_capture_start_command_offset);
+    auto commands = m_recorder->m_display_list.copy_command_sequence_from(
+        m_recorder->m_capture_start_command_offset,
+        m_recorder->m_resource_storage);
     m_recorder->m_is_capturing = false;
     m_recorder = nullptr;
     return commands;
@@ -276,7 +279,7 @@ void DisplayListRecorder::replay_cached_commands(DisplayListCommandSequence cons
     commands.for_each_command_header([&](DisplayListCommandHeader const& header, ReadonlyBytes) {
         m_save_nesting_level += display_list_command_nesting_level_change(header.type);
     });
-    m_display_list.append_command_sequence(commands, m_accumulated_visual_context_index);
+    m_display_list.append_command_sequence(commands, m_accumulated_visual_context_index, m_resource_storage);
 }
 
 void DisplayListRecorder::paint_nested_display_list(RefPtr<DisplayList> display_list, Gfx::IntRect rect)

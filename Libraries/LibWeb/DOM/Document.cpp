@@ -7621,13 +7621,13 @@ void Document::set_needs_to_record_display_list()
         navigable->set_needs_to_record_display_list();
 }
 
-RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig config)
+RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig config, Painting::DisplayListResourceStorage& resource_storage)
 {
     update_paint_and_hit_testing_properties_if_needed();
     VERIFY(paintable());
 
     auto display_list = Painting::DisplayList::create(paintable()->visual_context_tree());
-    Painting::DisplayListRecorder display_list_recorder(display_list);
+    Painting::DisplayListRecorder display_list_recorder(display_list, resource_storage);
 
     // https://drafts.csswg.org/css-color-adjust-1/#color-scheme-effect
     // On the root element, the used color scheme additionally must affect the surface color of the canvas, and the viewport’s scrollbars.
@@ -8016,7 +8016,8 @@ String Document::dump_display_list()
     if (!viewport_paintable)
         return "No paintable"_string;
 
-    auto display_list = record_display_list(HTML::PaintConfig {});
+    Painting::DisplayListResourceStorage resource_storage;
+    auto display_list = record_display_list(HTML::PaintConfig {}, resource_storage);
     if (!display_list)
         return "No display list"_string;
 
@@ -8086,7 +8087,7 @@ String Document::dump_display_list()
                 builder.append('\n');
 
                 if (nested_display_list_id.has_value()) {
-                    auto& nested_display_list = list.resource_storage().display_list(*nested_display_list_id);
+                    auto& nested_display_list = resource_storage.display_list(*nested_display_list_id);
                     dump_commands(nested_display_list, indent + 1);
                 }
 

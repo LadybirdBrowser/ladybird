@@ -17,6 +17,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
+#include <LibWeb/Painting/DisplayListResourceStorage.h>
 
 namespace Web::CSS {
 
@@ -109,7 +110,8 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
 
         // Paint the cursor into a bitmap.
         auto display_list = Painting::DisplayList::create(Painting::AccumulatedVisualContextTree::create());
-        Painting::DisplayListRecorder display_list_recorder(display_list);
+        Painting::DisplayListResourceStorage resource_storage;
+        Painting::DisplayListRecorder display_list_recorder(display_list, resource_storage);
         DisplayListRecordingContext paint_context { display_list_recorder, document.page().palette(), document.page().client().device_pixels_per_css_pixel(), document.page().chrome_metrics() };
 
         image.resolve_for_size(layout_node, CSSPixelSize { bitmap.size() });
@@ -120,7 +122,7 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
         case DisplayListPlayerType::SkiaCPU: {
             auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(bitmap);
             Painting::DisplayListPlayerSkia display_list_player;
-            display_list_player.execute(*display_list, {}, painting_surface);
+            display_list_player.execute(*display_list, resource_storage, {}, painting_surface);
             break;
         }
         }
