@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .header-logo {
+        height: 32px;
+        width: 1207px;
+    }
+
+    button {
+        background: transparent;
+        border: 0;
+        display: inline-block;
+        height: 100%;
+        padding: 0;
+        width: 100%;
+    }
+
+    img {
+        height: 100%;
+        margin: 0 32px 24px;
+        max-height: 100%;
+        object-fit: contain;
+        width: auto;
+    }
+</style>
+<script>
+    asyncTest(done => {
+        const logo = document.createElement("div");
+        logo.className = "header-logo";
+
+        const button = document.createElement("button");
+        const image = document.createElement("img");
+
+        image.onload = () => {
+            requestAnimationFrame(() => {
+                const buttonRect = button.getBoundingClientRect();
+                const imageRect = image.getBoundingClientRect();
+
+                println(`button ${Math.round(buttonRect.width)}x${Math.round(buttonRect.height)}`);
+                println(`image ${Math.round(imageRect.width)}x${Math.round(imageRect.height)}`);
+                done();
+            });
+        };
+
+        button.appendChild(image);
+        logo.appendChild(button);
+        document.body.appendChild(logo);
+
+        image.src = "data:image/svg+xml;base64,"
+            + "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMTQzIiBo"
+            + "ZWlnaHQ9IjE2MCI+PHJlY3Qgd2lkdGg9IjExNDMiIGhlaWdodD0iMTYwIiBmaWxsPSJibGFj"
+            + "ayIvPjwvc3ZnPg==";
+    });
+</script>

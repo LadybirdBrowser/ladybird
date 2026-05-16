@@ -1,0 +1,2 @@
+button 1207x32
+image 229x32
