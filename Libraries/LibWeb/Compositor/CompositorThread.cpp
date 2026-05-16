@@ -907,7 +907,10 @@ private:
             auto current_scroll_offset = m_async_scroll_tree.scroll_offset_for_node(*node_id, m_cached_scroll_state_snapshot);
             if (!current_scroll_offset.has_value())
                 continue;
-            auto reconciled_scroll_offset = m_async_scroll_tree.set_scroll_offset(*node_id, current_scroll_offset->translated(pending_scroll_offset.unadopted_scroll_delta), m_cached_scroll_state_snapshot);
+            // Reapplying pending async offsets is a restoration step for a freshly received
+            // main-thread snapshot. The pending offset is already the compositor-visible
+            // position, so applying the unadopted delta here would compound it.
+            auto reconciled_scroll_offset = m_async_scroll_tree.set_scroll_offset(*node_id, pending_scroll_offset.compositor_scroll_offset, m_cached_scroll_state_snapshot);
             if (reconciled_scroll_offset.has_value() && m_async_scroll_tree.scroll_node_is_viewport(*node_id))
                 viewport_scroll_offset = *reconciled_scroll_offset;
         }
