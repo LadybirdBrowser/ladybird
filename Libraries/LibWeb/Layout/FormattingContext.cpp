@@ -2534,17 +2534,37 @@ Box const* FormattingContext::box_child_to_derive_baseline_from(Box const& box) 
 {
     if (!box.has_children() || box.children_are_inline())
         return nullptr;
-    // Find the last in-flow child that has a baseline (either directly via line boxes, or via its descendants).
-    for (auto const* child = box.last_child(); child; child = child->previous_sibling()) {
+
+    auto const& display = box.display();
+    bool is_flex_or_grid_container = display.is_flex_inside() || display.is_grid_inside();
+
+    auto check_child_for_baseline = [&](Node const* child) -> Box const* {
         auto const* child_box = as_if<Box>(*child);
         if (!child_box)
-            continue;
+            return nullptr;
         if (child_box->is_out_of_flow(*this))
-            continue;
+            return nullptr;
         if (!m_state.get(*child_box).line_boxes.is_empty())
             return child_box;
         if (box_child_to_derive_baseline_from(*child_box))
             return child_box;
+        return nullptr;
+    };
+
+    if (is_flex_or_grid_container) {
+        // https://drafts.csswg.org/css-flexbox-1/#flex-baselines
+        // https://drafts.csswg.org/css-grid-1/#grid-baselines
+        // For flex and grid containers, find the first in-flow child with a baseline.
+        for (auto const* child = box.first_child(); child; child = child->next_sibling()) {
+            if (auto const* result = check_child_for_baseline(child))
+                return result;
+        }
+    } else {
+        // Find the last in-flow child that has a baseline (CSS2.1 behavior for inline-block).
+        for (auto const* child = box.last_child(); child; child = child->previous_sibling()) {
+            if (auto const* result = check_child_for_baseline(child))
+                return result;
+        }
     }
     return nullptr;
 }
@@ -2592,9 +2612,13 @@ CSSPixels FormattingContext::box_baseline(Box const& box) const
     bool always_derive_from_content = is_flex_or_grid_container || has_visible_overflow;
 
     if (always_derive_from_content && !box_state.line_boxes.is_empty()) {
-        auto const& last_line_box = box_state.line_boxes.last();
-        auto last_line_box_top = last_line_box.bottom() - last_line_box.block_length();
-        return box_state.margin_box_top() + last_line_box_top + last_line_box.baseline();
+        // https://drafts.csswg.org/css-align-3/#baseline-values
+        // For flex and grid containers and flex/grid items, baseline alignment uses the first baseline set by default.
+        // For other containers with visible overflow (like inline-block), use last line (CSS2.1 behavior).
+        bool use_first_baseline = is_flex_or_grid_container || box.is_flex_item();
+        auto const& line_box = use_first_baseline ? box_state.line_boxes.first() : box_state.line_boxes.last();
+        auto line_box_top = line_box.bottom() - line_box.block_length();
+        return box_state.margin_box_top() + line_box_top + line_box.baseline();
     }
 
     // Derive baseline from block children if the box is flex/grid inside or has visible overflow.
@@ -2613,8 +2637,8 @@ CSSPixels FormattingContext::box_baseline(Box const& box) const
             // https://drafts.csswg.org/css-grid-1/#grid-baselines
             // Otherwise, the grid container's first (last) baseline set is generated from the alignment baseline of the
             // first (last) grid item in row-major grid order.
-            // FIXME: This does not yet select the spec-defined startmost/endmost flex item, or the first/last grid item
-            //        in row-major grid order.
+            // FIXME: This selects the first child for flex/grid containers, but does not yet handle writing modes
+            //        to determine the spec-defined startmost/endmost flex item, or row-major grid order.
             if (is_inline_flex_or_grid_container && !child_box_state.line_boxes.is_empty() && !child_box_state.line_boxes.first().is_empty()) {
                 auto const& first_line_box = child_box_state.line_boxes.first();
                 auto first_line_box_top = first_line_box.bottom() - first_line_box.block_length();
