@@ -1187,7 +1187,7 @@ static void resolve_typedef(Interface& interface, NonnullRefPtr<Type const>& typ
     auto it = interface.context.typedefs.find(type->name());
     if (it == interface.context.typedefs.end())
         return;
-    type = clone_type(it->value.type, type->is_nullable());
+    type = clone_type(it->value.type, type->is_nullable() || it->value.type->is_nullable());
     if (extended_attributes) {
         for (auto& attribute : it->value.extended_attributes)
             extended_attributes->set(attribute.key, attribute.value);
