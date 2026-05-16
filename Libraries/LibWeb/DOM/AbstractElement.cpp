@@ -7,6 +7,7 @@
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/PseudoElement.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Layout/Node.h>
 
@@ -143,6 +144,22 @@ bool AbstractElement::is_before(AbstractElement const& other) const
 GC::Ptr<CSS::ComputedProperties const> AbstractElement::computed_properties() const
 {
     return m_element->computed_properties(m_pseudo_element);
+}
+
+GC::Ptr<CSS::CSSStyleProperties const> AbstractElement::inline_style() const
+{
+    if (!m_pseudo_element.has_value())
+        return m_element->inline_style();
+
+    if (!CSS::is_element_reference_pseudo_element(*m_pseudo_element))
+        return nullptr;
+
+    auto pseudo_element = m_element->get_pseudo_element(*m_pseudo_element);
+
+    if (!pseudo_element.has_value())
+        return nullptr;
+
+    return as<ElementReferencePseudoElement>(*pseudo_element).referenced_element()->inline_style();
 }
 
 RefPtr<CSS::CustomPropertyData const> AbstractElement::custom_property_data() const

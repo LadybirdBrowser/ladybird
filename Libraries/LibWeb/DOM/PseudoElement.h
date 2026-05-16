@@ -95,6 +95,8 @@ class WEB_API ElementReferencePseudoElement : public PseudoElement {
     RefPtr<CSS::CustomPropertyData const> custom_property_data() const override;
     void set_custom_property_data(RefPtr<CSS::CustomPropertyData const> value) override;
 
+    GC::Ref<Element> const& referenced_element() const { return m_referenced_element; }
+
 protected:
     virtual void visit_edges(JS::Cell::Visitor& visitor) override
     {

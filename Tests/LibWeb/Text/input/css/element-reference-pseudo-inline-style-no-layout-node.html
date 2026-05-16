@@ -1,0 +1,16 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    details::details-content {
+        display: none !important;
+    }
+</style>
+<details id="details">
+    <summary></summary>
+    <p></p>
+</details>
+<script>
+    test(() => {
+        println(getComputedStyle(details, "::details-content").contentVisibility);
+    });
+</script>
