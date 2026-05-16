@@ -28,13 +28,17 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(SharedResourceRequest);
 
+static u64 s_next_memory_cache_touch_serial;
+
 GC::Ref<SharedResourceRequest> SharedResourceRequest::get_or_create(JS::Realm& realm, GC::Ref<Page> page, URL::URL const& url)
 {
     auto document = Bindings::principal_host_defined_environment_settings_object(realm).responsible_document();
     VERIFY(document);
     auto& shared_resource_requests = document->shared_resource_requests();
-    if (auto it = shared_resource_requests.find(url); it != shared_resource_requests.end())
+    if (auto it = shared_resource_requests.find(url); it != shared_resource_requests.end()) {
+        it->value->touch_memory_cache_entry();
         return *it->value;
+    }
     auto request = realm.create<SharedResourceRequest>(page, url, *document);
     shared_resource_requests.set(url, request);
     return request;
@@ -45,6 +49,7 @@ SharedResourceRequest::SharedResourceRequest(GC::Ref<Page> page, URL::URL url, G
     , m_url(move(url))
     , m_document(document)
 {
+    touch_memory_cache_entry();
 }
 
 SharedResourceRequest::~SharedResourceRequest() = default;
@@ -60,7 +65,9 @@ void SharedResourceRequest::finalize()
 
     if (m_document) {
         auto& shared_resource_requests = m_document->shared_resource_requests();
-        shared_resource_requests.remove(m_url);
+        if (auto it = shared_resource_requests.find(m_url);
+            it != shared_resource_requests.end() && it->value.ptr() == this)
+            shared_resource_requests.remove(it);
         m_document = nullptr;
     }
 }
@@ -81,6 +88,11 @@ void SharedResourceRequest::visit_edges(JS::Cell::Visitor& visitor)
 GC::Ptr<DecodedImageData> SharedResourceRequest::image_data() const
 {
     return m_image_data;
+}
+
+void SharedResourceRequest::touch_memory_cache_entry()
+{
+    m_cache_touch_serial = ++s_next_memory_cache_touch_serial;
 }
 
 GC::Ptr<Fetch::Infrastructure::FetchController> SharedResourceRequest::fetch_controller()
@@ -247,6 +259,7 @@ void SharedResourceRequest::handle_successful_resource_load()
             callback.on_finish->function()();
     }
     m_callbacks.clear();
+    m_document->prune_image_resource_caches();
 }
 
 bool SharedResourceRequest::needs_fetching() const

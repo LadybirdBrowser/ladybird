@@ -795,6 +795,7 @@ public:
     void update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry>, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<Bindings::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api = {}, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation = {}, bool update_navigation_api = true);
 
     HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>>& shared_resource_requests();
+    void prune_image_resource_caches();
 
     void restore_the_history_object_state(NonnullRefPtr<HTML::SessionHistoryEntry> entry);
 

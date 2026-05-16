@@ -927,6 +927,7 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
 
                 // 3. Add the image to the list of available images using the key key, with the ignore higher-layer caching flag set.
                 document().list_of_available_images().add(key, *image_data, true);
+                document().prune_image_resource_caches();
 
                 set_needs_style_update(true);
                 set_needs_layout_update(DOM::SetNeedsLayoutReason::HTMLImageElementUpdateTheImageData);
@@ -1077,6 +1078,7 @@ void HTMLImageElement::react_to_changes_in_the_environment()
 
             // 4. Add the image to the list of available images using the key key, with the ignore higher-layer caching flag set.
             document().list_of_available_images().add(key, image_data, true);
+            document().prune_image_resource_caches();
 
             // 5. Upgrade the pending request to the current request.
             upgrade_pending_request_to_current_request();

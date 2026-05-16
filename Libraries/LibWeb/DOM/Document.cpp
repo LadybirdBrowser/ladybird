@@ -115,6 +115,7 @@
 #include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
 #include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
+#include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/DragEvent.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
@@ -6110,6 +6111,62 @@ void Document::set_latest_entry(RefPtr<HTML::SessionHistoryEntry> entry)
 HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>>& Document::shared_resource_requests()
 {
     return m_shared_resource_requests;
+}
+
+void Document::prune_image_resource_caches()
+{
+    static constexpr size_t decoded_image_resource_cache_limit = 8 * MiB;
+    static constexpr size_t decoded_image_resource_cache_count_limit = 96;
+
+    struct CacheSize {
+        size_t decoded_image_size { 0 };
+        size_t decoded_image_count { 0 };
+    };
+
+    auto cache_size = [&] {
+        CacheSize cache_size;
+        size_t size = 0;
+        size_t count = 0;
+        for (auto const& it : m_shared_resource_requests) {
+            auto const& request = *it.value;
+            if (!request.can_be_pruned_from_memory_cache())
+                continue;
+            ++count;
+            if (auto image_data = request.image_data())
+                size += image_data->external_memory_size();
+        }
+        cache_size.decoded_image_size = size;
+        cache_size.decoded_image_count = count;
+        return cache_size;
+    };
+
+    auto size = cache_size();
+    while (size.decoded_image_size > decoded_image_resource_cache_limit || size.decoded_image_count > decoded_image_resource_cache_count_limit) {
+        Optional<URL::URL> least_recently_used_url;
+        u64 least_recently_used_serial = NumericLimits<u64>::max();
+
+        for (auto const& it : m_shared_resource_requests) {
+            auto const& request = *it.value;
+            if (!request.can_be_pruned_from_memory_cache())
+                continue;
+            if (request.cache_touch_serial() >= least_recently_used_serial)
+                continue;
+            least_recently_used_url = it.key;
+            least_recently_used_serial = request.cache_touch_serial();
+        }
+
+        if (!least_recently_used_url.has_value())
+            break;
+
+        m_shared_resource_requests.remove(least_recently_used_url.value());
+
+        auto new_size = cache_size();
+        if (new_size.decoded_image_size == size.decoded_image_size && new_size.decoded_image_count == size.decoded_image_count)
+            break;
+        size = new_size;
+    }
+
+    m_list_of_available_images->prune_to_limits(decoded_image_resource_cache_limit, decoded_image_resource_cache_count_limit);
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-document-timeline
