@@ -7,13 +7,13 @@
 
 #include <AK/Enumerate.h>
 #include <AK/StringView.h>
+#include <LibCore/TimeZone.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/FinalizationRegistry.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibTest/JavaScriptTestRunner.h>
-#include <LibUnicode/TimeZone.h>
 
 TEST_ROOT("Tests/LibJS/Runtime");
 
@@ -142,10 +142,10 @@ TESTJS_GLOBAL_FUNCTION(detach_array_buffer, detachArrayBuffer)
 
 TESTJS_GLOBAL_FUNCTION(set_time_zone, setTimeZone)
 {
-    auto current_time_zone = JS::PrimitiveString::create(vm, Unicode::current_time_zone());
+    auto current_time_zone = JS::PrimitiveString::create(vm, Core::TimeZone::current_time_zone());
     auto time_zone = TRY(vm.argument(0).to_string(vm));
 
-    if (auto result = Unicode::set_current_time_zone(time_zone); result.is_error())
+    if (auto result = Core::TimeZone::set_current_time_zone(time_zone); result.is_error())
         return vm.throw_completion<JS::InternalError>(MUST(String::formatted("Could not set time zone: {}", result.error())));
 
     JS::clear_system_time_zone_cache();

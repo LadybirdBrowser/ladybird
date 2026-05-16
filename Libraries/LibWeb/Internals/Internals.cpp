@@ -6,11 +6,11 @@
  */
 
 #include <AK/JsonObject.h>
+#include <LibCore/TimeZone.h>
 #include <LibGfx/Cursor.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibURL/Parser.h>
-#include <LibUnicode/TimeZone.h>
 #include <LibWeb/ARIA/AriaData.h>
 #include <LibWeb/ARIA/StateAndProperties.h>
 #include <LibWeb/Bindings/Internals.h>
@@ -178,9 +178,9 @@ GC::Ref<WebIDL::Promise> Internals::gc_async()
 
 WebIDL::ExceptionOr<String> Internals::set_time_zone(StringView time_zone)
 {
-    auto current_time_zone = Unicode::current_time_zone();
+    auto current_time_zone = Core::TimeZone::current_time_zone();
 
-    if (auto result = Unicode::set_current_time_zone(time_zone); result.is_error())
+    if (auto result = Core::TimeZone::set_current_time_zone(time_zone); result.is_error())
         return vm().throw_completion<JS::InternalError>(MUST(String::formatted("Could not set time zone: {}", result.error())));
 
     JS::clear_system_time_zone_cache();
