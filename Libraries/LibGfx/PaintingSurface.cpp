@@ -153,6 +153,13 @@ NonnullRefPtr<Bitmap> PaintingSurface::snapshot_bitmap() const
     return bitmap;
 }
 
+SharedImage PaintingSurface::snapshot_into_shared_image() const
+{
+    auto shared_image_buffer = SharedImageBuffer::create(size());
+    read_into_bitmap(*shared_image_buffer.bitmap());
+    return shared_image_buffer.export_shared_image();
+}
+
 void PaintingSurface::read_into_bitmap(Bitmap& bitmap) const
 {
     auto color_type = to_skia_color_type(bitmap.format());

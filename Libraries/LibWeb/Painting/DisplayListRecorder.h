@@ -72,7 +72,7 @@ public:
     void draw_rect(Gfx::IntRect const& rect, Color color, bool rough = false);
 
     void draw_scaled_decoded_image_frame(Gfx::IntRect const& dst_rect, Gfx::IntRect const& clip_rect, Gfx::DecodedImageFrame frame, Gfx::ScalingMode scaling_mode = Gfx::ScalingMode::NearestNeighbor);
-    void draw_external_content(Gfx::IntRect const& dst_rect, NonnullRefPtr<ExternalContentSource>, Gfx::ScalingMode scaling_mode = Gfx::ScalingMode::NearestNeighbor);
+    void draw_compositor_surface(Gfx::IntRect const& dst_rect, CompositorSurfaceId, Gfx::ScalingMode scaling_mode = Gfx::ScalingMode::NearestNeighbor);
     void draw_video_frame_source(Gfx::IntRect const& dst_rect, NonnullRefPtr<VideoFrameSource>, Gfx::ScalingMode scaling_mode = Gfx::ScalingMode::NearestNeighbor);
 
     void draw_repeated_decoded_image_frame(Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, Gfx::DecodedImageFrame frame, Gfx::ScalingMode scaling_mode, bool repeat_x, bool repeat_y);

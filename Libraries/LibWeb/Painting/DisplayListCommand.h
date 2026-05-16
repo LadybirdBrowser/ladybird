@@ -38,7 +38,7 @@ class DisplayList;
     V(FillRect, fill_rect)                                                             \
     V(DrawScaledDecodedImageFrame, draw_scaled_decoded_image_frame)                    \
     V(DrawRepeatedDecodedImageFrame, draw_repeated_decoded_image_frame)                \
-    V(DrawExternalContent, draw_external_content)                                      \
+    V(DrawCompositorSurface, draw_compositor_surface)                                  \
     V(DrawVideoFrameSource, draw_video_frame_source)                                   \
     V(Save, save)                                                                      \
     V(SaveLayer, save_layer)                                                           \
@@ -165,12 +165,12 @@ struct DrawRepeatedDecodedImageFrame {
     void dump(StringBuilder&) const;
 };
 
-struct DrawExternalContent {
-    static constexpr StringView command_name = "DrawExternalContent"sv;
-    static constexpr DisplayListCommandType command_type = DisplayListCommandType::DrawExternalContent;
+struct DrawCompositorSurface {
+    static constexpr StringView command_name = "DrawCompositorSurface"sv;
+    static constexpr DisplayListCommandType command_type = DisplayListCommandType::DrawCompositorSurface;
 
     Gfx::IntRect dst_rect;
-    ExternalContentResourceId source_id;
+    CompositorSurfaceId surface_id;
     Gfx::ScalingMode scaling_mode;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }

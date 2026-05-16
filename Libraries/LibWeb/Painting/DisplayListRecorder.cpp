@@ -499,13 +499,13 @@ void DisplayListRecorder::draw_rect(Gfx::IntRect const& rect, Color color, bool 
         .rough = rough });
 }
 
-void DisplayListRecorder::draw_external_content(Gfx::IntRect const& dst_rect, NonnullRefPtr<ExternalContentSource> source, Gfx::ScalingMode scaling_mode)
+void DisplayListRecorder::draw_compositor_surface(Gfx::IntRect const& dst_rect, CompositorSurfaceId surface_id, Gfx::ScalingMode scaling_mode)
 {
     if (dst_rect.is_empty())
         return;
-    append_command(DrawExternalContent {
+    append_command(DrawCompositorSurface {
         .dst_rect = dst_rect,
-        .source_id = resource_storage().add_external_content_source(move(source)),
+        .surface_id = surface_id,
         .scaling_mode = scaling_mode,
     });
 }

@@ -1,0 +1,12 @@
+AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+
+DisplayList:
+SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x53]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 784x32]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 784x32]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 32x32]
+  DrawCompositorSurface@1 dst_rect=[8,8 32x32]
+Restore@0
