@@ -406,6 +406,7 @@ void EventLoopManagerQt::register_process(pid_t pid, ESCAPING Function<void(pid_
                     VERIFY(maybe_process.value() == process);
             });
 
+            process->setEnabled(false);
             CloseHandle(process_handle);
             process->deleteLater();
             exit_handler(process_id);
@@ -425,13 +426,16 @@ void EventLoopManagerQt::unregister_process(pid_t pid)
 
     auto* process = maybe_process.release_value();
     HANDLE process_handle = process->handle();
+
     if (QThread::currentThread() != process->thread()) {
         QMetaObject::invokeMethod(process, [process, process_handle] {
+            process->setEnabled(false);
             CloseHandle(process_handle);
             delete process; }, Qt::QueuedConnection);
         return;
     }
 
+    process->setEnabled(false);
     CloseHandle(process_handle);
     delete process;
 }
