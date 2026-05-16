@@ -8,8 +8,11 @@
 
 #pragma once
 
+#include <AK/Array.h>
 #include <AK/BitStream.h>
+#include <AK/OwnPtr.h>
 #include <AK/Stream.h>
+#include <AK/Vector.h>
 #include <LibCompress/GenericZlib.h>
 
 namespace Compress {
@@ -65,6 +68,32 @@ private:
         : GenericZlibDecompressor(move(buffer), move(stream), zstream)
     {
     }
+};
+
+class HTTPDeflateDecompressor final : public Stream {
+    AK_MAKE_NONCOPYABLE(HTTPDeflateDecompressor);
+
+public:
+    static ErrorOr<NonnullOwnPtr<HTTPDeflateDecompressor>> create(MaybeOwned<Stream>);
+    static ErrorOr<ByteBuffer> decompress_all(ReadonlyBytes);
+
+    virtual ErrorOr<Bytes> read_some(Bytes) override;
+    virtual ErrorOr<size_t> write_some(ReadonlyBytes) override;
+    virtual bool is_eof() const override;
+    virtual bool is_open() const override;
+    virtual void close() override;
+
+private:
+    class PrefixStream;
+
+    explicit HTTPDeflateDecompressor(MaybeOwned<Stream>);
+
+    ErrorOr<void> ensure_decoder();
+
+    MaybeOwned<Stream> m_stream;
+    OwnPtr<Stream> m_decoder;
+    Array<u8, 2> m_prefix_buffer {};
+    size_t m_prefix_size { 0 };
 };
 
 class DeflateCompressor final : public GenericZlibCompressor {

@@ -9,6 +9,8 @@
 #include <AK/BinarySearch.h>
 #include <LibCompress/Deflate.h>
 #include <LibCompress/DeflateTables.h>
+#include <LibCompress/Helpers.h>
+#include <LibCompress/Zlib.h>
 
 #include <zlib.h>
 

@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCompress/Helpers.h>
 #include <LibCompress/Zlib.h>
 
 #include <zlib.h>

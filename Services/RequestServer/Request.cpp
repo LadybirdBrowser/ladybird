@@ -952,8 +952,7 @@ void Request::handle_fetch_state()
 
     // Append the encoding methods that ladybird supports in the Accept-Encoding header
     if (!m_request_headers->contains("Accept-Encoding"sv)) {
-        // TODO: Add brotli (br) and zstd (zstd) once they are implemented in LibCompress.
-        m_request_headers->append({ "Accept-Encoding"sv, "gzip, deflate"sv });
+        m_request_headers->append({ "Accept-Encoding"sv, "gzip, deflate, zstd"sv });
     }
 
     for (auto const& header : *m_request_headers) {

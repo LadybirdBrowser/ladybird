@@ -1,8 +1,17 @@
+/*
+ * Copyright (c) 2026, Ladybird contributors.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
 #include <AK/Array.h>
 #include <AK/MaybeOwned.h>
 #include <AK/MemoryStream.h>
 #include <AK/StringView.h>
+#include <LibCompress/Deflate.h>
 #include <LibCompress/Gzip.h>
+#include <LibCompress/Zlib.h>
+#include <LibCompress/Zstd.h>
 #include <RequestServer/BodyDecoder.h>
 
 namespace RequestServer {
@@ -36,7 +45,7 @@ static Optional<ContentEncoding> recognize_token(StringView token)
         return ContentEncoding::Brotli;
     if (token.equals_ignoring_ascii_case("zstd"sv))
         return ContentEncoding::Zstd;
-    return { };
+    return {};
 }
 
 Vector<ContentEncoding> parse_content_encoding(HTTP::HeaderList const& headers)
@@ -68,7 +77,7 @@ Vector<ContentEncoding> parse_content_encoding(HTTP::HeaderList const& headers)
     });
 
     if (invalid_token_found) {
-        return { };
+        return {};
     }
 
     return encoding_chain;
@@ -85,9 +94,8 @@ static ErrorOr<NonnullOwnPtr<Stream>> wrap_with_decoder(ContentEncoding encoding
     case ContentEncoding::Brotli:
         // TODO: Implement in LibCompress and add the decompressor here.
         return Error::from_string_literal("Brotli decompression not yet implemented");
-        case ContentEncoding::Zstd:
-        // TODO: Implement in LibCompress and add the decompressor here.
-        return Error::from_string_literal("Zstd decompression not yet implemented");
+    case ContentEncoding::Zstd:
+        return TRY(Compress::ZstdDecompressor::create(move(upstream)));
     }
     VERIFY_NOT_REACHED();
 }
@@ -129,7 +137,7 @@ ErrorOr<void> BodyDecoder::push(ReadonlyBytes wire_bytes, AllocatingMemoryStream
 {
     if (is_pass_through()) {
         TRY(out.write_until_depleted(wire_bytes));
-        return { };
+        return {};
     }
 
     TRY(m_feeder->write_until_depleted(wire_bytes));
@@ -141,13 +149,13 @@ ErrorOr<void> BodyDecoder::push(ReadonlyBytes wire_bytes, AllocatingMemoryStream
             break;
         TRY(out.write_until_depleted(decoded));
     }
-    return { };
+    return {};
 }
 
 ErrorOr<void> BodyDecoder::finish(AllocatingMemoryStream& out)
 {
     if (is_pass_through())
-        return { };
+        return {};
 
     m_feeder->mark_eof();
 
@@ -161,7 +169,7 @@ ErrorOr<void> BodyDecoder::finish(AllocatingMemoryStream& out)
         }
         TRY(out.write_until_depleted(decoded));
     }
-    return { };
+    return {};
 }
 
 }

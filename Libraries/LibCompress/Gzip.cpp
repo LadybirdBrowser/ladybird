@@ -7,6 +7,7 @@
  */
 
 #include <LibCompress/Gzip.h>
+#include <LibCompress/Helpers.h>
 
 #include <zlib.h>
 

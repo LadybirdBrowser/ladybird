@@ -178,7 +178,8 @@
     "vulkan",
     "vulkan-headers",
     "woff2",
-    "zlib"
+    "zlib",
+    "zstd"
   ],
   "features": {
     "gtk": {

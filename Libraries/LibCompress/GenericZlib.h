@@ -9,7 +9,6 @@
 #include <AK/ByteBuffer.h>
 #include <AK/FixedArray.h>
 #include <AK/MaybeOwned.h>
-#include <AK/MemoryStream.h>
 #include <AK/Stream.h>
 
 extern "C" {
@@ -74,28 +73,5 @@ private:
 
     AK::FixedArray<u8> m_buffer;
 };
-
-template<class T>
-ErrorOr<ByteBuffer> decompress_all(ReadonlyBytes bytes)
-{
-    auto input_stream = make<AK::FixedMemoryStream>(bytes);
-    auto deflate_stream = TRY(T::create(MaybeOwned<Stream>(move(input_stream))));
-    return TRY(deflate_stream->read_until_eof(4096));
-}
-
-template<class T>
-ErrorOr<ByteBuffer> compress_all(ReadonlyBytes bytes, GenericZlibCompressionLevel compression_level)
-{
-    auto output_stream = TRY(try_make<AllocatingMemoryStream>());
-    auto gzip_stream = TRY(T::create(MaybeOwned { *output_stream }, compression_level));
-
-    TRY(gzip_stream->write_until_depleted(bytes));
-    TRY(gzip_stream->finish());
-
-    auto buffer = TRY(ByteBuffer::create_uninitialized(output_stream->used_buffer_size()));
-    TRY(output_stream->read_until_filled(buffer.bytes()));
-
-    return buffer;
-}
 
 }

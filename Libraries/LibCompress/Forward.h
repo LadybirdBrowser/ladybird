@@ -14,5 +14,6 @@ class GzipCompressor;
 class GzipDecompressor;
 class ZlibCompressor;
 class ZlibDecompressor;
+class ZstdDecompressor;
 
 }
