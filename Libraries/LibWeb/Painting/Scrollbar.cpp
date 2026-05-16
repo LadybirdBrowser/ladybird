@@ -49,7 +49,8 @@ MouseAction Scrollbar::handle_pointer_event(FlyString const& type, unsigned butt
         return MouseAction::None;
 
     auto position = paintable_box->transform_to_local_coordinates(visual_viewport_position);
-    scroll_to_mouse_position(position);
+    if (!scroll_to_mouse_position(position) && !m_thumb_grab_position.has_value())
+        return MouseAction::None;
     paintable_box->set_needs_repaint();
 
     if (type == UIEvents::EventNames::pointerup) {
@@ -99,17 +100,18 @@ void Scrollbar::mouse_leave()
         paintable_box->set_needs_repaint();
 }
 
-void Scrollbar::scroll_to_mouse_position(CSSPixelPoint position)
+bool Scrollbar::scroll_to_mouse_position(CSSPixelPoint position)
 {
     auto paintable_box = m_paintable_box.strong_ref();
     if (!paintable_box)
-        return;
+        return false;
 
     ChromeMetrics metrics = paintable_box->document().page().chrome_metrics();
 
     auto const& scroll_state = paintable_box->document().paintable()->scroll_state_snapshot();
     auto scrollbar_data = paintable_box->compute_scrollbar_data(m_direction, metrics, &scroll_state);
-    VERIFY(scrollbar_data.has_value());
+    if (!scrollbar_data.has_value())
+        return false;
 
     auto orientation = m_direction == PaintableBox::ScrollDirection::Horizontal ? Orientation::Horizontal : Orientation::Vertical;
     auto offset_relative_to_gutter = (position - scrollbar_data->gutter_rect.location()).primary_offset_for_orientation(orientation);
@@ -117,7 +119,7 @@ void Scrollbar::scroll_to_mouse_position(CSSPixelPoint position)
     auto thumb_size = scrollbar_data->thumb_rect.primary_size_for_orientation(orientation);
 
     if (gutter_size < thumb_size)
-        return;
+        return true;
 
     if (!m_thumb_grab_position.has_value()) {
         m_thumb_grab_position = scrollbar_data->thumb_rect.contains(position)
@@ -135,6 +137,7 @@ void Scrollbar::scroll_to_mouse_position(CSSPixelPoint position)
     auto new_scroll_offset = paintable_box->scroll_offset();
     new_scroll_offset.set_primary_offset_for_orientation(orientation, scroll_position_in_pixels);
     paintable_box->set_scroll_offset(new_scroll_offset);
+    return true;
 }
 
 }

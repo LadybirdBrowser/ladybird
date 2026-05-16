@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<style>
+body {
+    margin: 0;
+}
+
+#scrollable {
+    width: 100px;
+    height: 100px;
+    overflow-x: scroll;
+    overflow-y: hidden;
+}
+
+#content {
+    width: 1000px;
+    height: 80px;
+}
+</style>
+<div id="scrollable">
+    <div id="content"></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        scrollable.addEventListener("pointerdown", () => {
+            scrollable.style.overflowX = "hidden";
+        }, { once: true });
+
+        internals.mouseDown(50, 97);
+        internals.mouseMove(80, 97);
+        internals.mouseUp(80, 97);
+
+        println("PASS");
+    });
+</script>
