@@ -95,6 +95,108 @@ pub enum State {
     NumericCharacterReferenceEnd,
 }
 
+impl State {
+    pub(crate) fn from_ffi(value: u8) -> Option<Self> {
+        Some(match value {
+            value if value == Self::Data as u8 => Self::Data,
+            value if value == Self::RCDATA as u8 => Self::RCDATA,
+            value if value == Self::RAWTEXT as u8 => Self::RAWTEXT,
+            value if value == Self::ScriptData as u8 => Self::ScriptData,
+            value if value == Self::PLAINTEXT as u8 => Self::PLAINTEXT,
+            value if value == Self::TagOpen as u8 => Self::TagOpen,
+            value if value == Self::EndTagOpen as u8 => Self::EndTagOpen,
+            value if value == Self::TagName as u8 => Self::TagName,
+            value if value == Self::RCDATALessThanSign as u8 => Self::RCDATALessThanSign,
+            value if value == Self::RCDATAEndTagOpen as u8 => Self::RCDATAEndTagOpen,
+            value if value == Self::RCDATAEndTagName as u8 => Self::RCDATAEndTagName,
+            value if value == Self::RAWTEXTLessThanSign as u8 => Self::RAWTEXTLessThanSign,
+            value if value == Self::RAWTEXTEndTagOpen as u8 => Self::RAWTEXTEndTagOpen,
+            value if value == Self::RAWTEXTEndTagName as u8 => Self::RAWTEXTEndTagName,
+            value if value == Self::ScriptDataLessThanSign as u8 => Self::ScriptDataLessThanSign,
+            value if value == Self::ScriptDataEndTagOpen as u8 => Self::ScriptDataEndTagOpen,
+            value if value == Self::ScriptDataEndTagName as u8 => Self::ScriptDataEndTagName,
+            value if value == Self::ScriptDataEscapeStart as u8 => Self::ScriptDataEscapeStart,
+            value if value == Self::ScriptDataEscapeStartDash as u8 => Self::ScriptDataEscapeStartDash,
+            value if value == Self::ScriptDataEscaped as u8 => Self::ScriptDataEscaped,
+            value if value == Self::ScriptDataEscapedDash as u8 => Self::ScriptDataEscapedDash,
+            value if value == Self::ScriptDataEscapedDashDash as u8 => Self::ScriptDataEscapedDashDash,
+            value if value == Self::ScriptDataEscapedLessThanSign as u8 => Self::ScriptDataEscapedLessThanSign,
+            value if value == Self::ScriptDataEscapedEndTagOpen as u8 => Self::ScriptDataEscapedEndTagOpen,
+            value if value == Self::ScriptDataEscapedEndTagName as u8 => Self::ScriptDataEscapedEndTagName,
+            value if value == Self::ScriptDataDoubleEscapeStart as u8 => Self::ScriptDataDoubleEscapeStart,
+            value if value == Self::ScriptDataDoubleEscaped as u8 => Self::ScriptDataDoubleEscaped,
+            value if value == Self::ScriptDataDoubleEscapedDash as u8 => Self::ScriptDataDoubleEscapedDash,
+            value if value == Self::ScriptDataDoubleEscapedDashDash as u8 => Self::ScriptDataDoubleEscapedDashDash,
+            value if value == Self::ScriptDataDoubleEscapedLessThanSign as u8 => {
+                Self::ScriptDataDoubleEscapedLessThanSign
+            }
+            value if value == Self::ScriptDataDoubleEscapeEnd as u8 => Self::ScriptDataDoubleEscapeEnd,
+            value if value == Self::BeforeAttributeName as u8 => Self::BeforeAttributeName,
+            value if value == Self::AttributeName as u8 => Self::AttributeName,
+            value if value == Self::AfterAttributeName as u8 => Self::AfterAttributeName,
+            value if value == Self::BeforeAttributeValue as u8 => Self::BeforeAttributeValue,
+            value if value == Self::AttributeValueDoubleQuoted as u8 => Self::AttributeValueDoubleQuoted,
+            value if value == Self::AttributeValueSingleQuoted as u8 => Self::AttributeValueSingleQuoted,
+            value if value == Self::AttributeValueUnquoted as u8 => Self::AttributeValueUnquoted,
+            value if value == Self::AfterAttributeValueQuoted as u8 => Self::AfterAttributeValueQuoted,
+            value if value == Self::SelfClosingStartTag as u8 => Self::SelfClosingStartTag,
+            value if value == Self::BogusComment as u8 => Self::BogusComment,
+            value if value == Self::MarkupDeclarationOpen as u8 => Self::MarkupDeclarationOpen,
+            value if value == Self::CommentStart as u8 => Self::CommentStart,
+            value if value == Self::CommentStartDash as u8 => Self::CommentStartDash,
+            value if value == Self::Comment as u8 => Self::Comment,
+            value if value == Self::CommentLessThanSign as u8 => Self::CommentLessThanSign,
+            value if value == Self::CommentLessThanSignBang as u8 => Self::CommentLessThanSignBang,
+            value if value == Self::CommentLessThanSignBangDash as u8 => Self::CommentLessThanSignBangDash,
+            value if value == Self::CommentLessThanSignBangDashDash as u8 => Self::CommentLessThanSignBangDashDash,
+            value if value == Self::CommentEndDash as u8 => Self::CommentEndDash,
+            value if value == Self::CommentEnd as u8 => Self::CommentEnd,
+            value if value == Self::CommentEndBang as u8 => Self::CommentEndBang,
+            value if value == Self::DOCTYPE as u8 => Self::DOCTYPE,
+            value if value == Self::BeforeDOCTYPEName as u8 => Self::BeforeDOCTYPEName,
+            value if value == Self::DOCTYPEName as u8 => Self::DOCTYPEName,
+            value if value == Self::AfterDOCTYPEName as u8 => Self::AfterDOCTYPEName,
+            value if value == Self::AfterDOCTYPEPublicKeyword as u8 => Self::AfterDOCTYPEPublicKeyword,
+            value if value == Self::BeforeDOCTYPEPublicIdentifier as u8 => Self::BeforeDOCTYPEPublicIdentifier,
+            value if value == Self::DOCTYPEPublicIdentifierDoubleQuoted as u8 => {
+                Self::DOCTYPEPublicIdentifierDoubleQuoted
+            }
+            value if value == Self::DOCTYPEPublicIdentifierSingleQuoted as u8 => {
+                Self::DOCTYPEPublicIdentifierSingleQuoted
+            }
+            value if value == Self::AfterDOCTYPEPublicIdentifier as u8 => Self::AfterDOCTYPEPublicIdentifier,
+            value if value == Self::BetweenDOCTYPEPublicAndSystemIdentifiers as u8 => {
+                Self::BetweenDOCTYPEPublicAndSystemIdentifiers
+            }
+            value if value == Self::AfterDOCTYPESystemKeyword as u8 => Self::AfterDOCTYPESystemKeyword,
+            value if value == Self::BeforeDOCTYPESystemIdentifier as u8 => Self::BeforeDOCTYPESystemIdentifier,
+            value if value == Self::DOCTYPESystemIdentifierDoubleQuoted as u8 => {
+                Self::DOCTYPESystemIdentifierDoubleQuoted
+            }
+            value if value == Self::DOCTYPESystemIdentifierSingleQuoted as u8 => {
+                Self::DOCTYPESystemIdentifierSingleQuoted
+            }
+            value if value == Self::AfterDOCTYPESystemIdentifier as u8 => Self::AfterDOCTYPESystemIdentifier,
+            value if value == Self::BogusDOCTYPE as u8 => Self::BogusDOCTYPE,
+            value if value == Self::CDATASection as u8 => Self::CDATASection,
+            value if value == Self::CDATASectionBracket as u8 => Self::CDATASectionBracket,
+            value if value == Self::CDATASectionEnd as u8 => Self::CDATASectionEnd,
+            value if value == Self::CharacterReference as u8 => Self::CharacterReference,
+            value if value == Self::NamedCharacterReference as u8 => Self::NamedCharacterReference,
+            value if value == Self::AmbiguousAmpersand as u8 => Self::AmbiguousAmpersand,
+            value if value == Self::NumericCharacterReference as u8 => Self::NumericCharacterReference,
+            value if value == Self::HexadecimalCharacterReferenceStart as u8 => {
+                Self::HexadecimalCharacterReferenceStart
+            }
+            value if value == Self::DecimalCharacterReferenceStart as u8 => Self::DecimalCharacterReferenceStart,
+            value if value == Self::HexadecimalCharacterReference as u8 => Self::HexadecimalCharacterReference,
+            value if value == Self::DecimalCharacterReference as u8 => Self::DecimalCharacterReference,
+            value if value == Self::NumericCharacterReferenceEnd as u8 => Self::NumericCharacterReferenceEnd,
+            _ => return None,
+        })
+    }
+}
+
 /// The HTML tokenizer state machine.
 ///
 /// Implements the WHATWG HTML tokenizer specification (section 13.2.5).

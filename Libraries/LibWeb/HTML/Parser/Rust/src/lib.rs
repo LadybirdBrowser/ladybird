@@ -403,14 +403,9 @@ pub unsafe extern "C" fn rust_html_tokenizer_switch_state(handle: *mut RustFfiTo
         return;
     }
     let handle = unsafe { &mut *handle };
-    // The state values must match the State enum order. Bound-checked against
-    // the last known variant so an out-of-range value is rejected instead of
-    // producing UB via transmute to an invalid discriminant.
-    const STATE_COUNT: u8 = State::NumericCharacterReferenceEnd as u8 + 1;
-    if state >= STATE_COUNT {
+    let Some(state) = State::from_ffi(state) else {
         return;
-    }
-    let state: State = unsafe { std::mem::transmute(state) };
+    };
     handle.tokenizer.switch_to(state);
 }
 
