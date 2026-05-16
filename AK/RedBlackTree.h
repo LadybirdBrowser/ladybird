@@ -559,6 +559,25 @@ public:
         return temp;
     }
 
+    V remove_and_advance(Iterator& iterator)
+    {
+        VERIFY(!iterator.is_end());
+
+        auto* node = iterator.m_node;
+        auto* successor = static_cast<Node*>(BaseTree::successor(node));
+        iterator.m_node = successor;
+
+        BaseTree::remove(node);
+
+        V temp = move(node->value);
+
+        node->right_child = nullptr;
+        node->left_child = nullptr;
+        delete node;
+
+        return temp;
+    }
+
     bool remove(K key)
     {
         auto* node = BaseTree::find(this->m_root, key);
