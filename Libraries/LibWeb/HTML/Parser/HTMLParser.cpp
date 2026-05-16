@@ -57,8 +57,6 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/SVG/SVGScriptElement.h>
 #include <LibWeb/SVG/TagNames.h>
-#include <stdlib.h>
-#include <string.h>
 
 namespace Web::HTML {
 
@@ -101,40 +99,6 @@ extern "C" size_t ladybird_html_parser_template_content(size_t);
 extern "C" size_t ladybird_html_parser_attach_declarative_shadow_root(size_t, RustFfiHtmlShadowRootMode, RustFfiHtmlSlotAssignmentMode, bool, bool, bool, bool);
 extern "C" void ladybird_html_parser_set_template_content(size_t, size_t);
 extern "C" bool ladybird_html_parser_allows_declarative_shadow_roots(size_t);
-
-Optional<HTMLParserBackend> html_parser_backend_from_string(StringView backend)
-{
-    if (backend == "cpp"sv)
-        return HTMLParserBackend::Cpp;
-    if (backend == "rust"sv)
-        return HTMLParserBackend::Rust;
-    return {};
-}
-
-StringView html_parser_backend_name(HTMLParserBackend backend)
-{
-    switch (backend) {
-    case HTMLParserBackend::Cpp:
-        return "cpp"sv;
-    case HTMLParserBackend::Rust:
-        return "rust"sv;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-HTMLParserBackend default_html_parser_backend()
-{
-    static HTMLParserBackend s_backend = [] {
-        auto* backend = getenv("LIBWEB_HTML_PARSER");
-        if (!backend)
-            return HTMLParserBackend::Cpp;
-        if (auto parsed_backend = html_parser_backend_from_string(StringView { backend, strlen(backend) }); parsed_backend.has_value())
-            return parsed_backend.value();
-        dbgln("Unknown LIBWEB_HTML_PARSER value '{}'; using cpp", backend);
-        return HTMLParserBackend::Cpp;
-    }();
-    return s_backend;
-}
 
 static Vector<StringView> const s_quirks_public_ids = {
     "+//Silmaril//dtd html Pro v0r11 19970101//"sv,
@@ -230,14 +194,12 @@ static bool is_html_integration_point(DOM::Element const& element)
     return false;
 }
 
-HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mode, StringView input, StringView encoding, HTMLParserBackend backend)
+HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mode, StringView input, StringView encoding)
     : m_tokenizer(input, encoding)
-    , m_backend(backend)
     , m_scripting_mode(scripting_mode)
     , m_document(document)
 {
-    if (m_backend == HTMLParserBackend::Rust)
-        m_rust_parser = rust_html_parser_create();
+    m_rust_parser = rust_html_parser_create();
     m_tokenizer.set_parser({}, *this);
     m_document->set_parser({}, *this);
     m_stack_of_open_elements.set_on_element_popped([this](DOM::Element& element) {
@@ -248,14 +210,12 @@ HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mo
     m_document->set_encoding(MUST(String::from_utf8(standardized_encoding.value())));
 }
 
-HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mode, ScriptCreatedParser script_created, HTMLParserBackend backend)
-    : m_backend(backend)
-    , m_scripting_mode(scripting_mode)
+HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mode, ScriptCreatedParser script_created)
+    : m_scripting_mode(scripting_mode)
     , m_script_created(script_created == ScriptCreatedParser::Yes)
     , m_document(document)
 {
-    if (m_backend == HTMLParserBackend::Rust)
-        m_rust_parser = rust_html_parser_create();
+    m_rust_parser = rust_html_parser_create();
     m_document->set_parser({}, *this);
     m_tokenizer.set_parser({}, *this);
     m_stack_of_open_elements.set_on_element_popped([this](DOM::Element& element) {
@@ -287,8 +247,7 @@ void HTMLParser::visit_edges(Cell::Visitor& visitor)
     m_stack_of_open_elements.visit_edges(visitor);
     m_list_of_active_formatting_elements.visit_edges(visitor);
     m_tokenizer.visit_edges(visitor);
-    if (m_rust_parser)
-        rust_html_parser_visit_edges(m_rust_parser, &visitor);
+    rust_html_parser_visit_edges(m_rust_parser, &visitor);
 }
 
 void HTMLParser::initialize(JS::Realm& realm)
@@ -298,101 +257,38 @@ void HTMLParser::initialize(JS::Realm& realm)
 
 void HTMLParser::run(HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point)
 {
-    if (m_backend == HTMLParserBackend::Rust) {
-        m_stop_parsing = false;
-
-        for (;;) {
-            if (m_parser_pause_flag)
-                break;
-
-            auto result = rust_html_parser_run_document(
-                m_rust_parser,
-                m_tokenizer.ffi_handle({}),
-                this,
-                m_scripting_mode != ParserScriptingMode::Disabled,
-                stop_at_insertion_point == HTMLTokenizer::StopAtInsertionPoint::Yes);
-            if (result == RustFfiHtmlParserRunResult::Ok)
-                break;
-
-            if (result == RustFfiHtmlParserRunResult::ExecuteScript) {
-                auto script = rust_html_parser_take_pending_script(m_rust_parser);
-                VERIFY(script);
-                process_script_end_tag_from_rust_parser(as<HTMLScriptElement>(node_from_html_parser_ffi(script)));
-                continue;
-            }
-
-            if (result == RustFfiHtmlParserRunResult::ExecuteSvgScript) {
-                auto script = rust_html_parser_take_pending_svg_script(m_rust_parser);
-                VERIFY(script);
-                if (process_svg_script_end_tag_from_rust_parser(as<SVG::SVGScriptElement>(node_from_html_parser_ffi(script))))
-                    break;
-                continue;
-            }
-
-            VERIFY_NOT_REACHED();
-        }
-
-        m_tokenizer.parser_did_run({});
-        return;
-    }
-
     m_stop_parsing = false;
 
     for (;;) {
         if (m_parser_pause_flag)
             break;
 
-        auto optional_token = m_tokenizer.next_token(stop_at_insertion_point);
-        if (!optional_token.has_value())
-            break;
-        auto& token = optional_token.value();
-
-        dbgln_if(HTML_PARSER_DEBUG, "[{}] {}", insertion_mode_name(), token.to_string());
-
-        if (m_next_line_feed_can_be_ignored) {
-            m_next_line_feed_can_be_ignored = false;
-            if (token.is_character() && token.code_point() == '\n') {
-                continue;
-            }
-        }
-
-        // https://html.spec.whatwg.org/multipage/parsing.html#tree-construction-dispatcher
-        // As each token is emitted from the tokenizer, the user agent must follow the appropriate steps from the following list, known as the tree construction dispatcher:
-        if (m_stack_of_open_elements.is_empty()
-            || adjusted_current_node()->namespace_uri() == Namespace::HTML
-            || (is_mathml_text_integration_point(*adjusted_current_node()) && token.is_start_tag() && token.tag_name() != MathML::TagNames::mglyph && token.tag_name() != MathML::TagNames::malignmark)
-            || (is_mathml_text_integration_point(*adjusted_current_node()) && token.is_character())
-            || (adjusted_current_node()->namespace_uri() == Namespace::MathML && adjusted_current_node()->local_name() == MathML::TagNames::annotation_xml && token.is_start_tag() && token.tag_name() == SVG::TagNames::svg)
-            || (is_html_integration_point(*adjusted_current_node()) && (token.is_start_tag() || token.is_character()))
-            || token.is_end_of_file()) {
-            // -> If the stack of open elements is empty
-            // -> If the adjusted current node is an element in the HTML namespace
-            // -> If the adjusted current node is a MathML text integration point and the token is a start tag whose tag name is neither "mglyph" nor "malignmark"
-            // -> If the adjusted current node is a MathML text integration point and the token is a character token
-            // -> If the adjusted current node is a MathML annotation-xml element and the token is a start tag whose tag name is "svg"
-            // -> If the adjusted current node is an HTML integration point and the token is a start tag
-            // -> If the adjusted current node is an HTML integration point and the token is a character token
-            // -> If the token is an end-of-file token
-
-            // Process the token according to the rules given in the section corresponding to the current insertion mode in HTML content.
-            process_using_the_rules_for(m_insertion_mode, token);
-        } else {
-            // -> Otherwise
-
-            // Process the token according to the rules given in the section for parsing tokens in foreign content.
-            process_using_the_rules_for_foreign_content(token);
-        }
-
-        if (token.is_end_of_file() && m_tokenizer.is_eof_inserted())
+        auto result = rust_html_parser_run_document(
+            m_rust_parser,
+            m_tokenizer.ffi_handle({}),
+            this,
+            m_scripting_mode != ParserScriptingMode::Disabled,
+            stop_at_insertion_point == HTMLTokenizer::StopAtInsertionPoint::Yes);
+        if (result == RustFfiHtmlParserRunResult::Ok)
             break;
 
-        if (m_stop_parsing) {
-            dbgln_if(HTML_PARSER_DEBUG, "Stop parsing{}! :^)", m_parsing_fragment ? " fragment" : "");
-            break;
+        if (result == RustFfiHtmlParserRunResult::ExecuteScript) {
+            auto script = rust_html_parser_take_pending_script(m_rust_parser);
+            VERIFY(script);
+            process_script_end_tag_from_rust_parser(as<HTMLScriptElement>(node_from_html_parser_ffi(script)));
+            continue;
         }
+
+        if (result == RustFfiHtmlParserRunResult::ExecuteSvgScript) {
+            auto script = rust_html_parser_take_pending_svg_script(m_rust_parser);
+            VERIFY(script);
+            if (process_svg_script_end_tag_from_rust_parser(as<SVG::SVGScriptElement>(node_from_html_parser_ffi(script))))
+                break;
+            continue;
+        }
+
+        VERIFY_NOT_REACHED();
     }
-
-    flush_character_insertions();
 
     m_tokenizer.parser_did_run({});
 }
@@ -406,13 +302,7 @@ void HTMLParser::run(URL::URL const& url, HTMLTokenizer::StopAtInsertionPoint st
 
 void HTMLParser::pop_all_open_elements()
 {
-    if (m_backend == HTMLParserBackend::Rust) {
-        rust_html_parser_pop_all_open_elements(m_rust_parser);
-        return;
-    }
-
-    while (!m_stack_of_open_elements.is_empty())
-        (void)m_stack_of_open_elements.pop();
+    rust_html_parser_pop_all_open_elements(m_rust_parser);
 }
 
 void HTMLParser::configure_element_created_by_rust_parser(DOM::Element& element)
@@ -5432,9 +5322,8 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
     // 9. Set the parser's scripting mode to scriptingMode.
     if (context_element.document().is_scripting_disabled())
         scripting_mode = HTML::ParserScriptingMode::Disabled;
-    auto backend = default_html_parser_backend();
 
-    auto parser = HTMLParser::create(*temp_document, markup, scripting_mode, "utf-8"sv, backend);
+    auto parser = HTMLParser::create(*temp_document, markup, scripting_mode, "utf-8"sv);
     parser->m_context_element = context_element;
     parser->m_parsing_fragment = true;
 
@@ -5485,20 +5374,6 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
     // 12. Append root to document.
     MUST(temp_document->append_child(root));
 
-    // 13. Set up the HTML parser's stack of open elements so that it contains just the single element root.
-    parser->m_stack_of_open_elements.push(root);
-
-    // 14. If context is a template element, then push "in template" onto the stack of template insertion modes
-    //     so that it is the new current template insertion mode.
-    if (context_element.local_name() == HTML::TagNames::template_)
-        parser->m_stack_of_template_insertion_modes.append(InsertionMode::InTemplate);
-
-    // FIXME: 15. Create a start tag token whose name is the local name of context and whose attributes are the attributes of context.
-    //            Let this start tag token be the start tag token of context; e.g. for the purposes of determining if it is an HTML integration point.
-
-    // 16. Reset the parser's insertion mode appropriately.
-    parser->reset_the_insertion_mode_appropriately();
-
     // 17. Set the HTML parser's form element pointer to the nearest node to context that is a form element
     //     (going straight up the ancestor chain, and including the element itself, if it is a form element), if any.
     //     (If there is no such form element, the form element pointer keeps its initial value, null.)
@@ -5506,46 +5381,44 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
     if (!parser->m_form_element)
         parser->m_form_element = context_element.first_ancestor_of_type<HTMLFormElement>();
 
-    if (parser->m_backend == HTMLParserBackend::Rust) {
-        auto context_local_name = context_element.local_name().bytes_as_string_view();
-        auto context_namespace = context_element.namespace_uri();
-        auto context_namespace_ffi = namespace_to_html_parser_ffi(context_namespace);
-        StringView context_namespace_uri;
-        if (context_namespace_ffi == RustFfiHtmlNamespace::Other && context_namespace.has_value())
-            context_namespace_uri = context_namespace->bytes_as_string_view();
-        Vector<RustFfiHtmlParserAttribute> context_attributes;
-        if (auto attributes = context_element.attributes()) {
-            context_attributes.ensure_capacity(attributes->length());
-            for (size_t i = 0; i < attributes->length(); ++i) {
-                auto const* attribute = attributes->item(i);
-                auto local_name = attribute->local_name().bytes_as_string_view();
-                auto value = attribute->value().bytes_as_string_view();
-                auto prefix = attribute->prefix().map([](auto const& prefix) { return prefix.bytes_as_string_view(); });
-                context_attributes.unchecked_append({
-                    reinterpret_cast<u8 const*>(local_name.characters_without_null_termination()),
-                    local_name.length(),
-                    prefix.has_value() ? reinterpret_cast<u8 const*>(prefix->characters_without_null_termination()) : nullptr,
-                    prefix.has_value() ? prefix->length() : 0,
-                    attribute_namespace_to_html_parser_ffi(attribute->namespace_uri()),
-                    reinterpret_cast<u8 const*>(value.characters_without_null_termination()),
-                    value.length(),
-                });
-            }
+    auto context_local_name = context_element.local_name().bytes_as_string_view();
+    auto context_namespace = context_element.namespace_uri();
+    auto context_namespace_ffi = namespace_to_html_parser_ffi(context_namespace);
+    StringView context_namespace_uri;
+    if (context_namespace_ffi == RustFfiHtmlNamespace::Other && context_namespace.has_value())
+        context_namespace_uri = context_namespace->bytes_as_string_view();
+    Vector<RustFfiHtmlParserAttribute> context_attributes;
+    if (auto attributes = context_element.attributes()) {
+        context_attributes.ensure_capacity(attributes->length());
+        for (size_t i = 0; i < attributes->length(); ++i) {
+            auto const* attribute = attributes->item(i);
+            auto local_name = attribute->local_name().bytes_as_string_view();
+            auto value = attribute->value().bytes_as_string_view();
+            auto prefix = attribute->prefix().map([](auto const& prefix) { return prefix.bytes_as_string_view(); });
+            context_attributes.unchecked_append({
+                reinterpret_cast<u8 const*>(local_name.characters_without_null_termination()),
+                local_name.length(),
+                prefix.has_value() ? reinterpret_cast<u8 const*>(prefix->characters_without_null_termination()) : nullptr,
+                prefix.has_value() ? prefix->length() : 0,
+                attribute_namespace_to_html_parser_ffi(attribute->namespace_uri()),
+                reinterpret_cast<u8 const*>(value.characters_without_null_termination()),
+                value.length(),
+            });
         }
-        rust_html_parser_begin_fragment(
-            parser->m_rust_parser,
-            reinterpret_cast<size_t>(root.ptr()),
-            reinterpret_cast<size_t>(&context_element),
-            context_namespace_ffi,
-            reinterpret_cast<u8 const*>(context_namespace_uri.characters_without_null_termination()),
-            context_namespace_uri.length(),
-            reinterpret_cast<u8 const*>(context_local_name.characters_without_null_termination()),
-            context_local_name.length(),
-            context_attributes.data(),
-            context_attributes.size(),
-            quirks_mode_to_html_parser_ffi(temp_document->mode()),
-            parser->m_form_element ? reinterpret_cast<size_t>(parser->m_form_element.ptr()) : 0);
     }
+    rust_html_parser_begin_fragment(
+        parser->m_rust_parser,
+        reinterpret_cast<size_t>(root.ptr()),
+        reinterpret_cast<size_t>(&context_element),
+        context_namespace_ffi,
+        reinterpret_cast<u8 const*>(context_namespace_uri.characters_without_null_termination()),
+        context_namespace_uri.length(),
+        reinterpret_cast<u8 const*>(context_local_name.characters_without_null_termination()),
+        context_local_name.length(),
+        context_attributes.data(),
+        context_attributes.size(),
+        quirks_mode_to_html_parser_ffi(temp_document->mode()),
+        parser->m_form_element ? reinterpret_cast<size_t>(parser->m_form_element.ptr()) : 0);
 
     // 18. Place the input into the input stream for the HTML parser just created. The encoding confidence is irrelevant.
     // 19. Start the HTML parser and let it run until it has consumed all the characters just inserted into the input stream.
@@ -5564,28 +5437,28 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
 GC::Ref<HTMLParser> HTMLParser::create_for_scripting(DOM::Document& document)
 {
     auto scripting_mode = document.is_scripting_enabled() ? ParserScriptingMode::Normal : ParserScriptingMode::Disabled;
-    return document.realm().create<HTMLParser>(document, scripting_mode, ScriptCreatedParser::Yes, default_html_parser_backend());
+    return document.realm().create<HTMLParser>(document, scripting_mode, ScriptCreatedParser::Yes);
 }
 
 GC::Ref<HTMLParser> HTMLParser::create_with_open_input_stream(DOM::Document& document)
 {
     auto scripting_mode = document.is_scripting_enabled() ? ParserScriptingMode::Normal : ParserScriptingMode::Disabled;
-    return document.realm().create<HTMLParser>(document, scripting_mode, ScriptCreatedParser::No, default_html_parser_backend());
+    return document.realm().create<HTMLParser>(document, scripting_mode, ScriptCreatedParser::No);
 }
 
 GC::Ref<HTMLParser> HTMLParser::create_with_uncertain_encoding(DOM::Document& document, ByteBuffer const& input, Optional<MimeSniff::MimeType> maybe_mime_type)
 {
     auto scripting_mode = document.is_scripting_enabled() ? ParserScriptingMode::Normal : ParserScriptingMode::Disabled;
     if (document.has_encoding())
-        return document.realm().create<HTMLParser>(document, scripting_mode, input, document.encoding().value().to_byte_string(), default_html_parser_backend());
+        return document.realm().create<HTMLParser>(document, scripting_mode, input, document.encoding().value().to_byte_string());
     auto encoding = run_encoding_sniffing_algorithm(document, input, maybe_mime_type);
     dbgln_if(HTML_PARSER_DEBUG, "The encoding sniffing algorithm returned encoding '{}'", encoding);
-    return document.realm().create<HTMLParser>(document, scripting_mode, input, encoding, default_html_parser_backend());
+    return document.realm().create<HTMLParser>(document, scripting_mode, input, encoding);
 }
 
-GC::Ref<HTMLParser> HTMLParser::create(DOM::Document& document, StringView input, ParserScriptingMode scripting_mode, StringView encoding, HTMLParserBackend backend)
+GC::Ref<HTMLParser> HTMLParser::create(DOM::Document& document, StringView input, ParserScriptingMode scripting_mode, StringView encoding)
 {
-    return document.realm().create<HTMLParser>(document, scripting_mode, input, encoding, backend);
+    return document.realm().create<HTMLParser>(document, scripting_mode, input, encoding);
 }
 
 enum class AttributeMode {

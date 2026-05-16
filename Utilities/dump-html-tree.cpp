@@ -280,7 +280,7 @@ static void dump_tree(Web::DOM::Node const& node, size_t indent)
     }
 }
 
-static GC::Ref<Web::DOM::Document> parse_html(JS::Realm& realm, Web::DOM::Document const& origin_document, StringView input, Web::HTML::HTMLParserBackend backend)
+static GC::Ref<Web::DOM::Document> parse_html(JS::Realm& realm, Web::DOM::Document const& origin_document, StringView input)
 {
     auto document = Web::DOM::Document::create(realm, URL::about_blank());
     document->set_document_type(Web::DOM::Document::Type::HTML);
@@ -290,7 +290,7 @@ static GC::Ref<Web::DOM::Document> parse_html(JS::Realm& realm, Web::DOM::Docume
     document->set_allow_declarative_shadow_roots(true);
     document->set_custom_element_registry(realm.create<Web::HTML::CustomElementRegistry>(realm));
 
-    auto parser = Web::HTML::HTMLParser::create(document, input, Web::HTML::ParserScriptingMode::Disabled, "UTF-8"sv, backend);
+    auto parser = Web::HTML::HTMLParser::create(document, input, Web::HTML::ParserScriptingMode::Disabled, "UTF-8"sv);
     parser->run(URL::about_blank());
     return document;
 }
@@ -298,7 +298,6 @@ static GC::Ref<Web::DOM::Document> parse_html(JS::Realm& realm, Web::DOM::Docume
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     StringView file_path;
-    StringView parser_name = "cpp"sv;
     bool silent = false;
     int iterations = 1;
 
@@ -307,16 +306,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         "Parse HTML and dump the resulting DOM tree in a canonical format. "
         "Use --silent for perf work on the parser itself.");
     args_parser.add_positional_argument(file_path, "Path to HTML file (or - for stdin)", "file", Core::ArgsParser::Required::No);
-    args_parser.add_option(parser_name, "HTML parser backend", "parser", 'p', "cpp");
     args_parser.add_option(silent, "Don't print anything (for benchmarking)", "silent", 'q');
     args_parser.add_option(iterations, "Run the parser N times, reporting timing unless --silent is used", "iterations", 'n', "count");
     args_parser.parse(arguments);
-
-    auto backend = Web::HTML::html_parser_backend_from_string(parser_name);
-    if (!backend.has_value()) {
-        warnln("Unknown or unavailable parser backend: '{}'", parser_name);
-        return 1;
-    }
 
     if (iterations < 1) {
         warnln("--iterations must be at least 1");
@@ -354,16 +346,15 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto timer = Core::ElapsedTimer::start_new();
 
     for (int i = 0; i < iterations; i++) {
-        auto document = parse_html(realm, origin_document, input, backend.value());
+        auto document = parse_html(realm, origin_document, input);
         if (!silent && i == 0)
             dump_tree(document);
     }
 
     if (iterations > 1 && !silent) {
         auto elapsed_ms = timer.elapsed_milliseconds();
-        warnln("input={}B parser={} iterations={} total={}ms ({:.3f}ms/iter)",
+        warnln("input={}B iterations={} total={}ms ({:.3f}ms/iter)",
             input_data.size(),
-            Web::HTML::html_parser_backend_name(backend.value()),
             iterations,
             elapsed_ms,
             static_cast<double>(elapsed_ms) / iterations);
