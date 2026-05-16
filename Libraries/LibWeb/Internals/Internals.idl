@@ -10,6 +10,9 @@ interface Internals {
 
     undefined gc();
     Promise<undefined> gcAsync();
+    // Clears a named environment binding and forces its current cell to be treated as garbage.
+    // This does not work for values stored only in optimized locals or registers.
+    undefined markAsGarbage(DOMString variableName);
     object hitTest(double x, double y);
 
     const unsigned short MOD_NONE = 0;

@@ -32,15 +32,17 @@ void ResizeObservation::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_realm);
-    visitor.visit(m_target);
     visitor.visit(m_last_reported_sizes);
 }
 
 // https://drafts.csswg.org/resize-observer-1/#dom-resizeobservation-isactive
 bool ResizeObservation::is_active()
 {
+    if (!m_target)
+        return false;
+
     // 1. Set currentSize by calculate box size given target and observedBox.
-    auto current_size = ResizeObserverSize::compute_box_size(m_target, m_observed_box);
+    auto current_size = ResizeObserverSize::compute_box_size(*m_target, m_observed_box);
 
     // 2. Return true if currentSize is not equal to the first entry in this.lastReportedSizes.
     VERIFY(!m_last_reported_sizes.is_empty());

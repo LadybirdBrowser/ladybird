@@ -7,7 +7,10 @@
 
 #include <AK/JsonObject.h>
 #include <LibGfx/Cursor.h>
+#include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Date.h>
+#include <LibJS/Runtime/Error.h>
+#include <LibJS/Runtime/Reference.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibURL/Parser.h>
 #include <LibUnicode/TimeZone.h>
@@ -174,6 +177,31 @@ GC::Ref<WebIDL::Promise> Internals::gc_async()
     }));
 
     return promise;
+}
+
+WebIDL::ExceptionOr<void> Internals::mark_as_garbage(StringView variable_name)
+{
+    auto& vm = this->vm();
+
+    // This helper is intentionally limited to real environment bindings. It cannot
+    // find values that the bytecode generator stored only in optimized locals.
+    // In native functions we don't have a lexical environment so get the outer via the execution stack.
+    auto outer_environment = vm.last_execution_context_matching([&](auto* execution_context) {
+        return execution_context->lexical_environment != nullptr;
+    });
+    if (!outer_environment.has_value())
+        return vm.throw_completion<JS::ReferenceError>(JS::ErrorType::UnknownIdentifier, variable_name);
+
+    auto reference = TRY(vm.resolve_binding(Utf16FlyString::from_utf8(variable_name), JS::Strict::No, outer_environment.value()->lexical_environment));
+    auto value = TRY(reference.get_value(vm));
+
+    if (!JS::can_be_held_weakly(value))
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::CannotBeHeldWeakly, value);
+
+    TRY(reference.put_value(vm, JS::js_undefined()));
+    (void)TRY(reference.delete_(vm));
+    vm.heap().uproot_cell(&value.as_cell());
+    return {};
 }
 
 WebIDL::ExceptionOr<String> Internals::set_time_zone(StringView time_zone)

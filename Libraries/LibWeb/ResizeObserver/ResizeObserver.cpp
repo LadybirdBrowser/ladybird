@@ -107,6 +107,21 @@ void ResizeObserver::disconnect()
     unregister_observer_if_needed();
 }
 
+void ResizeObserver::remove_dead_observations()
+{
+    m_observation_targets.remove_all_matching([](auto& observation) {
+        return !observation->target();
+    });
+    m_active_targets.remove_all_matching([](auto& observation) {
+        return !observation->target();
+    });
+    m_skipped_targets.remove_all_matching([](auto& observation) {
+        return !observation->target();
+    });
+
+    unregister_observer_if_needed();
+}
+
 void ResizeObserver::invoke_callback(ReadonlySpan<GC::Ref<ResizeObserverEntry>> entries) const
 {
     auto& callback = *m_callback;

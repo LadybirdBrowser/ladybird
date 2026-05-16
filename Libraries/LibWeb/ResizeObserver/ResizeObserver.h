@@ -35,6 +35,7 @@ public:
     Vector<GC::Ref<ResizeObservation>>& observation_targets() { return m_observation_targets; }
     Vector<GC::Ref<ResizeObservation>>& active_targets() { return m_active_targets; }
     Vector<GC::Ref<ResizeObservation>>& skipped_targets() { return m_skipped_targets; }
+    void remove_dead_observations();
 
 private:
     explicit ResizeObserver(JS::Realm&, WebIDL::CallbackType* callback);

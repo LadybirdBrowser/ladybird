@@ -42,6 +42,7 @@ public:
 
     void gc();
     GC::Ref<WebIDL::Promise> gc_async();
+    WebIDL::ExceptionOr<void> mark_as_garbage(StringView variable_name);
     JS::Object* hit_test(double x, double y);
 
     void send_text(HTML::HTMLElement&, String const&, WebIDL::UnsignedShort modifiers);

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<style>
+.box {
+    width: 200px;
+    height: 200px;
+}
+</style>
+<script src="../include.js"></script>
+<div id="first" class="box"></div>
+<div id="second" class="box"></div>
+<script>
+    let secondTarget = null;
+
+    asyncTest(async done => {
+        let firstCallbackCount = 0;
+        let secondCallbackCount = 0;
+        secondTarget = document.getElementById("second");
+
+        let observers = (() => {
+            let firstObserver = new ResizeObserver(entries => {
+                ++firstCallbackCount;
+                println(`first observer target: ${entries[0].target.id}`);
+
+                secondTarget.remove();
+                secondTarget = null;
+                internals.gc();
+            });
+
+            let secondObserver = new ResizeObserver(entries => {
+                ++secondCallbackCount;
+                println(`second observer entries: ${entries.length}`);
+                println(`second observer target: ${entries[0].target.id}`);
+            });
+
+            firstObserver.observe(document.getElementById("first"));
+            secondObserver.observe(secondTarget);
+
+            return [firstObserver, secondObserver];
+        })();
+
+        await animationFrame();
+        await timeout(0);
+
+        println(`first observer callbacks: ${firstCallbackCount}`);
+        println(`second observer callbacks: ${secondCallbackCount}`);
+
+        observers = null;
+        done();
+    });
+</script>
