@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #scroller {
+        display: flex;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-right: 8px;
+        width: 200px;
+    }
+
+    #content {
+        background: green;
+        flex: 0 0 auto;
+        height: 20px;
+        margin-left: -32px;
+        width: 160px;
+    }
+</style>
+<div id="scroller">
+    <div id="content"></div>
+</div>
+<script>
+    test(() => {
+        println(`client width: ${scroller.clientWidth}`);
+        println(`scroll width: ${scroller.scrollWidth}`);
+        scroller.scrollLeft = 100;
+        println(`scroll left: ${scroller.scrollLeft}`);
+    });
+</script>
