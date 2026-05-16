@@ -622,6 +622,7 @@ impl Compiler {
 
         // Emit `min` required copies.
         // Per ECMA-262, captures inside must be cleared at the start of each iteration.
+        let can_be_zero_width = self.atom_can_be_zero_width(atom);
         for i in 0..q.min {
             if i > 0 {
                 self.emit_clear_captures(atom);
@@ -640,17 +641,12 @@ impl Compiler {
                 // times. The check must happen AFTER the body so it can explore non-empty
                 // alternatives through backtracking before being rejected.
                 let optional_count = max - q.min;
-                if !self.atom_can_be_zero_width(atom) {
+                if !can_be_zero_width {
                     self.compile_counted_optional_repetitions(atom, optional_count, q.greedy);
                     return;
                 }
-                let needs_progress_check = q.min == 0 && self.atom_can_be_zero_width(atom);
                 for _ in 0..optional_count {
-                    let progress_reg = if needs_progress_check {
-                        Some(self.alloc_register())
-                    } else {
-                        None
-                    };
+                    let progress_reg = Some(self.alloc_register());
                     if q.greedy {
                         // Split: prefer body, other skip.
                         let split = self.emit(Instruction::Split {
