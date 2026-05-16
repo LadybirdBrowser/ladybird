@@ -1,0 +1,19 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    details::details-content {
+        content-visibility: visible !important;
+    }
+</style>
+<details id="details">
+    <summary></summary>
+    <p></p>
+</details>
+<script>
+    test(() => {
+        getComputedStyle(details, "::details-content").width;
+
+        // Should be visible because the !important style should override the inline style
+        println(getComputedStyle(details, "::details-content").contentVisibility);
+    });
+</script>

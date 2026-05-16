@@ -469,6 +469,18 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     set_longhand_property(property_id, value);
 }
 
+static bool property_is_disallowed_in_cascade(PropertyID property_id, DOM::AbstractElement const& abstract_element, StyleComputer::BypassPseudoElementPropertyWhitelist bypass_pseudo_element_property_whitelist)
+{
+    // NB: We bypass the pseudo-element property whitelist when applying inline style since inline style is used
+    //     internally to style element-reference pseudo-elements and sometimes contains disallowed properties (e.g.
+    //     input::placeholder has height set), authors can't set inline style on pseudo-elements so this doesn't
+    //     cause any spec compliance issues.
+    if (bypass_pseudo_element_property_whitelist == StyleComputer::BypassPseudoElementPropertyWhitelist::Yes)
+        return false;
+
+    return abstract_element.pseudo_element().has_value() && !pseudo_element_supports_property(*abstract_element.pseudo_element(), property_id);
+}
+
 void StyleComputer::apply_property_list_to_cascade(
     CascadedProperties& cascaded_properties,
     DOM::AbstractElement abstract_element,
@@ -477,16 +489,15 @@ void StyleComputer::apply_property_list_to_cascade(
     Important important,
     Optional<FlyString> layer_name,
     GC::Ptr<CSSStyleDeclaration const> source,
-    GC::Ptr<DOM::ShadowRoot const> source_shadow_root) const
+    GC::Ptr<DOM::ShadowRoot const> source_shadow_root,
+    BypassPseudoElementPropertyWhitelist bypass_pseudo_element_property_whitelist) const
 {
     AK::FixedBitmap<to_underlying(last_property_id) + 1> seen_properties(false);
     for (auto const& property : properties) {
         if (important != property.important)
             continue;
 
-        if (abstract_element.pseudo_element().has_value()
-            && !pseudo_element_supports_property(*abstract_element.pseudo_element(), property.property_id)
-            && !property.value->is_unresolved())
+        if (property_is_disallowed_in_cascade(property.property_id, abstract_element, bypass_pseudo_element_property_whitelist) && !property.value->is_unresolved())
             continue;
 
         auto property_value = property.value;
@@ -518,7 +529,7 @@ void StyleComputer::apply_property_list_to_cascade(
         }
 
         for_each_property_expanding_shorthands(property.property_id, property_value, [&](PropertyID longhand_id, StyleValue const& longhand_value) {
-            if (abstract_element.pseudo_element().has_value() && !pseudo_element_supports_property(*abstract_element.pseudo_element(), longhand_id))
+            if (property_is_disallowed_in_cascade(longhand_id, abstract_element, bypass_pseudo_element_property_whitelist))
                 return;
 
             // If we're a PSV that's already been seen, that should mean that our shorthand already got
@@ -551,12 +562,12 @@ void StyleComputer::cascade_declarations(
 {
     for (auto const& match : matching_rules) {
         auto const& declaration = match.rule->declaration();
-        apply_property_list_to_cascade(cascaded_properties, abstract_element, declaration.properties(), cascade_origin, important, layer_name, &declaration, match.shadow_root);
+        apply_property_list_to_cascade(cascaded_properties, abstract_element, declaration.properties(), cascade_origin, important, layer_name, &declaration, match.shadow_root, BypassPseudoElementPropertyWhitelist::No);
     }
 
-    if (cascade_origin == CascadeOrigin::Author && !abstract_element.pseudo_element().has_value()) {
-        if (auto const inline_style = abstract_element.element().inline_style())
-            apply_property_list_to_cascade(cascaded_properties, abstract_element, inline_style->properties(), cascade_origin, important, layer_name, inline_style, nullptr);
+    if (cascade_origin == CascadeOrigin::Author) {
+        if (auto const inline_style = abstract_element.inline_style())
+            apply_property_list_to_cascade(cascaded_properties, abstract_element, inline_style->properties(), cascade_origin, important, layer_name, inline_style, nullptr, BypassPseudoElementPropertyWhitelist::Yes);
     }
 }
 
@@ -566,10 +577,9 @@ static void cascade_custom_properties(DOM::AbstractElement abstract_element, Vec
     for (auto const& matching_rule : matching_rules)
         needed_capacity += matching_rule.rule->declaration().custom_properties().size();
 
-    if (!abstract_element.pseudo_element().has_value()) {
-        if (auto const inline_style = abstract_element.element().inline_style())
-            needed_capacity += inline_style->custom_properties().size();
-    }
+    auto const inline_style = abstract_element.inline_style();
+    if (inline_style)
+        needed_capacity += inline_style->custom_properties().size();
 
     custom_properties.ensure_capacity(custom_properties.size() + needed_capacity);
 
@@ -587,14 +597,12 @@ static void cascade_custom_properties(DOM::AbstractElement abstract_element, Vec
         }
     }
 
-    if (!abstract_element.pseudo_element().has_value()) {
-        if (auto const inline_style = abstract_element.element().inline_style()) {
-            for (auto const& it : inline_style->custom_properties()) {
-                if (it.value.important == Important::Yes) {
-                    important_custom_properties.set(it.key, it.value);
-                }
-                custom_properties.set(it.key, it.value);
+    if (inline_style) {
+        for (auto const& it : inline_style->custom_properties()) {
+            if (it.value.important == Important::Yes) {
+                important_custom_properties.set(it.key, it.value);
             }
+            custom_properties.set(it.key, it.value);
         }
     }
 
@@ -1324,7 +1332,7 @@ GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Abstract
         }
         if (!presentational_hint_properties.is_empty()) {
             apply_property_list_to_cascade(*cascaded_properties, abstract_element, presentational_hint_properties,
-                CascadeOrigin::AuthorPresentationalHint, Important::No, {}, nullptr, nullptr);
+                CascadeOrigin::AuthorPresentationalHint, Important::No, {}, nullptr, nullptr, BypassPseudoElementPropertyWhitelist::No);
         }
     }
 
@@ -1831,11 +1839,6 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
 
         auto style = compute_style(abstract_element_for_pseudo_element);
 
-        // Merge back inline styles
-        if (auto inline_style = element.inline_style()) {
-            for (auto const& property : inline_style->properties())
-                style->set_property(property.property_id, property.value);
-        }
         abstract_element.element().adjust_computed_style(style);
         return style;
     }

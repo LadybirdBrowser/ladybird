@@ -147,6 +147,11 @@ public:
     static NonnullRefPtr<StyleValue const> compute_line_height(NonnullRefPtr<StyleValue const> const& absolutized_value, CSSPixels computed_font_size);
     static NonnullRefPtr<StyleValue const> compute_position_area(NonnullRefPtr<StyleValue const> const& absolutized_value);
 
+    enum class BypassPseudoElementPropertyWhitelist : u8 {
+        No,
+        Yes,
+    };
+
 private:
     virtual void visit_edges(Visitor&) override;
 
@@ -195,7 +200,8 @@ private:
         Important,
         Optional<FlyString> layer_name,
         GC::Ptr<CSSStyleDeclaration const> source,
-        GC::Ptr<DOM::ShadowRoot const> source_shadow_root) const;
+        GC::Ptr<DOM::ShadowRoot const> source_shadow_root,
+        BypassPseudoElementPropertyWhitelist) const;
 
     GC::Ref<DOM::Document> m_document;
 

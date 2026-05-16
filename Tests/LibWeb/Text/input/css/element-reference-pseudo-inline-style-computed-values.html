@@ -1,0 +1,18 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    input {
+        font-size: 20px;
+    }
+</style>
+<input id="input" placeholder="placeholder" />
+<script>
+    test(() => {
+        const container = internals.getShadowRoot(input).firstElementChild;
+        const placeholder = container.children[1];
+
+        input.setAttribute("placeholder", "updated");
+
+        println(placeholder.computedStyleMap().get("height").toString());
+    });
+</script>
