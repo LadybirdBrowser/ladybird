@@ -61,6 +61,8 @@ struct AsyncScrollNode {
     Gfx::IntRect scrollport_rect;
     Gfx::FloatPoint max_scroll_offset;
     bool is_viewport { false };
+    bool can_be_wheel_scrolled_horizontally { false };
+    bool can_be_wheel_scrolled_vertically { false };
 };
 
 // Sticky elements are represented as scroll frames whose offset is derived from ancestor scroll offsets. Keep only

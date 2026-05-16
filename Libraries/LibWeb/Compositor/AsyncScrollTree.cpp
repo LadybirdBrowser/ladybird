@@ -80,13 +80,13 @@ Gfx::FloatPoint AsyncScrollTree::scroll_offset_for_node(AsyncScrollNode const& n
 bool AsyncScrollTree::can_scroll_node_by_delta(AsyncScrollNode const& node, Painting::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint delta)
 {
     auto scroll_offset = scroll_offset_for_node(node, scroll_state_snapshot);
-    if (delta.x() < 0 && scroll_offset.x() > 0)
+    if (node.can_be_wheel_scrolled_horizontally && delta.x() < 0 && scroll_offset.x() > 0)
         return true;
-    if (delta.x() > 0 && scroll_offset.x() < node.max_scroll_offset.x())
+    if (node.can_be_wheel_scrolled_horizontally && delta.x() > 0 && scroll_offset.x() < node.max_scroll_offset.x())
         return true;
-    if (delta.y() < 0 && scroll_offset.y() > 0)
+    if (node.can_be_wheel_scrolled_vertically && delta.y() < 0 && scroll_offset.y() > 0)
         return true;
-    if (delta.y() > 0 && scroll_offset.y() < node.max_scroll_offset.y())
+    if (node.can_be_wheel_scrolled_vertically && delta.y() > 0 && scroll_offset.y() < node.max_scroll_offset.y())
         return true;
     return false;
 }
@@ -146,7 +146,11 @@ Gfx::FloatPoint AsyncScrollTree::cumulative_device_offset_for_frame(Painting::Sc
 Gfx::FloatPoint AsyncScrollTree::apply_scroll_delta_to_node(AsyncScrollNode const& node, Gfx::FloatPoint delta, Painting::ScrollStateSnapshot& scroll_state_snapshot)
 {
     auto old_scroll_offset = scroll_offset_for_node(node, scroll_state_snapshot);
-    auto new_scroll_offset = clamp_scroll_offset_to_node(node, old_scroll_offset.translated(delta));
+    Gfx::FloatPoint wheel_scrollable_delta {
+        node.can_be_wheel_scrolled_horizontally ? delta.x() : 0,
+        node.can_be_wheel_scrolled_vertically ? delta.y() : 0,
+    };
+    auto new_scroll_offset = clamp_scroll_offset_to_node(node, old_scroll_offset.translated(wheel_scrollable_delta));
     if (new_scroll_offset == old_scroll_offset) {
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Async scroll node {} did not move for delta {},{} (offset={},{} max={},{})",
             node.node_id.scroll_frame_index.value(), delta.x(), delta.y(), old_scroll_offset.x(), old_scroll_offset.y(), node.max_scroll_offset.x(), node.max_scroll_offset.y());

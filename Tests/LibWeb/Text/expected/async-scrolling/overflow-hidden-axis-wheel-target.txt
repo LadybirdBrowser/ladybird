@@ -1,0 +1,2 @@
+horizontal wheel target: non-viewport
+vertical wheel target: none

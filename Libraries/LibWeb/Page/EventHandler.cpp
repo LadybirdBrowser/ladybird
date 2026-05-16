@@ -593,9 +593,19 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
             if (!document || !document->paintable_box())
                 return EventResult::Dropped;
 
-            if (document->paintable_box()->could_be_scrolled_by_wheel_event()) {
+            auto visual_viewport = document->visual_viewport();
+            auto visual_viewport_max_x = m_navigable->viewport_rect().width().to_double() - visual_viewport->width();
+            auto visual_viewport_max_y = m_navigable->viewport_rect().height().to_double() - visual_viewport->height();
+            auto visual_viewport_can_scroll_horizontally = (wheel_delta_x < 0 && visual_viewport->offset_left() > 0)
+                || (wheel_delta_x > 0 && visual_viewport->offset_left() < visual_viewport_max_x);
+            auto visual_viewport_can_scroll_vertically = (wheel_delta_y < 0 && visual_viewport->offset_top() > 0)
+                || (wheel_delta_y > 0 && visual_viewport->offset_top() < visual_viewport_max_y);
+            auto viewport_wheel_delta_x = document->paintable_box()->could_be_scrolled_by_wheel_event(Painting::PaintableBox::ScrollDirection::Horizontal) || visual_viewport_can_scroll_horizontally ? wheel_delta_x : 0;
+            auto viewport_wheel_delta_y = document->paintable_box()->could_be_scrolled_by_wheel_event(Painting::PaintableBox::ScrollDirection::Vertical) || visual_viewport_can_scroll_vertically ? wheel_delta_y : 0;
+
+            if (viewport_wheel_delta_x != 0 || viewport_wheel_delta_y != 0) {
                 auto viewport_scroll_position_before = CSSPixelPoint { CSSPixels(document->visual_viewport()->page_left()), CSSPixels(document->visual_viewport()->page_top()) };
-                m_navigable->scroll_viewport_by_delta({ CSSPixels::nearest_value_for(wheel_delta_x), CSSPixels::nearest_value_for(wheel_delta_y) });
+                m_navigable->scroll_viewport_by_delta({ CSSPixels::nearest_value_for(viewport_wheel_delta_x), CSSPixels::nearest_value_for(viewport_wheel_delta_y) });
                 auto viewport_scroll_position_after = CSSPixelPoint { CSSPixels(document->visual_viewport()->page_left()), CSSPixels(document->visual_viewport()->page_top()) };
                 return viewport_scroll_position_before != viewport_scroll_position_after ? EventResult::Handled : EventResult::Accepted;
             }

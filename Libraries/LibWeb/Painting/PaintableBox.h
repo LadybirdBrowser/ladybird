@@ -272,6 +272,7 @@ public:
     void set_sticky_insets(OwnPtr<StickyInsets> sticky_insets) { m_sticky_insets = move(sticky_insets); }
 
     [[nodiscard]] bool could_be_scrolled_by_wheel_event() const;
+    [[nodiscard]] bool could_be_scrolled_by_wheel_event(ScrollDirection direction) const;
 
     void set_used_values_for_grid_template_columns(RefPtr<CSS::GridTrackSizeListStyleValue const> style_value) { m_used_values_for_grid_template_columns = move(style_value); }
     RefPtr<CSS::GridTrackSizeListStyleValue const> const& used_values_for_grid_template_columns() const { return m_used_values_for_grid_template_columns; }
@@ -337,7 +338,6 @@ protected:
 
     CSSPixels available_scrollbar_length(ScrollDirection direction, ChromeMetrics const& chrome_metrics) const;
     Optional<CSSPixelRect> absolute_resizer_rect(ChromeMetrics const& chrome_metrics) const;
-    bool could_be_scrolled_by_wheel_event(ScrollDirection direction) const;
 
 private:
     [[nodiscard]] virtual bool is_paintable_box() const final { return true; }

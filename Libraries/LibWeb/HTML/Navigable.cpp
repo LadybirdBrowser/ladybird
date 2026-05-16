@@ -3426,8 +3426,8 @@ GC::Ref<WebIDL::Promise> Navigable::perform_a_scroll_of_the_viewport(CSSPixelPoi
     // NB: Must update layout before accessing paintables.
     doc->update_layout(DOM::UpdateLayoutReason::NavigableViewportScroll);
 
-    // AD-HOC: Skip scrolling unscrollable boxes.
-    if (!doc->paintable_box()->could_be_scrolled_by_wheel_event())
+    // AD-HOC: Skip scrolling unscrollable boxes, unless this scroll can pan the visual viewport.
+    if (!doc->paintable_box()->could_be_scrolled_by_wheel_event() && visual_dx == 0.0 && visual_dy == 0.0)
         return WebIDL::create_resolved_promise(doc->realm(), JS::js_undefined());
 
     auto scrolling_area = doc->paintable_box()->scrollable_overflow_rect()->to_type<float>();

@@ -1,0 +1,4 @@
+document scroll width: 813
+horizontal wheel target: none
+vertical wheel target: viewport
+scroll x after horizontal wheel: 0

@@ -120,6 +120,7 @@ static CSSPixelPoint maximum_scroll_offset_for(Painting::PaintableBox const& pai
         return max_scroll_offset;
 
     auto scrollport_rect = paintable_box.absolute_padding_box_rect();
+
     max_scroll_offset.set_x(max(CSSPixels(0), scrollable_overflow_rect->width() - scrollport_rect.width()));
     max_scroll_offset.set_y(max(CSSPixels(0), scrollable_overflow_rect->height() - scrollport_rect.height()));
     return max_scroll_offset;
@@ -150,6 +151,8 @@ static void record_scroll_node(Painting::PaintableBox const& paintable_box, Disp
         .scroll_node_kind = *scroll_node_kind,
         .pseudo_element_type = pseudo_element_type_for(paintable_box),
         .is_viewport = paintable_box.is_viewport_paintable(),
+        .can_be_wheel_scrolled_horizontally = paintable_box.could_be_scrolled_by_wheel_event(Painting::PaintableBox::ScrollDirection::Horizontal),
+        .can_be_wheel_scrolled_vertically = paintable_box.could_be_scrolled_by_wheel_event(Painting::PaintableBox::ScrollDirection::Vertical),
     });
 }
 
@@ -390,6 +393,8 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
                 .scrollport_rect = command.scrollport_rect,
                 .max_scroll_offset = command.max_scroll_offset,
                 .is_viewport = command.is_viewport,
+                .can_be_wheel_scrolled_horizontally = command.can_be_wheel_scrolled_horizontally,
+                .can_be_wheel_scrolled_vertically = command.can_be_wheel_scrolled_vertically,
             });
             parent_scroll_frame_indices.append(command.parent_scroll_frame_index);
             break;

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #scroller {
+        width: 100px;
+        height: 100px;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    #spacer {
+        width: 300px;
+        height: 300px;
+    }
+</style>
+<div id="scroller"><div id="spacer"></div></div>
+<script>
+    promiseTest(async () => {
+        scroller.scrollLeft = 50;
+        scroller.scrollTop = 0;
+
+        await animationFrame();
+        await animationFrame();
+
+        println(`initial scrollLeft: ${scroller.scrollLeft}`);
+        println(`vertical wheel target: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 0, 100)}`);
+        println(`horizontal wheel target: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 100, 0)}`);
+
+        await internals.wheel(50, 50, 0, 100);
+
+        println(`final scrollLeft: ${scroller.scrollLeft}`);
+        println(`final scrollTop: ${scroller.scrollTop}`);
+    });
+</script>

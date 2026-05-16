@@ -526,6 +526,8 @@ struct CompositorScrollNode {
     CompositorScrollNodeKind scroll_node_kind { CompositorScrollNodeKind::Element };
     u8 pseudo_element_type { 0 };
     bool is_viewport { false };
+    bool can_be_wheel_scrolled_horizontally { false };
+    bool can_be_wheel_scrolled_vertically { false };
 
     void dump(StringBuilder&) const;
 };

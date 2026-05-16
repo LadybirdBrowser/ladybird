@@ -9,10 +9,12 @@
 
 #include <AK/GenericShorthands.h>
 #include <LibGfx/Font/Font.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/Layout/InlineNode.h>
@@ -505,11 +507,44 @@ NonnullRefPtr<Scrollbar> PaintableBox::ensure_scrollbar(ScrollDirection directio
     return *slot;
 }
 
+static CSS::Overflow overflow_value_applied_to_viewport_for_wheel_scrolling(DOM::Document const& document, PaintableBox::ScrollDirection direction)
+{
+    auto overflow_for_direction = [direction](CSS::ComputedProperties const& computed_properties) {
+        return direction == PaintableBox::ScrollDirection::Horizontal
+            ? computed_properties.overflow_x()
+            : computed_properties.overflow_y();
+    };
+
+    auto* root_element = document.document_element();
+    if (!root_element || !root_element->computed_properties())
+        return CSS::Overflow::Auto;
+
+    auto* overflow_origin_element = root_element;
+    if (root_element->is_html_html_element() && root_element->computed_properties()->contain().is_empty()) {
+        auto root_overflow_x = root_element->computed_properties()->overflow_x();
+        auto root_overflow_y = root_element->computed_properties()->overflow_y();
+        if (root_overflow_x == CSS::Overflow::Visible && root_overflow_y == CSS::Overflow::Visible) {
+            auto* body_element = root_element->first_child_of_type<HTML::HTMLBodyElement>();
+            if (body_element && body_element->computed_properties() && body_element->computed_properties()->contain().is_empty())
+                overflow_origin_element = body_element;
+        }
+    }
+
+    auto overflow = overflow_for_direction(*overflow_origin_element->computed_properties());
+    if (overflow == CSS::Overflow::Visible)
+        return CSS::Overflow::Auto;
+    if (overflow == CSS::Overflow::Clip)
+        return CSS::Overflow::Hidden;
+    return overflow;
+}
+
 bool PaintableBox::could_be_scrolled_by_wheel_event(ScrollDirection direction) const
 {
     bool is_horizontal = direction == ScrollDirection::Horizontal;
     Gfx::Orientation orientation = is_horizontal ? Gfx::Orientation::Horizontal : Gfx::Orientation::Vertical;
     auto overflow = is_horizontal ? computed_values().overflow_x() : computed_values().overflow_y();
+    if (is_viewport_paintable())
+        overflow = overflow_value_applied_to_viewport_for_wheel_scrolling(document(), direction);
 
     auto scrollable_overflow_rect = this->scrollable_overflow_rect();
     if (!scrollable_overflow_rect.has_value())
@@ -518,8 +553,7 @@ bool PaintableBox::could_be_scrolled_by_wheel_event(ScrollDirection direction) c
     CSSPixels scrollable_overflow_size = scrollable_overflow_rect->primary_size_for_orientation(orientation);
     CSSPixels scrollport_size = absolute_padding_box_rect().primary_size_for_orientation(orientation);
 
-    bool overflow_value_allows_scrolling = overflow == CSS::Overflow::Auto || overflow == CSS::Overflow::Scroll;
-    if ((is_viewport_paintable() && overflow != CSS::Overflow::Hidden) || overflow_value_allows_scrolling)
+    if (overflow == CSS::Overflow::Auto || overflow == CSS::Overflow::Scroll)
         return scrollable_overflow_size > scrollport_size;
 
     return false;
@@ -1107,10 +1141,16 @@ NonnullRefPtr<ResizeHandle> PaintableBox::ensure_resize_handle()
 
 bool PaintableBox::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, double wheel_delta_x, double wheel_delta_y)
 {
+    auto can_scroll_horizontally = could_be_scrolled_by_wheel_event(ScrollDirection::Horizontal);
+    auto can_scroll_vertically = could_be_scrolled_by_wheel_event(ScrollDirection::Vertical);
+    if (!can_scroll_horizontally)
+        wheel_delta_x = 0;
+    if (!can_scroll_vertically)
+        wheel_delta_y = 0;
+
     // if none of the axes we scrolled with can be accepted by this element, don't handle scroll.
-    if ((wheel_delta_x == 0 || !could_be_scrolled_by_wheel_event(ScrollDirection::Horizontal)) && (wheel_delta_y == 0 || !could_be_scrolled_by_wheel_event(ScrollDirection::Vertical))) {
+    if (wheel_delta_x == 0 && wheel_delta_y == 0)
         return false;
-    }
 
     auto scroll_handled = scroll_by(wheel_delta_x, wheel_delta_y);
     return scroll_handled == ScrollHandled::Yes;
