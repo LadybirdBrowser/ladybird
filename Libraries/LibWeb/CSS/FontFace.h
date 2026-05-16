@@ -12,6 +12,7 @@
 #include <LibWeb/Bindings/FontFace.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/ParsedFontFace.h>
+#include <LibWeb/CSS/StyleValues/ComputationContext.h>
 
 namespace Web::CSS {
 
@@ -116,6 +117,8 @@ private:
     void reject_status_promise(JS::Value reason);
 
     Optional<FontComputer&> font_computer() const;
+
+    [[nodiscard]] Optional<ComputationContext> computation_context() const;
 
     // FIXME: Should we be storing StyleValues instead?
     String m_family;
