@@ -1182,7 +1182,7 @@ impl Parser {
                 self.parse_class_set_expression()?
             };
             self.in_negated_class = saved_negated;
-            if negated && !Self::class_set_expression_strings(&expr).is_empty() {
+            if negated && Self::class_set_expression_may_contain_strings(&expr) {
                 return Err(Error::InvalidCharacterClass);
             }
             self.expect(']')?;
@@ -1413,6 +1413,9 @@ impl Parser {
                 self.in_negated_class = false;
                 while self.peek_pair() == Some(('&', '&')) {
                     self.pos += 2; // consume '&&'
+                    if self.peek() == Some('&') {
+                        return Err(Error::InvalidCharacterClass);
+                    }
                     operands.push(self.parse_class_set_operand()?);
                 }
                 self.in_negated_class = saved_negated;
@@ -1454,93 +1457,38 @@ impl Parser {
         Ok(())
     }
 
-    fn get_string_property_strings(name: &str) -> std::collections::BTreeSet<Vec<u32>> {
-        let buf = libunicode_rust::character_types::get_string_property_data(name);
-        if buf.is_empty() {
-            return std::collections::BTreeSet::new();
-        }
-
-        let count = buf[0] as usize;
-        let mut strings = std::collections::BTreeSet::new();
-        let mut offset = 1;
-        for _ in 0..count {
-            if offset >= buf.len() {
-                break;
-            }
-            let len = buf[offset] as usize;
-            offset += 1;
-            if offset + len > buf.len() {
-                break;
-            }
-            if len > 1 {
-                strings.insert(buf[offset..offset + len].to_vec());
-            }
-            offset += len;
-        }
-        strings
-    }
-
-    fn class_set_expression_strings(expr: &ClassSetExpression) -> std::collections::BTreeSet<Vec<u32>> {
+    /// - Union: may contain strings if ANY operand may contain strings
+    /// - Intersection: may contain strings if ALL operands may contain strings
+    ///   (i.e., no operand is "purely characters")
+    /// - Subtraction: may contain strings if the leftmost operand may contain strings
+    fn class_set_expression_may_contain_strings(expr: &ClassSetExpression) -> bool {
         match expr {
-            ClassSetExpression::Union(operands) => {
-                operands
-                    .iter()
-                    .fold(std::collections::BTreeSet::new(), |mut strings, operand| {
-                        strings.extend(Self::class_set_operand_strings(operand));
-                        strings
-                    })
-            }
+            ClassSetExpression::Union(operands) => operands.iter().any(Self::class_set_operand_may_contain_strings),
             ClassSetExpression::Intersection(operands) => {
-                let Some((first, rest)) = operands.split_first() else {
-                    return std::collections::BTreeSet::new();
-                };
-                let mut strings = Self::class_set_operand_strings(first);
-                for operand in rest {
-                    let operand_strings = Self::class_set_operand_strings(operand);
-                    strings.retain(|string| operand_strings.contains(string));
-                }
-                strings
+                operands.iter().all(Self::class_set_operand_may_contain_strings)
             }
-            ClassSetExpression::Subtraction(operands) => {
-                let Some((first, rest)) = operands.split_first() else {
-                    return std::collections::BTreeSet::new();
-                };
-                let mut strings = Self::class_set_operand_strings(first);
-                for operand in rest {
-                    let operand_strings = Self::class_set_operand_strings(operand);
-                    strings.retain(|string| !operand_strings.contains(string));
-                }
-                strings
-            }
+            ClassSetExpression::Subtraction(operands) => operands
+                .first()
+                .is_some_and(Self::class_set_operand_may_contain_strings),
         }
     }
 
-    fn class_set_operand_strings(operand: &ClassSetOperand) -> std::collections::BTreeSet<Vec<u32>> {
+    fn class_set_operand_may_contain_strings(operand: &ClassSetOperand) -> bool {
         match operand {
             ClassSetOperand::NestedClass(class) => {
                 if class.negated {
-                    return std::collections::BTreeSet::new();
+                    return false;
                 }
                 match &class.body {
-                    CharacterClassBody::Ranges(_) => std::collections::BTreeSet::new(),
-                    CharacterClassBody::UnicodeSet(expr) => Self::class_set_expression_strings(expr),
+                    CharacterClassBody::Ranges(_) => false,
+                    CharacterClassBody::UnicodeSet(expr) => Self::class_set_expression_may_contain_strings(expr),
                 }
             }
             ClassSetOperand::UnicodeProperty(property) => {
-                if !property.negated && property.value.is_none() && Self::is_string_property(&property.name) {
-                    return Self::get_string_property_strings(&property.name);
-                }
-                std::collections::BTreeSet::new()
+                !property.negated && property.value.is_none() && Self::is_string_property(&property.name)
             }
-            ClassSetOperand::StringLiteral(chars) => {
-                if chars.len() > 1 {
-                    return [chars.iter().map(|ch| *ch as u32).collect()].into_iter().collect();
-                }
-                std::collections::BTreeSet::new()
-            }
-            ClassSetOperand::Char(_) | ClassSetOperand::Range(_, _) | ClassSetOperand::BuiltinClass(_) => {
-                std::collections::BTreeSet::new()
-            }
+            ClassSetOperand::StringLiteral(chars) => chars.len() != 1,
+            ClassSetOperand::Char(_) | ClassSetOperand::Range(_, _) | ClassSetOperand::BuiltinClass(_) => false,
         }
     }
 

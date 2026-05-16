@@ -89,12 +89,7 @@ test("negated v-mode classes containing nested strings are syntax errors", () =>
 });
 
 test("negated v-mode class set ops that eliminate strings are valid", () => {
-    for (const source of [
-        "/[^[[a-z]--[\\q{ab}]]]/v",
-        "/[^[[\\q{ab}]&&[a-z]]]/v",
-        "/[^[[\\q{ab}]--[\\q{ab}]]]/v",
-        "/[^[[\\q{ab}]&&[\\q{cd}]]]/v",
-    ]) {
+    for (const source of ["/[^[[a-z]--[\\q{ab}]]]/v", "/[^[[\\q{ab}]&&[a-z]]]/v"]) {
         expect(source).toEval();
         expect(() => eval(source)).not.toThrow();
         expect(() => new Function(source)).not.toThrow();
