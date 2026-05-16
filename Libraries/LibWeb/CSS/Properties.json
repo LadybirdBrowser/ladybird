@@ -2349,7 +2349,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
-    "requires-computation": "never",
+    "requires-computation": "cascaded-value",
     "valid-identifiers": [
       "auto"
     ],
@@ -2364,7 +2364,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
-    "requires-computation": "never",
+    "requires-computation": "cascaded-value",
     "valid-identifiers": [
       "auto"
     ],
@@ -2392,7 +2392,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
-    "requires-computation": "never",
+    "requires-computation": "cascaded-value",
     "valid-identifiers": [
       "auto"
     ],
@@ -2407,7 +2407,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
-    "requires-computation": "never",
+    "requires-computation": "cascaded-value",
     "valid-identifiers": [
       "auto"
     ],
