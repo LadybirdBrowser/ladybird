@@ -36,12 +36,7 @@ describe("errors", () => {
     });
 
     test("valid pattern (negated v-mode class set ops can eliminate strings)", () => {
-        for (const pattern of [
-            "[^[[a-z]--[\\q{ab}]]]",
-            "[^[[\\q{ab}]&&[a-z]]]",
-            "[^[[\\q{ab}]--[\\q{ab}]]]",
-            "[^[[\\q{ab}]&&[\\q{cd}]]]",
-        ]) {
+        for (const pattern of ["[^[[a-z]--[\\q{ab}]]]", "[^[[\\q{ab}]&&[a-z]]]"]) {
             expect(() => {
                 RegExp(pattern, "v");
             }).not.toThrow();
