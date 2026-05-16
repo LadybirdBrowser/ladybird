@@ -31,7 +31,7 @@ use crate::bytecode::validator::{
 use crate::{CompiledProgram, CompiledProgramBytecode, ModuleCallbacks, ast, u32_from_usize};
 
 const MAGIC: &[u8; 8] = b"LBJSBC\0\0";
-const FORMAT_VERSION: u32 = 7;
+const FORMAT_VERSION: u32 = 8;
 const SOURCE_HASH_SIZE: usize = 32;
 const COMPLETION_TYPE_VARIANT_COUNT: u32 = 6;
 const ITERATOR_HINT_VARIANT_COUNT: u32 = 2;
@@ -1070,15 +1070,23 @@ pub(crate) unsafe fn materialize_cached_function(
         if cached_executable_ptr.is_null() {
             return std::ptr::null_mut();
         }
-        let executable = Box::from_raw(cached_executable_ptr as *mut DecodedExecutableRecord);
-        materialize_executable(*executable, vm_ptr, source_code_ptr)
+        let cached_executable = Box::from_raw(cached_executable_ptr as *mut DecodedCachedExecutableRecord);
+        let Some(executable) = cached_executable.decode_executable() else {
+            return std::ptr::null_mut();
+        };
+        if executable.validate_cached_bytecode().is_err() {
+            return std::ptr::null_mut();
+        }
+        materialize_executable(executable, vm_ptr, source_code_ptr)
     }
 }
 
 pub(crate) unsafe fn free_cached_function(cached_executable_ptr: *mut c_void) {
     unsafe {
         if !cached_executable_ptr.is_null() {
-            drop(Box::from_raw(cached_executable_ptr as *mut DecodedExecutableRecord));
+            drop(Box::from_raw(
+                cached_executable_ptr as *mut DecodedCachedExecutableRecord,
+            ));
         }
     }
 }
@@ -2384,6 +2392,33 @@ impl DecodedExecutableRecord {
     }
 }
 
+struct DecodedCachedExecutableRecord {
+    bytes: DecodedBytecodeBytes,
+}
+
+impl DecodedCachedExecutableRecord {
+    fn decode_executable(&self) -> Option<DecodedExecutableRecord> {
+        let mut decoder = self.bytes.decoder();
+        let executable = ExecutableRecord::decode(&mut decoder)?;
+        decoder.is_empty().then_some(executable)
+    }
+
+    fn validate_cached_bytecode(&self) -> Result<(), ValidationErrorKind> {
+        self.decode_executable()
+            .ok_or(ValidationErrorKind::InvalidLength)?
+            .validate_cached_bytecode()
+    }
+
+    fn source_ranges_are_valid(&self, source_len: usize) -> bool {
+        self.decode_executable()
+            .is_some_and(|executable| executable.source_ranges_are_valid(source_len))
+    }
+
+    fn validate(&self) {
+        let _ = self.bytes.len();
+    }
+}
+
 struct CacheCounters<'a>(&'a Generator);
 
 impl Encode for CacheCounters<'_> {
@@ -2952,7 +2987,7 @@ struct DecodedFunctionRecord {
     uses_this_from_environment: bool,
     class_field_initializer_name: Option<(DecodedUtf16String, bool)>,
     metadata: FunctionSfdMetadata,
-    precompiled: DecodedExecutableRecord,
+    precompiled: DecodedCachedExecutableRecord,
 }
 
 impl DecodedFunctionRecord {
@@ -3102,17 +3137,23 @@ struct PrecompiledFunctionRecord<'a>(&'a PrecompiledFunction);
 
 impl Encode for PrecompiledFunctionRecord<'_> {
     fn encode(&self, encoder: &mut Encoder) {
+        let mut payload_encoder = Encoder::new();
         ExecutableRecord {
             generator: &self.0.generator,
             assembled: &self.0.assembled,
         }
-        .encode(encoder);
+        .encode(&mut payload_encoder);
+        encoder.align_to(align_of::<u16>());
+        Bytes(&payload_encoder.finish()).encode(encoder);
     }
 }
 
 impl PrecompiledFunctionRecord<'_> {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<DecodedExecutableRecord> {
-        ExecutableRecord::decode(decoder)
+    fn decode(decoder: &mut Decoder<'_>) -> Option<DecodedCachedExecutableRecord> {
+        decoder.align_to(align_of::<u16>())?;
+        Some(DecodedCachedExecutableRecord {
+            bytes: DecodedBytecodeBytes::decode(decoder)?,
+        })
     }
 }
 
@@ -3354,6 +3395,81 @@ fn literal_value_kind_tag(kind: PendingLiteralValueKind) -> u8 {
 mod tests {
     use super::*;
 
+    fn empty_record_sequence(encoder: &mut Encoder) {
+        DecodedRecordSequence::encode::<u8>(encoder, &[], |_, _| {});
+    }
+
+    fn cached_executable_with_shared_function(function_payload: Option<Vec<u8>>) -> DecodedCachedExecutableRecord {
+        let mut encoder = Encoder::new();
+
+        false.encode(&mut encoder); // Strict.
+        0u32.encode(&mut encoder); // Number of registers.
+        0u32.encode(&mut encoder); // Number of arguments.
+        for _ in 0..5 {
+            0u32.encode(&mut encoder);
+        }
+        false.encode(&mut encoder); // This value needs environment resolution.
+        Option::<u32>::None.encode(&mut encoder);
+
+        Bytes(&[]).encode(&mut encoder); // Bytecode.
+        empty_record_sequence(&mut encoder); // Identifier table.
+        empty_record_sequence(&mut encoder); // Property key table.
+        empty_record_sequence(&mut encoder); // String table.
+        0u32.encode(&mut encoder); // Constant count.
+        Bytes(&[]).encode(&mut encoder);
+        empty_record_sequence(&mut encoder); // Exception handlers.
+        empty_record_sequence(&mut encoder); // Source map.
+        empty_record_sequence(&mut encoder); // Local variables.
+
+        match function_payload {
+            Some(payload) => {
+                1u32.encode(&mut encoder);
+                encoder.align_to(align_of::<u16>());
+                Bytes(&payload).encode(&mut encoder);
+            }
+            None => empty_record_sequence(&mut encoder),
+        }
+
+        empty_record_sequence(&mut encoder); // Class blueprints.
+
+        DecodedCachedExecutableRecord {
+            bytes: DecodedBytecodeBytes::Owned(encoder.finish()),
+        }
+    }
+
+    fn function_payload(source_text_start: u32, source_text_end: u32) -> Vec<u8> {
+        let mut encoder = Encoder::new();
+
+        Option::<Utf16<'_>>::None.encode(&mut encoder); // Function name.
+        source_text_start.encode(&mut encoder);
+        source_text_end.encode(&mut encoder);
+        0i32.encode(&mut encoder); // Function length.
+        0u32.encode(&mut encoder); // Formal parameter count.
+        (ast::FunctionKind::Normal as u8).encode(&mut encoder);
+        false.encode(&mut encoder); // Strict mode.
+        false.encode(&mut encoder); // Arrow function.
+        false.encode(&mut encoder); // Simple parameter list.
+        false.encode(&mut encoder); // Uses this.
+        false.encode(&mut encoder); // Uses this from environment.
+        Option::<(Utf16<'_>, bool)>::None.encode(&mut encoder); // Class field initializer name.
+        FunctionSfdMetadata {
+            uses_this: false,
+            this_value_needs_environment_resolution: false,
+            function_environment_needed: false,
+            function_environment_bindings_count: 0,
+            var_environment_bindings_count: 0,
+            might_need_arguments: false,
+            contains_eval: false,
+        }
+        .encode(&mut encoder);
+
+        let empty_executable = cached_executable_with_shared_function(None);
+        encoder.align_to(align_of::<u16>());
+        Bytes(empty_executable.bytes.as_slice()).encode(&mut encoder);
+
+        encoder.finish()
+    }
+
     #[test]
     fn sequence_decode_rejects_lengths_larger_than_remaining_bytes() {
         let bytes = u32::MAX.to_le_bytes();
@@ -3428,5 +3544,13 @@ mod tests {
         let decoded = DecodedUtf16String::decode(&mut decoder).unwrap();
         assert!(matches!(decoded, DecodedUtf16String::Foreign { .. }));
         assert_eq!(decoded.to_vec(), vec![0x41, 0x2262, 0x0391]);
+    }
+
+    #[test]
+    fn cached_function_source_ranges_include_nested_functions() {
+        let nested_function = function_payload(20, 21);
+        let executable = cached_executable_with_shared_function(Some(nested_function));
+
+        assert!(!executable.source_ranges_are_valid(10));
     }
 }

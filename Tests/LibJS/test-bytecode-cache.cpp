@@ -213,10 +213,15 @@ static size_t first_declaration_function_bytecode_payload_offset(ReadonlyBytes b
         reader.skip(1);
     }
 
-    reader.skip(3);               // Function metadata bools.
-    reader.skip(sizeof(u64));     // Function environment bindings count.
-    reader.skip(sizeof(u64));     // Var environment bindings count.
-    reader.skip(2);               // Function metadata bools.
+    reader.skip(3);           // Function metadata bools.
+    reader.skip(sizeof(u64)); // Function environment bindings count.
+    reader.skip(sizeof(u64)); // Var environment bindings count.
+    reader.skip(2);           // Function metadata bools.
+
+    reader.align_to(alignof(u16));
+    auto executable_length = reader.read_u32();
+    VERIFY(executable_length > 0);
+
     reader.skip(1);               // Executable strict mode.
     reader.skip(sizeof(u32));     // Number of registers.
     reader.skip(sizeof(u32));     // Number of arguments.
