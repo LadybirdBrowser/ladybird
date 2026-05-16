@@ -55,7 +55,6 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/ExternalContentSource.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
@@ -297,12 +296,14 @@ Navigable::~Navigable() = default;
 
 void Navigable::set_has_been_destroyed()
 {
+    clear_compositor_surface();
     m_has_been_destroyed = true;
     resolve_all_pending_async_scroll_operations();
 }
 
 void Navigable::remove_from_all_navigables()
 {
+    clear_compositor_surface();
     resolve_all_pending_async_scroll_operations();
 
     if (m_active_document)
@@ -312,6 +313,7 @@ void Navigable::remove_from_all_navigables()
 
 void Navigable::finalize()
 {
+    clear_compositor_surface();
     all_navigables().remove(*this);
     Base::finalize();
 }
@@ -430,8 +432,11 @@ void Navigable::initialize_navigable(NonnullRefPtr<DocumentState> document_state
     if (parent)
         m_should_show_line_box_borders = parent->m_should_show_line_box_borders;
     if (parent && !m_is_svg_page) {
-        m_external_content_source = Painting::ExternalContentSource::create();
-        m_rendering_thread.set_presentation_mode(Compositor::CompositorThread::PublishToExternalContent { external_content_source() });
+        m_compositor_surface_id = Painting::allocate_compositor_surface_id();
+        m_rendering_thread.set_presentation_mode(Compositor::CompositorThread::PublishToCompositorSurface {
+            .target_context_id = parent->rendering_thread().context_id(),
+            .surface_id = *m_compositor_surface_id,
+        });
     }
 
     // 6. Set the initial visibility state of documentState's document to navigable's traversable navigable's system visibility state.
@@ -3274,10 +3279,19 @@ void Navigable::set_has_session_history_entry_and_ready_for_navigation()
     }
 }
 
-NonnullRefPtr<Painting::ExternalContentSource> Navigable::external_content_source() const
+Painting::CompositorSurfaceId Navigable::compositor_surface_id() const
 {
-    VERIFY(m_external_content_source);
-    return *m_external_content_source;
+    VERIFY(m_compositor_surface_id.has_value());
+    return *m_compositor_surface_id;
+}
+
+void Navigable::clear_compositor_surface()
+{
+    if (!m_compositor_surface_id.has_value())
+        return;
+    if (auto parent = this->parent())
+        parent->rendering_thread().clear_compositor_surface(*m_compositor_surface_id);
+    m_compositor_surface_id.clear();
 }
 
 void Navigable::set_should_show_line_box_borders(bool value)
@@ -3332,14 +3346,18 @@ void Navigable::record_display_list_and_scroll_state(PaintConfig paint_config)
 
 void Navigable::paint_next_frame()
 {
+    if (has_been_destroyed())
+        return;
+
     auto viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
     PaintConfig paint_config { .paint_overlay = true, .should_show_line_box_borders = m_should_show_line_box_borders };
     if (is_top_level_traversable()) {
         paint_config.canvas_fill_rect = Gfx::IntRect { {}, viewport_rect.size() };
     } else {
-        // Nested navigables publish transparent bitmaps to their preconfigured ExternalContentSource instead of filling
+        // Nested navigables publish transparent bitmaps to their preconfigured compositor surface instead of filling
         // the canvas for the UI process.
-        VERIFY(m_external_content_source);
+        if (!m_compositor_surface_id.has_value())
+            return;
     }
 
     auto should_defer_main_thread_present_for_async_scroll = [&] {

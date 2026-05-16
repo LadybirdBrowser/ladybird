@@ -165,14 +165,16 @@ void DisplayListPlayerSkia::fill_rect(FillRect const& command)
     canvas.drawRect(to_skia_rect(rect), paint);
 }
 
-void DisplayListPlayerSkia::draw_external_content(DrawExternalContent const& command)
+void DisplayListPlayerSkia::draw_compositor_surface(DrawCompositorSurface const& command)
 {
-    auto frame = resource_storage().external_content_source(command.source_id).current_frame();
+    auto frame = resource_storage().compositor_surface(command.surface_id);
     if (!frame.has_value())
         return;
-    auto image = m_image_cache.image_for_frame(*frame);
+
+    auto image = m_image_cache.image_for_frame(frame.value());
     if (!image)
         return;
+
     auto dst_rect = to_skia_rect(command.dst_rect);
     SkRect src_rect = SkRect::MakeIWH(image->width(), image->height());
     auto& canvas = surface().canvas();

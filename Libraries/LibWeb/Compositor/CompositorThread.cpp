@@ -6,7 +6,6 @@
 
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
-#include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SharedImage.h>
 #include <LibGfx/SkiaBackendContext.h>
@@ -19,7 +18,6 @@
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
-#include <LibWeb/Painting/ExternalContentSource.h>
 
 #include <AK/Debug.h>
 #include <AK/HashMap.h>
@@ -67,6 +65,15 @@ struct UpdateScrollStateCommand {
     Painting::ScrollStateSnapshot scroll_state_snapshot;
 };
 
+struct UpdateCompositorSurfaceCommand {
+    Painting::CompositorSurfaceId surface_id;
+    Gfx::SharedImage shared_image;
+};
+
+struct ClearCompositorSurfaceCommand {
+    Painting::CompositorSurfaceId surface_id;
+};
+
 struct ViewportSizeUpdatedCommand {
     Gfx::IntSize viewport_size;
     bool is_top_level_traversable { false };
@@ -79,7 +86,8 @@ struct ScreenshotCommand {
 };
 
 using CompositorCommand = Variant<UpdateDisplayListCommand, AsyncScrollByCommand, ViewportScrollbarDragCommand,
-    UpdateScrollStateCommand, ViewportSizeUpdatedCommand, ScreenshotCommand>;
+    UpdateScrollStateCommand, UpdateCompositorSurfaceCommand, ClearCompositorSurfaceCommand, ViewportSizeUpdatedCommand,
+    ScreenshotCommand>;
 
 static SkRect to_skia_rect(Gfx::IntRect const& rect)
 {
@@ -714,6 +722,12 @@ public:
                             }
                         }
                     },
+                    [this](UpdateCompositorSurfaceCommand& cmd) {
+                        m_display_list_resource_storage.update_compositor_surface(cmd.surface_id, move(cmd.shared_image));
+                    },
+                    [this](ClearCompositorSurfaceCommand& cmd) {
+                        m_display_list_resource_storage.clear_compositor_surface(cmd.surface_id);
+                    },
                     [this](ViewportSizeUpdatedCommand& cmd) {
                         auto allocation = m_backing_store_manager.resize_backing_stores_if_needed(
                             cmd.viewport_size, cmd.is_top_level_traversable, cmd.window_resize_in_progress);
@@ -1007,7 +1021,7 @@ private:
         if (m_cached_display_list && m_backing_store_manager.is_valid()) {
             auto should_clear_back_store = presentation_mode.visit(
                 [](CompositorThread::PresentToUI) { return false; },
-                [](CompositorThread::PublishToExternalContent const&) { return true; });
+                [](CompositorThread::PublishToCompositorSurface const&) { return true; });
             auto& back_store = m_backing_store_manager.back_store();
             if (should_clear_back_store) {
                 // Embedded navigables leave their PaintConfig canvas unfilled, so double-buffered back stores must be
@@ -1036,15 +1050,16 @@ private:
                         m_is_rasterizing = false;
                     }
                 },
-                [this](CompositorThread::PublishToExternalContent const& mode) {
+                [this](CompositorThread::PublishToCompositorSurface const& mode) {
                     {
                         Sync::MutexLocker const locker { m_mutex };
                         m_is_rasterizing = false;
                     }
                     if (m_has_async_scrolling_state)
-                        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Publishing present to external content source");
-                    auto snapshot = Gfx::DecodedImageFrame { *m_backing_store_manager.front_store().snapshot_bitmap() };
-                    mode.source->update(move(snapshot));
+                        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Publishing present to compositor surface");
+                    auto& front_store = m_backing_store_manager.front_store();
+                    VERIFY(CompositorThread::update_compositor_surface_for_context(
+                        mode.target_context_id, mode.surface_id, front_store.snapshot_into_shared_image()));
                 });
         } else {
             {
@@ -1186,6 +1201,12 @@ static HashMap<u64, NonnullRefPtr<CompositorThread::ThreadData>>& page_composito
     return *compositors;
 }
 
+static HashMap<CompositorContextId, NonnullRefPtr<CompositorThread::ThreadData>>& context_compositors()
+{
+    static NeverDestroyed<HashMap<CompositorContextId, NonnullRefPtr<CompositorThread::ThreadData>>> compositors;
+    return *compositors;
+}
+
 static FramePresentationState& frame_presentation_state()
 {
     static NeverDestroyed<FramePresentationState> state;
@@ -1199,6 +1220,12 @@ CompositorThread::CompositorThread(u64 page_id, PagePresentationRegistration pag
         enqueue_viewport_size_updated(m_last_viewport_size, m_last_viewport_size_is_top_level_traversable, WindowResizingInProgress::No);
     });
 
+    {
+        Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
+        VERIFY(!context_compositors().contains(m_context_id));
+        context_compositors().set(m_context_id, m_thread_data);
+    }
+
     if (page_presentation_registration == PagePresentationRegistration::Yes)
         register_page_compositor(page_id, m_thread_data);
 }
@@ -1210,6 +1237,11 @@ CompositorThread::~CompositorThread()
     m_backing_store_shrink_timer.clear();
 
     unregister_page_compositor(m_thread_data->page_id(), *m_thread_data);
+    {
+        Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
+        VERIFY(context_compositors().remove(m_context_id));
+    }
+
     m_thread_data->exit();
 }
 
@@ -1238,6 +1270,23 @@ void CompositorThread::unregister_page_compositor(u64 page_id, ThreadData& threa
     }
     page_compositors().remove(compositor);
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Unregistered page {} from compositor presentation", page_id);
+}
+
+bool CompositorThread::update_compositor_surface_for_context(CompositorContextId context_id, Painting::CompositorSurfaceId surface_id, Gfx::SharedImage&& shared_image)
+{
+    RefPtr<ThreadData> thread_data;
+    {
+        Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
+        auto compositor = context_compositors().find(context_id);
+        if (compositor == context_compositors().end()) {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Dropping compositor surface {} update for unknown context {}",
+                surface_id, context_id);
+            return false;
+        }
+        thread_data = compositor->value;
+    }
+    thread_data->enqueue_command(UpdateCompositorSurfaceCommand { surface_id, move(shared_image) });
+    return true;
 }
 
 void CompositorThread::set_frame_presentation_callbacks(NonnullRefPtr<Core::WeakEventLoopReference> event_loop, BackingStorePresentationCallback backing_store_callback, FramePresentationCallback frame_callback)
@@ -1441,6 +1490,16 @@ void CompositorThread::update_display_list(
     Painting::ScrollStateSnapshot&& scroll_state_snapshot)
 {
     m_thread_data->enqueue_command(UpdateDisplayListCommand { move(display_list), move(resource_transaction), move(scroll_state_snapshot) });
+}
+
+void CompositorThread::update_compositor_surface(Painting::CompositorSurfaceId surface_id, Gfx::SharedImage&& shared_image)
+{
+    m_thread_data->enqueue_command(UpdateCompositorSurfaceCommand { surface_id, move(shared_image) });
+}
+
+void CompositorThread::clear_compositor_surface(Painting::CompositorSurfaceId surface_id)
+{
+    m_thread_data->enqueue_command(ClearCompositorSurfaceCommand { surface_id });
 }
 
 void CompositorThread::invalidate_wheel_event_listener_state(u64 generation)

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    canvas {
+        width: 32px;
+        height: 32px;
+    }
+</style>
+<canvas id="canvas" width="16" height="16"></canvas>
+<script>
+    test(() => {
+        const canvas = document.getElementById("canvas");
+        const context = canvas.getContext("2d");
+        context.fillStyle = "green";
+        context.fillRect(0, 0, 16, 16);
+
+        println(internals.dumpDisplayList());
+    });
+</script>

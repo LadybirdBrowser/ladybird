@@ -6,6 +6,7 @@
 
 #include <LibGfx/Filter.h>
 #include <LibGfx/Font/Font.h>
+#include <LibGfx/SharedImageBuffer.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 
@@ -24,14 +25,6 @@ ImageFrameResourceId DisplayListResourceStorage::add_image_frame(Gfx::DecodedIma
 {
     auto id = frame.id();
     m_image_frames.ensure(id, [&] { return frame; });
-    return { id };
-}
-
-ExternalContentResourceId DisplayListResourceStorage::add_external_content_source(
-    NonnullRefPtr<ExternalContentSource const> source)
-{
-    auto id = source->id();
-    m_external_content_sources.ensure(id, [&] { return move(source); });
     return { id };
 }
 
@@ -64,8 +57,6 @@ void DisplayListResourceStorage::append_referenced_resources_from(
         add_font(source.font(id));
     for (auto id : referenced_resources.image_frames)
         add_image_frame(source.image_frame(id));
-    for (auto id : referenced_resources.external_content_sources)
-        add_external_content_source(source.external_content_source(id));
     for (auto id : referenced_resources.video_frame_sources)
         add_video_frame_source(source.video_frame_source(id));
     for (auto id : referenced_resources.display_lists)
@@ -89,8 +80,6 @@ void DisplayListResourceStorage::collect_referenced_resources(
                 referenced_resources.fonts.set(command.font_id, AK::HashSetExistingEntryBehavior::Keep);
             if constexpr (requires { command.frame_id; })
                 referenced_resources.image_frames.set(command.frame_id, AK::HashSetExistingEntryBehavior::Keep);
-            if constexpr (requires { external_content_source(command.source_id); })
-                referenced_resources.external_content_sources.set(command.source_id, AK::HashSetExistingEntryBehavior::Keep);
             if constexpr (requires { video_frame_source(command.source_id); })
                 referenced_resources.video_frame_sources.set(command.source_id, AK::HashSetExistingEntryBehavior::Keep);
             if constexpr (requires { command.paint_style; command.paint_kind; }) {
@@ -150,10 +139,6 @@ DisplayListResourceTransaction DisplayListResourceStorage::create_transaction(
         if (!previous.image_frames.contains(id))
             transaction.image_frames.append(image_frame(id));
     }
-    for (auto id : current.external_content_sources) {
-        if (!previous.external_content_sources.contains(id))
-            transaction.external_content_sources.append(external_content_source(id));
-    }
     for (auto id : current.video_frame_sources) {
         if (!previous.video_frame_sources.contains(id))
             transaction.video_frame_sources.append(video_frame_source(id));
@@ -171,10 +156,6 @@ DisplayListResourceTransaction DisplayListResourceStorage::create_transaction(
         if (!current.image_frames.contains(id))
             transaction.image_frame_ids_to_remove.append(id);
     }
-    for (auto id : previous.external_content_sources) {
-        if (!current.external_content_sources.contains(id))
-            transaction.external_content_source_ids_to_remove.append(id);
-    }
     for (auto id : previous.video_frame_sources) {
         if (!current.video_frame_sources.contains(id))
             transaction.video_frame_source_ids_to_remove.append(id);
@@ -183,7 +164,6 @@ DisplayListResourceTransaction DisplayListResourceStorage::create_transaction(
         if (!current.display_lists.contains(id))
             transaction.display_list_ids_to_remove.append(id);
     }
-
     return transaction;
 }
 
@@ -193,8 +173,6 @@ void DisplayListResourceStorage::apply_transaction(DisplayListResourceTransactio
         add_font(*font);
     for (auto const& frame : transaction.image_frames)
         add_image_frame(frame);
-    for (auto& source : transaction.external_content_sources)
-        add_external_content_source(move(source));
     for (auto& source : transaction.video_frame_sources)
         add_video_frame_source(move(source));
     for (auto& display_list : transaction.display_lists)
@@ -204,8 +182,6 @@ void DisplayListResourceStorage::apply_transaction(DisplayListResourceTransactio
         m_fonts.remove(id.value());
     for (auto id : transaction.image_frame_ids_to_remove)
         m_image_frames.remove(id.value());
-    for (auto id : transaction.external_content_source_ids_to_remove)
-        m_external_content_sources.remove(id.value());
     for (auto id : transaction.video_frame_source_ids_to_remove)
         m_video_frame_sources.remove(id.value());
     for (auto id : transaction.display_list_ids_to_remove)
@@ -216,9 +192,19 @@ void DisplayListResourceStorage::retain_only(DisplayListResourceSet const& resou
 {
     m_fonts.remove_all_matching([&](auto id, auto const&) { return !resource_set.fonts.contains(FontResourceId { id }); });
     m_image_frames.remove_all_matching([&](auto id, auto const&) { return !resource_set.image_frames.contains(ImageFrameResourceId { id }); });
-    m_external_content_sources.remove_all_matching([&](auto id, auto const&) { return !resource_set.external_content_sources.contains(ExternalContentResourceId { id }); });
     m_video_frame_sources.remove_all_matching([&](auto id, auto const&) { return !resource_set.video_frame_sources.contains(VideoFrameResourceId { id }); });
     m_display_lists.remove_all_matching([&](auto id, auto const&) { return !resource_set.display_lists.contains(DisplayListResourceId { id }); });
+}
+
+void DisplayListResourceStorage::update_compositor_surface(CompositorSurfaceId surface_id, Gfx::SharedImage&& shared_image)
+{
+    auto shared_image_buffer = Gfx::SharedImageBuffer::import_from_shared_image(move(shared_image));
+    m_compositor_surfaces.set(surface_id.value(), Gfx::DecodedImageFrame { *shared_image_buffer.bitmap() });
+}
+
+void DisplayListResourceStorage::clear_compositor_surface(CompositorSurfaceId surface_id)
+{
+    m_compositor_surfaces.remove(surface_id.value());
 }
 
 }

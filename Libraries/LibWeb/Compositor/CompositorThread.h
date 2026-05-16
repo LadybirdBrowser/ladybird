@@ -20,6 +20,7 @@
 #include <LibSync/ConditionVariable.h>
 #include <LibThreading/Forward.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
+#include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Page/InputEvent.h>
@@ -61,10 +62,11 @@ public:
     };
     struct PresentToUI {
     };
-    struct PublishToExternalContent {
-        NonnullRefPtr<Painting::ExternalContentSource> source;
+    struct PublishToCompositorSurface {
+        CompositorContextId target_context_id;
+        Painting::CompositorSurfaceId surface_id;
     };
-    using PresentationMode = Variant<PresentToUI, PublishToExternalContent>;
+    using PresentationMode = Variant<PresentToUI, PublishToCompositorSurface>;
 
     CompositorThread(u64 page_id, PagePresentationRegistration);
     ~CompositorThread();
@@ -75,11 +77,14 @@ public:
     static bool async_scroll_by(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels);
     static bool handle_mouse_event(u64 page_id, MouseEvent const&);
 
+    CompositorContextId context_id() const { return m_context_id; }
     void start(DisplayListPlayerType);
     void stop_presenting_to_client();
     void set_presentation_mode(PresentationMode);
 
     void update_display_list(NonnullRefPtr<Painting::DisplayList>, Painting::DisplayListResourceTransaction&&, Painting::ScrollStateSnapshot&&);
+    void update_compositor_surface(Painting::CompositorSurfaceId, Gfx::SharedImage&&);
+    void clear_compositor_surface(Painting::CompositorSurfaceId);
     void update_scroll_state(Painting::ScrollStateSnapshot&&);
     void invalidate_wheel_event_listener_state(u64 generation);
     AsyncScrollEnqueueResult async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels,
@@ -95,6 +100,7 @@ public:
 private:
     void enqueue_viewport_size_updated(Gfx::IntSize, bool is_top_level_traversable, WindowResizingInProgress);
 
+    CompositorContextId m_context_id { allocate_compositor_context_id() };
     NonnullRefPtr<ThreadData> m_thread_data;
     RefPtr<Threading::Thread> m_thread;
     RefPtr<Core::Timer> m_backing_store_shrink_timer;
@@ -103,6 +109,7 @@ private:
 
     static void register_page_compositor(u64 page_id, NonnullRefPtr<ThreadData>);
     static void unregister_page_compositor(u64 page_id, ThreadData&);
+    static bool update_compositor_surface_for_context(CompositorContextId, Painting::CompositorSurfaceId, Gfx::SharedImage&&);
     static bool present_backing_stores_to_client(u64 page_id, i32 front_bitmap_id, Gfx::SharedImage&&, i32 back_bitmap_id, Gfx::SharedImage&&);
     static bool present_frame_to_client(u64 page_id, Gfx::IntRect const&, i32 bitmap_id);
 };

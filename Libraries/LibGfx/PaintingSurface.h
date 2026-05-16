@@ -31,6 +31,8 @@ class SkSurface;
 
 namespace Gfx {
 
+class SharedImage;
+
 class PaintingSurface : public AtomicRefCounted<PaintingSurface> {
 public:
     enum class Origin {
@@ -52,6 +54,7 @@ public:
 #endif
 
     NonnullRefPtr<Bitmap> snapshot_bitmap() const;
+    SharedImage snapshot_into_shared_image() const;
 
     void read_into_bitmap(Bitmap&) const;
     void write_from_bitmap(Bitmap const&);
