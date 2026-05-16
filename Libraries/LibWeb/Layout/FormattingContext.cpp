@@ -35,7 +35,7 @@ enum class SizeDimension {
 };
 
 // https://drafts.csswg.org/css-sizing-3/#intrinsic-sizes
-static Optional<CSSPixels> max_content_size_for_replaced_element_without_natural_size(Box const& box, CSS::SizeWithAspectRatio const& natural_size, SizeDimension dimension)
+static Optional<CSSPixels> max_content_size_for_replaced_element_without_natural_size(Box const& box, CSS::SizeWithAspectRatio const& natural_size, SizeDimension dimension, Optional<CSSPixels> definite_opposite_size = {})
 {
     // the intrinsic sizes of replaced elements without natural sizes are defined below:
     auto is_width = dimension == SizeDimension::Width;
@@ -64,10 +64,17 @@ static Optional<CSSPixels> max_content_size_for_replaced_element_without_natural
     // For the max-content size:
     // If it has a preferred aspect ratio:
     if (natural_size.has_aspect_ratio()) {
+        auto aspect_ratio = natural_size.aspect_ratio.value();
+
         // If the available space is definite in the inline axis, use the stretch fit into that size for the inline size
         // and calculate the block size using the aspect ratio.
         //
-        // NB: This helper is only for the max-content size, which has no definite available inline size.
+        // NB: This helper is only for the max-content size, which has no definite available inline size. Callers may
+        //     still know a definite used size in the opposite axis when the box lacks a natural size in that axis.
+        if (definite_opposite_size.has_value()) {
+            auto opposite_size = definite_opposite_size.value();
+            return is_width ? opposite_size * aspect_ratio : opposite_size / aspect_ratio;
+        }
 
         // Otherwise if the box has a <length> as its computed value for min-width or min-height, use that size and
         // calculate the other dimension using the aspect ratio; if both dimensions have a <length> minimum, choose the
@@ -76,8 +83,6 @@ static Optional<CSSPixels> max_content_size_for_replaced_element_without_natural
         // NOTE: This case was previous calculated from a 300x150 default size, rather than the box’s min size. This is
         //       believed to be a better behavior, and likely to be Web-compatible, but please send feedback to the CSSWG
         //       if there are any problems.
-        auto aspect_ratio = natural_size.aspect_ratio.value();
-
         Optional<CSSPixels> size_from_min_width;
         auto const& min_width = box.computed_values().min_width();
         if (min_width.is_length()) {
@@ -2059,9 +2064,17 @@ CSSPixels FormattingContext::calculate_min_content_width(Layout::Box const& box)
 
 CSSPixels FormattingContext::calculate_max_content_width(Layout::Box const& box) const
 {
-    if (auto auto_size = box.auto_content_box_size(); auto_size.has_width())
+    auto auto_size = box.auto_content_box_size();
+    if (auto_size.has_width())
         return auto_size.width.value();
-    if (auto max_content_width = max_content_size_for_replaced_element_without_natural_size(box, box.auto_content_box_size(), SizeDimension::Width); max_content_width.has_value())
+
+    Optional<CSSPixels> definite_height;
+    if (box.is_replaced_box() && !auto_size.has_height()) {
+        if (auto const& box_state = m_state.get(box); box_state.has_definite_height())
+            definite_height = box_state.content_height();
+    }
+
+    if (auto max_content_width = max_content_size_for_replaced_element_without_natural_size(box, auto_size, SizeDimension::Width, definite_height); max_content_width.has_value())
         return max_content_width.value();
 
     // Boxes with no children have zero intrinsic width.
