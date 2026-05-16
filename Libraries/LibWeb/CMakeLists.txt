@@ -32,6 +32,7 @@ set(SOURCES
     Clipboard/SystemClipboard.cpp
     Compositor/AsyncScrollTree.cpp
     Compositor/AsyncScrollingState.cpp
+    Compositor/BackingStoreManager.cpp
     Compositor/CompositorThread.cpp
     Compression/CompressionStream.cpp
     Compression/DecompressionStream.cpp
@@ -849,7 +850,6 @@ set(SOURCES
     Page/Page.cpp
     Painting/AccumulatedVisualContext.cpp
     Painting/BackgroundPainting.cpp
-    Painting/BackingStoreManager.cpp
     Painting/Blending.cpp
     Painting/BorderPainting.cpp
     Painting/BorderRadiiData.cpp

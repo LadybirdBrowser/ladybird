@@ -5,6 +5,7 @@
  */
 
 #include <LibCore/EventLoop.h>
+#include <LibCore/Timer.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SharedImage.h>
@@ -14,6 +15,7 @@
 #include <LibThreading/Thread.h>
 #include <LibWeb/Compositor/AsyncScrollTree.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
+#include <LibWeb/Compositor/BackingStoreManager.h>
 #include <LibWeb/Compositor/CompositorThread.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/Page/InputEvent.h>
@@ -86,10 +88,10 @@ struct UpdateScrollStateCommand {
     Painting::ScrollStateSnapshot scroll_state_snapshot;
 };
 
-struct UpdateBackingStoresCommand {
-    Gfx::IntSize size;
-    i32 front_bitmap_id;
-    i32 back_bitmap_id;
+struct ViewportSizeUpdatedCommand {
+    Gfx::IntSize viewport_size;
+    bool is_top_level_traversable { false };
+    WindowResizingInProgress window_resize_in_progress { WindowResizingInProgress::No };
 };
 
 struct ScreenshotCommand {
@@ -97,7 +99,8 @@ struct ScreenshotCommand {
     Function<void()> callback;
 };
 
-using CompositorCommand = Variant<UpdateDisplayListCommand, AsyncScrollByCommand, ViewportScrollbarDragCommand, UpdateScrollStateCommand, UpdateBackingStoresCommand, ScreenshotCommand>;
+using CompositorCommand = Variant<UpdateDisplayListCommand, AsyncScrollByCommand, ViewportScrollbarDragCommand,
+    UpdateScrollStateCommand, ViewportSizeUpdatedCommand, ScreenshotCommand>;
 
 static SkRect to_skia_rect(Gfx::IntRect const& rect)
 {
@@ -802,14 +805,19 @@ public:
                             }
                         }
                     },
-                    [this](UpdateBackingStoresCommand& cmd) {
+                    [this](ViewportSizeUpdatedCommand& cmd) {
+                        auto allocation = m_backing_store_manager.resize_backing_stores_if_needed(
+                            cmd.viewport_size, cmd.is_top_level_traversable, cmd.window_resize_in_progress);
+                        if (!allocation.has_value())
+                            return;
+
                         if (m_has_async_scrolling_state) {
-                            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor received backing stores front={} back={} size={}x{}",
-                                cmd.front_bitmap_id, cmd.back_bitmap_id, cmd.size.width(), cmd.size.height());
+                            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor resizing backing stores front={} back={} size={}x{}",
+                                allocation->front_bitmap_id, allocation->back_bitmap_id, allocation->size.width(), allocation->size.height());
                         }
-                        allocate_backing_stores(cmd);
-                        m_backing_stores.front_bitmap_id = cmd.front_bitmap_id;
-                        m_backing_stores.back_bitmap_id = cmd.back_bitmap_id;
+                        allocate_backing_stores(*allocation);
+                        m_backing_stores.front_bitmap_id = allocation->front_bitmap_id;
+                        m_backing_stores.back_bitmap_id = allocation->back_bitmap_id;
                     },
                     [this](ScreenshotCommand& cmd) {
                         if (!m_cached_display_list)
@@ -1158,40 +1166,42 @@ private:
         m_skia_player = make<Painting::DisplayListPlayerSkia>(m_skia_backend_context);
     }
 
-    void publish_backing_store_pair(UpdateBackingStoresCommand& cmd, Gfx::SharedImage front_shared_image, Gfx::SharedImage back_shared_image)
+    void publish_backing_store_pair(
+        BackingStoreManager::Allocation const& allocation, Gfx::SharedImage front_shared_image, Gfx::SharedImage back_shared_image)
     {
         if (!m_presents_to_client)
             return;
 
-        VERIFY(CompositorThread::present_backing_stores_to_client(m_page_id, cmd.front_bitmap_id, move(front_shared_image), cmd.back_bitmap_id, move(back_shared_image)));
+        VERIFY(CompositorThread::present_backing_stores_to_client(
+            m_page_id, allocation.front_bitmap_id, move(front_shared_image), allocation.back_bitmap_id, move(back_shared_image)));
     }
 
-    void allocate_backing_stores(UpdateBackingStoresCommand& cmd)
+    void allocate_backing_stores(BackingStoreManager::Allocation const& allocation)
     {
 #ifdef USE_VULKAN_DMABUF_IMAGES
         if (m_skia_backend_context && m_presents_to_client) {
-            auto backing_stores = create_linear_dmabuf_backing_stores(cmd.size, *m_skia_backend_context);
+            auto backing_stores = create_linear_dmabuf_backing_stores(allocation.size, *m_skia_backend_context);
             if (!backing_stores.is_error()) {
                 auto backing_store_pair = backing_stores.release_value();
                 m_backing_stores.front_store = move(backing_store_pair.front);
                 m_backing_stores.back_store = move(backing_store_pair.back);
-                publish_backing_store_pair(cmd, move(backing_store_pair.front_shared_image), move(backing_store_pair.back_shared_image));
+                publish_backing_store_pair(allocation, move(backing_store_pair.front_shared_image), move(backing_store_pair.back_shared_image));
                 return;
             }
         }
 #endif
 
-        auto front_buffer = Gfx::SharedImageBuffer::create(cmd.size);
-        auto back_buffer = Gfx::SharedImageBuffer::create(cmd.size);
+        auto front_buffer = Gfx::SharedImageBuffer::create(allocation.size);
+        auto back_buffer = Gfx::SharedImageBuffer::create(allocation.size);
         auto front_shared_image = front_buffer.export_shared_image();
         auto back_shared_image = back_buffer.export_shared_image();
-        auto backing_store_pair = create_shareable_bitmap_backing_stores(cmd.size, front_buffer, back_buffer, m_skia_backend_context);
+        auto backing_store_pair = create_shareable_bitmap_backing_stores(allocation.size, front_buffer, back_buffer, m_skia_backend_context);
         m_backing_stores.front_store = move(backing_store_pair.front);
         m_backing_stores.back_store = move(backing_store_pair.back);
-        publish_backing_store_pair(cmd, move(front_shared_image), move(back_shared_image));
+        publish_backing_store_pair(allocation, move(front_shared_image), move(back_shared_image));
         if (m_has_async_scrolling_state) {
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Allocated bitmap backing stores front={} back={} size={}x{}",
-                cmd.front_bitmap_id, cmd.back_bitmap_id, cmd.size.width(), cmd.size.height());
+                allocation.front_bitmap_id, allocation.back_bitmap_id, allocation.size.width(), allocation.size.height());
         }
     }
 
@@ -1228,6 +1238,7 @@ private:
     float m_viewport_scrollbar_thumb_grab_position { 0 };
     mutable Sync::Mutex m_async_scroll_tree_mutex;
     AsyncScrollTree m_async_scroll_tree;
+    BackingStoreManager m_backing_store_manager;
     BackingStoreState m_backing_stores;
     CompositorThread::PresentationMode m_presentation_mode { CompositorThread::PresentToUI {} };
 
@@ -1305,12 +1316,20 @@ static FramePresentationState& frame_presentation_state()
 CompositorThread::CompositorThread(u64 page_id, PagePresentationRegistration page_presentation_registration)
     : m_thread_data(adopt_ref(*new ThreadData(page_id, Core::EventLoop::current_weak(), page_presentation_registration)))
 {
+    m_backing_store_shrink_timer = Core::Timer::create_single_shot(3000, [this] {
+        enqueue_viewport_size_updated(m_last_viewport_size, m_last_viewport_size_is_top_level_traversable, WindowResizingInProgress::No);
+    });
+
     if (page_presentation_registration == PagePresentationRegistration::Yes)
         register_page_compositor(page_id, m_thread_data);
 }
 
 CompositorThread::~CompositorThread()
 {
+    m_backing_store_shrink_timer->on_timeout = {};
+    m_backing_store_shrink_timer->stop();
+    m_backing_store_shrink_timer.clear();
+
     unregister_page_compositor(m_thread_data->page_id(), *m_thread_data);
     m_thread_data->exit();
 }
@@ -1573,9 +1592,21 @@ void CompositorThread::update_scroll_state(Painting::ScrollStateSnapshot&& scrol
     m_thread_data->enqueue_command(UpdateScrollStateCommand { move(scroll_state_snapshot) });
 }
 
-void CompositorThread::update_backing_stores(Gfx::IntSize size, i32 front_id, i32 back_id)
+void CompositorThread::viewport_size_updated(
+    Gfx::IntSize viewport_size, bool is_top_level_traversable, WindowResizingInProgress window_resize_in_progress)
 {
-    m_thread_data->enqueue_command(UpdateBackingStoresCommand { size, front_id, back_id });
+    m_last_viewport_size = viewport_size;
+    m_last_viewport_size_is_top_level_traversable = is_top_level_traversable;
+    if (window_resize_in_progress == WindowResizingInProgress::Yes)
+        m_backing_store_shrink_timer->restart();
+    enqueue_viewport_size_updated(viewport_size, is_top_level_traversable, window_resize_in_progress);
+}
+
+void CompositorThread::enqueue_viewport_size_updated(
+    Gfx::IntSize viewport_size, bool is_top_level_traversable, WindowResizingInProgress window_resize_in_progress)
+{
+    m_thread_data->enqueue_command(
+        ViewportSizeUpdatedCommand { viewport_size, is_top_level_traversable, window_resize_in_progress });
 }
 
 u64 CompositorThread::present_frame(Gfx::IntRect viewport_rect)

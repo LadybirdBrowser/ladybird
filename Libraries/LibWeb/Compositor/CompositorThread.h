@@ -9,12 +9,14 @@
 #include <AK/Noncopyable.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
+#include <AK/Types.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibCore/Forward.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/SharedImage.h>
+#include <LibGfx/Size.h>
 #include <LibSync/ConditionVariable.h>
 #include <LibThreading/Forward.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
@@ -24,6 +26,11 @@
 #include <LibWeb/Page/Page.h>
 
 namespace Web::Compositor {
+
+enum class WindowResizingInProgress : u8 {
+    No,
+    Yes,
+};
 
 class WEB_API CompositorThread {
     AK_MAKE_NONCOPYABLE(CompositorThread);
@@ -79,14 +86,19 @@ public:
     bool should_defer_async_scroll_offset_adoption() const;
     bool should_defer_main_thread_present_for_async_scroll() const;
     PendingAsyncScrollUpdates take_pending_async_scroll_updates();
-    void update_backing_stores(Gfx::IntSize, i32 front_id, i32 back_id);
+    void viewport_size_updated(Gfx::IntSize, bool is_top_level_traversable, WindowResizingInProgress);
     u64 present_frame(Gfx::IntRect);
     void wait_for_frame(u64 frame_id);
     void request_screenshot(NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&& callback);
 
 private:
+    void enqueue_viewport_size_updated(Gfx::IntSize, bool is_top_level_traversable, WindowResizingInProgress);
+
     NonnullRefPtr<ThreadData> m_thread_data;
     RefPtr<Threading::Thread> m_thread;
+    RefPtr<Core::Timer> m_backing_store_shrink_timer;
+    Gfx::IntSize m_last_viewport_size;
+    bool m_last_viewport_size_is_top_level_traversable { false };
 
     static void register_page_compositor(u64 page_id, NonnullRefPtr<ThreadData>);
     static void unregister_page_compositor(u64 page_id, ThreadData&);

@@ -281,7 +281,6 @@ Navigable::Navigable(
     : m_page(page)
     , m_event_handler({}, *this)
     , m_is_svg_page(is_svg_page)
-    , m_backing_store_manager(heap().allocate<Painting::BackingStoreManager>(*this))
     , m_rendering_thread(
           is_svg_page ? 0 : page->client().id(),
           is_svg_page ? Compositor::CompositorThread::PagePresentationRegistration::No : page_presentation_registration)
@@ -324,7 +323,6 @@ void Navigable::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_parent);
     visitor.visit(m_active_document);
     visitor.visit(m_container);
-    visitor.visit(m_backing_store_manager);
     m_event_handler.visit_edges(visitor);
 
     for (auto& navigation_params : m_pending_navigations) {
@@ -2849,8 +2847,10 @@ void Navigable::set_viewport_size(CSSPixelSize size, InvalidateDisplayList inval
     m_viewport_size = size;
 
     if (!m_is_svg_page) {
-        m_backing_store_manager->restart_resize_timer();
-        m_backing_store_manager->resize_backing_stores_if_needed(Web::Painting::BackingStoreManager::WindowResizingInProgress::Yes);
+        m_rendering_thread.viewport_size_updated(
+            page().css_to_device_rect(viewport_rect()).size().to_type<int>(),
+            is_top_level_traversable(),
+            Compositor::WindowResizingInProgress::Yes);
         m_pending_set_browser_zoom_request = false;
     }
 
