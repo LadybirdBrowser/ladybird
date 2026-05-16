@@ -25,6 +25,7 @@ set(SOURCES
     SystemServerTakeover.cpp
     ThreadEventQueue.cpp
     Timer.cpp
+    TimeZone.cpp
     Version.cpp
 )
 

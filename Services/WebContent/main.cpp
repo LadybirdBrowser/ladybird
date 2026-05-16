@@ -11,6 +11,7 @@
 #include <LibCore/Process.h>
 #include <LibCore/Resource.h>
 #include <LibCore/System.h>
+#include <LibCore/TimeZone.h>
 #include <LibCrypto/OpenSSLForward.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/PathFontProvider.h>
@@ -183,7 +184,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     }
 
     if (!default_time_zone.is_empty()) {
-        if (auto result = Unicode::set_current_time_zone(default_time_zone); result.is_error())
+        if (auto result = Core::TimeZone::set_current_time_zone(default_time_zone); result.is_error())
             dbgln("Failed to set default time zone: {}", result.error());
     }
 
