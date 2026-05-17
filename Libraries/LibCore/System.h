@@ -120,7 +120,7 @@ ErrorOr<void> connect(int sockfd, struct sockaddr const*, socklen_t);
 CORE_API ErrorOr<size_t> send(int sockfd, ReadonlyBytes, int flags);
 ErrorOr<size_t> sendmsg(int sockfd, const struct msghdr*, int flags);
 ErrorOr<size_t> sendto(int sockfd, ReadonlyBytes, int flags, struct sockaddr const*, socklen_t);
-ErrorOr<size_t> recv(int sockfd, Bytes, int flags);
+CORE_API ErrorOr<size_t> recv(int sockfd, Bytes, int flags);
 ErrorOr<size_t> recvmsg(int sockfd, struct msghdr*, int flags);
 ErrorOr<size_t> recvfrom(int sockfd, Bytes, int flags, struct sockaddr*, socklen_t*);
 ErrorOr<void> getsockopt(int sockfd, int level, int option, void* value, socklen_t* value_size);
