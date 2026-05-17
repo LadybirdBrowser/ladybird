@@ -127,7 +127,7 @@ The Ladybird Android port consists of:
   engine compiled as `libladybird.so` via the Android NDK.  The CMake build is driven
   by the root `CMakeLists.txt` with `VCPKG_TARGET_ANDROID=ON`.
 - **vcpkg triplets** — set automatically by `UI/Android/vcpkg_android.cmake` based on
-  `ANDROID_ABI` (`arm64-v8a` and `x86_64` are enabled by default in `build.gradle.kts`).
+  `ANDROID_ABI` (`arm64-v8a` is enabled by default in `build.gradle.kts`).
 
 ---
 
