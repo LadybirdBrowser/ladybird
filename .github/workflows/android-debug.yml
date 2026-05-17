@@ -92,9 +92,6 @@ jobs:
       - name: Install Rust Android Targets
         run: |
           rustup target add aarch64-linux-android
-          rustup target add x86_64-linux-android
-          rustup target add armv7-linux-androideabi
-          rustup target add i686-linux-android
 
       # === BUILD ===
 
@@ -132,7 +129,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload Gradle Build Log
-        if: failure()
+        if: failure() || cancelled()
         uses: actions/upload-artifact@v7
         with:
           name: android-debug-gradle-log-${{ matrix.artifact_name }}
