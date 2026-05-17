@@ -734,8 +734,8 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, Function<void(Fetc
         response = response->unsafe_response();
 
         // 1. If bodyBytes is a byte sequence, then set response's body to bodyBytes as a body.
-        if (auto* byte_sequence = body_bytes.get_pointer<ByteBuffer>())
-            response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, *byte_sequence));
+        if (auto* byte_sequence = body_bytes.get_pointer<Core::ImmutableBytes>())
+            response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, byte_sequence->bytes()));
         // 2. Otherwise, set response to a network error.
         else
             response = Fetch::Infrastructure::Response::network_error(realm.vm(), "Expected preload response to contain a body"_string);

@@ -925,7 +925,13 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
         // 1. Let processBody given nullOrBytes be this step: run fetchParams’s process response consume body given
         //    response and nullOrBytes.
         auto process_body = GC::create_function(vm.heap(), [algorithms, &response](ByteBuffer bytes) {
-            (algorithms->process_response_consume_body())(response, move(bytes));
+            if (response.body()) {
+                if (auto const* source_bytes = response.body()->source().get_pointer<Core::ImmutableBytes>()) {
+                    (algorithms->process_response_consume_body())(response, *source_bytes);
+                    return;
+                }
+            }
+            (algorithms->process_response_consume_body())(response, Core::ImmutableBytes::adopt(move(bytes)));
         });
 
         // 2. Let processBodyError be this step: run fetchParams’s process response consume body given response and
@@ -1537,9 +1543,11 @@ GC::Ptr<PendingResponse> http_redirect_fetch(JS::Realm& realm, Infrastructure::F
     if (!request->body().has<Empty>()) {
         auto const& source = request->body().get<GC::Ref<Infrastructure::Body>>()->source();
         // NOTE: BodyInitOrReadableBytes is a superset of Body::SourceType
-        auto converted_source = source.has<ByteBuffer>()
-            ? BodyInitOrReadableBytes { source.get<ByteBuffer>() }
-            : BodyInitOrReadableBytes { source.get<GC::Ref<FileAPI::Blob>>() };
+        auto converted_source = source.visit(
+            [](ByteBuffer const& byte_buffer) -> BodyInitOrReadableBytes { return byte_buffer.bytes(); },
+            [](Core::ImmutableBytes const& bytes) -> BodyInitOrReadableBytes { return bytes; },
+            [](GC::Ref<FileAPI::Blob> const& blob) -> BodyInitOrReadableBytes { return GC::make_root(blob); },
+            [](Empty) -> BodyInitOrReadableBytes { VERIFY_NOT_REACHED(); });
         auto [body, _] = safely_extract_body(realm, converted_source);
         request->set_body(body);
     }
@@ -1994,9 +2002,11 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
                 // 2. Set request’s body to the body of the result of safely extracting request’s body’s source.
                 auto const& source = request->body().get<GC::Ref<Infrastructure::Body>>()->source();
                 // NOTE: BodyInitOrReadableBytes is a superset of Body::SourceType
-                auto converted_source = source.has<ByteBuffer>()
-                    ? BodyInitOrReadableBytes { source.get<ByteBuffer>() }
-                    : BodyInitOrReadableBytes { source.get<GC::Ref<FileAPI::Blob>>() };
+                auto converted_source = source.visit(
+                    [](ByteBuffer const& byte_buffer) -> BodyInitOrReadableBytes { return byte_buffer.bytes(); },
+                    [](Core::ImmutableBytes const& bytes) -> BodyInitOrReadableBytes { return bytes; },
+                    [](GC::Ref<FileAPI::Blob> const& blob) -> BodyInitOrReadableBytes { return GC::make_root(blob); },
+                    [](Empty) -> BodyInitOrReadableBytes { VERIFY_NOT_REACHED(); });
                 auto [body, _] = safely_extract_body(realm, converted_source);
                 request->set_body(body);
             }
@@ -2150,8 +2160,11 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
             [&](ByteBuffer const& byte_buffer) {
                 load_request.set_body(MUST(ByteBuffer::copy(byte_buffer)));
             },
-            [&](GC::Root<FileAPI::Blob> const& blob_handle) {
-                load_request.set_body(MUST(ByteBuffer::copy(blob_handle->raw_bytes())));
+            [&](Core::ImmutableBytes const& bytes) {
+                load_request.set_body(MUST(bytes.copy_to_byte_buffer()));
+            },
+            [&](GC::Ref<FileAPI::Blob> const& blob) {
+                load_request.set_body(MUST(ByteBuffer::copy(blob->raw_bytes())));
             },
             [](Empty) {
             });

@@ -24,6 +24,7 @@ static Body::SourceTypeInternal to_source_type_internal(Body::SourceType&& sourc
     return source_type.visit(
         [](Empty) -> Body::SourceTypeInternal { return Empty {}; },
         [](ByteBuffer& buffer) -> Body::SourceTypeInternal { return move(buffer); },
+        [](Core::ImmutableBytes& bytes) -> Body::SourceTypeInternal { return move(bytes); },
         [](GC::Root<FileAPI::Blob> const& blob) -> Body::SourceTypeInternal { return GC::Ref { *blob }; });
 }
 
@@ -52,6 +53,12 @@ Body::Body(GC::Ref<Streams::ReadableStream> stream, SourceTypeInternal source, O
     , m_source(move(source))
     , m_length(move(length))
 {
+}
+
+void Body::set_source(Core::ImmutableBytes source, Optional<u64> length)
+{
+    m_source = move(source);
+    m_length = length;
 }
 
 void Body::visit_edges(Cell::Visitor& visitor)
@@ -99,6 +106,11 @@ Optional<ReadonlyBytes> Body::sniff_bytes_if_available() const
     if (m_source.has<ByteBuffer>()) {
         auto const& buffer = m_source.get<ByteBuffer>();
         return buffer.bytes().slice(0, min(buffer.size(), MAX_SNIFF_BYTES));
+    }
+
+    if (m_source.has<Core::ImmutableBytes>()) {
+        auto bytes = m_source.get<Core::ImmutableBytes>().bytes();
+        return bytes.slice(0, min(bytes.size(), MAX_SNIFF_BYTES));
     }
 
     if (m_source.has<GC::Ref<FileAPI::Blob>>()) {

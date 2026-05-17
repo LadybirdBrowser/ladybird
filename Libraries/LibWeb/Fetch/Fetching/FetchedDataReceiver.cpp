@@ -91,6 +91,8 @@ void FetchedDataReceiver::handle_network_data(Requests::ResponseData data, Netwo
 
     // Capture bytes for MIME sniffing
     if (m_body) {
+        if (auto const& immutable_bytes = data.immutable_bytes(); immutable_bytes.has_value() && immutable_bytes->is_file_backed() && m_body->source().has<Empty>() && bytes.size() == immutable_bytes->size())
+            m_body->set_source(*immutable_bytes, static_cast<u64>(immutable_bytes->size()));
         m_body->append_sniff_bytes(bytes);
     } else if (m_pre_body_sniff_buffer.size() < Infrastructure::MAX_SNIFF_BYTES) {
         auto space_remaining = Infrastructure::MAX_SNIFF_BYTES - m_pre_body_sniff_buffer.size();
