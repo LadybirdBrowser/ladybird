@@ -79,12 +79,19 @@ public:
 
     Utf16FlyString m_name;
 
-    // NB: m_source_text is normally a view into the underlying JS::SourceCode we parsed the AST from,
-    //     kept alive by m_source_code. m_source_text_owner is used if the source text needs to be
-    //     owned by the function data (e.g. for dynamically created functions via Function constructor).
+    Utf16String source_text() const;
+    void set_source_text(Utf16View);
+    void set_source_text_range(SourceCode const&, size_t source_text_offset, size_t source_text_length);
+
+    // NB: m_source_text_offset and m_source_text_length normally refer to
+    //     ranges within the underlying JS::SourceCode we parsed the AST from,
+    //     kept alive by m_source_code. m_source_text_owner is used if the
+    //     source text needs to be owned by the function data (e.g. for
+    //     dynamically created functions via Function constructor).
     RefPtr<SourceCode const> m_source_code;
     Utf16String m_source_text_owner;
-    Utf16View m_source_text; // [[SourceText]]
+    size_t m_source_text_offset { 0 };
+    size_t m_source_text_length { 0 }; // [[SourceText]]
 
     Vector<LocalVariable> m_local_variables_names;
 

@@ -271,7 +271,7 @@ set(GENERATED_SOURCES Bytecode/Op.cpp)
 
 ladybird_lib(LibJS js EXPLICIT_SYMBOL_EXPORT)
 
-target_link_libraries(LibJS PRIVATE LibCore LibCrypto LibFileSystem LibRegex LibSyntax LibGC simdjson::simdjson)
+target_link_libraries(LibJS PRIVATE LibCore LibCrypto LibFileSystem LibRegex LibSyntax LibTextCodec LibGC simdjson::simdjson)
 
 # Link LibUnicode publicly to ensure ICU data (which is in libicudata.a) is available in any process using LibJS.
 target_link_libraries(LibJS PUBLIC LibUnicode)
