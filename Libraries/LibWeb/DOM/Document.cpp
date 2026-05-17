@@ -984,12 +984,13 @@ WebIDL::ExceptionOr<void> Document::close()
     // 4. Insert an explicit "EOF" character at the end of the parser's input stream.
     m_parser->tokenizer().insert_eof();
 
-    auto finish_script_created_parser = [this] {
-        m_parser->tokenizer().undefine_insertion_point();
-        m_parser->pop_all_open_elements();
+    auto parser = m_parser;
+    auto finish_script_created_parser = [parser] {
+        parser->tokenizer().undefine_insertion_point();
+        parser->pop_all_open_elements();
 
         // AD-HOC: This ensures that a load event is fired if the node navigable's container is an iframe.
-        completely_finish_loading();
+        parser->document().completely_finish_loading();
     };
 
     // 5. If there is a pending parsing-blocking script, then return.
