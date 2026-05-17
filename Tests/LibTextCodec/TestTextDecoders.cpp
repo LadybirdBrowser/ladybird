@@ -21,6 +21,16 @@ static TextCodec::Decoder& decoder_for(StringView encoding)
     return decoder.value();
 }
 
+static Vector<u32> process_code_points(TextCodec::Decoder& decoder, StringView input)
+{
+    Vector<u32> code_points;
+    MUST(decoder.process_code_points(input, [&](u32 code_point) -> ErrorOr<void> {
+        TRY(code_points.try_append(code_point));
+        return {};
+    }));
+    return code_points;
+}
+
 TEST_CASE(test_utf8_decode)
 {
     auto decoder = TextCodec::UTF8Decoder();
@@ -39,6 +49,14 @@ TEST_CASE(test_utf8_decode)
     EXPECT(MUST(decoder.to_utf8(test_string)) == test_string);
 }
 
+TEST_CASE(test_utf8_process_code_points)
+{
+    auto decoder = TextCodec::UTF8Decoder();
+    auto test_string = "A\xf0\x9f\x98\x80"sv;
+
+    EXPECT_EQ(process_code_points(decoder, test_string), (Vector<u32> { 0x41, 0x1F600 }));
+}
+
 TEST_CASE(test_utf16be_decode)
 {
     auto decoder = TextCodec::UTF16BEDecoder();
@@ -48,6 +66,14 @@ TEST_CASE(test_utf16be_decode)
     EXPECT(decoder.validate(test_string));
     auto utf8 = MUST(decoder.to_utf8(test_string));
     EXPECT_EQ(utf8, "säk😀"sv);
+}
+
+TEST_CASE(test_utf16be_process_code_points)
+{
+    auto decoder = TextCodec::UTF16BEDecoder();
+
+    EXPECT_EQ(process_code_points(decoder, StringView(bytes({ 0xfe, 0xff, 0x00, 'A', 0xd8, 0x3d, 0xde, 0x00 }))), (Vector<u32> { 0x41, 0x1F600 }));
+    EXPECT_EQ(process_code_points(decoder, StringView(bytes({ 0xd8, 0x3d, 0x00, 'A', 0xde, 0x00 }))), (Vector<u32> { 0xfffd, 0x41, 0xfffd }));
 }
 
 TEST_CASE(test_streaming_decoder_utf8_mid_sequence)
@@ -147,4 +173,12 @@ TEST_CASE(test_utf16le_decode)
     EXPECT(decoder.validate(test_string));
     auto utf8 = MUST(decoder.to_utf8(test_string));
     EXPECT_EQ(utf8, "säk😀"sv);
+}
+
+TEST_CASE(test_utf16le_process_code_points)
+{
+    auto decoder = TextCodec::UTF16LEDecoder();
+
+    EXPECT_EQ(process_code_points(decoder, StringView(bytes({ 0xff, 0xfe, 'A', 0x00, 0x3d, 0xd8, 0x00, 0xde }))), (Vector<u32> { 0x41, 0x1F600 }));
+    EXPECT_EQ(process_code_points(decoder, StringView(bytes({ 0x3d, 0xd8, 'A', 0x00, 0x00, 0xde }))), (Vector<u32> { 0xfffd, 0x41, 0xfffd }));
 }

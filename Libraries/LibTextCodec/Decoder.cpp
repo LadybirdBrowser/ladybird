@@ -354,6 +354,11 @@ ErrorOr<String> Decoder::to_utf8(StringView input)
     return builder.to_string_without_validation();
 }
 
+ErrorOr<void> Decoder::process_code_points(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
+{
+    return process(input, move(on_code_point));
+}
+
 // Tail-length helpers for chunked decoding. Each returns the number of trailing bytes that must
 // be buffered until more input arrives, because they form an incomplete trailing sequence per the
 // Encoding Standard's decoder handler byte ranges.
@@ -712,6 +717,52 @@ bool UTF16BEDecoder::validate(StringView input)
     return AK::validate_utf16_be(input.bytes());
 }
 
+static ErrorOr<void> process_utf16(StringView input, bool big_endian, Function<ErrorOr<void>(u32)> on_code_point)
+{
+    auto bytes = input.bytes();
+    if (bytes.size() >= 2) {
+        if ((big_endian && bytes[0] == 0xFE && bytes[1] == 0xFF)
+            || (!big_endian && bytes[0] == 0xFF && bytes[1] == 0xFE))
+            bytes = bytes.slice(2);
+    }
+
+    auto read_code_unit = [&](size_t offset) {
+        return big_endian
+            ? (static_cast<u16>(bytes[offset]) << 8) | bytes[offset + 1]
+            : (static_cast<u16>(bytes[offset + 1]) << 8) | bytes[offset];
+    };
+
+    for (size_t i = 0; i + 1 < bytes.size(); i += 2) {
+        auto code_unit = read_code_unit(i);
+        if (AK::UnicodeUtils::is_utf16_high_surrogate(code_unit)) {
+            if (i + 3 < bytes.size()) {
+                auto low_surrogate = read_code_unit(i + 2);
+                if (AK::UnicodeUtils::is_utf16_low_surrogate(low_surrogate)) {
+                    TRY(on_code_point(AK::UnicodeUtils::decode_utf16_surrogate_pair(code_unit, low_surrogate)));
+                    i += 2;
+                    continue;
+                }
+            }
+            TRY(on_code_point(replacement_code_point));
+            continue;
+        }
+
+        if (AK::UnicodeUtils::is_utf16_low_surrogate(code_unit)) {
+            TRY(on_code_point(replacement_code_point));
+            continue;
+        }
+
+        TRY(on_code_point(code_unit));
+    }
+
+    return {};
+}
+
+ErrorOr<void> UTF16BEDecoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
+{
+    return process_utf16(input, true, move(on_code_point));
+}
+
 ErrorOr<String> UTF16BEDecoder::to_utf8(StringView input)
 {
     // Discard the BOM
@@ -724,6 +775,11 @@ ErrorOr<String> UTF16BEDecoder::to_utf8(StringView input)
 bool UTF16LEDecoder::validate(StringView input)
 {
     return AK::validate_utf16_le(input.bytes());
+}
+
+ErrorOr<void> UTF16LEDecoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
+{
+    return process_utf16(input, false, move(on_code_point));
 }
 
 ErrorOr<String> UTF16LEDecoder::to_utf8(StringView input)
