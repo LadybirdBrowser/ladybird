@@ -730,22 +730,28 @@ static ErrorOr<void> process_utf8_with_replacement_character(StringView input, F
 
         if (i + sequence_length > bytes.size()) {
             TRY(on_code_point(replacement_code_point));
-            ++i;
+            i = bytes.size();
             continue;
         }
 
-        bool has_valid_continuation_bytes = true;
+        Optional<size_t> invalid_continuation_offset;
         for (size_t offset = 1; offset < sequence_length; ++offset) {
             auto continuation_byte = bytes[i + offset];
-            if ((continuation_byte & 0xc0) != 0x80) {
-                has_valid_continuation_bytes = false;
+            if (!is_utf8_continuation_byte(continuation_byte)) {
+                invalid_continuation_offset = offset;
                 break;
             }
             code_point <<= 6;
             code_point |= continuation_byte & 0x3f;
         }
 
-        if (!has_valid_continuation_bytes || code_point < minimum_code_point || code_point > 0x10ffff) {
+        if (invalid_continuation_offset.has_value()) {
+            TRY(on_code_point(replacement_code_point));
+            i += *invalid_continuation_offset;
+            continue;
+        }
+
+        if (code_point < minimum_code_point || code_point > 0x10ffff) {
             TRY(on_code_point(replacement_code_point));
             ++i;
             continue;
@@ -776,6 +782,9 @@ bool UTF8Decoder::validate(StringView input)
 
 ErrorOr<String> UTF8Decoder::to_utf8(StringView input)
 {
+    if (auto bytes = input.bytes(); bytes.starts_with({ { 0xEF, 0xBB, 0xBF } }))
+        input = input.substring_view(3);
+
     StringBuilder builder(input.length());
     TRY(process_utf8_with_replacement_character(input, [&](auto code_point) {
         return builder.try_append_code_point(code_point);

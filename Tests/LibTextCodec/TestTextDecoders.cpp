@@ -68,6 +68,17 @@ TEST_CASE(test_utf8_process_code_points_replaces_surrogates)
     EXPECT_EQ(process_code_points(decoder, utf8_encoded_surrogate), (Vector<u32> { 0xfffd }));
 }
 
+TEST_CASE(test_utf8_process_code_points_replaces_truncated_tail_as_single_error)
+{
+    auto decoder = TextCodec::UTF8Decoder();
+    auto truncated_tail_bytes = Vector<u8> { 0xf0, 0x9f, 0x98 };
+    auto truncated_tail = StringView(bytes(truncated_tail_bytes));
+
+    EXPECT(!decoder.validate(truncated_tail));
+    EXPECT_EQ(MUST(decoder.to_utf8(truncated_tail)), "\xef\xbf\xbd"sv);
+    EXPECT_EQ(process_code_points(decoder, truncated_tail), (Vector<u32> { 0xfffd }));
+}
+
 TEST_CASE(test_utf8_process_code_points_replaces_overlong_sequences)
 {
     auto decoder = TextCodec::UTF8Decoder();
