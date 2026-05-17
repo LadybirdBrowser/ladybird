@@ -644,12 +644,12 @@ void HTMLParserEndState::complete()
 GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Optional<FlyString> const& namespace_, DOM::Node& intended_parent)
 {
     // 1. If the active speculative HTML parser is not null, then return the result of creating a speculative mock element given namespace, token's tag name, and token's attributes.
-    // The active speculative HTML parser runs synchronously to completion, so it is null whenever the real
-    // parser invokes this algorithm. The speculative parser produces mock elements via its own path.
+    // The active speculative HTML parser runs synchronously to completion, so it is null whenever the real parser
+    // invokes this algorithm. It emits speculative fetch candidates directly instead of producing mock elements.
 
     // 2. Otherwise, optionally create a speculative mock element given namespace, token's tag name, and token's attributes.
-    // We deliberately skip step 2 — the active speculative parser already issues these fetches, so doing it
-    // again here would be redundant.
+    // We deliberately skip step 2, the active speculative parser already issues these fetches, so doing it again here
+    // would be redundant.
 
     // 3. Let document be intendedParent's node document.
     GC::Ref<DOM::Document> document = intended_parent.document();
@@ -1675,7 +1675,8 @@ void HTMLParser::start_the_speculative_html_parser()
     // 3. Let speculativeParser be a new speculative HTML parser, with the same state as parser.
     // 4. Let speculativeDoc be a new isomorphic representation of parser's Document, where all elements are instead
     //    speculative mock elements. Let speculativeParser parse into speculativeDoc.
-    // NOTE: Speculative mock elements are produced on the fly during run(); we do not materialize a full speculativeDoc tree.
+    // NOTE: The Rust preload scanner emits speculative fetch candidates directly, so we do not materialize a
+    // speculativeDoc tree or speculative mock elements.
     auto speculative_parser = SpeculativeHTMLParser::create(realm(), *m_document, m_tokenizer.unparsed_input(), m_document->base_url());
 
     // 5. Set parser's active speculative HTML parser to speculativeParser.
