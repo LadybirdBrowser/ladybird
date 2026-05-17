@@ -116,7 +116,7 @@ Bitmap::Bitmap(BitmapFormat format, AlphaType alpha_type, IntSize size, BackingS
 ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_wrapper(BitmapFormat format, AlphaType alpha_type, IntSize size, size_t pitch, void* data, Function<void()>&& destruction_callback)
 {
     if (size_would_overflow(format, size))
-        return Error::from_string_literal("Gfx::Bitmap::create_wrapper size overflow");
+        return Error::from_errno(EOVERFLOW);
     return adopt_ref(*new Bitmap(format, alpha_type, size, pitch, data, move(destruction_callback)));
 }
 
