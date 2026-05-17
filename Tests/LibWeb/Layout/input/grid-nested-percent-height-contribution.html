@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .parent {
+        display: grid;
+        grid-template-rows: repeat(2, max-content);
+        row-gap: 20px;
+        align-items: start;
+        width: 240px;
+    }
+
+    .table {
+        display: grid;
+        grid-template-columns: 100px 100px;
+        grid-template-rows: max-content;
+        grid-auto-flow: dense;
+        gap: 20px;
+        align-items: start;
+    }
+
+    .card {
+        grid-column: 1;
+        height: 100%;
+        background: royalblue;
+    }
+
+    .first {
+        order: 10;
+    }
+
+    .second {
+        order: 11;
+    }
+
+    .first .content {
+        height: 80px;
+    }
+
+    .second .content {
+        height: 40px;
+    }
+
+    .image {
+        grid-column: 2;
+        grid-row: auto / span 3;
+        order: 12;
+        height: 320px;
+        background: seagreen;
+    }
+
+    .next {
+        height: 30px;
+        background: crimson;
+    }
+</style>
+<div class="parent">
+    <div class="table">
+        <div class="card first"><div class="content"></div></div>
+        <div class="card second"><div class="content"></div></div>
+        <div class="image"></div>
+    </div>
+    <div class="next"></div>
+</div>
