@@ -15,7 +15,7 @@
 
 namespace JS {
 
-static SourceRange dummy_source_range { SourceCode::create({}, {}), {} };
+static SourceRange dummy_source_range { SourceCode::create({}, Utf16String {}), {} };
 
 SourceRange const& TracebackFrame::source_range() const
 {

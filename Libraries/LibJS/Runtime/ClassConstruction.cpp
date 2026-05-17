@@ -297,7 +297,8 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> construct_class(
             }));
     }
 
-    class_constructor->set_source_text(blueprint.source_text);
+    if (blueprint.source_code)
+        class_constructor->set_source_text_range(*blueprint.source_code, blueprint.source_text_offset, blueprint.source_text_length);
 
     return { class_constructor };
 }

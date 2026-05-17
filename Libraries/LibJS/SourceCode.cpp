@@ -9,24 +9,87 @@
 #include <LibJS/SourceCode.h>
 #include <LibJS/SourceRange.h>
 #include <LibJS/Token.h>
+#include <LibTextCodec/Decoder.h>
 
 namespace JS {
+
+static size_t utf16_length_from_utf8(String const& code)
+{
+    size_t length = 0;
+    for (auto code_point : code.code_points())
+        length += code_point > 0xffff ? 2 : 1;
+    return length;
+}
 
 NonnullRefPtr<SourceCode const> SourceCode::create(String filename, Utf16String code)
 {
     return adopt_ref(*new SourceCode(move(filename), move(code)));
 }
 
+NonnullRefPtr<SourceCode const> SourceCode::create(String filename, String code)
+{
+    return adopt_ref(*new SourceCode(move(filename), move(code)));
+}
+
+NonnullRefPtr<SourceCode const> SourceCode::create(String filename, size_t length_in_code_units, String source_encoding, Core::ImmutableBytes source_bytes)
+{
+    return adopt_ref(*new SourceCode(move(filename), length_in_code_units, move(source_encoding), move(source_bytes)));
+}
+
 SourceCode::SourceCode(String filename, Utf16String code)
     : m_filename(move(filename))
     , m_code(move(code))
-    , m_code_view(m_code.utf16_view())
+    , m_code_view(m_code->utf16_view())
     , m_length_in_code_units(m_code_view.length_in_code_units())
 {
 }
 
+SourceCode::SourceCode(String filename, String code)
+    : m_filename(move(filename))
+    , m_utf8_code(move(code))
+    , m_length_in_code_units(utf16_length_from_utf8(*m_utf8_code))
+{
+}
+
+SourceCode::SourceCode(String filename, size_t length_in_code_units, String source_encoding, Core::ImmutableBytes source_bytes)
+    : m_filename(move(filename))
+    , m_source_encoding(move(source_encoding))
+    , m_source_bytes(move(source_bytes))
+    , m_length_in_code_units(length_in_code_units)
+{
+}
+
+void SourceCode::ensure_code() const
+{
+    if (m_code.has_value())
+        return;
+
+    if (m_utf8_code.has_value()) {
+        m_code = Utf16String::from_utf8(*m_utf8_code);
+        m_utf8_code.clear();
+    } else {
+        m_code = decode_source_range(0, m_length_in_code_units);
+        m_source_bytes = {};
+    }
+    m_code_view = m_code->utf16_view();
+}
+
+Utf16String const& SourceCode::code() const
+{
+    ensure_code();
+    return *m_code;
+}
+
+Utf16View const& SourceCode::code_view() const
+{
+    ensure_code();
+    return m_code_view;
+}
+
 u16 const* SourceCode::utf16_data() const
 {
+    ensure_code();
+
     if (!m_code_view.has_ascii_storage())
         return reinterpret_cast<u16 const*>(m_code_view.utf16_span().data());
 
@@ -39,13 +102,97 @@ u16 const* SourceCode::utf16_data() const
     return m_utf16_data_cache.data();
 }
 
+Utf16String SourceCode::source_text_from_offsets(size_t start_offset, size_t length) const
+{
+    if (length == 0)
+        return {};
+
+    if (m_code.has_value())
+        return Utf16String::from_utf16(m_code->utf16_view().substring_view(start_offset, length));
+
+    if (m_source_bytes.is_valid())
+        return decode_source_range(start_offset, length);
+
+    if (!m_utf8_code.has_value()) {
+        ensure_code();
+        return Utf16String::from_utf16(m_code->utf16_view().substring_view(start_offset, length));
+    }
+
+    if (m_utf8_code->is_ascii())
+        return Utf16String::from_utf8(m_utf8_code->bytes_as_string_view().substring_view(start_offset, length));
+
+    auto view = m_utf8_code->code_points();
+    Optional<size_t> start_byte_offset;
+    Optional<size_t> end_byte_offset;
+    size_t current_offset = 0;
+    for (auto it = view.begin(); it != view.end(); ++it) {
+        if (!start_byte_offset.has_value() && current_offset >= start_offset)
+            start_byte_offset = view.byte_offset_of(it);
+        if (!end_byte_offset.has_value() && current_offset >= start_offset + length) {
+            end_byte_offset = view.byte_offset_of(it);
+            break;
+        }
+        current_offset += *it > 0xffff ? 2 : 1;
+    }
+
+    auto source_byte_count = m_utf8_code->byte_count();
+    auto start = start_byte_offset.value_or(source_byte_count);
+    auto end = end_byte_offset.value_or(source_byte_count);
+    VERIFY(end >= start);
+    return Utf16String::from_utf8(m_utf8_code->bytes_as_string_view().substring_view(start, end - start));
+}
+
+Utf16String SourceCode::decode_source_range(size_t start_offset, size_t length) const
+{
+    if (length == 0)
+        return {};
+
+    VERIFY(start_offset <= NumericLimits<size_t>::max() - length);
+    auto end_offset = start_offset + length;
+    StringView input { m_source_bytes.bytes() };
+    auto decoder = TextCodec::decoder_for(m_source_encoding);
+    VERIFY(decoder.has_value());
+    TextCodec::Decoder* actual_decoder = &decoder.value();
+
+    auto unicode_decoder = TextCodec::bom_sniff_to_decoder(input);
+    if (unicode_decoder.has_value()) {
+        auto input_bytes = input.bytes();
+        auto byte_order_mark_size = input_bytes.size() >= 3 && input_bytes[0] == 0xEF && input_bytes[1] == 0xBB && input_bytes[2] == 0xBF ? 3 : 2;
+        actual_decoder = &unicode_decoder.value();
+        input = input.substring_view(byte_order_mark_size);
+    }
+
+    StringBuilder builder(StringBuilder::Mode::UTF16, length);
+    size_t current_offset = 0;
+    auto result = actual_decoder->process_code_points(input, [&](auto code_point) -> ErrorOr<void> {
+        char16_t code_units[2];
+        size_t code_point_length_in_code_units = 0;
+        (void)AK::UnicodeUtils::code_point_to_utf16(code_point, [&](auto code_unit) {
+            code_units[code_point_length_in_code_units++] = code_unit;
+        });
+
+        for (size_t i = 0; i < code_point_length_in_code_units; ++i) {
+            auto code_unit_offset = current_offset + i;
+            if (code_unit_offset >= start_offset && code_unit_offset < end_offset)
+                TRY(builder.try_append_code_unit(code_units[i]));
+        }
+
+        current_offset += code_point_length_in_code_units;
+        return {};
+    });
+    result.release_value_but_fixme_should_propagate_errors();
+
+    return builder.to_utf16_string();
+}
+
 void SourceCode::fill_position_cache() const
 {
     constexpr size_t predicted_minimum_cached_positions = 8;
     constexpr size_t minimum_distance_between_cached_positions = 32;
     constexpr size_t maximum_distance_between_cached_positions = 8192;
 
-    if (m_code.is_empty())
+    auto const& code = this->code();
+    if (code.is_empty())
         return;
 
     u32 previous_code_point = 0;
@@ -53,10 +200,10 @@ void SourceCode::fill_position_cache() const
     u32 column = 1;
     u32 offset_of_last_starting_point = 0;
 
-    m_cached_positions.ensure_capacity(predicted_minimum_cached_positions + (m_code.length_in_code_units() / maximum_distance_between_cached_positions));
+    m_cached_positions.ensure_capacity(predicted_minimum_cached_positions + (code.length_in_code_units() / maximum_distance_between_cached_positions));
     m_cached_positions.append({ .position = { .line = 1, .column = 1 }, .offset = 0 });
 
-    auto view = m_code.utf16_view();
+    auto view = code.utf16_view();
 
     for (auto it = view.begin(); it != view.end(); ++it) {
         u32 code_point = *it;
@@ -87,7 +234,8 @@ void SourceCode::fill_position_cache() const
 SourceRange SourceCode::range_from_offsets(u32 start_offset, [[maybe_unused]] u32 end_offset) const
 {
     // If the underlying code is an empty string, the range is 1,1 no matter what.
-    if (m_code.is_empty())
+    auto const& code = this->code();
+    if (code.is_empty())
         return { *this, { .line = 1, .column = 1 } };
 
     if (m_cached_positions.is_empty())
@@ -110,7 +258,7 @@ SourceRange SourceCode::range_from_offsets(u32 start_offset, [[maybe_unused]] u3
 
     u32 previous_code_point = 0;
 
-    auto view = m_code.utf16_view();
+    auto view = code.utf16_view();
 
     for (auto it = view.iterator_at_code_unit_offset(current.offset); it != view.end(); ++it) {
         // If we're on or after the start offset, this is the start position.

@@ -7,6 +7,7 @@
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/SharedFunctionInstanceData.h>
 #include <LibJS/RustIntegration.h>
+#include <LibJS/SourceCode.h>
 
 namespace JS {
 
@@ -66,6 +67,33 @@ size_t SharedFunctionInstanceData::external_memory_size() const
     size = saturating_add_external_memory_size(size, vector_external_memory_size(m_function_names_to_initialize_binding));
     size = saturating_add_external_memory_size(size, vector_external_memory_size(m_lexical_bindings));
     return size;
+}
+
+Utf16String SharedFunctionInstanceData::source_text() const
+{
+    if (!m_source_text_owner.is_empty())
+        return m_source_text_owner;
+
+    if (!m_source_code)
+        return {};
+
+    return m_source_code->source_text_from_offsets(m_source_text_offset, m_source_text_length);
+}
+
+void SharedFunctionInstanceData::set_source_text(Utf16View source_text)
+{
+    m_source_text_owner = Utf16String::from_utf16(source_text);
+    m_source_code = nullptr;
+    m_source_text_offset = 0;
+    m_source_text_length = 0;
+}
+
+void SharedFunctionInstanceData::set_source_text_range(SourceCode const& source_code, size_t source_text_offset, size_t source_text_length)
+{
+    m_source_text_owner = {};
+    m_source_code = &source_code;
+    m_source_text_offset = source_text_offset;
+    m_source_text_length = source_text_length;
 }
 
 SharedFunctionInstanceData::~SharedFunctionInstanceData() = default;

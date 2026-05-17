@@ -747,7 +747,6 @@ Optional<Result<GC::Ref<SharedFunctionInstanceData>, String>> compile_dynamic_fu
 
     auto& function_data = *static_cast<SharedFunctionInstanceData*>(sfd_ptr);
     function_data.m_source_text_owner = Utf16String::from_utf8(source_text);
-    function_data.m_source_text = function_data.m_source_text_owner.utf16_view();
 
     return GC::Ref<SharedFunctionInstanceData> { function_data };
 }
@@ -1161,12 +1160,7 @@ extern "C" void* rust_create_sfd(
         shared->m_function_environment_needed = true;
     shared->update_asm_call_metadata();
 
-    // Set source text as a view into the original source code.
-    shared->m_source_code = &source_code;
-    if (data->source_text_length > 0) {
-        auto const& code_view = source_code.code_view();
-        shared->m_source_text = code_view.substring_view(data->source_text_offset, data->source_text_length);
-    }
+    shared->set_source_text_range(source_code, data->source_text_offset, data->source_text_length);
 
     return shared.ptr();
 }
@@ -1298,12 +1292,9 @@ extern "C" void* rust_create_class_blueprint(
     if (name_len > 0)
         blueprint->name = Utf16FlyString::from_utf16(JS::RustIntegration::utf16_view_from_bytes(name, name_len));
 
-    // Store source text as a view into the SourceCode buffer.
-    if (source_text_len > 0) {
-        auto& source_code = *static_cast<JS::SourceCode const*>(source_code_ptr);
-        auto const& code_view = source_code.code_view();
-        blueprint->source_text = code_view.substring_view(source_text_offset, source_text_len);
-    }
+    blueprint->source_code = static_cast<JS::SourceCode const*>(source_code_ptr);
+    blueprint->source_text_offset = source_text_offset;
+    blueprint->source_text_length = source_text_len;
 
     for (size_t i = 0; i < element_count; ++i) {
         auto const& elem = elements[i];
