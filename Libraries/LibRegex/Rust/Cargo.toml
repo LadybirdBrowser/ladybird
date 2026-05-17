@@ -11,5 +11,9 @@ crate-type = ["staticlib"]
 [dependencies]
 libunicode_rust = { path = "../../LibUnicode/Rust", default-features = false }
 
+[features]
+default = []
+allocator = []
+
 [build-dependencies]
 cbindgen = "0.29"
