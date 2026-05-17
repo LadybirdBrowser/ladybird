@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Forward.h>
 #include <LibURL/URL.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/SVG/SVGElement.h>
@@ -45,7 +46,7 @@ private:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-    void finish_external_script_fetch(URL::URL const& script_url, ByteBuffer const& body);
+    void finish_external_script_fetch(URL::URL const& script_url, ReadonlyBytes body);
     void execute_script();
 
     bool m_already_processed { false };

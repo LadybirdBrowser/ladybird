@@ -757,14 +757,14 @@ void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest con
 
 #if JS_MODULE_DEBUG
     ByteString referencing_module_string = referrer.visit(
-        [&](Empty) -> ByteString {
-            return ".";
+        [&](GC::Ref<Script> const& script) {
+            return ByteString::formatted("Script @ {}", script.ptr());
         },
-        [&](auto& script_or_module) {
-            if constexpr (IsSame<Script*, decltype(script_or_module)>) {
-                return ByteString::formatted("Script @ {}", script_or_module.ptr());
-            }
-            return ByteString::formatted("Module @ {}", script_or_module.ptr());
+        [&](GC::Ref<CyclicModule> const& module) {
+            return ByteString::formatted("Module @ {}", module.ptr());
+        },
+        [&](GC::Ref<Realm> const& realm) {
+            return ByteString::formatted("Realm @ {}", realm.ptr());
         });
 
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] load_imported_module({}, {})", referencing_module_string, filename);

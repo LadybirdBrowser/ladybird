@@ -9,6 +9,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/Debug.h>
+#include <LibCore/ImmutableBytes.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibTextCodec/Decoder.h>
@@ -456,16 +457,16 @@ void HTMLLinkElement::default_fetch_and_process_linked_resource(u64 fetch_genera
 
         // 1. Let success be true.
         bool success = true;
-        ByteBuffer successful_body_bytes;
+        Core::ImmutableBytes const* successful_body_bytes = nullptr;
 
         // 2. If either of the following conditions are met:
         // - bodyBytes is null or failure; or
         // - response's status is not an ok status,
         // then set success to false.
         body_bytes.visit(
-            [&](ByteBuffer& body_bytes) {
+            [&](Core::ImmutableBytes& body_bytes) {
                 if (Fetch::Infrastructure::is_ok_status(response->status()))
-                    successful_body_bytes = move(body_bytes);
+                    successful_body_bytes = &body_bytes;
                 else
                     success = false;
             },
@@ -474,7 +475,7 @@ void HTMLLinkElement::default_fetch_and_process_linked_resource(u64 fetch_genera
         // FIXME: 3. Otherwise, wait for the link resource's critical subresources to finish loading.
 
         // 4. Process the linked resource given el, success, response, and bodyBytes.
-        process_linked_resource(success, response, move(successful_body_bytes));
+        process_linked_resource(success, response, successful_body_bytes);
     };
 
     m_fetch_controller = Fetch::Fetching::fetch(realm(), *request, Fetch::Infrastructure::FetchAlgorithms::create(vm(), move(fetch_algorithms_input)));
@@ -780,12 +781,19 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, Function<void(Fetc
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#process-the-linked-resource
-void HTMLLinkElement::process_linked_resource(bool success, Fetch::Infrastructure::Response const& response, ByteBuffer body_bytes)
+void HTMLLinkElement::process_linked_resource(bool success, Fetch::Infrastructure::Response const& response, Core::ImmutableBytes const* body_bytes)
 {
-    if (m_relationship & Relationship::Icon)
-        process_icon_resource(success, response, move(body_bytes));
-    else if (m_relationship & Relationship::Stylesheet)
-        process_stylesheet_resource(success, response, move(body_bytes));
+    if (success)
+        VERIFY(body_bytes);
+
+    if (m_relationship & Relationship::Icon) {
+        ByteBuffer icon_bytes;
+        if (success)
+            icon_bytes = body_bytes->copy_to_byte_buffer().release_value_but_fixme_should_propagate_errors();
+        process_icon_resource(success, response, move(icon_bytes));
+    } else if (m_relationship & Relationship::Stylesheet) {
+        process_stylesheet_resource(success, response, success ? body_bytes->bytes() : ReadonlyBytes {});
+    }
 }
 
 // AD-HOC: The spec is underspecified for fetching and processing rel="icon" See:
@@ -800,7 +808,7 @@ void HTMLLinkElement::process_icon_resource(bool success, Fetch::Infrastructure:
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#link-type-stylesheet:process-the-linked-resource
-void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const& response, ByteBuffer body_bytes)
+void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const& response, ReadonlyBytes body_bytes)
 {
     if (!document().is_fully_active())
         return;
