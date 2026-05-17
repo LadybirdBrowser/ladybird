@@ -251,9 +251,6 @@ public:
         return m_length->absolute_length_to_px();
     }
 
-    bool is_font_relative() const { return m_length.has_value() && m_length->is_font_relative(); }
-    bool is_computationally_independent() const { return !m_length.has_value() || m_length->is_computationally_independent(); }
-
     bool operator==(LengthOrAuto const&) const = default;
 
 private:
