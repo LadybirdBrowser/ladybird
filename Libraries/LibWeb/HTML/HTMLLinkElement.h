@@ -164,9 +164,9 @@ private:
     void preconnect(LinkProcessingOptions const&);
     void preload(LinkProcessingOptions&, Function<void(Fetch::Infrastructure::Response&)> process_response = {});
 
-    void process_linked_resource(bool success, Fetch::Infrastructure::Response const&, ByteBuffer);
+    void process_linked_resource(bool success, Fetch::Infrastructure::Response const&, Core::ImmutableBytes const*);
     void process_icon_resource(bool success, Fetch::Infrastructure::Response const&, ByteBuffer);
-    void process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const&, ByteBuffer);
+    void process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const&, ReadonlyBytes);
 
     bool should_fetch_and_process_resource_type() const;
 
