@@ -222,23 +222,28 @@ def modify_sources(files, resources: list[ResourceAndType]) -> None:
         parent_folder_count = len(Path(non_prefixed_path).parent.parts) - 1
         parent_folder_path = "../" * parent_folder_count
 
-        with open(file, "r") as f:
+        # Open the file in binary mode. Some WPT test files (e.g,
+        # encoding-detection tests) are intentionally stored in a legacy
+        # encoding rather than UTF-8. We only rewrite ASCII path references
+        # below, so byte-level replacements preserve the original encoding of
+        # the non-ASCII content.
+        with open(file, "rb") as f:
             page_source = f.read()
 
         # Iterate all scripts and overwrite the src attribute
         for resource in map(lambda r: r.resource, resources):
             if resource.startswith("/"):
                 new_src_value = parent_folder_path + resource[1::]
-                page_source = page_source.replace(resource, new_src_value)
+                page_source = page_source.replace(resource.encode(), new_src_value.encode())
 
         # Look for mentions of the reference page, and update their href
         if raw_reference_path is not None:
             assert reference_path is not None
             new_reference_path = parent_folder_path + "../../expected/wpt-import/" + reference_path[::]
-            page_source = page_source.replace(raw_reference_path, new_reference_path)
+            page_source = page_source.replace(raw_reference_path.encode(), new_reference_path.encode())
 
-        with open(file, "w") as f:
-            f.write(str(page_source))
+        with open(file, "wb") as f:
+            f.write(page_source)
 
 
 def normalize_url(url):
@@ -359,7 +364,10 @@ def main():
     resource_path = "/".join(Path(url_to_import).parts[2::])
 
     with urlopen(url_to_import) as response:
-        page = response.read().decode("utf-8")
+        # Some WPT test files (e.g. `encoding-detection` tests) are intentionally stored in a
+        # legacy encoding rather than UTF-8. We only parse the ASCII tag structure here, so
+        # replacing undecodable bytes with U+FFFD is safe and avoids a UnicodeDecodeError.
+        page = response.read().decode("utf-8", errors="replace")
 
     global test_type, reference_path, raw_reference_path
     if is_crash_test(url_to_import):
@@ -407,7 +415,10 @@ def main():
     expected_parser = LinkedResourceFinder()
     for path in main_paths[1:]:
         with urlopen(path.source) as response:
-            page = response.read().decode("utf-8")
+            # Some WPT test files (e.g. `encoding-detection` tests) are intentionally stored in a
+            # legacy encoding rather than UTF-8. We only parse the ASCII tag structure here, so
+            # replacing undecodable bytes with U+FFFD is safe and avoids a UnicodeDecodeError.
+            page = response.read().decode("utf-8", errors="replace")
             expected_parser.feed(page)
     additional_resources.extend(
         list(map(lambda s: ResourceAndType(s, ResourceType.EXPECTED), expected_parser.resources))
