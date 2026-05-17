@@ -412,7 +412,7 @@ AvailableData PlaybackManager::available_data()
 
 TimeRanges PlaybackManager::buffered_time_ranges() const
 {
-    TimeRanges intersection;
+    TimeRanges intersection { { AK::Duration::zero(), m_duration } };
 
     auto intersect_ranges = [&](auto const& track_datas) {
         for (auto const& track_data : track_datas) {
@@ -420,10 +420,6 @@ TimeRanges PlaybackManager::buffered_time_ranges() const
                 continue;
 
             auto range = track_data.producer->buffered_time_ranges();
-            if (intersection.is_empty()) {
-                intersection = range;
-                continue;
-            }
             intersection = intersection.intersection(range);
         }
     };
