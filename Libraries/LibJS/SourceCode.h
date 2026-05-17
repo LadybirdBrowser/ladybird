@@ -20,7 +20,6 @@ namespace JS {
 class JS_API SourceCode : public RefCounted<SourceCode> {
 public:
     static NonnullRefPtr<SourceCode const> create(String filename, Utf16String code);
-    static NonnullRefPtr<SourceCode const> create(String filename, String code);
     static NonnullRefPtr<SourceCode const> create(String filename, size_t length_in_code_units, String source_encoding, Core::ImmutableBytes source_bytes);
 
     String const& filename() const { return m_filename; }
@@ -35,14 +34,12 @@ public:
 
 private:
     SourceCode(String filename, Utf16String code);
-    SourceCode(String filename, String code);
     SourceCode(String filename, size_t length_in_code_units, String source_encoding, Core::ImmutableBytes source_bytes);
     void ensure_code() const;
     Utf16String decode_source_range(size_t start_offset, size_t length) const;
 
     String m_filename;
     Optional<Utf16String> mutable m_code;
-    Optional<String> mutable m_utf8_code;
     String m_source_encoding;
     Core::ImmutableBytes mutable m_source_bytes;
     Utf16View mutable m_code_view;
