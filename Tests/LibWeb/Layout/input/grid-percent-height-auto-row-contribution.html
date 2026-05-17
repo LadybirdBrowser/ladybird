@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .grid {
+        display: grid;
+        grid-template-rows: max-content;
+        row-gap: 20px;
+        align-items: start;
+        width: 120px;
+        height: 300px;
+    }
+
+    .label {
+        height: 10px;
+        background: crimson;
+    }
+
+    .item {
+        height: 100%;
+        background: royalblue;
+    }
+
+    .content {
+        height: 30px;
+    }
+</style>
+<div class="grid">
+    <div class="label"></div>
+    <div class="item"><div class="content"></div></div>
+    <div class="item"><div class="content"></div></div>
+</div>
