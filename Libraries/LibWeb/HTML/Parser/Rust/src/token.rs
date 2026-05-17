@@ -27,6 +27,17 @@ pub struct Attribute {
     pub value_end_position: Position,
 }
 
+impl Attribute {
+    #[inline(always)]
+    pub fn local_name_bytes(&self) -> &[u8] {
+        if self.local_name_id != 0 {
+            crate::interned_names::attr_name_by_id(self.local_name_id).unwrap_or_default()
+        } else {
+            self.local_name.as_bytes()
+        }
+    }
+}
+
 /// Data specific to DOCTYPE tokens.
 #[derive(Clone, Debug, Default)]
 pub struct DoctypeData {
@@ -209,9 +220,8 @@ impl Token {
 
         let mut i = 0;
         while i < attributes.len() {
-            let is_duplicate = (0..i).any(|seen_index| {
-                attribute_local_name_bytes(&attributes[seen_index]) == attribute_local_name_bytes(&attributes[i])
-            });
+            let is_duplicate =
+                (0..i).any(|seen_index| attributes[seen_index].local_name_bytes() == attributes[i].local_name_bytes());
             if is_duplicate {
                 *had_duplicate_attribute = true;
                 attributes.remove(i);
@@ -235,13 +245,5 @@ impl Token {
             TokenPayload::Doctype(dd) => dd,
             _ => panic!("doctype_data_mut called on non-doctype token"),
         }
-    }
-}
-
-fn attribute_local_name_bytes(attribute: &Attribute) -> &[u8] {
-    if attribute.local_name_id != 0 {
-        crate::interned_names::attr_name_by_id(attribute.local_name_id).unwrap_or_default()
-    } else {
-        attribute.local_name.as_bytes()
     }
 }

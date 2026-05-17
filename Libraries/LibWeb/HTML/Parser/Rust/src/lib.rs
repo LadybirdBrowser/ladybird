@@ -7,6 +7,7 @@
 pub mod entities;
 pub mod interned_names;
 pub mod parser;
+pub mod preload_scanner;
 pub mod token;
 pub mod tokenizer;
 

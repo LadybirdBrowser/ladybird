@@ -5,7 +5,6 @@
  */
 
 use crate::RustFfiTokenizerHandle;
-use crate::interned_names;
 use crate::token::{Token, TokenPayload, TokenType};
 use crate::tokenizer::{HtmlTokenizer, State};
 use std::ffi::c_void;
@@ -3311,11 +3310,7 @@ impl TreeBuilder {
             return;
         };
         for attribute in attributes {
-            let local_name = if attribute.local_name_id != 0 {
-                interned_names::attr_name_by_id(attribute.local_name_id).unwrap_or_default()
-            } else {
-                attribute.local_name.as_bytes()
-            };
+            let local_name = attribute.local_name_bytes();
             unsafe {
                 ladybird_html_parser_add_missing_attribute(
                     element,
@@ -4064,14 +4059,7 @@ fn owned_attributes_from_token(token: &Token, namespace_: RustFfiHtmlNamespace) 
 
     let mut attributes = Vec::with_capacity(token_attributes.len());
     for attribute in token_attributes {
-        let local_name = if attribute.local_name_id != 0 {
-            interned_names::attr_name_by_id(attribute.local_name_id)
-                .unwrap_or_default()
-                .to_vec()
-        } else {
-            attribute.local_name.as_bytes().to_vec()
-        };
-        let adjusted_name = adjusted_foreign_attribute_name(&local_name, namespace_);
+        let adjusted_name = adjusted_foreign_attribute_name(attribute.local_name_bytes(), namespace_);
         attributes.push(OwnedAttribute {
             local_name: adjusted_name.local_name,
             prefix: adjusted_name.prefix.map(ToOwned::to_owned),
@@ -4201,14 +4189,7 @@ fn attributes_from_token(
     attributes.reserve(token_attributes.len());
 
     for attribute in token_attributes {
-        let local_name = if attribute.local_name_id != 0 {
-            interned_names::attr_name_by_id(attribute.local_name_id)
-                .unwrap_or_default()
-                .to_vec()
-        } else {
-            attribute.local_name.as_bytes().to_vec()
-        };
-        let adjusted_name = adjusted_foreign_attribute_name(&local_name, namespace_);
+        let adjusted_name = adjusted_foreign_attribute_name(attribute.local_name_bytes(), namespace_);
         storage
             .local_name_bytes
             .push(adjusted_name.local_name.as_bytes().to_vec());
@@ -4762,12 +4743,7 @@ impl TokenExt for Token {
             return None;
         };
         attributes.iter().find_map(|attribute| {
-            let local_name = if attribute.local_name_id != 0 {
-                std::str::from_utf8(interned_names::attr_name_by_id(attribute.local_name_id)?).ok()?
-            } else {
-                attribute.local_name.as_str()
-            };
-            if local_name == name {
+            if attribute.local_name_bytes() == name.as_bytes() {
                 Some(attribute.value.as_str())
             } else {
                 None
