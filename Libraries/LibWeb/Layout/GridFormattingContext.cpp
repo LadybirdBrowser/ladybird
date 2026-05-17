@@ -2509,6 +2509,24 @@ CSSPixels GridFormattingContext::calculate_grid_container_maximum_size(GridDimen
     return calculate_inner_height(grid_container(), m_available_space.value(), computed_values.max_height());
 }
 
+bool GridFormattingContext::should_treat_preferred_size_as_auto_for_intrinsic_contribution(GridItem const& item, GridDimension dimension) const
+{
+    auto available_space_for_item = item.available_space();
+    auto should_treat_preferred_size_as_auto = [&] {
+        if (dimension == GridDimension::Column)
+            return should_treat_width_as_auto(item.box, available_space_for_item);
+        return should_treat_height_as_auto(item.box, available_space_for_item);
+    }();
+    if (should_treat_preferred_size_as_auto)
+        return true;
+
+    // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
+    // When a non-replaced grid item's percentage preferred size contributes to
+    // sizing tracks in the same axis, the percentage is cyclic and behaves as
+    // the property's initial value for intrinsic contribution calculations.
+    return !item.box->is_replaced_box() && item.preferred_size(dimension).contains_percentage();
+}
+
 CSSPixels GridFormattingContext::calculate_min_content_size(GridItem const& item, GridDimension dimension) const
 {
     if (dimension == GridDimension::Column) {
@@ -2536,13 +2554,7 @@ CSSPixels GridFormattingContext::containing_block_size_for_item(GridItem const& 
 
 CSSPixels GridFormattingContext::calculate_min_content_contribution(GridItem const& item, GridDimension dimension) const
 {
-    auto available_space_for_item = item.available_space();
-
-    auto should_treat_preferred_size_as_auto = [&] {
-        if (dimension == GridDimension::Column)
-            return should_treat_width_as_auto(item.box, available_space_for_item);
-        return should_treat_height_as_auto(item.box, available_space_for_item);
-    }();
+    auto should_treat_preferred_size_as_auto = should_treat_preferred_size_as_auto_for_intrinsic_contribution(item, dimension);
 
     auto maximum_size = CSSPixels::max();
     if (auto const& css_maximum_size = item.maximum_size(dimension); css_maximum_size.is_length_percentage() && !css_maximum_size.contains_percentage())
@@ -2576,11 +2588,7 @@ CSSPixels GridFormattingContext::calculate_max_content_contribution(GridItem con
 {
     auto available_space_for_item = item.available_space();
 
-    auto should_treat_preferred_size_as_auto = [&] {
-        if (dimension == GridDimension::Column)
-            return should_treat_width_as_auto(item.box, available_space_for_item);
-        return should_treat_height_as_auto(item.box, available_space_for_item);
-    }();
+    auto should_treat_preferred_size_as_auto = should_treat_preferred_size_as_auto_for_intrinsic_contribution(item, dimension);
 
     auto maximum_size = CSSPixels::max();
     if (auto const& css_maximum_size = item.maximum_size(dimension); css_maximum_size.is_length_percentage() && !css_maximum_size.contains_percentage())
@@ -2711,6 +2719,9 @@ Optional<CSSPixels> GridFormattingContext::specified_size_suggestion(GridItem co
     // https://www.w3.org/TR/css-grid-1/#specified-size-suggestion
     // If the item’s preferred size in the relevant axis is definite, then the specified size suggestion is that size.
     // It is otherwise undefined.
+    if (!item.box->is_replaced_box() && item.preferred_size(dimension).contains_percentage())
+        return {};
+
     auto has_definite_preferred_size = dimension == GridDimension::Column ? item.used_values.has_definite_width() : item.used_values.has_definite_height();
     if (has_definite_preferred_size) {
         // FIXME: consider margins, padding and borders because it is outer size.
@@ -2841,12 +2852,7 @@ CSSPixels GridFormattingContext::calculate_minimum_contribution(GridItem const& 
     // contribution is its min-content contribution. Because the minimum contribution often depends on
     // the size of the item’s content, it is considered a type of intrinsic size contribution.
 
-    auto preferred_size = item.preferred_size(dimension);
-    auto should_treat_preferred_size_as_auto = [&] {
-        if (dimension == GridDimension::Column)
-            return should_treat_width_as_auto(item.box, item.available_space());
-        return should_treat_height_as_auto(item.box, item.available_space());
-    }();
+    auto should_treat_preferred_size_as_auto = should_treat_preferred_size_as_auto_for_intrinsic_contribution(item, dimension);
 
     if (should_treat_preferred_size_as_auto) {
         auto minimum_size = item.minimum_size(dimension);

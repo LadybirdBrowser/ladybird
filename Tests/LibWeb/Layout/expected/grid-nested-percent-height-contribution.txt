@@ -7,15 +7,15 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         Box <div.table> at [0,0] [0+0+0 240 0+0+0] [0+0+0 333.328125 0+0+0] [GFC] children: not-inline
           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
             TextNode <#text> (not painted)
-          BlockContainer <div.card.first> at [0,0] [0+0+0 100 0+0+0] [0+0+0 333.328125 0+0+0] [BFC] children: not-inline
+          BlockContainer <div.card.first> at [0,0] [0+0+0 100 0+0+0] [0+0+0 80 0+0+0] [BFC] children: not-inline
             BlockContainer <div.content> at [0,0] [0+0+0 100 0+0+0] [0+0+0 80 0+0+0] children: not-inline
           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
             TextNode <#text> (not painted)
-          BlockContainer <div.card.second> at [0,353.328125] [0+0+0 100 0+0+0] [0+0+0 333.328125 0+0+0] [BFC] children: not-inline
-            BlockContainer <div.content> at [0,353.328125] [0+0+0 100 0+0+0] [0+0+0 40 0+0+0] children: not-inline
+          BlockContainer <div.card.second> at [0,100] [0+0+0 100 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
+            BlockContainer <div.content> at [0,100] [0+0+0 100 0+0+0] [0+0+0 40 0+0+0] children: not-inline
           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
             TextNode <#text> (not painted)
-          BlockContainer <div.image> at [120,0] [0+0+0 100 0+0+0] [0+0+0 320 0+0+386.65625] [BFC] children: not-inline
+          BlockContainer <div.image> at [120,0] [0+0+0 100 0+0+0] [0+0+0 320 0+0+13.328125] [BFC] children: not-inline
           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
             TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
@@ -26,15 +26,15 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <(anonymous)> at [0,383.328125] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x686.65625]
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x383.328125]
     PaintableWithLines (BlockContainer<BODY>) [0,0 800x383.328125]
       PaintableBox (Box<DIV>.parent) [0,0 240x383.328125]
         PaintableBox (Box<DIV>.table) [0,0 240x333.328125]
-          PaintableWithLines (BlockContainer<DIV>.card.first) [0,0 100x333.328125]
+          PaintableWithLines (BlockContainer<DIV>.card.first) [0,0 100x80]
             PaintableWithLines (BlockContainer<DIV>.content) [0,0 100x80]
-          PaintableWithLines (BlockContainer<DIV>.card.second) [0,353.328125 100x333.328125]
-            PaintableWithLines (BlockContainer<DIV>.content) [0,353.328125 100x40]
+          PaintableWithLines (BlockContainer<DIV>.card.second) [0,100 100x40]
+            PaintableWithLines (BlockContainer<DIV>.content) [0,100 100x40]
           PaintableWithLines (BlockContainer<DIV>.image) [120,0 100x320]
         PaintableWithLines (BlockContainer<DIV>.next) [0,353.328125 240x30]
       PaintableWithLines (BlockContainer(anonymous)) [0,383.328125 800x0]
