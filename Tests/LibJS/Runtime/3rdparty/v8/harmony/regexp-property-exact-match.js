@@ -5,11 +5,11 @@
 // V8 assertion compatibility shim for Ladybird's test-js harness
 
 function assertEquals(expected, actual, msg) {
-    if (expected instanceof RegExp && actual instanceof RegExp) {
+    if (Array.isArray(expected) && Array.isArray(actual)) {
+        expect(actual).toEqual(expected);
+    } else if (expected instanceof RegExp && actual instanceof RegExp) {
         expect(actual.source).toBe(expected.source);
         expect(actual.flags).toBe(expected.flags);
-    } else if (Array.isArray(expected) && Array.isArray(actual)) {
-        expect(actual).toEqual(expected);
     } else if (expected !== null && typeof expected === "object" && actual !== null && typeof actual === "object") {
         expect(actual).toEqual(expected);
     } else {
@@ -35,17 +35,18 @@ function assertNotNull(val, msg) {
 
 function assertThrows(fn, type_opt, msg_opt) {
     if (typeof fn === "string") {
-        try {
-            fn = new Function(fn);
-        } catch (e) {
-            return;
-        }
+        expect(() => eval(fn)).toThrow();
+    } else {
+        expect(fn).toThrow();
     }
-    expect(fn).toThrow();
 }
 
 function assertDoesNotThrow(fn, msg) {
-    fn();
+    if (typeof fn === "string") {
+        eval(fn);
+    } else {
+        fn();
+    }
 }
 
 function assertInstanceof(val, type, msg) {
@@ -69,7 +70,7 @@ function assertArrayEquals(expected, actual) {
     expect(actual).toEqual(expected);
 }
 
-test.xfail("harmony/regexp-property-exact-match", () => {
+test("harmony/regexp-property-exact-match", () => {
     assertThrows("/\\p{In CJK}/u");
     assertThrows("/\\p{InCJKUnifiedIdeographs}/u");
     assertThrows("/\\p{InCJK}/u");
