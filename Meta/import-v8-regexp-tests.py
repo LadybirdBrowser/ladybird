@@ -19,6 +19,9 @@ V8_COMPAT_SHIM = """\
 function assertEquals(expected, actual, msg) {
     if (Array.isArray(expected) && Array.isArray(actual)) {
         expect(actual).toEqual(expected);
+    } else if (expected instanceof RegExp && actual instanceof RegExp) {
+        expect(actual.source).toBe(expected.source);
+        expect(actual.flags).toBe(expected.flags);
     } else if (expected !== null && typeof expected === "object" && actual !== null && typeof actual === "object") {
         expect(actual).toEqual(expected);
     } else {
@@ -43,11 +46,19 @@ function assertNotNull(val, msg) {
 }
 
 function assertThrows(fn, type_opt, msg_opt) {
-    expect(fn).toThrow();
+    if (typeof fn === "string") {
+        expect(() => eval(fn)).toThrow();
+    } else {
+        expect(fn).toThrow();
+    }
 }
 
 function assertDoesNotThrow(fn, msg) {
-    fn();
+    if (typeof fn === "string") {
+        eval(fn);
+    } else {
+        fn();
+    }
 }
 
 function assertInstanceof(val, type, msg) {
@@ -90,8 +101,11 @@ SKIP_FILES = {
     # parse errors in other engines.
     "regexp-14098.js",
     "regexp-444637793.js",
-    # Uses regex literal syntax that triggers parse errors in our engine.
-    "regexp-unicode-sets.js",
+    # Tests V8-specific error message wording ("incompatible receiver"), we correctly throw but use different message.
+    "es6/regexp-tostring.js",
+    # Tests V8's non-i18n build behavior. Spec-compliant engines (including ours) behave differently - we correctly
+    # case-fold all cases.
+    "es6/unicode-regexp-ignore-case-noi18n.js",
     # Multi-file dependency (lu-ui0..9 depend on testCodePointRange from lu-ui).
     "harmony/regexp-property-lu-ui0.js",
     "harmony/regexp-property-lu-ui1.js",
@@ -106,37 +120,11 @@ SKIP_FILES = {
 }
 
 # Tests that crash or hang -- use test.skip() so they don't block the suite.
-SKIP_TESTS = {
-    # Hangs: catastrophic backtracking tests that rely on V8-specific
-    # optimizations to terminate in reasonable time.
-    "regexp-capture-3",
-    # Crashes (SIGSEGV).
-    "regexp-capture",
-}
+SKIP_TESTS = {}
 
 # Tests that fail but should be tracked -- use test.xfail() so we notice
 # when they start passing.
-XFAIL_TESTS = {
-    "es6/regexp-constructor",
-    "es6/regexp-tostring",
-    "es6/unicode-escapes-in-regexps",
-    "es6/unicode-regexp-backrefs",
-    "es6/unicode-regexp-ignore-case-noi18n",
-    "es6/unicode-regexp-restricted-syntax",
-    "es6/unicode-regexp-zero-length",
-    "regexp-duplicate-named-groups",
-    "regexp-lookahead",
-    "regexp-multiline",
-    "regexp-sort",
-    "regexp-UC16",
-    "harmony/regexp-property-binary",
-    "harmony/regexp-property-char-class",
-    "harmony/regexp-property-enumerated",
-    "harmony/regexp-property-exact-match",
-    "harmony/regexp-property-general-category",
-    "harmony/regexp-property-invalid",
-    "harmony/regexp-property-special",
-}
+XFAIL_TESTS = {}
 
 
 def should_skip(content):
