@@ -225,12 +225,12 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
     auto const padding_right = computed_values.padding().right().resolved_or_auto(available_width_px);
 
     auto& box_state = m_state.get_mutable(box);
-    box_state.margin_left = margin_left.to_px_or_zero(box);
-    box_state.margin_right = margin_right.to_px_or_zero(box);
+    box_state.margin_left = margin_left.to_px_or_zero();
+    box_state.margin_right = margin_right.to_px_or_zero();
     box_state.border_left = computed_values.border_left().width;
     box_state.border_right = computed_values.border_right().width;
-    box_state.padding_left = padding_left.to_px_or_zero(box);
-    box_state.padding_right = padding_right.to_px_or_zero(box);
+    box_state.padding_left = padding_left.to_px_or_zero();
+    box_state.padding_right = padding_right.to_px_or_zero();
 
     // NOTE: If we are calculating the min-content or max-content width of this box,
     //       and the width should be treated as auto, then we can simply return here,
@@ -247,7 +247,7 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
         margin_right = computed_values.margin().right().resolved_or_auto(available_space.width.to_px_or_zero());
         CSSPixels total_px = computed_values.border_left().width + computed_values.border_right().width;
         for (auto& value : { CSS::LengthOrAuto(margin_left), CSS::LengthOrAuto(padding_left), width, CSS::LengthOrAuto(padding_right), CSS::LengthOrAuto(margin_right) })
-            total_px += value.to_px_or_zero(box);
+            total_px += value.to_px_or_zero();
 
         if (!box.is_inline()) {
             // 10.3.3 Block-level, non-replaced elements in normal flow
@@ -290,7 +290,7 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
                 }
             } else {
                 if (!margin_left.is_auto() && !margin_right.is_auto()) {
-                    margin_right = CSS::Length::make_px(margin_right.to_px_or_zero(box) + underflow_px);
+                    margin_right = CSS::Length::make_px(margin_right.to_px_or_zero() + underflow_px);
                 } else if (!margin_left.is_auto() && margin_right.is_auto()) {
                     margin_right = CSS::Length::make_px(underflow_px);
                 } else if (margin_left.is_auto() && !margin_right.is_auto()) {
@@ -334,7 +334,7 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
     //    but this time using the computed value of 'max-width' as the computed value for 'width'.
     if (!should_treat_max_width_as_none(box, available_space.width)) {
         auto max_width = calculate_inner_width(box, available_space.width, computed_values.max_width());
-        if (used_width.to_px_or_zero(box) > max_width)
+        if (used_width.to_px_or_zero() > max_width)
             used_width = try_compute_width(CSS::Length::make_px(max_width));
     }
 
@@ -342,15 +342,15 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
     //    but this time using the value of 'min-width' as the computed value for 'width'.
     if (!computed_values.min_width().is_auto() && !used_width.is_auto()) {
         auto min_width = calculate_inner_width(box, available_space.width, computed_values.min_width());
-        if (used_width.to_px_or_zero(box) < min_width)
+        if (used_width.to_px_or_zero() < min_width)
             used_width = try_compute_width(CSS::Length::make_px(min_width));
     }
 
     if (!box_is_sized_as_replaced_element(box, available_space) && !used_width.is_auto())
-        box_state.set_content_width(used_width.to_px_or_zero(box));
+        box_state.set_content_width(used_width.to_px_or_zero());
 
-    box_state.margin_left = margin_left.to_px_or_zero(box);
-    box_state.margin_right = margin_right.to_px_or_zero(box);
+    box_state.margin_left = margin_left.to_px_or_zero();
+    box_state.margin_right = margin_right.to_px_or_zero();
 }
 
 void BlockFormattingContext::avoid_float_intrusions(Box const& box, AvailableSpace const& available_space)
@@ -454,7 +454,7 @@ void BlockFormattingContext::compute_width_for_floating_box(Box const& box, Avai
     //    but this time using the computed value of 'max-width' as the computed value for 'width'.
     if (!should_treat_max_width_as_none(box, available_space.width)) {
         auto max_width = calculate_inner_width(box, available_space.width, computed_values.max_width());
-        if (width.to_px_or_zero(box) > max_width)
+        if (width.to_px_or_zero() > max_width)
             width = compute_width(CSS::Length::make_px(max_width));
     }
 
@@ -462,11 +462,11 @@ void BlockFormattingContext::compute_width_for_floating_box(Box const& box, Avai
     //    but this time using the value of 'min-width' as the computed value for 'width'.
     if (!computed_values.min_width().is_auto()) {
         auto min_width = calculate_inner_width(box, available_space.width, computed_values.min_width());
-        if (width.to_px_or_zero(box) < min_width)
+        if (width.to_px_or_zero() < min_width)
             width = compute_width(CSS::Length::make_px(min_width));
     }
 
-    box_state.set_content_width(width.to_px_or_zero(box));
+    box_state.set_content_width(width.to_px_or_zero());
 }
 
 void BlockFormattingContext::compute_width_for_block_level_replaced_element_in_normal_flow(Box const& box, AvailableSpace const& available_space)
