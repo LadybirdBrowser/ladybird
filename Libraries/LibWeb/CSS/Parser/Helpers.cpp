@@ -150,7 +150,7 @@ Vector<CSS::Parser::ComponentValue> parse_component_values_list(CSS::Parser::Par
 }
 
 // https://drafts.csswg.org/css-syntax/#css-decode-bytes
-ErrorOr<String> css_decode_bytes(Optional<StringView> const& environment_encoding, Optional<String> mime_type_charset, ByteBuffer const& encoded_string)
+ErrorOr<String> css_decode_bytes(Optional<StringView> const& environment_encoding, Optional<String> mime_type_charset, ReadonlyBytes encoded_string)
 {
     // https://drafts.csswg.org/css-syntax/#determine-the-fallback-encoding
     auto determine_the_fallback_encoding = [&mime_type_charset, &environment_encoding, &encoded_string]() -> StringView {
@@ -172,7 +172,7 @@ ErrorOr<String> css_decode_bytes(Optional<StringView> const& environment_encodin
             if (scan_length < pattern_start.length())
                 return {};
 
-            StringView buffer_view = encoded_string.bytes().slice(0, scan_length);
+            StringView buffer_view = encoded_string.slice(0, scan_length);
             if (!buffer_view.starts_with(pattern_start))
                 return {};
 

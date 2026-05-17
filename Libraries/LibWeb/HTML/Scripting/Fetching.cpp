@@ -100,6 +100,16 @@ static Optional<BytecodeCacheContext> bytecode_cache_context_for_request(Fetch::
     };
 }
 
+static ReadonlyBytes body_bytes_view(Fetch::Infrastructure::FetchAlgorithms::BodyBytes const& body_bytes)
+{
+    return body_bytes.get<Core::ImmutableBytes>().bytes();
+}
+
+static ByteBuffer take_body_bytes_as_byte_buffer(Fetch::Infrastructure::FetchAlgorithms::BodyBytes& body_bytes)
+{
+    return body_bytes.get<Core::ImmutableBytes>().copy_to_byte_buffer().release_value_but_fixme_should_propagate_errors();
+}
+
 // Schedule a fresh, fully off-thread compile of the script source for the sole purpose of producing a bytecode cache
 // blob to hand to RequestServer. The execution path has already received its (latency-trimmed) compile artifact and is
 // running, so this work happens entirely on a background thread and never blocks the main thread on cache generation.
@@ -606,7 +616,7 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
         auto fallback_decoder = TextCodec::decoder_for(extracted_character_encoding);
         VERIFY(fallback_decoder.has_value());
 
-        auto source_text = TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*fallback_decoder, body_bytes.template get<ByteBuffer>()).release_value_but_fixme_should_propagate_errors();
+        auto source_text = TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*fallback_decoder, body_bytes_view(body_bytes)).release_value_but_fixme_should_propagate_errors();
 
         // 6. Let muted errors be true if response was CORS-cross-origin, and false otherwise.
         auto muted_errors = response->is_cors_cross_origin() ? ClassicScript::MutedErrors::Yes : ClassicScript::MutedErrors::No;
@@ -722,7 +732,7 @@ WebIDL::ExceptionOr<void> fetch_classic_worker_script(URL::URL const& url, Envir
         // 4. Let sourceText be the result of UTF-8 decoding bodyBytes.
         auto decoder = TextCodec::decoder_for("UTF-8"sv);
         VERIFY(decoder.has_value());
-        auto source_text = TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, body_bytes.template get<ByteBuffer>()).release_value_but_fixme_should_propagate_errors();
+        auto source_text = TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, body_bytes_view(body_bytes)).release_value_but_fixme_should_propagate_errors();
 
         // 5. Let script be the result of creating a classic script using sourceText, settingsObject,
         //    response's URL, and the default classic script fetch options.
@@ -812,7 +822,7 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
     // 8. Let sourceText be the result of UTF-8 decoding bodyBytes.
     auto decoder = TextCodec::decoder_for("UTF-8"sv);
     VERIFY(decoder.has_value());
-    auto source_text = TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, body_bytes.get<ByteBuffer>()).release_value_but_fixme_should_propagate_errors();
+    auto source_text = TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, body_bytes_view(body_bytes)).release_value_but_fixme_should_propagate_errors();
 
     // 9. Let mutedErrors be true if response was CORS-cross-origin, and false otherwise.
     auto muted_errors = response->is_cors_cross_origin() ? ClassicScript::MutedErrors::Yes : ClassicScript::MutedErrors::No;
@@ -988,7 +998,7 @@ void fetch_single_module_script(JS::Realm& realm,
         //     options.
         // FIXME: Pass options.
         if (mime_type.has_value() && mime_type->essence() == "application/wasm"sv && module_type == "javascript-or-wasm") {
-            module_script = ModuleScript::create_a_webassembly_module_script(url.to_byte_string(), body_bytes.get<ByteBuffer>(), settings_object, response->url().value_or({})).release_value_but_fixme_should_propagate_errors();
+            module_script = ModuleScript::create_a_webassembly_module_script(url.to_byte_string(), take_body_bytes_as_byte_buffer(body_bytes), settings_object, response->url().value_or({})).release_value_but_fixme_should_propagate_errors();
         }
 
         // 7. Otherwise
@@ -996,7 +1006,7 @@ void fetch_single_module_script(JS::Realm& realm,
             // 1. Let sourceText be the result of UTF-8 decoding bodyBytes.
             auto decoder = TextCodec::decoder_for("UTF-8"sv);
             VERIFY(decoder.has_value());
-            auto source_text = TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, body_bytes.get<ByteBuffer>()).release_value_but_fixme_should_propagate_errors();
+            auto source_text = TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, body_bytes_view(body_bytes)).release_value_but_fixme_should_propagate_errors();
 
             // 2. If mimeType is a JavaScript MIME type and moduleType is "javascript-or-wasm", then set moduleScript to
             //    the result of creating a JavaScript module script given sourceText, moduleMapRealm, response's URL,

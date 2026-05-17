@@ -893,15 +893,15 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
         IGNORE_USE_IN_ESCAPING_LAMBDA bool processed_response = false;
 
         // 2. Let processResponseConsumeBody, given a response and nullOrFailureOrBytes, be these steps:
-        auto process_response_consume_body = [this, &processed_response](GC::Ref<Fetch::Infrastructure::Response> response, Variant<Empty, Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag, ByteBuffer> null_or_failure_or_bytes) {
+        auto process_response_consume_body = [this, &processed_response](GC::Ref<Fetch::Infrastructure::Response> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes null_or_failure_or_bytes) {
             // 1. If nullOrFailureOrBytes is not failure, then set this’s response to response.
             if (!null_or_failure_or_bytes.has<Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag>())
                 m_response = response;
 
             // 2. If nullOrFailureOrBytes is a byte sequence, then append nullOrFailureOrBytes to this’s received bytes.
-            if (null_or_failure_or_bytes.has<ByteBuffer>()) {
+            if (null_or_failure_or_bytes.has<Core::ImmutableBytes>()) {
                 // NOTE: We are not in a context where we can throw if this fails due to OOM.
-                m_received_bytes.append(null_or_failure_or_bytes.get<ByteBuffer>());
+                m_received_bytes.append(null_or_failure_or_bytes.get<Core::ImmutableBytes>().bytes());
             }
 
             // 3. Set processedResponse to true.

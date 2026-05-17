@@ -140,8 +140,8 @@ void FontLoader::start_loading_next_url()
             // 1. If stream is null, return.
             // 2. Load a font from stream according to its type.
 
-            auto* bytes = stream.template get_pointer<ByteBuffer>();
-            if (!bytes) {
+            auto* immutable_bytes = stream.template get_pointer<Core::ImmutableBytes>();
+            if (!immutable_bytes) {
                 if (loader->m_urls.is_empty()) {
                     loader->font_did_load_or_fail(nullptr);
                 } else {
@@ -150,10 +150,11 @@ void FontLoader::start_loading_next_url()
                 }
                 return;
             }
+            auto bytes = immutable_bytes->copy_to_byte_buffer().release_value_but_fixme_should_propagate_errors();
 
-            auto mime_type_essence = loader->try_load_font_mime_type_essence(response, *bytes);
-            if (!requires_off_thread_vector_font_preparation(*bytes, mime_type_essence)) {
-                auto maybe_typeface = try_load_vector_font(*bytes, mime_type_essence);
+            auto mime_type_essence = loader->try_load_font_mime_type_essence(response, bytes);
+            if (!requires_off_thread_vector_font_preparation(bytes, mime_type_essence)) {
+                auto maybe_typeface = try_load_vector_font(bytes, mime_type_essence);
                 if (maybe_typeface.is_error()) {
                     if (loader->m_urls.is_empty()) {
                         loader->font_did_load_or_fail(nullptr);
@@ -169,7 +170,7 @@ void FontLoader::start_loading_next_url()
             }
 
             auto loader_handle = GC::make_root(GC::Ref(*loader));
-            prepare_vector_font_data_off_thread(move(*bytes), [loader = move(loader_handle)](auto prepared_font_data) mutable {
+            prepare_vector_font_data_off_thread(move(bytes), [loader = move(loader_handle)](auto prepared_font_data) mutable {
                 if (prepared_font_data.is_error()) {
                     // NB: If we have other sources available, try the next one.
                     if (loader->m_urls.is_empty()) {

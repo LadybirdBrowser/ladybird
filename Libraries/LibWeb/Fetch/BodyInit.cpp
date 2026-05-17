@@ -91,6 +91,11 @@ WebIDL::ExceptionOr<Infrastructure::BodyWithType> extract_body(JS::Realm& realm,
             source = MUST(ByteBuffer::copy(bytes));
             return {};
         },
+        [&](Core::ImmutableBytes const& bytes) -> WebIDL::ExceptionOr<void> {
+            // Set source to object.
+            source = bytes;
+            return {};
+        },
         [&](GC::Root<WebIDL::BufferSource> const& buffer_source) -> WebIDL::ExceptionOr<void> {
             // Set source to a copy of the bytes held by object.
             source = MUST(WebIDL::get_buffer_source_copy(*buffer_source->raw_object()));
@@ -140,6 +145,11 @@ WebIDL::ExceptionOr<Infrastructure::BodyWithType> extract_body(JS::Realm& realm,
             return move(source);
         };
         length = source.get<ByteBuffer>().size();
+    } else if (source.has<Core::ImmutableBytes>()) {
+        action = [source = source.get<Core::ImmutableBytes>()]() mutable {
+            return source.copy_to_byte_buffer().release_value_but_fixme_should_propagate_errors();
+        };
+        length = source.get<Core::ImmutableBytes>().size();
     }
 
     // 12. If action is non-null, then run these steps in parallel:
