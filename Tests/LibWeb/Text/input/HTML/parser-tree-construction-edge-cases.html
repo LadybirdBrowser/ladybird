@@ -61,15 +61,17 @@
         window.htmlFragmentScriptRan = false;
         range.selectNodeContents(document.body);
         fragment = range.createContextualFragment("<script>window.htmlFragmentScriptRan = true;<\/script>");
+        let htmlFragmentScriptRanBeforeAppend = window.htmlFragmentScriptRan;
         document.body.appendChild(fragment);
-        println(`HTML script from contextual fragment executes when applied: ${window.htmlFragmentScriptRan}`);
+        println(`HTML script from contextual fragment waits until applied: ${!htmlFragmentScriptRanBeforeAppend && window.htmlFragmentScriptRan}`);
         document.body.lastElementChild.remove();
 
         window.svgFragmentScriptRan = false;
         range.selectNodeContents(document.body);
         fragment = range.createContextualFragment("<svg><script>window.svgFragmentScriptRan = true;<\/script></svg>");
+        let svgFragmentScriptRanBeforeAppend = window.svgFragmentScriptRan;
         document.body.appendChild(fragment);
-        println(`SVG script from contextual fragment executes when applied: ${window.svgFragmentScriptRan}`);
+        println(`SVG script from contextual fragment waits until applied: ${!svgFragmentScriptRanBeforeAppend && window.svgFragmentScriptRan}`);
         document.body.lastElementChild.remove();
 
         let svgTitle = document.createElementNS(SVG_NS, "title");

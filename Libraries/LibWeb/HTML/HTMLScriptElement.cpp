@@ -201,11 +201,6 @@ void HTMLScriptElement::execute_script()
 // https://html.spec.whatwg.org/multipage/scripting.html#prepare-a-script
 void HTMLScriptElement::prepare_script()
 {
-    // AD-HOC: Don't prepare scripts while in the temporary document used for fragment parsing. They will be prepared
-    // when inserted into a real document, unless fragment parsing already marked them as already started.
-    if (document().is_temporary_document_for_fragment_parsing())
-        return;
-
     // 1. If el's already started is true, then return.
     if (m_already_started)
         return;

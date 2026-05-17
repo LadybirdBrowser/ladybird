@@ -8,8 +8,8 @@ custom namespace innerHTML child namespace: true
 template innerHTML starts in template mode for table rows: true
 form innerHTML uses context as form pointer: true
 annotation-xml contextual fragment child namespace: true
-HTML script from contextual fragment executes when applied: true
-SVG script from contextual fragment executes when applied: true
+HTML script from contextual fragment waits until applied: true
+SVG script from contextual fragment waits until applied: true
 SVG title innerHTML tokenizes in data state: true
 SVG title innerHTML treats title end tag as markup: true
 SVG title contextual fragment creates HTML child: true
