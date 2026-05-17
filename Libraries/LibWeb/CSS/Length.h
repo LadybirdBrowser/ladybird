@@ -213,6 +213,7 @@ private:
     double m_value { 0 };
 };
 
+// FIXME: This should be CSSPixelsOrAuto since it's only used after computation when lengths have been absolutized
 class LengthOrAuto {
 public:
     LengthOrAuto(Length length)
@@ -243,11 +244,11 @@ public:
         return builder.to_string_without_validation();
     }
 
-    CSSPixels to_px_or_zero(Layout::Node const& node) const
+    CSSPixels to_px_or_zero() const
     {
         if (is_auto())
             return 0;
-        return m_length->to_px(node);
+        return m_length->absolute_length_to_px();
     }
 
     bool is_font_relative() const { return m_length.has_value() && m_length->is_font_relative(); }

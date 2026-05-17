@@ -494,8 +494,8 @@ CSSPixels TableFormattingContext::compute_capmin()
         auto const& child_box = static_cast<Box const&>(*child);
         auto const& computed_values = child_box.computed_values();
 
-        auto margin_left = computed_values.margin().left().resolved_or_auto(width_of_table_wrapper_containing_block).to_px_or_zero(child_box);
-        auto margin_right = computed_values.margin().right().resolved_or_auto(width_of_table_wrapper_containing_block).to_px_or_zero(child_box);
+        auto margin_left = computed_values.margin().left().resolved_or_auto(width_of_table_wrapper_containing_block).to_px_or_zero();
+        auto margin_right = computed_values.margin().right().resolved_or_auto(width_of_table_wrapper_containing_block).to_px_or_zero();
         auto padding_left = computed_values.padding().left().to_px_or_zero(width_of_table_wrapper_containing_block);
         auto padding_right = computed_values.padding().right().to_px_or_zero(width_of_table_wrapper_containing_block);
         auto outer_size_for_inner_size = [&](CSSPixels inner_size) {
