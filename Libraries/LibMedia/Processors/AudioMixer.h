@@ -49,7 +49,8 @@ private:
         PipelineStatus last_status { PipelineStatus::Pending };
     };
 
-    void dispatch_state(PipelineStatus);
+    void dispatch_state_if_changed(PipelineStatus);
+    PipelineStatus combined_input_status() const;
     AK::Duration mix_head_timestamp() const;
 
     void disconnect_input_while_locked(NonnullRefPtr<AudioProducer> const&);
@@ -61,6 +62,7 @@ private:
     bool m_started { false };
 
     PipelineStateChangeHandler m_state_changed_handler;
+    PipelineStatus m_last_dispatched_status { PipelineStatus::Pending };
 };
 
 }

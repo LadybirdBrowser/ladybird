@@ -31,8 +31,15 @@ ErrorOr<void> AudioMixer::connect_input(NonnullRefPtr<AudioProducer> const& inpu
     Sync::MutexLocker locker { m_mutex };
     VERIFY(!m_inputs.contains(input));
     m_inputs.set(input, InputMixingData());
-    input->set_state_changed_handler([this](PipelineStatus status) {
-        dispatch_state(status);
+    input->set_state_changed_handler([this, input](PipelineStatus status) {
+        Sync::MutexLocker locker { m_mutex };
+        auto input_data = m_inputs.get(input);
+        if (!input_data.has_value())
+            return;
+        if (input_data->last_status == status)
+            return;
+        input_data->last_status = status;
+        dispatch_state_if_changed(combined_input_status());
     });
     if (m_sample_specification.is_valid()) {
         if (auto result = input->set_output_sample_specification(m_sample_specification); result.is_error()) {
@@ -57,7 +64,7 @@ void AudioMixer::disconnect_input_while_locked(NonnullRefPtr<AudioProducer> cons
 {
     input->set_state_changed_handler(nullptr);
     m_inputs.remove(input);
-    dispatch_state(PipelineStatus::EndOfStream);
+    dispatch_state_if_changed(combined_input_status());
 }
 
 ErrorOr<void> AudioMixer::set_output_sample_specification(Audio::SampleSpecification sample_specification)
@@ -119,11 +126,13 @@ void AudioMixer::seek(AK::Duration timestamp)
             input_data.current_block.clear();
             input_data.last_status = PipelineStatus::Pending;
         }
+
+        m_last_dispatched_status = PipelineStatus::Pending;
     }
 
     if (m_inputs.is_empty()) {
         Core::deferred_invoke([self = NonnullRefPtr(*this)] {
-            self->dispatch_state(PipelineStatus::EndOfStream);
+            self->dispatch_state_if_changed(PipelineStatus::EndOfStream);
         });
         return;
     }
@@ -137,10 +146,21 @@ void AudioMixer::set_state_changed_handler(PipelineStateChangeHandler handler)
     m_state_changed_handler = move(handler);
 }
 
-void AudioMixer::dispatch_state(PipelineStatus status)
+void AudioMixer::dispatch_state_if_changed(PipelineStatus status)
 {
+    if (m_last_dispatched_status == status)
+        return;
+    m_last_dispatched_status = status;
     if (m_state_changed_handler)
         m_state_changed_handler(status);
+}
+
+PipelineStatus AudioMixer::combined_input_status() const
+{
+    auto status = PipelineStatus::EndOfStream;
+    for (auto const& [input, input_data] : m_inputs)
+        status = select_combined_pipeline_status(status, input_data.last_status);
+    return status;
 }
 
 PipelineStatus AudioMixer::pull(AudioBlock& into)
