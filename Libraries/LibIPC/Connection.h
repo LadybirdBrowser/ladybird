@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <AK/Debug.h>
 #include <AK/Forward.h>
 #include <AK/Queue.h>
 #include <LibCore/EventReceiver.h>
@@ -69,6 +70,7 @@ public:
     template<typename RequestType, typename... Args>
     NonnullOwnPtr<typename RequestType::ResponseType> send_sync(Args&&... args)
     {
+        dbgln_if(IPC_DEBUG, "IPC::Connection({:p}) send_sync", this);
         MUST(post_message(RequestType(forward<Args>(args)...)));
         auto response = wait_for_specific_endpoint_message<typename RequestType::ResponseType, PeerEndpoint>();
         VERIFY(response);
@@ -78,6 +80,7 @@ public:
     template<typename RequestType, typename... Args>
     OwnPtr<typename RequestType::ResponseType> send_sync_but_allow_failure(Args&&... args)
     {
+        dbgln_if(IPC_DEBUG, "IPC::Connection({:p}) send_sync_but_allow_failure", this);
         if (post_message(RequestType(forward<Args>(args)...)).is_error())
             return nullptr;
         return wait_for_specific_endpoint_message<typename RequestType::ResponseType, PeerEndpoint>();

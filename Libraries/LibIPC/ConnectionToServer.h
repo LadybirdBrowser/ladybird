@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Debug.h>
 #include <LibIPC/Connection.h>
 
 namespace IPC {
@@ -27,6 +28,7 @@ public:
     virtual void die() override
     {
         // Override this function if you don't want your app to exit if it loses the connection.
+        dbgln_if(IPC_DEBUG, "IPC::ConnectionToServer({:p}) connection died, exiting with 0", this);
         exit(0);
     }
 };

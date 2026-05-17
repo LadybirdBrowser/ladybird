@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Debug.h>
 #include <AK/Vector.h>
 #include <LibIPC/Connection.h>
 #include <LibIPC/Message.h>
@@ -18,6 +19,7 @@ ConnectionBase::ConnectionBase(IPC::Stub& local_stub, NonnullOwnPtr<Transport> t
     , m_transport(move(transport))
     , m_local_endpoint_magic(local_endpoint_magic)
 {
+    dbgln_if(IPC_DEBUG, "IPC::ConnectionBase({:p}) created", this);
     m_transport->set_up_read_hook([this] {
         NonnullRefPtr protect = *this;
         drain_messages_from_peer();
@@ -25,7 +27,10 @@ ConnectionBase::ConnectionBase(IPC::Stub& local_stub, NonnullOwnPtr<Transport> t
     });
 }
 
-ConnectionBase::~ConnectionBase() = default;
+ConnectionBase::~ConnectionBase()
+{
+    dbgln_if(IPC_DEBUG, "IPC::ConnectionBase({:p}) destroyed", this);
+}
 
 bool ConnectionBase::is_open() const
 {
@@ -34,6 +39,7 @@ bool ConnectionBase::is_open() const
 
 ErrorOr<void> ConnectionBase::post_message(Message const& message)
 {
+    dbgln_if(IPC_DEBUG, "IPC::ConnectionBase({:p}) posting message {}", this, message.message_name());
     auto buffer = TRY(message.encode());
     return post_message(buffer);
 }
@@ -52,6 +58,7 @@ ErrorOr<void> ConnectionBase::post_message(MessageBuffer& buffer)
 
 void ConnectionBase::shutdown()
 {
+    dbgln_if(IPC_DEBUG, "IPC::ConnectionBase({:p}) shutting down", this);
     m_transport->close();
     die();
 }
@@ -71,6 +78,8 @@ void ConnectionBase::handle_messages()
 
         if (!is_open())
             dbgln("Handling message while connection closed: {}", message->message_name());
+
+        dbgln_if(IPC_DEBUG, "IPC::ConnectionBase({:p}) handling message {}", this, message->message_name());
 
         auto handler_result = m_local_stub.handle(move(message));
         if (handler_result.is_error()) {
@@ -98,6 +107,7 @@ ConnectionBase::PeerEOF ConnectionBase::drain_messages_from_peer()
     bool parse_error = false;
     auto schedule_shutdown = m_transport->read_as_many_messages_as_possible_without_blocking([&](auto&& raw_message) {
         if (auto message = try_parse_message(raw_message.bytes, raw_message.attachments)) {
+            dbgln_if(IPC_DEBUG, "IPC::ConnectionBase({:p}) drained message {}", this, message->message_name());
             m_unprocessed_messages.append(message.release_nonnull());
         } else {
             dbgln("Failed to parse IPC message {:hex-dump}", raw_message.bytes);
@@ -117,6 +127,7 @@ ConnectionBase::PeerEOF ConnectionBase::drain_messages_from_peer()
     }
 
     if (schedule_shutdown == Transport::ShouldShutdown::Yes) {
+        dbgln_if(IPC_DEBUG, "IPC::ConnectionBase({:p}) peer disconnected, shutting down", this);
         deferred_invoke([this] {
             shutdown();
         });

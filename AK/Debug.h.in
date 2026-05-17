@@ -138,6 +138,10 @@
 #    cmakedefine01 IMAGE_LOADER_DEBUG
 #endif
 
+#ifndef IPC_DEBUG
+#    cmakedefine01 IPC_DEBUG
+#endif
+
 #ifndef JS_BYTECODE_DEBUG
 #    cmakedefine01 JS_BYTECODE_DEBUG
 #endif
