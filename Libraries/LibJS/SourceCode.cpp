@@ -5,7 +5,6 @@
  */
 
 #include <AK/BinarySearch.h>
-#include <AK/Utf8View.h>
 #include <LibJS/SourceCode.h>
 #include <LibJS/SourceRange.h>
 #include <LibJS/Token.h>
@@ -13,20 +12,7 @@
 
 namespace JS {
 
-static size_t utf16_length_from_utf8(String const& code)
-{
-    size_t length = 0;
-    for (auto code_point : code.code_points())
-        length += code_point > 0xffff ? 2 : 1;
-    return length;
-}
-
 NonnullRefPtr<SourceCode const> SourceCode::create(String filename, Utf16String code)
-{
-    return adopt_ref(*new SourceCode(move(filename), move(code)));
-}
-
-NonnullRefPtr<SourceCode const> SourceCode::create(String filename, String code)
 {
     return adopt_ref(*new SourceCode(move(filename), move(code)));
 }
@@ -44,13 +30,6 @@ SourceCode::SourceCode(String filename, Utf16String code)
 {
 }
 
-SourceCode::SourceCode(String filename, String code)
-    : m_filename(move(filename))
-    , m_utf8_code(move(code))
-    , m_length_in_code_units(utf16_length_from_utf8(*m_utf8_code))
-{
-}
-
 SourceCode::SourceCode(String filename, size_t length_in_code_units, String source_encoding, Core::ImmutableBytes source_bytes)
     : m_filename(move(filename))
     , m_source_encoding(move(source_encoding))
@@ -64,13 +43,8 @@ void SourceCode::ensure_code() const
     if (m_code.has_value())
         return;
 
-    if (m_utf8_code.has_value()) {
-        m_code = Utf16String::from_utf8(*m_utf8_code);
-        m_utf8_code.clear();
-    } else {
-        m_code = decode_source_range(0, m_length_in_code_units);
-        m_source_bytes = {};
-    }
+    m_code = decode_source_range(0, m_length_in_code_units);
+    m_source_bytes = {};
     m_code_view = m_code->utf16_view();
 }
 
@@ -113,33 +87,8 @@ Utf16String SourceCode::source_text_from_offsets(size_t start_offset, size_t len
     if (m_source_bytes.is_valid())
         return decode_source_range(start_offset, length);
 
-    if (!m_utf8_code.has_value()) {
-        ensure_code();
-        return Utf16String::from_utf16(m_code->utf16_view().substring_view(start_offset, length));
-    }
-
-    if (m_utf8_code->is_ascii())
-        return Utf16String::from_utf8(m_utf8_code->bytes_as_string_view().substring_view(start_offset, length));
-
-    auto view = m_utf8_code->code_points();
-    Optional<size_t> start_byte_offset;
-    Optional<size_t> end_byte_offset;
-    size_t current_offset = 0;
-    for (auto it = view.begin(); it != view.end(); ++it) {
-        if (!start_byte_offset.has_value() && current_offset >= start_offset)
-            start_byte_offset = view.byte_offset_of(it);
-        if (!end_byte_offset.has_value() && current_offset >= start_offset + length) {
-            end_byte_offset = view.byte_offset_of(it);
-            break;
-        }
-        current_offset += *it > 0xffff ? 2 : 1;
-    }
-
-    auto source_byte_count = m_utf8_code->byte_count();
-    auto start = start_byte_offset.value_or(source_byte_count);
-    auto end = end_byte_offset.value_or(source_byte_count);
-    VERIFY(end >= start);
-    return Utf16String::from_utf8(m_utf8_code->bytes_as_string_view().substring_view(start, end - start));
+    ensure_code();
+    return Utf16String::from_utf16(m_code->utf16_view().substring_view(start_offset, length));
 }
 
 Utf16String SourceCode::decode_source_range(size_t start_offset, size_t length) const
