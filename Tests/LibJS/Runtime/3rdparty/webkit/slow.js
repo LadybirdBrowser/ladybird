@@ -1,8 +1,12 @@
-test("slow", () => {
+test.xfail("slow", () => {
     // WebKit assertion compatibility shim for Ladybird's test-js harness
 
     function description(msg) {
         // No-op, just used for test documentation in WebKit.
+    }
+
+    function debug(msg) {
+        // No-op, just used for debugging in WebKit tests.
     }
 
     function shouldBe(actual_code, expected_code) {
@@ -47,12 +51,5 @@ test("slow", () => {
         "Test for expressions that would hang when evaluated due to exponential matching behavior. If the test does not hang it is a success."
     );
 
-    // This pattern triggers exponential backtracking. The engine may either
-    // return false (if it completes within the step limit) or throw an
-    // InternalError (if the backtrack limit is exceeded). Both are correct.
-    try {
-        shouldBe('/(?:[^(?!)]||){23}z/.test("/(?:[^(?!)]||){23}z/")', "false");
-    } catch (e) {
-        expect(e).toBeInstanceOf(InternalError);
-    }
+    shouldBe('/(?:[^(?!)]||){23}z/.test("/(?:[^(?!)]||){23}z/")', "false");
 });

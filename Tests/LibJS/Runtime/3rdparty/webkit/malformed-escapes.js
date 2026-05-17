@@ -1,9 +1,12 @@
 test("malformed-escapes", () => {
     // WebKit assertion compatibility shim for Ladybird's test-js harness
 
-    function debug(msg) {}
     function description(msg) {
         // No-op, just used for test documentation in WebKit.
+    }
+
+    function debug(msg) {
+        // No-op, just used for debugging in WebKit tests.
     }
 
     function shouldBe(actual_code, expected_code) {
