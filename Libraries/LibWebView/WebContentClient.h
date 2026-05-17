@@ -53,6 +53,8 @@ public:
     WebContentClient(NonnullOwnPtr<IPC::Transport>, ViewImplementation&);
     ~WebContentClient();
 
+    void initialize();
+
     void assign_view(Badge<Application>, ViewImplementation&);
     void register_view(u64 page_id, ViewImplementation&);
     void unregister_view(u64 page_id);

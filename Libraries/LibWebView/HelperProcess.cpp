@@ -60,6 +60,10 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
                 client->transport().set_peer_pid(response->peer_pid());
             }
 
+            if constexpr (requires { client->initialize(); }) {
+                client->initialize();
+            }
+
             WebView::Application::the().add_child_process(move(process));
 
             if (browser_options.profile_helper_process == process_type) {

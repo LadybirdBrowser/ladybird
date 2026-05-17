@@ -80,7 +80,7 @@ class CompositorConnectionFromClient final
 public:
     virtual void die() override
     {
-        _exit(0);
+        Core::EventLoop::current().quit(0);
     }
 
 private:
@@ -128,12 +128,13 @@ ConnectionFromClient::~ConnectionFromClient() = default;
 
 void ConnectionFromClient::die()
 {
-    _exit(0);
+    Core::EventLoop::current().quit(0);
 }
 
 Messages::WebContentServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
 {
 #ifdef AK_OS_WINDOWS
+    m_peer_pid = peer_pid;
     m_transport->set_peer_pid(peer_pid);
     return Core::System::getpid();
 #endif
@@ -203,10 +204,16 @@ void ConnectionFromClient::connect_to_image_decoder(IPC::TransportHandle handle)
 void ConnectionFromClient::connect_to_compositor(IPC::TransportHandle handle)
 {
     auto startup_state = make<CompositorIPCStartupState>();
+    int peer_pid = m_peer_pid;
 
-    auto thread = Threading::Thread::construct("CompositorIPC"sv, [handle = move(handle), startup_state = startup_state.ptr()]() mutable {
+    auto thread = Threading::Thread::construct("CompositorIPC"sv, [handle = move(handle), startup_state = startup_state.ptr(), peer_pid]() mutable {
         Core::EventLoop event_loop;
         auto transport = MUST(handle.create_transport());
+#ifdef AK_OS_WINDOWS
+        transport->set_peer_pid(peer_pid);
+#else
+        (void)peer_pid;
+#endif
         auto connection = CompositorConnectionFromClient::construct(move(transport));
         Web::Compositor::CompositorThread::set_frame_presentation_callbacks(
             Core::EventLoop::current_weak(),

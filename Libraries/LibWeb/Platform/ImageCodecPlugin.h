@@ -36,6 +36,7 @@ public:
     static ImageCodecPlugin& the();
     static bool is_initialized();
     static void install(ImageCodecPlugin&);
+    static void shutdown();
 
     virtual ~ImageCodecPlugin();
 

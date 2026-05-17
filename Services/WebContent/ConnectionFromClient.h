@@ -180,6 +180,8 @@ private:
     HashMap<int, Web::FileRequest> m_requested_files {};
     int last_id { 0 };
 
+    int m_peer_pid { -1 };
+
     void enqueue_input_event(Web::QueuedInputEvent);
 
     Queue<Web::QueuedInputEvent> m_input_event_queue;

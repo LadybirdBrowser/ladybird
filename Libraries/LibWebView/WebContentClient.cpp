@@ -93,20 +93,23 @@ WebContentClient::WebContentClient(NonnullOwnPtr<IPC::Transport> transport, View
 {
     s_clients.set(this);
     m_views.set(0, view);
-    initialize_compositor_connection(*this);
 }
 
 WebContentClient::WebContentClient(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionToServer<WebContentClientEndpoint, WebContentServerEndpoint>(*this, move(transport))
 {
     s_clients.set(this);
-    initialize_compositor_connection(*this);
 }
 
 WebContentClient::~WebContentClient()
 {
     compositor_connections().remove(this);
     s_clients.remove(this);
+}
+
+void WebContentClient::initialize()
+{
+    initialize_compositor_connection(*this);
 }
 
 void WebContentClient::die()
