@@ -105,8 +105,12 @@ WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::initialize(JS::Realm& realm, 
         return TRY(JS::Uint8ClampedArray::create(realm, sizeof(u32) * rows * pixels_per_row));
     }());
 
-    // AD-HOC: Create the bitmap backed by the Uint8ClampedArray.
-    auto bitmap = TRY_OR_THROW_OOM(realm.vm(), create_bitmap_backed_by_uint8_clamped_array(pixels_per_row, rows, *data));
+    // AD-HOC: The bitmap factory can still reject dimensions that satisfied
+    // the u32 byte-count check above (e.g. its internal pitch overflows).
+    auto bitmap_or_error = create_bitmap_backed_by_uint8_clamped_array(pixels_per_row, rows, *data);
+    if (bitmap_or_error.is_error() && bitmap_or_error.error().code() == EOVERFLOW)
+        return WebIDL::IndexSizeError::create(realm, "The specified image size is too large to create"_utf16);
+    auto bitmap = TRY_OR_THROW_OOM(realm.vm(), move(bitmap_or_error));
 
     // 4. Initialize the width attribute of imageData to pixelsPerRow.
     // 5. Initialize the height attribute of imageData to rows.

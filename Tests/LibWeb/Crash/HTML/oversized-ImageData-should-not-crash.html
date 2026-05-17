@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script>
+// Regression for #8496: ImageData dimensions that pass the WebIDL u32
+// byte-count check but exceed Gfx::Bitmap's backing-store limits used to
+// crash via TRY_OR_THROW_OOM.
+
+// width > UINT16_MAX path inside Gfx::Bitmap::size_would_overflow; the
+// backing Uint8ClampedArray itself is small (800KB) so this case runs
+// on memory-constrained CI machines too.
+try { new ImageData(100000, 2); } catch (e) {}
+
+// pitch * height overflow path; matches the exact 32767x32767 repro from
+// the issue, but needs ~4 GiB for the Uint8ClampedArray so it only
+// exercises the bitmap-factory failure when the allocation succeeds.
+try { new ImageData(32767, 32767); } catch (e) {}
+</script>
