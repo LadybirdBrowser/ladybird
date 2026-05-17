@@ -133,6 +133,7 @@ endpoint WebContentServer
     alert_closed(u64 page_id) =|
     confirm_closed(u64 page_id, bool accepted) =|
     prompt_closed(u64 page_id, Optional<String> response) =|
+    permission_response(u64 page_id, bool granted) =|
     color_picker_update(u64 page_id, Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state) =|
     file_picker_closed(u64 page_id, Vector<Web::HTML::SelectedFile> selected_files) =|
     select_dropdown_closed(u64 page_id, Optional<u32> selected_item_id) =|

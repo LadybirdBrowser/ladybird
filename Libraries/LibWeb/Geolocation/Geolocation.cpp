@@ -5,6 +5,7 @@
  */
 
 #include <AK/Time.h>
+#include <Bindings/Permissions.h>
 #include <LibWeb/Bindings/Geolocation.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/Permissions.h>
@@ -120,17 +121,21 @@ void Geolocation::acquire_a_position(GC::Ref<WebIDL::CallbackType> success_callb
     // FIXME: 5. Create an implementation-specific timeout task that elapses at timeoutTime, during which it tries to acquire
     //    the device's position by running the following steps:
     {
-        // FIXME: 1. Let permission be get the current permission state of "geolocation".
+        // 1. Let permission be get the current permission state of "geolocation".
+        Bindings::PermissionState permission = PermissionsAPI::get_current_permission_state("geolocation"_string, HTML::relevant_settings_object(*this));
 
-        // FIXME: 2. If permission is "denied":
-        if (false) {
+        // 2. If permission is "denied":
+        if (permission == Bindings::PermissionState::Denied) {
             // FIXME: 1. Stop timeout.
 
-            // FIXME: 2. Do the user or system denied permission failure case step.
+            // 2. Do the user or system denied permission failure case step.
+            // User or system denied permission:
+            // Call back with error passing errorCallback and PERMISSION_DENIED.
+            call_back_with_error(error_callback, GeolocationPositionError::ErrorCode::PermissionDenied);
         }
 
-        // FIXME: 3. If permission is "granted":
-        if (true) {
+        // 3. If permission is "granted":
+        if (permission == Bindings::PermissionState::Granted) {
             // 1. Check if an emulated position should be used by running the following steps:
             {
                 // 1. Let emulatedPositionData be get emulated position data passing this.
@@ -334,40 +339,40 @@ void Geolocation::request_a_position(GC::Ref<WebIDL::CallbackType> success_callb
         // AD-HOC: run_in_parallel_when_document_is_visible() already runs this in parallel.
         {
             // 1. Set permission to request permission to use descriptor.
-            auto permission = Web::PermissionsAPI::request_permission(descriptor);
+            Web::PermissionsAPI::request_permission(descriptor, GC::create_function(heap(), [this, watch_id, success_callback, error_callback, options](Bindings::PermissionState permission) {
+                // 2. If permission is "denied", then:
+                if (permission == Bindings::PermissionState::Denied) {
+                    // 1. If watchId was passed, remove watchId from watchIDs.
+                    if (watch_id.has_value())
+                        m_watch_ids.remove(watch_id.value());
 
-            // 2. If permission is "denied", then:
-            if (permission == Bindings::PermissionState::Denied) {
-                // 1. If watchId was passed, remove watchId from watchIDs.
-                if (watch_id.has_value())
-                    m_watch_ids.remove(watch_id.value());
+                    // 2. Call back with error passing errorCallback and PERMISSION_DENIED.
+                    call_back_with_error(error_callback, GeolocationPositionError::ErrorCode::PermissionDenied);
 
-                // 2. Call back with error passing errorCallback and PERMISSION_DENIED.
-                call_back_with_error(error_callback, GeolocationPositionError::ErrorCode::PermissionDenied);
-
-                // 3. Terminate this algorithm.
-                return;
-            }
-
-            // FIXME: 3. Wait to acquire a position passing successCallback, errorCallback, options, and watchId.
-            acquire_a_position(success_callback, error_callback, options, watch_id);
-
-            // 4. If watchId was not passed, terminate this algorithm.
-            if (!watch_id.has_value())
-                return;
-
-            // FIXME: 5. While watchIDs contains watchId:
-            {
-                // FIXME: 1. Wait for a significant change of geographic position. What constitutes a significant change of
-                //    geographic position is left to the implementation. User agents MAY impose a rate limit on how
-                //    frequently position changes are reported. User agents MUST consider invoking set emulated position
-                //    data as a significant change.
-
-                // FIXME: 2. If document is not fully active or visibility state is not "visible", go back to the previous step
-                //    and again wait for a significant change of geographic position.
+                    // 3. Terminate this algorithm.
+                    return;
+                }
 
                 // FIXME: 3. Wait to acquire a position passing successCallback, errorCallback, options, and watchId.
-            }
+                acquire_a_position(success_callback, error_callback, options, watch_id);
+
+                // 4. If watchId was not passed, terminate this algorithm.
+                if (!watch_id.has_value())
+                    return;
+
+                // FIXME: 5. While watchIDs contains watchId:
+                {
+                    // FIXME: 1. Wait for a significant change of geographic position. What constitutes a significant change of
+                    //    geographic position is left to the implementation. User agents MAY impose a rate limit on how
+                    //    frequently position changes are reported. User agents MUST consider invoking set emulated position
+                    //    data as a significant change.
+
+                    // FIXME: 2. If document is not fully active or visibility state is not "visible", go back to the previous step
+                    //    and again wait for a significant change of geographic position.
+
+                    // FIXME: 3. Wait to acquire a position passing successCallback, errorCallback, options, and watchId.
+                }
+            }));
         }
     }));
 }

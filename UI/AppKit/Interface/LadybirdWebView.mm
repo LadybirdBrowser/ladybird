@@ -604,6 +604,29 @@ struct HideCursor {
                             }];
     };
 
+    m_web_view_bridge->on_request_permission = [weak_self](auto const& permission_name, auto const& origin) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
+
+        auto origin_text = origin.is_empty() ? "this site"_string : origin;
+        auto message = MUST(String::formatted("Allow {} to use the {} permission?", origin_text, permission_name));
+        auto* ns_message = Ladybird::string_to_ns_string(message);
+
+        self.dialog = [[NSAlert alloc] init];
+        [self.dialog setAlertStyle:NSAlertStyleWarning];
+        [[self.dialog addButtonWithTitle:@"Deny"] setTag:NSModalResponseCancel];
+        [[self.dialog addButtonWithTitle:@"Allow"] setTag:NSModalResponseOK];
+        [self.dialog setMessageText:ns_message];
+
+        [self.dialog beginSheetModalForWindow:[self window]
+                            completionHandler:^(NSModalResponse response) {
+                                m_web_view_bridge->permission_closed(response == NSModalResponseOK);
+                                self.dialog = nil;
+                            }];
+    };
+
     m_web_view_bridge->on_request_prompt = [weak_self](auto const& message, auto const& default_) {
         LadybirdWebView* self = weak_self;
         if (self == nil) {

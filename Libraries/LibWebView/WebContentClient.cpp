@@ -1180,6 +1180,14 @@ void WebContentClient::did_update_primary_selection(u64 page_id, String text)
         Application::the().set_clipboard_text(move(text), Application::ClipboardType::Selection);
 }
 
+void WebContentClient::did_request_permission(u64 page_id, String permission_name, String origin)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_request_permission)
+            view->on_request_permission(permission_name, origin);
+    }
+}
+
 void WebContentClient::did_change_audio_play_state(u64 page_id, Web::HTML::AudioPlayState play_state)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())

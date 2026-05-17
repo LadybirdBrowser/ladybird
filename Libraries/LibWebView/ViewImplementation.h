@@ -165,6 +165,7 @@ public:
 
     void alert_closed();
     void confirm_closed(bool accepted);
+    void permission_closed(bool granted);
     void prompt_closed(Optional<String> const& response);
     void color_picker_update(Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state);
     void file_picker_closed(Vector<Web::HTML::SelectedFile> selected_files);
@@ -268,6 +269,7 @@ public:
     Function<void(Color current_color)> on_request_color_picker;
     Function<void(Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles)> on_request_file_picker;
     Function<void(Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items)> on_request_select_dropdown;
+    Function<void(String const& permission_name, String const& origin)> on_request_permission;
     Function<void(Web::KeyEvent const&)> on_finish_handling_key_event;
     Function<void(Web::DragEvent const&)> on_finish_handling_drag_event;
     Function<void(String const&)> on_test_finish;

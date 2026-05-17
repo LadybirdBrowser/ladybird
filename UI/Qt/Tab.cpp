@@ -23,15 +23,20 @@
 #include <QFileDialog>
 #include <QFont>
 #include <QFontMetrics>
+#include <QFrame>
 #include <QHBoxLayout>
 #include <QImage>
 #include <QInputDialog>
+#include <QLabel>
 #include <QMenu>
 #include <QMessageBox>
 #include <QMimeData>
 #include <QMimeDatabase>
+#include <QPushButton>
 #include <QResizeEvent>
+#include <QSizePolicy>
 #include <QTimer>
+#include <QVBoxLayout>
 
 namespace Ladybird {
 
@@ -273,6 +278,80 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         });
 
         m_dialog->open();
+    };
+
+    view().on_request_permission = [this](String const& feature, String const& origin) {
+        auto origin_text = origin.is_empty() ? "this site"_string : origin;
+        auto message = MUST(String::formatted("{} wants to use the {} permission.", origin_text, feature));
+
+        hide_permission_prompt();
+
+        m_permission_overlay = new QWidget(&view());
+        m_permission_overlay->setAttribute(Qt::WA_TransparentForMouseEvents, false);
+        m_permission_overlay->setAutoFillBackground(true);
+        auto overlay_color = view().palette().color(QPalette::Window);
+        overlay_color.setAlpha(120);
+        m_permission_overlay->setStyleSheet(QString("background-color: rgba(%1, %2, %3, %4);")
+                .arg(overlay_color.red())
+                .arg(overlay_color.green())
+                .arg(overlay_color.blue())
+                .arg(overlay_color.alpha()));
+        m_permission_overlay->setGeometry(view().rect());
+
+        auto* overlay_layout = new QVBoxLayout(m_permission_overlay);
+        overlay_layout->setAlignment(Qt::AlignCenter);
+
+        auto* panel = new QFrame(m_permission_overlay);
+        panel->setFrameShape(QFrame::StyledPanel);
+        auto panel_bg = view().palette().color(QPalette::Window);
+        auto panel_text = view().palette().color(QPalette::WindowText);
+        panel->setAutoFillBackground(true);
+        panel->setStyleSheet(QString("QFrame { background-color: %1; color: %2; border-radius: 8px; }")
+                .arg(panel_bg.name())
+                .arg(panel_text.name()));
+        panel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+        panel->setFixedWidth(400);
+
+        auto* panel_layout = new QVBoxLayout(panel);
+        panel_layout->setContentsMargins(20, 20, 20, 20);
+        panel_layout->setSpacing(16);
+
+        auto* label = new QLabel(qstring_from_ak_string(message), panel);
+        label->setWordWrap(true);
+        label->setAlignment(Qt::AlignCenter);
+        label->setStyleSheet(QString("QLabel { font-weight: bold; font-size: 14px; }"));
+        panel_layout->addWidget(label);
+
+        auto* buttons = new QHBoxLayout();
+        buttons->setSpacing(10);
+        buttons->setAlignment(Qt::AlignCenter);
+
+        auto* deny_button = new QPushButton("Deny", panel);
+        auto* allow_button = new QPushButton("Allow", panel);
+        deny_button->setMinimumSize(100, 32);
+        allow_button->setMinimumSize(100, 32);
+
+        buttons->addWidget(deny_button);
+        buttons->addWidget(allow_button);
+        panel_layout->addLayout(buttons);
+
+        overlay_layout->addWidget(panel);
+
+        auto finish_permission_request = [this](bool granted) {
+            hide_permission_prompt();
+            view().permission_closed(granted);
+        };
+
+        QObject::connect(allow_button, &QPushButton::clicked, this, [finish_permission_request]() mutable {
+            finish_permission_request(true);
+        });
+        QObject::connect(deny_button, &QPushButton::clicked, this, [finish_permission_request]() mutable {
+            finish_permission_request(false);
+        });
+
+        m_permission_overlay->show();
+        m_permission_overlay->raise();
+        panel->raise();
     };
 
     view().on_request_prompt = [this](auto const& message, auto const& default_) {
@@ -633,6 +712,8 @@ void Tab::resizeEvent(QResizeEvent* event)
     QWidget::resizeEvent(event);
     if (m_hover_label->isVisible())
         update_hover_label();
+    if (m_permission_overlay)
+        m_permission_overlay->setGeometry(rect());
 }
 
 void Tab::update_hover_label()
@@ -727,6 +808,15 @@ void Tab::request_close()
     // If the user has already requested a close, then respect the user's request and just close the tab.
     // For example, the WebContent process may not be responding.
     m_window->definitely_close_tab(tab_index());
+}
+
+void Tab::hide_permission_prompt()
+{
+    if (m_permission_overlay) {
+        m_permission_overlay->hide();
+        m_permission_overlay->deleteLater();
+        m_permission_overlay = nullptr;
+    }
 }
 
 }

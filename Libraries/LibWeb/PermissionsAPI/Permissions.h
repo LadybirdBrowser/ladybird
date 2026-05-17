@@ -20,7 +20,7 @@ Bindings::PermissionState permission_state(Bindings::PermissionDescriptor descri
 
 Bindings::PermissionState get_current_permission_state(String const& name, Optional<HTML::EnvironmentSettingsObject&> settings = {});
 
-Bindings::PermissionState request_permission(Bindings::PermissionDescriptor const& descriptor);
+void request_permission(Bindings::PermissionDescriptor const& descriptor, GC::Ref<GC::Function<void(Bindings::PermissionState)>> callback);
 
 class WEB_API Permissions : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(Permissions, Bindings::PlatformObject);

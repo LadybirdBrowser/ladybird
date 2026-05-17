@@ -85,6 +85,7 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_client);
     visitor.visit(m_window_rect_observer);
     visitor.visit(m_on_pending_dialog_closed);
+    visitor.visit(m_pending_permission_request);
     visitor.visit(m_pending_clipboard_requests);
     m_pending_fullscreen_operations.for_each([&](auto const& operation) {
         operation.visit([&](PendingFullscreenEnter const& enter_operation) {
@@ -631,6 +632,30 @@ void Page::retrieved_clipboard_entries(u64 request_id, Vector<Clipboard::SystemC
 {
     if (auto request = m_pending_clipboard_requests.take(request_id); request.has_value())
         (*request)->function()(move(items));
+}
+
+void Page::did_request_permission(String const& permission_name, String const& origin, PermissionRequestCallback callback)
+{
+    if (m_pending_non_blocking_dialog == PendingNonBlockingDialog::None) {
+        m_pending_non_blocking_dialog = PendingNonBlockingDialog::Permission;
+        m_pending_permission_request = callback;
+        m_client->page_did_request_permission(permission_name, origin);
+    } else {
+        // FIXME: If a pending dialog is active do not deny automatically and wait for it to not be active anymore
+        callback->function()(false);
+    }
+}
+
+void Page::retrieve_permission_response(bool response)
+{
+    if (m_pending_non_blocking_dialog == PendingNonBlockingDialog::Permission) {
+        m_pending_non_blocking_dialog = PendingNonBlockingDialog::None;
+        if (m_pending_permission_request) {
+            auto callback = m_pending_permission_request;
+            m_pending_permission_request = nullptr;
+            callback->function()(response);
+        }
+    }
 }
 
 void Page::register_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID media_id)

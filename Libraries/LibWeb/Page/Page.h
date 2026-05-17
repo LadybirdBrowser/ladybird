@@ -210,11 +210,16 @@ public:
     void request_clipboard_entries(ClipboardRequest);
     void retrieved_clipboard_entries(u64 request_id, Vector<Clipboard::SystemClipboardItem>);
 
+    using PermissionRequestCallback = GC::Ptr<GC::Function<void(bool)>>;
+    void did_request_permission(String const& permission_name, String const& origin, PermissionRequestCallback);
+    void retrieve_permission_response(bool response);
+
     enum class PendingNonBlockingDialog {
         None,
         ColorPicker,
         FilePicker,
         Select,
+        Permission,
     };
 
     void register_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID media_id);
@@ -344,6 +349,7 @@ private:
     Optional<Empty> m_pending_alert_response;
     Optional<bool> m_pending_confirm_response;
     Optional<Optional<String>> m_pending_prompt_response;
+    PermissionRequestCallback m_pending_permission_request;
     GC::Ptr<GC::Function<void()>> m_on_pending_dialog_closed;
 
     PendingNonBlockingDialog m_pending_non_blocking_dialog { PendingNonBlockingDialog::None };
@@ -517,6 +523,7 @@ public:
     virtual void page_did_request_clipboard_entries([[maybe_unused]] u64 request_id) { }
     virtual void page_did_request_primary_paste() { }
     virtual void page_did_update_primary_selection(String const&) { }
+    virtual void page_did_request_permission([[maybe_unused]] String const& permission_name, [[maybe_unused]] String const& origin) { }
 
     virtual void page_did_change_audio_play_state(HTML::AudioPlayState) { }
 

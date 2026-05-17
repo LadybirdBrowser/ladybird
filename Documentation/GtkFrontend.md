@@ -83,6 +83,7 @@ g_autofree char* path = g_file_get_path(file);
 - [ ] Download save dialog
 - [ ] Download confirmation toast
 - [ ] Error dialog
+- [x] Permission dialog
 
 ### Window Management
 - [ ] Minimize/maximize/close

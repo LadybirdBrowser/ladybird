@@ -202,4 +202,22 @@ void show_file_picker(GtkWindow* parent, WebContentView* view, Web::HTML::FileFi
     }
 }
 
+void show_permission(GtkWindow* parent, WebContentView* view, String const& permission_name, String const& origin)
+{
+    auto* dialog = adw_alert_dialog_new("Permission Request", nullptr);
+    auto body = ByteString::formatted("{} wants to use the {} permission.", origin, permission_name);
+
+    adw_alert_dialog_set_body(ADW_ALERT_DIALOG(dialog), body.characters());
+    adw_alert_dialog_add_response(ADW_ALERT_DIALOG(dialog), "deny", "Deny");
+    adw_alert_dialog_add_response(ADW_ALERT_DIALOG(dialog), "allow", "Allow");
+    adw_alert_dialog_set_response_appearance(ADW_ALERT_DIALOG(dialog), "allow", ADW_RESPONSE_SUGGESTED);
+    adw_alert_dialog_set_default_response(ADW_ALERT_DIALOG(dialog), "deny");
+    g_signal_connect(dialog, "response", G_CALLBACK(+[](AdwAlertDialog*, char const* response, gpointer user_data) {
+        auto* view = static_cast<WebContentView*>(user_data);
+        view->permission_closed(StringView(response, strlen(response)) == "allow"sv);
+    }),
+        view);
+    adw_dialog_present(ADW_DIALOG(dialog), GTK_WIDGET(parent));
+}
+
 }

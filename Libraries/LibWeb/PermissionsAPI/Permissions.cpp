@@ -12,6 +12,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/PermissionsAPI/PermissionStatus.h>
 #include <LibWeb/PermissionsAPI/PermissionStore.h>
 #include <LibWeb/PermissionsAPI/Permissions.h>
@@ -29,39 +30,45 @@ bool is_permission_supported(String const& name)
 }
 
 // https://w3c.github.io/permissions/#dfn-request-permission-to-use
-Bindings::PermissionState request_permission(Bindings::PermissionDescriptor const& descriptor)
+void request_permission(Bindings::PermissionDescriptor const& descriptor, GC::Ref<GC::Function<void(Bindings::PermissionState)>> callback)
 {
     // 1. Let current state be the descriptor's permission state.
     auto current_state = permission_state(descriptor);
 
     // 2. If current state is not "prompt", return current state and abort these steps.
-    if (current_state != Bindings::PermissionState::Prompt)
-        return current_state;
+    if (current_state != Bindings::PermissionState::Prompt) {
+        callback->function()(current_state);
+        return;
+    }
 
-    // FIXME: 3. Ask the user for express permission for the calling algorithm to use the powerful feature described by descriptor.
-
-    // 4. If the user gives express permission to use the powerful feature, set current state to "granted"; otherwise to "denied".
-    // The user's interaction may provide new information about the user's intent for the origin.
-    if (false) {
-        current_state = Bindings::PermissionState::Granted;
-    } else {
-        current_state = Bindings::PermissionState::Denied;
+    // 3. Ask the user for express permission for the calling algorithm to use the powerful feature described by descriptor.
+    auto* window = as_if<HTML::Window>(HTML::current_global_object());
+    if (!window) {
+        callback->function()(Bindings::PermissionState::Denied);
+        return;
     }
 
     // 5. Let settings be the current settings object.
-    auto& settings = HTML::current_settings_object();
+    GC::Ref<HTML::EnvironmentSettingsObject> settings = HTML::current_settings_object();
+    auto& realm = settings->realm();
 
-    // 6. Let key be the result of generating a permission key for descriptor with settings's top-level origin and settings's origin.
-    VERIFY(settings.top_level_origin.has_value());
-    auto key = permission_key_generation_algorithm(settings.top_level_origin.value(), settings.origin());
+    window->page().did_request_permission(descriptor.name, settings->origin().serialize(), GC::create_function(realm.heap(), [descriptor, settings, callback](bool state) mutable {
+        // 4. If the user gives express permission to use the powerful feature, set current state to "granted"; otherwise to "denied".
+        // The user's interaction may provide new information about the user's intent for the origin.
+        auto current_state = state ? Bindings::PermissionState::Granted : Bindings::PermissionState::Denied;
 
-    // 7. Queue a task on the current settings object's responsible event loop to set a permission store entry with descriptor, key, and current state.
-    HTML::queue_global_task(HTML::Task::Source::Permissions, settings.global_object(), GC::create_function(settings.realm().heap(), [descriptor, key, current_state] {
-        PermissionStore::the().set_permission_store_entry(descriptor, key, current_state);
+        // 6. Let key be the result of generating a permission key for descriptor with settings's top-level origin and settings's origin.
+        VERIFY(settings->top_level_origin.has_value());
+        auto key = permission_key_generation_algorithm(settings->top_level_origin.value(), settings->origin());
+
+        // 7. Queue a task on the current settings object's responsible event loop to set a permission store entry with descriptor, key, and current state.
+        HTML::queue_global_task(HTML::Task::Source::Permissions, settings->global_object(), GC::create_function(settings->realm().heap(), [descriptor, key, current_state, callback] mutable {
+            PermissionStore::the().set_permission_store_entry(descriptor, key, current_state);
+
+            // 8. Return current state.
+            callback->function()(current_state);
+        }));
     }));
-
-    // 8. Return current state.
-    return current_state;
 }
 
 // https://w3c.github.io/permissions/#dfn-permission-state

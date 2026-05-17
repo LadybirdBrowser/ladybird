@@ -652,6 +652,11 @@ void ViewImplementation::confirm_closed(bool accepted)
     client().async_confirm_closed(page_id(), accepted);
 }
 
+void ViewImplementation::permission_closed(bool granted)
+{
+    client().async_permission_response(page_id(), granted);
+}
+
 void ViewImplementation::prompt_closed(Optional<String> const& response)
 {
     client().async_prompt_closed(page_id(), response);

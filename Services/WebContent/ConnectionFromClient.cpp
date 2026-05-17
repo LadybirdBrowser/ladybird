@@ -1801,6 +1801,12 @@ void ConnectionFromClient::prompt_closed(u64 page_id, Optional<String> response)
         page->page().prompt_closed(move(response));
 }
 
+void ConnectionFromClient::permission_response(u64 page_id, bool granted)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().retrieve_permission_response(granted);
+}
+
 void ConnectionFromClient::color_picker_update(u64 page_id, Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state)
 {
     if (auto page = this->page(page_id); page.has_value())

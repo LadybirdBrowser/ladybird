@@ -126,6 +126,8 @@ endpoint WebContentClient
     did_request_primary_paste(u64 page_id) =|
     did_update_primary_selection(u64 page_id, String text) =|
 
+    did_request_permission(u64 page_id, String permission_name, String origin) =|
+
     did_update_navigation_buttons_state(u64 page_id, bool back_enabled, bool forward_enabled) =|
 
     did_change_audio_play_state(u64 page_id, Web::HTML::AudioPlayState play_state) =|

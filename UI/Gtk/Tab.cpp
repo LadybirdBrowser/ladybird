@@ -84,6 +84,7 @@ Tab::Tab(BrowserWindow& window, RefPtr<WebView::WebContentClient> parent_client,
     m_web_view = ladybird_web_view_new();
     gtk_widget_set_vexpand(GTK_WIDGET(m_web_view), TRUE);
     gtk_widget_set_hexpand(GTK_WIDGET(m_web_view), TRUE);
+
     m_view = adopt_own(*new WebContentView(m_web_view, parent_client, page_index));
 
     setup_callbacks();
@@ -197,6 +198,10 @@ void Tab::setup_callbacks()
 
     m_view->on_request_confirm = [this](auto const& message) {
         Dialogs::show_confirm(m_window.gtk_window(), m_view.ptr(), message);
+    };
+
+    m_view->on_request_permission = [this](auto const& feature, auto const& origin) {
+        Dialogs::show_permission(m_window.gtk_window(), m_view.ptr(), feature, origin);
     };
 
     m_view->on_request_prompt = [this](auto const& message, auto const& default_value) {

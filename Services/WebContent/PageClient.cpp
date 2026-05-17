@@ -788,6 +788,11 @@ void PageClient::page_did_update_primary_selection(String const& text)
     client().async_did_update_primary_selection(m_id, text);
 }
 
+void PageClient::page_did_request_permission(String const& permission_name, String const& origin)
+{
+    client().async_did_request_permission(m_id, permission_name, origin);
+}
+
 void PageClient::page_did_change_audio_play_state(Web::HTML::AudioPlayState play_state)
 {
     client().async_did_change_audio_play_state(m_id, play_state);

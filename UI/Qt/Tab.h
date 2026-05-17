@@ -135,6 +135,9 @@ private:
     QAction* m_reload_action { nullptr };
 
     QPointer<QDialog> m_dialog;
+    QWidget* m_permission_overlay { nullptr };
+
+    void hide_permission_prompt();
 
     bool m_already_requested_close { false };
 };
