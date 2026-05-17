@@ -75,7 +75,10 @@ static ThrowCompletionOr<void> increment_last_index(VM& vm, Object& regexp_objec
     return {};
 }
 
-// FIXME: Add an eviction policy to bound the size of this cache.
+// FIXME: Add an eviction policy. The cap below prevents unbounded growth but
+//        does not reclaim entries from the shared cache; once it is full,
+//        further unique patterns are owned by their RegExpObject instead.
+static constexpr size_t s_regex_cache_max_entries = 1024;
 static HashMap<String, NonnullOwnPtr<regex::ECMAScriptRegex>> s_regex_cache;
 
 static regex::ECMAScriptRegex const* get_or_compile_regex(RegExpObject& regexp_object)
@@ -125,7 +128,13 @@ static regex::ECMAScriptRegex const* get_or_compile_regex(RegExpObject& regexp_o
 
     auto owned = make<regex::ECMAScriptRegex>(compiled.release_value());
     auto* ptr = owned.ptr();
-    s_regex_cache.set(cache_key, move(owned));
+    if (s_regex_cache.size() < s_regex_cache_max_entries) {
+        s_regex_cache.set(cache_key, move(owned));
+    } else {
+        // Shared cache is full; let the RegExpObject own this compile so the
+        // inline cache below stays valid for its lifetime.
+        regexp_object.adopt_owned_regex(move(owned));
+    }
     regexp_object.set_cached_regex(ptr);
     return ptr;
 }

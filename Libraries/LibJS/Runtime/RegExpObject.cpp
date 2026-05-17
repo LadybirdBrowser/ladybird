@@ -375,6 +375,7 @@ ThrowCompletionOr<GC::Ref<RegExpObject>> RegExpObject::regexp_initialize(VM& vm,
 {
     // Invalidate the cached compiled regex since the pattern/flags may change.
     m_cached_regex = nullptr;
+    m_owned_regex = nullptr;
 
     // 1. If pattern is undefined, let P be the empty String.
     // 2. Else, let P be ? ToString(pattern).

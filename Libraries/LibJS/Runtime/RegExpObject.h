@@ -62,6 +62,8 @@ public:
     regex::ECMAScriptRegex const* cached_regex() const { return m_cached_regex; }
     void set_cached_regex(regex::ECMAScriptRegex const* ptr) const { m_cached_regex = ptr; }
 
+    void adopt_owned_regex(OwnPtr<regex::ECMAScriptRegex> ptr) const { m_owned_regex = move(ptr); }
+
 private:
     RegExpObject(Object& prototype);
     RegExpObject(Utf16String pattern, Utf16String flags, Object& prototype);
@@ -74,6 +76,9 @@ private:
     Flags m_flag_bits { 0 };
     bool m_legacy_features_enabled { false }; // [[LegacyFeaturesEnabled]]
     mutable regex::ECMAScriptRegex const* m_cached_regex { nullptr };
+    // Populated only when the shared compilation cache was full at compile time;
+    // keeps the compile alive for this object's lifetime so m_cached_regex stays valid.
+    mutable OwnPtr<regex::ECMAScriptRegex> m_owned_regex;
     // Note: This is initialized in RegExpAlloc, but will be non-null afterwards
     GC::Ptr<Realm> m_realm; // [[Realm]]
 };
