@@ -364,6 +364,7 @@ private:
 
     bool should_treat_grid_container_maximum_size_as_none(GridDimension) const;
     CSSPixels calculate_grid_container_maximum_size(GridDimension) const;
+    bool should_treat_preferred_size_as_auto_for_intrinsic_contribution(GridItem const&, GridDimension) const;
 
     CSSPixels calculate_min_content_size(GridItem const&, GridDimension) const;
     CSSPixels calculate_max_content_size(GridItem const&, GridDimension) const;
