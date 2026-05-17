@@ -57,6 +57,28 @@ TEST_CASE(test_utf8_process_code_points)
     EXPECT_EQ(process_code_points(decoder, test_string), (Vector<u32> { 0x41, 0x1F600 }));
 }
 
+TEST_CASE(test_utf8_process_code_points_replaces_surrogates)
+{
+    auto decoder = TextCodec::UTF8Decoder();
+    auto utf8_encoded_surrogate_bytes = Vector<u8> { 0xed, 0xa0, 0x80 };
+    auto utf8_encoded_surrogate = StringView(bytes(utf8_encoded_surrogate_bytes));
+
+    EXPECT(!decoder.validate(utf8_encoded_surrogate));
+    EXPECT_EQ(MUST(decoder.to_utf8(utf8_encoded_surrogate)), "\xef\xbf\xbd"sv);
+    EXPECT_EQ(process_code_points(decoder, utf8_encoded_surrogate), (Vector<u32> { 0xfffd }));
+}
+
+TEST_CASE(test_utf8_process_code_points_replaces_overlong_sequences)
+{
+    auto decoder = TextCodec::UTF8Decoder();
+    auto overlong_null_bytes = Vector<u8> { 0xc0, 0x80 };
+    auto overlong_null = StringView(bytes(overlong_null_bytes));
+
+    EXPECT(!decoder.validate(overlong_null));
+    EXPECT_EQ(MUST(decoder.to_utf8(overlong_null)), "\xef\xbf\xbd\xef\xbf\xbd"sv);
+    EXPECT_EQ(process_code_points(decoder, overlong_null), (Vector<u32> { 0xfffd, 0xfffd }));
+}
+
 TEST_CASE(test_utf16be_decode)
 {
     auto decoder = TextCodec::UTF16BEDecoder();

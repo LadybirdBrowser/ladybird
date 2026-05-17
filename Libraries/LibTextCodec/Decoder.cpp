@@ -694,22 +694,93 @@ ErrorOr<String> StreamingDecoder::finish()
     return decoded;
 }
 
+static ErrorOr<void> process_utf8_with_replacement_character(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
+{
+    auto bytes = input.bytes();
+
+    for (size_t i = 0; i < bytes.size();) {
+        auto byte = bytes[i];
+        if (byte <= 0x7f) {
+            TRY(on_code_point(byte));
+            ++i;
+            continue;
+        }
+
+        size_t sequence_length = 0;
+        u32 code_point = 0;
+        u32 minimum_code_point = 0;
+
+        if (byte >= 0xc2 && byte <= 0xdf) {
+            sequence_length = 2;
+            code_point = byte & 0x1f;
+            minimum_code_point = 0x80;
+        } else if (byte >= 0xe0 && byte <= 0xef) {
+            sequence_length = 3;
+            code_point = byte & 0x0f;
+            minimum_code_point = 0x800;
+        } else if (byte >= 0xf0 && byte <= 0xf4) {
+            sequence_length = 4;
+            code_point = byte & 0x07;
+            minimum_code_point = 0x10000;
+        } else {
+            TRY(on_code_point(replacement_code_point));
+            ++i;
+            continue;
+        }
+
+        if (i + sequence_length > bytes.size()) {
+            TRY(on_code_point(replacement_code_point));
+            ++i;
+            continue;
+        }
+
+        bool has_valid_continuation_bytes = true;
+        for (size_t offset = 1; offset < sequence_length; ++offset) {
+            auto continuation_byte = bytes[i + offset];
+            if ((continuation_byte & 0xc0) != 0x80) {
+                has_valid_continuation_bytes = false;
+                break;
+            }
+            code_point <<= 6;
+            code_point |= continuation_byte & 0x3f;
+        }
+
+        if (!has_valid_continuation_bytes || code_point < minimum_code_point || code_point > 0x10ffff) {
+            TRY(on_code_point(replacement_code_point));
+            ++i;
+            continue;
+        }
+
+        if (is_unicode_surrogate(code_point)) {
+            TRY(on_code_point(replacement_code_point));
+            i += sequence_length;
+            continue;
+        }
+
+        TRY(on_code_point(code_point));
+        i += sequence_length;
+    }
+
+    return {};
+}
+
 ErrorOr<void> UTF8Decoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
 {
-    for (auto c : Utf8View(input)) {
-        TRY(on_code_point(c));
-    }
-    return {};
+    return process_utf8_with_replacement_character(input, move(on_code_point));
 }
 
 bool UTF8Decoder::validate(StringView input)
 {
-    return Utf8View(input).validate();
+    return Utf8View(input).validate(AllowLonelySurrogates::No);
 }
 
 ErrorOr<String> UTF8Decoder::to_utf8(StringView input)
 {
-    return String::from_utf8_with_replacement_character(input);
+    StringBuilder builder(input.length());
+    TRY(process_utf8_with_replacement_character(input, [&](auto code_point) {
+        return builder.try_append_code_point(code_point);
+    }));
+    return builder.to_string_without_validation();
 }
 
 bool UTF16BEDecoder::validate(StringView input)
