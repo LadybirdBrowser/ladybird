@@ -472,6 +472,12 @@ op GetCalleeAndThisFromEnvironment < Instruction
     m_cache: EnvironmentCoordinate
 endop
 
+op DynamicGetCalleeAndThisFromEnvironment < Instruction
+    m_callee: Operand
+    m_this_value: Operand
+    m_identifier: IdentifierTableIndex
+endop
+
 op GetCompletionFields < Instruction
     @nothrow
     m_type_dst: Operand
@@ -555,10 +561,20 @@ op GetBinding < Instruction
     m_cache: EnvironmentCoordinate
 endop
 
+op DynamicGetBinding < Instruction
+    m_dst: Operand
+    m_identifier: IdentifierTableIndex
+endop
+
 op GetInitializedBinding < Instruction
     m_dst: Operand
     m_identifier: IdentifierTableIndex
     m_cache: EnvironmentCoordinate
+endop
+
+op DynamicGetInitializedBinding < Instruction
+    m_dst: Operand
+    m_identifier: IdentifierTableIndex
 endop
 
 op GreaterThan < Instruction
@@ -601,10 +617,20 @@ op InitializeLexicalBinding < Instruction
     m_cache: EnvironmentCoordinate
 endop
 
+op DynamicInitializeLexicalBinding < Instruction
+    m_identifier: IdentifierTableIndex
+    m_src: Operand
+endop
+
 op InitializeVariableBinding < Instruction
     m_identifier: IdentifierTableIndex
     m_src: Operand
     m_cache: EnvironmentCoordinate
+endop
+
+op DynamicInitializeVariableBinding < Instruction
+    m_identifier: IdentifierTableIndex
+    m_src: Operand
 endop
 
 op InstanceOf < Instruction
@@ -1021,10 +1047,20 @@ op SetLexicalBinding < Instruction
     m_cache: EnvironmentCoordinate
 endop
 
+op DynamicSetLexicalBinding < Instruction
+    m_identifier: IdentifierTableIndex
+    m_src: Operand
+endop
+
 op SetVariableBinding < Instruction
     m_identifier: IdentifierTableIndex
     m_src: Operand
     m_cache: EnvironmentCoordinate
+endop
+
+op DynamicSetVariableBinding < Instruction
+    m_identifier: IdentifierTableIndex
+    m_src: Operand
 endop
 
 op StrictlyEquals < Instruction
@@ -1097,6 +1133,11 @@ op TypeofBinding < Instruction
     m_dst: Operand
     m_identifier: IdentifierTableIndex
     m_cache: EnvironmentCoordinate
+endop
+
+op DynamicTypeofBinding < Instruction
+    m_dst: Operand
+    m_identifier: IdentifierTableIndex
 endop
 
 op UnaryMinus < Instruction

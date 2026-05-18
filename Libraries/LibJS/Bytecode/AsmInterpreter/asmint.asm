@@ -437,33 +437,27 @@ macro dispatch_current()
     goto_handler pc
 end
 
-# Walk the environment chain using a cached EnvironmentCoordinate.
+# Walk the environment chain using a statically computed EnvironmentCoordinate.
 # Input: m_cache_field is the offset of the EnvironmentCoordinate inside
 # the bytecode instruction.
 # Output: target_env points at the resolved environment, bind_index holds
 # the binding index within it.
-# On failure (invalid cache, screwed by eval): jumps to fail_label.
+# On failure (the caller's binding operation fails): jumps to fail_label.
 macro walk_env_chain(m_cache_field, target_env, bind_index, fail_label)
-    temp coord_addr, hops, sentinel, screw
+    temp coord_addr, hops
     lea coord_addr, [pb, pc]
     add coord_addr, m_cache_field
     load_pair32 hops, bind_index, [coord_addr, ENVIRONMENT_COORDINATE_HOPS], [coord_addr, ENVIRONMENT_COORDINATE_INDEX]
-    mov sentinel, ENVIRONMENT_COORDINATE_INVALID
-    branch_eq hops, sentinel, fail_label
     load64 target_env, [exec_ctx, EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT]
     assert_nonzero target_env
     branch_zero hops, .walk_done
 .walk_loop:
-    load8 screw, [target_env, ENVIRONMENT_SCREWED_BY_EVAL]
-    branch_nonzero screw, fail_label
     load64 target_env, [target_env, ENVIRONMENT_OUTER]
     assert_nonzero target_env
     sub hops, 1
     branch_nonzero hops, .walk_loop
 .walk_done:
     assert_nonzero target_env
-    load8 screw, [target_env, ENVIRONMENT_SCREWED_BY_EVAL]
-    branch_nonzero screw, fail_label
 end
 
 # Pop an inline frame and resume the caller without bouncing through C++.

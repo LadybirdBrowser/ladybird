@@ -11,7 +11,7 @@ block0:
   [  48] End value:reg5
 
 
-f$a6e23ba8 for-of-continue-with-block-scope.js:2:15
+f$22bc5210 for-of-continue-with-block-scope.js:2:15
   Registers: 18
   Blocks:    11
   Locals:    o~0, t~1
@@ -45,40 +45,40 @@ block3:
 block4:
   [  d0] CreateLexicalEnvironment dst:reg12, parent:reg4, capacity:0, is_catch_environment:false
   [  e8] CreateVariable `r`, is_immutable:true, is_global:false, is_strict:true
-  [  f8] InitializeLexicalBinding `r`, src:reg10
-  [ 110] GetBinding dst:reg14, `r`
-  [ 128] Not dst:reg13, src:reg14
-  [ 138] JumpFalse condition:reg13, target:block6
+  [  f8] DynamicInitializeLexicalBinding `r`, src:reg10
+  [ 108] DynamicGetBinding dst:reg14, `r`
+  [ 118] Not dst:reg13, src:reg14
+  [ 128] JumpFalse condition:reg13, target:block6
 
 block5:
-  [ 148] GetById dst:reg15, base:t~1, `push` (t.push)
-  [ 160] Mov dst:reg16, src:t~1
-  [ 170] GetBinding dst:reg17, `r`
-  [ 188] Call dst:reg14, callee:reg15, this_value:reg16, t.push, arguments:[reg17]
-  [ 1b0] SetLexicalEnvironment environment:reg4
-  [ 1b8] Jump target:block2
+  [ 138] GetById dst:reg15, base:t~1, `push` (t.push)
+  [ 150] Mov dst:reg16, src:t~1
+  [ 160] DynamicGetBinding dst:reg17, `r`
+  [ 170] Call dst:reg14, callee:reg15, this_value:reg16, t.push, arguments:[reg17]
+  [ 198] SetLexicalEnvironment environment:reg4
+  [ 1a0] Jump target:block2
 
 block6:
-  [ 1c0] GetById dst:reg13, base:t~1, `find` (t.find)
-  [ 1d8] Mov dst:reg14, src:t~1
-  [ 1e8] NewFunction dst:reg15, shared_function_data_index:0
-  [ 200] Call dst:o~0, callee:reg13, this_value:reg14, t.find, arguments:[reg15]
-  [ 228] SetLexicalEnvironment environment:reg4
-  [ 230] Jump target:block2
+  [ 1a8] GetById dst:reg13, base:t~1, `find` (t.find)
+  [ 1c0] Mov dst:reg14, src:t~1
+  [ 1d0] NewFunction dst:reg15, shared_function_data_index:0
+  [ 1e8] Call dst:o~0, callee:reg13, this_value:reg14, t.find, arguments:[reg15]
+  [ 210] SetLexicalEnvironment environment:reg4
+  [ 218] Jump target:block2
 
 block7:
-  [ 238] IteratorClose iterator_object:reg5, iterator_next:reg6, iterator_done:reg7, completion_value:reg9
-  [ 250] Throw src:reg9
+  [ 220] IteratorClose iterator_object:reg5, iterator_next:reg6, iterator_done:reg7, completion_value:reg9
+  [ 238] Throw src:reg9
 
 block8:
-  [ 258] IteratorClose iterator_object:reg5, iterator_next:reg6, iterator_done:reg7, completion_value:Undefined
-  [ 270] JumpStrictlyEquals lhs:reg8, rhs:Int32(2), true_target:block9, false_target:block10
+  [ 240] IteratorClose iterator_object:reg5, iterator_next:reg6, iterator_done:reg7, completion_value:Undefined
+  [ 258] JumpStrictlyEquals lhs:reg8, rhs:Int32(2), true_target:block9, false_target:block10
 
 block9:
-  [ 288] Return value:reg9
+  [ 270] Return value:reg9
 
 block10:
-  [ 290] Throw src:reg9
+  [ 278] Throw src:reg9
 
 Exception handlers:
-  [  d0 ..  238] => handler block3
+  [  d0 ..  220] => handler block3

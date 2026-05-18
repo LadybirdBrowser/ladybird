@@ -1,4 +1,4 @@
-$a0b8e192 super-computed-eval-order.js:1:1
+$a37cd2a2 super-computed-eval-order.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -11,18 +11,18 @@ block0:
   [  20] CreateVariable `Base`, is_immutable:true, is_global:false, is_strict:false
   [  30] SetLexicalEnvironment environment:reg4
   [  38] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0
-  [  58] InitializeLexicalBinding `Base`, src:reg6
-  [  70] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:0, is_catch_environment:false
-  [  88] CreateVariable `Derived`, is_immutable:true, is_global:false, is_strict:false
-  [  98] GetGlobal dst:reg5, `Base`
-  [  a8] SetLexicalEnvironment environment:reg4
-  [  b0] NewClass dst:reg7, super_class:reg5, class_environment:reg6, class_blueprint_index:1, element_keys:[element_keys:String("test")]
-  [  d8] InitializeLexicalBinding `Derived`, src:reg7
-  [  f0] GetGlobal dst:reg5, `Derived`
-  [ 100] CallConstruct dst:reg6, callee:reg5, Derived
-  [ 118] GetById dst:reg5, base:reg6, `test`
-  [ 130] Call dst:reg7, callee:reg5, this_value:reg6, <object>.test
-  [ 150] End value:reg7
+  [  58] DynamicInitializeLexicalBinding `Base`, src:reg6
+  [  68] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:0, is_catch_environment:false
+  [  80] CreateVariable `Derived`, is_immutable:true, is_global:false, is_strict:false
+  [  90] GetGlobal dst:reg5, `Base`
+  [  a0] SetLexicalEnvironment environment:reg4
+  [  a8] NewClass dst:reg7, super_class:reg5, class_environment:reg6, class_blueprint_index:1, element_keys:[element_keys:String("test")]
+  [  d0] DynamicInitializeLexicalBinding `Derived`, src:reg7
+  [  e0] GetGlobal dst:reg5, `Derived`
+  [  f0] CallConstruct dst:reg6, callee:reg5, Derived
+  [ 108] GetById dst:reg5, base:reg6, `test`
+  [ 120] Call dst:reg7, callee:reg5, this_value:reg6, <object>.test
+  [ 140] End value:reg7
 
 
 Derived$730ebf72 super-computed-eval-order.js:4:14

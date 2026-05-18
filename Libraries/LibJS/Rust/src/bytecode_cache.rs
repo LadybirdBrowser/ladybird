@@ -31,7 +31,7 @@ use crate::bytecode::validator::{
 use crate::{CompiledProgram, CompiledProgramBytecode, ModuleCallbacks, ast, u32_from_usize};
 
 const MAGIC: &[u8; 8] = b"LBJSBC\0\0";
-const FORMAT_VERSION: u32 = 8;
+const FORMAT_VERSION: u32 = 9;
 const SOURCE_HASH_SIZE: usize = 32;
 const COMPLETION_TYPE_VARIANT_COUNT: u32 = 6;
 const ITERATOR_HINT_VARIANT_COUNT: u32 = 2;
