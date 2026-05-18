@@ -1190,6 +1190,7 @@ extern "C" void rust_sfd_set_metadata(
     bool this_value_needs_environment_resolution,
     bool function_environment_needed,
     size_t function_environment_bindings_count,
+    size_t var_environment_bindings_count,
     bool might_need_arguments_object,
     bool contains_direct_call_to_eval)
 {
@@ -1199,6 +1200,7 @@ extern "C" void rust_sfd_set_metadata(
     shared.m_function_environment_needed = function_environment_needed;
     shared.update_asm_call_metadata();
     shared.m_function_environment_bindings_count = function_environment_bindings_count;
+    shared.m_var_environment_bindings_count = var_environment_bindings_count;
     shared.m_might_need_arguments_object = might_need_arguments_object;
     shared.m_contains_direct_call_to_eval = contains_direct_call_to_eval;
 }
@@ -1225,6 +1227,7 @@ extern "C" void rust_sfd_set_precompiled_executable(
     bool this_value_needs_environment_resolution,
     bool function_environment_needed,
     size_t function_environment_bindings_count,
+    size_t var_environment_bindings_count,
     bool might_need_arguments_object,
     bool contains_direct_call_to_eval)
 {
@@ -1235,6 +1238,7 @@ extern "C" void rust_sfd_set_precompiled_executable(
     shared.m_this_value_needs_environment_resolution = this_value_needs_environment_resolution;
     shared.m_function_environment_needed = function_environment_needed;
     shared.m_function_environment_bindings_count = function_environment_bindings_count;
+    shared.m_var_environment_bindings_count = var_environment_bindings_count;
     shared.m_might_need_arguments_object = might_need_arguments_object;
     shared.m_contains_direct_call_to_eval = contains_direct_call_to_eval;
     shared.set_executable(executable);
@@ -1251,6 +1255,7 @@ extern "C" void rust_sfd_set_cached_bytecode_executable(
     bool this_value_needs_environment_resolution,
     bool function_environment_needed,
     size_t function_environment_bindings_count,
+    size_t var_environment_bindings_count,
     bool might_need_arguments_object,
     bool contains_direct_call_to_eval)
 {
@@ -1260,6 +1265,7 @@ extern "C" void rust_sfd_set_cached_bytecode_executable(
     shared.m_this_value_needs_environment_resolution = this_value_needs_environment_resolution;
     shared.m_function_environment_needed = function_environment_needed;
     shared.m_function_environment_bindings_count = function_environment_bindings_count;
+    shared.m_var_environment_bindings_count = var_environment_bindings_count;
     shared.m_might_need_arguments_object = might_need_arguments_object;
     shared.m_contains_direct_call_to_eval = contains_direct_call_to_eval;
     shared.m_cached_bytecode_executable = cached_executable_ptr;
@@ -1273,6 +1279,7 @@ extern "C" void rust_sfd_set_precompiled_bytecode_executable(
     bool this_value_needs_environment_resolution,
     bool function_environment_needed,
     size_t function_environment_bindings_count,
+    size_t var_environment_bindings_count,
     bool might_need_arguments_object,
     bool contains_direct_call_to_eval)
 {
@@ -1282,6 +1289,7 @@ extern "C" void rust_sfd_set_precompiled_bytecode_executable(
     shared.m_this_value_needs_environment_resolution = this_value_needs_environment_resolution;
     shared.m_function_environment_needed = function_environment_needed;
     shared.m_function_environment_bindings_count = function_environment_bindings_count;
+    shared.m_var_environment_bindings_count = var_environment_bindings_count;
     shared.m_might_need_arguments_object = might_need_arguments_object;
     shared.m_contains_direct_call_to_eval = contains_direct_call_to_eval;
     shared.m_precompiled_bytecode_executable = precompiled_executable_ptr;
