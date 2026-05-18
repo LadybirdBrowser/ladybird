@@ -25,6 +25,7 @@ public:
     static GC::Ref<StorageShed> create(GC::Heap& heap) { return heap.allocate<StorageShed>(); }
 
     GC::Ptr<StorageShelf> obtain_a_storage_shelf(HTML::EnvironmentSettingsObject&, StorageType);
+    void legacy_clone(StorageShed const&, GC::Ref<Page>);
 
     virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
