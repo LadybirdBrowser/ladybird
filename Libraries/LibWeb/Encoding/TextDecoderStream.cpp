@@ -24,6 +24,26 @@ namespace Web::Encoding {
 
 GC_DEFINE_ALLOCATOR(TextDecoderStream);
 
+static bool is_utf8_continuation_byte(u8 byte)
+{
+    return (byte & 0xc0) == 0x80;
+}
+
+static bool is_utf8_second_byte_in_range(u8 lead, u8 byte)
+{
+    if (!is_utf8_continuation_byte(byte))
+        return false;
+    if (lead == 0xe0)
+        return byte >= 0xa0;
+    if (lead == 0xed)
+        return byte <= 0x9f;
+    if (lead == 0xf0)
+        return byte >= 0x90;
+    if (lead == 0xf4)
+        return byte <= 0x8f;
+    return true;
+}
+
 // Returns the largest prefix length of `bytes` that can be safely decoded as UTF-8 without splitting an in-progress
 // multi-byte sequence. The remainder (if any) is held over for the next chunk.
 static size_t find_utf8_safe_decode_boundary(ReadonlyBytes bytes)
@@ -36,7 +56,7 @@ static size_t find_utf8_safe_decode_boundary(ReadonlyBytes bytes)
         u8 byte = bytes[pos];
 
         // Continuation byte (10xxxxxx): keep walking back to find the leading byte.
-        if ((byte & 0xC0) == 0x80) {
+        if (is_utf8_continuation_byte(byte)) {
             ++scan;
             continue;
         }
@@ -49,14 +69,16 @@ static size_t find_utf8_safe_decode_boundary(ReadonlyBytes bytes)
         // sequence, cut before it so the next chunk can complete it. Otherwise (recognized and complete, or
         // unrecognized so it'll just become a replacement character) include all bytes up to the end.
         size_t expected_length = 0;
-        if ((byte & 0xE0) == 0xC0)
+        if (byte >= 0xc2 && byte <= 0xdf)
             expected_length = 2;
-        else if ((byte & 0xF0) == 0xE0)
+        else if (byte >= 0xe0 && byte <= 0xef)
             expected_length = 3;
-        else if ((byte & 0xF8) == 0xF0)
+        else if (byte >= 0xf0 && byte <= 0xf4)
             expected_length = 4;
         else
-            return pos + 1;
+            return bytes.size();
+        if (bytes.size() - pos >= 2 && !is_utf8_second_byte_in_range(byte, bytes[pos + 1]))
+            return bytes.size();
         if (bytes.size() - pos >= expected_length)
             return bytes.size();
         return pos;
