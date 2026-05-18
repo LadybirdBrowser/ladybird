@@ -1,4 +1,4 @@
-$fd650eed var-hoisting-tdz.js:9:1
+$89d6cbb5 var-hoisting-tdz.js:9:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -6,8 +6,8 @@ $fd650eed var-hoisting-tdz.js:9:1
 
 block0:
   [   0] GetGlobal dst:reg6, `isect`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, isect
-  [  38] End value:reg5
+  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, isect
+  [  30] End value:reg5
 
 
 isect$63c4d7d5 var-hoisting-tdz.js:5:5

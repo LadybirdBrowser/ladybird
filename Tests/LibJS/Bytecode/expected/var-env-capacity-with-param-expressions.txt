@@ -1,4 +1,4 @@
-$12cfcca1 var-env-capacity-with-param-expressions.js:5:1
+$a2057a79 var-env-capacity-with-param-expressions.js:5:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -6,8 +6,8 @@ $12cfcca1 var-env-capacity-with-param-expressions.js:5:1
 
 block0:
   [   0] GetGlobal dst:reg6, `f`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f
-  [  38] End value:reg5
+  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, f
+  [  30] End value:reg5
 
 
 f$a23ee45e var-env-capacity-with-param-expressions.js:3:9

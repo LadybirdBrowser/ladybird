@@ -1,4 +1,4 @@
-$fcbe57a6 block-scoping.js:13:1
+$f9fa6696 block-scoping.js:13:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -6,19 +6,19 @@ $fcbe57a6 block-scoping.js:13:1
 
 block0:
   [   0] GetGlobal dst:reg6, `console`
-  [  18] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  38] GetGlobal dst:reg9, `closureOverBlockScope`
-  [  50] Call dst:reg8, callee:reg9, this_value:Undefined, closureOverBlockScope
-  [  70] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  98] GetGlobal dst:reg6, `console`
-  [  b0] GetById dst:reg8, base:reg6, `log` (console.log)
-  [  d0] GetGlobal dst:reg10, `breakThroughBlockScopes`
-  [  e8] Call dst:reg9, callee:reg10, this_value:Undefined, breakThroughBlockScopes
-  [ 108] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
-  [ 130] End value:reg7
+  [  10] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  28] GetGlobal dst:reg9, `closureOverBlockScope`
+  [  38] Call dst:reg8, callee:reg9, this_value:Undefined, closureOverBlockScope
+  [  58] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  80] GetGlobal dst:reg6, `console`
+  [  90] GetById dst:reg8, base:reg6, `log` (console.log)
+  [  a8] GetGlobal dst:reg10, `breakThroughBlockScopes`
+  [  b8] Call dst:reg9, callee:reg10, this_value:Undefined, breakThroughBlockScopes
+  [  d8] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+  [ 100] End value:reg7
 
 
-closureOverBlockScope$5e4c59e2 block-scoping.js:2:15
+closureOverBlockScope$61104af2 block-scoping.js:2:15
   Registers: 10
   Blocks:    1
   Locals:    fns~0
@@ -34,24 +34,24 @@ block0:
   [  30] CreateMutableBinding environment:reg5, `x`, can_be_deleted:false
   [  40] InitializeLexicalBinding `x`, src:Int32(1)
   [  58] GetById dst:reg7, base:fns~0, `push` (fns.push)
-  [  78] Mov dst:reg8, src:fns~0
-  [  88] NewFunction dst:reg9, shared_function_data_index:0
-  [  a0] Call dst:reg6, callee:reg7, this_value:reg8, fns.push, arguments:[reg9]
-  [  c8] SetLexicalEnvironment environment:reg4
-  [  d0] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
-  [  e8] CreateMutableBinding environment:reg5, `y`, can_be_deleted:false
-  [  f8] InitializeLexicalBinding `y`, src:Int32(2)
-  [ 110] GetById dst:reg7, base:fns~0, `push` (fns.push)
-  [ 130] Mov dst:reg8, src:fns~0
-  [ 140] NewFunction dst:reg9, shared_function_data_index:1
-  [ 158] Call dst:reg6, callee:reg7, this_value:reg8, fns.push, arguments:[reg9]
-  [ 180] SetLexicalEnvironment environment:reg4
-  [ 188] GetByValue dst:reg6, base:fns~0, property:Int32(0)
-  [ 1a0] Call dst:reg5, callee:reg6, this_value:fns~0, fns[0]
-  [ 1c0] GetByValue dst:reg7, base:fns~0, property:Int32(1)
-  [ 1d8] Call dst:reg6, callee:reg7, this_value:fns~0, fns[1]
-  [ 1f8] Add dst:reg7, lhs:reg5, rhs:reg6
-  [ 208] Return value:reg7
+  [  70] Mov dst:reg8, src:fns~0
+  [  80] NewFunction dst:reg9, shared_function_data_index:0
+  [  98] Call dst:reg6, callee:reg7, this_value:reg8, fns.push, arguments:[reg9]
+  [  c0] SetLexicalEnvironment environment:reg4
+  [  c8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  e0] CreateMutableBinding environment:reg5, `y`, can_be_deleted:false
+  [  f0] InitializeLexicalBinding `y`, src:Int32(2)
+  [ 108] GetById dst:reg7, base:fns~0, `push` (fns.push)
+  [ 120] Mov dst:reg8, src:fns~0
+  [ 130] NewFunction dst:reg9, shared_function_data_index:1
+  [ 148] Call dst:reg6, callee:reg7, this_value:reg8, fns.push, arguments:[reg9]
+  [ 170] SetLexicalEnvironment environment:reg4
+  [ 178] GetByValue dst:reg6, base:fns~0, property:Int32(0)
+  [ 190] Call dst:reg5, callee:reg6, this_value:fns~0, fns[0]
+  [ 1b0] GetByValue dst:reg7, base:fns~0, property:Int32(1)
+  [ 1c8] Call dst:reg6, callee:reg7, this_value:fns~0, fns[1]
+  [ 1e8] Add dst:reg7, lhs:reg5, rhs:reg6
+  [ 1f8] Return value:reg7
 
 
 $4bcefff2 block-scoping.js:5:18

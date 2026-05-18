@@ -1,4 +1,4 @@
-$eeeaa256 annex-b-function-in-if.js:13:1
+$f7367586 annex-b-function-in-if.js:13:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -8,16 +8,16 @@ $eeeaa256 annex-b-function-in-if.js:13:1
 
 block0:
   [   0] GetGlobal dst:reg6, `console`
-  [  18] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  38] GetGlobal dst:reg9, `annexBFunctionInIf`
-  [  50] Call dst:reg8, callee:reg9, this_value:Undefined, annexBFunctionInIf, arguments:[Bool(true)]
-  [  78] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  a0] GetGlobal dst:reg6, `console`
-  [  b8] GetById dst:reg8, base:reg6, `log` (console.log)
-  [  d8] GetGlobal dst:reg10, `annexBFunctionInIf`
-  [  f0] Call dst:reg9, callee:reg10, this_value:Undefined, annexBFunctionInIf, arguments:[Bool(false)]
-  [ 118] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
-  [ 140] End value:reg7
+  [  10] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  28] GetGlobal dst:reg9, `annexBFunctionInIf`
+  [  38] Call dst:reg8, callee:reg9, this_value:Undefined, annexBFunctionInIf, arguments:[Bool(true)]
+  [  60] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  88] GetGlobal dst:reg6, `console`
+  [  98] GetById dst:reg8, base:reg6, `log` (console.log)
+  [  b0] GetGlobal dst:reg10, `annexBFunctionInIf`
+  [  c0] Call dst:reg9, callee:reg10, this_value:Undefined, annexBFunctionInIf, arguments:[Bool(false)]
+  [  e8] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+  [ 110] End value:reg7
 
 
 annexBFunctionInIf$f1f2b149 annex-b-function-in-if.js:2:5

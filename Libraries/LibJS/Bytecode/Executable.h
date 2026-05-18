@@ -228,8 +228,6 @@ public:
 
     [[nodiscard]] SourceRange const& get_source_range(u32 program_counter);
 
-    void fixup_cache_pointers();
-
     void dump() const;
     [[nodiscard]] String dump_to_string() const;
 

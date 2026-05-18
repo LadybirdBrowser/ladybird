@@ -1,4 +1,4 @@
-$fb46ff7d object-rest-computed-key.js:1:1
+$f5bf1d5d object-rest-computed-key.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -9,14 +9,14 @@ $fb46ff7d object-rest-computed-key.js:1:1
 
 block0:
   [   0] SetGlobal `a`, src:String("foo")
-  [  18] NewObject dst:reg5
-  [  28] InitObjectLiteralProperty object:reg5, `foo`, src:Int32(1), shape_cache_index:0, property_slot:0
-  [  40] InitObjectLiteralProperty object:reg5, `bar`, src:Int32(2), shape_cache_index:0, property_slot:1
-  [  58] CacheObjectShape object:reg5
-  [  68] ThrowIfNullish src:reg5
-  [  70] GetGlobal dst:reg7, `a`
-  [  88] GetByValue dst:reg6, base:reg5, property:reg7
-  [  a0] SetGlobal `b`, src:reg6
-  [  b8] CopyObjectExcludingProperties dst:reg6, from_object:reg5, excluded_names:[reg7]
-  [  d8] SetGlobal `rest`, src:reg6
-  [  f0] End value:Undefined
+  [  10] NewObject dst:reg5
+  [  20] InitObjectLiteralProperty object:reg5, `foo`, src:Int32(1), shape_cache_index:0, property_slot:0
+  [  38] InitObjectLiteralProperty object:reg5, `bar`, src:Int32(2), shape_cache_index:0, property_slot:1
+  [  50] CacheObjectShape object:reg5
+  [  60] ThrowIfNullish src:reg5
+  [  68] GetGlobal dst:reg7, `a`
+  [  78] GetByValue dst:reg6, base:reg5, property:reg7
+  [  90] SetGlobal `b`, src:reg6
+  [  a0] CopyObjectExcludingProperties dst:reg6, from_object:reg5, excluded_names:[reg7]
+  [  c0] SetGlobal `rest`, src:reg6
+  [  d0] End value:Undefined

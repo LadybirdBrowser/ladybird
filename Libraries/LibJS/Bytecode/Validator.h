@@ -14,15 +14,6 @@ namespace JS::Bytecode {
 
 class Executable;
 
-// Whether the bytecode being validated still has m_cache fields stored as
-// indices (BeforeFixup) or has had Executable::fixup_cache_pointers() rewrite
-// them into live pointers (AfterFixup). Cache fields are only range-checked
-// in the BeforeFixup case.
-enum class CacheState : u8 {
-    BeforeFixup,
-    AfterFixup,
-};
-
-ErrorOr<void> validate_bytecode(Executable const&, ReadonlySpan<u32> basic_block_offsets, CacheState);
+ErrorOr<void> validate_bytecode(Executable const&, ReadonlySpan<u32> basic_block_offsets);
 
 }

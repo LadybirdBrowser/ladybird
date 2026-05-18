@@ -1,4 +1,4 @@
-$31b7f5fd lexical-env-teardown.js:13:1
+$e76f7008 lexical-env-teardown.js:13:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -7,42 +7,42 @@ $31b7f5fd lexical-env-teardown.js:13:1
 block0:
   [   0] GetLexicalEnvironment dst:reg4
   [   8] GetGlobal dst:reg6, `console`
-  [  20] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  40] GetGlobal dst:reg9, `withTeardown`
-  [  58] Call dst:reg8, callee:reg9, this_value:Undefined, withTeardown
-  [  78] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  a0] GetGlobal dst:reg6, `console`
-  [  b8] GetById dst:reg8, base:reg6, `log` (console.log)
-  [  d8] GetGlobal dst:reg10, `blockTeardown`
-  [  f0] Call dst:reg9, callee:reg10, this_value:Undefined, blockTeardown
-  [ 110] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
-  [ 138] GetGlobal dst:reg8, `console`
-  [ 150] GetById dst:reg6, base:reg8, `log` (console.log)
-  [ 170] GetGlobal dst:reg10, `forInTeardown`
-  [ 188] Call dst:reg9, callee:reg10, this_value:Undefined, forInTeardown
-  [ 1a8] Call dst:reg5, callee:reg6, this_value:reg8, console.log, arguments:[reg9]
-  [ 1d0] GetGlobal dst:reg6, `console`
-  [ 1e8] GetById dst:reg8, base:reg6, `log` (console.log)
-  [ 208] GetGlobal dst:reg10, `forOfTeardown`
-  [ 220] Call dst:reg9, callee:reg10, this_value:Undefined, forOfTeardown
-  [ 240] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
-  [ 268] GetGlobal dst:reg8, `console`
-  [ 280] GetById dst:reg6, base:reg8, `log` (console.log)
-  [ 2a0] GetGlobal dst:reg10, `catchTeardown`
-  [ 2b8] Call dst:reg9, callee:reg10, this_value:Undefined, catchTeardown
-  [ 2d8] Call dst:reg5, callee:reg6, this_value:reg8, console.log, arguments:[reg9]
-  [ 300] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:0, is_catch_environment:false
-  [ 318] CreateVariable `myName`, is_immutable:true, is_global:false, is_strict:false
-  [ 328] NewFunction dst:reg6, shared_function_data_index:0
-  [ 340] InitializeLexicalBinding `myName`, src:reg6
-  [ 358] SetLexicalEnvironment environment:reg4
-  [ 360] SetGlobal `namedFn`, src:reg6
-  [ 378] GetGlobal dst:reg7, `console`
-  [ 390] GetById dst:reg8, base:reg7, `log` (console.log)
-  [ 3b0] GetGlobal dst:reg10, `namedFn`
-  [ 3c8] Call dst:reg9, callee:reg10, this_value:Undefined, namedFn
-  [ 3e8] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
-  [ 410] End value:reg6
+  [  18] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  30] GetGlobal dst:reg9, `withTeardown`
+  [  40] Call dst:reg8, callee:reg9, this_value:Undefined, withTeardown
+  [  60] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  88] GetGlobal dst:reg6, `console`
+  [  98] GetById dst:reg8, base:reg6, `log` (console.log)
+  [  b0] GetGlobal dst:reg10, `blockTeardown`
+  [  c0] Call dst:reg9, callee:reg10, this_value:Undefined, blockTeardown
+  [  e0] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+  [ 108] GetGlobal dst:reg8, `console`
+  [ 118] GetById dst:reg6, base:reg8, `log` (console.log)
+  [ 130] GetGlobal dst:reg10, `forInTeardown`
+  [ 140] Call dst:reg9, callee:reg10, this_value:Undefined, forInTeardown
+  [ 160] Call dst:reg5, callee:reg6, this_value:reg8, console.log, arguments:[reg9]
+  [ 188] GetGlobal dst:reg6, `console`
+  [ 198] GetById dst:reg8, base:reg6, `log` (console.log)
+  [ 1b0] GetGlobal dst:reg10, `forOfTeardown`
+  [ 1c0] Call dst:reg9, callee:reg10, this_value:Undefined, forOfTeardown
+  [ 1e0] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+  [ 208] GetGlobal dst:reg8, `console`
+  [ 218] GetById dst:reg6, base:reg8, `log` (console.log)
+  [ 230] GetGlobal dst:reg10, `catchTeardown`
+  [ 240] Call dst:reg9, callee:reg10, this_value:Undefined, catchTeardown
+  [ 260] Call dst:reg5, callee:reg6, this_value:reg8, console.log, arguments:[reg9]
+  [ 288] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:0, is_catch_environment:false
+  [ 2a0] CreateVariable `myName`, is_immutable:true, is_global:false, is_strict:false
+  [ 2b0] NewFunction dst:reg6, shared_function_data_index:0
+  [ 2c8] InitializeLexicalBinding `myName`, src:reg6
+  [ 2e0] SetLexicalEnvironment environment:reg4
+  [ 2e8] SetGlobal `namedFn`, src:reg6
+  [ 2f8] GetGlobal dst:reg7, `console`
+  [ 308] GetById dst:reg8, base:reg7, `log` (console.log)
+  [ 320] GetGlobal dst:reg10, `namedFn`
+  [ 330] Call dst:reg9, callee:reg10, this_value:Undefined, namedFn
+  [ 350] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
+  [ 378] End value:reg6
 
 
 withTeardown$7751edc5 lexical-env-teardown.js:7:5
@@ -84,7 +84,7 @@ block0:
   [  18] Return value:outer~1
 
 
-forInTeardown$00ab80a8 lexical-env-teardown.js:28:5
+forInTeardown$7c859710 lexical-env-teardown.js:28:5
   Registers: 8
   Blocks:    6
   Locals:    k~0, outer~1
@@ -113,12 +113,12 @@ block3:
 
 block4:
   [  a0] GetObjectPropertyIterator dst_iterator:reg6, object:reg5
-  [  b8] Jump target:block2
+  [  b0] Jump target:block2
 
 block5:
-  [  c0] Mov dst:k~0, src:reg5
-  [  d0] ThrowIfTDZ src:k~0
-  [  d8] Jump target:block2
+  [  b8] Mov dst:k~0, src:reg5
+  [  c8] ThrowIfTDZ src:k~0
+  [  d0] Jump target:block2
 
 
 forOfTeardown$94a2ae97 lexical-env-teardown.js:38:5
@@ -174,7 +174,7 @@ Exception handlers:
   [  c0 ..   e0] => handler block3
 
 
-catchTeardown$ea214605 lexical-env-teardown.js:48:5
+catchTeardown$6b833e8d lexical-env-teardown.js:48:5
   Registers: 7
   Blocks:    3
   Locals:    e~0, outer~1
@@ -196,11 +196,11 @@ block1:
 
 block2:
   [  48] GetGlobal dst:reg6, `Error`
-  [  60] CallConstruct dst:reg5, callee:reg6, Error, arguments:[String("test")]
-  [  80] Throw src:reg5
+  [  58] CallConstruct dst:reg5, callee:reg6, Error, arguments:[String("test")]
+  [  78] Throw src:reg5
 
 Exception handlers:
-  [  48 ..   88] => handler block1
+  [  48 ..   80] => handler block1
 
 
 myName$b54e4267 lexical-env-teardown.js:60:5

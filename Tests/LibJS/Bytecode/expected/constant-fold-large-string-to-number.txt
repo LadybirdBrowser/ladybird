@@ -1,4 +1,4 @@
-$e7eb680d constant-fold-large-string-to-number.js:1:1
+$e26385ed constant-fold-large-string-to-number.js:1:1
   Registers: 5
   Blocks:    1
   Constants:
@@ -11,7 +11,7 @@ $e7eb680d constant-fold-large-string-to-number.js:1:1
 
 block0:
   [   0] SetGlobal `a`, src:Double(18446744073709552000)
-  [  18] SetGlobal `b`, src:Double(18446744073709552000)
-  [  30] SetGlobal `c`, src:Double(18446744073709552000)
-  [  48] SetGlobal `d`, src:Double(18446744073709552000)
-  [  60] End value:Undefined
+  [  10] SetGlobal `b`, src:Double(18446744073709552000)
+  [  20] SetGlobal `c`, src:Double(18446744073709552000)
+  [  30] SetGlobal `d`, src:Double(18446744073709552000)
+  [  40] End value:Undefined

@@ -1,4 +1,4 @@
-$cd444473 parameter-createvariable-order.js:7:1
+$516a2e0b parameter-createvariable-order.js:7:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -9,8 +9,8 @@ $cd444473 parameter-createvariable-order.js:7:1
 
 block0:
   [   0] GetGlobal dst:reg6, `f`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1), Int32(2), Int32(3)]
-  [  48] End value:reg5
+  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1), Int32(2), Int32(3)]
+  [  40] End value:reg5
 
 
 f$8982c134 parameter-createvariable-order.js:2:5

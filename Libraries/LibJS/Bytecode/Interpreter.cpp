@@ -7,6 +7,7 @@
 
 #include <AK/Debug.h>
 #include <AK/HashTable.h>
+#include <AK/NumericLimits.h>
 #include <AK/TemporaryChange.h>
 #include <LibGC/RootHashMap.h>
 #include <LibJS/Bytecode/AsmInterpreter/AsmInterpreter.h>
@@ -2073,7 +2074,7 @@ void NewPrimitiveArray::execute_impl(VM& vm) const
 // 13.2.8.4 GetTemplateObject ( templateLiteral ), https://tc39.es/ecma262/#sec-gettemplateobject
 void GetTemplateObject::execute_impl(VM& vm) const
 {
-    auto& cache = *bit_cast<TemplateObjectCache*>(m_cache);
+    auto& cache = vm.current_executable().template_object_caches[m_cache];
 
     // 1. Let realm be the current Realm Record.
     auto& realm = *vm.current_realm();
@@ -2192,8 +2193,8 @@ void NewObject::execute_impl(VM& vm) const
 {
     auto& realm = *vm.current_realm();
 
-    if (m_cache) {
-        auto& cache = *bit_cast<ObjectShapeCache*>(m_cache);
+    if (m_cache != NumericLimits<u32>::max()) {
+        auto& cache = vm.current_executable().object_shape_caches[m_cache];
         auto cached_shape = cache.shape.ptr();
         if (cached_shape) {
             vm.set(dst(), Object::create_with_premade_shape(*cached_shape));
@@ -2212,7 +2213,7 @@ void NewObjectWithNoPrototype::execute_impl(VM& vm) const
 
 void CacheObjectShape::execute_impl(VM& vm) const
 {
-    auto& cache = *bit_cast<ObjectShapeCache*>(m_cache);
+    auto& cache = vm.current_executable().object_shape_caches[m_cache];
     if (!cache.shape) {
         auto& object = vm.get(m_object).as_object();
         if (!object.shape().is_dictionary())
@@ -2364,7 +2365,7 @@ ThrowCompletionOr<void> GetCalleeAndThisFromEnvironment::execute_impl(VM& vm) co
 
 ThrowCompletionOr<void> GetGlobal::execute_impl(VM& vm) const
 {
-    vm.set(dst(), TRY(get_global(vm, m_identifier, strict(), *bit_cast<GlobalVariableCache*>(m_cache))));
+    vm.set(dst(), TRY(get_global(vm, m_identifier, strict(), vm.current_executable().global_variable_caches[m_cache])));
     return {};
 }
 
@@ -2373,7 +2374,7 @@ ThrowCompletionOr<void> SetGlobal::execute_impl(VM& vm) const
     auto& binding_object = vm.global_object();
     auto& declarative_record = vm.global_declarative_environment();
 
-    auto& cache = *bit_cast<GlobalVariableCache*>(m_cache);
+    auto& cache = vm.current_executable().global_variable_caches[m_cache];
     auto& shape = binding_object.shape();
     auto src = vm.get(m_src);
 
@@ -2618,7 +2619,7 @@ ThrowCompletionOr<void> SetVariableBinding::execute_impl(VM& vm) const
 ThrowCompletionOr<void> GetById::execute_impl(VM& vm) const
 {
     auto base_value = vm.get(base());
-    auto& cache = *bit_cast<PropertyLookupCache*>(m_cache);
+    auto& cache = vm.current_executable().property_lookup_caches[m_cache];
 
     vm.set(dst(), TRY(get_by_id<GetByIdMode::Normal>(vm, [&] { return vm.get_identifier(m_base_identifier); }, [&] -> PropertyKey const& { return vm.get_property_key(m_property); }, base_value, base_value, cache)));
     return {};
@@ -2628,7 +2629,7 @@ ThrowCompletionOr<void> GetByIdWithThis::execute_impl(VM& vm) const
 {
     auto base_value = vm.get(m_base);
     auto this_value = vm.get(m_this_value);
-    auto& cache = *bit_cast<PropertyLookupCache*>(m_cache);
+    auto& cache = vm.current_executable().property_lookup_caches[m_cache];
     vm.set(dst(), TRY(get_by_id<GetByIdMode::Normal>(vm, [] { return Optional<Utf16FlyString const&> {}; }, [&] -> PropertyKey const& { return vm.get_property_key(m_property); }, base_value, this_value, cache)));
     return {};
 }
@@ -2637,7 +2638,7 @@ ThrowCompletionOr<void> GetLength::execute_impl(VM& vm) const
 {
     auto base_value = vm.get(base());
     auto& executable = vm.current_executable();
-    auto& cache = *bit_cast<PropertyLookupCache*>(m_cache);
+    auto& cache = vm.current_executable().property_lookup_caches[m_cache];
     vm.set(dst(), TRY(get_by_id<GetByIdMode::Length>(vm, [&] { return vm.get_identifier(m_base_identifier); }, [&] { return executable.get_property_key(*executable.length_identifier); }, base_value, base_value, cache)));
     return {};
 }
@@ -2647,7 +2648,7 @@ ThrowCompletionOr<void> GetLengthWithThis::execute_impl(VM& vm) const
     auto base_value = vm.get(m_base);
     auto this_value = vm.get(m_this_value);
     auto& executable = vm.current_executable();
-    auto& cache = *bit_cast<PropertyLookupCache*>(m_cache);
+    auto& cache = vm.current_executable().property_lookup_caches[m_cache];
     vm.set(dst(), TRY(get_by_id<GetByIdMode::Length>(vm, [] { return Optional<Utf16FlyString const&> {}; }, [&] -> PropertyKey const& { return executable.get_property_key(*executable.length_identifier); }, base_value, this_value, cache)));
     return {};
 }
@@ -2694,7 +2695,7 @@ ThrowCompletionOr<void> PutById::execute_impl(VM& vm) const
     auto base = vm.get(m_base);
     auto const& base_identifier = vm.get_identifier(m_base_identifier);
     auto const& property_key = vm.get_property_key(m_property);
-    auto& cache = *bit_cast<PropertyLookupCache*>(m_cache);
+    auto& cache = vm.current_executable().property_lookup_caches[m_cache];
     TRY(put_by_property_key(vm, base, base, value, base_identifier, property_key, m_kind, strict(), &cache));
     return {};
 }
@@ -2704,7 +2705,7 @@ ThrowCompletionOr<void> PutByIdWithThis::execute_impl(VM& vm) const
     auto value = vm.get(m_src);
     auto base = vm.get(m_base);
     auto const& name = vm.get_property_key(m_property);
-    auto& cache = *bit_cast<PropertyLookupCache*>(m_cache);
+    auto& cache = vm.current_executable().property_lookup_caches[m_cache];
     TRY(put_by_property_key(vm, base, vm.get(m_this_value), value, {}, name, m_kind, strict(), &cache));
     return {};
 }
@@ -3298,7 +3299,7 @@ ThrowCompletionOr<void> GetMethod::execute_impl(VM& vm) const
 
 NEVER_INLINE ThrowCompletionOr<void> GetObjectPropertyIterator::execute_impl(VM& vm) const
 {
-    auto* cache = bit_cast<ObjectPropertyIteratorCache*>(m_cache);
+    auto* cache = &vm.current_executable().object_property_iterator_caches[m_cache];
     vm.set(m_dst_iterator, TRY(get_object_property_iterator(vm, vm.get(m_object), cache)));
     return {};
 }

@@ -1,4 +1,4 @@
-$d0083583 for-in-var-function-lhs-name.js:7:1
+$491e5adb for-in-var-function-lhs-name.js:7:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -6,11 +6,11 @@ $d0083583 for-in-var-function-lhs-name.js:7:1
 
 block0:
   [   0] GetGlobal dst:reg6, `fn`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, fn
-  [  38] End value:reg5
+  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, fn
+  [  30] End value:reg5
 
 
-fn$4477295a for-in-var-function-lhs-name.js:4:19
+fn$c5d921e2 for-in-var-function-lhs-name.js:4:19
   Registers: 8
   Blocks:    6
   Locals:    f~0
@@ -36,8 +36,8 @@ block3:
 
 block4:
   [  88] GetObjectPropertyIterator dst_iterator:reg6, object:reg5
-  [  a0] Jump target:block2
+  [  98] Jump target:block2
 
 block5:
-  [  a8] Mov dst:f~0, src:reg5
-  [  b8] Jump target:block2
+  [  a0] Mov dst:f~0, src:reg5
+  [  b0] Jump target:block2

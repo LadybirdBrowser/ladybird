@@ -1,4 +1,4 @@
-$ac230b38 switch-scoping.js:15:1
+$9e4f55e8 switch-scoping.js:15:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -8,16 +8,16 @@ $ac230b38 switch-scoping.js:15:1
 
 block0:
   [   0] GetGlobal dst:reg6, `console`
-  [  18] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  38] GetGlobal dst:reg9, `switchWithBlockDecl`
-  [  50] Call dst:reg8, callee:reg9, this_value:Undefined, switchWithBlockDecl, arguments:[Int32(1)]
-  [  78] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  a0] GetGlobal dst:reg6, `console`
-  [  b8] GetById dst:reg8, base:reg6, `log` (console.log)
-  [  d8] GetGlobal dst:reg10, `switchWithBlockDecl`
-  [  f0] Call dst:reg9, callee:reg10, this_value:Undefined, switchWithBlockDecl, arguments:[Int32(2)]
-  [ 118] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
-  [ 140] End value:reg7
+  [  10] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  28] GetGlobal dst:reg9, `switchWithBlockDecl`
+  [  38] Call dst:reg8, callee:reg9, this_value:Undefined, switchWithBlockDecl, arguments:[Int32(1)]
+  [  60] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  88] GetGlobal dst:reg6, `console`
+  [  98] GetById dst:reg8, base:reg6, `log` (console.log)
+  [  b0] GetGlobal dst:reg10, `switchWithBlockDecl`
+  [  c0] Call dst:reg9, callee:reg10, this_value:Undefined, switchWithBlockDecl, arguments:[Int32(2)]
+  [  e8] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+  [ 110] End value:reg7
 
 
 switchWithBlockDecl$ba88cf0a switch-scoping.js:2:5

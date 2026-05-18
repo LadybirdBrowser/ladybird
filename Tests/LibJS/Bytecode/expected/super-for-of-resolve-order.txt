@@ -1,4 +1,4 @@
-$091ab4cd super-for-of-resolve-order.js:1:1
+$87b8bc45 super-for-of-resolve-order.js:1:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -12,8 +12,8 @@ block0:
   [  38] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0
   [  58] InitializeLexicalBinding `C`, src:reg6
   [  70] GetGlobal dst:reg5, `C`
-  [  88] CallConstruct dst:reg6, callee:reg5, C
-  [  a0] End value:reg6
+  [  80] CallConstruct dst:reg6, callee:reg5, C
+  [  98] End value:reg6
 
 
 C$9d8b2466 super-for-of-resolve-order.js:3:28

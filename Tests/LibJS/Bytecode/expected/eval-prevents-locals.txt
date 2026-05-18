@@ -1,4 +1,4 @@
-$a036f1fa eval-prevents-locals.js:22:1
+$9d7300ea eval-prevents-locals.js:22:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -6,10 +6,10 @@ $a036f1fa eval-prevents-locals.js:22:1
 
 block0:
   [   0] GetGlobal dst:reg6, `with_eval`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, with_eval
-  [  38] GetGlobal dst:reg7, `outer_eval`
-  [  50] Call dst:reg6, callee:reg7, this_value:Undefined, outer_eval
-  [  70] End value:reg6
+  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, with_eval
+  [  30] GetGlobal dst:reg7, `outer_eval`
+  [  40] Call dst:reg6, callee:reg7, this_value:Undefined, outer_eval
+  [  60] End value:reg6
 
 
 with_eval$b4b96665 eval-prevents-locals.js:6:5

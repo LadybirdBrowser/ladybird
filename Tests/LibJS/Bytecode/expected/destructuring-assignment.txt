@@ -1,4 +1,4 @@
-$f2f04dd8 destructuring-assignment.js:28:1
+$77163770 destructuring-assignment.js:28:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -6,12 +6,12 @@ $f2f04dd8 destructuring-assignment.js:28:1
 
 block0:
   [   0] GetGlobal dst:reg6, `array_destructuring_with_class_default`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, array_destructuring_with_class_default
-  [  38] GetGlobal dst:reg7, `object_destructuring_with_function_default`
-  [  50] Call dst:reg6, callee:reg7, this_value:Undefined, object_destructuring_with_function_default
-  [  70] GetGlobal dst:reg7, `setter_parameter_resolution`
-  [  88] Call dst:reg5, callee:reg7, this_value:Undefined, setter_parameter_resolution
-  [  a8] End value:reg5
+  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, array_destructuring_with_class_default
+  [  30] GetGlobal dst:reg7, `object_destructuring_with_function_default`
+  [  40] Call dst:reg6, callee:reg7, this_value:Undefined, object_destructuring_with_function_default
+  [  60] GetGlobal dst:reg7, `setter_parameter_resolution`
+  [  70] Call dst:reg5, callee:reg7, this_value:Undefined, setter_parameter_resolution
+  [  90] End value:reg5
 
 
 array_destructuring_with_class_default$a4c92b11 destructuring-assignment.js:6:10
@@ -57,7 +57,7 @@ block6:
   [ 148] Return value:x~0
 
 
-object_destructuring_with_function_default$497a8092 destructuring-assignment.js:12:12
+object_destructuring_with_function_default$cadc791a destructuring-assignment.js:12:12
   Registers: 8
   Blocks:    3
   Locals:    x~0
@@ -69,18 +69,18 @@ block0:
   [  10] NewObject dst:reg5
   [  20] ThrowIfNullish src:reg5
   [  28] GetById dst:reg6, base:reg5, `x`
-  [  48] JumpUndefined condition:reg6, true_target:block1, false_target:block2
+  [  40] JumpUndefined condition:reg6, true_target:block1, false_target:block2
 
 block1:
-  [  58] NewFunction dst:reg7, shared_function_data_index:0 (x)
-  [  70] Mov dst:reg6, src:reg7
+  [  50] NewFunction dst:reg7, shared_function_data_index:0 (x)
+  [  68] Mov dst:reg6, src:reg7
 
 block2:
-  [  80] Mov dst:x~0, src:reg6
-  [  90] Return value:x~0
+  [  78] Mov dst:x~0, src:reg6
+  [  88] Return value:x~0
 
 
-setter_parameter_resolution$2898cc06 destructuring-assignment.js:19:9
+setter_parameter_resolution$2b5cbd16 destructuring-assignment.js:19:9
   Registers: 12
   Blocks:    5
   Constants:
@@ -96,24 +96,24 @@ block0:
   [  68] NewObject dst:reg10
   [  78] NewFunction dst:reg11, shared_function_data_index:0 (set y), home_object:reg10
   [  90] PutById base:reg10, `y`, src:reg11, kind:Setter
-  [  b8] IteratorNextUnpack dst_value:reg11, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
-  [  d0] JumpFalse condition:reg6, target:block2
+  [  b0] IteratorNextUnpack dst_value:reg11, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
+  [  c8] JumpFalse condition:reg6, target:block2
 
 block1:
-  [  e0] Mov dst:reg11, src:Undefined
-  [  f0] Jump target:block2
+  [  d8] Mov dst:reg11, src:Undefined
+  [  e8] Jump target:block2
 
 block2:
-  [  f8] PutById base:reg10, `y`, src:reg11, kind:Normal
-  [ 120] JumpFalse condition:reg6, target:block4
+  [  f0] PutById base:reg10, `y`, src:reg11, kind:Normal
+  [ 110] JumpFalse condition:reg6, target:block4
 
 block3:
-  [ 130] GetInitializedBinding dst:reg5, `setValue`
-  [ 148] Return value:reg5
+  [ 120] GetInitializedBinding dst:reg5, `setValue`
+  [ 138] Return value:reg5
 
 block4:
-  [ 150] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
-  [ 168] Jump target:block3
+  [ 140] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
+  [ 158] Jump target:block3
 
 
 set y$72954fa9 destructuring-assignment.js:21:26

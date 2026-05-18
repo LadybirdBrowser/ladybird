@@ -1,4 +1,4 @@
-$221ada1a named-class-expression-no-lhs-name-leak.js:1:1
+$b15087f2 named-class-expression-no-lhs-name-leak.js:1:1
   Registers: 13
   Blocks:    7
   Constants:
@@ -29,11 +29,11 @@ block3:
 
 block4:
   [  f0] SetGlobal `C`, src:reg10
-  [ 108] JumpFalse condition:reg6, target:block6
+  [ 100] JumpFalse condition:reg6, target:block6
 
 block5:
-  [ 118] End value:Undefined
+  [ 110] End value:Undefined
 
 block6:
-  [ 120] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
-  [ 138] Jump target:block5
+  [ 118] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
+  [ 130] Jump target:block5

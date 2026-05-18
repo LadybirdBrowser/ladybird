@@ -647,7 +647,7 @@ i64 asm_try_get_global_env_binding(VM* vm, u32 pc)
 {
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::GetGlobal const*>(&bytecode[pc]);
-    auto& cache = *bit_cast<GlobalVariableCache*>(insn.cache());
+    auto& cache = vm->current_executable().global_variable_caches[insn.cache()];
 
     if (!cache.has_environment_binding_index) [[unlikely]]
         return 1;
@@ -677,7 +677,7 @@ i64 asm_try_set_global_env_binding(VM* vm, u32 pc)
 {
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::SetGlobal const*>(&bytecode[pc]);
-    auto& cache = *bit_cast<GlobalVariableCache*>(insn.cache());
+    auto& cache = vm->current_executable().global_variable_caches[insn.cache()];
 
     if (!cache.has_environment_binding_index) [[unlikely]]
         return 1;
@@ -897,7 +897,7 @@ i64 asm_try_put_by_id_cache(VM* vm, u32 pc)
         return 1;
     auto& object = base.as_object();
     auto value = vm->get(insn.src());
-    auto& cache = *bit_cast<PropertyLookupCache*>(insn.cache());
+    auto& cache = vm->current_executable().property_lookup_caches[insn.cache()];
 
     for (size_t i = 0; i < cache.entries.size(); ++i) {
         auto& entry = cache.entries[i];
@@ -952,7 +952,7 @@ i64 asm_try_get_by_id_cache(VM* vm, u32 pc)
         return 1;
     auto& object = base.as_object();
     auto& shape = object.shape();
-    auto& cache = *bit_cast<PropertyLookupCache*>(insn.cache());
+    auto& cache = vm->current_executable().property_lookup_caches[insn.cache()];
 
     for (auto& entry : cache.entries) {
         auto cached_prototype = entry.prototype.ptr();

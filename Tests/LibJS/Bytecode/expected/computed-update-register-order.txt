@@ -1,4 +1,4 @@
-$9790b964 computed-update-register-order.js:8:1
+$18f2b1ec computed-update-register-order.js:8:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -6,12 +6,12 @@ $9790b964 computed-update-register-order.js:8:1
 
 block0:
   [   0] GetGlobal dst:reg6, `test`
-  [  18] NewPrimitiveArray dst:reg7, elements:[1, 2, 3, 4]
-  [  48] Call dst:reg5, callee:reg6, this_value:Undefined, test, arguments:[reg7]
-  [  70] End value:reg5
+  [  10] NewPrimitiveArray dst:reg7, elements:[1, 2, 3, 4]
+  [  40] Call dst:reg5, callee:reg6, this_value:Undefined, test, arguments:[reg7]
+  [  68] End value:reg5
 
 
-test$7becb49f computed-update-register-order.js:5:9
+test$fa8abc17 computed-update-register-order.js:5:9
   Registers: 8
   Blocks:    1
   Constants:
@@ -23,9 +23,9 @@ block0:
   [  18] PostfixIncrement dst:reg6, src:reg5
   [  28] PutByValue base:arg0, property:Int32(3), src:reg5, kind:Normal
   [  40] GetGlobal dst:reg5, `foo`
-  [  58] Mov dst:reg7, src:arg0
-  [  68] Call dst:reg6, callee:reg5, this_value:Undefined, foo, arguments:[reg7]
-  [  90] End value:Undefined
+  [  50] Mov dst:reg7, src:arg0
+  [  60] Call dst:reg6, callee:reg5, this_value:Undefined, foo, arguments:[reg7]
+  [  88] End value:Undefined
 
 
 foo$93622fcc computed-update-register-order.js:2:5

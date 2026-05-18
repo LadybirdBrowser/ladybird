@@ -1,4 +1,4 @@
-$393b7f47 logical-or-preferred-dst.js:11:1
+$ba9d77cf logical-or-preferred-dst.js:11:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -7,8 +7,8 @@ $393b7f47 logical-or-preferred-dst.js:11:1
 
 block0:
   [   0] GetGlobal dst:reg6, `blocked`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, blocked, arguments:[Bool(false)]
-  [  40] End value:reg5
+  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, blocked, arguments:[Bool(false)]
+  [  38] End value:reg5
 
 
 blocked$0b29b642 logical-or-preferred-dst.js:6:9
