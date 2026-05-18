@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/ByteBuffer.h>
 #include <LibGfx/Font/Typeface.h>
 
 namespace Gfx {
@@ -43,7 +42,6 @@ private:
 
     virtual bool is_skia() const override { return true; }
 
-    ByteBuffer m_owned_font_data;
     ReadonlyBytes m_buffer;
     u32 m_ttc_index { 0 };
 
