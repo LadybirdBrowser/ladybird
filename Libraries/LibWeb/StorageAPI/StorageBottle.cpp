@@ -183,4 +183,9 @@ void SessionStorageBottle::remove(String const& key)
     m_map.remove(key);
 }
 
+void SessionStorageBottle::copy_map_from(SessionStorageBottle const& other)
+{
+    m_map = other.m_map;
+}
+
 }

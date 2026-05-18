@@ -125,7 +125,11 @@ GC::Ref<TraversableNavigable> TraversableNavigable::create_a_new_top_level_trave
     traversable->m_session_history_entries.append(*initial_history_entry);
     traversable->set_has_session_history_entry_and_ready_for_navigation();
 
-    // FIXME: 10. If opener is non-null, then legacy-clone a traversable storage shed given opener's top-level traversable and traversable. [STORAGE]
+    // 10. If opener is non-null, then legacy-clone a traversable storage shed given opener's top-level traversable and traversable. [STORAGE]
+    if (opener) {
+        auto opener_traversable = opener->top_level_traversable();
+        traversable->storage_shed().legacy_clone(opener_traversable->storage_shed(), page);
+    }
 
     // 11. Append traversable to the user agent's top-level traversable set.
     user_agent_top_level_traversable_set().set(traversable);

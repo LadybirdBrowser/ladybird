@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	A new window to make sure there is a copy of the previous window's sessionStorage, and that they diverge after a change
