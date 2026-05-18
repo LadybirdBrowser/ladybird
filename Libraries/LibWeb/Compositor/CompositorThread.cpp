@@ -80,6 +80,11 @@ struct ViewportSizeUpdatedCommand {
     WindowResizingInProgress window_resize_in_progress { WindowResizingInProgress::No };
 };
 
+struct PresentFrameCommand {
+    Gfx::IntRect viewport_rect;
+    u64 frame_id { 0 };
+};
+
 struct ScreenshotCommand {
     NonnullRefPtr<Gfx::PaintingSurface> target_surface;
     Function<void()> callback;
@@ -87,7 +92,7 @@ struct ScreenshotCommand {
 
 using CompositorCommand = Variant<UpdateDisplayListCommand, AsyncScrollByCommand, ViewportScrollbarDragCommand,
     UpdateScrollStateCommand, UpdateCompositorSurfaceCommand, ClearCompositorSurfaceCommand, ViewportSizeUpdatedCommand,
-    ScreenshotCommand>;
+    PresentFrameCommand, ScreenshotCommand>;
 
 struct CompositorCommandEnvelope {
     CompositorContextId context_id;
@@ -377,16 +382,15 @@ public:
         m_command_ready.signal();
     }
 
-    u64 set_needs_present(CompositorContextId context_id, Gfx::IntRect viewport_rect)
+    u64 enqueue_present_frame(CompositorContextId context_id, Gfx::IntRect viewport_rect)
     {
         Sync::MutexLocker const locker { m_mutex };
         auto context_state = m_contexts.get(context_id);
         if (!context_state.has_value())
             return 0;
         auto& context = *context_state.value();
-        context.needs_present = true;
-        context.pending_viewport_rect = viewport_rect;
         context.submitted_frame_id++;
+        m_command_queue.enqueue({ context_id, PresentFrameCommand { viewport_rect, context.submitted_frame_id } });
         m_command_ready.signal();
         return context.submitted_frame_id;
     }
@@ -880,6 +884,18 @@ public:
                         if (auto publication = context.backing_store_manager.allocate_backing_stores(*allocation, m_skia_backend_context, context.presents_to_client); publication.has_value())
                             publish_backing_store_pair(context, publication.release_value());
                     },
+                    [this, &context](PresentFrameCommand& cmd) {
+                        {
+                            Sync::MutexLocker const locker { m_mutex };
+                            if (has_presented_bitmap_awaiting_ack_while_locked(context)) {
+                                context.needs_present = true;
+                                context.pending_viewport_rect = cmd.viewport_rect;
+                                context.submitted_frame_id = cmd.frame_id;
+                                return;
+                            }
+                        }
+                        present_frame(context, cmd.viewport_rect, cmd.frame_id, PresentFrameDelivery::MainThread);
+                    },
                     [this, &context](ScreenshotCommand& cmd) {
                         if (!context.cached_display_list)
                             return;
@@ -1144,6 +1160,15 @@ private:
         return context.has_deferred_async_scroll_present && !has_presented_bitmap_awaiting_ack_while_locked(context);
     }
 
+    bool route_compositor_surface_to_context(CompositorContextId context_id, Painting::CompositorSurfaceId surface_id, Gfx::SharedImage&& shared_image)
+    {
+        if (auto target_context = context_state(context_id); target_context) {
+            target_context->display_list_resource_storage.update_compositor_surface(surface_id, move(shared_image));
+            return true;
+        }
+        return CompositorThread::update_compositor_surface_for_context(context_id, surface_id, move(shared_image));
+    }
+
     void present_frame(ContextState& context, Gfx::IntRect viewport_rect, Optional<u64> presenting_frame_id = {}, PresentFrameDelivery delivery = PresentFrameDelivery::MainThread)
     {
         auto delivery_name = delivery == PresentFrameDelivery::AsyncScroll ? "compositor-thread"sv : "main-thread"sv;
@@ -1212,7 +1237,7 @@ private:
                     if (context.has_async_scrolling_state)
                         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Publishing present to compositor surface");
                     auto& front_store = context.backing_store_manager.front_store();
-                    VERIFY(CompositorThread::update_compositor_surface_for_context(
+                    VERIFY(route_compositor_surface_to_context(
                         mode.target_context_id, mode.surface_id, front_store.snapshot_into_shared_image()));
                 });
         } else {
@@ -1679,7 +1704,7 @@ void CompositorThread::Context::enqueue_viewport_size_updated(
 
 u64 CompositorThread::Context::present_frame(Gfx::IntRect viewport_rect)
 {
-    return m_thread_data->set_needs_present(m_context_id, viewport_rect);
+    return m_thread_data->enqueue_present_frame(m_context_id, viewport_rect);
 }
 
 void CompositorThread::Context::wait_for_frame(u64 frame_id)
