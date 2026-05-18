@@ -29,6 +29,7 @@ public:
     IdentifierTableIndex insert(Utf16FlyString);
     Utf16FlyString const& get(IdentifierTableIndex) const;
     void dump() const;
+    void ensure_capacity(size_t capacity) { m_identifiers.ensure_capacity(capacity); }
     bool is_empty() const { return m_identifiers.is_empty(); }
     size_t external_memory_size() const { return vector_external_memory_size(m_identifiers); }
 
