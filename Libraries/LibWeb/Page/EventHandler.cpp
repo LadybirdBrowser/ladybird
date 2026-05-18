@@ -1715,7 +1715,7 @@ bool EventHandler::maybe_request_paste_for_middle_click(DOM::Document& document,
         return false;
 
     target->set_selection_anchor(*hit_node, cursor_hit->index_in_node);
-    page.client().page_did_request_paste();
+    page.client().page_did_request_primary_paste();
     return true;
 }
 

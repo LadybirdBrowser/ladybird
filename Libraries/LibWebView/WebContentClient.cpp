@@ -1158,10 +1158,12 @@ void WebContentClient::did_request_clipboard_entries(u64 page_id, u64 request_id
     }
 }
 
-void WebContentClient::did_request_paste(u64 page_id)
+void WebContentClient::did_request_primary_paste(u64 page_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        view->paste_text_from_clipboard();
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        auto text = Application::the().clipboard_text(Application::ClipboardType::Selection);
+        view->client().async_paste(page_id, text);
+    }
 }
 
 void WebContentClient::did_change_audio_play_state(u64 page_id, Web::HTML::AudioPlayState play_state)
