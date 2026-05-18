@@ -46,4 +46,18 @@ u64 PerformanceTiming::monotonic_timestamp_to_wall_time_milliseconds(Function<Hi
     return static_cast<u64>(coarsened_time);
 }
 
+u64 PerformanceTiming::relative_timestamp_to_wall_time_milliseconds(Function<HighResolutionTime::DOMHighResTimeStamp(DOM::DocumentLoadTimingInfo const&)> selector) const
+{
+    auto& global_object = HTML::relevant_global_object(*this);
+    auto const& load_info = document_load_timing_info(global_object);
+    auto relative_timestamp = selector(load_info);
+    if (relative_timestamp == 0)
+        return 0;
+
+    auto absolute_timestamp = relative_timestamp + load_info.navigation_start_time;
+    auto wall_time = absolute_timestamp - HighResolutionTime::estimated_monotonic_time_of_the_unix_epoch();
+    auto coarsened_time = HighResolutionTime::coarsen_time(wall_time);
+    return static_cast<u64>(coarsened_time);
+}
+
 }
