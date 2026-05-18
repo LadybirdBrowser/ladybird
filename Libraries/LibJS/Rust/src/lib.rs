@@ -875,6 +875,7 @@ pub unsafe extern "C" fn rust_decode_bytecode_cache_blob(
 /// # Safety
 /// - `data` must point to `length` readable bytes.
 /// - `owner` must keep `data` alive until `free_owner` is called.
+/// - `clone_owner` must return a new owner that keeps the same bytes alive.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_decode_bytecode_cache_blob_with_owner(
     data: *const u8,
@@ -883,6 +884,7 @@ pub unsafe extern "C" fn rust_decode_bytecode_cache_blob_with_owner(
     expected_source_hash: *const u8,
     expected_source_hash_len: usize,
     owner: *mut c_void,
+    clone_owner: bytecode_cache::CloneBytecodeCacheBlobOwner,
     free_owner: bytecode_cache::FreeBytecodeCacheBlobOwner,
 ) -> *mut DecodedBytecodeCacheBlob {
     unsafe {
@@ -909,7 +911,11 @@ pub unsafe extern "C" fn rust_decode_bytecode_cache_blob_with_owner(
                 std::slice::from_raw_parts(data, length),
                 expected_program_type,
                 expected_source_hash,
-                bytecode_cache::ForeignBytecodeCacheBlobOwner { owner, free_owner },
+                bytecode_cache::ForeignBytecodeCacheBlobOwner {
+                    owner,
+                    clone_owner,
+                    free_owner,
+                },
             ) else {
                 return std::ptr::null_mut();
             };
@@ -3469,6 +3475,11 @@ mod tests {
         }
     }
 
+    unsafe extern "C" fn clone_foreign_owner(owner: *const c_void) -> *mut c_void {
+        let value = unsafe { *owner.cast::<u8>() };
+        Box::into_raw(Box::new(value)).cast()
+    }
+
     fn new_foreign_owner() -> *mut c_void {
         Box::into_raw(Box::new(0u8)).cast()
     }
@@ -3486,6 +3497,7 @@ mod tests {
                 source_hash.as_ptr(),
                 source_hash.len(),
                 new_foreign_owner(),
+                clone_foreign_owner,
                 count_freed_foreign_owner,
             )
         };
@@ -3501,6 +3513,7 @@ mod tests {
                 source_hash.as_ptr(),
                 source_hash.len(),
                 new_foreign_owner(),
+                clone_foreign_owner,
                 count_freed_foreign_owner,
             )
         };

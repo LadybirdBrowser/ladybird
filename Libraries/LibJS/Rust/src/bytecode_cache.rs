@@ -31,8 +31,9 @@ use crate::bytecode::validator::{
 use crate::{CompiledProgram, CompiledProgramBytecode, ModuleCallbacks, ast, u32_from_usize};
 
 const MAGIC: &[u8; 8] = b"LBJSBC\0\0";
-const FORMAT_VERSION: u32 = 9;
+const FORMAT_VERSION: u32 = 10;
 const SOURCE_HASH_SIZE: usize = 32;
+const BYTECODE_ALIGNMENT: usize = 8;
 const COMPLETION_TYPE_VARIANT_COUNT: u32 = 6;
 const ITERATOR_HINT_VARIANT_COUNT: u32 = 2;
 const ENVIRONMENT_MODE_VARIANT_COUNT: u32 = 2;
@@ -73,9 +74,11 @@ pub(crate) fn decode_blob(
 }
 
 pub(crate) type FreeBytecodeCacheBlobOwner = unsafe extern "C" fn(*mut c_void);
+pub(crate) type CloneBytecodeCacheBlobOwner = unsafe extern "C" fn(*const c_void) -> *mut c_void;
 
 pub(crate) struct ForeignBytecodeCacheBlobOwner {
     pub(crate) owner: *mut c_void,
+    pub(crate) clone_owner: CloneBytecodeCacheBlobOwner,
     pub(crate) free_owner: FreeBytecodeCacheBlobOwner,
 }
 
@@ -129,6 +132,12 @@ impl Encoder {
         self.bytes.extend(std::iter::repeat_n(0, padding));
     }
 
+    fn align_bytes_payload_to(&mut self, alignment: usize) {
+        let payload_offset = self.bytes.len() + size_of::<u32>();
+        let padding = payload_offset.next_multiple_of(alignment) - payload_offset;
+        self.bytes.extend(std::iter::repeat_n(0, padding));
+    }
+
     fn sequence<T>(&mut self, items: &[T], mut encode_item: impl FnMut(&T, &mut Self)) {
         u32_from_usize(items.len()).encode(self);
         for item in items {
@@ -141,6 +150,7 @@ struct ForeignBytecodeCacheBlob {
     data: *const u8,
     length: usize,
     owner: *mut c_void,
+    clone_owner: CloneBytecodeCacheBlobOwner,
     free_owner: FreeBytecodeCacheBlobOwner,
 }
 
@@ -165,6 +175,7 @@ impl<'a> Decoder<'a> {
                 data: bytes.as_ptr(),
                 length: bytes.len(),
                 owner: owner.owner,
+                clone_owner: owner.clone_owner,
                 free_owner: owner.free_owner,
             })
         });
@@ -192,6 +203,13 @@ impl<'a> Decoder<'a> {
 
     fn align_to(&mut self, alignment: usize) -> Option<()> {
         let padding = self.offset.next_multiple_of(alignment) - self.offset;
+        self.bytes(padding)?;
+        Some(())
+    }
+
+    fn align_bytes_payload_to(&mut self, alignment: usize) -> Option<()> {
+        let payload_offset = self.offset.checked_add(size_of::<u32>())?;
+        let padding = payload_offset.next_multiple_of(alignment) - payload_offset;
         self.bytes(padding)?;
         Some(())
     }
@@ -539,6 +557,17 @@ impl DecodedBytecodeBytes {
         }
     }
 
+    fn owner_for_ffi(&self) -> *mut c_void {
+        match self {
+            Self::Owned(_) => std::ptr::null_mut(),
+            // The C++ executable retains the immutable blob so the hot
+            // instruction stream can point directly into the cache file. Clone
+            // the small owner wrapper here; the original decoded blob still
+            // owns its copy until materialization finishes.
+            Self::Foreign { blob, .. } => unsafe { (blob.clone_owner)(blob.owner.cast_const()) },
+        }
+    }
+
     fn len(&self) -> usize {
         self.as_slice().len()
     }
@@ -566,6 +595,17 @@ struct DecodedRecordSequence {
 
 impl DecodedRecordSequence {
     fn encode<T>(encoder: &mut Encoder, items: &[T], mut encode_item: impl FnMut(&T, &mut Encoder)) {
+        Self::encode_with_alignment(encoder, items, align_of::<u16>(), |item, encoder| {
+            encode_item(item, encoder);
+        });
+    }
+
+    fn encode_with_alignment<T>(
+        encoder: &mut Encoder,
+        items: &[T],
+        alignment: usize,
+        mut encode_item: impl FnMut(&T, &mut Encoder),
+    ) {
         u32_from_usize(items.len()).encode(encoder);
 
         let mut payload_encoder = Encoder::new();
@@ -573,13 +613,17 @@ impl DecodedRecordSequence {
             encode_item(item, &mut payload_encoder);
         }
 
-        encoder.align_to(align_of::<u16>());
+        encoder.align_bytes_payload_to(alignment);
         Bytes(&payload_encoder.finish()).encode(encoder);
     }
 
     fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
+        Self::decode_with_alignment(decoder, align_of::<u16>())
+    }
+
+    fn decode_with_alignment(decoder: &mut Decoder<'_>, alignment: usize) -> Option<Self> {
         let count: usize = u32::decode(decoder)?.try_into().ok()?;
-        decoder.align_to(align_of::<u16>())?;
+        decoder.align_bytes_payload_to(alignment)?;
         let byte_length: usize = u32::decode(decoder)?.try_into().ok()?;
         // Every record currently has at least one byte in the payload. Reject
         // impossible counts up front so corrupt cache files cannot ask later
@@ -1189,6 +1233,7 @@ unsafe fn materialize_executable(
             &generator,
             crate::bytecode::ffi::ExecutableParts {
                 bytecode: bytecode.as_slice(),
+                bytecode_owner: bytecode.owner_for_ffi(),
                 exception_handlers: &exception_handlers,
                 source_map: &source_map,
                 basic_block_start_offsets: &[],
@@ -2250,6 +2295,7 @@ impl Encode for ExecutableRecord<'_> {
         self.generator.this_value_needs_environment_resolution.encode(encoder);
         self.generator.length_identifier.map(|index| index.0).encode(encoder);
 
+        encoder.align_bytes_payload_to(BYTECODE_ALIGNMENT);
         Bytes(&self.assembled.bytecode).encode(encoder);
         Utf16Table(&self.generator.identifier_table).encode(encoder);
         Utf16Table(&self.generator.property_key_table).encode(encoder);
@@ -2272,7 +2318,10 @@ impl ExecutableRecord<'_> {
             cache_counters: CacheCounters::decode(decoder)?,
             this_value_needs_environment_resolution: bool::decode(decoder)?,
             length_identifier: Option::<u32>::decode(decoder)?,
-            bytecode: DecodedBytecodeBytes::decode(decoder)?,
+            bytecode: {
+                decoder.align_bytes_payload_to(BYTECODE_ALIGNMENT)?;
+                DecodedBytecodeBytes::decode(decoder)?
+            },
             identifier_table: Utf16Table::decode(decoder)?,
             property_key_table: Utf16Table::decode(decoder)?,
             string_table: Utf16Table::decode(decoder)?,
@@ -2823,20 +2872,25 @@ struct SharedFunctionTable<'a>(&'a Generator);
 
 impl Encode for SharedFunctionTable<'_> {
     fn encode(&self, encoder: &mut Encoder) {
-        DecodedRecordSequence::encode(encoder, &self.0.shared_function_data, |shared_data, encoder| {
-            FunctionRecord {
-                shared_data,
-                arena: &self.0.arena,
-            }
-            .encode(encoder);
-        });
+        DecodedRecordSequence::encode_with_alignment(
+            encoder,
+            &self.0.shared_function_data,
+            BYTECODE_ALIGNMENT,
+            |shared_data, encoder| {
+                FunctionRecord {
+                    shared_data,
+                    arena: &self.0.arena,
+                }
+                .encode(encoder);
+            },
+        );
     }
 }
 
 impl SharedFunctionTable<'_> {
     fn decode(decoder: &mut Decoder<'_>) -> Option<DecodedFunctionTable> {
         Some(DecodedFunctionTable {
-            sequence: DecodedRecordSequence::decode(decoder)?,
+            sequence: DecodedRecordSequence::decode_with_alignment(decoder, BYTECODE_ALIGNMENT)?,
         })
     }
 }
@@ -2893,19 +2947,35 @@ struct DeclarationFunctionTable<'a>(&'a [PendingSharedFunctionData]);
 
 impl Encode for DeclarationFunctionTable<'_> {
     fn encode(&self, encoder: &mut Encoder) {
-        encoder.sequence(self.0, |shared_data, encoder| {
+        u32_from_usize(self.0.len()).encode(encoder);
+        let mut payload_encoder = Encoder::new();
+        for shared_data in self.0 {
             let arena = shared_data
                 .arena
                 .as_deref()
                 .expect("bytecode cache declaration function is missing its AST arena");
-            FunctionRecord { shared_data, arena }.encode(encoder);
-        });
+            FunctionRecord { shared_data, arena }.encode(&mut payload_encoder);
+        }
+        encoder.align_bytes_payload_to(BYTECODE_ALIGNMENT);
+        Bytes(&payload_encoder.finish()).encode(encoder);
     }
 }
 
 impl DeclarationFunctionTable<'_> {
     fn decode(decoder: &mut Decoder<'_>) -> Option<Vec<DecodedFunctionRecord>> {
-        decoder.sequence_values(FunctionRecord::decode)
+        let count: usize = u32::decode(decoder)?.try_into().ok()?;
+        decoder.align_bytes_payload_to(BYTECODE_ALIGNMENT)?;
+        let byte_length: usize = u32::decode(decoder)?.try_into().ok()?;
+        if count > byte_length {
+            return None;
+        }
+        let bytes = decoder.bytecode_bytes(byte_length)?;
+        let mut decoder = bytes.decoder();
+        let mut values = Vec::with_capacity(count);
+        for _ in 0..count {
+            values.push(FunctionRecord::decode(&mut decoder)?);
+        }
+        decoder.is_empty().then_some(values)
     }
 }
 
@@ -3142,14 +3212,14 @@ impl Encode for PrecompiledFunctionRecord<'_> {
             assembled: &self.0.assembled,
         }
         .encode(&mut payload_encoder);
-        encoder.align_to(align_of::<u16>());
+        encoder.align_bytes_payload_to(BYTECODE_ALIGNMENT);
         Bytes(&payload_encoder.finish()).encode(encoder);
     }
 }
 
 impl PrecompiledFunctionRecord<'_> {
     fn decode(decoder: &mut Decoder<'_>) -> Option<DecodedCachedExecutableRecord> {
-        decoder.align_to(align_of::<u16>())?;
+        decoder.align_bytes_payload_to(BYTECODE_ALIGNMENT)?;
         Some(DecodedCachedExecutableRecord {
             bytes: DecodedBytecodeBytes::decode(decoder)?,
         })

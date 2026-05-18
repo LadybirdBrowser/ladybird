@@ -7,9 +7,13 @@
 #pragma once
 
 #include <AK/NonnullOwnPtr.h>
+#include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
 #include <AK/Utf16FlyString.h>
+#include <AK/Variant.h>
+#include <AK/Vector.h>
+#include <LibCore/ImmutableBytes.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/WeakContainer.h>
@@ -27,6 +31,29 @@
 #include <LibJS/SourceRange.h>
 
 namespace JS::Bytecode {
+
+class InstructionStream {
+public:
+    explicit InstructionStream(Vector<u8>);
+    InstructionStream(Core::ImmutableBytes, size_t offset, size_t size);
+
+    [[nodiscard]] ReadonlyBytes span() const LIFETIME_BOUND { return { m_data, m_size }; }
+    [[nodiscard]] u8 const* data() const LIFETIME_BOUND { return m_data; }
+    [[nodiscard]] size_t size() const { return m_size; }
+    [[nodiscard]] size_t external_memory_size() const;
+    [[nodiscard]] u8 operator[](size_t index) const { return m_data[index]; }
+
+    operator ReadonlyBytes() const LIFETIME_BOUND { return span(); }
+
+    static constexpr size_t data_member_offset() { return offsetof(InstructionStream, m_data); }
+
+private:
+    void update_view_from_storage(size_t offset = 0, Optional<size_t> size = {});
+
+    Variant<Vector<u8>, Core::ImmutableBytes> m_storage;
+    u8 const* m_data { nullptr };
+    size_t m_size { 0 };
+};
 
 // Represents one polymorphic inline cache used for property lookups.
 struct PropertyLookupCache {
@@ -151,7 +178,7 @@ class JS_API Executable final
 
 public:
     Executable(
-        Vector<u8> bytecode,
+        InstructionStream bytecode,
         NonnullOwnPtr<IdentifierTable>,
         NonnullOwnPtr<PropertyKeyTable>,
         NonnullOwnPtr<StringTable>,
@@ -169,7 +196,7 @@ public:
     virtual ~Executable() override;
 
     Utf16FlyString name;
-    Vector<u8> bytecode;
+    InstructionStream bytecode;
     Vector<PropertyLookupCache> property_lookup_caches;
     Vector<GlobalVariableCache> global_variable_caches;
     Vector<TemplateObjectCache> template_object_caches;

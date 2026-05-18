@@ -414,10 +414,15 @@ static void free_bytecode_cache_blob_owner(void* owner)
     delete static_cast<Core::ImmutableBytes*>(owner);
 }
 
+static void* clone_bytecode_cache_blob_owner(void const* owner)
+{
+    return new Core::ImmutableBytes(*static_cast<Core::ImmutableBytes const*>(owner));
+}
+
 DecodedBytecodeCacheBlob* decode_bytecode_cache_blob(Core::ImmutableBytes bytes, ProgramType expected_type, ReadonlyBytes source_hash)
 {
     auto* owner = new Core::ImmutableBytes(move(bytes));
-    return rust_decode_bytecode_cache_blob_with_owner(owner->bytes().data(), owner->bytes().size(), static_cast<u8>(expected_type), source_hash.data(), source_hash.size(), owner, free_bytecode_cache_blob_owner);
+    return rust_decode_bytecode_cache_blob_with_owner(owner->bytes().data(), owner->bytes().size(), static_cast<u8>(expected_type), source_hash.data(), source_hash.size(), owner, clone_bytecode_cache_blob_owner, free_bytecode_cache_blob_owner);
 }
 
 void free_decoded_bytecode_cache_blob(DecodedBytecodeCacheBlob* blob)
@@ -981,9 +986,25 @@ extern "C" void* rust_create_executable(
     auto& vm = *static_cast<JS::VM*>(vm_ptr);
     auto& source_code = *static_cast<JS::SourceCode const*>(source_code_ptr);
 
-    // Build bytecode vector
-    Vector<u8> bytecode_vec;
-    bytecode_vec.append(data->bytecode, data->bytecode_length);
+    auto bytecode = [&] {
+        if (data->bytecode_owner) {
+            auto bytecode_owner = adopt_own_if_nonnull(static_cast<Core::ImmutableBytes*>(data->bytecode_owner));
+            VERIFY(bytecode_owner);
+            auto bytes = bytecode_owner->bytes();
+            size_t offset = 0;
+            if (!bytes.is_empty()) {
+                VERIFY(data->bytecode >= bytes.data());
+                offset = static_cast<size_t>(data->bytecode - bytes.data());
+            }
+            VERIFY(data->bytecode_length <= bytes.size());
+            VERIFY(offset <= bytes.size() - data->bytecode_length);
+            return JS::Bytecode::InstructionStream { move(*bytecode_owner), offset, data->bytecode_length };
+        }
+
+        Vector<u8> bytecode_vec;
+        bytecode_vec.append(data->bytecode, data->bytecode_length);
+        return JS::Bytecode::InstructionStream { move(bytecode_vec) };
+    }();
 
     // Build identifier table
     auto ident_table = make<JS::Bytecode::IdentifierTable>();
@@ -1024,7 +1045,7 @@ extern "C" void* rust_create_executable(
 
     // Create executable
     auto executable = vm.heap().allocate<JS::Bytecode::Executable>(
-        move(bytecode_vec),
+        move(bytecode),
         move(ident_table),
         move(prop_key_table),
         move(str_table),

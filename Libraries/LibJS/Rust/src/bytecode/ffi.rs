@@ -191,6 +191,7 @@ pub struct FFISharedFunctionData {
 pub struct FFIExecutableData {
     pub bytecode: *const u8,
     pub bytecode_length: usize,
+    pub bytecode_owner: *mut c_void,
     pub identifier_table: *const FFIUtf16Slice,
     pub identifier_count: usize,
     pub property_key_table: *const FFIUtf16Slice,
@@ -663,6 +664,7 @@ pub unsafe fn create_executable_with_dependencies(
     unsafe {
         let parts = ExecutableParts {
             bytecode: &assembled.bytecode,
+            bytecode_owner: std::ptr::null_mut(),
             exception_handlers: &assembled.exception_handlers,
             source_map: &assembled.source_map,
             basic_block_start_offsets: &assembled.basic_block_start_offsets,
@@ -675,6 +677,7 @@ pub unsafe fn create_executable_with_dependencies(
 
 pub struct ExecutableParts<'a> {
     pub bytecode: &'a [u8],
+    pub bytecode_owner: *mut c_void,
     pub exception_handlers: &'a [ExceptionHandler],
     pub source_map: &'a [SourceMapEntry],
     pub basic_block_start_offsets: &'a [usize],
@@ -754,6 +757,7 @@ pub unsafe fn create_executable_with_dependencies_from_parts(
         let ffi_data = FFIExecutableData {
             bytecode: parts.bytecode.as_ptr(),
             bytecode_length: parts.bytecode.len(),
+            bytecode_owner: parts.bytecode_owner,
             identifier_table: ident_slices.as_ptr(),
             identifier_count: ident_slices.len(),
             property_key_table: property_key_slices.as_ptr(),

@@ -10,6 +10,7 @@
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibCrypto/Hash/SHA2.h>
+#include <LibJS/Bytecode/Instruction.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/ModuleRequest.h>
 #include <LibJS/Runtime/SharedFunctionInstanceData.h>
@@ -75,6 +76,13 @@ public:
         skip(padding);
     }
 
+    void align_bytes_payload_to(size_t alignment)
+    {
+        auto payload_offset = m_offset + sizeof(u32);
+        auto padding = (alignment - (payload_offset % alignment)) % alignment;
+        skip(padding);
+    }
+
     bool read_bool()
     {
         return read_u8() != 0;
@@ -137,6 +145,73 @@ static void write_u32(ByteBuffer& bytes, size_t offset, u32 value)
     bytes[offset + 1] = (value >> 8) & 0xff;
     bytes[offset + 2] = (value >> 16) & 0xff;
     bytes[offset + 3] = (value >> 24) & 0xff;
+}
+
+static void skip_script_declaration_metadata(BytecodeCacheBlobReader& reader)
+{
+    EXPECT_EQ(reader.read_u8(), 0); // Script declaration metadata.
+    reader.skip_utf16_vector();     // Lexical names.
+    reader.skip_utf16_vector();     // Var names.
+    reader.skip_utf16_vector();     // Function names.
+    reader.skip_utf16_vector();     // Var-scoped names.
+    reader.skip_utf16_vector();     // Annex B candidate names.
+
+    auto lexical_binding_count = reader.read_u32();
+    for (u32 i = 0; i < lexical_binding_count; ++i) {
+        reader.skip_utf16();
+        reader.skip(1);
+    }
+}
+
+static size_t executable_bytecode_payload_offset(BytecodeCacheBlobReader& reader)
+{
+    reader.skip(1);               // Executable strict mode.
+    reader.skip(sizeof(u32));     // Number of registers.
+    reader.skip(sizeof(u32));     // Number of arguments.
+    reader.skip(5 * sizeof(u32)); // Cache counters.
+    reader.skip(1);               // This value needs environment resolution.
+    reader.skip_optional_u32();   // Length identifier.
+
+    reader.align_bytes_payload_to(alignof(JS::Bytecode::Instruction));
+    auto bytecode_length = reader.read_u32();
+    VERIFY(bytecode_length > 0);
+    return reader.offset();
+}
+
+static void enter_declaration_function_table(BytecodeCacheBlobReader&, bool require_nonempty);
+
+static size_t top_level_bytecode_payload_offset(ReadonlyBytes blob)
+{
+    BytecodeCacheBlobReader reader { blob };
+
+    reader.skip(8);           // Magic.
+    reader.skip(sizeof(u32)); // Format version.
+    reader.skip(1);           // Program type.
+    reader.skip(32);          // Source hash.
+    reader.skip(1);           // Has top-level await.
+    reader.skip(1);           // Is strict mode.
+
+    skip_script_declaration_metadata(reader);
+
+    enter_declaration_function_table(reader, false);
+
+    reader.skip(1); // Program kind.
+    return executable_bytecode_payload_offset(reader);
+}
+
+static void enter_declaration_function_table(BytecodeCacheBlobReader& reader, bool require_nonempty)
+{
+    auto declaration_function_count = reader.read_u32();
+    if (require_nonempty)
+        VERIFY(declaration_function_count > 0);
+    else
+        VERIFY(declaration_function_count == 0);
+    reader.align_bytes_payload_to(alignof(JS::Bytecode::Instruction));
+    auto declaration_function_payload_length = reader.read_u32();
+    if (require_nonempty)
+        VERIFY(declaration_function_payload_length > 0);
+    else
+        VERIFY(declaration_function_payload_length == 0);
 }
 
 static BytecodeCacheTestData create_bytecode_cache_blob(StringView source)
@@ -208,21 +283,8 @@ static size_t first_declaration_function_bytecode_payload_offset(ReadonlyBytes b
     reader.skip(1);           // Has top-level await.
     reader.skip(1);           // Is strict mode.
 
-    EXPECT_EQ(reader.read_u8(), 0); // Script declaration metadata.
-    reader.skip_utf16_vector();     // Lexical names.
-    reader.skip_utf16_vector();     // Var names.
-    reader.skip_utf16_vector();     // Function names.
-    reader.skip_utf16_vector();     // Var-scoped names.
-    reader.skip_utf16_vector();     // Annex B candidate names.
-
-    auto lexical_binding_count = reader.read_u32();
-    for (u32 i = 0; i < lexical_binding_count; ++i) {
-        reader.skip_utf16();
-        reader.skip(1);
-    }
-
-    auto declaration_function_count = reader.read_u32();
-    VERIFY(declaration_function_count > 0);
+    skip_script_declaration_metadata(reader);
+    enter_declaration_function_table(reader, true);
 
     reader.skip_optional_utf16(); // Function name.
     reader.skip(sizeof(u32));     // Source text start.
@@ -248,20 +310,11 @@ static size_t first_declaration_function_bytecode_payload_offset(ReadonlyBytes b
     reader.skip(sizeof(u64)); // Var environment bindings count.
     reader.skip(2);           // Function metadata bools.
 
-    reader.align_to(alignof(u16));
+    reader.align_bytes_payload_to(alignof(JS::Bytecode::Instruction));
     auto executable_length = reader.read_u32();
     VERIFY(executable_length > 0);
 
-    reader.skip(1);               // Executable strict mode.
-    reader.skip(sizeof(u32));     // Number of registers.
-    reader.skip(sizeof(u32));     // Number of arguments.
-    reader.skip(5 * sizeof(u32)); // Cache counters.
-    reader.skip(1);               // This value needs environment resolution.
-    reader.skip_optional_u32();   // Length identifier.
-
-    auto bytecode_length = reader.read_u32();
-    VERIFY(bytecode_length > 0);
-    return reader.offset();
+    return executable_bytecode_payload_offset(reader);
 }
 
 static size_t first_declaration_function_source_text_start_offset(ReadonlyBytes blob)
@@ -275,21 +328,8 @@ static size_t first_declaration_function_source_text_start_offset(ReadonlyBytes 
     reader.skip(1);           // Has top-level await.
     reader.skip(1);           // Is strict mode.
 
-    EXPECT_EQ(reader.read_u8(), 0); // Script declaration metadata.
-    reader.skip_utf16_vector();     // Lexical names.
-    reader.skip_utf16_vector();     // Var names.
-    reader.skip_utf16_vector();     // Function names.
-    reader.skip_utf16_vector();     // Var-scoped names.
-    reader.skip_utf16_vector();     // Annex B candidate names.
-
-    auto lexical_binding_count = reader.read_u32();
-    for (u32 i = 0; i < lexical_binding_count; ++i) {
-        reader.skip_utf16();
-        reader.skip(1);
-    }
-
-    auto declaration_function_count = reader.read_u32();
-    VERIFY(declaration_function_count > 0);
+    skip_script_declaration_metadata(reader);
+    enter_declaration_function_table(reader, true);
 
     reader.skip_optional_utf16(); // Function name.
     return reader.offset();
@@ -305,13 +345,9 @@ TEST_CASE(bytecode_cache_materialization_failure_has_parser_error)
 
     auto corrupted_blob = MUST(ByteBuffer::copy(test_data.blob.bytes()));
 
-    // For this minimal script, the encoded top-level bytecode payload begins
-    // after the cache header, empty declaration metadata, and executable
-    // metadata. Corrupting the payload keeps the blob structurally decodable
-    // while causing executable validation to reject it during materialization.
-    constexpr size_t bytecode_payload_offset_for_empty_script = 112;
-    VERIFY(corrupted_blob.size() > bytecode_payload_offset_for_empty_script);
-    corrupted_blob[bytecode_payload_offset_for_empty_script] ^= 0xff;
+    auto bytecode_payload_offset = top_level_bytecode_payload_offset(corrupted_blob.bytes());
+    VERIFY(corrupted_blob.size() > bytecode_payload_offset);
+    corrupted_blob[bytecode_payload_offset] ^= 0xff;
 
     // Structural decode still succeeds because the blob is internally well-formed; the corruption is in the bytecode
     // payload, which is only checked by the validator that runs during materialization.
