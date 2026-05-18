@@ -26,17 +26,17 @@ block0:
   [ 148] End value:reg7
 
 
-B$d4247641 super-length-access.js:7:1
+B$cbd8a311 super-length-access.js:7:1
   Registers: 7
   Blocks:    1
 
 block0:
   [   0] CreateVariable `args`, is_immutable:false, is_global:false, is_strict:false
   [  10] CreateRestParams dst:arg0, rest_index:0
-  [  20] DynamicInitializeLexicalBinding `args`, src:arg0
-  [  30] DynamicGetBinding dst:reg5, `args`
-  [  40] SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:true
-  [  50] Return value:reg6
+  [  20] InitializeLexicalBinding `args`, src:arg0
+  [  38] GetBinding dst:reg5, `args`
+  [  50] SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:true
+  [  60] Return value:reg6
 
 
 A$ef0589ec

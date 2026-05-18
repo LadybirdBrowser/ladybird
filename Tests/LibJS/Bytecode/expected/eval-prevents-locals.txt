@@ -12,7 +12,7 @@ block0:
   [  60] End value:reg6
 
 
-with_eval$33576ddd eval-prevents-locals.js:6:5
+with_eval$361b5eed eval-prevents-locals.js:6:5
   Registers: 9
   Blocks:    1
   Constants:
@@ -24,11 +24,11 @@ block0:
   [   8] CreateArguments is_immutable:false
   [  18] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [  30] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
-  [  40] DynamicInitializeLexicalBinding `x`, src:Int32(1)
-  [  50] DynamicGetCalleeAndThisFromEnvironment callee:reg7, this_value:reg8, `eval`
-  [  60] CallDirectEval dst:reg6, callee:reg7, this_value:reg8, eval, arguments:[String("")]
-  [  88] DynamicGetBinding dst:reg6, `x`
-  [  98] Return value:reg6
+  [  40] InitializeLexicalBinding `x`, src:Int32(1)
+  [  58] DynamicGetCalleeAndThisFromEnvironment callee:reg7, this_value:reg8, `eval`
+  [  68] CallDirectEval dst:reg6, callee:reg7, this_value:reg8, eval, arguments:[String("")]
+  [  90] GetBinding dst:reg6, `x`
+  [  a8] Return value:reg6
 
 
 eval$b72141f3
@@ -41,7 +41,7 @@ block0:
   [   0] End value:Undefined
 
 
-outer_eval$6d0cf89a eval-prevents-locals.js:14:9
+outer_eval$e6231df2 eval-prevents-locals.js:14:9
   Registers: 8
   Blocks:    1
   Constants:
@@ -51,14 +51,14 @@ outer_eval$6d0cf89a eval-prevents-locals.js:14:9
 block0:
   [   0] CreateArguments is_immutable:false
   [  10] CreateVariable `inner`, is_immutable:false, is_global:false, is_strict:false
-  [  20] DynamicInitializeVariableBinding `inner`, src:Undefined
-  [  30] NewFunction dst:reg5, shared_function_data_index:0
-  [  48] DynamicSetVariableBinding `inner`, src:reg5
-  [  58] DynamicGetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, `eval`
-  [  68] CallDirectEval dst:reg5, callee:reg6, this_value:reg7, eval, arguments:[String("")]
-  [  90] DynamicGetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, `inner`
-  [  a0] Call dst:reg5, callee:reg6, this_value:reg7, inner
-  [  c0] Return value:reg5
+  [  20] InitializeVariableBinding `inner`, src:Undefined
+  [  38] NewFunction dst:reg5, shared_function_data_index:0
+  [  50] SetVariableBinding `inner`, src:reg5
+  [  68] DynamicGetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, `eval`
+  [  78] CallDirectEval dst:reg5, callee:reg6, this_value:reg7, eval, arguments:[String("")]
+  [  a0] GetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, `inner`
+  [  b8] Call dst:reg5, callee:reg6, this_value:reg7, inner
+  [  d8] Return value:reg5
 
 
 eval$b72141f3
