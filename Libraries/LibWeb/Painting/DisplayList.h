@@ -23,7 +23,6 @@
 #include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/ScrollState.h>
-#include <LibWeb/Painting/VideoFrameSource.h>
 
 namespace Web::Painting {
 
@@ -97,7 +96,7 @@ private:
     virtual void draw_scaled_decoded_image_frame(DrawScaledDecodedImageFrame const&) = 0;
     virtual void draw_repeated_decoded_image_frame(DrawRepeatedDecodedImageFrame const&) = 0;
     virtual void draw_compositor_surface(DrawCompositorSurface const&) = 0;
-    virtual void draw_video_frame_source(DrawVideoFrameSource const&) = 0;
+    virtual void draw_video_frame(DrawVideoFrame const&) = 0;
     virtual void save(Save const&) = 0;
     virtual void save_layer(SaveLayer const&) = 0;
     virtual void restore(Restore const&) = 0;

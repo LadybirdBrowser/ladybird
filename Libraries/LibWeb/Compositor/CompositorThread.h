@@ -18,6 +18,7 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/SharedImage.h>
 #include <LibGfx/Size.h>
+#include <LibMedia/Forward.h>
 #include <LibSync/ConditionVariable.h>
 #include <LibThreading/Forward.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
@@ -81,6 +82,8 @@ public:
         void set_presentation_mode(PresentationMode);
 
         void update_display_list(NonnullRefPtr<Painting::DisplayList>, Painting::DisplayListResourceTransaction&&, Painting::ScrollStateSnapshot&&);
+        void update_video_frame(Painting::VideoFrameResourceId, NonnullRefPtr<Media::VideoFrame const>);
+        void clear_video_frame(Painting::VideoFrameResourceId);
         void update_compositor_surface(Painting::CompositorSurfaceId, Gfx::SharedImage&&);
         void clear_compositor_surface(Painting::CompositorSurfaceId);
         void update_scroll_state(Painting::ScrollStateSnapshot&&);

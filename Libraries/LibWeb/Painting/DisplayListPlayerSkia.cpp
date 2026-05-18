@@ -39,7 +39,6 @@
 #include <LibGfx/YUVData.h>
 #include <LibMedia/VideoFrame.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
-#include <LibWeb/Painting/VideoFrameSource.h>
 
 namespace Web::Painting {
 
@@ -183,9 +182,9 @@ void DisplayListPlayerSkia::draw_compositor_surface(DrawCompositorSurface const&
     canvas.drawImageRect(image.get(), src_rect, dst_rect, to_skia_sampling_options(command.scaling_mode), &paint, SkCanvas::kStrict_SrcRectConstraint);
 }
 
-void DisplayListPlayerSkia::draw_video_frame_source(DrawVideoFrameSource const& command)
+void DisplayListPlayerSkia::draw_video_frame(DrawVideoFrame const& command)
 {
-    auto frame = resource_storage().video_frame_source(command.source_id).current_frame();
+    auto frame = resource_storage().video_frame(command.video_frame_id);
     if (!frame)
         return;
 
