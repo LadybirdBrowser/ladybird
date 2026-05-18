@@ -29,6 +29,7 @@ public:
     PropertyKeyTableIndex insert(PropertyKey);
     PropertyKey const& get(PropertyKeyTableIndex) const;
     void dump() const;
+    void ensure_capacity(size_t capacity) { m_property_keys.ensure_capacity(capacity); }
     bool is_empty() const { return m_property_keys.is_empty(); }
     size_t external_memory_size() const { return vector_external_memory_size(m_property_keys); }
 

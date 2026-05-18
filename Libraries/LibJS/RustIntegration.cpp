@@ -1008,18 +1008,21 @@ extern "C" void* rust_create_executable(
 
     // Build identifier table
     auto ident_table = make<JS::Bytecode::IdentifierTable>();
+    ident_table->ensure_capacity(data->identifier_count);
     for (size_t i = 0; i < data->identifier_count; ++i) {
         ident_table->insert(utf16_fly_from_ffi(data->identifier_table[i]));
     }
 
     // Build property key table
     auto prop_key_table = make<JS::Bytecode::PropertyKeyTable>();
+    prop_key_table->ensure_capacity(data->property_key_count);
     for (size_t i = 0; i < data->property_key_count; ++i) {
         prop_key_table->insert(utf16_fly_from_ffi(data->property_key_table[i]));
     }
 
     // Build string table
     auto str_table = make<JS::Bytecode::StringTable>();
+    str_table->ensure_capacity(data->string_count);
     for (size_t i = 0; i < data->string_count; ++i) {
         str_table->insert(utf16_from_ffi(data->string_table[i]));
     }
@@ -1061,6 +1064,7 @@ extern "C" void* rust_create_executable(
         data->is_strict ? JS::Strict::Yes : JS::Strict::No);
 
     // Set exception handlers
+    executable->exception_handlers.ensure_capacity(data->exception_handler_count);
     for (size_t i = 0; i < data->exception_handler_count; ++i) {
         executable->exception_handlers.append({
             data->exception_handlers[i].start_offset,
@@ -1070,6 +1074,7 @@ extern "C" void* rust_create_executable(
     }
 
     // Set source map
+    executable->source_map.ensure_capacity(data->source_map_count);
     for (size_t i = 0; i < data->source_map_count; ++i) {
         executable->source_map.append({
             data->source_map[i].bytecode_offset,
@@ -1088,6 +1093,7 @@ extern "C" void* rust_create_executable(
     }
 
     // Set local variable names
+    executable->local_variable_names.ensure_capacity(data->local_variable_count);
     for (size_t i = 0; i < data->local_variable_count; ++i) {
         executable->local_variable_names.append({
             .name = utf16_fly_from_ffi(data->local_variable_names[i]),
@@ -1107,6 +1113,7 @@ extern "C" void* rust_create_executable(
         executable->length_identifier = JS::Bytecode::PropertyKeyTableIndex(data->length_identifier.value);
 
     // Set shared function data (inner function definitions)
+    executable->shared_function_data.ensure_capacity(data->shared_function_data_count);
     for (size_t i = 0; i < data->shared_function_data_count; ++i) {
         auto* sfd = const_cast<JS::SharedFunctionInstanceData*>(
             static_cast<JS::SharedFunctionInstanceData const*>(data->shared_function_data[i]));
@@ -1114,6 +1121,7 @@ extern "C" void* rust_create_executable(
     }
 
     // Set class blueprints (move from heap-allocated objects)
+    executable->class_blueprints.ensure_capacity(data->class_blueprint_count);
     for (size_t i = 0; i < data->class_blueprint_count; ++i) {
         auto* bp = static_cast<JS::Bytecode::ClassBlueprint*>(data->class_blueprints[i]);
         executable->class_blueprints.append(move(*bp));
