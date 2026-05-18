@@ -3381,9 +3381,7 @@ void Navigable::paint_next_frame()
         return;
     }
 
-    auto frame_id = compositor_context().present_frame(viewport_rect);
-    if (!is_top_level_traversable())
-        compositor_context().wait_for_frame(frame_id);
+    compositor_context().present_frame(viewport_rect);
 }
 
 void Navigable::render_screenshot(Gfx::PaintingSurface& painting_surface, PaintConfig paint_config, Function<void()>&& callback)
