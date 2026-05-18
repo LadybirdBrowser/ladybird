@@ -5,6 +5,7 @@
  */
 
 #include <AK/ByteReader.h>
+#include <AK/Checked.h>
 #include <AK/Debug.h>
 #include <AK/FlyString.h>
 #include <AK/Random.h>
@@ -72,6 +73,19 @@ CompatibleValue<T> to_compatible_value(Wasm::Value const& value)
 }
 
 namespace Wasm::Wasi {
+
+static ErrorOr<size_t> checked_typed_memory_size(size_t memory_size, UnderlyingPointerType address, size_t element_size, Size count)
+{
+    Checked<size_t> byte_count { element_size };
+    byte_count *= static_cast<size_t>(count);
+    if (byte_count.has_overflow())
+        return Error::from_errno(ENOBUFS);
+    if (address > memory_size)
+        return Error::from_errno(ENOBUFS);
+    if (byte_count.value() > memory_size - address)
+        return Error::from_errno(ENOBUFS);
+    return byte_count.value();
+}
 
 void ArgsSizes::serialize_into(Array<Bytes, 2> bytes) const
 {
@@ -232,9 +246,7 @@ ErrorOr<Vector<T>> copy_typed_array(Configuration& configuration, Pointer<T> sou
 
     UnderlyingPointerType address = source.value();
     auto size = sizeof(T);
-    if (memory->size() < address || memory->size() <= address + (size * count)) {
-        return Error::from_errno(ENOBUFS);
-    }
+    TRY(checked_typed_memory_size(memory->size(), address, size, count));
 
     for (Size i = 0; i < count; i += 1) {
         values.unchecked_append(T::read_from(Array { ReadonlyBytes { memory->data().bytes().slice(address, size) } }));
@@ -253,9 +265,7 @@ ErrorOr<void> copy_typed_value_to(Configuration& configuration, T const& value, 
 
     UnderlyingPointerType address = destination.value();
     auto size = sizeof(T);
-    if (memory->size() < address || memory->size() <= address + size) {
-        return Error::from_errno(ENOBUFS);
-    }
+    TRY(checked_typed_memory_size(memory->size(), address, size, 1));
 
     ABI::serialize(value, Array { Bytes { memory->data().bytes().slice(address, size) } });
     return {};
@@ -270,10 +280,9 @@ ErrorOr<Span<T>> slice_typed_memory(Configuration& configuration, Pointer<T> sou
 
     auto address = source.value();
     auto size = sizeof(T);
-    if (memory->size() < address || memory->size() <= address + (size * count))
-        return Error::from_errno(ENOBUFS);
+    auto byte_count = TRY(checked_typed_memory_size(memory->size(), address, size, count));
 
-    auto untyped_slice = memory->data().bytes().slice(address, size * count);
+    auto untyped_slice = memory->data().bytes().slice(address, byte_count);
     return Span<T>(untyped_slice.data(), count);
 }
 
@@ -286,10 +295,9 @@ ErrorOr<Span<T const>> slice_typed_memory(Configuration& configuration, ConstPoi
 
     auto address = source.value();
     auto size = sizeof(T);
-    if (memory->size() < address || memory->size() <= address + (size * count))
-        return Error::from_errno(ENOBUFS);
+    auto byte_count = TRY(checked_typed_memory_size(memory->size(), address, size, count));
 
-    auto untyped_slice = memory->data().bytes().slice(address, size * count);
+    auto untyped_slice = memory->data().bytes().slice(address, byte_count);
     return Span<T const>(untyped_slice.data(), count);
 }
 
