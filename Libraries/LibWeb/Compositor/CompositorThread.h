@@ -9,6 +9,7 @@
 #include <AK/Noncopyable.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
+#include <AK/OwnPtr.h>
 #include <AK/Types.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
@@ -68,6 +69,46 @@ public:
     };
     using PresentationMode = Variant<PresentToUI, PublishToCompositorSurface>;
 
+    class WEB_API Context {
+        AK_MAKE_NONCOPYABLE(Context);
+        AK_MAKE_NONMOVABLE(Context);
+
+    public:
+        ~Context();
+
+        CompositorContextId id() const { return m_context_id; }
+        void stop_presenting_to_client();
+        void set_presentation_mode(PresentationMode);
+
+        void update_display_list(NonnullRefPtr<Painting::DisplayList>, Painting::DisplayListResourceTransaction&&, Painting::ScrollStateSnapshot&&);
+        void update_compositor_surface(Painting::CompositorSurfaceId, Gfx::SharedImage&&);
+        void clear_compositor_surface(Painting::CompositorSurfaceId);
+        void update_scroll_state(Painting::ScrollStateSnapshot&&);
+        void invalidate_wheel_event_listener_state(u64 generation);
+        AsyncScrollEnqueueResult async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels,
+            Gfx::IntRect viewport_rect, AsyncScrollOperationTracking = AsyncScrollOperationTracking::No);
+        bool should_defer_async_scroll_offset_adoption() const;
+        bool should_defer_main_thread_present_for_async_scroll() const;
+        PendingAsyncScrollUpdates take_pending_async_scroll_updates();
+        void viewport_size_updated(Gfx::IntSize, bool is_top_level_traversable, WindowResizingInProgress);
+        u64 present_frame(Gfx::IntRect);
+        void wait_for_frame(u64 frame_id);
+        void request_screenshot(NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&& callback);
+
+    private:
+        friend class CompositorThread;
+
+        Context(NonnullRefPtr<ThreadData>, CompositorContextId);
+
+        void enqueue_viewport_size_updated(Gfx::IntSize, bool is_top_level_traversable, WindowResizingInProgress);
+
+        NonnullRefPtr<ThreadData> m_thread_data;
+        CompositorContextId m_context_id;
+        RefPtr<Core::Timer> m_backing_store_shrink_timer;
+        Gfx::IntSize m_last_viewport_size;
+        bool m_last_viewport_size_is_top_level_traversable { false };
+    };
+
     CompositorThread(u64 page_id, PagePresentationRegistration);
     ~CompositorThread();
 
@@ -77,7 +118,8 @@ public:
     static bool async_scroll_by(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels);
     static bool handle_mouse_event(u64 page_id, MouseEvent const&);
 
-    CompositorContextId context_id() const { return m_context_id; }
+    CompositorContextId context_id() const { return m_context->id(); }
+    OwnPtr<Context> create_context(PagePresentationRegistration);
     void start(DisplayListPlayerType);
     void stop_presenting_to_client();
     void set_presentation_mode(PresentationMode);
@@ -98,14 +140,9 @@ public:
     void request_screenshot(NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&& callback);
 
 private:
-    void enqueue_viewport_size_updated(Gfx::IntSize, bool is_top_level_traversable, WindowResizingInProgress);
-
-    CompositorContextId m_context_id { allocate_compositor_context_id() };
     NonnullRefPtr<ThreadData> m_thread_data;
+    OwnPtr<Context> m_context;
     RefPtr<Threading::Thread> m_thread;
-    RefPtr<Core::Timer> m_backing_store_shrink_timer;
-    Gfx::IntSize m_last_viewport_size;
-    bool m_last_viewport_size_is_top_level_traversable { false };
 
     static void register_page_compositor(u64 page_id, NonnullRefPtr<ThreadData>);
     static void unregister_page_compositor(u64 page_id, ThreadData&);
