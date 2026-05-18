@@ -1046,8 +1046,9 @@ inline ThrowCompletionOr<Value> get_global(VM& vm, IdentifierTableIndex identifi
 
         // OPTIMIZATION: For global var bindings, if the shape of the global object hasn't changed,
         //               we can use the cached property offset.
-        if (&shape == cache.entries[0].shape && (!shape.is_dictionary() || shape.dictionary_generation() == cache.entries[0].shape_dictionary_generation)) {
-            auto value = binding_object.get_direct(cache.entries[0].property_offset);
+        auto* entry = cache.first_entry();
+        if (entry && &shape == entry->shape && (!shape.is_dictionary() || shape.dictionary_generation() == entry->shape_dictionary_generation)) {
+            auto value = binding_object.get_direct(entry->property_offset);
             if (value.is_accessor())
                 return TRY(call(vm, value.as_accessor().getter(), &binding_object));
             return value;
@@ -1096,12 +1097,14 @@ inline ThrowCompletionOr<Value> get_global(VM& vm, IdentifierTableIndex identifi
         CacheableGetPropertyMetadata cacheable_metadata;
         auto value = TRY(binding_object.internal_get(identifier, &binding_object, &cacheable_metadata));
         if (cacheable_metadata.type == CacheableGetPropertyMetadata::Type::GetOwnProperty) {
-            cache.entries[0].shape = shape;
-            cache.entries[0].property_offset = cacheable_metadata.property_offset.value();
+            cache.update(PropertyLookupCache::Entry::Type::GetOwnProperty, [&](auto& entry) {
+                entry.shape = shape;
+                entry.property_offset = cacheable_metadata.property_offset.value();
 
-            if (shape.is_dictionary()) {
-                cache.entries[0].shape_dictionary_generation = shape.dictionary_generation();
-            }
+                if (shape.is_dictionary()) {
+                    entry.shape_dictionary_generation = shape.dictionary_generation();
+                }
+            });
         }
         return value;
     }
@@ -2396,12 +2399,13 @@ ThrowCompletionOr<void> SetGlobal::execute_impl(VM& vm) const
     if (cache.environment_serial_number == declarative_record.environment_serial_number()) {
         // OPTIMIZATION: For global var bindings, if the shape of the global object hasn't changed,
         //               we can use the cached property offset.
-        if (&shape == cache.entries[0].shape && (!shape.is_dictionary() || shape.dictionary_generation() == cache.entries[0].shape_dictionary_generation)) {
-            auto value = binding_object.get_direct(cache.entries[0].property_offset);
+        auto* entry = cache.first_entry();
+        if (entry && &shape == entry->shape && (!shape.is_dictionary() || shape.dictionary_generation() == entry->shape_dictionary_generation)) {
+            auto value = binding_object.get_direct(entry->property_offset);
             if (value.is_accessor())
                 TRY(call(vm, value.as_accessor().setter(), &binding_object, src));
             else
-                binding_object.put_direct(cache.entries[0].property_offset, src);
+                binding_object.put_direct(entry->property_offset, src);
             return {};
         }
 
@@ -2463,12 +2467,14 @@ ThrowCompletionOr<void> SetGlobal::execute_impl(VM& vm) const
             return vm.throw_completion<TypeError>(ErrorType::ObjectSetReturnedFalse);
         }
         if (cacheable_metadata.type == CacheableSetPropertyMetadata::Type::ChangeOwnProperty) {
-            cache.entries[0].shape = shape;
-            cache.entries[0].property_offset = cacheable_metadata.property_offset.value();
+            cache.update(PropertyLookupCache::Entry::Type::ChangeOwnProperty, [&](auto& entry) {
+                entry.shape = shape;
+                entry.property_offset = cacheable_metadata.property_offset.value();
 
-            if (shape.is_dictionary()) {
-                cache.entries[0].shape_dictionary_generation = shape.dictionary_generation();
-            }
+                if (shape.is_dictionary()) {
+                    entry.shape_dictionary_generation = shape.dictionary_generation();
+                }
+            });
         }
         return {};
     }

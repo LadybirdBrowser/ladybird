@@ -915,9 +915,8 @@ i64 asm_try_put_by_id_cache(VM* vm, u32 pc)
     auto value = vm->get(insn.src());
     auto& cache = vm->current_executable().property_lookup_caches[insn.cache()];
 
-    for (size_t i = 0; i < cache.entries.size(); ++i) {
-        auto& entry = cache.entries[i];
-        switch (cache.types[i]) {
+    for (auto& entry : cache.entries()) {
+        switch (entry.type) {
         case PropertyLookupCache::Entry::Type::ChangeOwnProperty: {
             auto cached_shape = entry.shape.ptr();
             if (cached_shape != &object.shape()) [[unlikely]]
@@ -970,7 +969,12 @@ i64 asm_try_get_by_id_cache(VM* vm, u32 pc)
     auto& shape = object.shape();
     auto& cache = vm->current_executable().property_lookup_caches[insn.cache()];
 
-    for (auto& entry : cache.entries) {
+    for (auto& entry : cache.entries()) {
+        if (entry.type != PropertyLookupCache::Entry::Type::GetOwnProperty
+            && entry.type != PropertyLookupCache::Entry::Type::GetPropertyInPrototypeChain) {
+            continue;
+        }
+
         auto cached_prototype = entry.prototype.ptr();
         if (cached_prototype) {
             if (&shape != entry.shape) [[unlikely]]

@@ -76,7 +76,8 @@ int main()
 
     // PropertyLookupCache layout
     outln("\n# PropertyLookupCache layout");
-    EMIT_OFFSET(PROPERTY_LOOKUP_CACHE_ENTRIES, PropertyLookupCache, entries);
+    EMIT_OFFSET(PROPERTY_LOOKUP_CACHE_DATA, PropertyLookupCache, m_data);
+    outln("const PROPERTY_LOOKUP_CACHE_POLYMORPHIC_DATA_TAG = {}", PropertyLookupCache::polymorphic_data_tag);
     EMIT_SIZEOF(PROPERTY_LOOKUP_CACHE_SIZE, PropertyLookupCache);
 
     // PropertyLookupCache::Entry layout
@@ -88,15 +89,6 @@ int main()
     EMIT_OFFSET(PROPERTY_LOOKUP_CACHE_ENTRY_PROTOTYPE, PropertyLookupCache::Entry, prototype);
     EMIT_OFFSET(PROPERTY_LOOKUP_CACHE_ENTRY_PROTOTYPE_CHAIN_VALIDITY, PropertyLookupCache::Entry, prototype_chain_validity);
     EMIT_SIZEOF(PROPERTY_LOOKUP_CACHE_ENTRY_SIZE, PropertyLookupCache::Entry);
-
-    // Composite offsets for entry[0] within a PropertyLookupCache
-    outln("\n# Entry[0] offsets within PropertyLookupCache");
-    auto plc_entries = offsetof(PropertyLookupCache, entries);
-    outln("const PROPERTY_LOOKUP_CACHE_ENTRY0_PROPERTY_OFFSET = {}", plc_entries + offsetof(PropertyLookupCache::Entry, property_offset));
-    outln("const PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION = {}", plc_entries + offsetof(PropertyLookupCache::Entry, shape_dictionary_generation));
-    outln("const PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE = {}", plc_entries + offsetof(PropertyLookupCache::Entry, shape));
-    outln("const PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE = {}", plc_entries + offsetof(PropertyLookupCache::Entry, prototype));
-    outln("const PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE_CHAIN_VALIDITY = {}", plc_entries + offsetof(PropertyLookupCache::Entry, prototype_chain_validity));
 
     // ObjectPropertyIteratorCacheData layout
     outln("\n# ObjectPropertyIteratorCacheData layout");
@@ -240,11 +232,15 @@ int main()
 
     // GlobalVariableCache layout
     outln("\n# GlobalVariableCache layout");
+    EMIT_OFFSET(GLOBAL_VARIABLE_CACHE_ENTRY, GlobalVariableCache, entry);
     EMIT_OFFSET(GLOBAL_VARIABLE_CACHE_ENVIRONMENT_SERIAL, GlobalVariableCache, environment_serial_number);
     EMIT_OFFSET(GLOBAL_VARIABLE_CACHE_ENVIRONMENT_BINDING_INDEX, GlobalVariableCache, environment_binding_index);
     EMIT_OFFSET(GLOBAL_VARIABLE_CACHE_HAS_ENVIRONMENT_BINDING, GlobalVariableCache, has_environment_binding_index);
     EMIT_OFFSET(GLOBAL_VARIABLE_CACHE_IN_MODULE_ENVIRONMENT, GlobalVariableCache, in_module_environment);
     EMIT_SIZEOF(GLOBAL_VARIABLE_CACHE_SIZE, GlobalVariableCache);
+    outln("const GLOBAL_VARIABLE_CACHE_ENTRY_PROPERTY_OFFSET = {}", offsetof(GlobalVariableCache, entry) + offsetof(PropertyLookupCache::Entry, property_offset));
+    outln("const GLOBAL_VARIABLE_CACHE_ENTRY_DICTIONARY_GENERATION = {}", offsetof(GlobalVariableCache, entry) + offsetof(PropertyLookupCache::Entry, shape_dictionary_generation));
+    outln("const GLOBAL_VARIABLE_CACHE_ENTRY_SHAPE = {}", offsetof(GlobalVariableCache, entry) + offsetof(PropertyLookupCache::Entry, shape));
 
     // Builtin enum values
     outln("\n# Builtin enum values");

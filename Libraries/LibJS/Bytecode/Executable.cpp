@@ -7,6 +7,7 @@
 #include <AK/BinarySearch.h>
 #include <AK/NumericLimits.h>
 #include <AK/QuickSort.h>
+#include <AK/StdLibExtras.h>
 #include <LibGC/Heap.h>
 #include <LibGC/HeapBlock.h>
 #include <LibJS/Bytecode/BasicBlock.h>
@@ -65,6 +66,152 @@ size_t InstructionStream::external_memory_size() const
                 return 0;
             return bytecode.size();
         });
+}
+
+static_assert(alignof(PropertyLookupCache::MonomorphicData) > PropertyLookupCache::polymorphic_data_tag);
+static_assert(alignof(PropertyLookupCache::PolymorphicData) > PropertyLookupCache::polymorphic_data_tag);
+static_assert(offsetof(PropertyLookupCache::MonomorphicData, entry) == 0);
+static_assert(offsetof(PropertyLookupCache::PolymorphicData, entries) == 0);
+
+PropertyLookupCache::PropertyLookupCache(PropertyLookupCache&& other)
+    : m_data(exchange(other.m_data, 0))
+{
+}
+
+PropertyLookupCache& PropertyLookupCache::operator=(PropertyLookupCache&& other)
+{
+    if (this != &other) {
+        clear();
+        m_data = exchange(other.m_data, 0);
+    }
+    return *this;
+}
+
+PropertyLookupCache::~PropertyLookupCache()
+{
+    clear();
+}
+
+PropertyLookupCache::MonomorphicData* PropertyLookupCache::monomorphic_data()
+{
+    if (!m_data || (m_data & polymorphic_data_tag))
+        return nullptr;
+    return reinterpret_cast<MonomorphicData*>(m_data);
+}
+
+PropertyLookupCache::MonomorphicData const* PropertyLookupCache::monomorphic_data() const
+{
+    if (!m_data || (m_data & polymorphic_data_tag))
+        return nullptr;
+    return reinterpret_cast<MonomorphicData const*>(m_data);
+}
+
+PropertyLookupCache::PolymorphicData* PropertyLookupCache::polymorphic_data()
+{
+    if (!(m_data & polymorphic_data_tag))
+        return nullptr;
+    return reinterpret_cast<PolymorphicData*>(m_data & ~polymorphic_data_tag);
+}
+
+PropertyLookupCache::PolymorphicData const* PropertyLookupCache::polymorphic_data() const
+{
+    if (!(m_data & polymorphic_data_tag))
+        return nullptr;
+    return reinterpret_cast<PolymorphicData const*>(m_data & ~polymorphic_data_tag);
+}
+
+void PropertyLookupCache::set_monomorphic_data(MonomorphicData* data)
+{
+    VERIFY(data);
+    VERIFY(!(reinterpret_cast<FlatPtr>(data) & polymorphic_data_tag));
+    m_data = reinterpret_cast<FlatPtr>(data);
+}
+
+void PropertyLookupCache::set_polymorphic_data(PolymorphicData* data)
+{
+    VERIFY(data);
+    VERIFY(!(reinterpret_cast<FlatPtr>(data) & polymorphic_data_tag));
+    m_data = reinterpret_cast<FlatPtr>(data) | polymorphic_data_tag;
+}
+
+PropertyLookupCache::Entry* PropertyLookupCache::first_entry()
+{
+    if (auto* data = monomorphic_data())
+        return &data->entry;
+    if (auto* data = polymorphic_data())
+        return &data->entries[0];
+    return nullptr;
+}
+
+PropertyLookupCache::Entry const* PropertyLookupCache::first_entry() const
+{
+    if (auto* data = monomorphic_data())
+        return &data->entry;
+    if (auto* data = polymorphic_data())
+        return &data->entries[0];
+    return nullptr;
+}
+
+Span<PropertyLookupCache::Entry> PropertyLookupCache::entries()
+{
+    if (auto* data = monomorphic_data())
+        return { &data->entry, 1 };
+    if (auto* data = polymorphic_data())
+        return data->entries.span();
+    return {};
+}
+
+ReadonlySpan<PropertyLookupCache::Entry> PropertyLookupCache::entries() const
+{
+    if (auto* data = monomorphic_data())
+        return { &data->entry, 1 };
+    if (auto* data = polymorphic_data())
+        return data->entries.span();
+    return {};
+}
+
+size_t PropertyLookupCache::external_memory_size() const
+{
+    if (monomorphic_data())
+        return sizeof(MonomorphicData);
+    if (polymorphic_data())
+        return sizeof(PolymorphicData);
+    return 0;
+}
+
+void PropertyLookupCache::clear()
+{
+    if (auto* data = monomorphic_data()) {
+        delete data;
+        m_data = 0;
+        return;
+    }
+    if (auto* data = polymorphic_data()) {
+        delete data;
+        m_data = 0;
+    }
+}
+
+bool PropertyLookupCache::entries_have_same_cache_key(Entry const& a, Entry const& b)
+{
+    if (a.type == Entry::Type::Empty || b.type == Entry::Type::Empty)
+        return false;
+    if (a.type != b.type)
+        return false;
+
+    switch (a.type) {
+    case Entry::Type::AddOwnProperty:
+        return a.from_shape == b.from_shape && a.shape == b.shape;
+    case Entry::Type::ChangeOwnProperty:
+    case Entry::Type::GetOwnProperty:
+        return a.shape == b.shape;
+    case Entry::Type::ChangePropertyInPrototypeChain:
+    case Entry::Type::GetPropertyInPrototypeChain:
+        return a.shape == b.shape && a.prototype == b.prototype;
+    case Entry::Type::Empty:
+        VERIFY_NOT_REACHED();
+    }
+    VERIFY_NOT_REACHED();
 }
 
 ObjectPropertyIteratorCacheData::ObjectPropertyIteratorCacheData(VM& vm, Vector<PropertyKey> properties, ObjectPropertyIteratorFastPath fast_path, u32 indexed_property_count, bool receiver_has_magical_length_property, GC::Ref<Shape> shape, GC::Ptr<PrototypeChainValidity> prototype_chain_validity)
@@ -413,6 +560,8 @@ size_t Executable::external_memory_size() const
 {
     size_t size = bytecode.external_memory_size();
     size = saturating_add_external_memory_size(size, vector_external_memory_size(property_lookup_caches));
+    for (auto const& cache : property_lookup_caches)
+        size = saturating_add_external_memory_size(size, cache.external_memory_size());
     size = saturating_add_external_memory_size(size, vector_external_memory_size(global_variable_caches));
     size = saturating_add_external_memory_size(size, vector_external_memory_size(template_object_caches));
     size = saturating_add_external_memory_size(size, vector_external_memory_size(object_shape_caches));
@@ -469,7 +618,7 @@ static void clear_cache_entry_if_dead(PropertyLookupCache::Entry& entry)
 void StaticPropertyLookupCache::sweep_all()
 {
     for (auto* cache : static_property_lookup_caches()) {
-        for (auto& entry : cache->entries)
+        for (auto& entry : cache->entries())
             clear_cache_entry_if_dead(entry);
     }
 }
@@ -477,13 +626,11 @@ void StaticPropertyLookupCache::sweep_all()
 void Executable::remove_dead_cells(Badge<GC::Heap>)
 {
     for (auto& cache : property_lookup_caches) {
-        for (auto& entry : cache.entries)
+        for (auto& entry : cache.entries())
             clear_cache_entry_if_dead(entry);
     }
-    for (auto& cache : global_variable_caches) {
-        for (auto& entry : cache.entries)
-            clear_cache_entry_if_dead(entry);
-    }
+    for (auto& cache : global_variable_caches)
+        clear_cache_entry_if_dead(cache.entry);
     for (auto& cache : object_shape_caches) {
         auto* shape = cache.shape.ptr();
         if (shape && cell_is_dead(shape))
