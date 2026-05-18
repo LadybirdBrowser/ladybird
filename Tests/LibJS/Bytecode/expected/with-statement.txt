@@ -10,7 +10,7 @@ block0:
   [  30] End value:reg5
 
 
-withBlock$0e55bed3 with-statement.js:2:15
+withBlock$1119afe3 with-statement.js:2:15
   Registers: 10
   Blocks:    1
   Locals:    obj~0
@@ -24,12 +24,12 @@ block0:
   [  18] InitObjectLiteralProperty object:obj~0, `x`, src:Int32(42), shape_cache_index:0, property_slot:0
   [  30] CacheObjectShape object:obj~0
   [  40] EnterObjectEnvironment dst:reg5, object:obj~0
-  [  50] GetBinding dst:reg7, `console`
-  [  68] GetById dst:reg8, base:reg7, `log` (console.log)
-  [  80] GetBinding dst:reg9, `x`
-  [  98] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
-  [  c0] SetLexicalEnvironment environment:reg4
-  [  c8] End value:Undefined
+  [  50] DynamicGetBinding dst:reg7, `console`
+  [  60] GetById dst:reg8, base:reg7, `log` (console.log)
+  [  78] DynamicGetBinding dst:reg9, `x`
+  [  88] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
+  [  b0] SetLexicalEnvironment environment:reg4
+  [  b8] End value:Undefined
 
 
 42

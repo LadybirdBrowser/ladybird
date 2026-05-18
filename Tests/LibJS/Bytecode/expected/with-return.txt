@@ -14,7 +14,7 @@ block0:
   [  70] End value:reg5
 
 
-with_return$d690ef5a with-return.js:5:5
+with_return$57f2e7e2 with-return.js:5:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -23,6 +23,6 @@ with_return$d690ef5a with-return.js:5:5
 block0:
   [   0] GetLexicalEnvironment dst:reg4
   [   8] EnterObjectEnvironment dst:reg5, object:arg0
-  [  18] GetBinding dst:reg6, `x`
-  [  30] SetLexicalEnvironment environment:reg4
-  [  38] Return value:reg6
+  [  18] DynamicGetBinding dst:reg6, `x`
+  [  28] SetLexicalEnvironment environment:reg4
+  [  30] Return value:reg6

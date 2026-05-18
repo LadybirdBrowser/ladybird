@@ -311,10 +311,7 @@ def generate_class(op: OpDef) -> str:
         if f.is_array:
             lines.append(f"    {cpp_t} {f.name}[];")
         else:
-            if f.type.strip() == "EnvironmentCoordinate":
-                lines.append(f"    mutable {cpp_t} {f.name};")
-            else:
-                lines.append(f"    {cpp_t} {f.name};")
+            lines.append(f"    {cpp_t} {f.name};")
 
     lines.append("};")
     lines.append(f"static_assert(IsTriviallyDestructible<{op.name}>);")

@@ -1,4 +1,4 @@
-$c7701072 super-evaluation-order.js:1:1
+$460e17ea super-evaluation-order.js:1:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -14,33 +14,33 @@ block0:
   [  30] GetGlobal dst:reg6, `Object`
   [  40] SetLexicalEnvironment environment:reg4
   [  48] NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("read"), element_keys:String("write"), element_keys:String("update")]
-  [  78] InitializeLexicalBinding `A`, src:reg7
-  [  90] GetGlobal dst:reg6, `A`
-  [  a0] CallConstruct dst:reg5, callee:reg6, A
-  [  b8] GetById dst:reg6, base:reg5, `read`
-  [  d0] Call dst:reg7, callee:reg6, this_value:reg5, <object>.read
-  [  f0] GetGlobal dst:reg8, `A`
-  [ 100] CallConstruct dst:reg5, callee:reg8, A
-  [ 118] GetById dst:reg8, base:reg5, `write`
-  [ 130] Call dst:reg6, callee:reg8, this_value:reg5, <object>.write
-  [ 150] GetGlobal dst:reg5, `A`
-  [ 160] CallConstruct dst:reg8, callee:reg5, A
-  [ 178] GetById dst:reg5, base:reg8, `update`
-  [ 190] Call dst:reg7, callee:reg5, this_value:reg8, <object>.update
-  [ 1b0] End value:reg7
+  [  78] DynamicInitializeLexicalBinding `A`, src:reg7
+  [  88] GetGlobal dst:reg6, `A`
+  [  98] CallConstruct dst:reg5, callee:reg6, A
+  [  b0] GetById dst:reg6, base:reg5, `read`
+  [  c8] Call dst:reg7, callee:reg6, this_value:reg5, <object>.read
+  [  e8] GetGlobal dst:reg8, `A`
+  [  f8] CallConstruct dst:reg5, callee:reg8, A
+  [ 110] GetById dst:reg8, base:reg5, `write`
+  [ 128] Call dst:reg6, callee:reg8, this_value:reg5, <object>.write
+  [ 148] GetGlobal dst:reg5, `A`
+  [ 158] CallConstruct dst:reg8, callee:reg5, A
+  [ 170] GetById dst:reg5, base:reg8, `update`
+  [ 188] Call dst:reg7, callee:reg5, this_value:reg8, <object>.update
+  [ 1a8] End value:reg7
 
 
-A$3d02c59c super-evaluation-order.js:1:1
+A$3fc6b6ac super-evaluation-order.js:1:1
   Registers: 7
   Blocks:    1
 
 block0:
   [   0] CreateVariable `args`, is_immutable:false, is_global:false, is_strict:false
   [  10] CreateRestParams dst:arg0, rest_index:0
-  [  20] InitializeLexicalBinding `args`, src:arg0
-  [  38] GetBinding dst:reg5, `args`
-  [  50] SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:true
-  [  60] Return value:reg6
+  [  20] DynamicInitializeLexicalBinding `args`, src:arg0
+  [  30] DynamicGetBinding dst:reg5, `args`
+  [  40] SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:true
+  [  50] Return value:reg6
 
 
 read$5dc3ca35 super-evaluation-order.js:3:9

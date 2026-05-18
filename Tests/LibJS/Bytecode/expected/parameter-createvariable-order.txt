@@ -13,7 +13,7 @@ block0:
   [  40] End value:reg5
 
 
-f$8982c134 parameter-createvariable-order.js:2:5
+f$0820c8ac parameter-createvariable-order.js:2:5
   Registers: 6
   Blocks:    1
   Locals:    inner~0
@@ -24,24 +24,24 @@ block0:
   [   0] CreateVariable `a`, is_immutable:false, is_global:false, is_strict:false
   [  10] CreateVariable `b`, is_immutable:false, is_global:false, is_strict:false
   [  20] CreateVariable `c`, is_immutable:false, is_global:false, is_strict:false
-  [  30] InitializeLexicalBinding `a`, src:arg0
-  [  48] InitializeLexicalBinding `b`, src:arg1
-  [  60] InitializeLexicalBinding `c`, src:arg2
-  [  78] Mov dst:inner~0, src:Undefined
-  [  88] NewFunction dst:reg5, shared_function_data_index:0 (inner)
-  [  a0] Mov dst:inner~0, src:reg5
-  [  b0] Call dst:reg5, callee:inner~0, this_value:Undefined, inner
-  [  d0] Return value:reg5
+  [  30] DynamicInitializeLexicalBinding `a`, src:arg0
+  [  40] DynamicInitializeLexicalBinding `b`, src:arg1
+  [  50] DynamicInitializeLexicalBinding `c`, src:arg2
+  [  60] Mov dst:inner~0, src:Undefined
+  [  70] NewFunction dst:reg5, shared_function_data_index:0 (inner)
+  [  88] Mov dst:inner~0, src:reg5
+  [  98] Call dst:reg5, callee:inner~0, this_value:Undefined, inner
+  [  b8] Return value:reg5
 
 
-inner$9e8c0b51 parameter-createvariable-order.js:3:9
+inner$2575e5f9 parameter-createvariable-order.js:3:9
   Registers: 8
   Blocks:    1
 
 block0:
-  [   0] GetBinding dst:reg5, `a`
-  [  18] GetBinding dst:reg6, `b`
-  [  30] Add dst:reg7, lhs:reg5, rhs:reg6
-  [  40] GetBinding dst:reg5, `c`
-  [  58] Add dst:reg6, lhs:reg7, rhs:reg5
-  [  68] Return value:reg6
+  [   0] DynamicGetBinding dst:reg5, `a`
+  [  10] DynamicGetBinding dst:reg6, `b`
+  [  20] Add dst:reg7, lhs:reg5, rhs:reg6
+  [  30] DynamicGetBinding dst:reg5, `c`
+  [  40] Add dst:reg6, lhs:reg7, rhs:reg5
+  [  50] Return value:reg6

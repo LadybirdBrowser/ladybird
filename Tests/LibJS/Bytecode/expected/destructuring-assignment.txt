@@ -80,7 +80,7 @@ block2:
   [  88] Return value:x~0
 
 
-setter_parameter_resolution$2b5cbd16 destructuring-assignment.js:19:9
+setter_parameter_resolution$2e20ae26 destructuring-assignment.js:19:9
   Registers: 12
   Blocks:    5
   Constants:
@@ -89,39 +89,39 @@ setter_parameter_resolution$2b5cbd16 destructuring-assignment.js:19:9
 
 block0:
   [   0] CreateVariable `setValue`, is_immutable:false, is_global:false, is_strict:false
-  [  10] InitializeVariableBinding `setValue`, src:Undefined
-  [  28] NewPrimitiveArray dst:reg5, elements:[23]
-  [  40] Mov dst:reg6, src:Bool(false)
-  [  50] GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5
-  [  68] NewObject dst:reg10
-  [  78] NewFunction dst:reg11, shared_function_data_index:0 (set y), home_object:reg10
-  [  90] PutById base:reg10, `y`, src:reg11, kind:Setter
-  [  b0] IteratorNextUnpack dst_value:reg11, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
-  [  c8] JumpFalse condition:reg6, target:block2
+  [  10] DynamicInitializeVariableBinding `setValue`, src:Undefined
+  [  20] NewPrimitiveArray dst:reg5, elements:[23]
+  [  38] Mov dst:reg6, src:Bool(false)
+  [  48] GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5
+  [  60] NewObject dst:reg10
+  [  70] NewFunction dst:reg11, shared_function_data_index:0 (set y), home_object:reg10
+  [  88] PutById base:reg10, `y`, src:reg11, kind:Setter
+  [  a8] IteratorNextUnpack dst_value:reg11, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
+  [  c0] JumpFalse condition:reg6, target:block2
 
 block1:
-  [  d8] Mov dst:reg11, src:Undefined
-  [  e8] Jump target:block2
+  [  d0] Mov dst:reg11, src:Undefined
+  [  e0] Jump target:block2
 
 block2:
-  [  f0] PutById base:reg10, `y`, src:reg11, kind:Normal
-  [ 110] JumpFalse condition:reg6, target:block4
+  [  e8] PutById base:reg10, `y`, src:reg11, kind:Normal
+  [ 108] JumpFalse condition:reg6, target:block4
 
 block3:
-  [ 120] GetInitializedBinding dst:reg5, `setValue`
-  [ 138] Return value:reg5
+  [ 118] DynamicGetInitializedBinding dst:reg5, `setValue`
+  [ 128] Return value:reg5
 
 block4:
-  [ 140] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
-  [ 158] Jump target:block3
+  [ 130] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
+  [ 148] Jump target:block3
 
 
-set y$72954fa9 destructuring-assignment.js:21:26
+set y$f3f74831 destructuring-assignment.js:21:26
   Registers: 5
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] SetLexicalBinding `setValue`, src:arg0
-  [  18] End value:Undefined
+  [   0] DynamicSetLexicalBinding `setValue`, src:arg0
+  [  10] End value:Undefined

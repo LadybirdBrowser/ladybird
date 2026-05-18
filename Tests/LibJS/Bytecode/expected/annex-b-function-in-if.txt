@@ -20,7 +20,7 @@ block0:
   [ 110] End value:reg7
 
 
-annexBFunctionInIf$f1f2b149 annex-b-function-in-if.js:2:5
+annexBFunctionInIf$1321fe09 annex-b-function-in-if.js:2:5
   Registers: 8
   Blocks:    4
   Constants:
@@ -29,32 +29,32 @@ annexBFunctionInIf$f1f2b149 annex-b-function-in-if.js:2:5
 block0:
   [   0] GetLexicalEnvironment dst:reg4
   [   8] CreateVariable `inner`, is_immutable:false, is_global:false, is_strict:false
-  [  18] InitializeVariableBinding `inner`, src:Undefined
-  [  30] JumpFalse condition:arg0, target:block2
+  [  18] DynamicInitializeVariableBinding `inner`, src:Undefined
+  [  28] JumpFalse condition:arg0, target:block2
 
 block1:
-  [  40] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
-  [  58] CreateMutableBinding environment:reg5, `inner`, can_be_deleted:false
-  [  68] NewFunction dst:reg6, shared_function_data_index:0
-  [  80] InitializeLexicalBinding `inner`, src:reg6
-  [  98] GetBinding dst:reg6, `inner`
-  [  b0] SetVariableBinding `inner`, src:reg6
-  [  c8] SetLexicalEnvironment environment:reg4
-  [  d0] Jump target:block3
+  [  38] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  50] CreateMutableBinding environment:reg5, `inner`, can_be_deleted:false
+  [  60] NewFunction dst:reg6, shared_function_data_index:0
+  [  78] DynamicInitializeLexicalBinding `inner`, src:reg6
+  [  88] DynamicGetBinding dst:reg6, `inner`
+  [  98] DynamicSetVariableBinding `inner`, src:reg6
+  [  a8] SetLexicalEnvironment environment:reg4
+  [  b0] Jump target:block3
 
 block2:
-  [  d8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
-  [  f0] CreateMutableBinding environment:reg5, `inner`, can_be_deleted:false
-  [ 100] NewFunction dst:reg6, shared_function_data_index:1
-  [ 118] InitializeLexicalBinding `inner`, src:reg6
-  [ 130] GetBinding dst:reg6, `inner`
-  [ 148] SetVariableBinding `inner`, src:reg6
-  [ 160] SetLexicalEnvironment environment:reg4
+  [  b8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  d0] CreateMutableBinding environment:reg5, `inner`, can_be_deleted:false
+  [  e0] NewFunction dst:reg6, shared_function_data_index:1
+  [  f8] DynamicInitializeLexicalBinding `inner`, src:reg6
+  [ 108] DynamicGetBinding dst:reg6, `inner`
+  [ 118] DynamicSetVariableBinding `inner`, src:reg6
+  [ 128] SetLexicalEnvironment environment:reg4
 
 block3:
-  [ 168] GetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, `inner`
-  [ 180] Call dst:reg5, callee:reg6, this_value:reg7, inner
-  [ 1a0] Return value:reg5
+  [ 130] DynamicGetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, `inner`
+  [ 140] Call dst:reg5, callee:reg6, this_value:reg7, inner
+  [ 160] Return value:reg5
 
 
 inner$b5b8e95a annex-b-function-in-if.js:4:13

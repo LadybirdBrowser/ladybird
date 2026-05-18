@@ -152,7 +152,7 @@ pub struct PropertyKeyTableIndex(pub u32);
 #[derive(Debug, Clone, Copy)]
 pub struct RegexTableIndex(pub u32);
 
-/// Environment coordinate used as a mutable cache in some instructions.
+/// Environment coordinate used by environment lookup instructions.
 /// Layout: two `u32` fields (hops + index).
 #[derive(Debug, Clone, Copy)]
 pub struct EnvironmentCoordinate {

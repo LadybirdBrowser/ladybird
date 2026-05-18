@@ -1,4 +1,4 @@
-$8829d5d5 indexed-append-guards.js:16:1
+$8565e4c5 indexed-append-guards.js:16:1
   Registers: 11
   Blocks:    7
   Constants:
@@ -20,59 +20,59 @@ block0:
   [  38] ToPrimitiveWithStringHint dst:Int32(0), value:Int32(0)
   [  48] PutByValue base:reg8, property:Int32(0), src:Int32(1), kind:Own
   [  60] Call dst:reg5, callee:reg7, this_value:reg6, Object.preventExtensions, arguments:[reg8]
-  [  88] InitializeLexicalBinding `object`, src:reg5
-  [  a0] GetGlobal dst:reg7, `expect_type_error`
-  [  b0] NewFunction dst:reg6, shared_function_data_index:0
-  [  c8] Call dst:reg5, callee:reg7, this_value:Undefined, expect_type_error, arguments:[reg6]
-  [  f0] GetGlobal dst:reg7, `object`
-  [ 100] GetByValue dst:reg6, base:reg7, property:Int32(1) (object[Int32(1)])
-  [ 118] StrictlyInequals dst:reg7, lhs:reg6, rhs:Undefined
-  [ 128] Mov dst:reg6, src:Undefined
-  [ 138] JumpFalse condition:reg7, target:block2
+  [  88] DynamicInitializeLexicalBinding `object`, src:reg5
+  [  98] GetGlobal dst:reg7, `expect_type_error`
+  [  a8] NewFunction dst:reg6, shared_function_data_index:0
+  [  c0] Call dst:reg5, callee:reg7, this_value:Undefined, expect_type_error, arguments:[reg6]
+  [  e8] GetGlobal dst:reg7, `object`
+  [  f8] GetByValue dst:reg6, base:reg7, property:Int32(1) (object[Int32(1)])
+  [ 110] StrictlyInequals dst:reg7, lhs:reg6, rhs:Undefined
+  [ 120] Mov dst:reg6, src:Undefined
+  [ 130] JumpFalse condition:reg7, target:block2
 
 block1:
-  [ 148] GetGlobal dst:reg9, `Error`
-  [ 158] CallConstruct dst:reg8, callee:reg9, Error, arguments:[String("Indexed object append mutated")]
-  [ 178] Throw src:reg8
+  [ 140] GetGlobal dst:reg9, `Error`
+  [ 150] CallConstruct dst:reg8, callee:reg9, Error, arguments:[String("Indexed object append mutated")]
+  [ 170] Throw src:reg8
 
 block2:
-  [ 180] NewPrimitiveArray dst:reg5, elements:[1, 2]
-  [ 1a0] InitializeLexicalBinding `array`, src:reg5
-  [ 1b8] GetGlobal dst:reg7, `Object`
-  [ 1c8] GetById dst:reg8, base:reg7, `defineProperty` (Object.defineProperty)
-  [ 1e0] GetGlobal dst:reg9, `array`
-  [ 1f0] NewObject dst:reg10
-  [ 200] InitObjectLiteralProperty object:reg10, `writable`, src:Bool(false), shape_cache_index:0, property_slot:0
-  [ 218] CacheObjectShape object:reg10
-  [ 228] Call dst:reg5, callee:reg8, this_value:reg7, Object.defineProperty, arguments:[reg9, String("length"), reg10]
-  [ 258] GetGlobal dst:reg8, `expect_type_error`
-  [ 268] NewFunction dst:reg7, shared_function_data_index:1
-  [ 280] Call dst:reg6, callee:reg8, this_value:Undefined, expect_type_error, arguments:[reg7]
-  [ 2a8] GetGlobal dst:reg5, `array`
-  [ 2b8] GetLength dst:reg8, base:reg5 (array.length)
-  [ 2d0] StrictlyInequals dst:reg5, lhs:reg8, rhs:Int32(2)
-  [ 2e0] Mov dst:reg8, src:Undefined
-  [ 2f0] JumpFalse condition:reg5, target:block4
+  [ 178] NewPrimitiveArray dst:reg5, elements:[1, 2]
+  [ 198] DynamicInitializeLexicalBinding `array`, src:reg5
+  [ 1a8] GetGlobal dst:reg7, `Object`
+  [ 1b8] GetById dst:reg8, base:reg7, `defineProperty` (Object.defineProperty)
+  [ 1d0] GetGlobal dst:reg9, `array`
+  [ 1e0] NewObject dst:reg10
+  [ 1f0] InitObjectLiteralProperty object:reg10, `writable`, src:Bool(false), shape_cache_index:0, property_slot:0
+  [ 208] CacheObjectShape object:reg10
+  [ 218] Call dst:reg5, callee:reg8, this_value:reg7, Object.defineProperty, arguments:[reg9, String("length"), reg10]
+  [ 248] GetGlobal dst:reg8, `expect_type_error`
+  [ 258] NewFunction dst:reg7, shared_function_data_index:1
+  [ 270] Call dst:reg6, callee:reg8, this_value:Undefined, expect_type_error, arguments:[reg7]
+  [ 298] GetGlobal dst:reg5, `array`
+  [ 2a8] GetLength dst:reg8, base:reg5 (array.length)
+  [ 2c0] StrictlyInequals dst:reg5, lhs:reg8, rhs:Int32(2)
+  [ 2d0] Mov dst:reg8, src:Undefined
+  [ 2e0] JumpFalse condition:reg5, target:block4
 
 block3:
-  [ 300] GetGlobal dst:reg10, `Error`
-  [ 310] CallConstruct dst:reg7, callee:reg10, Error, arguments:[String("Array length changed")]
-  [ 330] Throw src:reg7
+  [ 2f0] GetGlobal dst:reg10, `Error`
+  [ 300] CallConstruct dst:reg7, callee:reg10, Error, arguments:[String("Array length changed")]
+  [ 320] Throw src:reg7
 
 block4:
-  [ 338] GetGlobal dst:reg6, `array`
-  [ 348] GetByValue dst:reg5, base:reg6, property:Int32(2) (array[Int32(2)])
-  [ 360] StrictlyInequals dst:reg6, lhs:reg5, rhs:Undefined
-  [ 370] Mov dst:reg5, src:Undefined
-  [ 380] JumpFalse condition:reg6, target:block6
+  [ 328] GetGlobal dst:reg6, `array`
+  [ 338] GetByValue dst:reg5, base:reg6, property:Int32(2) (array[Int32(2)])
+  [ 350] StrictlyInequals dst:reg6, lhs:reg5, rhs:Undefined
+  [ 360] Mov dst:reg5, src:Undefined
+  [ 370] JumpFalse condition:reg6, target:block6
 
 block5:
-  [ 390] GetGlobal dst:reg10, `Error`
-  [ 3a0] CallConstruct dst:reg7, callee:reg10, Error, arguments:[String("Array append mutated")]
-  [ 3c0] Throw src:reg7
+  [ 380] GetGlobal dst:reg10, `Error`
+  [ 390] CallConstruct dst:reg7, callee:reg10, Error, arguments:[String("Array append mutated")]
+  [ 3b0] Throw src:reg7
 
 block6:
-  [ 3c8] End value:reg5
+  [ 3b8] End value:reg5
 
 
 expect_type_error$fc915998 indexed-append-guards.js:4:5

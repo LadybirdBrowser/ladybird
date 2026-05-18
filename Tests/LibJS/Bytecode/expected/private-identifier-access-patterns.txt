@@ -1,4 +1,4 @@
-$00cee19d private-identifier-access-patterns.js:1:1
+$7f6ce915 private-identifier-access-patterns.js:1:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -14,5 +14,5 @@ block0:
   [  40] SetLexicalEnvironment environment:reg4
   [  48] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("method")]
   [  70] LeavePrivateEnvironment
-  [  78] InitializeLexicalBinding `C`, src:reg6
-  [  90] End value:Undefined
+  [  78] DynamicInitializeLexicalBinding `C`, src:reg6
+  [  88] End value:Undefined

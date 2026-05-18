@@ -1,4 +1,4 @@
-$e4db251c super-length-access.js:3:1
+$dc8f51ec super-length-access.js:3:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -12,31 +12,31 @@ block0:
   [  20] CreateVariable `A`, is_immutable:true, is_global:false, is_strict:false
   [  30] SetLexicalEnvironment environment:reg4
   [  38] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("length")]
-  [  60] InitializeLexicalBinding `A`, src:reg6
-  [  78] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:0, is_catch_environment:false
-  [  90] CreateVariable `B`, is_immutable:true, is_global:false, is_strict:false
-  [  a0] GetGlobal dst:reg5, `A`
-  [  b0] SetLexicalEnvironment environment:reg4
-  [  b8] NewClass dst:reg7, super_class:reg5, class_environment:reg6, class_blueprint_index:1, element_keys:[element_keys:String("m")]
-  [  e0] InitializeLexicalBinding `B`, src:reg7
-  [  f8] GetGlobal dst:reg5, `B`
-  [ 108] CallConstruct dst:reg6, callee:reg5, B
-  [ 120] GetById dst:reg5, base:reg6, `m`
-  [ 138] Call dst:reg7, callee:reg5, this_value:reg6, <object>.m
-  [ 158] End value:reg7
+  [  60] DynamicInitializeLexicalBinding `A`, src:reg6
+  [  70] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:0, is_catch_environment:false
+  [  88] CreateVariable `B`, is_immutable:true, is_global:false, is_strict:false
+  [  98] GetGlobal dst:reg5, `A`
+  [  a8] SetLexicalEnvironment environment:reg4
+  [  b0] NewClass dst:reg7, super_class:reg5, class_environment:reg6, class_blueprint_index:1, element_keys:[element_keys:String("m")]
+  [  d8] DynamicInitializeLexicalBinding `B`, src:reg7
+  [  e8] GetGlobal dst:reg5, `B`
+  [  f8] CallConstruct dst:reg6, callee:reg5, B
+  [ 110] GetById dst:reg5, base:reg6, `m`
+  [ 128] Call dst:reg7, callee:reg5, this_value:reg6, <object>.m
+  [ 148] End value:reg7
 
 
-B$cbd8a311 super-length-access.js:7:1
+B$d4247641 super-length-access.js:7:1
   Registers: 7
   Blocks:    1
 
 block0:
   [   0] CreateVariable `args`, is_immutable:false, is_global:false, is_strict:false
   [  10] CreateRestParams dst:arg0, rest_index:0
-  [  20] InitializeLexicalBinding `args`, src:arg0
-  [  38] GetBinding dst:reg5, `args`
-  [  50] SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:true
-  [  60] Return value:reg6
+  [  20] DynamicInitializeLexicalBinding `args`, src:arg0
+  [  30] DynamicGetBinding dst:reg5, `args`
+  [  40] SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:true
+  [  50] Return value:reg6
 
 
 A$ef0589ec

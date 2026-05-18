@@ -1,4 +1,4 @@
-$f5bf1d5d numeric-class-field-name.js:1:1
+$745d24d5 numeric-class-field-name.js:1:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -11,12 +11,12 @@ block0:
   [  20] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:false
   [  30] SetLexicalEnvironment environment:reg4
   [  38] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:Int32(42)]
-  [  60] InitializeLexicalBinding `C`, src:reg6
-  [  78] GetGlobal dst:reg5, `C`
-  [  88] CallConstruct dst:reg6, callee:reg5, C
-  [  a0] GetByValue dst:reg5, base:reg6, property:Int32(42)
-  [  b8] GetById dst:reg6, base:reg5, `name` ([42].name)
-  [  d0] End value:reg6
+  [  60] DynamicInitializeLexicalBinding `C`, src:reg6
+  [  70] GetGlobal dst:reg5, `C`
+  [  80] CallConstruct dst:reg6, callee:reg5, C
+  [  98] GetByValue dst:reg5, base:reg6, property:Int32(42)
+  [  b0] GetById dst:reg6, base:reg5, `name` ([42].name)
+  [  c8] End value:reg6
 
 
 C$e7b179de
