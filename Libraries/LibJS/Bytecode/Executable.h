@@ -9,7 +9,9 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
+#include <AK/Span.h>
 #include <AK/String.h>
+#include <AK/Types.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
@@ -55,7 +57,7 @@ private:
     size_t m_size { 0 };
 };
 
-// Represents one polymorphic inline cache used for property lookups.
+// Represents one tiered inline cache used for property lookups.
 struct PropertyLookupCache {
     static constexpr size_t max_number_of_shapes_to_remember = 4;
     struct Entry {
@@ -67,6 +69,7 @@ struct PropertyLookupCache {
             ChangePropertyInPrototypeChain,
             GetPropertyInPrototypeChain,
         };
+        Type type { Type::Empty };
         u32 property_offset { 0 };
         u32 shape_dictionary_generation { 0 };
         GC::RawPtr<Shape> from_shape;
@@ -75,20 +78,82 @@ struct PropertyLookupCache {
         GC::RawPtr<PrototypeChainValidity> prototype_chain_validity;
     };
 
+    struct MonomorphicData {
+        Entry entry;
+    };
+
+    struct PolymorphicData {
+        AK::Array<Entry, max_number_of_shapes_to_remember> entries;
+    };
+
+    PropertyLookupCache() = default;
+    PropertyLookupCache(PropertyLookupCache const&) = delete;
+    PropertyLookupCache& operator=(PropertyLookupCache const&) = delete;
+    PropertyLookupCache(PropertyLookupCache&&);
+    PropertyLookupCache& operator=(PropertyLookupCache&&);
+    ~PropertyLookupCache();
+
+    [[nodiscard]] Entry* first_entry();
+    [[nodiscard]] Entry const* first_entry() const;
+    [[nodiscard]] Span<Entry> entries();
+    [[nodiscard]] ReadonlySpan<Entry> entries() const;
+    [[nodiscard]] size_t external_memory_size() const;
+
     void update(Entry::Type type, auto callback)
     {
-        // First, move all entries one step back.
-        for (size_t i = entries.size() - 1; i >= 1; --i) {
-            types[i] = types[i - 1];
-            entries[i] = entries[i - 1];
+        Entry new_entry;
+        new_entry.type = type;
+        callback(new_entry);
+
+        if (!m_data) {
+            auto data = make<MonomorphicData>();
+            data->entry = new_entry;
+            set_monomorphic_data(data.leak_ptr());
+            return;
         }
-        types[0] = type;
-        entries[0] = {};
-        callback(entries[0]);
+
+        if (auto* data = monomorphic_data()) {
+            if (entries_have_same_cache_key(data->entry, new_entry)) {
+                data->entry = new_entry;
+                return;
+            }
+
+            auto old_entry = data->entry;
+            auto new_data = make<PolymorphicData>();
+            new_data->entries[0] = new_entry;
+            new_data->entries[1] = old_entry;
+            clear();
+            set_polymorphic_data(new_data.leak_ptr());
+            return;
+        }
+
+        auto& entries = polymorphic_data()->entries;
+        size_t insertion_index = entries.size() - 1;
+        for (size_t i = 0; i < entries.size(); ++i) {
+            if (entries_have_same_cache_key(entries[i], new_entry)) {
+                insertion_index = i;
+                break;
+            }
+        }
+
+        for (size_t i = insertion_index; i > 0; --i)
+            entries[i] = entries[i - 1];
+        entries[0] = new_entry;
     }
 
-    AK::Array<Entry::Type, max_number_of_shapes_to_remember> types;
-    AK::Array<Entry, max_number_of_shapes_to_remember> entries;
+    void clear();
+
+    static constexpr FlatPtr polymorphic_data_tag = 1;
+    FlatPtr m_data { 0 };
+
+private:
+    [[nodiscard]] MonomorphicData* monomorphic_data();
+    [[nodiscard]] MonomorphicData const* monomorphic_data() const;
+    [[nodiscard]] PolymorphicData* polymorphic_data();
+    [[nodiscard]] PolymorphicData const* polymorphic_data() const;
+    void set_monomorphic_data(MonomorphicData*);
+    void set_polymorphic_data(PolymorphicData*);
+    static bool entries_have_same_cache_key(Entry const&, Entry const&);
 };
 
 // A PropertyLookupCache for use as a static local variable.
@@ -98,7 +163,29 @@ struct StaticPropertyLookupCache : public PropertyLookupCache {
     static void sweep_all();
 };
 
-struct GlobalVariableCache : public PropertyLookupCache {
+struct GlobalVariableCache {
+    PropertyLookupCache::Entry* first_entry()
+    {
+        if (entry.type == PropertyLookupCache::Entry::Type::Empty)
+            return nullptr;
+        return &entry;
+    }
+
+    PropertyLookupCache::Entry const* first_entry() const
+    {
+        if (entry.type == PropertyLookupCache::Entry::Type::Empty)
+            return nullptr;
+        return &entry;
+    }
+
+    void update(PropertyLookupCache::Entry::Type type, auto callback)
+    {
+        entry = {};
+        entry.type = type;
+        callback(entry);
+    }
+
+    PropertyLookupCache::Entry entry;
     u64 environment_serial_number { 0 };
     u32 environment_binding_index { 0 };
     bool has_environment_binding_index { false };
