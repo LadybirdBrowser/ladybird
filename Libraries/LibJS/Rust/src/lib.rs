@@ -2854,6 +2854,7 @@ pub unsafe extern "C" fn rust_materialize_compiled_function(
             let this_value_needs_environment_resolution = precompiled.metadata.this_value_needs_environment_resolution;
             let function_environment_needed = precompiled.metadata.function_environment_needed;
             let function_environment_bindings_count = precompiled.metadata.function_environment_bindings_count;
+            let var_environment_bindings_count = precompiled.metadata.var_environment_bindings_count;
             let might_need_arguments = precompiled.metadata.might_need_arguments;
             let contains_eval = precompiled.metadata.contains_eval;
             let precompiled_ptr = Box::into_raw(precompiled) as *mut c_void;
@@ -2864,6 +2865,7 @@ pub unsafe extern "C" fn rust_materialize_compiled_function(
                 this_value_needs_environment_resolution,
                 function_environment_needed,
                 function_environment_bindings_count,
+                var_environment_bindings_count,
                 might_need_arguments,
                 contains_eval,
             );
@@ -3215,6 +3217,7 @@ unsafe fn write_sfd_metadata(sfd_ptr: *mut c_void, metadata: &bytecode::generato
             metadata.this_value_needs_environment_resolution,
             metadata.function_environment_needed,
             metadata.function_environment_bindings_count,
+            metadata.var_environment_bindings_count,
             metadata.might_need_arguments,
             metadata.contains_eval,
         );
@@ -3319,6 +3322,7 @@ unsafe extern "C" {
         this_value_needs_environment_resolution: bool,
         function_environment_needed: bool,
         function_environment_bindings_count: usize,
+        var_environment_bindings_count: usize,
         might_need_arguments_object: bool,
         contains_direct_call_to_eval: bool,
     );

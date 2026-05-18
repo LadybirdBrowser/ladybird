@@ -1097,6 +1097,7 @@ unsafe fn materialize_function(
             function.metadata.this_value_needs_environment_resolution,
             function.metadata.function_environment_needed,
             function.metadata.function_environment_bindings_count,
+            function.metadata.var_environment_bindings_count,
             function.metadata.might_need_arguments,
             function.metadata.contains_eval,
         );
