@@ -1248,6 +1248,12 @@ static void resolve_typedefs(Interface& interface)
         resolve_typedef(interface, interface.pair_iterator_types->get<0>());
         resolve_typedef(interface, interface.pair_iterator_types->get<1>());
     }
+    if (interface.set_entry_type.has_value())
+        resolve_typedef(interface, *interface.set_entry_type);
+    if (interface.map_key_type.has_value())
+        resolve_typedef(interface, *interface.map_key_type);
+    if (interface.map_value_type.has_value())
+        resolve_typedef(interface, *interface.map_value_type);
     if (interface.named_property_getter.has_value())
         resolve_function_typedefs(interface, *interface.named_property_getter);
     if (interface.named_property_setter.has_value())
