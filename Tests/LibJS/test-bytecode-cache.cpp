@@ -444,7 +444,7 @@ TEST_CASE(bytecode_cache_materializes_from_mapped_blob)
     auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
     auto& realm = *root_execution_context->realm;
 
-    auto test_data = create_bytecode_cache_blob("let f = function mapped() { return 1; }; f();"_string);
+    auto test_data = create_bytecode_cache_blob("let f = function mapped() { return 'hello'; }; f();"_string);
     auto path = ByteString::formatted("{}/bytecode-cache-test-{}.blob", Core::StandardPaths::tempfile_directory(), Core::System::getpid());
     ScopeGuard remove_file = [&] {
         (void)Core::System::unlink(path);
@@ -467,6 +467,8 @@ TEST_CASE(bytecode_cache_materializes_from_mapped_blob)
 
     auto result = vm->run(script_or_error.release_value());
     VERIFY(!result.is_throw_completion());
+    VERIFY(result.value().is_string());
+    EXPECT_EQ(result.value().as_string().utf8_string(), "hello"_string);
 }
 
 TEST_CASE(fresh_precompiled_function_executables_materialize_lazily)

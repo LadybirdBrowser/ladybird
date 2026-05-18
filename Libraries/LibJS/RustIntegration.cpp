@@ -883,7 +883,20 @@ static Utf16FlyString utf16_fly_from_ffi(FFIUtf16Slice slice)
     return Utf16FlyString::from_utf16(view_from_ffi(slice));
 }
 
-static JS::Value decode_constant(JS::VM& vm, uint8_t const*& cursor, uint8_t const* end)
+static void align_constant_cursor(uint8_t const* begin, uint8_t const*& cursor, uint8_t const* end, size_t alignment)
+{
+    auto offset = static_cast<size_t>(cursor - begin);
+    auto aligned_offset = (offset + alignment - 1) & ~(alignment - 1);
+    VERIFY(aligned_offset <= static_cast<size_t>(end - begin));
+    cursor = begin + aligned_offset;
+}
+
+static bool constant_cursor_is_aligned(uint8_t const* cursor, size_t alignment)
+{
+    return reinterpret_cast<FlatPtr>(cursor) % alignment == 0;
+}
+
+static JS::Value decode_constant(JS::VM& vm, uint8_t const* begin, uint8_t const*& cursor, uint8_t const* end)
 {
     VERIFY(cursor < end);
     auto const tag = *cursor++;
@@ -907,19 +920,25 @@ static JS::Value decode_constant(JS::VM& vm, uint8_t const*& cursor, uint8_t con
     case ConstantTag::Empty:
         return JS::js_special_empty_value();
     case ConstantTag::String: {
+        align_constant_cursor(begin, cursor, end, alignof(char16_t));
         VERIFY(cursor + 4 <= end);
         uint32_t len;
         memcpy(&len, cursor, 4);
         cursor += 4;
-        VERIFY(cursor + len * 2 <= end);
+        VERIFY(len <= static_cast<size_t>(end - cursor) / sizeof(char16_t));
         if (len == 0)
             return JS::PrimitiveString::create(vm, Utf16String {});
-        // NB: cursor may not be 2-byte aligned, so copy to an aligned buffer.
-        Vector<char16_t> aligned_buf;
-        aligned_buf.resize(len);
-        memcpy(aligned_buf.data(), cursor, len * 2);
-        auto str = Utf16String::from_utf16(Utf16View(aligned_buf.data(), len));
-        cursor += len * 2;
+        auto string_byte_length = static_cast<size_t>(len) * sizeof(char16_t);
+        auto str = [&] {
+            if (constant_cursor_is_aligned(cursor, alignof(char16_t)))
+                return Utf16String::from_utf16(Utf16View(reinterpret_cast<char16_t const*>(cursor), len));
+
+            Vector<char16_t> code_units;
+            code_units.resize(len);
+            memcpy(code_units.data(), cursor, string_byte_length);
+            return Utf16String::from_utf16(Utf16View(code_units.data(), len));
+        }();
+        cursor += string_byte_length;
         return JS::PrimitiveString::create(vm, move(str));
     }
     case ConstantTag::BigInt: {
@@ -1042,7 +1061,7 @@ extern "C" void* rust_create_executable(
     auto const* cursor = data->constants_data;
     auto const* end = data->constants_data + data->constants_data_length;
     for (size_t i = 0; i < data->constants_count; ++i) {
-        constants_vec.append(decode_constant(vm, cursor, end));
+        constants_vec.append(decode_constant(vm, data->constants_data, cursor, end));
     }
     VERIFY(cursor == end);
 

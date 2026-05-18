@@ -1173,10 +1173,9 @@ unsafe fn materialize_executable(
             return std::ptr::null_mut();
         };
         let (_string_table_storage, string_table_slices) = utf16_slice_storage(string_table.iter());
-        let Some(constants) = constants.into_constant_values() else {
+        let Some((constants_count, constants_bytes)) = constants.into_ffi_data() else {
             return std::ptr::null_mut();
         };
-        let constants_buffer = crate::bytecode::ffi::encode_constants(&constants);
         let Some(local_variables) = local_variables.into_values() else {
             return std::ptr::null_mut();
         };
@@ -1240,8 +1239,8 @@ unsafe fn materialize_executable(
                 identifier_table: &identifier_table_slices,
                 property_key_table: &property_key_table_slices,
                 string_table: &string_table_slices,
-                constants_data: &constants_buffer,
-                constants_count: constants.len(),
+                constants_data: constants_bytes.as_slice(),
+                constants_count,
                 local_variable_names: &local_variable_name_slices,
                 compiled_regexes: &[],
             },
@@ -2588,14 +2587,51 @@ impl DecodedConstantTable {
         self.count
     }
 
-    fn into_constant_values(self) -> Option<Vec<ConstantValue>> {
-        let mut decoder = Decoder::new(self.bytes.as_slice(), None);
-        let mut constants = Vec::with_capacity(self.count);
-        for _ in 0..self.count {
-            constants.push(DecodedConstantValue::decode(&mut decoder)?.into_constant_value());
+    fn into_ffi_data(self) -> Option<(usize, DecodedBytecodeBytes)> {
+        {
+            let mut decoder = Decoder::new(self.bytes.as_slice(), None);
+            for _ in 0..self.count {
+                validate_constant_value(&mut decoder)?;
+            }
+            if !decoder.is_empty() {
+                return None;
+            }
         }
-        decoder.is_empty().then_some(constants)
+        Some((self.count, self.bytes))
     }
+}
+
+fn validate_constant_value(decoder: &mut Decoder<'_>) -> Option<()> {
+    match u8::decode(decoder)? {
+        tag if tag == ConstantTag::Number as u8 => {
+            f64::decode(decoder)?;
+        }
+        tag if tag == ConstantTag::BooleanTrue as u8 => {}
+        tag if tag == ConstantTag::BooleanFalse as u8 => {}
+        tag if tag == ConstantTag::Null as u8 => {}
+        tag if tag == ConstantTag::Undefined as u8 => {}
+        tag if tag == ConstantTag::Empty as u8 => {}
+        tag if tag == ConstantTag::String as u8 => {
+            decoder.align_to(align_of::<u16>())?;
+            let length: usize = u32::decode(decoder)?.try_into().ok()?;
+            decoder.bytes(length.checked_mul(size_of::<u16>())?)?;
+        }
+        tag if tag == ConstantTag::BigInt as u8 => {
+            let length: usize = u32::decode(decoder)?.try_into().ok()?;
+            std::str::from_utf8(decoder.bytes(length)?).ok()?;
+        }
+        tag if tag == ConstantTag::WellKnownSymbol as u8 => match u8::decode(decoder)? {
+            0 | 1 => {}
+            _ => return None,
+        },
+        tag if tag == ConstantTag::AbstractOperation as u8 => match u8::decode(decoder)? {
+            0..=4 => {}
+            _ => return None,
+        },
+        _ => return None,
+    }
+
+    Some(())
 }
 
 impl Encode for ConstantValue {
@@ -2657,63 +2693,6 @@ impl Decode for ConstantValue {
                 _ => None,
             },
             _ => None,
-        }
-    }
-}
-
-enum DecodedConstantValue {
-    Number(f64),
-    Boolean(bool),
-    Null,
-    Undefined,
-    Empty,
-    String(DecodedUtf16String),
-    BigInt(String),
-    WellKnownSymbol(WellKnownSymbolKind),
-    AbstractOperation(AbstractOperationKind),
-}
-
-impl DecodedConstantValue {
-    fn decode(decoder: &mut Decoder<'_>) -> Option<Self> {
-        match u8::decode(decoder)? {
-            tag if tag == ConstantTag::Number as u8 => Some(Self::Number(f64::decode(decoder)?)),
-            tag if tag == ConstantTag::BooleanTrue as u8 => Some(Self::Boolean(true)),
-            tag if tag == ConstantTag::BooleanFalse as u8 => Some(Self::Boolean(false)),
-            tag if tag == ConstantTag::Null as u8 => Some(Self::Null),
-            tag if tag == ConstantTag::Undefined as u8 => Some(Self::Undefined),
-            tag if tag == ConstantTag::Empty as u8 => Some(Self::Empty),
-            tag if tag == ConstantTag::String as u8 => Some(Self::String(DecodedUtf16String::decode(decoder)?)),
-            tag if tag == ConstantTag::BigInt as u8 => {
-                Some(Self::BigInt(String::from_utf8(ByteVector::decode(decoder)?).ok()?))
-            }
-            tag if tag == ConstantTag::WellKnownSymbol as u8 => match u8::decode(decoder)? {
-                0 => Some(Self::WellKnownSymbol(WellKnownSymbolKind::SymbolIterator)),
-                1 => Some(Self::WellKnownSymbol(WellKnownSymbolKind::SymbolAsyncIterator)),
-                _ => None,
-            },
-            tag if tag == ConstantTag::AbstractOperation as u8 => match u8::decode(decoder)? {
-                0 => Some(Self::AbstractOperation(AbstractOperationKind::AsyncIteratorClose)),
-                1 => Some(Self::AbstractOperation(AbstractOperationKind::GetMethod)),
-                2 => Some(Self::AbstractOperation(AbstractOperationKind::GetIteratorDirect)),
-                3 => Some(Self::AbstractOperation(AbstractOperationKind::GetIteratorFromMethod)),
-                4 => Some(Self::AbstractOperation(AbstractOperationKind::IteratorComplete)),
-                _ => None,
-            },
-            _ => None,
-        }
-    }
-
-    fn into_constant_value(self) -> ConstantValue {
-        match self {
-            Self::Number(value) => ConstantValue::Number(value),
-            Self::Boolean(value) => ConstantValue::Boolean(value),
-            Self::Null => ConstantValue::Null,
-            Self::Undefined => ConstantValue::Undefined,
-            Self::Empty => ConstantValue::Empty,
-            Self::String(value) => ConstantValue::String(value.to_utf16_string()),
-            Self::BigInt(value) => ConstantValue::BigInt(value),
-            Self::WellKnownSymbol(value) => ConstantValue::WellKnownSymbol(value),
-            Self::AbstractOperation(value) => ConstantValue::AbstractOperation(value),
         }
     }
 }

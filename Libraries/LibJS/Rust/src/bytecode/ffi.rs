@@ -22,6 +22,7 @@
 //! All `FFI*` structs are `#[repr(C)]`.
 
 use std::ffi::c_void;
+use std::mem::align_of;
 
 use super::generator::{
     AssembledBytecode, ConstantValue, ExceptionHandler, Generator, PendingClassBlueprint, PendingClassElement,
@@ -607,6 +608,7 @@ pub(crate) fn encode_constants(constants: &[ConstantValue]) -> Vec<u8> {
             ConstantValue::Empty => buffer.push(ConstantTag::Empty as u8),
             ConstantValue::String(s) => {
                 buffer.push(ConstantTag::String as u8);
+                align_buffer_to(&mut buffer, align_of::<u16>());
                 let len = u32_from_usize(s.len());
                 buffer.extend_from_slice(&len.to_le_bytes());
                 for &code_unit in s {
@@ -630,6 +632,11 @@ pub(crate) fn encode_constants(constants: &[ConstantValue]) -> Vec<u8> {
         }
     }
     buffer
+}
+
+fn align_buffer_to(buffer: &mut Vec<u8>, alignment: usize) {
+    let padding = buffer.len().next_multiple_of(alignment) - buffer.len();
+    buffer.extend(std::iter::repeat_n(0, padding));
 }
 
 /// Create a C++ Executable from the generator's assembled output.
