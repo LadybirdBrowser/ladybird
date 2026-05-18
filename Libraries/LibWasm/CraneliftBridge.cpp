@@ -232,7 +232,9 @@ static inline MemoryInstance* wasm_cl_get_memory(void* config_ptr, i32 mem_idx)
 
 static inline u8 const* wasm_cl_memory_data_if_in_bounds(MemoryInstance* memory, u64 instance_addr, size_t size)
 {
-    if (instance_addr + size > memory->size())
+    Checked<u64> end { instance_addr };
+    end += size;
+    if (end.has_overflow() || end.value() > memory->size())
         return nullptr;
     return memory->data().offset_pointer(instance_addr);
 }
@@ -314,7 +316,9 @@ static inline bool wasm_cl_memory_store_in_bounds(void* config_ptr, i32 mem_idx,
 {
     auto* memory = wasm_cl_get_memory(config_ptr, mem_idx);
     auto instance_addr = static_cast<u64>(addr);
-    if (instance_addr + size > memory->size())
+    Checked<u64> end { instance_addr };
+    end += size;
+    if (end.has_overflow() || end.value() > memory->size())
         return false;
     data = memory->data().offset_pointer(instance_addr);
     return true;
