@@ -1,4 +1,4 @@
-$79e506f5 tagged-template-base-identifier.js:1:1
+$f5bf1d5d tagged-template-base-identifier.js:1:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -10,11 +10,11 @@ block0:
   [  28] InitObjectLiteralProperty object:reg5, `f`, src:reg6, shape_cache_index:0, property_slot:0
   [  40] CacheObjectShape object:reg5
   [  50] SetGlobal `obj`, src:reg5
-  [  68] GetGlobal dst:reg5, `obj`
-  [  80] GetById dst:reg6, base:reg5, `f` (obj.f)
-  [  a0] GetTemplateObject dst:reg7, strings:[String(""), String("")]
-  [  c0] Call dst:reg8, callee:reg6, this_value:reg5, arguments:[reg7]
-  [  e8] End value:reg8
+  [  60] GetGlobal dst:reg5, `obj`
+  [  70] GetById dst:reg6, base:reg5, `f` (obj.f)
+  [  88] GetTemplateObject dst:reg7, strings:[String(""), String("")]
+  [  a8] Call dst:reg8, callee:reg6, this_value:reg5, arguments:[reg7]
+  [  d0] End value:reg8
 
 
 f$eef94cf9 tagged-template-base-identifier.js:3:9

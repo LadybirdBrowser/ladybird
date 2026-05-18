@@ -1,4 +1,4 @@
-$acfb7718 postfix-update-in-logical-and.js:4:1
+$2b997e90 postfix-update-in-logical-and.js:4:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -7,8 +7,8 @@ $acfb7718 postfix-update-in-logical-and.js:4:1
 
 block0:
   [   0] GetGlobal dst:reg6, `postfixInLogicalAnd`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, postfixInLogicalAnd, arguments:[Int32(5)]
-  [  40] End value:reg5
+  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, postfixInLogicalAnd, arguments:[Int32(5)]
+  [  38] End value:reg5
 
 
 postfixInLogicalAnd$ff9880b2 postfix-update-in-logical-and.js:2:5

@@ -1,4 +1,4 @@
-$a640c3b2 super-optional-call-this.js:1:1
+$27a2bc3a super-optional-call-this.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -15,14 +15,14 @@ block0:
   [  78] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:0, is_catch_environment:false
   [  90] CreateVariable `Foo`, is_immutable:true, is_global:false, is_strict:false
   [  a0] GetGlobal dst:reg5, `Base`
-  [  b8] SetLexicalEnvironment environment:reg4
-  [  c0] NewClass dst:reg7, super_class:reg5, class_environment:reg6, class_blueprint_index:1, element_keys:[element_keys:String("method")]
-  [  e8] InitializeLexicalBinding `Foo`, src:reg7
-  [ 100] GetGlobal dst:reg5, `Foo`
-  [ 118] CallConstruct dst:reg6, callee:reg5, Foo
-  [ 130] GetById dst:reg5, base:reg6, `method`
-  [ 150] Call dst:reg7, callee:reg5, this_value:reg6, <object>.method
-  [ 170] End value:reg7
+  [  b0] SetLexicalEnvironment environment:reg4
+  [  b8] NewClass dst:reg7, super_class:reg5, class_environment:reg6, class_blueprint_index:1, element_keys:[element_keys:String("method")]
+  [  e0] InitializeLexicalBinding `Foo`, src:reg7
+  [  f8] GetGlobal dst:reg5, `Foo`
+  [ 108] CallConstruct dst:reg6, callee:reg5, Foo
+  [ 120] GetById dst:reg5, base:reg6, `method`
+  [ 138] Call dst:reg7, callee:reg5, this_value:reg6, <object>.method
+  [ 158] End value:reg7
 
 
 Foo$f8ebe2ee super-optional-call-this.js:4:1
@@ -48,7 +48,7 @@ block0:
   [   0] End value:Undefined
 
 
-method$994e3bed super-optional-call-this.js:6:9
+method$25bff8b5 super-optional-call-this.js:6:9
   Registers: 9
   Blocks:    3
   Constants:
@@ -59,18 +59,18 @@ block0:
   [  10] ResolveThisBinding
   [  18] ResolveSuperBase dst:reg7
   [  20] GetByIdWithThis dst:reg8, base:reg7, `method`, this_value:this
-  [  40] Mov2 dst1:reg5, src1:this, dst2:reg6, src2:reg8
-  [  58] JumpNullish condition:reg6, true_target:block1, false_target:block2
+  [  38] Mov2 dst1:reg5, src1:this, dst2:reg6, src2:reg8
+  [  50] JumpNullish condition:reg6, true_target:block1, false_target:block2
 
 block1:
-  [  68] Mov dst:reg6, src:Undefined
-  [  78] Return value:reg6
+  [  60] Mov dst:reg6, src:Undefined
+  [  70] Return value:reg6
 
 block2:
-  [  80] NewArray dst:reg7
-  [  90] CallWithArgumentArray dst:reg6, callee:reg6, this_value:reg5, arguments:reg7
-  [  a8] Mov dst:reg5, src:Undefined
-  [  b8] Return value:reg6
+  [  78] NewArray dst:reg7
+  [  88] CallWithArgumentArray dst:reg6, callee:reg6, this_value:reg5, arguments:reg7
+  [  a0] Mov dst:reg5, src:Undefined
+  [  b0] Return value:reg6
 
 
 method$6c22ae6a

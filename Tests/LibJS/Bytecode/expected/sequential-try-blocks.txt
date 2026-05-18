@@ -1,4 +1,4 @@
-$b56ffb15 sequential-try-blocks.js:17:1
+$3c59d5bd sequential-try-blocks.js:17:1
   Registers: 10
   Blocks:    1
   Constants:
@@ -6,11 +6,11 @@ $b56ffb15 sequential-try-blocks.js:17:1
 
 block0:
   [   0] GetGlobal dst:reg6, `console`
-  [  18] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  38] GetGlobal dst:reg9, `sequentialTryCatch`
-  [  50] Call dst:reg8, callee:reg9, this_value:Undefined, sequentialTryCatch
-  [  70] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  98] End value:reg5
+  [  10] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  28] GetGlobal dst:reg9, `sequentialTryCatch`
+  [  38] Call dst:reg8, callee:reg9, this_value:Undefined, sequentialTryCatch
+  [  58] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  80] End value:reg5
 
 
 sequentialTryCatch$0a8456ee sequential-try-blocks.js:2:5

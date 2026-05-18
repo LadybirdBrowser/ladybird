@@ -131,6 +131,7 @@ int main()
     outln("\n# Executable layout");
     EMIT_OFFSET(EXECUTABLE_CONSTANTS, Executable, constants);
     EMIT_OFFSET(EXECUTABLE_PROPERTY_LOOKUP_CACHES, Executable, property_lookup_caches);
+    EMIT_OFFSET(EXECUTABLE_GLOBAL_VARIABLE_CACHES, Executable, global_variable_caches);
     EMIT_OFFSET(EXECUTABLE_REGISTERS_AND_LOCALS_COUNT, Executable, registers_and_locals_count);
     EMIT_OFFSET(EXECUTABLE_REGISTERS_AND_LOCALS_AND_CONSTANTS_COUNT, Executable, registers_and_locals_and_constants_count);
     EMIT_OFFSET(EXECUTABLE_ASM_CONSTANTS_SIZE, Executable, asm_constants_size);
@@ -216,6 +217,8 @@ int main()
 
         // Composite offset for Executable.bytecode data pointer
         outln("const EXECUTABLE_BYTECODE_DATA = {}", offsetof(Executable, bytecode) + vec_data);
+        outln("const EXECUTABLE_PROPERTY_LOOKUP_CACHES_DATA = {}", offsetof(Executable, property_lookup_caches) + vec_data);
+        outln("const EXECUTABLE_GLOBAL_VARIABLE_CACHES_DATA = {}", offsetof(Executable, global_variable_caches) + vec_data);
         outln("const EXECUTABLE_CONSTANTS_DATA = {}", offsetof(Executable, constants) + vec_data);
         outln("const EXECUTABLE_CONSTANTS_SIZE = {}", offsetof(Executable, constants) + vec_size);
         outln("const OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_DATA = {}", offsetof(ObjectPropertyIteratorCacheData, m_property_values) + vec_data);

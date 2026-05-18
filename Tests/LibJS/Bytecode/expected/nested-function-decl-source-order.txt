@@ -1,4 +1,4 @@
-$06b12923 nested-function-decl-source-order.js:15:1
+$01294703 nested-function-decl-source-order.js:15:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -7,13 +7,13 @@ $06b12923 nested-function-decl-source-order.js:15:1
 
 block0:
   [   0] GetGlobal dst:reg6, `console`
-  [  18] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  38] GetGlobal dst:reg10, `outer`
-  [  50] Call dst:reg9, callee:reg10, this_value:Undefined, outer
-  [  70] GetById dst:reg10, base:reg9, `join`
-  [  90] Call dst:reg8, callee:reg10, this_value:reg9, <object>.join, arguments:[String(",")]
-  [  b8] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  e0] End value:reg5
+  [  10] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  28] GetGlobal dst:reg10, `outer`
+  [  38] Call dst:reg9, callee:reg10, this_value:Undefined, outer
+  [  58] GetById dst:reg10, base:reg9, `join`
+  [  70] Call dst:reg8, callee:reg10, this_value:reg9, <object>.join, arguments:[String(",")]
+  [  98] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  c0] End value:reg5
 
 
 outer$f608465a nested-function-decl-source-order.js:12:5

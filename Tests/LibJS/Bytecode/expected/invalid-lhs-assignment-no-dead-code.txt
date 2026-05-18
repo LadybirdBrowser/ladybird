@@ -1,4 +1,4 @@
-$aaec50d4 invalid-lhs-assignment-no-dead-code.js:8:1
+$2c4e495c invalid-lhs-assignment-no-dead-code.js:8:1
   Registers: 10
   Blocks:    3
   Constants:
@@ -17,13 +17,13 @@ block1:
 block2:
   [  40] Mov dst:reg5, src:Undefined
   [  50] GetGlobal dst:reg8, `f`
-  [  68] NewFunction dst:reg9, shared_function_data_index:0
-  [  80] Call dst:reg6, callee:reg8, this_value:Undefined, f, arguments:[reg9]
-  [  a8] Mov2 dst1:reg5, src1:reg6, dst2:reg6, src2:reg5
-  [  c0] End value:reg6
+  [  60] NewFunction dst:reg9, shared_function_data_index:0
+  [  78] Call dst:reg6, callee:reg8, this_value:Undefined, f, arguments:[reg9]
+  [  a0] Mov2 dst1:reg5, src1:reg6, dst2:reg6, src2:reg5
+  [  b8] End value:reg6
 
 Exception handlers:
-  [  40 ..   c8] => handler block1
+  [  40 ..   c0] => handler block1
 
 
 f$36958900 invalid-lhs-assignment-no-dead-code.js:5:6

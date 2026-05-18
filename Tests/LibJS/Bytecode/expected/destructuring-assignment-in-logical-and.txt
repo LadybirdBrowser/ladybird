@@ -1,4 +1,4 @@
-$9431c529 destructuring-assignment-in-logical-and.js:5:1
+$12cfcca1 destructuring-assignment-in-logical-and.js:5:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -8,8 +8,8 @@ $9431c529 destructuring-assignment-in-logical-and.js:5:1
 
 block0:
   [   0] GetGlobal dst:reg6, `f`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Null, Int32(0)]
-  [  40] End value:reg5
+  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Null, Int32(0)]
+  [  38] End value:reg5
 
 
 f$bd59b03f destructuring-assignment-in-logical-and.js:2:5

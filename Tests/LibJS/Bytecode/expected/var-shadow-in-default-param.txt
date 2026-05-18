@@ -1,4 +1,4 @@
-$d85408b3 var-shadow-in-default-param.js:7:1
+$542e1f1b var-shadow-in-default-param.js:7:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -7,11 +7,11 @@ $d85408b3 var-shadow-in-default-param.js:7:1
 
 block0:
   [   0] SetGlobal `shadow`, src:String("outer")
-  [  18] GetGlobal dst:reg6, `shadow_in_default`
-  [  30] Call dst:reg5, callee:reg6, this_value:Undefined, shadow_in_default
-  [  50] GetGlobal dst:reg7, `no_conflict`
-  [  68] Call dst:reg6, callee:reg7, this_value:Undefined, no_conflict
-  [  88] End value:reg6
+  [  10] GetGlobal dst:reg6, `shadow_in_default`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, shadow_in_default
+  [  40] GetGlobal dst:reg7, `no_conflict`
+  [  50] Call dst:reg6, callee:reg7, this_value:Undefined, no_conflict
+  [  70] End value:reg6
 
 
 shadow_in_default$adf74487 var-shadow-in-default-param.js:8:32

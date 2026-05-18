@@ -2348,7 +2348,6 @@ impl DecodedExecutableRecord {
             environment_mode_variant_count: ENVIRONMENT_MODE_VARIANT_COUNT,
             put_kind_variant_count: PUT_KIND_VARIANT_COUNT,
             arguments_kind_variant_count: ARGUMENTS_KIND_VARIANT_COUNT,
-            before_cache_fixup: true,
         };
 
         let exception_handlers = self

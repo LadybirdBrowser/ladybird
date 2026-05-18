@@ -1,4 +1,4 @@
-$793f2555 async-await-in-try-catch.js:9:1
+$faa11ddd async-await-in-try-catch.js:9:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -6,9 +6,9 @@ $793f2555 async-await-in-try-catch.js:9:1
 
 block0:
   [   0] GetGlobal dst:reg6, `f`
-  [  18] NewObject dst:reg7
-  [  28] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7]
-  [  50] End value:reg5
+  [  10] NewObject dst:reg7
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7]
+  [  48] End value:reg5
 
 
 f$8982c134 async-await-in-try-catch.js:2:5

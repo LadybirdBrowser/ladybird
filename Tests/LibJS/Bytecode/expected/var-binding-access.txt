@@ -1,4 +1,4 @@
-$a036f1fa var-binding-access.js:22:1
+$9d7300ea var-binding-access.js:22:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -6,10 +6,10 @@ $a036f1fa var-binding-access.js:22:1
 
 block0:
   [   0] GetGlobal dst:reg6, `var_access`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, var_access
-  [  38] GetGlobal dst:reg7, `let_access`
-  [  50] Call dst:reg6, callee:reg7, this_value:Undefined, let_access
-  [  70] End value:reg6
+  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, var_access
+  [  30] GetGlobal dst:reg7, `let_access`
+  [  40] Call dst:reg6, callee:reg7, this_value:Undefined, let_access
+  [  60] End value:reg6
 
 
 var_access$52e19afb var-binding-access.js:5:5

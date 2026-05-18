@@ -94,7 +94,7 @@ static_assert(put_kind_variant_count == 5);
 static constexpr u32 arguments_kind_variant_count = to_underlying(Op::ArgumentsKind::Unmapped) + 1;
 static_assert(arguments_kind_variant_count == 2);
 
-ErrorOr<void> validate_bytecode(Executable const& executable, ReadonlySpan<u32> basic_block_offsets, CacheState cache_state)
+ErrorOr<void> validate_bytecode(Executable const& executable, ReadonlySpan<u32> basic_block_offsets)
 {
     JS::FFI::FFIValidatorBounds bounds {
         .number_of_registers = executable.number_of_registers,
@@ -119,7 +119,6 @@ ErrorOr<void> validate_bytecode(Executable const& executable, ReadonlySpan<u32> 
         .environment_mode_variant_count = environment_mode_variant_count,
         .put_kind_variant_count = put_kind_variant_count,
         .arguments_kind_variant_count = arguments_kind_variant_count,
-        .before_cache_fixup = cache_state == CacheState::BeforeFixup,
     };
 
     // Project Executable's exception handlers down to plain offsets; the

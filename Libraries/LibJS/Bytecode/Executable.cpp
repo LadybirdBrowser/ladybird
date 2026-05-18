@@ -101,19 +101,6 @@ Executable::Executable(
 
 Executable::~Executable() = default;
 
-void Executable::fixup_cache_pointers()
-{
-    for (auto it = InstructionStreamIterator(bytecode); !it.at_end(); ++it) {
-        fixup_instruction_cache(
-            const_cast<Instruction&>(*it),
-            property_lookup_caches.span(),
-            global_variable_caches.span(),
-            template_object_caches.span(),
-            object_shape_caches.span(),
-            object_property_iterator_caches.span());
-    }
-}
-
 static SourceMapEntry const* first_real_source_map_entry(Executable const& executable)
 {
     SourceMapEntry const* first_entry = nullptr;

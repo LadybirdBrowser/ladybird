@@ -1,4 +1,4 @@
-$241c3dcd class-environment.js:9:1
+$9d326325 class-environment.js:9:1
   Registers: 10
   Blocks:    1
   Constants:
@@ -6,14 +6,14 @@ $241c3dcd class-environment.js:9:1
 
 block0:
   [   0] GetGlobal dst:reg6, `console`
-  [  18] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  38] GetGlobal dst:reg9, `classWithName`
-  [  50] Call dst:reg8, callee:reg9, this_value:Undefined, classWithName
-  [  70] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  98] End value:reg5
+  [  10] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  28] GetGlobal dst:reg9, `classWithName`
+  [  38] Call dst:reg8, callee:reg9, this_value:Undefined, classWithName
+  [  58] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  80] End value:reg5
 
 
-classWithName$99834c89 class-environment.js:2:13
+classWithName$155d62f1 class-environment.js:2:13
   Registers: 8
   Blocks:    1
   Locals:    C~0
@@ -29,9 +29,9 @@ block0:
   [  38] NewClass dst:C~0, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("method")]
   [  60] CallConstruct dst:reg6, callee:C~0, C
   [  78] GetById dst:reg7, base:reg6, `method`
-  [  98] Call dst:reg5, callee:reg7, this_value:reg6, <object>.method
-  [  b8] StrictlyEquals dst:reg7, lhs:reg5, rhs:C~0
-  [  c8] Return value:reg7
+  [  90] Call dst:reg5, callee:reg7, this_value:reg6, <object>.method
+  [  b0] StrictlyEquals dst:reg7, lhs:reg5, rhs:C~0
+  [  c0] Return value:reg7
 
 
 Foo$534d924b

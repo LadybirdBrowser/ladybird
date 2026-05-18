@@ -1,4 +1,4 @@
-$9ff65435 generator-yield-call.js:9:1
+$21584cbd generator-yield-call.js:9:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -8,17 +8,17 @@ $9ff65435 generator-yield-call.js:9:1
 
 block0:
   [   0] GetGlobal dst:reg6, `f`
-  [  18] NewObject dst:reg7
-  [  28] InitObjectLiteralProperty object:reg7, `x`, src:Int32(1), shape_cache_index:0, property_slot:0
-  [  40] CacheObjectShape object:reg7
-  [  50] NewObject dst:reg8
-  [  60] InitObjectLiteralProperty object:reg8, `y`, src:Int32(2), shape_cache_index:1, property_slot:0
-  [  78] CacheObjectShape object:reg8
-  [  88] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7, reg8]
-  [  b0] End value:reg5
+  [  10] NewObject dst:reg7
+  [  20] InitObjectLiteralProperty object:reg7, `x`, src:Int32(1), shape_cache_index:0, property_slot:0
+  [  38] CacheObjectShape object:reg7
+  [  48] NewObject dst:reg8
+  [  58] InitObjectLiteralProperty object:reg8, `y`, src:Int32(2), shape_cache_index:1, property_slot:0
+  [  70] CacheObjectShape object:reg8
+  [  80] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7, reg8]
+  [  a8] End value:reg5
 
 
-f$914aca23 generator-yield-call.js:6:5
+f$8e86d913 generator-yield-call.js:6:5
   Registers: 11
   Blocks:    12
   Constants:
@@ -32,40 +32,40 @@ block0:
 block1:
   [  10] Mov dst:reg8, src:arg0
   [  20] GetById dst:reg9, base:reg8, `x` (a.x)
-  [  40] Yield continuation_label:block2, value:reg9
+  [  38] Yield continuation_label:block2, value:reg9
 
 block2:
-  [  50] Mov dst:reg5, src:reg0
-  [  60] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-  [  70] JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:block3, false_target:block4
+  [  48] Mov dst:reg5, src:reg0
+  [  58] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+  [  68] JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:block3, false_target:block4
 
 block3:
-  [  88] Mov dst:reg9, src:arg1
-  [  98] GetById dst:reg8, base:reg9, `y` (b.y)
-  [  b8] Yield continuation_label:block7, value:reg8
+  [  80] Mov dst:reg9, src:arg1
+  [  90] GetById dst:reg8, base:reg9, `y` (b.y)
+  [  a8] Yield continuation_label:block7, value:reg8
 
 block4:
-  [  c8] JumpStrictlyEquals lhs:reg6, rhs:Int32(5), true_target:block5, false_target:block6
+  [  b8] JumpStrictlyEquals lhs:reg6, rhs:Int32(5), true_target:block5, false_target:block6
 
 block5:
-  [  e0] Throw src:reg7
+  [  d0] Throw src:reg7
 
 block6:
-  [  e8] Yield value:reg7
+  [  d8] Yield value:reg7
 
 block7:
-  [  f8] Mov dst:reg7, src:reg0
-  [ 108] GetCompletionFields type_dst:reg5, value_dst:reg6, completion:reg7
-  [ 118] JumpStrictlyEquals lhs:reg5, rhs:Int32(1), true_target:block8, false_target:block9
+  [  e8] Mov dst:reg7, src:reg0
+  [  f8] GetCompletionFields type_dst:reg5, value_dst:reg6, completion:reg7
+  [ 108] JumpStrictlyEquals lhs:reg5, rhs:Int32(1), true_target:block8, false_target:block9
 
 block8:
-  [ 130] Yield value:Undefined
+  [ 120] Yield value:Undefined
 
 block9:
-  [ 140] JumpStrictlyEquals lhs:reg5, rhs:Int32(5), true_target:block10, false_target:block11
+  [ 130] JumpStrictlyEquals lhs:reg5, rhs:Int32(5), true_target:block10, false_target:block11
 
 block10:
-  [ 158] Throw src:reg6
+  [ 148] Throw src:reg6
 
 block11:
-  [ 160] Yield value:reg6
+  [ 150] Yield value:reg6

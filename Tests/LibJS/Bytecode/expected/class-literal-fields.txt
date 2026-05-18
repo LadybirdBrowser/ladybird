@@ -1,4 +1,4 @@
-$ccb44156 class-literal-fields.js:12:1
+$015bd143 class-literal-fields.js:12:1
   Registers: 15
   Blocks:    1
   Constants:
@@ -6,24 +6,24 @@ $ccb44156 class-literal-fields.js:12:1
 
 block0:
   [   0] GetGlobal dst:reg6, `test`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, test
-  [  38] InitializeLexicalBinding `a`, src:reg5
-  [  50] GetGlobal dst:reg6, `console`
-  [  68] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  88] GetGlobal dst:reg8, `a`
-  [  a0] GetById dst:reg9, base:reg8, `x` (a.x)
+  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, test
+  [  30] InitializeLexicalBinding `a`, src:reg5
+  [  48] GetGlobal dst:reg6, `console`
+  [  58] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  70] GetGlobal dst:reg8, `a`
+  [  80] GetById dst:reg9, base:reg8, `x` (a.x)
+  [  98] GetGlobal dst:reg8, `a`
+  [  a8] GetById dst:reg10, base:reg8, `y` (a.y)
   [  c0] GetGlobal dst:reg8, `a`
-  [  d8] GetById dst:reg10, base:reg8, `y` (a.y)
-  [  f8] GetGlobal dst:reg8, `a`
-  [ 110] GetById dst:reg11, base:reg8, `z` (a.z)
-  [ 130] GetGlobal dst:reg8, `a`
-  [ 148] GetById dst:reg12, base:reg8, `w` (a.w)
-  [ 168] GetGlobal dst:reg8, `a`
-  [ 180] GetById dst:reg13, base:reg8, `s` (a.s)
-  [ 1a0] GetGlobal dst:reg8, `a`
-  [ 1b8] GetById dst:reg14, base:reg8, `computed` (a.computed)
-  [ 1d8] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg9, reg10, reg11, reg12, reg13, reg14]
-  [ 210] End value:reg5
+  [  d0] GetById dst:reg11, base:reg8, `z` (a.z)
+  [  e8] GetGlobal dst:reg8, `a`
+  [  f8] GetById dst:reg12, base:reg8, `w` (a.w)
+  [ 110] GetGlobal dst:reg8, `a`
+  [ 120] GetById dst:reg13, base:reg8, `s` (a.s)
+  [ 138] GetGlobal dst:reg8, `a`
+  [ 148] GetById dst:reg14, base:reg8, `computed` (a.computed)
+  [ 160] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg9, reg10, reg11, reg12, reg13, reg14]
+  [ 198] End value:reg5
 
 
 test$fa7458d4 class-literal-fields.js:2:5

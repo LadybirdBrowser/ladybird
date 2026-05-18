@@ -1,4 +1,4 @@
-$d36729be eval-same-function.js:10:1
+$49b95e06 eval-same-function.js:10:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -6,8 +6,8 @@ $d36729be eval-same-function.js:10:1
 
 block0:
   [   0] GetGlobal dst:reg6, `foo`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, foo
-  [  38] End value:reg5
+  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, foo
+  [  30] End value:reg5
 
 
 foo$c25bdd1c eval-same-function.js:6:9

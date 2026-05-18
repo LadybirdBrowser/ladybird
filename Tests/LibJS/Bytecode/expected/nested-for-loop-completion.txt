@@ -1,4 +1,4 @@
-$700813fb nested-for-loop-completion.js:4:1
+$7b17d83b nested-for-loop-completion.js:4:1
   Registers: 9
   Blocks:    8
   Constants:
@@ -11,35 +11,35 @@ $700813fb nested-for-loop-completion.js:4:1
 
 block0:
   [   0] SetGlobal `n`, src:Int32(4)
-  [  18] Mov dst:reg5, src:Undefined
-  [  28] Jump target:block3
+  [  10] Mov dst:reg5, src:Undefined
+  [  20] Jump target:block3
 
 block1:
-  [  30] SetGlobal `depth`, src:Int32(0)
-  [  48] Mov dst:reg6, src:Undefined
-  [  58] Jump target:block6
+  [  28] SetGlobal `depth`, src:Int32(0)
+  [  38] Mov dst:reg6, src:Undefined
+  [  48] Jump target:block6
 
 block2:
-  [  60] GetGlobal dst:reg7, `n`
-  [  78] Add dst:reg6, lhs:reg7, rhs:Int32(1)
-  [  88] SetGlobal `n`, src:reg6
+  [  50] GetGlobal dst:reg7, `n`
+  [  60] Add dst:reg6, lhs:reg7, rhs:Int32(1)
+  [  70] SetGlobal `n`, src:reg6
 
 block3:
-  [  a0] GetGlobal dst:reg6, `n`
-  [  b8] JumpLessThanEquals lhs:reg6, rhs:Int32(7), true_target:block1, false_target:block4
+  [  80] GetGlobal dst:reg6, `n`
+  [  90] JumpLessThanEquals lhs:reg6, rhs:Int32(7), true_target:block1, false_target:block4
 
 block4:
-  [  d0] End value:reg5
+  [  a8] End value:reg5
 
 block5:
-  [  d8] GetGlobal dst:reg8, `depth`
-  [  f0] Add dst:reg7, lhs:reg8, rhs:Int32(2)
-  [ 100] SetGlobal `depth`, src:reg7
+  [  b0] GetGlobal dst:reg8, `depth`
+  [  c0] Add dst:reg7, lhs:reg8, rhs:Int32(2)
+  [  d0] SetGlobal `depth`, src:reg7
 
 block6:
-  [ 118] GetGlobal dst:reg7, `depth`
-  [ 130] JumpLessThanEquals lhs:reg7, rhs:Int32(0), true_target:block5, false_target:block7
+  [  e0] GetGlobal dst:reg7, `depth`
+  [  f0] JumpLessThanEquals lhs:reg7, rhs:Int32(0), true_target:block5, false_target:block7
 
 block7:
-  [ 148] Mov dst:reg5, src:reg6
-  [ 158] Jump target:block2
+  [ 108] Mov dst:reg5, src:reg6
+  [ 118] Jump target:block2

@@ -505,6 +505,24 @@ macro pop_inline_frame_and_resume(caller_frame, value_reg)
     dispatch_current
 end
 
+macro load_property_lookup_cache(cache)
+    temp exe, caches
+    load32 cache, [pb, pc, m_cache]
+    mul cache, cache, PROPERTY_LOOKUP_CACHE_SIZE
+    load64 exe, [exec_ctx, EXECUTION_CONTEXT_EXECUTABLE]
+    load64 caches, [exe, EXECUTABLE_PROPERTY_LOOKUP_CACHES_DATA]
+    add cache, caches
+end
+
+macro load_global_variable_cache(cache)
+    temp exe, caches
+    load32 cache, [pb, pc, m_cache]
+    mul cache, cache, GLOBAL_VARIABLE_CACHE_SIZE
+    load64 exe, [exec_ctx, EXECUTION_CONTEXT_EXECUTABLE]
+    load64 caches, [exe, EXECUTABLE_GLOBAL_VARIABLE_CACHES_DATA]
+    add cache, caches
+end
+
 # ============================================================================
 # Simple data movement
 # ============================================================================
@@ -1673,8 +1691,7 @@ handler GetById
     unbox_object obj, base
     load64 shape, [obj, OBJECT_SHAPE]
     assert_nonzero shape
-    # Get PropertyLookupCache* (direct pointer from instruction stream)
-    load64 plc, [pb, pc, m_cache]
+    load_property_lookup_cache plc
     assert_nonzero plc
     load_pair64 cache_shape, cache_proto, [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE], [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE]
     branch_ne cache_shape, shape, .try_cache
@@ -1727,7 +1744,7 @@ handler PutById
     unbox_object obj, base
     load64 shape, [obj, OBJECT_SHAPE]
     assert_nonzero shape
-    load64 plc, [pb, pc, m_cache]
+    load_property_lookup_cache plc
     assert_nonzero plc
     load_pair64 cache_shape, cache_proto, [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE], [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE]
     branch_ne cache_shape, shape, .try_cache
@@ -1905,7 +1922,7 @@ handler GetLength
     # Non-magical length: IC fast path (same as GetById)
     load64 shape, [obj, OBJECT_SHAPE]
     assert_nonzero shape
-    load64 plc, [pb, pc, m_cache]
+    load_property_lookup_cache plc
     assert_nonzero plc
     load_pair64 cache_shape, cache_proto, [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE], [plc, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE]
     branch_ne cache_shape, shape, .slow
@@ -1947,7 +1964,7 @@ handler GetGlobal
     load_pair64 global_object, env, [realm, REALM_GLOBAL_OBJECT], [realm, REALM_GLOBAL_DECLARATIVE_ENVIRONMENT]
     assert_nonzero global_object
     assert_nonzero env
-    load64 gvc, [pb, pc, m_cache]
+    load_global_variable_cache gvc
     assert_nonzero gvc
     load64 cache_serial, [gvc, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_SERIAL]
     load_environment_serial env, env_serial
@@ -1995,7 +2012,7 @@ handler SetGlobal
     load_pair64 global_object, env, [realm, REALM_GLOBAL_OBJECT], [realm, REALM_GLOBAL_DECLARATIVE_ENVIRONMENT]
     assert_nonzero global_object
     assert_nonzero env
-    load64 gvc, [pb, pc, m_cache]
+    load_global_variable_cache gvc
     assert_nonzero gvc
     load64 cache_serial, [gvc, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_SERIAL]
     load_environment_serial env, env_serial

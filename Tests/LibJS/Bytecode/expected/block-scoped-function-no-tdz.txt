@@ -1,4 +1,4 @@
-$d36729be block-scoped-function-no-tdz.js:10:1
+$49b95e06 block-scoped-function-no-tdz.js:10:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -7,8 +7,8 @@ $d36729be block-scoped-function-no-tdz.js:10:1
 
 block0:
   [   0] GetGlobal dst:reg6, `test`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, test
-  [  38] End value:reg5
+  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, test
+  [  30] End value:reg5
 
 
 test$e46e97f5 block-scoped-function-no-tdz.js:3:5

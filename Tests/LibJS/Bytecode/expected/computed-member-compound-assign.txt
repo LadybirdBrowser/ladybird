@@ -1,4 +1,4 @@
-$7fc74e7b computed-member-compound-assign.js:15:1
+$828b3f8b computed-member-compound-assign.js:15:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -8,14 +8,14 @@ $7fc74e7b computed-member-compound-assign.js:15:1
 
 block0:
   [   0] GetGlobal dst:reg6, `compound_computed`
-  [  18] NewObject dst:reg7
-  [  28] Call dst:reg5, callee:reg6, this_value:Undefined, compound_computed, arguments:[reg7, String("x")]
-  [  50] GetGlobal dst:reg7, `compound_then_assign`
-  [  68] NewObject dst:reg8
-  [  78] InitObjectLiteralProperty object:reg8, `x`, src:Int32(1), shape_cache_index:0, property_slot:0
-  [  90] CacheObjectShape object:reg8
-  [  a0] Call dst:reg6, callee:reg7, this_value:Undefined, compound_then_assign, arguments:[reg8, String("x")]
-  [  c8] End value:reg6
+  [  10] NewObject dst:reg7
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, compound_computed, arguments:[reg7, String("x")]
+  [  48] GetGlobal dst:reg7, `compound_then_assign`
+  [  58] NewObject dst:reg8
+  [  68] InitObjectLiteralProperty object:reg8, `x`, src:Int32(1), shape_cache_index:0, property_slot:0
+  [  80] CacheObjectShape object:reg8
+  [  90] Call dst:reg6, callee:reg7, this_value:Undefined, compound_then_assign, arguments:[reg8, String("x")]
+  [  b8] End value:reg6
 
 
 compound_computed$811bdddb computed-member-compound-assign.js:7:14

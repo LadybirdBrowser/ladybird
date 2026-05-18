@@ -24,10 +24,9 @@ use super::instruction::{NUM_OPCODES, instruction_length_from_bytes, validate_in
 /// `Bytecode/Operand.h` and the per-table index types.
 const INVALID_INDEX_U32: u32 = 0xFFFF_FFFF;
 
-/// Sentinel u64 written into cache fields by the bytecode encoder when no
-/// cache slot was reserved. The fixup pass replaces real indices with
-/// pointers, leaving the sentinel as `0`.
-const NO_CACHE_INDEX: u64 = u32::MAX as u64;
+/// Sentinel u32 written into cache fields by the bytecode encoder when no
+/// cache slot was reserved.
+const NO_CACHE_INDEX: u32 = u32::MAX;
 
 /// Bounds against which bytecode references are checked.
 #[repr(C)]
@@ -56,11 +55,6 @@ pub struct FFIValidatorBounds {
     pub environment_mode_variant_count: u32,
     pub put_kind_variant_count: u32,
     pub arguments_kind_variant_count: u32,
-    /// If true, m_cache fields hold indices that should be range-checked
-    /// against the corresponding cache_count. If false, the cache fixup
-    /// pass has already replaced them with real pointers and they are
-    /// skipped during validation.
-    pub before_cache_fixup: bool,
 }
 
 /// Categorization of validation failures, mirrored to C++ as an enum class.
@@ -242,44 +236,44 @@ pub fn validate_property_key_index(raw: u32, ctx: &ValidationContext) -> Result<
 }
 
 #[inline]
-pub fn validate_property_lookup_cache_index(raw: u64, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
-    if !ctx.bounds.before_cache_fixup || raw == NO_CACHE_INDEX {
+pub fn validate_property_lookup_cache_index(raw: u32, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
+    if raw == NO_CACHE_INDEX {
         return Ok(());
     }
-    if raw >= ctx.bounds.property_lookup_cache_count as u64 {
+    if raw >= ctx.bounds.property_lookup_cache_count {
         return Err(ValidationErrorKind::PropertyLookupCacheIndexOutOfRange);
     }
     Ok(())
 }
 
 #[inline]
-pub fn validate_global_variable_cache_index(raw: u64, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
-    if !ctx.bounds.before_cache_fixup || raw == NO_CACHE_INDEX {
+pub fn validate_global_variable_cache_index(raw: u32, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
+    if raw == NO_CACHE_INDEX {
         return Ok(());
     }
-    if raw >= ctx.bounds.global_variable_cache_count as u64 {
+    if raw >= ctx.bounds.global_variable_cache_count {
         return Err(ValidationErrorKind::GlobalVariableCacheIndexOutOfRange);
     }
     Ok(())
 }
 
 #[inline]
-pub fn validate_template_object_cache_index(raw: u64, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
-    if !ctx.bounds.before_cache_fixup || raw == NO_CACHE_INDEX {
+pub fn validate_template_object_cache_index(raw: u32, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
+    if raw == NO_CACHE_INDEX {
         return Ok(());
     }
-    if raw >= ctx.bounds.template_object_cache_count as u64 {
+    if raw >= ctx.bounds.template_object_cache_count {
         return Err(ValidationErrorKind::TemplateObjectCacheIndexOutOfRange);
     }
     Ok(())
 }
 
 #[inline]
-pub fn validate_object_shape_cache_index(raw: u64, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
-    if !ctx.bounds.before_cache_fixup || raw == NO_CACHE_INDEX {
+pub fn validate_object_shape_cache_index(raw: u32, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
+    if raw == NO_CACHE_INDEX {
         return Ok(());
     }
-    if raw >= ctx.bounds.object_shape_cache_count as u64 {
+    if raw >= ctx.bounds.object_shape_cache_count {
         return Err(ValidationErrorKind::ObjectShapeCacheIndexOutOfRange);
     }
     Ok(())
@@ -287,13 +281,13 @@ pub fn validate_object_shape_cache_index(raw: u64, ctx: &ValidationContext) -> R
 
 #[inline]
 pub fn validate_object_property_iterator_cache_index(
-    raw: u64,
+    raw: u32,
     ctx: &ValidationContext,
 ) -> Result<(), ValidationErrorKind> {
-    if !ctx.bounds.before_cache_fixup || raw == NO_CACHE_INDEX {
+    if raw == NO_CACHE_INDEX {
         return Ok(());
     }
-    if raw >= ctx.bounds.object_property_iterator_cache_count as u64 {
+    if raw >= ctx.bounds.object_property_iterator_cache_count {
         return Err(ValidationErrorKind::ObjectPropertyIteratorCacheIndexOutOfRange);
     }
     Ok(())
@@ -511,7 +505,6 @@ mod tests {
             environment_mode_variant_count: 2,
             put_kind_variant_count: 5,
             arguments_kind_variant_count: 2,
-            before_cache_fixup: true,
         }
     }
 
@@ -672,20 +665,20 @@ mod tests {
     }
 
     #[test]
-    fn rejects_cache_index_out_of_range_before_fixup() {
-        // NewObject layout: header(2) + pad(2) + m_dst(4) + m_cache(8) -> 16 bytes.
+    fn rejects_cache_index_out_of_range() {
+        // NewObject layout: header(2) + pad(2) + m_dst(4) + m_cache(4) -> 16 bytes.
         let mut bytes = [0u8; 16];
         bytes[0] = OpCode::NewObject as u8;
         // m_dst at offset 4 stays 0 (register 0).
         // m_cache at offset 8: an index well past object_shape_cache_count.
-        bytes[8..16].copy_from_slice(&999_999_u64.to_ne_bytes());
+        put_u32(&mut bytes, 8, 999_999);
 
         let err = validate(&bytes, &permissive_bounds()).unwrap_err();
         assert_eq!(err.kind, ValidationErrorKind::ObjectShapeCacheIndexOutOfRange);
     }
 
     #[test]
-    fn rejects_object_literal_shape_cache_index_out_of_range_before_fixup() {
+    fn rejects_object_literal_shape_cache_index_out_of_range() {
         // InitObjectLiteralProperty layout: header(2) + pad(2) + m_object(4)
         // + m_property(4) + m_src(4) + m_shape_cache_index(4)
         // + m_property_slot(4) = 24 bytes.
@@ -710,18 +703,5 @@ mod tests {
         put_u32(&mut bytes, 8, 99);
         let err = validate(&bytes, &permissive_bounds()).unwrap_err();
         assert_eq!(err.kind, ValidationErrorKind::EnumOutOfRange);
-    }
-
-    #[test]
-    fn skips_cache_fields_after_fixup() {
-        let mut bytes = [0u8; 16];
-        bytes[0] = OpCode::NewObject as u8;
-        // Same out-of-range garbage as above; once before_cache_fixup is
-        // false, the validator must treat the slot as an opaque pointer.
-        bytes[8..16].copy_from_slice(&999_999_u64.to_ne_bytes());
-
-        let mut bounds = permissive_bounds();
-        bounds.before_cache_fixup = false;
-        validate(&bytes, &bounds).expect("post-fixup cache slot is opaque and should be skipped");
     }
 }

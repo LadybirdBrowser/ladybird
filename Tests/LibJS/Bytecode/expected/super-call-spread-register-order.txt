@@ -1,4 +1,4 @@
-$772115e5 super-call-spread-register-order.js:1:1
+$84f4cb35 super-call-spread-register-order.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -9,12 +9,12 @@ block0:
   [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
   [  20] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:false
   [  30] GetGlobal dst:reg6, `Object`
-  [  48] SetLexicalEnvironment environment:reg4
-  [  50] NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:0
-  [  70] InitializeLexicalBinding `C`, src:reg7
-  [  88] GetGlobal dst:reg5, `C`
-  [  a0] CallConstruct dst:reg7, callee:reg5, C
-  [  b8] End value:reg7
+  [  40] SetLexicalEnvironment environment:reg4
+  [  48] NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:0
+  [  68] InitializeLexicalBinding `C`, src:reg7
+  [  80] GetGlobal dst:reg5, `C`
+  [  90] CallConstruct dst:reg7, callee:reg5, C
+  [  a8] End value:reg7
 
 
 C$c11ea3e3 super-call-spread-register-order.js:3:14

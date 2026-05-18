@@ -1,4 +1,4 @@
-$266c01d6 bigint-truthiness.js:2:1
+$947262ee bigint-truthiness.js:2:1
   Registers: 6
   Blocks:    1
   Constants:
@@ -19,12 +19,12 @@ $266c01d6 bigint-truthiness.js:2:1
 
 block0:
   [   0] SetGlobal `a`, src:String("falsy")
-  [  18] SetGlobal `b`, src:String("falsy")
-  [  30] SetGlobal `c`, src:String("falsy")
-  [  48] SetGlobal `d`, src:String("falsy")
-  [  60] SetGlobal `e`, src:String("truthy")
-  [  78] SetGlobal `f`, src:String("truthy")
-  [  90] SetGlobal `g`, src:String("truthy")
-  [  a8] SetGlobal `h`, src:Bool(true)
-  [  c0] SetGlobal `i`, src:Bool(false)
-  [  d8] End value:Undefined
+  [  10] SetGlobal `b`, src:String("falsy")
+  [  20] SetGlobal `c`, src:String("falsy")
+  [  30] SetGlobal `d`, src:String("falsy")
+  [  40] SetGlobal `e`, src:String("truthy")
+  [  50] SetGlobal `f`, src:String("truthy")
+  [  60] SetGlobal `g`, src:String("truthy")
+  [  70] SetGlobal `h`, src:Bool(true)
+  [  80] SetGlobal `i`, src:Bool(false)
+  [  90] End value:Undefined

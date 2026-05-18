@@ -1106,7 +1106,7 @@ extern "C" void* rust_create_executable(
     auto const should_validate_bytecode = is_materializing_bytecode_cache;
 #endif
     if (should_validate_bytecode) {
-        if (auto validation = JS::Bytecode::validate_bytecode(*executable, basic_block_offsets.span(), JS::Bytecode::CacheState::BeforeFixup); validation.is_error()) {
+        if (auto validation = JS::Bytecode::validate_bytecode(*executable, basic_block_offsets.span()); validation.is_error()) {
             if (is_materializing_bytecode_cache)
                 return nullptr;
 #if !defined(NDEBUG) || defined(HAS_ADDRESS_SANITIZER)
@@ -1116,8 +1116,6 @@ extern "C" void* rust_create_executable(
 #endif
         }
     }
-
-    executable->fixup_cache_pointers();
 
     return executable.ptr();
 }

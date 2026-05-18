@@ -1,4 +1,4 @@
-$ae8c96e2 postfix-increment-private-member.js:1:1
+$fb46ff7d postfix-increment-private-member.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -16,10 +16,10 @@ block0:
   [  70] LeavePrivateEnvironment
   [  78] InitializeLexicalBinding `C`, src:reg6
   [  90] GetGlobal dst:reg7, `C`
-  [  a8] CallConstruct dst:reg5, callee:reg7, C
-  [  c0] GetById dst:reg7, base:reg5, `nextId`
-  [  e0] Call dst:reg6, callee:reg7, this_value:reg5, <object>.nextId
-  [ 100] End value:reg6
+  [  a0] CallConstruct dst:reg5, callee:reg7, C
+  [  b8] GetById dst:reg7, base:reg5, `nextId`
+  [  d0] Call dst:reg6, callee:reg7, this_value:reg5, <object>.nextId
+  [  f0] End value:reg6
 
 
 C$e7b179de

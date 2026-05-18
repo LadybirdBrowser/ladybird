@@ -1,4 +1,4 @@
-$cf62a0f7 named-function-expression.js:4:6
+$615c3fdf named-function-expression.js:4:6
   Registers: 8
   Blocks:    1
 
@@ -10,6 +10,6 @@ block0:
   [  48] InitializeLexicalBinding `Oops`, src:reg6
   [  60] SetLexicalEnvironment environment:reg4
   [  68] SetGlobal `Oops`, src:reg6
-  [  80] GetGlobal dst:reg5, `Oops`
-  [  98] GetById dst:reg7, base:reg5, `x` (Oops.x)
-  [  b8] End value:reg7
+  [  78] GetGlobal dst:reg5, `Oops`
+  [  88] GetById dst:reg7, base:reg5, `x` (Oops.x)
+  [  a0] End value:reg7

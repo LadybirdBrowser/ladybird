@@ -1,4 +1,4 @@
-$3a6e508d mov-merging.js:14:1
+$37aa5f7d mov-merging.js:14:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -6,16 +6,16 @@ $3a6e508d mov-merging.js:14:1
 
 block0:
   [   0] GetGlobal dst:reg6, `console`
-  [  18] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  38] GetGlobal dst:reg9, `twoLocals`
-  [  50] Call dst:reg8, callee:reg9, this_value:Undefined, twoLocals
-  [  70] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  98] GetGlobal dst:reg6, `console`
-  [  b0] GetById dst:reg8, base:reg6, `log` (console.log)
-  [  d0] GetGlobal dst:reg10, `threeLocals`
-  [  e8] Call dst:reg9, callee:reg10, this_value:Undefined, threeLocals
-  [ 108] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
-  [ 130] End value:reg7
+  [  10] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  28] GetGlobal dst:reg9, `twoLocals`
+  [  38] Call dst:reg8, callee:reg9, this_value:Undefined, twoLocals
+  [  58] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  80] GetGlobal dst:reg6, `console`
+  [  90] GetById dst:reg8, base:reg6, `log` (console.log)
+  [  a8] GetGlobal dst:reg10, `threeLocals`
+  [  b8] Call dst:reg9, callee:reg10, this_value:Undefined, threeLocals
+  [  d8] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+  [ 100] End value:reg7
 
 
 twoLocals$848f6408 mov-merging.js:2:5
