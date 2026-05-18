@@ -6,6 +6,7 @@
 
 #include <harfbuzz/hb.h>
 
+#include <LibCore/Resource.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontVariationSettings.h>
 #include <LibGfx/Font/Typeface.h>
@@ -15,22 +16,22 @@ namespace Gfx {
 
 ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_resource(Core::Resource const& resource, u32 ttc_index)
 {
-    auto font_data = Gfx::FontData::create_from_resource(resource);
-    return try_load_from_font_data(move(font_data), ttc_index);
+    auto typeface = TRY(try_load_from_externally_owned_memory(resource.data(), ttc_index));
+    typeface->m_resource = resource;
+    return typeface;
 }
 
-ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_font_data(NonnullOwnPtr<Gfx::FontData> font_data, u32 ttc_index)
+ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_byte_buffer(ByteBuffer&& byte_buffer, u32 ttc_index)
 {
-    auto typeface = TRY(try_load_from_externally_owned_memory(font_data->bytes(), ttc_index));
-    typeface->m_font_data = move(font_data);
+    auto typeface = TRY(try_load_from_externally_owned_memory(byte_buffer.bytes(), ttc_index));
+    typeface->m_owned_font_data = move(byte_buffer);
     return typeface;
 }
 
 ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_temporary_memory(ReadonlyBytes bytes, u32 ttc_index)
 {
     auto buffer = TRY(ByteBuffer::copy(bytes));
-    auto font_data = FontData::create_from_byte_buffer(move(buffer));
-    return try_load_from_font_data(move(font_data), ttc_index);
+    return try_load_from_byte_buffer(move(buffer), ttc_index);
 }
 
 ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_externally_owned_memory(ReadonlyBytes bytes, u32 ttc_index)

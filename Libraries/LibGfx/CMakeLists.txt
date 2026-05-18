@@ -11,7 +11,6 @@ set(SOURCES
     Cursor.cpp
     Filter.cpp
     Font/Font.cpp
-    Font/FontData.cpp
     Font/FontDatabase.cpp
     Font/FontSupport.cpp
     Font/PathFontProvider.cpp

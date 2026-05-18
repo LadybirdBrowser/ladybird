@@ -123,9 +123,8 @@ ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::find_typeface_for_code_point(u32 cod
         return Error::from_string_literal("Failed to get font data from typeface");
 
     auto buffer = TRY(ByteBuffer::copy({ data->data(), data->size() }));
-    auto font_data = FontData::create_from_byte_buffer(move(buffer));
-    auto result = TRY(load_from_buffer(font_data->bytes(), ttc_index));
-    result->m_font_data = move(font_data);
+    auto result = TRY(load_from_buffer(buffer.bytes(), ttc_index));
+    result->m_owned_font_data = move(buffer);
     return result;
 }
 

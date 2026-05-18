@@ -186,8 +186,7 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_from_bytes(ReadonlyBytes buffer, 
     if (header.total_sfnt_size != expected_total_sfnt_size)
         return Error::from_string_literal("Invalid WOFF total sfnt size");
 
-    auto font_data = Gfx::FontData::create_from_byte_buffer(move(font_buffer));
-    return TRY(Gfx::Typeface::try_load_from_font_data(move(font_data), index));
+    return TRY(Gfx::Typeface::try_load_from_byte_buffer(move(font_buffer), index));
 }
 
 }

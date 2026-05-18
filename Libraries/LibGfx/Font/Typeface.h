@@ -6,11 +6,12 @@
 
 #pragma once
 
+#include <AK/ByteBuffer.h>
 #include <AK/HashMap.h>
-#include <AK/OwnPtr.h>
 #include <AK/QuickSort.h>
 #include <AK/RefCounted.h>
-#include <LibGfx/Font/FontData.h>
+#include <AK/RefPtr.h>
+#include <LibCore/Forward.h>
 #include <LibGfx/Font/FontVariationSettings.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/ShapeFeature.h>
@@ -61,7 +62,7 @@ struct FontCacheKey {
 class Typeface : public RefCounted<Typeface> {
 public:
     static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_resource(Core::Resource const&, u32 ttc_index = 0);
-    static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_font_data(NonnullOwnPtr<Gfx::FontData>, u32 ttc_index = 0);
+    static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_byte_buffer(ByteBuffer&&, u32 ttc_index = 0);
     static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_temporary_memory(ReadonlyBytes bytes, u32 ttc_index = 0);
     static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_externally_owned_memory(ReadonlyBytes bytes, u32 ttc_index = 0);
 
@@ -91,7 +92,8 @@ protected:
     virtual u32 ttc_index() const = 0;
 
 private:
-    OwnPtr<FontData> m_font_data;
+    ByteBuffer m_owned_font_data;
+    RefPtr<Core::Resource const> m_resource;
 
     mutable HashMap<FontCacheKey, NonnullRefPtr<Font>> m_fonts;
     mutable hb_blob_t* m_harfbuzz_blob { nullptr };
