@@ -199,13 +199,26 @@ void Application::display_error_dialog(StringView error_message) const
     QMessageBox::warning(active_tab(), "Ladybird", qstring_from_ak_string(error_message));
 }
 
-Utf16String Application::clipboard_text() const
+static QClipboard::Mode clipboard_mode(QClipboard const& clipboard, Application::ClipboardType type)
+{
+    switch (type) {
+    case WebView::Application::ClipboardType::Text:
+        return QClipboard::Clipboard;
+    case WebView::Application::ClipboardType::Selection:
+        return clipboard.supportsSelection() ? QClipboard::Selection : QClipboard::Clipboard;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+Utf16String Application::clipboard_text(ClipboardType type) const
 {
     if (browser_options().headless_mode.has_value())
-        return WebView::Application::clipboard_text();
+        return WebView::Application::clipboard_text(type);
 
     auto const* clipboard = QGuiApplication::clipboard();
-    return utf16_string_from_qstring(clipboard->text());
+    auto mode = clipboard_mode(*clipboard, type);
+
+    return utf16_string_from_qstring(clipboard->text(mode));
 }
 
 Vector<Web::Clipboard::SystemClipboardRepresentation> Application::clipboard_entries() const

@@ -778,9 +778,9 @@ void PageClient::page_did_request_clipboard_entries(u64 request_id)
     client().async_did_request_clipboard_entries(m_id, request_id);
 }
 
-void PageClient::page_did_request_paste()
+void PageClient::page_did_request_primary_paste()
 {
-    client().async_did_request_paste(m_id);
+    client().async_did_request_primary_paste(m_id);
 }
 
 void PageClient::page_did_change_audio_play_state(Web::HTML::AudioPlayState play_state)

@@ -124,7 +124,11 @@ public:
     virtual void display_error_dialog(StringView error_message) const;
 
     // FIXME: We should implement UI-agnostic platform APIs to interact with the system clipboard.
-    virtual Utf16String clipboard_text() const;
+    enum class ClipboardType : u8 {
+        Text,
+        Selection,
+    };
+    virtual Utf16String clipboard_text(ClipboardType = ClipboardType::Text) const;
     virtual Vector<Web::Clipboard::SystemClipboardRepresentation> clipboard_entries() const;
     virtual void insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation);
 

@@ -251,7 +251,7 @@ static Optional<ByteString> read_clipboard_text_sync()
     return result;
 }
 
-Utf16String Application::clipboard_text() const
+Utf16String Application::clipboard_text(ClipboardType) const
 {
     if (browser_options().headless_mode.has_value())
         return WebView::Application::clipboard_text();

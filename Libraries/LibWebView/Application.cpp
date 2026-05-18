@@ -1087,7 +1087,7 @@ void Application::display_error_dialog(StringView error_message) const
     warnln("{}", error_message);
 }
 
-Utf16String Application::clipboard_text() const
+Utf16String Application::clipboard_text(ClipboardType) const
 {
     if (!m_clipboard.has_value())
         return {};

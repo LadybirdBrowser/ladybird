@@ -110,7 +110,7 @@ void Application::display_error_dialog(StringView error_message) const
                    completionHandler:nil];
 }
 
-Utf16String Application::clipboard_text() const
+Utf16String Application::clipboard_text(ClipboardType) const
 {
     auto* paste_board = [NSPasteboard generalPasteboard];
 
