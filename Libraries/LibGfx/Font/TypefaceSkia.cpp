@@ -6,6 +6,7 @@
  */
 
 #include <AK/LsanSuppressions.h>
+#include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/TypefaceSkia.h>
 
@@ -122,9 +123,12 @@ ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::find_typeface_for_code_point(u32 cod
     if (!data)
         return Error::from_string_literal("Failed to get font data from typeface");
 
-    auto buffer = TRY(ByteBuffer::copy({ data->data(), data->size() }));
-    auto result = TRY(load_from_buffer(buffer.bytes(), ttc_index));
-    result->m_owned_font_data = move(buffer);
+    auto anonymous_buffer = TRY(Core::AnonymousBuffer::create_with_size(data->size()));
+    if (data->size() > 0)
+        memcpy(anonymous_buffer.data<void>(), data->data(), data->size());
+
+    auto result = TRY(load_from_buffer(anonymous_buffer.bytes(), ttc_index));
+    result->set_anonymous_font_data(move(anonymous_buffer));
     return result;
 }
 
@@ -171,7 +175,9 @@ RefPtr<TypefaceSkia const> TypefaceSkia::clone_with_variations(Vector<FontVariat
     if (!skia_typeface)
         return {};
 
-    return adopt_ref(*new TypefaceSkia { make<TypefaceSkia::Impl>(skia_typeface), m_buffer, m_ttc_index });
+    auto typeface = adopt_ref(*new TypefaceSkia { make<TypefaceSkia::Impl>(skia_typeface), m_buffer, m_ttc_index });
+    typeface->copy_font_data_from(*this);
+    return typeface;
 }
 
 SkTypeface const* TypefaceSkia::sk_typeface() const

@@ -108,7 +108,7 @@ static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Typeface const>>> load_vec
         }
 
         auto prepared = prepared_font_data.release_value();
-        auto result = try_load_vector_font(prepared.data, prepared.mime_type_essence);
+        auto result = Gfx::Typeface::try_load_from_anonymous_buffer(move(prepared));
         if (result.is_error()) {
             promise->reject(result.release_error());
             return;

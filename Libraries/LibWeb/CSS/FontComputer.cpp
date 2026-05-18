@@ -183,7 +183,7 @@ void FontLoader::start_loading_next_url()
                 }
 
                 auto prepared = prepared_font_data.release_value();
-                auto maybe_typeface = try_load_vector_font(prepared.data, prepared.mime_type_essence);
+                auto maybe_typeface = Gfx::Typeface::try_load_from_anonymous_buffer(move(prepared));
                 if (maybe_typeface.is_error()) {
                     if (loader->m_urls.is_empty()) {
                         loader->font_did_load_or_fail(nullptr);
@@ -194,7 +194,7 @@ void FontLoader::start_loading_next_url()
                     return;
                 }
 
-                loader->font_did_load_or_fail(maybe_typeface.release_value()); }, move(mime_type_essence));
+                loader->font_did_load_or_fail(maybe_typeface.release_value()); });
         });
 
     if (!m_fetch_controller)
