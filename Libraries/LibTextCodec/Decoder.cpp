@@ -412,6 +412,8 @@ size_t UTF8Decoder::incomplete_tail_length(ReadonlyBytes bytes) const
         size_t seen = back + 1;
         if (!seq_len.has_value() || *seq_len <= seen)
             return 0;
+        if (seen >= 2 && !is_utf8_second_byte_in_range(byte, bytes[bytes.size() - back]))
+            return 0;
         return seen;
     }
     return 0;

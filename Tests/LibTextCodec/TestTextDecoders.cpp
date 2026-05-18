@@ -148,6 +148,29 @@ TEST_CASE(test_streaming_decoder_finishes_incomplete_sequence)
     EXPECT_EQ(MUST(streaming_decoder.finish()), MUST(decoder.to_utf8(StringView(bytes(incomplete_sequence)))));
 }
 
+TEST_CASE(test_streaming_decoder_utf8_invalid_second_byte_tail)
+{
+    auto& decoder = decoder_for("UTF-8"sv);
+
+    auto streaming_decoder_for_overlong_three_byte_sequence = TextCodec::StreamingDecoder { decoder };
+    EXPECT_EQ(MUST(streaming_decoder_for_overlong_three_byte_sequence.to_utf8(bytes({ 0xe0, 0x80 }))), "\xef\xbf\xbd\xef\xbf\xbd"sv);
+    EXPECT_EQ(MUST(streaming_decoder_for_overlong_three_byte_sequence.finish()), ""sv);
+
+    auto streaming_decoder_for_out_of_range_four_byte_sequence = TextCodec::StreamingDecoder { decoder };
+    EXPECT_EQ(MUST(streaming_decoder_for_out_of_range_four_byte_sequence.to_utf8(bytes({ 0xf4, 0x90 }))), "\xef\xbf\xbd\xef\xbf\xbd"sv);
+    EXPECT_EQ(MUST(streaming_decoder_for_out_of_range_four_byte_sequence.finish()), ""sv);
+}
+
+TEST_CASE(test_streaming_decoder_utf8_valid_second_byte_tail)
+{
+    auto& decoder = decoder_for("UTF-8"sv);
+    auto streaming_decoder = TextCodec::StreamingDecoder { decoder };
+
+    EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 0xe0, 0xa0 }))), ""sv);
+    EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 0x80 }))), "\xe0\xa0\x80"sv);
+    EXPECT_EQ(MUST(streaming_decoder.finish()), ""sv);
+}
+
 TEST_CASE(test_streaming_decoder_utf16_odd_byte)
 {
     auto& decoder = decoder_for("UTF-16LE"sv);
