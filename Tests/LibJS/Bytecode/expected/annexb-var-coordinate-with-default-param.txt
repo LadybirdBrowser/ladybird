@@ -1,0 +1,58 @@
+$546ebce0 annexb-var-coordinate-with-default-param.js:12:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetGlobal dst:reg6, `f`
+  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, f
+  [  30] End value:reg5
+
+
+f$40af7db5 annexb-var-coordinate-with-default-param.js:4:5
+  Registers: 10
+  Blocks:    3
+  Constants:
+    [0] = Int32(1)
+    [1] = Undefined
+    [2] = Int32(2)
+    [3] = Bool(true)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  20] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
+  [  30] JumpUndefined condition:arg0, true_target:block1, false_target:block2
+
+block1:
+  [  40] Mov dst:arg0, src:Int32(1)
+
+block2:
+  [  50] InitializeLexicalBinding `x`, src:arg0
+  [  68] CreateVariable `g`, is_immutable:false, is_global:false, is_strict:false
+  [  78] InitializeVariableBinding `g`, src:Undefined
+  [  90] CreateLexicalEnvironment dst:reg6, parent:reg5, capacity:1, is_catch_environment:false
+  [  a8] CreateVariable `y`, is_immutable:false, is_global:false, is_strict:false
+  [  b8] InitializeLexicalBinding `y`, src:Int32(2)
+  [  d0] CreateLexicalEnvironment dst:reg7, parent:reg6, capacity:0, is_catch_environment:false
+  [  e8] CreateMutableBinding environment:reg7, `g`, can_be_deleted:false
+  [  f8] NewFunction dst:reg8, shared_function_data_index:0
+  [ 110] InitializeLexicalBinding `g`, src:reg8
+  [ 128] GetBinding dst:reg8, `g`
+  [ 140] SetVariableBinding `g`, src:reg8
+  [ 158] SetLexicalEnvironment environment:reg6
+  [ 160] GetCalleeAndThisFromEnvironment callee:reg8, this_value:reg9, `g`
+  [ 178] Call dst:reg7, callee:reg8, this_value:reg9, g
+  [ 198] Return value:reg7
+
+
+g$b7262970 annexb-var-coordinate-with-default-param.js:7:13
+  Registers: 8
+  Blocks:    1
+
+block0:
+  [   0] DynamicGetBinding dst:reg5, `x`
+  [  10] DynamicGetBinding dst:reg6, `y`
+  [  20] Add dst:reg7, lhs:reg5, rhs:reg6
+  [  30] Return value:reg7
