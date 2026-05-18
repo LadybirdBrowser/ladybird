@@ -510,13 +510,13 @@ void DisplayListRecorder::draw_compositor_surface(Gfx::IntRect const& dst_rect, 
     });
 }
 
-void DisplayListRecorder::draw_video_frame_source(Gfx::IntRect const& dst_rect, NonnullRefPtr<VideoFrameSource> source, Gfx::ScalingMode scaling_mode)
+void DisplayListRecorder::draw_video_frame(Gfx::IntRect const& dst_rect, VideoFrameResourceId frame_id, RefPtr<Media::VideoFrame const> frame, Gfx::ScalingMode scaling_mode)
 {
     if (dst_rect.is_empty())
         return;
-    append_command(DrawVideoFrameSource {
+    append_command(DrawVideoFrame {
         .dst_rect = dst_rect,
-        .source_id = resource_storage().add_video_frame_source(move(source)),
+        .video_frame_id = resource_storage().add_video_frame(frame_id, move(frame)),
         .scaling_mode = scaling_mode,
     });
 }

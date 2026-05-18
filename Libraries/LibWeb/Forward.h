@@ -50,7 +50,6 @@ class DisplayList;
 class DisplayListPlayerSkia;
 class DisplayListRecorder;
 class DisplayListResourceStorage;
-class VideoFrameSource;
 struct GradientPaintStyle;
 struct PatternPaintStyle;
 class ScrollStateSnapshot;

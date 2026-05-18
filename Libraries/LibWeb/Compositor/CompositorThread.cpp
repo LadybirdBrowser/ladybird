@@ -9,6 +9,7 @@
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SharedImage.h>
 #include <LibGfx/SkiaBackendContext.h>
+#include <LibMedia/VideoFrame.h>
 #include <LibThreading/Thread.h>
 #include <LibWeb/Compositor/AsyncScrollTree.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
@@ -63,6 +64,15 @@ struct UpdateScrollStateCommand {
     Painting::ScrollStateSnapshot scroll_state_snapshot;
 };
 
+struct UpdateVideoFrameCommand {
+    Painting::VideoFrameResourceId frame_id;
+    NonnullRefPtr<Media::VideoFrame const> frame;
+};
+
+struct ClearVideoFrameCommand {
+    Painting::VideoFrameResourceId frame_id;
+};
+
 struct UpdateCompositorSurfaceCommand {
     Painting::CompositorSurfaceId surface_id;
     Gfx::SharedImage shared_image;
@@ -88,8 +98,8 @@ struct ScreenshotCommand {
 };
 
 using CompositorCommand = Variant<UpdateDisplayListCommand, AsyncScrollByCommand, ViewportScrollbarDragCommand,
-    UpdateScrollStateCommand, UpdateCompositorSurfaceCommand, ClearCompositorSurfaceCommand, ViewportSizeUpdatedCommand,
-    PresentFrameCommand, ScreenshotCommand>;
+    UpdateScrollStateCommand, UpdateVideoFrameCommand, ClearVideoFrameCommand, UpdateCompositorSurfaceCommand,
+    ClearCompositorSurfaceCommand, ViewportSizeUpdatedCommand, PresentFrameCommand, ScreenshotCommand>;
 
 struct CompositorCommandEnvelope {
     CompositorContextId context_id;
@@ -609,6 +619,12 @@ public:
                                 context.async_scrolling_viewport_rect = reconciled_viewport_rect;
                             }
                         }
+                    },
+                    [&context](UpdateVideoFrameCommand& cmd) {
+                        context.display_list_resource_storage.update_video_frame(cmd.frame_id, move(cmd.frame));
+                    },
+                    [&context](ClearVideoFrameCommand& cmd) {
+                        context.display_list_resource_storage.clear_video_frame(cmd.frame_id);
                     },
                     [&context](UpdateCompositorSurfaceCommand& cmd) {
                         context.display_list_resource_storage.update_compositor_surface(cmd.surface_id, move(cmd.shared_image));
@@ -1302,6 +1318,16 @@ void CompositorThread::Context::update_display_list(
     Painting::ScrollStateSnapshot&& scroll_state_snapshot)
 {
     m_thread_data->enqueue_command(m_context_id, UpdateDisplayListCommand { move(display_list), move(resource_transaction), move(scroll_state_snapshot) });
+}
+
+void CompositorThread::Context::update_video_frame(Painting::VideoFrameResourceId frame_id, NonnullRefPtr<Media::VideoFrame const> frame)
+{
+    m_thread_data->enqueue_command(m_context_id, UpdateVideoFrameCommand { frame_id, move(frame) });
+}
+
+void CompositorThread::Context::clear_video_frame(Painting::VideoFrameResourceId frame_id)
+{
+    m_thread_data->enqueue_command(m_context_id, ClearVideoFrameCommand { frame_id });
 }
 
 void CompositorThread::Context::update_compositor_surface(Painting::CompositorSurfaceId surface_id, Gfx::SharedImage&& shared_image)

@@ -7,6 +7,7 @@
 
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
+#include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibMedia/VideoFrame.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
@@ -61,8 +62,9 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
     };
 
     auto paint_video_frame = [&]() {
-        auto& source = const_cast<HTML::HTMLVideoElement&>(video_element).ensure_video_frame_source();
-        auto current = source.current_frame();
+        RefPtr<Media::VideoFrame> current;
+        if (auto const& sink = video_element.selected_video_track_sink())
+            current = sink->current_frame();
 
         Gfx::IntSize src_size;
         if (current)
@@ -76,7 +78,9 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
         if (dst_rect.is_empty())
             return;
         auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), src_size, dst_rect.size());
-        context.display_list_recorder().draw_video_frame_source(dst_rect, source, scaling_mode);
+        RefPtr<Media::VideoFrame const> frame = current;
+        auto frame_id = const_cast<HTML::HTMLVideoElement&>(video_element).ensure_video_frame_resource_id();
+        context.display_list_recorder().draw_video_frame(dst_rect, frame_id, move(frame), scaling_mode);
     };
 
     auto paint_transparent_black = [&]() {

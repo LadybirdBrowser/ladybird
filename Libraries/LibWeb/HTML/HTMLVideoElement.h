@@ -38,7 +38,7 @@ public:
     u32 video_width() const;
     u32 video_height() const;
 
-    virtual void update_intrinsic_video_dimensions() override;
+    virtual bool update_intrinsic_video_dimensions() override;
     virtual void update_natural_dimensions() override;
     Optional<Gfx::Size<u32>> natural_media_size() const;
     Optional<CSSPixelSize> natural_element_size() const;

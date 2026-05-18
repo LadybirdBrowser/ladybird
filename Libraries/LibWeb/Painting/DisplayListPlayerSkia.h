@@ -29,7 +29,7 @@ private:
     void draw_scaled_decoded_image_frame(DrawScaledDecodedImageFrame const&) override;
     void draw_repeated_decoded_image_frame(DrawRepeatedDecodedImageFrame const&) override;
     void draw_compositor_surface(DrawCompositorSurface const&) override;
-    void draw_video_frame_source(DrawVideoFrameSource const&) override;
+    void draw_video_frame(DrawVideoFrame const&) override;
     void add_clip_rect(AddClipRect const&) override;
     void save(Save const&) override;
     void save_layer(SaveLayer const&) override;
