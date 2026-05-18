@@ -114,6 +114,8 @@ enum EnvironmentCoordinateScopeKind {
     Dynamic,
 }
 
+const ENVIRONMENT_MODE_LEXICAL: u32 = 0;
+
 impl std::fmt::Debug for ScopedOperandInner {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "ScopedOperandInner({:?})", self.operand)
@@ -814,12 +816,19 @@ impl Generator {
         // environment shape. Most bindings are created explicitly, while
         // CreateArguments can implicitly create an `arguments` binding.
         if let Instruction::CreateVariable {
-            identifier, is_global, ..
+            identifier,
+            mode,
+            is_global,
+            ..
         } = &instruction
             && !is_global
         {
             let name = self.identifier_table[identifier.0 as usize].clone();
-            self.record_environment_binding(name);
+            if *mode == ENVIRONMENT_MODE_LEXICAL {
+                self.record_environment_binding(name);
+            } else {
+                self.record_variable_environment_binding(name);
+            }
         }
         if let Instruction::CreateMutableBinding { identifier, .. }
         | Instruction::CreateImmutableBinding { identifier, .. } = &instruction
@@ -1070,7 +1079,21 @@ impl Generator {
     }
 
     fn record_environment_binding(&mut self, name: Utf16String) {
-        let Some(scope) = self.environment_coordinate_scope_stack.last_mut() else {
+        let Some(scope_index) = self.environment_coordinate_scope_stack.len().checked_sub(1) else {
+            return;
+        };
+        self.record_environment_binding_at_scope_index(name, scope_index);
+    }
+
+    fn record_variable_environment_binding(&mut self, name: Utf16String) {
+        let Some(scope_index) = self.variable_environment_coordinate_scope_index else {
+            return;
+        };
+        self.record_environment_binding_at_scope_index(name, scope_index);
+    }
+
+    fn record_environment_binding_at_scope_index(&mut self, name: Utf16String, scope_index: usize) {
+        let Some(scope) = self.environment_coordinate_scope_stack.get_mut(scope_index) else {
             return;
         };
         if scope.kind == EnvironmentCoordinateScopeKind::Dynamic {
