@@ -89,6 +89,11 @@ using CompositorCommand = Variant<UpdateDisplayListCommand, AsyncScrollByCommand
     UpdateScrollStateCommand, UpdateCompositorSurfaceCommand, ClearCompositorSurfaceCommand, ViewportSizeUpdatedCommand,
     ScreenshotCommand>;
 
+struct CompositorCommandEnvelope {
+    CompositorContextId context_id;
+    CompositorCommand command;
+};
+
 static SkRect to_skia_rect(Gfx::IntRect const& rect)
 {
     return SkRect::MakeXYWH(rect.x(), rect.y(), rect.width(), rect.height());
@@ -240,10 +245,9 @@ static void flush_surface(Gfx::PaintingSurface& surface)
 
 class CompositorThread::ThreadData final : public AtomicRefCounted<ThreadData> {
 public:
-    ThreadData(u64 page_id, NonnullRefPtr<Core::WeakEventLoopReference>&& main_thread_event_loop, CompositorThread::PagePresentationRegistration page_presentation_registration)
+    ThreadData(u64 page_id, NonnullRefPtr<Core::WeakEventLoopReference>&& main_thread_event_loop)
         : m_page_id(page_id)
         , m_main_thread_event_loop(move(main_thread_event_loop))
-        , m_presents_to_client(page_presentation_registration == CompositorThread::PagePresentationRegistration::Yes)
     {
     }
 
@@ -251,6 +255,12 @@ public:
 
     u64 page_id() const { return m_page_id; }
     bool presents_to_client() const { return m_presents_to_client; }
+    void set_presents_to_client()
+    {
+        Sync::MutexLocker const locker { m_mutex };
+        m_presents_to_client = true;
+    }
+
     void stop_presenting_to_client()
     {
         Sync::MutexLocker const locker { m_mutex };
@@ -271,13 +281,25 @@ public:
         m_frame_completed.broadcast();
     }
 
-    void enqueue_command(CompositorCommand&& command)
+    void enqueue_command(CompositorContextId context_id, CompositorCommand&& command)
     {
         Sync::MutexLocker const locker { m_mutex };
-        m_command_queue.enqueue(move(command));
+        m_command_queue.enqueue({ context_id, move(command) });
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor command queued (queue_size={}, awaiting_bitmap={}, needs_present={}, deferred_async_present={})",
             m_command_queue.size(), m_presented_bitmap_id_awaiting_ack.value_or(-1), m_needs_present, m_has_deferred_async_scroll_present);
         m_command_ready.signal();
+    }
+
+    void enqueue_command(CompositorCommand&& command)
+    {
+        VERIFY(m_default_context_id.has_value());
+        enqueue_command(*m_default_context_id, move(command));
+    }
+
+    void set_default_context_id(CompositorContextId context_id)
+    {
+        if (!m_default_context_id.has_value())
+            m_default_context_id = context_id;
     }
 
     u64 set_needs_present(Gfx::IntRect viewport_rect)
@@ -587,7 +609,7 @@ public:
             Core::ScopedAutoreleasePool autorelease_pool;
 
             while (true) {
-                auto command = [this]() -> Optional<CompositorCommand> {
+                auto command = [this]() -> Optional<CompositorCommandEnvelope> {
                     Sync::MutexLocker const locker { m_mutex };
                     if (m_command_queue.is_empty())
                         return {};
@@ -599,7 +621,7 @@ public:
                     break;
 
                 bool should_yield_to_async_scroll_present = false;
-                command->visit(
+                command->command.visit(
                     [this](UpdateDisplayListCommand& cmd) {
                         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor processing display list update (deferred_async_present={})",
                             m_has_deferred_async_scroll_present);
@@ -1120,7 +1142,8 @@ private:
     mutable Sync::ConditionVariable m_command_ready { m_mutex };
     Atomic<bool> m_exit { false };
 
-    Queue<CompositorCommand> m_command_queue;
+    Queue<CompositorCommandEnvelope> m_command_queue;
+    Optional<CompositorContextId> m_default_context_id;
 
     OwnPtr<Painting::DisplayListPlayerSkia> m_skia_player;
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
@@ -1213,24 +1236,16 @@ static FramePresentationState& frame_presentation_state()
     return *state;
 }
 
-CompositorThread::CompositorThread(u64 page_id, PagePresentationRegistration page_presentation_registration)
-    : m_thread_data(adopt_ref(*new ThreadData(page_id, Core::EventLoop::current_weak(), page_presentation_registration)))
+CompositorThread::Context::Context(NonnullRefPtr<ThreadData> thread_data, CompositorContextId context_id)
+    : m_thread_data(move(thread_data))
+    , m_context_id(context_id)
 {
     m_backing_store_shrink_timer = Core::Timer::create_single_shot(3000, [this] {
         enqueue_viewport_size_updated(m_last_viewport_size, m_last_viewport_size_is_top_level_traversable, WindowResizingInProgress::No);
     });
-
-    {
-        Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
-        VERIFY(!context_compositors().contains(m_context_id));
-        context_compositors().set(m_context_id, m_thread_data);
-    }
-
-    if (page_presentation_registration == PagePresentationRegistration::Yes)
-        register_page_compositor(page_id, m_thread_data);
 }
 
-CompositorThread::~CompositorThread()
+CompositorThread::Context::~Context()
 {
     m_backing_store_shrink_timer->on_timeout = {};
     m_backing_store_shrink_timer->stop();
@@ -1241,8 +1256,37 @@ CompositorThread::~CompositorThread()
         Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
         VERIFY(context_compositors().remove(m_context_id));
     }
+}
 
+CompositorThread::CompositorThread(u64 page_id, PagePresentationRegistration page_presentation_registration)
+    : m_thread_data(adopt_ref(*new ThreadData(page_id, Core::EventLoop::current_weak())))
+    , m_context(create_context(page_presentation_registration))
+{
+}
+
+CompositorThread::~CompositorThread()
+{
+    m_context.clear();
     m_thread_data->exit();
+}
+
+OwnPtr<CompositorThread::Context> CompositorThread::create_context(PagePresentationRegistration page_presentation_registration)
+{
+    auto context_id = allocate_compositor_context_id();
+    m_thread_data->set_default_context_id(context_id);
+
+    {
+        Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
+        VERIFY(!context_compositors().contains(context_id));
+        context_compositors().set(context_id, m_thread_data);
+    }
+
+    if (page_presentation_registration == PagePresentationRegistration::Yes) {
+        m_thread_data->set_presents_to_client();
+        register_page_compositor(m_thread_data->page_id(), m_thread_data);
+    }
+
+    return adopt_own(*new Context(m_thread_data, context_id));
 }
 
 void CompositorThread::register_page_compositor(u64 page_id, NonnullRefPtr<ThreadData> thread_data)
@@ -1285,7 +1329,7 @@ bool CompositorThread::update_compositor_surface_for_context(CompositorContextId
         }
         thread_data = compositor->value;
     }
-    thread_data->enqueue_command(UpdateCompositorSurfaceCommand { surface_id, move(shared_image) });
+    thread_data->enqueue_command(context_id, UpdateCompositorSurfaceCommand { surface_id, move(shared_image) });
     return true;
 }
 
@@ -1473,67 +1517,67 @@ void CompositorThread::start(DisplayListPlayerType display_list_player_type)
     m_thread->detach();
 }
 
-void CompositorThread::set_presentation_mode(PresentationMode mode)
+void CompositorThread::Context::set_presentation_mode(PresentationMode mode)
 {
     m_thread_data->set_presentation_mode(move(mode));
 }
 
-void CompositorThread::stop_presenting_to_client()
+void CompositorThread::Context::stop_presenting_to_client()
 {
     m_thread_data->stop_presenting_to_client();
     unregister_page_compositor(m_thread_data->page_id(), *m_thread_data);
 }
 
-void CompositorThread::update_display_list(
+void CompositorThread::Context::update_display_list(
     NonnullRefPtr<Painting::DisplayList> display_list,
     Painting::DisplayListResourceTransaction&& resource_transaction,
     Painting::ScrollStateSnapshot&& scroll_state_snapshot)
 {
-    m_thread_data->enqueue_command(UpdateDisplayListCommand { move(display_list), move(resource_transaction), move(scroll_state_snapshot) });
+    m_thread_data->enqueue_command(m_context_id, UpdateDisplayListCommand { move(display_list), move(resource_transaction), move(scroll_state_snapshot) });
 }
 
-void CompositorThread::update_compositor_surface(Painting::CompositorSurfaceId surface_id, Gfx::SharedImage&& shared_image)
+void CompositorThread::Context::update_compositor_surface(Painting::CompositorSurfaceId surface_id, Gfx::SharedImage&& shared_image)
 {
-    m_thread_data->enqueue_command(UpdateCompositorSurfaceCommand { surface_id, move(shared_image) });
+    m_thread_data->enqueue_command(m_context_id, UpdateCompositorSurfaceCommand { surface_id, move(shared_image) });
 }
 
-void CompositorThread::clear_compositor_surface(Painting::CompositorSurfaceId surface_id)
+void CompositorThread::Context::clear_compositor_surface(Painting::CompositorSurfaceId surface_id)
 {
-    m_thread_data->enqueue_command(ClearCompositorSurfaceCommand { surface_id });
+    m_thread_data->enqueue_command(m_context_id, ClearCompositorSurfaceCommand { surface_id });
 }
 
-void CompositorThread::invalidate_wheel_event_listener_state(u64 generation)
+void CompositorThread::Context::invalidate_wheel_event_listener_state(u64 generation)
 {
     m_thread_data->invalidate_wheel_event_listener_state(generation);
 }
 
-CompositorThread::AsyncScrollEnqueueResult CompositorThread::async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position,
+CompositorThread::AsyncScrollEnqueueResult CompositorThread::Context::async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position,
     Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect, AsyncScrollOperationTracking operation_tracking)
 {
     return m_thread_data->enqueue_async_scroll_by(expected_document_id, position, delta_in_device_pixels, viewport_rect, operation_tracking);
 }
 
-bool CompositorThread::should_defer_async_scroll_offset_adoption() const
+bool CompositorThread::Context::should_defer_async_scroll_offset_adoption() const
 {
     return m_thread_data->should_defer_async_scroll_offset_adoption();
 }
 
-bool CompositorThread::should_defer_main_thread_present_for_async_scroll() const
+bool CompositorThread::Context::should_defer_main_thread_present_for_async_scroll() const
 {
     return m_thread_data->should_defer_main_thread_present_for_async_scroll();
 }
 
-CompositorThread::PendingAsyncScrollUpdates CompositorThread::take_pending_async_scroll_updates()
+CompositorThread::PendingAsyncScrollUpdates CompositorThread::Context::take_pending_async_scroll_updates()
 {
     return m_thread_data->take_pending_async_scroll_updates();
 }
 
-void CompositorThread::update_scroll_state(Painting::ScrollStateSnapshot&& scroll_state_snapshot)
+void CompositorThread::Context::update_scroll_state(Painting::ScrollStateSnapshot&& scroll_state_snapshot)
 {
-    m_thread_data->enqueue_command(UpdateScrollStateCommand { move(scroll_state_snapshot) });
+    m_thread_data->enqueue_command(m_context_id, UpdateScrollStateCommand { move(scroll_state_snapshot) });
 }
 
-void CompositorThread::viewport_size_updated(
+void CompositorThread::Context::viewport_size_updated(
     Gfx::IntSize viewport_size, bool is_top_level_traversable, WindowResizingInProgress window_resize_in_progress)
 {
     m_last_viewport_size = viewport_size;
@@ -1543,26 +1587,106 @@ void CompositorThread::viewport_size_updated(
     enqueue_viewport_size_updated(viewport_size, is_top_level_traversable, window_resize_in_progress);
 }
 
-void CompositorThread::enqueue_viewport_size_updated(
+void CompositorThread::Context::enqueue_viewport_size_updated(
     Gfx::IntSize viewport_size, bool is_top_level_traversable, WindowResizingInProgress window_resize_in_progress)
 {
-    m_thread_data->enqueue_command(
+    m_thread_data->enqueue_command(m_context_id,
         ViewportSizeUpdatedCommand { viewport_size, is_top_level_traversable, window_resize_in_progress });
 }
 
-u64 CompositorThread::present_frame(Gfx::IntRect viewport_rect)
+u64 CompositorThread::Context::present_frame(Gfx::IntRect viewport_rect)
 {
     return m_thread_data->set_needs_present(viewport_rect);
 }
 
-void CompositorThread::wait_for_frame(u64 frame_id)
+void CompositorThread::Context::wait_for_frame(u64 frame_id)
 {
     m_thread_data->wait_for_frame(frame_id);
 }
 
+void CompositorThread::Context::request_screenshot(NonnullRefPtr<Gfx::PaintingSurface> target_surface, Function<void()>&& callback)
+{
+    m_thread_data->enqueue_command(m_context_id, ScreenshotCommand { move(target_surface), move(callback) });
+}
+
+void CompositorThread::set_presentation_mode(PresentationMode mode)
+{
+    m_context->set_presentation_mode(move(mode));
+}
+
+void CompositorThread::stop_presenting_to_client()
+{
+    m_context->stop_presenting_to_client();
+}
+
+void CompositorThread::update_display_list(
+    NonnullRefPtr<Painting::DisplayList> display_list,
+    Painting::DisplayListResourceTransaction&& resource_transaction,
+    Painting::ScrollStateSnapshot&& scroll_state_snapshot)
+{
+    m_context->update_display_list(move(display_list), move(resource_transaction), move(scroll_state_snapshot));
+}
+
+void CompositorThread::update_compositor_surface(Painting::CompositorSurfaceId surface_id, Gfx::SharedImage&& shared_image)
+{
+    m_context->update_compositor_surface(surface_id, move(shared_image));
+}
+
+void CompositorThread::clear_compositor_surface(Painting::CompositorSurfaceId surface_id)
+{
+    m_context->clear_compositor_surface(surface_id);
+}
+
+void CompositorThread::invalidate_wheel_event_listener_state(u64 generation)
+{
+    m_context->invalidate_wheel_event_listener_state(generation);
+}
+
+CompositorThread::AsyncScrollEnqueueResult CompositorThread::async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position,
+    Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect, AsyncScrollOperationTracking operation_tracking)
+{
+    return m_context->async_scroll_by(expected_document_id, position, delta_in_device_pixels, viewport_rect, operation_tracking);
+}
+
+bool CompositorThread::should_defer_async_scroll_offset_adoption() const
+{
+    return m_context->should_defer_async_scroll_offset_adoption();
+}
+
+bool CompositorThread::should_defer_main_thread_present_for_async_scroll() const
+{
+    return m_context->should_defer_main_thread_present_for_async_scroll();
+}
+
+CompositorThread::PendingAsyncScrollUpdates CompositorThread::take_pending_async_scroll_updates()
+{
+    return m_context->take_pending_async_scroll_updates();
+}
+
+void CompositorThread::update_scroll_state(Painting::ScrollStateSnapshot&& scroll_state_snapshot)
+{
+    m_context->update_scroll_state(move(scroll_state_snapshot));
+}
+
+void CompositorThread::viewport_size_updated(
+    Gfx::IntSize viewport_size, bool is_top_level_traversable, WindowResizingInProgress window_resize_in_progress)
+{
+    m_context->viewport_size_updated(viewport_size, is_top_level_traversable, window_resize_in_progress);
+}
+
+u64 CompositorThread::present_frame(Gfx::IntRect viewport_rect)
+{
+    return m_context->present_frame(viewport_rect);
+}
+
+void CompositorThread::wait_for_frame(u64 frame_id)
+{
+    m_context->wait_for_frame(frame_id);
+}
+
 void CompositorThread::request_screenshot(NonnullRefPtr<Gfx::PaintingSurface> target_surface, Function<void()>&& callback)
 {
-    m_thread_data->enqueue_command(ScreenshotCommand { move(target_surface), move(callback) });
+    m_context->request_screenshot(move(target_surface), move(callback));
 }
 
 }
