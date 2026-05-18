@@ -20,11 +20,9 @@ use crate::bytecode::ffi::{
     AbstractOperationKind, ConstantTag, FFISharedFunctionData, FFIUtf16Slice, WellKnownSymbolKind,
 };
 use crate::bytecode::generator::{
-    AssembledBytecode, ConstantValue, ExceptionHandler, FunctionSfdMetadata, Generator, LocalVariable,
-    PendingClassBlueprint, PendingClassElement, PendingLiteralValueKind, PendingSharedFunctionData,
-    PrecompiledFunction,
+    AssembledBytecode, ConstantValue, ExceptionHandler, FunctionSfdMetadata, Generator, PendingClassBlueprint,
+    PendingClassElement, PendingLiteralValueKind, PendingSharedFunctionData, PrecompiledFunction,
 };
-use crate::bytecode::operand::PropertyKeyTableIndex;
 use crate::bytecode::validator::{
     FFIExceptionHandlerOffsets, FFIValidatorBounds, ValidationErrorKind, validate_bytecode,
 };
@@ -487,7 +485,9 @@ impl PreparedUtf16Slice {
     }
 }
 
-fn utf16_slice_storage(strings: &[DecodedUtf16String]) -> (Vec<Vec<u16>>, Vec<FFIUtf16Slice>) {
+fn utf16_slice_storage<'a>(
+    strings: impl ExactSizeIterator<Item = &'a DecodedUtf16String>,
+) -> (Vec<Vec<u16>>, Vec<FFIUtf16Slice>) {
     #[cfg(target_endian = "little")]
     let storage = Vec::new();
     #[cfg(not(target_endian = "little"))]
@@ -1046,7 +1046,7 @@ unsafe fn materialize_function(
         let (_parameter_name_storage, parameter_names): (Vec<Vec<u16>>, Vec<FFIUtf16Slice>) = function
             .parameter_names
             .as_ref()
-            .map(|names| utf16_slice_storage(names))
+            .map(|names| utf16_slice_storage(names.iter()))
             .unwrap_or_default();
         let name_storage = function.name.as_ref().map(PreparedUtf16Slice::new);
         let (name, name_len) = name_storage
@@ -1147,7 +1147,7 @@ unsafe fn materialize_executable(
             number_of_registers,
             number_of_arguments,
             cache_counters,
-            this_value_needs_environment_resolution,
+            this_value_needs_environment_resolution: _,
             length_identifier,
             bytecode,
             identifier_table,
@@ -1161,51 +1161,38 @@ unsafe fn materialize_executable(
             class_blueprints,
         } = executable;
 
-        let mut generator = Generator::new();
-        generator.strict = strict;
-        generator.this_value_needs_environment_resolution = this_value_needs_environment_resolution;
-        generator.next_property_lookup_cache = cache_counters.property_lookup_cache_count;
-        generator.next_global_variable_cache = cache_counters.global_variable_cache_count;
-        generator.next_template_object_cache = cache_counters.template_object_cache_count;
-        generator.next_object_shape_cache = cache_counters.object_shape_cache_count;
-        generator.next_object_property_iterator_cache = cache_counters.object_property_iterator_cache_count;
         let Some(identifier_table) = identifier_table.into_values() else {
             return std::ptr::null_mut();
         };
-        generator.identifier_table = identifier_table
-            .into_iter()
-            .map(|value| value.to_utf16_string())
-            .collect();
+        let (_identifier_table_storage, identifier_table_slices) = utf16_slice_storage(identifier_table.iter());
         let Some(property_key_table) = property_key_table.into_values() else {
             return std::ptr::null_mut();
         };
-        generator.property_key_table = property_key_table
-            .into_iter()
-            .map(|value| value.to_utf16_string())
-            .collect();
+        let (_property_key_table_storage, property_key_table_slices) = utf16_slice_storage(property_key_table.iter());
         let Some(string_table) = string_table.into_values() else {
             return std::ptr::null_mut();
         };
-        generator.string_table = string_table.into_iter().map(|value| value.to_utf16_string()).collect();
+        let (_string_table_storage, string_table_slices) = utf16_slice_storage(string_table.iter());
         let Some(constants) = constants.into_constant_values() else {
             return std::ptr::null_mut();
         };
-        generator.constants = constants;
+        let constants_buffer = crate::bytecode::ffi::encode_constants(&constants);
         let Some(local_variables) = local_variables.into_values() else {
             return std::ptr::null_mut();
         };
-        generator.local_variables = local_variables
-            .into_iter()
-            .map(DecodedLocalVariable::into_local_variable)
-            .collect();
-        generator.length_identifier = length_identifier.map(PropertyKeyTableIndex);
+        let (_local_variable_storage, local_variable_name_slices) =
+            utf16_slice_storage(local_variables.iter().map(|local_variable| {
+                let _ = local_variable.is_lexically_declared;
+                let _ = local_variable.is_initialized_during_declaration_instantiation;
+                &local_variable.name
+            }));
 
         let Some(shared_functions) = shared_functions.into_values() else {
             return std::ptr::null_mut();
         };
         let sfd_ptrs: Vec<*const c_void> = shared_functions
             .into_iter()
-            .map(|function| materialize_function(function, generator.strict, vm_ptr, source_code_ptr) as *const c_void)
+            .map(|function| materialize_function(function, strict, vm_ptr, source_code_ptr) as *const c_void)
             .collect();
         if sfd_ptrs.iter().any(|ptr| ptr.is_null()) {
             return std::ptr::null_mut();
@@ -1230,8 +1217,7 @@ unsafe fn materialize_executable(
             return std::ptr::null_mut();
         };
 
-        crate::bytecode::ffi::create_executable_with_dependencies_from_parts(
-            &generator,
+        crate::bytecode::ffi::create_executable_from_slices(
             crate::bytecode::ffi::ExecutableParts {
                 bytecode: bytecode.as_slice(),
                 bytecode_owner: bytecode.owner_for_ffi(),
@@ -1240,6 +1226,24 @@ unsafe fn materialize_executable(
                 basic_block_start_offsets: &[],
                 number_of_registers,
                 number_of_arguments,
+            },
+            crate::bytecode::ffi::ExecutableMetadata {
+                property_lookup_cache_count: cache_counters.property_lookup_cache_count,
+                global_variable_cache_count: cache_counters.global_variable_cache_count,
+                template_object_cache_count: cache_counters.template_object_cache_count,
+                object_shape_cache_count: cache_counters.object_shape_cache_count,
+                object_property_iterator_cache_count: cache_counters.object_property_iterator_cache_count,
+                is_strict: strict,
+                length_identifier,
+            },
+            crate::bytecode::ffi::ExecutableSlices {
+                identifier_table: &identifier_table_slices,
+                property_key_table: &property_key_table_slices,
+                string_table: &string_table_slices,
+                constants_data: &constants_buffer,
+                constants_count: constants.len(),
+                local_variable_names: &local_variable_name_slices,
+                compiled_regexes: &[],
             },
             vm_ptr,
             source_code_ptr,
@@ -2857,16 +2861,6 @@ struct DecodedLocalVariable {
     name: DecodedUtf16String,
     is_lexically_declared: bool,
     is_initialized_during_declaration_instantiation: bool,
-}
-
-impl DecodedLocalVariable {
-    fn into_local_variable(self) -> LocalVariable {
-        LocalVariable {
-            name: self.name.to_utf16_string(),
-            is_lexically_declared: self.is_lexically_declared,
-            is_initialized_during_declaration_instantiation: self.is_initialized_during_declaration_instantiation,
-        }
-    }
 }
 
 struct SharedFunctionTable<'a>(&'a Generator);
