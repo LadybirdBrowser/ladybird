@@ -208,14 +208,16 @@ pub fn compute_layouts(ops: &[OpDef]) -> HashMap<String, OpLayout> {
             offset += info.size;
         }
 
-        // Array fields start at sizeof(*this), which is the fixed part rounded up
+        // Flexible array members start after the fixed fields with only the
+        // element's alignment. This can be before the struct's final tail
+        // padding on targets like MSVC.
         if has_array {
-            let sizeof_this = round_up(offset, STRUCT_ALIGN);
             for f in &op.fields {
                 if !f.is_array {
                     continue;
                 }
-                field_offsets.insert(f.name.clone(), sizeof_this);
+                let info = field_type_info(&f.ty);
+                field_offsets.insert(f.name.clone(), round_up(offset, info.align));
             }
         }
 
