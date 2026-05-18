@@ -56,6 +56,11 @@
 namespace Web {
 
 class PageClient;
+namespace Compositor {
+
+class CompositorThread;
+
+}
 
 class WEB_API Page final : public JS::Cell {
     GC_CELL(Page, JS::Cell);
@@ -68,6 +73,10 @@ public:
 
     PageClient& client() { return m_client; }
     PageClient const& client() const { return m_client; }
+    bool has_compositor_thread() const;
+    void ensure_compositor_thread();
+    Compositor::CompositorThread& compositor_thread();
+    Compositor::CompositorThread const& compositor_thread() const;
 
     void set_top_level_traversable(GC::Ref<HTML::TraversableNavigable>);
 
@@ -509,6 +518,10 @@ public:
     virtual bool is_headless() const = 0;
 
     virtual bool is_svg_page_client() const { return false; }
+    virtual bool supports_compositor() const { return false; }
+    virtual void ensure_compositor_thread() { }
+    virtual Compositor::CompositorThread* compositor_thread() { return nullptr; }
+    virtual Compositor::CompositorThread const* compositor_thread() const { return nullptr; }
 
 protected:
     virtual ~PageClient() = default;

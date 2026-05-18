@@ -533,11 +533,12 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value())
         paintable = result->paintable;
 
-    if (m_navigable->page().async_scrolling_enabled() && async_scroll_performed_default_action) {
+    auto can_attempt_async_scroll = m_navigable->page().async_scrolling_enabled() && m_navigable->has_compositor_context();
+    if (can_attempt_async_scroll && async_scroll_performed_default_action) {
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Not attempting wheel async scroll: default action already performed");
-    } else if (m_navigable->page().async_scrolling_enabled() && visual_viewport->scale() != 1.0) {
+    } else if (can_attempt_async_scroll && visual_viewport->scale() != 1.0) {
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Not attempting wheel async scroll: visual viewport is scaled");
-    } else if (m_navigable->page().async_scrolling_enabled()) {
+    } else if (can_attempt_async_scroll) {
         if (paintable) {
             auto viewport_rect = m_navigable->page().css_to_device_rect(m_navigable->viewport_rect()).to_type<int>();
             auto async_scroll_delta = Gfx::FloatPoint { static_cast<float>(wheel_delta_x), static_cast<float>(wheel_delta_y) };
@@ -548,7 +549,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
             auto operation_tracking = async_scroll_operation
                 ? Compositor::CompositorThread::AsyncScrollOperationTracking::Yes
                 : Compositor::CompositorThread::AsyncScrollOperationTracking::No;
-            auto enqueue_result = m_navigable->rendering_thread().async_scroll_by(
+            auto enqueue_result = m_navigable->compositor_context().async_scroll_by(
                 document->unique_id(), async_scroll_position, async_scroll_delta_in_device_pixels, viewport_rect, operation_tracking);
             async_scroll_performed_default_action = enqueue_result.accepted;
             if (enqueue_result.operation_id.has_value() && async_scroll_operation)

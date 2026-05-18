@@ -453,8 +453,8 @@ void HTMLCanvasElement::present()
 
     if (auto surface = this->surface()) {
         surface->flush();
-        if (auto navigable = document().navigable())
-            navigable->rendering_thread().update_compositor_surface(ensure_compositor_surface_id(), surface->snapshot_into_shared_image());
+        if (auto navigable = document().navigable(); navigable && navigable->has_compositor_context())
+            navigable->compositor_context().update_compositor_surface(ensure_compositor_surface_id(), surface->snapshot_into_shared_image());
     }
 }
 
@@ -462,8 +462,8 @@ void HTMLCanvasElement::clear_compositor_surface()
 {
     if (!m_compositor_surface_id.has_value())
         return;
-    if (auto navigable = document().navigable())
-        navigable->rendering_thread().clear_compositor_surface(*m_compositor_surface_id);
+    if (auto navigable = document().navigable(); navigable && navigable->has_compositor_context())
+        navigable->compositor_context().clear_compositor_surface(*m_compositor_surface_id);
 }
 
 RefPtr<Gfx::PaintingSurface> HTMLCanvasElement::surface() const

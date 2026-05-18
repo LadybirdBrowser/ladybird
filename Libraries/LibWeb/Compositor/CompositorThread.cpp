@@ -243,23 +243,38 @@ static void flush_surface(Gfx::PaintingSurface& surface)
     surface.flush();
 }
 
+static constexpr u64 page_presenting_context_id_tag = 1ull << 63;
+
+static CompositorContextId compositor_context_id_for_page(u64 page_id)
+{
+    VERIFY((page_id & page_presenting_context_id_tag) == 0);
+    return CompositorContextId { page_presenting_context_id_tag | page_id };
+}
+
+static bool is_page_presenting_context_id(CompositorContextId context_id)
+{
+    return (context_id.value() & page_presenting_context_id_tag) != 0;
+}
+
 class CompositorThread::ThreadData final : public AtomicRefCounted<ThreadData> {
 public:
-    ThreadData(u64 page_id, NonnullRefPtr<Core::WeakEventLoopReference>&& main_thread_event_loop)
-        : m_page_id(page_id)
-        , m_main_thread_event_loop(move(main_thread_event_loop))
+    explicit ThreadData(NonnullRefPtr<Core::WeakEventLoopReference>&& main_thread_event_loop)
+        : m_main_thread_event_loop(move(main_thread_event_loop))
     {
     }
 
     ~ThreadData() = default;
 
     struct ContextState final : public AtomicRefCounted<ContextState> {
-        ContextState(CompositorThread::PagePresentationRegistration page_presentation_registration)
+        ContextState(Optional<u64> page_id, CompositorThread::PagePresentationRegistration page_presentation_registration)
             : presents_to_client(page_presentation_registration == CompositorThread::PagePresentationRegistration::Yes)
+            , page_id(page_id)
         {
+            VERIFY(!presents_to_client || page_id.has_value());
         }
 
         bool presents_to_client { false };
+        Optional<u64> page_id;
         Painting::DisplayListResourceStorage display_list_resource_storage;
         RefPtr<Painting::DisplayList> cached_display_list;
         Painting::ScrollStateSnapshot cached_scroll_state_snapshot;
@@ -292,25 +307,24 @@ public:
         WheelRoutingAdmission wheel_routing_admission { WheelRoutingAdmission::NoAsyncScrollingState };
     };
 
-    void register_context(CompositorContextId context_id, CompositorThread::PagePresentationRegistration page_presentation_registration)
+    void register_context(CompositorContextId context_id, Optional<u64> page_id, CompositorThread::PagePresentationRegistration page_presentation_registration)
     {
         Sync::MutexLocker const locker { m_mutex };
         VERIFY(!m_contexts.contains(context_id));
-        if (!m_default_context_id.has_value())
-            m_default_context_id = context_id;
-        if (page_presentation_registration == CompositorThread::PagePresentationRegistration::Yes)
-            m_page_presentation_context_id = context_id;
-        m_contexts.set(context_id, adopt_ref(*new ContextState(page_presentation_registration)));
+        if (page_presentation_registration == CompositorThread::PagePresentationRegistration::Yes) {
+            VERIFY(page_id.has_value());
+            VERIFY(context_id == compositor_context_id_for_page(*page_id));
+        } else {
+            VERIFY(!page_id.has_value());
+            VERIFY(!is_page_presenting_context_id(context_id));
+        }
+        m_contexts.set(context_id, adopt_ref(*new ContextState(page_id, page_presentation_registration)));
     }
 
     void unregister_context(CompositorContextId context_id)
     {
         Sync::MutexLocker const locker { m_mutex };
         m_contexts.remove(context_id);
-        if (m_default_context_id == context_id)
-            m_default_context_id.clear();
-        if (m_page_presentation_context_id == context_id)
-            m_page_presentation_context_id.clear();
     }
 
     RefPtr<ContextState> context_state(CompositorContextId context_id)
@@ -319,54 +333,18 @@ public:
         return m_contexts.get(context_id).value_or(nullptr);
     }
 
-    RefPtr<ContextState> default_context_state()
-    {
-        Sync::MutexLocker const locker { m_mutex };
-        if (!m_default_context_id.has_value())
-            return nullptr;
-        auto context = m_contexts.get(*m_default_context_id);
-        if (!context.has_value())
-            return nullptr;
-        return context.value();
-    }
-
-    RefPtr<ContextState> page_presentation_context_state()
-    {
-        Sync::MutexLocker const locker { m_mutex };
-        auto context_id = m_page_presentation_context_id.has_value() ? m_page_presentation_context_id : m_default_context_id;
-        if (!context_id.has_value())
-            return nullptr;
-        auto context = m_contexts.get(*context_id);
-        if (!context.has_value())
-            return nullptr;
-        return context.value();
-    }
-
-    Optional<CompositorContextId> page_presentation_context_id() const
-    {
-        Sync::MutexLocker const locker { m_mutex };
-        return m_page_presentation_context_id.has_value() ? m_page_presentation_context_id : m_default_context_id;
-    }
-
-    u64 page_id() const { return m_page_id; }
-    bool presents_to_client() const
-    {
-        Sync::MutexLocker const locker { m_mutex };
-        if (!m_page_presentation_context_id.has_value())
-            return false;
-        auto context = m_contexts.get(*m_page_presentation_context_id);
-        return context.has_value() && context.value()->presents_to_client;
-    }
-
     void stop_presenting_to_client(CompositorContextId context_id)
     {
         Sync::MutexLocker const locker { m_mutex };
-        auto context = m_contexts.get(context_id);
-        if (!context.has_value())
-            return;
-        context.value()->presents_to_client = false;
-        if (m_page_presentation_context_id == context_id)
-            m_page_presentation_context_id.clear();
+        if (auto context = m_contexts.get(context_id).value_or(nullptr))
+            context->presents_to_client = false;
+    }
+
+    bool context_presents_to_client(CompositorContextId context_id) const
+    {
+        Sync::MutexLocker const locker { m_mutex };
+        auto context = m_contexts.get(context_id).value_or(nullptr);
+        return context && context->presents_to_client;
     }
 
     void set_presentation_mode(CompositorContextId context_id, CompositorThread::PresentationMode mode)
@@ -397,12 +375,6 @@ public:
                 context ? context->has_deferred_async_scroll_present : false);
         }
         m_command_ready.signal();
-    }
-
-    void enqueue_command(CompositorCommand&& command)
-    {
-        VERIFY(m_default_context_id.has_value());
-        enqueue_command(*m_default_context_id, move(command));
     }
 
     u64 set_needs_present(CompositorContextId context_id, Gfx::IntRect viewport_rect)
@@ -544,13 +516,15 @@ public:
         return { true, operation_id };
     }
 
-    bool enqueue_async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels)
+    bool enqueue_async_scroll_by(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels)
     {
-        auto context_state = page_presentation_context_state();
-        auto context_id = page_presentation_context_id();
-        if (!context_state || !context_id.has_value())
+        auto context_id = compositor_context_id_for_page(page_id);
+        auto context_state = this->context_state(context_id);
+        if (!context_state)
             return false;
         auto& context = *context_state;
+        if (!context.presents_to_client)
+            return false;
         if (!context.can_accept_async_wheel_events.load()) {
             auto wheel_routing_admission = [&] {
                 Sync::MutexLocker const locker { m_mutex };
@@ -584,7 +558,7 @@ public:
 
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor accepted async scroll enqueue at {},{} device delta {},{} for scroll node {} viewport={}x{} at {},{}",
             position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y(), scroll_target.node_id->scroll_frame_index.value(), viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
-        enqueue_command(*context_id, AsyncScrollByCommand { position, delta_in_device_pixels, viewport_rect, *scroll_target.node_id, {} });
+        enqueue_command(context_id, AsyncScrollByCommand { position, delta_in_device_pixels, viewport_rect, *scroll_target.node_id, {} });
         return true;
     }
 
@@ -603,13 +577,15 @@ public:
         return {};
     }
 
-    bool handle_viewport_scrollbar_mouse_event(MouseEvent const& event)
+    bool handle_viewport_scrollbar_mouse_event(u64 page_id, MouseEvent const& event)
     {
-        auto context_state = page_presentation_context_state();
-        auto context_id = page_presentation_context_id();
-        if (!context_state || !context_id.has_value())
+        auto context_id = compositor_context_id_for_page(page_id);
+        auto context_state = this->context_state(context_id);
+        if (!context_state)
             return false;
         auto& context = *context_state;
+        if (!context.presents_to_client)
+            return false;
         auto position = Gfx::FloatPoint {
             static_cast<float>(event.position.x().value()),
             static_cast<float>(event.position.y().value()),
@@ -664,7 +640,7 @@ public:
             }
 
             schedule_viewport_scrollbar_present(context);
-            enqueue_command(*context_id, ViewportScrollbarDragCommand { *scrollbar_index, primary_position, thumb_grab_position });
+            enqueue_command(context_id, ViewportScrollbarDragCommand { *scrollbar_index, primary_position, thumb_grab_position });
             return true;
         }
         case MouseEvent::Type::MouseMove: {
@@ -684,7 +660,7 @@ public:
                 }
             }
             if (scrollbar_index.has_value()) {
-                enqueue_command(*context_id, ViewportScrollbarDragCommand { *scrollbar_index, primary_position, thumb_grab_position });
+                enqueue_command(context_id, ViewportScrollbarDragCommand { *scrollbar_index, primary_position, thumb_grab_position });
                 return true;
             }
             auto hovered_scrollbar_index = hit_test_viewport_scrollbar(context, position);
@@ -709,7 +685,7 @@ public:
                 context.captured_viewport_scrollbar_index.clear();
             }
             schedule_viewport_scrollbar_present(context);
-            enqueue_command(*context_id, ViewportScrollbarDragCommand { *scrollbar_index, primary_position, thumb_grab_position });
+            enqueue_command(context_id, ViewportScrollbarDragCommand { *scrollbar_index, primary_position, thumb_grab_position });
             return true;
         }
         case MouseEvent::Type::MouseLeave: {
@@ -1216,12 +1192,13 @@ private:
             presentation_mode.visit(
                 [this, &context, viewport_rect, rendered_bitmap_id, delivery](CompositorThread::PresentToUI) {
                     if (context.presents_to_client) {
+                        VERIFY(context.page_id.has_value());
                         finish_rasterizing(context, rendered_bitmap_id);
                         if (delivery == PresentFrameDelivery::AsyncScroll) {
                             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Finished async scroll raster into bitmap {}",
                                 rendered_bitmap_id);
                         }
-                        VERIFY(CompositorThread::present_frame_to_client(m_page_id, viewport_rect, rendered_bitmap_id));
+                        VERIFY(CompositorThread::present_frame_to_client(*context.page_id, viewport_rect, rendered_bitmap_id));
                     } else {
                         Sync::MutexLocker const locker { m_mutex };
                         context.is_rasterizing = false;
@@ -1271,9 +1248,10 @@ private:
     {
         if (!context.presents_to_client)
             return;
+        VERIFY(context.page_id.has_value());
 
         VERIFY(CompositorThread::present_backing_stores_to_client(
-            m_page_id, publication.front_bitmap_id, move(publication.front_shared_image), publication.back_bitmap_id, move(publication.back_shared_image)));
+            *context.page_id, publication.front_bitmap_id, move(publication.front_shared_image), publication.back_bitmap_id, move(publication.back_shared_image)));
     }
 
     template<typename Invokee>
@@ -1289,7 +1267,6 @@ private:
         });
     }
 
-    u64 m_page_id { 0 };
     NonnullRefPtr<Core::WeakEventLoopReference> m_main_thread_event_loop;
 
     mutable Sync::Mutex m_mutex;
@@ -1298,8 +1275,6 @@ private:
 
     Queue<CompositorCommandEnvelope> m_command_queue;
     HashMap<CompositorContextId, NonnullRefPtr<ContextState>> m_contexts;
-    Optional<CompositorContextId> m_default_context_id;
-    Optional<CompositorContextId> m_page_presentation_context_id;
 
     OwnPtr<Painting::DisplayListPlayerSkia> m_skia_player;
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
@@ -1316,13 +1291,15 @@ public:
             bitmap_id);
     }
 
-    void mark_presented_bitmap_ready_to_paint(i32 bitmap_id)
+    void mark_presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_id)
     {
-        auto context_state = page_presentation_context_state();
+        auto context_state = this->context_state(compositor_context_id_for_page(page_id));
         if (!context_state)
             return;
         auto& context = *context_state;
         Sync::MutexLocker const locker { m_mutex };
+        if (!context.presents_to_client)
+            return;
         if (context.presented_bitmap_id_awaiting_ack != bitmap_id) {
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Ignoring stale ready_to_paint for bitmap {} while awaiting bitmap {}",
                 bitmap_id, context.presented_bitmap_id_awaiting_ack.value_or(-1));
@@ -1348,16 +1325,33 @@ static Sync::Mutex& compositor_presentation_state_mutex()
     return *mutex;
 }
 
-static HashMap<u64, NonnullRefPtr<CompositorThread::ThreadData>>& page_compositors()
-{
-    static NeverDestroyed<HashMap<u64, NonnullRefPtr<CompositorThread::ThreadData>>> compositors;
-    return *compositors;
-}
-
 static HashMap<CompositorContextId, NonnullRefPtr<CompositorThread::ThreadData>>& context_compositors()
 {
     static NeverDestroyed<HashMap<CompositorContextId, NonnullRefPtr<CompositorThread::ThreadData>>> compositors;
     return *compositors;
+}
+
+static RefPtr<CompositorThread::ThreadData> thread_data_for_context(CompositorContextId context_id)
+{
+    Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
+    auto compositor = context_compositors().get(context_id);
+    if (!compositor.has_value())
+        return nullptr;
+    return compositor.value();
+}
+
+static RefPtr<CompositorThread::ThreadData> thread_data_for_page(u64 page_id)
+{
+    return thread_data_for_context(compositor_context_id_for_page(page_id));
+}
+
+static bool page_context_presents_to_client(u64 page_id)
+{
+    auto context_id = compositor_context_id_for_page(page_id);
+    auto thread_data = thread_data_for_context(context_id);
+    if (!thread_data)
+        return false;
+    return thread_data->context_presents_to_client(context_id);
 }
 
 static FramePresentationState& frame_presentation_state()
@@ -1381,7 +1375,6 @@ CompositorThread::Context::~Context()
     m_backing_store_shrink_timer->stop();
     m_backing_store_shrink_timer.clear();
 
-    unregister_page_compositor(m_thread_data->page_id(), *m_thread_data);
     m_thread_data->unregister_context(m_context_id);
     {
         Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
@@ -1389,22 +1382,28 @@ CompositorThread::Context::~Context()
     }
 }
 
-CompositorThread::CompositorThread(u64 page_id, PagePresentationRegistration page_presentation_registration)
-    : m_thread_data(adopt_ref(*new ThreadData(page_id, Core::EventLoop::current_weak())))
-    , m_context(create_context(page_presentation_registration))
+CompositorThread::CompositorThread()
+    : m_thread_data(adopt_ref(*new ThreadData(Core::EventLoop::current_weak())))
 {
 }
 
 CompositorThread::~CompositorThread()
 {
-    m_context.clear();
     m_thread_data->exit();
 }
 
-OwnPtr<CompositorThread::Context> CompositorThread::create_context(PagePresentationRegistration page_presentation_registration)
+OwnPtr<CompositorThread::Context> CompositorThread::create_context(Optional<u64> page_id, PagePresentationRegistration page_presentation_registration)
 {
-    auto context_id = allocate_compositor_context_id();
-    m_thread_data->register_context(context_id, page_presentation_registration);
+    CompositorContextId context_id;
+    if (page_presentation_registration == PagePresentationRegistration::Yes) {
+        VERIFY(page_id.has_value());
+        context_id = compositor_context_id_for_page(*page_id);
+    } else {
+        VERIFY(!page_id.has_value());
+        context_id = allocate_compositor_context_id();
+        VERIFY(!is_page_presenting_context_id(context_id));
+    }
+    m_thread_data->register_context(context_id, page_id, page_presentation_registration);
 
     {
         Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
@@ -1412,51 +1411,16 @@ OwnPtr<CompositorThread::Context> CompositorThread::create_context(PagePresentat
         context_compositors().set(context_id, m_thread_data);
     }
 
-    if (page_presentation_registration == PagePresentationRegistration::Yes)
-        register_page_compositor(m_thread_data->page_id(), m_thread_data);
-
     return adopt_own(*new Context(m_thread_data, context_id));
-}
-
-void CompositorThread::register_page_compositor(u64 page_id, NonnullRefPtr<ThreadData> thread_data)
-{
-    Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
-    auto replaced_existing_compositor = page_compositors().contains(page_id);
-    page_compositors().set(page_id, move(thread_data));
-    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Registered page {} for compositor presentation (replaced_existing={})",
-        page_id, replaced_existing_compositor);
-}
-
-void CompositorThread::unregister_page_compositor(u64 page_id, ThreadData& thread_data)
-{
-    Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
-    auto compositor = page_compositors().find(page_id);
-    if (compositor == page_compositors().end()) {
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Skipping compositor unregister for page {}: no compositor registered",
-            page_id);
-        return;
-    }
-    if (compositor->value.ptr() != &thread_data) {
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Skipping compositor unregister for page {}: compositor changed",
-            page_id);
-        return;
-    }
-    page_compositors().remove(compositor);
-    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Unregistered page {} from compositor presentation", page_id);
 }
 
 bool CompositorThread::update_compositor_surface_for_context(CompositorContextId context_id, Painting::CompositorSurfaceId surface_id, Gfx::SharedImage&& shared_image)
 {
-    RefPtr<ThreadData> thread_data;
-    {
-        Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
-        auto compositor = context_compositors().find(context_id);
-        if (compositor == context_compositors().end()) {
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Dropping compositor surface {} update for unknown context {}",
-                surface_id, context_id);
-            return false;
-        }
-        thread_data = compositor->value;
+    auto thread_data = thread_data_for_context(context_id);
+    if (!thread_data) {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Dropping compositor surface {} update for unknown context {}",
+            surface_id, context_id);
+        return false;
     }
     thread_data->enqueue_command(context_id, UpdateCompositorSurfaceCommand { surface_id, move(shared_image) });
     return true;
@@ -1484,14 +1448,17 @@ void CompositorThread::clear_frame_presentation_callbacks()
 
 bool CompositorThread::present_backing_stores_to_client(u64 page_id, i32 front_bitmap_id, Gfx::SharedImage&& front_shared_image, i32 back_bitmap_id, Gfx::SharedImage&& back_shared_image)
 {
+    auto context_id = compositor_context_id_for_page(page_id);
+    auto thread_data = thread_data_for_context(context_id);
+    if (!thread_data || !thread_data->context_presents_to_client(context_id)) {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Cannot present backing stores front={} back={} for page {}: no presenting context registered",
+            front_bitmap_id, back_bitmap_id, page_id);
+        return false;
+    }
+
     RefPtr<Core::WeakEventLoopReference> event_loop_reference;
     {
         Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
-        if (!page_compositors().contains(page_id)) {
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Cannot present backing stores front={} back={} for page {}: no compositor registered",
-                front_bitmap_id, back_bitmap_id, page_id);
-            return false;
-        }
         auto& state = frame_presentation_state();
         if (!state.backing_store_callback) {
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Cannot present backing stores front={} back={} for page {}: no presentation callback",
@@ -1516,12 +1483,12 @@ bool CompositorThread::present_backing_stores_to_client(u64 page_id, i32 front_b
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Queueing UI backing stores for page {} front={} back={}",
         page_id, front_bitmap_id, back_bitmap_id);
     event_loop->deferred_invoke([page_id, front_bitmap_id, front_shared_image = move(front_shared_image), back_bitmap_id, back_shared_image = move(back_shared_image)]() mutable {
-        Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
-        if (!page_compositors().contains(page_id)) {
+        if (!page_context_presents_to_client(page_id)) {
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Dropping queued UI backing stores for page {} front={} back={}: page unregistered",
                 page_id, front_bitmap_id, back_bitmap_id);
             return;
         }
+        Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
         auto& state = frame_presentation_state();
         if (state.backing_store_callback) {
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Delivering UI backing stores for page {} front={} back={}",
@@ -1537,14 +1504,17 @@ bool CompositorThread::present_backing_stores_to_client(u64 page_id, i32 front_b
 
 bool CompositorThread::present_frame_to_client(u64 page_id, Gfx::IntRect const& viewport_rect, i32 bitmap_id)
 {
+    auto context_id = compositor_context_id_for_page(page_id);
+    auto thread_data = thread_data_for_context(context_id);
+    if (!thread_data || !thread_data->context_presents_to_client(context_id)) {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Cannot present bitmap {} for page {}: no presenting context registered",
+            bitmap_id, page_id);
+        return false;
+    }
+
     RefPtr<Core::WeakEventLoopReference> event_loop_reference;
     {
         Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
-        if (!page_compositors().contains(page_id)) {
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Cannot present bitmap {} for page {}: no compositor registered",
-                bitmap_id, page_id);
-            return false;
-        }
         auto& state = frame_presentation_state();
         if (!state.frame_callback) {
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Cannot present bitmap {} for page {}: no presentation callback",
@@ -1569,12 +1539,12 @@ bool CompositorThread::present_frame_to_client(u64 page_id, Gfx::IntRect const& 
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Queueing UI present for page {} bitmap {} viewport={}x{} at {},{}",
         page_id, bitmap_id, viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
     event_loop->deferred_invoke([page_id, viewport_rect, bitmap_id] {
-        Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
-        if (!page_compositors().contains(page_id)) {
+        if (!page_context_presents_to_client(page_id)) {
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Dropping queued UI present for page {} bitmap {}: page unregistered",
                 page_id, bitmap_id);
             return;
         }
+        Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
         auto& state = frame_presentation_state();
         if (state.frame_callback) {
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Delivering UI present for page {} bitmap {} viewport={}x{} at {},{}",
@@ -1592,48 +1562,33 @@ void CompositorThread::presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_i
 {
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Received compositor ready_to_paint for page {} bitmap {}",
         page_id, bitmap_id);
-    RefPtr<ThreadData> thread_data;
-    {
-        Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
-        auto compositor = page_compositors().find(page_id);
-        if (compositor == page_compositors().end()) {
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Ignoring compositor ready_to_paint for page {} bitmap {}: no compositor registered",
-                page_id, bitmap_id);
-            return;
-        }
-        thread_data = compositor->value;
+    auto thread_data = thread_data_for_page(page_id);
+    if (!thread_data) {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Ignoring compositor ready_to_paint for page {} bitmap {}: no presenting context registered",
+            page_id, bitmap_id);
+        return;
     }
-    thread_data->mark_presented_bitmap_ready_to_paint(bitmap_id);
+    thread_data->mark_presented_bitmap_ready_to_paint(page_id, bitmap_id);
 }
 
 bool CompositorThread::async_scroll_by(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels)
 {
-    RefPtr<ThreadData> thread_data;
-    {
-        Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
-        auto compositor = page_compositors().find(page_id);
-        if (compositor == page_compositors().end()) {
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Async scroll cannot scroll page {}: no compositor registered", page_id);
-            return false;
-        }
-        thread_data = compositor->value;
+    auto thread_data = thread_data_for_page(page_id);
+    if (!thread_data) {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Async scroll cannot scroll page {}: no presenting context registered", page_id);
+        return false;
     }
-    return thread_data->enqueue_async_scroll_by(position, delta_in_device_pixels);
+    return thread_data->enqueue_async_scroll_by(page_id, position, delta_in_device_pixels);
 }
 
 bool CompositorThread::handle_mouse_event(u64 page_id, MouseEvent const& event)
 {
-    RefPtr<ThreadData> thread_data;
-    {
-        Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
-        auto compositor = page_compositors().find(page_id);
-        if (compositor == page_compositors().end()) {
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Viewport scrollbar mouse event cannot be handled for page {}: no compositor registered", page_id);
-            return false;
-        }
-        thread_data = compositor->value;
+    auto thread_data = thread_data_for_page(page_id);
+    if (!thread_data) {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Viewport scrollbar mouse event cannot be handled for page {}: no presenting context registered", page_id);
+        return false;
     }
-    return thread_data->handle_viewport_scrollbar_mouse_event(event);
+    return thread_data->handle_viewport_scrollbar_mouse_event(page_id, event);
 }
 
 void CompositorThread::start(DisplayListPlayerType display_list_player_type)
@@ -1654,7 +1609,6 @@ void CompositorThread::Context::set_presentation_mode(PresentationMode mode)
 void CompositorThread::Context::stop_presenting_to_client()
 {
     m_thread_data->stop_presenting_to_client(m_context_id);
-    unregister_page_compositor(m_thread_data->page_id(), *m_thread_data);
 }
 
 void CompositorThread::Context::update_display_list(
@@ -1736,86 +1690,6 @@ void CompositorThread::Context::wait_for_frame(u64 frame_id)
 void CompositorThread::Context::request_screenshot(NonnullRefPtr<Gfx::PaintingSurface> target_surface, Function<void()>&& callback)
 {
     m_thread_data->enqueue_command(m_context_id, ScreenshotCommand { move(target_surface), move(callback) });
-}
-
-void CompositorThread::set_presentation_mode(PresentationMode mode)
-{
-    m_context->set_presentation_mode(move(mode));
-}
-
-void CompositorThread::stop_presenting_to_client()
-{
-    m_context->stop_presenting_to_client();
-}
-
-void CompositorThread::update_display_list(
-    NonnullRefPtr<Painting::DisplayList> display_list,
-    Painting::DisplayListResourceTransaction&& resource_transaction,
-    Painting::ScrollStateSnapshot&& scroll_state_snapshot)
-{
-    m_context->update_display_list(move(display_list), move(resource_transaction), move(scroll_state_snapshot));
-}
-
-void CompositorThread::update_compositor_surface(Painting::CompositorSurfaceId surface_id, Gfx::SharedImage&& shared_image)
-{
-    m_context->update_compositor_surface(surface_id, move(shared_image));
-}
-
-void CompositorThread::clear_compositor_surface(Painting::CompositorSurfaceId surface_id)
-{
-    m_context->clear_compositor_surface(surface_id);
-}
-
-void CompositorThread::invalidate_wheel_event_listener_state(u64 generation)
-{
-    m_context->invalidate_wheel_event_listener_state(generation);
-}
-
-CompositorThread::AsyncScrollEnqueueResult CompositorThread::async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position,
-    Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect, AsyncScrollOperationTracking operation_tracking)
-{
-    return m_context->async_scroll_by(expected_document_id, position, delta_in_device_pixels, viewport_rect, operation_tracking);
-}
-
-bool CompositorThread::should_defer_async_scroll_offset_adoption() const
-{
-    return m_context->should_defer_async_scroll_offset_adoption();
-}
-
-bool CompositorThread::should_defer_main_thread_present_for_async_scroll() const
-{
-    return m_context->should_defer_main_thread_present_for_async_scroll();
-}
-
-CompositorThread::PendingAsyncScrollUpdates CompositorThread::take_pending_async_scroll_updates()
-{
-    return m_context->take_pending_async_scroll_updates();
-}
-
-void CompositorThread::update_scroll_state(Painting::ScrollStateSnapshot&& scroll_state_snapshot)
-{
-    m_context->update_scroll_state(move(scroll_state_snapshot));
-}
-
-void CompositorThread::viewport_size_updated(
-    Gfx::IntSize viewport_size, bool is_top_level_traversable, WindowResizingInProgress window_resize_in_progress)
-{
-    m_context->viewport_size_updated(viewport_size, is_top_level_traversable, window_resize_in_progress);
-}
-
-u64 CompositorThread::present_frame(Gfx::IntRect viewport_rect)
-{
-    return m_context->present_frame(viewport_rect);
-}
-
-void CompositorThread::wait_for_frame(u64 frame_id)
-{
-    m_context->wait_for_frame(frame_id);
-}
-
-void CompositorThread::request_screenshot(NonnullRefPtr<Gfx::PaintingSurface> target_surface, Function<void()>&& callback)
-{
-    m_context->request_screenshot(move(target_surface), move(callback));
 }
 
 }

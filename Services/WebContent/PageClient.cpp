@@ -683,7 +683,7 @@ void PageClient::page_did_request_activate_tab()
 
 void PageClient::page_did_close_top_level_traversable()
 {
-    page().top_level_traversable()->rendering_thread().stop_presenting_to_client();
+    page().top_level_traversable()->compositor_context().stop_presenting_to_client();
 
     // FIXME: Rename this IPC call
     client().async_did_close_browsing_context(m_id);
@@ -1011,6 +1011,21 @@ Web::DisplayListPlayerType PageClient::display_list_player_type() const
     default:
         VERIFY_NOT_REACHED();
     }
+}
+
+void PageClient::ensure_compositor_thread()
+{
+    m_owner.ensure_compositor_thread(display_list_player_type());
+}
+
+Web::Compositor::CompositorThread* PageClient::compositor_thread()
+{
+    return m_owner.compositor_thread();
+}
+
+Web::Compositor::CompositorThread const* PageClient::compositor_thread() const
+{
+    return m_owner.compositor_thread();
 }
 
 void PageClient::queue_screenshot_task(Optional<Web::UniqueNodeID> node_id)
