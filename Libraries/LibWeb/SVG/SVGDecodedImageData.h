@@ -9,6 +9,8 @@
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/DisplayList.h>
+#include <LibWeb/Painting/DisplayListResourceStorage.h>
 
 namespace Web::SVG {
 
@@ -52,6 +54,12 @@ private:
     mutable HashMap<Gfx::IntSize, Gfx::DecodedImageFrame> m_cached_rendered_frames;
 
     mutable HashMap<Gfx::IntSize, NonnullRefPtr<Gfx::PaintingSurface>> m_cached_rendered_surfaces;
+
+    struct CachedDisplayList {
+        RefPtr<Painting::DisplayList> display_list;
+        Painting::DisplayListResourceStorage resource_storage;
+    };
+    mutable HashMap<Gfx::IntSize, CachedDisplayList> m_cached_display_lists;
 
     GC::Ref<Page> m_page;
     GC::Ref<SVGPageClient> m_page_client;

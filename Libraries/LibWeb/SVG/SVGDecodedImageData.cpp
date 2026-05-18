@@ -137,9 +137,25 @@ size_t SVGDecodedImageData::external_memory_size() const
 
 RefPtr<Painting::DisplayList> SVGDecodedImageData::record_display_list(Gfx::IntSize size, Painting::DisplayListResourceStorage& resource_storage) const
 {
+    if (auto it = m_cached_display_lists.find(size); it != m_cached_display_lists.end()) {
+        resource_storage.append_referenced_resources_from(it->value.resource_storage, it->value.display_list->command_bytes());
+        return it->value.display_list;
+    }
+
+    // FIXME: Evict least used entries.
+    if (m_cached_display_lists.size() > 10)
+        m_cached_display_lists.remove(m_cached_display_lists.begin());
+
+    Painting::DisplayListResourceStorage local_storage;
     m_document->navigable()->set_viewport_size(size.to_type<CSSPixels>());
     m_document->update_layout(DOM::UpdateLayoutReason::SVGDecodedImageDataRender);
-    return m_document->record_display_list({}, resource_storage);
+    auto display_list = m_document->record_display_list({}, local_storage);
+    if (!display_list)
+        return nullptr;
+
+    resource_storage.append_referenced_resources_from(local_storage, display_list->command_bytes());
+    m_cached_display_lists.set(size, CachedDisplayList { display_list, move(local_storage) });
+    return display_list;
 }
 
 RefPtr<Gfx::PaintingSurface> SVGDecodedImageData::render_to_surface(Gfx::IntSize size) const
