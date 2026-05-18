@@ -99,6 +99,10 @@ public:
     virtual double device_pixels_per_css_pixel() const override { return m_device_pixel_ratio * m_zoom_level; }
 
     virtual Web::DisplayListPlayerType display_list_player_type() const override;
+    virtual bool supports_compositor() const override { return true; }
+    virtual void ensure_compositor_thread() override;
+    virtual Web::Compositor::CompositorThread* compositor_thread() override;
+    virtual Web::Compositor::CompositorThread const* compositor_thread() const override;
 
     void queue_screenshot_task(Optional<Web::UniqueNodeID> node_id);
 

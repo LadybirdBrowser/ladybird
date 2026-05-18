@@ -12,6 +12,7 @@
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/Clipboard/SystemClipboard.h>
+#include <LibWeb/Compositor/CompositorThread.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Range.h>
@@ -45,6 +46,33 @@ Page::Page(GC::Ref<PageClient> client)
 }
 
 Page::~Page() = default;
+
+bool Page::has_compositor_thread() const
+{
+    return m_client->compositor_thread();
+}
+
+void Page::ensure_compositor_thread()
+{
+    if (!m_client->supports_compositor())
+        return;
+
+    m_client->ensure_compositor_thread();
+}
+
+Compositor::CompositorThread& Page::compositor_thread()
+{
+    auto* compositor_thread = m_client->compositor_thread();
+    VERIFY(compositor_thread);
+    return *compositor_thread;
+}
+
+Compositor::CompositorThread const& Page::compositor_thread() const
+{
+    auto const* compositor_thread = m_client->compositor_thread();
+    VERIFY(compositor_thread);
+    return *compositor_thread;
+}
 
 void Page::visit_edges(JS::Cell::Visitor& visitor)
 {
@@ -301,10 +329,10 @@ void Page::invalidate_compositor_wheel_event_listener_state()
 {
     ++m_wheel_event_listener_state_generation;
 
-    if (!m_async_scrolling_enabled || !top_level_traversable_is_initialized())
+    if (!m_async_scrolling_enabled || !top_level_traversable_is_initialized() || !top_level_traversable()->has_compositor_context())
         return;
 
-    top_level_traversable()->rendering_thread().invalidate_wheel_event_listener_state(m_wheel_event_listener_state_generation);
+    top_level_traversable()->compositor_context().invalidate_wheel_event_listener_state(m_wheel_event_listener_state_generation);
 }
 
 void Page::set_top_level_traversable(GC::Ref<HTML::TraversableNavigable> navigable)

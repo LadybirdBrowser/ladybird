@@ -7,7 +7,9 @@
 
 #pragma once
 
+#include <AK/Assertions.h>
 #include <AK/HashTable.h>
+#include <AK/OwnPtr.h>
 #include <AK/String.h>
 #include <AK/Tuple.h>
 #include <LibJS/Heap/Cell.h>
@@ -239,7 +241,12 @@ public:
 
     [[nodiscard]] bool has_inclusive_ancestor_with_visibility_hidden() const;
 
-    Compositor::CompositorThread& rendering_thread() { return m_rendering_thread; }
+    Compositor::CompositorThread::Context& compositor_context()
+    {
+        VERIFY(m_compositor_context);
+        return *m_compositor_context;
+    }
+    bool has_compositor_context() const { return m_compositor_context; }
 
     Painting::CompositorSurfaceId compositor_surface_id() const;
     bool has_compositor_surface_id() const { return m_compositor_surface_id.has_value(); }
@@ -335,7 +342,7 @@ private:
     Optional<PaintConfig> m_rendering_thread_display_list_paint_config;
     Painting::DisplayListResourceStorage m_display_list_resource_storage;
     Painting::DisplayListResourceSet m_rendering_thread_display_list_resources;
-    Compositor::CompositorThread m_rendering_thread;
+    OwnPtr<Compositor::CompositorThread::Context> m_compositor_context;
     Optional<Painting::CompositorSurfaceId> m_compositor_surface_id;
 
     struct PendingAsyncScrollOperation {

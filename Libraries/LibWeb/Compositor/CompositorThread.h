@@ -109,7 +109,7 @@ public:
         bool m_last_viewport_size_is_top_level_traversable { false };
     };
 
-    CompositorThread(u64 page_id, PagePresentationRegistration);
+    CompositorThread();
     ~CompositorThread();
 
     static void set_frame_presentation_callbacks(NonnullRefPtr<Core::WeakEventLoopReference>, BackingStorePresentationCallback, FramePresentationCallback);
@@ -118,34 +118,13 @@ public:
     static bool async_scroll_by(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels);
     static bool handle_mouse_event(u64 page_id, MouseEvent const&);
 
-    CompositorContextId context_id() const { return m_context->id(); }
-    OwnPtr<Context> create_context(PagePresentationRegistration);
+    OwnPtr<Context> create_context(Optional<u64> page_id, PagePresentationRegistration);
     void start(DisplayListPlayerType);
-    void stop_presenting_to_client();
-    void set_presentation_mode(PresentationMode);
-
-    void update_display_list(NonnullRefPtr<Painting::DisplayList>, Painting::DisplayListResourceTransaction&&, Painting::ScrollStateSnapshot&&);
-    void update_compositor_surface(Painting::CompositorSurfaceId, Gfx::SharedImage&&);
-    void clear_compositor_surface(Painting::CompositorSurfaceId);
-    void update_scroll_state(Painting::ScrollStateSnapshot&&);
-    void invalidate_wheel_event_listener_state(u64 generation);
-    AsyncScrollEnqueueResult async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels,
-        Gfx::IntRect viewport_rect, AsyncScrollOperationTracking = AsyncScrollOperationTracking::No);
-    bool should_defer_async_scroll_offset_adoption() const;
-    bool should_defer_main_thread_present_for_async_scroll() const;
-    PendingAsyncScrollUpdates take_pending_async_scroll_updates();
-    void viewport_size_updated(Gfx::IntSize, bool is_top_level_traversable, WindowResizingInProgress);
-    u64 present_frame(Gfx::IntRect);
-    void wait_for_frame(u64 frame_id);
-    void request_screenshot(NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&& callback);
 
 private:
     NonnullRefPtr<ThreadData> m_thread_data;
-    OwnPtr<Context> m_context;
     RefPtr<Threading::Thread> m_thread;
 
-    static void register_page_compositor(u64 page_id, NonnullRefPtr<ThreadData>);
-    static void unregister_page_compositor(u64 page_id, ThreadData&);
     static bool update_compositor_surface_for_context(CompositorContextId, Painting::CompositorSurfaceId, Gfx::SharedImage&&);
     static bool present_backing_stores_to_client(u64 page_id, i32 front_bitmap_id, Gfx::SharedImage&&, i32 back_bitmap_id, Gfx::SharedImage&&);
     static bool present_frame_to_client(u64 page_id, Gfx::IntRect const&, i32 bitmap_id);
