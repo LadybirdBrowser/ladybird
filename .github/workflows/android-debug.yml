@@ -110,6 +110,7 @@ jobs:
 
           if wait "${gradle_pid}"; then
             tail -n 200 "${log_file}"
+            ls -lh "${{ github.workspace }}/UI/Android/build/outputs/apk/debug/"*.apk
           else
             tail -n 400 "${log_file}"
             exit 1
@@ -125,7 +126,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact_name }}
-          path: ${{ github.workspace }}/UI/Android/build/outputs/apk/debug/app-debug.apk
+          path: ${{ github.workspace }}/UI/Android/build/outputs/apk/debug/*-debug.apk
           if-no-files-found: error
 
       - name: Upload Gradle Build Log

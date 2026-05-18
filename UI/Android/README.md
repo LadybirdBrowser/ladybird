@@ -73,7 +73,7 @@ minutes. Subsequent builds are much faster thanks to ccache and Gradle's build c
 The resulting APK is placed at:
 
 ```
-UI/Android/build/outputs/apk/debug/app-debug.apk
+UI/Android/build/outputs/apk/debug/Ladybird-debug.apk
 ```
 
 ### Useful Gradle tasks
@@ -109,7 +109,8 @@ builds a Debug APK automatically on every push and pull request using an
 3. Sets up JDK 17 and configures the Gradle build cache.
 4. Installs the required Android SDK components and NDK via `sdkmanager`.
 5. Runs `./gradlew assembleDebug`.
-6. Uploads `app-debug.apk` as a downloadable workflow artifact named **`app-debug`**.
+6. Uploads the generated debug APK as a downloadable workflow artifact named
+   **`app-debug-ubuntu`**.
 
 ccache and the vcpkg binary cache are persisted between runs to speed up incremental
 CI builds.
