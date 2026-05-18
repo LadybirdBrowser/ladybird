@@ -20,7 +20,7 @@ block0:
   [ 110] End value:reg7
 
 
-switchWithBlockDecl$cde4667a switch-scoping.js:2:5
+switchWithBlockDecl$ba88cf0a switch-scoping.js:2:5
   Registers: 7
   Blocks:    6
   Locals:    result~0
@@ -46,20 +46,20 @@ block2:
   [  80] Jump target:block5
 
 block3:
-  [  88] DynamicInitializeLexicalBinding `a`, src:String("one")
-  [  98] NewFunction dst:reg6, shared_function_data_index:0 (result)
-  [  b0] Mov dst:result~0, src:reg6
-  [  c0] Jump target:block5
+  [  88] InitializeLexicalBinding `a`, src:String("one")
+  [  a0] NewFunction dst:reg6, shared_function_data_index:0 (result)
+  [  b8] Mov dst:result~0, src:reg6
+  [  c8] Jump target:block5
 
 block4:
-  [  c8] DynamicInitializeLexicalBinding `b`, src:String("two")
-  [  d8] NewFunction dst:reg6, shared_function_data_index:1 (result)
-  [  f0] Mov dst:result~0, src:reg6
+  [  d0] InitializeLexicalBinding `b`, src:String("two")
+  [  e8] NewFunction dst:reg6, shared_function_data_index:1 (result)
+  [ 100] Mov dst:result~0, src:reg6
 
 block5:
-  [ 100] SetLexicalEnvironment environment:reg4
-  [ 108] Call dst:reg5, callee:result~0, this_value:Undefined, result
-  [ 128] Return value:reg5
+  [ 110] SetLexicalEnvironment environment:reg4
+  [ 118] Call dst:reg5, callee:result~0, this_value:Undefined, result
+  [ 138] Return value:reg5
 
 
 result$bf9aaf34 switch-scoping.js:6:22

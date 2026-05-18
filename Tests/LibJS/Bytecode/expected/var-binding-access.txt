@@ -12,7 +12,7 @@ block0:
   [  60] End value:reg6
 
 
-var_access$d4439383 var-binding-access.js:5:5
+var_access$52e19afb var-binding-access.js:5:5
   Registers: 6
   Blocks:    1
   Constants:
@@ -21,14 +21,14 @@ var_access$d4439383 var-binding-access.js:5:5
 
 block0:
   [   0] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
-  [  10] DynamicInitializeVariableBinding `x`, src:Undefined
-  [  20] DynamicSetLexicalBinding `x`, src:Int32(1)
-  [  30] NewFunction dst:reg5, shared_function_data_index:0
-  [  48] DynamicGetInitializedBinding dst:reg5, `x`
-  [  58] Return value:reg5
+  [  10] InitializeVariableBinding `x`, src:Undefined
+  [  28] SetLexicalBinding `x`, src:Int32(1)
+  [  40] NewFunction dst:reg5, shared_function_data_index:0
+  [  58] GetInitializedBinding dst:reg5, `x`
+  [  70] Return value:reg5
 
 
-let_access$43c44200 var-binding-access.js:14:5
+let_access$6d3f61f0 var-binding-access.js:14:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -38,7 +38,7 @@ block0:
   [   0] GetLexicalEnvironment dst:reg4
   [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [  20] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
-  [  30] DynamicInitializeLexicalBinding `x`, src:Int32(1)
-  [  40] NewFunction dst:reg6, shared_function_data_index:0
-  [  58] DynamicGetBinding dst:reg6, `x`
-  [  68] Return value:reg6
+  [  30] InitializeLexicalBinding `x`, src:Int32(1)
+  [  48] NewFunction dst:reg6, shared_function_data_index:0
+  [  60] GetBinding dst:reg6, `x`
+  [  78] Return value:reg6

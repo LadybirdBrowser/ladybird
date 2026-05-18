@@ -2930,7 +2930,7 @@ fn compile_function_payload_to_bytecode(
         generator.switch_to_basic_block(start_block);
     }
 
-    generator.capture_saved_lexical_environment();
+    generator.capture_saved_lexical_environment_with_coordinates();
 
     if let Some(scope_id) = body_scope {
         let arena_clone = generator.arena.clone();

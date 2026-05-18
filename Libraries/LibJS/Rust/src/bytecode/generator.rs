@@ -97,6 +97,23 @@ pub struct PendingClassBlueprint {
     pub elements: Vec<PendingClassElement>,
 }
 
+struct EnvironmentCoordinateScope {
+    bindings: HashMap<Utf16String, u32>,
+    next_binding_index: u32,
+    kind: EnvironmentCoordinateScopeKind,
+}
+
+#[derive(PartialEq)]
+enum EnvironmentCoordinateScopeKind {
+    // A declarative environment whose bindings are created by bytecode we emit.
+    // The binding indexes are therefore known while generating the instruction
+    // stream and can be embedded in EnvironmentCoordinate operands.
+    Static,
+    // An object environment, such as `with`, can intercept any name. Once one
+    // is between the current point and a binding, resolution must stay dynamic.
+    Dynamic,
+}
+
 impl std::fmt::Debug for ScopedOperandInner {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "ScopedOperandInner({:?})", self.operand)
@@ -221,6 +238,14 @@ pub struct Generator {
     pub breakable_scopes: Vec<LabelableScope>,
     pub pending_labels: Vec<Utf16String>,
     pub lexical_environment_register_stack: Vec<ScopedOperand>,
+    // Mirrors lexical_environment_register_stack for environments whose binding
+    // layout is known to codegen. This lets us emit immutable coordinates
+    // instead of runtime-updated caches in common lexical lookup instructions.
+    environment_coordinate_scope_stack: Vec<EnvironmentCoordinateScope>,
+    // `var` binding instructions start from vm.variable_environment(), not the
+    // current lexical environment. Keep a separate anchor so a var write inside
+    // a nested block does not accidentally count the block as a hop.
+    variable_environment_coordinate_scope_index: Option<usize>,
     pub home_objects: Vec<ScopedOperand>,
 
     // --- Finally context ---
@@ -390,6 +415,8 @@ impl Generator {
             breakable_scopes: Vec::new(),
             pending_labels: Vec::new(),
             lexical_environment_register_stack: Vec::new(),
+            environment_coordinate_scope_stack: Vec::new(),
+            variable_environment_coordinate_scope_index: None,
             home_objects: Vec::new(),
             finally_contexts: Vec::new(),
             current_finally_context: None,
@@ -783,6 +810,26 @@ impl Generator {
         if self.is_current_block_terminated() {
             return;
         }
+        // Keep coordinate scopes in lockstep with the actual declarative
+        // environment shape. Most bindings are created explicitly, while
+        // CreateArguments can implicitly create an `arguments` binding.
+        if let Instruction::CreateVariable {
+            identifier, is_global, ..
+        } = &instruction
+            && !is_global
+        {
+            let name = self.identifier_table[identifier.0 as usize].clone();
+            self.record_environment_binding(name);
+        }
+        if let Instruction::CreateMutableBinding { identifier, .. }
+        | Instruction::CreateImmutableBinding { identifier, .. } = &instruction
+        {
+            let name = self.identifier_table[identifier.0 as usize].clone();
+            self.record_environment_binding(name);
+        }
+        if let Instruction::CreateArguments { dst: None, .. } = &instruction {
+            self.record_environment_binding(Utf16String::from(utf16!("arguments")));
+        }
         let source_map = SourceMapEntry {
             bytecode_offset: 0, // filled during flattening
             line: self.current_source_start.line,
@@ -928,12 +975,19 @@ impl Generator {
     pub fn capture_saved_lexical_environment(&mut self) {
         let env_reg = self.scoped_operand(Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT));
         self.emit(Instruction::GetLexicalEnvironment { dst: env_reg.operand() });
-        self.lexical_environment_register_stack.push(env_reg);
+        self.push_untracked_lexical_environment(env_reg);
+    }
+
+    pub fn capture_saved_lexical_environment_with_coordinates(&mut self) {
+        let env_reg = self.scoped_operand(Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT));
+        self.emit(Instruction::GetLexicalEnvironment { dst: env_reg.operand() });
+        self.push_static_lexical_environment(env_reg);
+        self.variable_environment_coordinate_scope_index = self.environment_coordinate_scope_stack.len().checked_sub(1);
     }
 
     pub fn end_variable_scope(&mut self) {
         self.end_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
-        self.lexical_environment_register_stack.pop();
+        self.pop_tracked_lexical_environment();
         if !self.is_current_block_terminated() {
             let parent = self.current_lexical_environment();
             self.emit(Instruction::SetLexicalEnvironment {
@@ -970,8 +1024,114 @@ impl Generator {
             capacity,
             is_catch_environment,
         });
-        self.lexical_environment_register_stack.push(new_env.clone());
+        self.push_static_lexical_environment(new_env.clone());
         new_env
+    }
+
+    pub fn push_untracked_lexical_environment(&mut self, environment: ScopedOperand) {
+        self.lexical_environment_register_stack.push(environment);
+    }
+
+    pub fn push_static_lexical_environment(&mut self, environment: ScopedOperand) {
+        self.push_untracked_lexical_environment(environment);
+        self.push_environment_coordinate_scope(EnvironmentCoordinateScopeKind::Static);
+    }
+
+    pub fn push_dynamic_lexical_environment(&mut self, environment: ScopedOperand) {
+        self.push_untracked_lexical_environment(environment);
+        self.push_environment_coordinate_scope(EnvironmentCoordinateScopeKind::Dynamic);
+    }
+
+    pub fn push_static_variable_environment(&mut self, environment: ScopedOperand) {
+        self.push_static_lexical_environment(environment);
+        self.variable_environment_coordinate_scope_index = self.environment_coordinate_scope_stack.len().checked_sub(1);
+    }
+
+    pub fn pop_untracked_lexical_environment(&mut self) -> Option<ScopedOperand> {
+        self.lexical_environment_register_stack.pop()
+    }
+
+    pub fn pop_tracked_lexical_environment(&mut self) -> Option<ScopedOperand> {
+        self.pop_environment_coordinate_scope();
+        self.pop_untracked_lexical_environment()
+    }
+
+    fn push_environment_coordinate_scope(&mut self, kind: EnvironmentCoordinateScopeKind) {
+        self.environment_coordinate_scope_stack
+            .push(EnvironmentCoordinateScope {
+                bindings: HashMap::new(),
+                next_binding_index: 0,
+                kind,
+            });
+    }
+
+    fn pop_environment_coordinate_scope(&mut self) {
+        self.environment_coordinate_scope_stack.pop();
+    }
+
+    fn record_environment_binding(&mut self, name: Utf16String) {
+        let Some(scope) = self.environment_coordinate_scope_stack.last_mut() else {
+            return;
+        };
+        if scope.kind == EnvironmentCoordinateScopeKind::Dynamic {
+            return;
+        }
+        // Duplicate function declarations can try to create the same binding
+        // more than once. The runtime keeps a single binding, so the coordinate
+        // tracker must not advance its slot counter for duplicates.
+        if scope.bindings.contains_key(&name) {
+            return;
+        }
+        scope.bindings.insert(name, scope.next_binding_index);
+        scope.next_binding_index += 1;
+    }
+
+    pub fn environment_coordinate_for(&self, name: &[u16]) -> Option<EnvironmentCoordinate> {
+        self.environment_coordinate_for_from_scope_index(
+            name,
+            self.environment_coordinate_scope_stack.len().checked_sub(1)?,
+        )
+    }
+
+    fn environment_coordinate_for_from_scope_index(
+        &self,
+        name: &[u16],
+        scope_index: usize,
+    ) -> Option<EnvironmentCoordinate> {
+        // Coordinates are only safe through fully-known declarative scopes. If
+        // any dynamic scope is crossed, preserve the runtime lookup semantics.
+        for (hops, scope) in self.environment_coordinate_scope_stack[..=scope_index]
+            .iter()
+            .rev()
+            .enumerate()
+        {
+            if scope.kind == EnvironmentCoordinateScopeKind::Dynamic {
+                return None;
+            }
+            if let Some(index) = scope.bindings.get(name) {
+                return Some(EnvironmentCoordinate {
+                    hops: u32_from_usize(hops),
+                    index: *index,
+                });
+            }
+        }
+        None
+    }
+
+    pub fn environment_coordinate_for_identifier(
+        &self,
+        identifier: IdentifierTableIndex,
+    ) -> Option<EnvironmentCoordinate> {
+        let name = &self.identifier_table[identifier.0 as usize];
+        self.environment_coordinate_for(name)
+    }
+
+    pub fn variable_environment_coordinate_for_identifier(
+        &self,
+        identifier: IdentifierTableIndex,
+    ) -> Option<EnvironmentCoordinate> {
+        let name = &self.identifier_table[identifier.0 as usize];
+        self.environment_coordinate_for_from_scope_index(name, self.variable_environment_coordinate_scope_index?)
     }
 
     // --- Boundary management ---

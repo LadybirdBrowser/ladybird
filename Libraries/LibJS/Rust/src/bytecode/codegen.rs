@@ -73,6 +73,93 @@ pub fn generate_expression(
     result
 }
 
+fn emit_get_binding(
+    generator: &mut Generator,
+    dst: Operand,
+    identifier: IdentifierTableIndex,
+    known_initialized: bool,
+) {
+    // Prefer an eagerly-computed coordinate when the generator can prove that
+    // the binding lives in a known declarative environment. The dynamic forms
+    // remain necessary for outer functions, eval-poisoned scopes, and `with`.
+    match (
+        generator.environment_coordinate_for_identifier(identifier),
+        known_initialized,
+    ) {
+        (Some(cache), true) => generator.emit(Instruction::GetInitializedBinding { dst, identifier, cache }),
+        (Some(cache), false) => generator.emit(Instruction::GetBinding { dst, identifier, cache }),
+        (None, true) => generator.emit(Instruction::DynamicGetInitializedBinding { dst, identifier }),
+        (None, false) => generator.emit(Instruction::DynamicGetBinding { dst, identifier }),
+    }
+}
+
+fn emit_get_callee_and_this_from_environment(
+    generator: &mut Generator,
+    callee: Operand,
+    this_value: Operand,
+    identifier: IdentifierTableIndex,
+) {
+    if let Some(cache) = generator.environment_coordinate_for_identifier(identifier) {
+        generator.emit(Instruction::GetCalleeAndThisFromEnvironment {
+            callee,
+            this_value,
+            identifier,
+            cache,
+        });
+    } else {
+        generator.emit(Instruction::DynamicGetCalleeAndThisFromEnvironment {
+            callee,
+            this_value,
+            identifier,
+        });
+    }
+}
+
+fn emit_initialize_lexical_binding(generator: &mut Generator, identifier: IdentifierTableIndex, src: Operand) {
+    if let Some(cache) = generator.environment_coordinate_for_identifier(identifier) {
+        generator.emit(Instruction::InitializeLexicalBinding { identifier, src, cache });
+    } else {
+        generator.emit(Instruction::DynamicInitializeLexicalBinding { identifier, src });
+    }
+}
+
+fn emit_initialize_variable_binding(generator: &mut Generator, identifier: IdentifierTableIndex, src: Operand) {
+    // Var bindings are resolved from vm.variable_environment(), not from the
+    // current lexical environment. Use the generator's variable-environment
+    // anchor so nested lexical scopes do not affect the coordinate hops.
+    if let Some(cache) = generator.variable_environment_coordinate_for_identifier(identifier) {
+        generator.emit(Instruction::InitializeVariableBinding { identifier, src, cache });
+    } else {
+        generator.emit(Instruction::DynamicInitializeVariableBinding { identifier, src });
+    }
+}
+
+fn emit_set_lexical_binding(generator: &mut Generator, identifier: IdentifierTableIndex, src: Operand) {
+    if let Some(cache) = generator.environment_coordinate_for_identifier(identifier) {
+        generator.emit(Instruction::SetLexicalBinding { identifier, src, cache });
+    } else {
+        generator.emit(Instruction::DynamicSetLexicalBinding { identifier, src });
+    }
+}
+
+fn emit_set_variable_binding(generator: &mut Generator, identifier: IdentifierTableIndex, src: Operand) {
+    // See emit_initialize_variable_binding for why var coordinates use a
+    // different lookup anchor than ordinary lexical operations.
+    if let Some(cache) = generator.variable_environment_coordinate_for_identifier(identifier) {
+        generator.emit(Instruction::SetVariableBinding { identifier, src, cache });
+    } else {
+        generator.emit(Instruction::DynamicSetVariableBinding { identifier, src });
+    }
+}
+
+fn emit_typeof_binding(generator: &mut Generator, dst: Operand, identifier: IdentifierTableIndex) {
+    if let Some(cache) = generator.environment_coordinate_for_identifier(identifier) {
+        generator.emit(Instruction::TypeofBinding { dst, identifier, cache });
+    } else {
+        generator.emit(Instruction::DynamicTypeofBinding { dst, identifier });
+    }
+}
+
 fn generate_expression_inner(
     expression: &Expression,
     generator: &mut Generator,
@@ -330,10 +417,7 @@ fn generate_unary_expression(
         {
             let dst = choose_dst(generator, preferred_dst);
             let id = generator.intern_identifier_id(arena.identifiers[*ident].name);
-            generator.emit(Instruction::DynamicTypeofBinding {
-                dst: dst.operand(),
-                identifier: id,
-            });
+            emit_typeof_binding(generator, dst.operand(), id);
             return Some(dst);
         }
         let dst = choose_dst(generator, preferred_dst);
@@ -537,7 +621,7 @@ fn generate_function_expression(
             capacity: 0,
             is_catch_environment: false,
         });
-        generator.lexical_environment_register_stack.push(new_env);
+        generator.push_static_lexical_environment(new_env);
 
         let name_id = data.name.expect("function declaration must have a name");
         let arena = generator.arena.clone();
@@ -581,10 +665,11 @@ fn generate_function_expression(
     });
 
     if has_name {
-        generator.emit(Instruction::DynamicInitializeLexicalBinding {
-            identifier: name_id.expect("has_name guarantees name_id is set"),
-            src: dst.operand(),
-        });
+        emit_initialize_lexical_binding(
+            generator,
+            name_id.expect("has_name guarantees name_id is set"),
+            dst.operand(),
+        );
 
         generator.end_variable_scope();
     }
@@ -1000,14 +1085,8 @@ pub fn generate_statement(
                     let arena = generator.arena.clone();
                     let id = generator.intern_identifier_id(arena.identifiers[name_ident].name);
                     let value = generator.allocate_register();
-                    generator.emit(Instruction::DynamicGetBinding {
-                        dst: value.operand(),
-                        identifier: id,
-                    });
-                    generator.emit(Instruction::DynamicSetVariableBinding {
-                        identifier: id,
-                        src: value.operand(),
-                    });
+                    emit_get_binding(generator, value.operand(), id, false);
+                    emit_set_variable_binding(generator, id, value.operand());
                 }
             }
             None
@@ -1021,7 +1100,7 @@ pub fn generate_statement(
                 dst: object_environment.operand(),
                 object: obj.operand(),
             });
-            generator.lexical_environment_register_stack.push(object_environment);
+            generator.push_dynamic_lexical_environment(object_environment);
             generator.start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
 
             let result = generate_statement(&data.body, generator, preferred_dst);
@@ -1070,10 +1149,7 @@ pub fn generate_statement(
                     generator.emit_mov(&local, &value);
                 } else {
                     let id = generator.intern_identifier_id(name_ident.name);
-                    generator.emit(Instruction::DynamicInitializeLexicalBinding {
-                        identifier: id,
-                        src: value.operand(),
-                    });
+                    emit_initialize_lexical_binding(generator, id, value.operand());
                 }
             }
             None
@@ -1103,10 +1179,7 @@ pub fn generate_statement(
                         generator.pending_lhs_name = None;
                         if let Some(value) = value {
                             let local_name = generator.intern_identifier(utf16!("*default*"));
-                            generator.emit(Instruction::DynamicInitializeLexicalBinding {
-                                identifier: local_name,
-                                src: value.operand(),
-                            });
+                            emit_initialize_lexical_binding(generator, local_name, value.operand());
                             Some(value)
                         } else {
                             None
@@ -1787,16 +1860,10 @@ fn generate_identifier(
         });
     } else if ident.declaration_kind == Some(DeclarationKind::Var) {
         let id = generator.intern_identifier_id(ident.name);
-        generator.emit(Instruction::DynamicGetInitializedBinding {
-            dst: dst.operand(),
-            identifier: id,
-        });
+        emit_get_binding(generator, dst.operand(), id, true);
     } else {
         let id = generator.intern_identifier_id(ident.name);
-        generator.emit(Instruction::DynamicGetBinding {
-            dst: dst.operand(),
-            identifier: id,
-        });
+        emit_get_binding(generator, dst.operand(), id, false);
     }
     dst
 }
@@ -2410,7 +2477,7 @@ fn generate_for_statement(
             generator.switch_to_basic_block(end_block);
             if has_lexical_environment {
                 generator.end_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
-                generator.lexical_environment_register_stack.pop();
+                generator.pop_tracked_lexical_environment();
                 if !generator.is_current_block_terminated() {
                     let parent = generator.current_lexical_environment();
                     generator.emit(Instruction::SetLexicalEnvironment {
@@ -2457,7 +2524,7 @@ fn generate_for_statement(
     // end_variable_scope: restore parent environment
     if has_lexical_environment {
         generator.end_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
-        generator.lexical_environment_register_stack.pop();
+        generator.pop_tracked_lexical_environment();
         if !generator.is_current_block_terminated() {
             let parent = generator.current_lexical_environment();
             generator.emit(Instruction::SetLexicalEnvironment {
@@ -2482,16 +2549,13 @@ fn emit_per_iteration_bindings(generator: &mut Generator, bindings: &[Utf16Strin
     for name in bindings {
         let id = generator.intern_identifier(name);
         let reg = generator.allocate_register();
-        generator.emit(Instruction::DynamicGetBinding {
-            dst: reg.operand(),
-            identifier: id,
-        });
+        emit_get_binding(generator, reg.operand(), id, false);
         saved.push((reg, id));
     }
 
     // Pop current environment (end_variable_scope).
     generator.end_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
-    generator.lexical_environment_register_stack.pop();
+    generator.pop_tracked_lexical_environment();
     let parent = generator.current_lexical_environment();
     generator.emit(Instruction::SetLexicalEnvironment {
         environment: parent.operand(),
@@ -2510,10 +2574,7 @@ fn emit_per_iteration_bindings(generator: &mut Generator, bindings: &[Utf16Strin
             is_global: false,
             is_strict: false,
         });
-        generator.emit(Instruction::DynamicInitializeLexicalBinding {
-            identifier: *id,
-            src: reg.operand(),
-        });
+        emit_initialize_lexical_binding(generator, *id, reg.operand());
     }
 }
 
@@ -2672,10 +2733,7 @@ fn emit_lexical_declarations_for_block<'a>(
                     generator.mark_local_initialized(local_index);
                 } else {
                     let id = generator.intern_identifier_id(name_ident.name);
-                    generator.emit(Instruction::DynamicInitializeLexicalBinding {
-                        identifier: id,
-                        src: fo.operand(),
-                    });
+                    emit_initialize_lexical_binding(generator, id, fo.operand());
                 }
             }
             _ => {}
@@ -2766,17 +2824,11 @@ fn generate_variable_declaration(
                                     cache,
                                 });
                             } else {
-                                generator.emit(Instruction::DynamicSetLexicalBinding {
-                                    identifier: id,
-                                    src: value.operand(),
-                                });
+                                emit_set_lexical_binding(generator, id, value.operand());
                             }
                         }
                         DeclarationKind::Let | DeclarationKind::Const => {
-                            generator.emit(Instruction::DynamicInitializeLexicalBinding {
-                                identifier: id,
-                                src: value.operand(),
-                            });
+                            emit_initialize_lexical_binding(generator, id, value.operand());
                         }
                     }
                 }
@@ -3117,11 +3169,7 @@ fn generate_call_expression(
                 let callee_reg = generator.allocate_register();
                 let this_reg = generator.allocate_register();
                 let id = generator.intern_identifier_id(arena.identifiers[*ident].name);
-                generator.emit(Instruction::DynamicGetCalleeAndThisFromEnvironment {
-                    callee: callee_reg.operand(),
-                    this_value: this_reg.operand(),
-                    identifier: id,
-                });
+                emit_get_callee_and_this_from_environment(generator, callee_reg.operand(), this_reg.operand(), id);
                 (callee_reg, Some(this_reg))
             }
             ExpressionKind::OptionalChain(oc_data) => {
@@ -4230,10 +4278,7 @@ fn emit_set_variable(generator: &mut Generator, id: crate::ast::IdentifierId, va
         // Non-local, non-global: use SetLexicalBinding which searches
         // the lexical environment chain (important for with-statement support).
         let id = generator.intern_identifier_id(ident.name);
-        generator.emit(Instruction::DynamicSetLexicalBinding {
-            identifier: id,
-            src: value.operand(),
-        });
+        emit_set_lexical_binding(generator, id, value.operand());
     }
 }
 
@@ -4798,11 +4843,7 @@ fn generate_tagged_template_literal(
             let this_reg = generator.allocate_register();
             let arena = generator.arena.clone();
             let id = generator.intern_identifier_id(arena.identifiers[*ident].name);
-            generator.emit(Instruction::DynamicGetCalleeAndThisFromEnvironment {
-                callee: callee_reg.operand(),
-                this_value: this_reg.operand(),
-                identifier: id,
-            });
+            emit_get_callee_and_this_from_environment(generator, callee_reg.operand(), this_reg.operand(), id);
             (callee_reg, Some(this_reg))
         }
         _ => {
@@ -4967,14 +5008,8 @@ fn generate_switch_statement(
                 let arena = generator.arena.clone();
                 let id = generator.intern_identifier_id(arena.identifiers[name_ident_id].name);
                 let value = generator.allocate_register();
-                generator.emit(Instruction::DynamicGetBinding {
-                    dst: value.operand(),
-                    identifier: id,
-                });
-                generator.emit(Instruction::DynamicSetVariableBinding {
-                    identifier: id,
-                    src: value.operand(),
-                });
+                emit_get_binding(generator, value.operand(), id, false);
+                emit_set_variable_binding(generator, id, value.operand());
             }
             let result = generate_statement(child, generator, None);
             if generator.is_current_block_terminated() {
@@ -5004,7 +5039,7 @@ fn generate_switch_statement(
 
     if did_create_env {
         generator.end_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
-        generator.lexical_environment_register_stack.pop();
+        generator.pop_tracked_lexical_environment();
         if !generator.is_current_block_terminated() {
             let parent = generator.current_lexical_environment();
             generator.emit(Instruction::SetLexicalEnvironment {
@@ -5640,7 +5675,7 @@ fn generate_class_expression(
         capacity: 0,
         is_catch_environment: false,
     });
-    generator.lexical_environment_register_stack.push(class_env.clone());
+    generator.push_static_lexical_environment(class_env.clone());
 
     // Step 3.a: Create binding for the class name in the class environment.
     // Only emit when the class has a name, or when there's no lhs_name
@@ -5970,7 +6005,7 @@ fn generate_class_expression(
     generator.emit(Instruction::SetLexicalEnvironment {
         environment: parent_env.operand(),
     });
-    generator.lexical_environment_register_stack.pop();
+    generator.pop_tracked_lexical_environment();
 
     // Allocate dst after element keys.
     let dst = choose_dst(generator, preferred_dst);
@@ -6204,7 +6239,7 @@ fn enter_for_in_of_head_tdz(generator: &mut Generator, lhs: &ForInOfLhs) -> bool
 
 /// Tear down the TDZ environment after RHS evaluation.
 fn leave_for_in_of_head_tdz(generator: &mut Generator) {
-    generator.lexical_environment_register_stack.pop();
+    generator.pop_tracked_lexical_environment();
     if !generator.is_current_block_terminated() {
         let parent = generator.current_lexical_environment();
         generator.emit(Instruction::SetLexicalEnvironment {
@@ -6577,7 +6612,7 @@ fn generate_for_of_statement_inner(
     // Restore lexical env before continuing
     if needs_lexical_env {
         generator.end_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
-        generator.lexical_environment_register_stack.pop();
+        generator.pop_tracked_lexical_environment();
     }
     generator.end_continuable_scope();
 
@@ -6945,10 +6980,7 @@ fn emit_set_variable_with_mode(
         let id = generator.intern_identifier_id(ident.name);
         match mode {
             BindingMode::InitializeLexical => {
-                generator.emit(Instruction::DynamicInitializeLexicalBinding {
-                    identifier: id,
-                    src: value.operand(),
-                });
+                emit_initialize_lexical_binding(generator, id, value.operand());
             }
             BindingMode::Set => {
                 if ident.is_global {
@@ -6959,10 +6991,7 @@ fn emit_set_variable_with_mode(
                         cache,
                     });
                 } else {
-                    generator.emit(Instruction::DynamicSetLexicalBinding {
-                        identifier: id,
-                        src: value.operand(),
-                    });
+                    emit_set_lexical_binding(generator, id, value.operand());
                 }
             }
         }
@@ -7364,10 +7393,7 @@ fn generate_try_statement(
                             is_global: false,
                             is_strict: false,
                         });
-                        generator.emit(Instruction::DynamicInitializeLexicalBinding {
-                            identifier: id,
-                            src: caught_value.operand(),
-                        });
+                        emit_initialize_lexical_binding(generator, id, caught_value.operand());
                     }
                 }
                 CatchBinding::BindingPattern(pattern) => {
@@ -7788,10 +7814,7 @@ pub fn emit_function_declaration_instantiation(
             });
             if has_duplicates {
                 let undef = generator.add_constant_undefined();
-                generator.emit(Instruction::DynamicInitializeLexicalBinding {
-                    identifier: id,
-                    src: undef.operand(),
-                });
+                emit_initialize_lexical_binding(generator, id, undef.operand());
             }
         }
     }
@@ -7882,15 +7905,9 @@ pub fn emit_function_declaration_instantiation(
                 } else {
                     let id = generator.intern_identifier_id(ident.name);
                     if has_duplicates {
-                        generator.emit(Instruction::DynamicSetLexicalBinding {
-                            identifier: id,
-                            src: Operand::argument(parameter_index),
-                        });
+                        emit_set_lexical_binding(generator, id, Operand::argument(parameter_index));
                     } else {
-                        generator.emit(Instruction::DynamicInitializeLexicalBinding {
-                            identifier: id,
-                            src: Operand::argument(parameter_index),
-                        });
+                        emit_initialize_lexical_binding(generator, id, Operand::argument(parameter_index));
                     }
                 }
             }
@@ -7933,10 +7950,7 @@ pub fn emit_function_declaration_instantiation(
                         is_global: false,
                         is_strict: false,
                     });
-                    generator.emit(Instruction::DynamicInitializeVariableBinding {
-                        identifier: id,
-                        src: undef.operand(),
-                    });
+                    emit_initialize_variable_binding(generator, id, undef.operand());
                 }
             }
         } else {
@@ -7954,7 +7968,7 @@ pub fn emit_function_declaration_instantiation(
                 // parameter scope.
                 let var_env = generator.allocate_register();
                 generator.emit(Instruction::GetLexicalEnvironment { dst: var_env.operand() });
-                generator.lexical_environment_register_stack.push(var_env);
+                generator.push_static_variable_environment(var_env);
             }
 
             for var in &fsd.vars_to_initialize {
@@ -7974,10 +7988,7 @@ pub fn emit_function_declaration_instantiation(
                 } else {
                     let id = generator.intern_identifier(&var.name);
                     let value = generator.allocate_register();
-                    generator.emit(Instruction::DynamicGetBinding {
-                        dst: value.operand(),
-                        identifier: id,
-                    });
+                    emit_get_binding(generator, value.operand(), id, false);
                     value
                 };
 
@@ -7993,10 +8004,7 @@ pub fn emit_function_declaration_instantiation(
                         is_global: false,
                         is_strict: false,
                     });
-                    generator.emit(Instruction::DynamicInitializeVariableBinding {
-                        identifier: id,
-                        src: initial_value.operand(),
-                    });
+                    emit_initialize_variable_binding(generator, id, initial_value.operand());
                 }
             }
         }
@@ -8020,10 +8028,7 @@ pub fn emit_function_declaration_instantiation(
                 is_strict: false,
             });
             let undef = generator.add_constant_undefined();
-            generator.emit(Instruction::DynamicInitializeVariableBinding {
-                identifier: id,
-                src: undef.operand(),
-            });
+            emit_initialize_variable_binding(generator, id, undef.operand());
         }
     }
 
@@ -8112,10 +8117,7 @@ pub fn emit_function_declaration_instantiation(
                             lhs_name: None,
                         });
                         let id = generator.intern_identifier_id(name_ident.name);
-                        generator.emit(Instruction::DynamicSetVariableBinding {
-                            identifier: id,
-                            src: function_reg.operand(),
-                        });
+                        emit_set_variable_binding(generator, id, function_reg.operand());
                     }
                 }
             }
