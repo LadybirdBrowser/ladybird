@@ -6,6 +6,7 @@ set(TEST_SOURCES
     TestCSSPixels.cpp
     TestCSSStyleSheetInvalidation.cpp
     TestCSSSyntaxParser.cpp
+    TestCSSTokenizer.cpp
     TestCSSTokenStream.cpp
     TestFetchURL.cpp
     TestHTMLTokenizer.cpp

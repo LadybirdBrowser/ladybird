@@ -8,6 +8,7 @@
 #include <AK/Debug.h>
 #include <AK/SourceLocation.h>
 #include <AK/StringConversions.h>
+#include <AK/Utf8View.h>
 #include <AK/Vector.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/CSS/CharacterTypes.h>
@@ -155,14 +156,27 @@ static inline bool is_E(u32 code_point)
     return code_point == 0x45;
 }
 
-Vector<Token> Tokenizer::tokenize(StringView input, StringView encoding)
+Vector<Token> Tokenizer::tokenize(StringView input, StringView encoding, TokenizerInput tokenizer_input)
 {
     // https://www.w3.org/TR/css-syntax-3/#css-filter-code-points
-    auto filter_code_points = [](StringView input, auto encoding) -> String {
+    auto filter_code_points = [](StringView input, auto encoding, TokenizerInput tokenizer_input) -> String {
+        auto standardized_encoding = TextCodec::get_standardized_encoding(encoding);
+        VERIFY(standardized_encoding.has_value());
         auto decoder = TextCodec::decoder_for(encoding);
         VERIFY(decoder.has_value());
 
-        auto decoded_input = MUST(decoder->to_utf8(input));
+        auto decoded_input = [&] {
+            if (tokenizer_input == TokenizerInput::DecodedText) {
+                VERIFY(Utf8View { input }.validate());
+                return String::from_utf8_without_validation(input.bytes());
+            }
+            if (standardized_encoding->equals_ignoring_ascii_case("utf-8"sv) && Utf8View { input }.validate(AllowLonelySurrogates::No)) {
+                if (input.bytes().starts_with({ { 0xef, 0xbb, 0xbf } }))
+                    input = input.substring_view(3);
+                return String::from_utf8_without_validation(input.bytes());
+            }
+            return MUST(decoder->to_utf8(input));
+        }();
 
         // OPTIMIZATION: If the input doesn't contain any filterable characters, we can skip the filtering
         bool const contains_filterable = [&] {
@@ -214,7 +228,7 @@ Vector<Token> Tokenizer::tokenize(StringView input, StringView encoding)
         return builder.to_string_without_validation();
     };
 
-    Tokenizer tokenizer { filter_code_points(input, encoding) };
+    Tokenizer tokenizer { filter_code_points(input, encoding, tokenizer_input) };
     return tokenizer.tokenize();
 }
 

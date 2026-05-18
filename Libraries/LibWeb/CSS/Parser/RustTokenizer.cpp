@@ -5,6 +5,7 @@
  */
 
 #include <AK/StringBuilder.h>
+#include <AK/Utf8View.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/CSS/CharacterTypes.h>
 #include <LibWeb/CSS/Number.h>
@@ -16,13 +17,26 @@ namespace Web::CSS::Parser {
 // U+FFFD REPLACEMENT CHARACTER (�)
 static constexpr u32 REPLACEMENT_CHARACTER = 0xFFFD;
 
-static String decode_and_filter_code_points(StringView input, StringView encoding)
+static String decode_and_filter_code_points(StringView input, StringView encoding, TokenizerInput tokenizer_input)
 {
     // https://www.w3.org/TR/css-syntax-3/#css-filter-code-points
+    auto standardized_encoding = TextCodec::get_standardized_encoding(encoding);
+    VERIFY(standardized_encoding.has_value());
     auto decoder = TextCodec::decoder_for(encoding);
     VERIFY(decoder.has_value());
 
-    auto decoded_input = MUST(decoder->to_utf8(input));
+    auto decoded_input = [&] {
+        if (tokenizer_input == TokenizerInput::DecodedText) {
+            VERIFY(Utf8View { input }.validate());
+            return String::from_utf8_without_validation(input.bytes());
+        }
+        if (standardized_encoding->equals_ignoring_ascii_case("utf-8"sv) && Utf8View { input }.validate(AllowLonelySurrogates::No)) {
+            if (input.bytes().starts_with({ { 0xef, 0xbb, 0xbf } }))
+                input = input.substring_view(3);
+            return String::from_utf8_without_validation(input.bytes());
+        }
+        return MUST(decoder->to_utf8(input));
+    }();
 
     // OPTIMIZATION: If the input doesn't contain any filterable characters, we can skip the filtering
     bool const contains_filterable = [&] {
@@ -231,13 +245,13 @@ static_assert(static_cast<u8>(FFI::CssNumberType::Number) == static_cast<u8>(Num
 static_assert(static_cast<u8>(FFI::CssNumberType::IntegerWithExplicitSign) == static_cast<u8>(Number::Type::IntegerWithExplicitSign));
 static_assert(static_cast<u8>(FFI::CssNumberType::Integer) == static_cast<u8>(Number::Type::Integer));
 
-Vector<Token> RustTokenizer::tokenize(StringView input, StringView encoding)
+Vector<Token> RustTokenizer::tokenize(StringView input, StringView encoding, TokenizerInput tokenizer_input)
 {
     struct CallbackContext {
         Vector<Token> tokens;
     };
 
-    auto filtered_input = decode_and_filter_code_points(input, encoding);
+    auto filtered_input = decode_and_filter_code_points(input, encoding, tokenizer_input);
     auto filtered_input_bytes = filtered_input.bytes();
     CallbackContext context;
     context.tokens.ensure_capacity((filtered_input_bytes.size() / 2) + 1);
