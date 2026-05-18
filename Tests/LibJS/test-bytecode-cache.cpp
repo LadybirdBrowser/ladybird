@@ -30,10 +30,20 @@ TEST_CASE(lazy_source_code_decoding_replaces_utf8_surrogates)
 {
     auto source_data = Vector<u8> { 0xed, 0xa0, 0x80 };
     auto source_bytes = TRY_OR_FAIL(Core::ImmutableBytes::copy(source_data.span()));
-    auto source_code = JS::SourceCode::create("test.js"_string, 1, "UTF-8"_string, move(source_bytes));
+    auto source_code = JS::SourceCode::create("test.js"_string, 3, "UTF-8"_string, move(source_bytes));
 
-    EXPECT_EQ(source_code->code().to_utf8(), "\xef\xbf\xbd"sv);
-    EXPECT_EQ(source_code->source_text_from_offsets(0, 1).to_utf8(), "\xef\xbf\xbd"sv);
+    EXPECT_EQ(source_code->code().to_utf8(), "\xef\xbf\xbd\xef\xbf\xbd\xef\xbf\xbd"sv);
+    EXPECT_EQ(source_code->source_text_from_offsets(0, 3).to_utf8(), "\xef\xbf\xbd\xef\xbf\xbd\xef\xbf\xbd"sv);
+}
+
+TEST_CASE(lazy_source_code_decoding_replaces_odd_trailing_utf16_byte)
+{
+    auto source_data = Vector<u8> { 'A', 0x00, 0xff };
+    auto source_bytes = TRY_OR_FAIL(Core::ImmutableBytes::copy(source_data.span()));
+    auto source_code = JS::SourceCode::create("test.js"_string, 2, "UTF-16LE"_string, move(source_bytes));
+
+    EXPECT_EQ(source_code->code().to_utf8(), "A\xef\xbf\xbd"sv);
+    EXPECT_EQ(source_code->source_text_from_offsets(0, 2).to_utf8(), "A\xef\xbf\xbd"sv);
 }
 
 TEST_CASE(lazy_source_code_decoding_replaces_overlong_utf8_sequences)

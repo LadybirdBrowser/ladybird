@@ -369,6 +369,22 @@ static bool is_utf8_continuation_byte(u8 byte)
     return (byte & 0xc0) == 0x80;
 }
 
+static bool is_utf8_second_byte_in_range(u8 lead, u8 byte)
+{
+    if (!is_utf8_continuation_byte(byte))
+        return false;
+
+    if (lead == 0xe0)
+        return byte >= 0xa0;
+    if (lead == 0xed)
+        return byte <= 0x9f;
+    if (lead == 0xf0)
+        return byte >= 0x90;
+    if (lead == 0xf4)
+        return byte <= 0x8f;
+    return true;
+}
+
 static Optional<size_t> utf8_sequence_length(u8 lead)
 {
     if (lead <= 0x7f)
@@ -728,6 +744,12 @@ static ErrorOr<void> process_utf8_with_replacement_character(StringView input, F
             continue;
         }
 
+        if (i + 1 < bytes.size() && !is_utf8_second_byte_in_range(byte, bytes[i + 1])) {
+            TRY(on_code_point(replacement_code_point));
+            ++i;
+            continue;
+        }
+
         if (i + sequence_length > bytes.size()) {
             TRY(on_code_point(replacement_code_point));
             i = bytes.size();
@@ -759,7 +781,7 @@ static ErrorOr<void> process_utf8_with_replacement_character(StringView input, F
 
         if (is_unicode_surrogate(code_point)) {
             TRY(on_code_point(replacement_code_point));
-            i += sequence_length;
+            ++i;
             continue;
         }
 
@@ -794,6 +816,8 @@ ErrorOr<String> UTF8Decoder::to_utf8(StringView input)
 
 bool UTF16BEDecoder::validate(StringView input)
 {
+    if (input.bytes().size() % 2 != 0)
+        return false;
     return AK::validate_utf16_be(input.bytes());
 }
 
@@ -835,6 +859,9 @@ static ErrorOr<void> process_utf16(StringView input, bool big_endian, Function<E
         TRY(on_code_point(code_unit));
     }
 
+    if (bytes.size() % 2 != 0)
+        TRY(on_code_point(replacement_code_point));
+
     return {};
 }
 
@@ -845,15 +872,13 @@ ErrorOr<void> UTF16BEDecoder::process(StringView input, Function<ErrorOr<void>(u
 
 ErrorOr<String> UTF16BEDecoder::to_utf8(StringView input)
 {
-    // Discard the BOM
-    if (auto bytes = input.bytes(); bytes.size() >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF)
-        input = input.substring_view(2);
-
-    return String::from_utf16_be_with_replacement_character(input.bytes());
+    return Decoder::to_utf8(input);
 }
 
 bool UTF16LEDecoder::validate(StringView input)
 {
+    if (input.bytes().size() % 2 != 0)
+        return false;
     return AK::validate_utf16_le(input.bytes());
 }
 
@@ -864,11 +889,7 @@ ErrorOr<void> UTF16LEDecoder::process(StringView input, Function<ErrorOr<void>(u
 
 ErrorOr<String> UTF16LEDecoder::to_utf8(StringView input)
 {
-    // Discard the BOM
-    if (auto bytes = input.bytes(); bytes.size() >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE)
-        input = input.substring_view(2);
-
-    return String::from_utf16_le_with_replacement_character(input.bytes());
+    return Decoder::to_utf8(input);
 }
 
 ErrorOr<void> Latin1Decoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
