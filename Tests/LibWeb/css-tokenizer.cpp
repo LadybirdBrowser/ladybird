@@ -33,8 +33,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto file = TRY(Core::File::open(input_path, Core::File::OpenMode::Read));
     auto input = TRY(file->read_until_eof());
     auto tokens = backend == "rust"sv
-        ? Web::CSS::Parser::RustTokenizer::tokenize(input, encoding)
-        : Web::CSS::Parser::Tokenizer::tokenize(input, encoding);
+        ? Web::CSS::Parser::RustTokenizer::tokenize(input, encoding, Web::CSS::Parser::TokenizerInput::EncodedBytes)
+        : Web::CSS::Parser::Tokenizer::tokenize(input, encoding, Web::CSS::Parser::TokenizerInput::EncodedBytes);
 
     if (!silent) {
         for (auto const& token : tokens)
