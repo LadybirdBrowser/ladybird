@@ -1,0 +1,8 @@
+pointerover trusted=true client=(25, 35) screen=(25, 35) button=0 buttons=0 view=true
+mouseover trusted=true client=(25, 35) screen=(25, 35) button=0 buttons=0 view=true
+pointerenter trusted=true client=(25, 35) screen=(25, 35) button=0 buttons=0 view=true
+mouseenter trusted=true client=(25, 35) screen=(25, 35) button=0 buttons=0 view=true
+pointerout trusted=true client=(150, 150) screen=(150, 150) button=0 buttons=0 view=true
+mouseout trusted=true client=(150, 150) screen=(150, 150) button=0 buttons=0 view=true
+pointerleave trusted=true client=(150, 150) screen=(150, 150) button=0 buttons=0 view=true
+mouseleave trusted=true client=(150, 150) screen=(150, 150) button=0 buttons=0 view=true

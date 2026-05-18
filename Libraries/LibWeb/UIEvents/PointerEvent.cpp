@@ -11,6 +11,7 @@
 #include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/UIEvents/MouseButton.h>
 #include <LibWeb/UIEvents/PointerEvent.h>
+#include <LibWeb/UIEvents/PointerTypes.h>
 
 namespace Web::UIEvents {
 
@@ -50,6 +51,8 @@ WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::create_from_platform_ev
     event_init.client_x = client.x().to_double();
     event_init.client_y = client.y().to_double();
     event_init.view = window_proxy;
+    event_init.is_primary = true;
+    event_init.pointer_type = PointerTypes::Mouse;
     if (movement.has_value()) {
         event_init.movement_x = movement.value().x().to_double();
         event_init.movement_y = movement.value().y().to_double();

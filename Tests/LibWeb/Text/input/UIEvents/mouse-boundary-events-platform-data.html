@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<style>
+body {
+    margin: 0;
+    width: 200px;
+    height: 200px;
+}
+
+#target {
+    position: absolute;
+    left: 10px;
+    top: 20px;
+    width: 50px;
+    height: 50px;
+}
+</style>
+<body><div id="target"></div></body>
+<script src="../include.js"></script>
+<script>
+    function logEvent(event) {
+        println(`${event.type} trusted=${event.isTrusted} client=(${event.clientX}, ${event.clientY}) screen=(${event.screenX}, ${event.screenY}) button=${event.button} buttons=${event.buttons} view=${event.view === window}`);
+    }
+
+    [
+        "pointerover",
+        "mouseover",
+        "pointerenter",
+        "mouseenter",
+        "pointerout",
+        "mouseout",
+        "pointerleave",
+        "mouseleave",
+    ].forEach(eventName => target.addEventListener(eventName, logEvent));
+
+    test(() => {
+        internals.mouseMove(150, 150);
+        internals.mouseMove(25, 35);
+        internals.mouseMove(150, 150);
+    });
+</script>

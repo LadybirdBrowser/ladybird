@@ -1992,7 +1992,16 @@ bool EventHandler::dispatch_a_pointer_event_for_a_device_that_supports_hover(Poi
     //    pointerleave event at the window, dispatch compatibility mouse transition events as described in
     //    "Tracking the effective position of the legacy mouse pointer".
     if (type == PointerEventType::PointerDown || type == PointerEventType::PointerUp || type == PointerEventType::PointerMove)
-        track_the_effective_position_of_the_legacy_mouse_pointer(node);
+        track_the_effective_position_of_the_legacy_mouse_pointer(node, DOM::HoverEventData {
+                                                                           .screen_position = screen_position,
+                                                                           .page_offset = coordinates.page_offset,
+                                                                           .viewport_position = coordinates.viewport_position,
+                                                                           .offset = coordinates.offset,
+                                                                           .movement = movement,
+                                                                           .button = button,
+                                                                           .buttons = buttons,
+                                                                           .modifiers = modifiers,
+                                                                       });
 
     // AD-HOC: Update the activated state for the pointed-to element.
     if (button == UIEvents::MouseButton::Primary && type != PointerEventType::PointerMove) {
@@ -2055,7 +2064,7 @@ bool EventHandler::dispatch_a_pointer_event_for_a_device_that_supports_hover(Poi
     return run_default_activation_behavior;
 }
 
-void EventHandler::track_the_effective_position_of_the_legacy_mouse_pointer(GC::Ptr<DOM::Node> target)
+void EventHandler::track_the_effective_position_of_the_legacy_mouse_pointer(GC::Ptr<DOM::Node> target, Optional<DOM::HoverEventData> hover_event_data)
 {
     auto& page = m_navigable->page();
     auto& document = *m_navigable->active_document();
@@ -2072,7 +2081,7 @@ void EventHandler::track_the_effective_position_of_the_legacy_mouse_pointer(GC::
     //    current effective legacy mouse pointer position to T. Consider an unset value of either current effective
     //    legacy mouse pointer position or T as an out-of-window mouse position.
     // FIXME: This is supposed to only fire legacy events. The pointer events should be fired elsewhere.
-    document.set_hovered_node(target);
+    document.set_hovered_node(target, hover_event_data);
 
     // 4. Set effective legacy mouse pointer position to T.
     m_effective_legacy_mouse_pointer_position = target;
