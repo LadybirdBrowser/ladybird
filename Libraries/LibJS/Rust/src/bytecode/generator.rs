@@ -1099,12 +1099,8 @@ impl Generator {
         if scope.kind == EnvironmentCoordinateScopeKind::Dynamic {
             return;
         }
-        // Duplicate function declarations can try to create the same binding
-        // more than once. The runtime keeps a single binding, so the coordinate
-        // tracker must not advance its slot counter for duplicates.
-        if scope.bindings.contains_key(&name) {
-            return;
-        }
+        // DeclarativeEnvironment appends duplicate bindings and resolves the
+        // name to the newest slot, so mirror that layout here.
         scope.bindings.insert(name, scope.next_binding_index);
         scope.next_binding_index += 1;
     }
