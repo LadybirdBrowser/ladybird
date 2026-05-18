@@ -17,6 +17,7 @@
 #include <LibUnicode/Forward.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
+#include <LibWeb/DOM/HoverEventData.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Gamepad/SDLGamepadForward.h>
@@ -127,7 +128,7 @@ private:
         PointerCancel
     };
     bool dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType, GC::Ptr<DOM::Node>, RefPtr<Painting::ChromeWidget>, MouseEventCoordinates const&, CSSPixelPoint screen_position, CSSPixelPoint movement, unsigned button, unsigned buttons, unsigned modifiers, int click_count = 0);
-    void track_the_effective_position_of_the_legacy_mouse_pointer(GC::Ptr<DOM::Node>);
+    void track_the_effective_position_of_the_legacy_mouse_pointer(GC::Ptr<DOM::Node>, Optional<DOM::HoverEventData> = {});
 
     bool dispatch_chrome_widget_pointer_event(RefPtr<Painting::ChromeWidget>, FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position);
     void update_hovered_chrome_widget(RefPtr<Painting::ChromeWidget>);

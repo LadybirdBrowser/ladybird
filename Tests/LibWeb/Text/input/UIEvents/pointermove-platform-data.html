@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<style>
+body {
+    margin: 0;
+}
+
+#target {
+    width: 50px;
+    height: 50px;
+}
+</style>
+<body><div id="target"></div></body>
+<script src="../include.js"></script>
+<script>
+    document.documentElement.addEventListener("pointermove", event => {
+        println(`pointermove trusted=${event.isTrusted} pointerType=${event.pointerType} isPrimary=${event.isPrimary} client=(${event.clientX}, ${event.clientY}) button=${event.button} buttons=${event.buttons} view=${event.view === window}`);
+    });
+
+    test(() => {
+        internals.mouseMove(25, 35);
+    });
+</script>

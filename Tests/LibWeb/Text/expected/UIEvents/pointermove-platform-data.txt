@@ -1,0 +1,1 @@
+pointermove trusted=true pointerType=mouse isPrimary=true client=(25, 35) button=0 buttons=0 view=true

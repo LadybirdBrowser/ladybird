@@ -30,6 +30,7 @@
 #include <LibWeb/CSS/EnvironmentVariable.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/DOM/AnchorNameMap.h>
+#include <LibWeb/DOM/HoverEventData.h>
 #include <LibWeb/DOM/ParentNode.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/ViewportClient.h>
@@ -290,7 +291,7 @@ public:
 
     virtual FlyString node_name() const override { return "#document"_fly_string; }
 
-    void set_hovered_node(GC::Ptr<Node>);
+    void set_hovered_node(GC::Ptr<Node>, Optional<HoverEventData> = {});
     Node* hovered_node() { return m_hovered_node.ptr(); }
     Node const* hovered_node() const { return m_hovered_node.ptr(); }
 
