@@ -26,6 +26,47 @@ namespace JS::Bytecode {
 GC_DEFINE_ALLOCATOR(Executable);
 GC_DEFINE_ALLOCATOR(ObjectPropertyIteratorCacheData);
 
+InstructionStream::InstructionStream(Vector<u8> bytecode)
+    : m_storage(move(bytecode))
+{
+    update_view_from_storage();
+}
+
+InstructionStream::InstructionStream(Core::ImmutableBytes bytecode, size_t offset, size_t size)
+    : m_storage(move(bytecode))
+{
+    update_view_from_storage(offset, size);
+}
+
+void InstructionStream::update_view_from_storage(size_t offset, Optional<size_t> size)
+{
+    auto bytes = m_storage.visit(
+        [](Vector<u8> const& bytecode) -> ReadonlyBytes {
+            return bytecode.span();
+        },
+        [](Core::ImmutableBytes const& bytecode) -> ReadonlyBytes {
+            return bytecode.bytes();
+        });
+
+    VERIFY(offset <= bytes.size());
+    m_size = size.value_or(bytes.size() - offset);
+    VERIFY(m_size <= bytes.size() - offset);
+    m_data = bytes.is_empty() ? nullptr : bytes.data() + offset;
+}
+
+size_t InstructionStream::external_memory_size() const
+{
+    return m_storage.visit(
+        [](Vector<u8> const& bytecode) -> size_t {
+            return vector_external_memory_size(bytecode);
+        },
+        [](Core::ImmutableBytes const& bytecode) -> size_t {
+            if (bytecode.is_file_backed())
+                return 0;
+            return bytecode.size();
+        });
+}
+
 ObjectPropertyIteratorCacheData::ObjectPropertyIteratorCacheData(VM& vm, Vector<PropertyKey> properties, ObjectPropertyIteratorFastPath fast_path, u32 indexed_property_count, bool receiver_has_magical_length_property, GC::Ref<Shape> shape, GC::Ptr<PrototypeChainValidity> prototype_chain_validity)
     : m_properties(move(properties))
     , m_shape(shape)
@@ -65,7 +106,7 @@ size_t ObjectPropertyIteratorCacheData::external_memory_size() const
 }
 
 Executable::Executable(
-    Vector<u8> bytecode,
+    InstructionStream bytecode,
     NonnullOwnPtr<IdentifierTable> identifier_table,
     NonnullOwnPtr<PropertyKeyTable> property_key_table,
     NonnullOwnPtr<StringTable> string_table,
@@ -370,7 +411,7 @@ void Executable::visit_edges(Visitor& visitor)
 
 size_t Executable::external_memory_size() const
 {
-    size_t size = vector_external_memory_size(bytecode);
+    size_t size = bytecode.external_memory_size();
     size = saturating_add_external_memory_size(size, vector_external_memory_size(property_lookup_caches));
     size = saturating_add_external_memory_size(size, vector_external_memory_size(global_variable_caches));
     size = saturating_add_external_memory_size(size, vector_external_memory_size(template_object_caches));

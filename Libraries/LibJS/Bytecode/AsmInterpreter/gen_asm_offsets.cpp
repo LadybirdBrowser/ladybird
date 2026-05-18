@@ -216,7 +216,7 @@ int main()
         outln("const VECTOR_SIZE = {}", vec_size);
 
         // Composite offset for Executable.bytecode data pointer
-        outln("const EXECUTABLE_BYTECODE_DATA = {}", offsetof(Executable, bytecode) + vec_data);
+        outln("const EXECUTABLE_BYTECODE_DATA = {}", offsetof(Executable, bytecode) + InstructionStream::data_member_offset());
         outln("const EXECUTABLE_PROPERTY_LOOKUP_CACHES_DATA = {}", offsetof(Executable, property_lookup_caches) + vec_data);
         outln("const EXECUTABLE_GLOBAL_VARIABLE_CACHES_DATA = {}", offsetof(Executable, global_variable_caches) + vec_data);
         outln("const EXECUTABLE_CONSTANTS_DATA = {}", offsetof(Executable, constants) + vec_data);
