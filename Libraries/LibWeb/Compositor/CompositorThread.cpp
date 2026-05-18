@@ -253,24 +253,127 @@ public:
 
     ~ThreadData() = default;
 
+    struct ContextState final : public AtomicRefCounted<ContextState> {
+        ContextState(CompositorThread::PagePresentationRegistration page_presentation_registration)
+            : presents_to_client(page_presentation_registration == CompositorThread::PagePresentationRegistration::Yes)
+        {
+        }
+
+        bool presents_to_client { false };
+        Painting::DisplayListResourceStorage display_list_resource_storage;
+        RefPtr<Painting::DisplayList> cached_display_list;
+        Painting::ScrollStateSnapshot cached_scroll_state_snapshot;
+        Vector<ViewportScrollbar> viewport_scrollbars;
+        Optional<size_t> hovered_viewport_scrollbar_index;
+        Optional<size_t> captured_viewport_scrollbar_index;
+        float viewport_scrollbar_thumb_grab_position { 0 };
+        mutable Sync::Mutex async_scroll_tree_mutex;
+        AsyncScrollTree async_scroll_tree;
+        BackingStoreManager backing_store_manager;
+        CompositorThread::PresentationMode presentation_mode { CompositorThread::PresentToUI {} };
+
+        Optional<i32> presented_bitmap_id_awaiting_ack;
+        bool is_rasterizing { false };
+
+        bool needs_present { false };
+        Gfx::IntRect pending_viewport_rect;
+        bool has_deferred_async_scroll_present { false };
+        Gfx::IntRect deferred_async_scroll_present_viewport_rect;
+
+        u64 submitted_frame_id { 0 };
+        u64 completed_frame_id { 0 };
+        Vector<AsyncScrollOffset> pending_async_scroll_offsets;
+        Vector<AsyncScrollOperationID> completed_async_scroll_operation_ids;
+        Atomic<AsyncScrollOperationID> next_async_scroll_operation_id { 0 };
+        Gfx::IntRect async_scrolling_viewport_rect;
+        Atomic<bool> has_async_scrolling_state { false };
+        Atomic<bool> can_accept_async_wheel_events { false };
+        u64 wheel_event_listener_state_generation { 0 };
+        WheelRoutingAdmission wheel_routing_admission { WheelRoutingAdmission::NoAsyncScrollingState };
+    };
+
+    void register_context(CompositorContextId context_id, CompositorThread::PagePresentationRegistration page_presentation_registration)
+    {
+        Sync::MutexLocker const locker { m_mutex };
+        VERIFY(!m_contexts.contains(context_id));
+        if (!m_default_context_id.has_value())
+            m_default_context_id = context_id;
+        if (page_presentation_registration == CompositorThread::PagePresentationRegistration::Yes)
+            m_page_presentation_context_id = context_id;
+        m_contexts.set(context_id, adopt_ref(*new ContextState(page_presentation_registration)));
+    }
+
+    void unregister_context(CompositorContextId context_id)
+    {
+        Sync::MutexLocker const locker { m_mutex };
+        m_contexts.remove(context_id);
+        if (m_default_context_id == context_id)
+            m_default_context_id.clear();
+        if (m_page_presentation_context_id == context_id)
+            m_page_presentation_context_id.clear();
+    }
+
+    RefPtr<ContextState> context_state(CompositorContextId context_id)
+    {
+        Sync::MutexLocker const locker { m_mutex };
+        return m_contexts.get(context_id).value_or(nullptr);
+    }
+
+    RefPtr<ContextState> default_context_state()
+    {
+        Sync::MutexLocker const locker { m_mutex };
+        if (!m_default_context_id.has_value())
+            return nullptr;
+        auto context = m_contexts.get(*m_default_context_id);
+        if (!context.has_value())
+            return nullptr;
+        return context.value();
+    }
+
+    RefPtr<ContextState> page_presentation_context_state()
+    {
+        Sync::MutexLocker const locker { m_mutex };
+        auto context_id = m_page_presentation_context_id.has_value() ? m_page_presentation_context_id : m_default_context_id;
+        if (!context_id.has_value())
+            return nullptr;
+        auto context = m_contexts.get(*context_id);
+        if (!context.has_value())
+            return nullptr;
+        return context.value();
+    }
+
+    Optional<CompositorContextId> page_presentation_context_id() const
+    {
+        Sync::MutexLocker const locker { m_mutex };
+        return m_page_presentation_context_id.has_value() ? m_page_presentation_context_id : m_default_context_id;
+    }
+
     u64 page_id() const { return m_page_id; }
-    bool presents_to_client() const { return m_presents_to_client; }
-    void set_presents_to_client()
+    bool presents_to_client() const
     {
         Sync::MutexLocker const locker { m_mutex };
-        m_presents_to_client = true;
+        if (!m_page_presentation_context_id.has_value())
+            return false;
+        auto context = m_contexts.get(*m_page_presentation_context_id);
+        return context.has_value() && context.value()->presents_to_client;
     }
 
-    void stop_presenting_to_client()
+    void stop_presenting_to_client(CompositorContextId context_id)
     {
         Sync::MutexLocker const locker { m_mutex };
-        m_presents_to_client = false;
+        auto context = m_contexts.get(context_id);
+        if (!context.has_value())
+            return;
+        context.value()->presents_to_client = false;
+        if (m_page_presentation_context_id == context_id)
+            m_page_presentation_context_id.clear();
     }
 
-    void set_presentation_mode(CompositorThread::PresentationMode mode)
+    void set_presentation_mode(CompositorContextId context_id, CompositorThread::PresentationMode mode)
     {
         Sync::MutexLocker const locker { m_mutex };
-        m_presentation_mode = move(mode);
+        if (auto context = m_contexts.get(context_id).value_or(nullptr))
+            context->presentation_mode = move(mode);
     }
 
     void exit()
@@ -285,8 +388,14 @@ public:
     {
         Sync::MutexLocker const locker { m_mutex };
         m_command_queue.enqueue({ context_id, move(command) });
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor command queued (queue_size={}, awaiting_bitmap={}, needs_present={}, deferred_async_present={})",
-            m_command_queue.size(), m_presented_bitmap_id_awaiting_ack.value_or(-1), m_needs_present, m_has_deferred_async_scroll_present);
+        if constexpr (COMPOSITOR_DEBUG) {
+            auto context = m_contexts.get(context_id).value_or(nullptr);
+            dbgln("[Compositor] Compositor command queued (queue_size={}, awaiting_bitmap={}, needs_present={}, deferred_async_present={})",
+                m_command_queue.size(),
+                context ? context->presented_bitmap_id_awaiting_ack.value_or(-1) : -1,
+                context ? context->needs_present : false,
+                context ? context->has_deferred_async_scroll_present : false);
+        }
         m_command_ready.signal();
     }
 
@@ -296,65 +405,78 @@ public:
         enqueue_command(*m_default_context_id, move(command));
     }
 
-    void set_default_context_id(CompositorContextId context_id)
-    {
-        if (!m_default_context_id.has_value())
-            m_default_context_id = context_id;
-    }
-
-    u64 set_needs_present(Gfx::IntRect viewport_rect)
+    u64 set_needs_present(CompositorContextId context_id, Gfx::IntRect viewport_rect)
     {
         Sync::MutexLocker const locker { m_mutex };
-        m_needs_present = true;
-        m_pending_viewport_rect = viewport_rect;
-        m_submitted_frame_id++;
+        auto context_state = m_contexts.get(context_id);
+        if (!context_state.has_value())
+            return 0;
+        auto& context = *context_state.value();
+        context.needs_present = true;
+        context.pending_viewport_rect = viewport_rect;
+        context.submitted_frame_id++;
         m_command_ready.signal();
-        return m_submitted_frame_id;
+        return context.submitted_frame_id;
     }
 
-    void mark_frame_complete(u64 frame_id)
+    void mark_frame_complete(ContextState& context, u64 frame_id)
     {
         Sync::MutexLocker const locker { m_mutex };
-        m_completed_frame_id = frame_id;
+        context.completed_frame_id = frame_id;
         m_frame_completed.broadcast();
     }
 
-    void wait_for_frame(u64 frame_id)
+    void wait_for_frame(CompositorContextId context_id, u64 frame_id)
     {
         Sync::MutexLocker const locker { m_mutex };
-        while (m_completed_frame_id < frame_id && !m_exit)
+        auto context_state = m_contexts.get(context_id);
+        if (!context_state.has_value())
+            return;
+        auto& context = *context_state.value();
+        while (context.completed_frame_id < frame_id && !m_exit)
             m_frame_completed.wait();
     }
 
-    CompositorThread::PendingAsyncScrollUpdates take_pending_async_scroll_updates()
+    CompositorThread::PendingAsyncScrollUpdates take_pending_async_scroll_updates(CompositorContextId context_id)
     {
         Sync::MutexLocker const locker { m_mutex };
         CompositorThread::PendingAsyncScrollUpdates updates;
-        AK::swap(updates.scroll_offsets, m_pending_async_scroll_offsets);
-        AK::swap(updates.completed_operation_ids, m_completed_async_scroll_operation_ids);
+        if (auto context = m_contexts.get(context_id).value_or(nullptr)) {
+            AK::swap(updates.scroll_offsets, context->pending_async_scroll_offsets);
+            AK::swap(updates.completed_operation_ids, context->completed_async_scroll_operation_ids);
+        }
         return updates;
     }
 
-    bool should_defer_async_scroll_offset_adoption() const
+    bool should_defer_async_scroll_offset_adoption(CompositorContextId context_id) const
     {
         Sync::MutexLocker const locker { m_mutex };
-        return !m_pending_async_scroll_offsets.is_empty()
-            && m_is_rasterizing;
+        auto context = m_contexts.get(context_id).value_or(nullptr);
+        if (!context)
+            return false;
+        return !context->pending_async_scroll_offsets.is_empty()
+            && context->is_rasterizing;
     }
 
-    bool should_defer_main_thread_present_for_async_scroll() const
+    bool should_defer_main_thread_present_for_async_scroll(CompositorContextId context_id) const
     {
         Sync::MutexLocker const locker { m_mutex };
-        return !m_pending_async_scroll_offsets.is_empty()
-            && (m_is_rasterizing || m_has_deferred_async_scroll_present || has_presented_bitmap_awaiting_ack_while_locked());
+        auto context = m_contexts.get(context_id).value_or(nullptr);
+        if (!context)
+            return false;
+        return !context->pending_async_scroll_offsets.is_empty()
+            && (context->is_rasterizing || context->has_deferred_async_scroll_present || has_presented_bitmap_awaiting_ack_while_locked(*context));
     }
 
-    void invalidate_wheel_event_listener_state(u64 generation)
+    void invalidate_wheel_event_listener_state(CompositorContextId context_id, u64 generation)
     {
         Sync::MutexLocker const locker { m_mutex };
-        m_wheel_event_listener_state_generation = max(m_wheel_event_listener_state_generation, generation);
-        m_wheel_routing_admission = WheelRoutingAdmission::StaleWheelEventListeners;
-        m_can_accept_async_wheel_events = false;
+        auto context = m_contexts.get(context_id).value_or(nullptr);
+        if (!context)
+            return;
+        context->wheel_event_listener_state_generation = max(context->wheel_event_listener_state_generation, generation);
+        context->wheel_routing_admission = WheelRoutingAdmission::StaleWheelEventListeners;
+        context->can_accept_async_wheel_events = false;
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Invalidated compositor wheel listener state (generation={})", generation);
     }
 
@@ -364,10 +486,10 @@ public:
         bool blocked_by_wheel_event_region { false };
     };
 
-    WheelTarget hit_test_scroll_node_for_wheel(Gfx::FloatPoint position, Gfx::FloatPoint delta) const
+    WheelTarget hit_test_scroll_node_for_wheel(ContextState& context, Gfx::FloatPoint position, Gfx::FloatPoint delta) const
     {
-        Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
-        auto scroll_target = m_async_scroll_tree.hit_test_scroll_node_for_wheel(position, delta);
+        Sync::MutexLocker const locker { context.async_scroll_tree_mutex };
+        auto scroll_target = context.async_scroll_tree.hit_test_scroll_node_for_wheel(position, delta);
         return {
             .node_id = scroll_target.node_id,
             .blocked_by_main_thread_region = scroll_target.blocked_by_main_thread_region,
@@ -375,19 +497,23 @@ public:
         };
     }
 
-    CompositorThread::AsyncScrollEnqueueResult enqueue_async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position,
+    CompositorThread::AsyncScrollEnqueueResult enqueue_async_scroll_by(CompositorContextId context_id, UniqueNodeID expected_document_id, Gfx::FloatPoint position,
         Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect, CompositorThread::AsyncScrollOperationTracking operation_tracking)
     {
-        if (!m_can_accept_async_wheel_events.load()) {
-            auto wheel_routing_admission = [this] {
+        auto context_state = this->context_state(context_id);
+        if (!context_state)
+            return {};
+        auto& context = *context_state;
+        if (!context.can_accept_async_wheel_events.load()) {
+            auto wheel_routing_admission = [&] {
                 Sync::MutexLocker const locker { m_mutex };
-                return m_wheel_routing_admission;
+                return context.wheel_routing_admission;
             }();
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: compositor cannot accept async wheel events ({})",
                 wheel_routing_admission_to_string(wheel_routing_admission));
             return {};
         }
-        auto scroll_target = hit_test_scroll_node_for_wheel(position, delta_in_device_pixels);
+        auto scroll_target = hit_test_scroll_node_for_wheel(context, position, delta_in_device_pixels);
         if (scroll_target.blocked_by_main_thread_region) {
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: main-thread wheel region at {},{} device delta {},{}",
                 position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y());
@@ -411,30 +537,35 @@ public:
 
         Optional<AsyncScrollOperationID> operation_id;
         if (operation_tracking == CompositorThread::AsyncScrollOperationTracking::Yes)
-            operation_id = next_async_scroll_operation_id();
+            operation_id = next_async_scroll_operation_id(context);
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor accepted main-thread async scroll enqueue at {},{} device delta {},{} for scroll node {} viewport={}x{} at {},{}",
             position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y(), scroll_target.node_id->scroll_frame_index.value(), viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
-        enqueue_command(AsyncScrollByCommand { position, delta_in_device_pixels, viewport_rect, *scroll_target.node_id, operation_id });
+        enqueue_command(context_id, AsyncScrollByCommand { position, delta_in_device_pixels, viewport_rect, *scroll_target.node_id, operation_id });
         return { true, operation_id };
     }
 
     bool enqueue_async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels)
     {
-        if (!m_can_accept_async_wheel_events.load()) {
-            auto wheel_routing_admission = [this] {
+        auto context_state = page_presentation_context_state();
+        auto context_id = page_presentation_context_id();
+        if (!context_state || !context_id.has_value())
+            return false;
+        auto& context = *context_state;
+        if (!context.can_accept_async_wheel_events.load()) {
+            auto wheel_routing_admission = [&] {
                 Sync::MutexLocker const locker { m_mutex };
-                return m_wheel_routing_admission;
+                return context.wheel_routing_admission;
             }();
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: compositor cannot accept async wheel events ({})",
                 wheel_routing_admission_to_string(wheel_routing_admission));
             return false;
         }
 
-        auto viewport_rect = [this] {
+        auto viewport_rect = [&] {
             Sync::MutexLocker const locker { m_mutex };
-            return m_async_scrolling_viewport_rect;
+            return context.async_scrolling_viewport_rect;
         }();
-        auto scroll_target = hit_test_scroll_node_for_wheel(position, delta_in_device_pixels);
+        auto scroll_target = hit_test_scroll_node_for_wheel(context, position, delta_in_device_pixels);
         if (scroll_target.blocked_by_main_thread_region) {
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: main-thread wheel region at {},{} device delta {},{}",
                 position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y());
@@ -453,16 +584,16 @@ public:
 
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor accepted async scroll enqueue at {},{} device delta {},{} for scroll node {} viewport={}x{} at {},{}",
             position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y(), scroll_target.node_id->scroll_frame_index.value(), viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
-        enqueue_command(AsyncScrollByCommand { position, delta_in_device_pixels, viewport_rect, *scroll_target.node_id, {} });
+        enqueue_command(*context_id, AsyncScrollByCommand { position, delta_in_device_pixels, viewport_rect, *scroll_target.node_id, {} });
         return true;
     }
 
-    Optional<size_t> hit_test_viewport_scrollbar(Gfx::FloatPoint position) const
+    Optional<size_t> hit_test_viewport_scrollbar(ContextState& context, Gfx::FloatPoint position) const
     {
-        Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
-        for (size_t i = 0; i < m_viewport_scrollbars.size(); ++i) {
-            auto const& scrollbar = m_viewport_scrollbars[i];
-            auto scroll_offset = m_async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id, m_cached_scroll_state_snapshot);
+        Sync::MutexLocker const locker { context.async_scroll_tree_mutex };
+        for (size_t i = 0; i < context.viewport_scrollbars.size(); ++i) {
+            auto const& scrollbar = context.viewport_scrollbars[i];
+            auto scroll_offset = context.async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id, context.cached_scroll_state_snapshot);
             if (!scroll_offset.has_value())
                 continue;
 
@@ -474,6 +605,11 @@ public:
 
     bool handle_viewport_scrollbar_mouse_event(MouseEvent const& event)
     {
+        auto context_state = page_presentation_context_state();
+        auto context_id = page_presentation_context_id();
+        if (!context_state || !context_id.has_value())
+            return false;
+        auto& context = *context_state;
         auto position = Gfx::FloatPoint {
             static_cast<float>(event.position.x().value()),
             static_cast<float>(event.position.y().value()),
@@ -491,14 +627,14 @@ public:
             float thumb_grab_position = 0;
             float primary_position = 0;
             {
-                Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
-                for (size_t i = 0; i < m_viewport_scrollbars.size(); ++i) {
-                    auto const& scrollbar = m_viewport_scrollbars[i];
-                    auto scroll_offset = m_async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id, m_cached_scroll_state_snapshot);
+                Sync::MutexLocker const locker { context.async_scroll_tree_mutex };
+                for (size_t i = 0; i < context.viewport_scrollbars.size(); ++i) {
+                    auto const& scrollbar = context.viewport_scrollbars[i];
+                    auto scroll_offset = context.async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id, context.cached_scroll_state_snapshot);
                     if (!scroll_offset.has_value())
                         continue;
 
-                    auto expanded = m_hovered_viewport_scrollbar_index == i || m_captured_viewport_scrollbar_index == i;
+                    auto expanded = context.hovered_viewport_scrollbar_index == i || context.captured_viewport_scrollbar_index == i;
                     auto orientation = orientation_for_scrollbar(scrollbar);
                     auto thumb_rect = translated_thumb_rect(scrollbar, *scroll_offset, expanded);
                     primary_position = primary_position_for_scrollbar(scrollbar);
@@ -522,13 +658,13 @@ public:
                 if (!scrollbar_index.has_value())
                     return false;
 
-                m_captured_viewport_scrollbar_index = *scrollbar_index;
-                m_hovered_viewport_scrollbar_index = *scrollbar_index;
-                m_viewport_scrollbar_thumb_grab_position = thumb_grab_position;
+                context.captured_viewport_scrollbar_index = *scrollbar_index;
+                context.hovered_viewport_scrollbar_index = *scrollbar_index;
+                context.viewport_scrollbar_thumb_grab_position = thumb_grab_position;
             }
 
-            schedule_viewport_scrollbar_present();
-            enqueue_command(ViewportScrollbarDragCommand { *scrollbar_index, primary_position, thumb_grab_position });
+            schedule_viewport_scrollbar_present(context);
+            enqueue_command(*context_id, ViewportScrollbarDragCommand { *scrollbar_index, primary_position, thumb_grab_position });
             return true;
         }
         case MouseEvent::Type::MouseMove: {
@@ -536,23 +672,23 @@ public:
             float thumb_grab_position = 0;
             float primary_position = 0;
             {
-                Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
-                if (m_captured_viewport_scrollbar_index.has_value()) {
-                    scrollbar_index = *m_captured_viewport_scrollbar_index;
-                    thumb_grab_position = m_viewport_scrollbar_thumb_grab_position;
-                    if (*scrollbar_index >= m_viewport_scrollbars.size()) {
-                        m_captured_viewport_scrollbar_index.clear();
+                Sync::MutexLocker const locker { context.async_scroll_tree_mutex };
+                if (context.captured_viewport_scrollbar_index.has_value()) {
+                    scrollbar_index = *context.captured_viewport_scrollbar_index;
+                    thumb_grab_position = context.viewport_scrollbar_thumb_grab_position;
+                    if (*scrollbar_index >= context.viewport_scrollbars.size()) {
+                        context.captured_viewport_scrollbar_index.clear();
                         return false;
                     }
-                    primary_position = primary_position_for_scrollbar(m_viewport_scrollbars[*scrollbar_index]);
+                    primary_position = primary_position_for_scrollbar(context.viewport_scrollbars[*scrollbar_index]);
                 }
             }
             if (scrollbar_index.has_value()) {
-                enqueue_command(ViewportScrollbarDragCommand { *scrollbar_index, primary_position, thumb_grab_position });
+                enqueue_command(*context_id, ViewportScrollbarDragCommand { *scrollbar_index, primary_position, thumb_grab_position });
                 return true;
             }
-            auto hovered_scrollbar_index = hit_test_viewport_scrollbar(position);
-            set_hovered_viewport_scrollbar(hovered_scrollbar_index);
+            auto hovered_scrollbar_index = hit_test_viewport_scrollbar(context, position);
+            set_hovered_viewport_scrollbar(context, hovered_scrollbar_index);
             return hovered_scrollbar_index.has_value();
         }
         case MouseEvent::Type::MouseUp: {
@@ -560,28 +696,28 @@ public:
             float thumb_grab_position = 0;
             float primary_position = 0;
             {
-                Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
-                if (!m_captured_viewport_scrollbar_index.has_value())
+                Sync::MutexLocker const locker { context.async_scroll_tree_mutex };
+                if (!context.captured_viewport_scrollbar_index.has_value())
                     return false;
-                scrollbar_index = *m_captured_viewport_scrollbar_index;
-                thumb_grab_position = m_viewport_scrollbar_thumb_grab_position;
-                if (*scrollbar_index >= m_viewport_scrollbars.size()) {
-                    m_captured_viewport_scrollbar_index.clear();
+                scrollbar_index = *context.captured_viewport_scrollbar_index;
+                thumb_grab_position = context.viewport_scrollbar_thumb_grab_position;
+                if (*scrollbar_index >= context.viewport_scrollbars.size()) {
+                    context.captured_viewport_scrollbar_index.clear();
                     return false;
                 }
-                primary_position = primary_position_for_scrollbar(m_viewport_scrollbars[*scrollbar_index]);
-                m_captured_viewport_scrollbar_index.clear();
+                primary_position = primary_position_for_scrollbar(context.viewport_scrollbars[*scrollbar_index]);
+                context.captured_viewport_scrollbar_index.clear();
             }
-            schedule_viewport_scrollbar_present();
-            enqueue_command(ViewportScrollbarDragCommand { *scrollbar_index, primary_position, thumb_grab_position });
+            schedule_viewport_scrollbar_present(context);
+            enqueue_command(*context_id, ViewportScrollbarDragCommand { *scrollbar_index, primary_position, thumb_grab_position });
             return true;
         }
         case MouseEvent::Type::MouseLeave: {
-            auto has_capture = [this] {
-                Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
-                return m_captured_viewport_scrollbar_index.has_value();
+            auto has_capture = [&] {
+                Sync::MutexLocker const locker { context.async_scroll_tree_mutex };
+                return context.captured_viewport_scrollbar_index.has_value();
             }();
-            set_hovered_viewport_scrollbar({});
+            set_hovered_viewport_scrollbar(context, {});
             return has_capture;
         }
         case MouseEvent::Type::MouseWheel:
@@ -620,82 +756,87 @@ public:
                 if (!command.has_value())
                     break;
 
+                auto context_state = this->context_state(command->context_id);
+                if (!context_state)
+                    continue;
+                auto& context = *context_state;
+
                 bool should_yield_to_async_scroll_present = false;
                 command->command.visit(
-                    [this](UpdateDisplayListCommand& cmd) {
+                    [this, &context](UpdateDisplayListCommand& cmd) {
                         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor processing display list update (deferred_async_present={})",
-                            m_has_deferred_async_scroll_present);
-                        m_display_list_resource_storage.apply_transaction(move(cmd.resource_transaction));
-                        m_cached_display_list = move(cmd.display_list);
-                        m_cached_scroll_state_snapshot = move(cmd.scroll_state_snapshot);
-                        auto async_scrolling_state = async_scrolling_state_from_display_list(*m_cached_display_list);
+                            context.has_deferred_async_scroll_present);
+                        context.display_list_resource_storage.apply_transaction(move(cmd.resource_transaction));
+                        context.cached_display_list = move(cmd.display_list);
+                        context.cached_scroll_state_snapshot = move(cmd.scroll_state_snapshot);
+                        auto async_scrolling_state = async_scrolling_state_from_display_list(*context.cached_display_list);
                         auto async_scrolling_viewport_rect = async_scrolling_state.viewport_rect;
                         auto const wheel_event_listener_state_generation = async_scrolling_state.wheel_event_listener_state_generation;
                         auto wheel_routing_admission = wheel_routing_admission_for(async_scrolling_state);
                         {
                             Sync::MutexLocker const locker { m_mutex };
-                            if (wheel_event_listener_state_generation < m_wheel_event_listener_state_generation)
+                            if (wheel_event_listener_state_generation < context.wheel_event_listener_state_generation)
                                 wheel_routing_admission = WheelRoutingAdmission::StaleWheelEventListeners;
                             else
-                                m_wheel_event_listener_state_generation = wheel_event_listener_state_generation;
-                            m_wheel_routing_admission = wheel_routing_admission;
+                                context.wheel_event_listener_state_generation = wheel_event_listener_state_generation;
+                            context.wheel_routing_admission = wheel_routing_admission;
                         }
-                        m_can_accept_async_wheel_events = wheel_routing_admission == WheelRoutingAdmission::Accepted;
+                        context.can_accept_async_wheel_events = wheel_routing_admission == WheelRoutingAdmission::Accepted;
                         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor wheel routing admission: {} (scroll_nodes={}, sticky_areas={}, blocking_regions={})",
                             wheel_routing_admission_to_string(wheel_routing_admission),
                             async_scrolling_state.scroll_nodes.size(),
                             async_scrolling_state.sticky_areas.size(),
                             async_scrolling_state.blocking_wheel_event_regions.size());
-                        auto pending_async_scroll_offsets = [this] {
+                        auto pending_async_scroll_offsets = [this, &context] {
                             Sync::MutexLocker const locker { m_mutex };
-                            return m_pending_async_scroll_offsets;
+                            return context.pending_async_scroll_offsets;
                         }();
 
                         {
-                            Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
-                            auto hovered_scrollbar_identity = viewport_scrollbar_identity_at(m_viewport_scrollbars, m_hovered_viewport_scrollbar_index);
-                            auto captured_scrollbar_identity = viewport_scrollbar_identity_at(m_viewport_scrollbars, m_captured_viewport_scrollbar_index);
-                            m_viewport_scrollbars = move(async_scrolling_state.viewport_scrollbars);
-                            m_hovered_viewport_scrollbar_index = hovered_scrollbar_identity.has_value() ? find_viewport_scrollbar_index(m_viewport_scrollbars, *hovered_scrollbar_identity) : Optional<size_t> {};
-                            m_captured_viewport_scrollbar_index = captured_scrollbar_identity.has_value() ? find_viewport_scrollbar_index(m_viewport_scrollbars, *captured_scrollbar_identity) : Optional<size_t> {};
-                            m_async_scroll_tree.set_state(move(async_scrolling_state));
+                            Sync::MutexLocker const locker { context.async_scroll_tree_mutex };
+                            auto hovered_scrollbar_identity = viewport_scrollbar_identity_at(context.viewport_scrollbars, context.hovered_viewport_scrollbar_index);
+                            auto captured_scrollbar_identity = viewport_scrollbar_identity_at(context.viewport_scrollbars, context.captured_viewport_scrollbar_index);
+                            context.viewport_scrollbars = move(async_scrolling_state.viewport_scrollbars);
+                            context.hovered_viewport_scrollbar_index = hovered_scrollbar_identity.has_value() ? find_viewport_scrollbar_index(context.viewport_scrollbars, *hovered_scrollbar_identity) : Optional<size_t> {};
+                            context.captured_viewport_scrollbar_index = captured_scrollbar_identity.has_value() ? find_viewport_scrollbar_index(context.viewport_scrollbars, *captured_scrollbar_identity) : Optional<size_t> {};
+                            context.async_scroll_tree.set_state(move(async_scrolling_state));
                             if (!pending_async_scroll_offsets.is_empty()) {
                                 dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Reapplying {} pending async scroll offset(s) to display list update",
                                     pending_async_scroll_offsets.size());
-                                if (auto viewport_scroll_offset = reapply_pending_async_scroll_offsets(pending_async_scroll_offsets); viewport_scroll_offset.has_value())
+                                if (auto viewport_scroll_offset = reapply_pending_async_scroll_offsets(context, pending_async_scroll_offsets); viewport_scroll_offset.has_value())
                                     async_scrolling_viewport_rect.set_location(viewport_scroll_offset->to_type<int>());
                             }
-                            m_async_scroll_tree.rebuild_wheel_hit_test_targets(m_cached_display_list, m_cached_scroll_state_snapshot);
+                            context.async_scroll_tree.rebuild_wheel_hit_test_targets(context.cached_display_list, context.cached_scroll_state_snapshot);
                         }
                         {
                             Sync::MutexLocker const locker { m_mutex };
-                            m_async_scrolling_viewport_rect = async_scrolling_viewport_rect;
+                            context.async_scrolling_viewport_rect = async_scrolling_viewport_rect;
                         }
-                        m_has_async_scrolling_state = true;
+                        context.has_async_scrolling_state = true;
                     },
-                    [this, &should_yield_to_async_scroll_present](AsyncScrollByCommand& cmd) {
+                    [this, &context, &should_yield_to_async_scroll_present](AsyncScrollByCommand& cmd) {
                         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor processing async scroll command at {},{} device delta {},{} for scroll node {} (deferred_async_present={})",
-                            cmd.position.x(), cmd.position.y(), cmd.delta_in_device_pixels.x(), cmd.delta_in_device_pixels.y(), cmd.scroll_target.scroll_frame_index.value(), m_has_deferred_async_scroll_present);
+                            cmd.position.x(), cmd.position.y(), cmd.delta_in_device_pixels.x(), cmd.delta_in_device_pixels.y(), cmd.scroll_target.scroll_frame_index.value(), context.has_deferred_async_scroll_present);
                         auto async_scroll_viewport_rect = cmd.viewport_rect;
                         Vector<AsyncScrollOffset> scroll_offsets;
                         {
-                            Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
-                            scroll_offsets = m_async_scroll_tree.apply_scroll_delta(cmd.scroll_target, cmd.delta_in_device_pixels, m_cached_scroll_state_snapshot);
+                            Sync::MutexLocker const locker { context.async_scroll_tree_mutex };
+                            scroll_offsets = context.async_scroll_tree.apply_scroll_delta(cmd.scroll_target, cmd.delta_in_device_pixels, context.cached_scroll_state_snapshot);
                             if (scroll_offsets.is_empty()) {
                                 dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Dropping async scroll command: scroll tree consumed no delta");
                                 // The operation produced no scroll offset (e.g. already at the scroll boundary), so it
                                 // cannot be reported through the pending-offset path; report its completion separately.
-                                complete_async_scroll_operation(cmd.operation_id);
+                                complete_async_scroll_operation(context, cmd.operation_id);
                                 return;
                             }
-                            m_async_scroll_tree.rebuild_wheel_hit_test_targets(m_cached_display_list, m_cached_scroll_state_snapshot);
+                            context.async_scroll_tree.rebuild_wheel_hit_test_targets(context.cached_display_list, context.cached_scroll_state_snapshot);
                         }
                         if (auto viewport_scroll_offset = viewport_scroll_offset_from(scroll_offsets); viewport_scroll_offset.has_value())
                             async_scroll_viewport_rect.set_location(viewport_scroll_offset->to_type<int>());
-                        store_pending_async_scroll_offsets(scroll_offsets, cmd.operation_id);
+                        store_pending_async_scroll_offsets(context, scroll_offsets, cmd.operation_id);
                         {
                             Sync::MutexLocker const locker { m_mutex };
-                            m_async_scrolling_viewport_rect = async_scroll_viewport_rect;
+                            context.async_scrolling_viewport_rect = async_scroll_viewport_rect;
                         }
                         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Stored {} pending async scroll offset(s)",
                             scroll_offsets.size());
@@ -704,70 +845,70 @@ public:
                         });
                         {
                             Sync::MutexLocker const locker { m_mutex };
-                            m_has_deferred_async_scroll_present = true;
-                            m_deferred_async_scroll_present_viewport_rect = async_scroll_viewport_rect;
+                            context.has_deferred_async_scroll_present = true;
+                            context.deferred_async_scroll_present_viewport_rect = async_scroll_viewport_rect;
                         }
-                        should_yield_to_async_scroll_present = can_present_deferred_async_scroll();
+                        should_yield_to_async_scroll_present = can_present_deferred_async_scroll(context);
                         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor async scroll command complete (yield_to_present={})",
                             should_yield_to_async_scroll_present);
                     },
-                    [this, &should_yield_to_async_scroll_present](ViewportScrollbarDragCommand& cmd) {
+                    [this, &context, &should_yield_to_async_scroll_present](ViewportScrollbarDragCommand& cmd) {
                         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor processing viewport scrollbar drag (index={}, position={}, grab={})",
                             cmd.scrollbar_index, cmd.primary_position, cmd.thumb_grab_position);
-                        if (apply_viewport_scrollbar_drag(cmd.scrollbar_index, cmd.primary_position, cmd.thumb_grab_position)) {
-                            should_yield_to_async_scroll_present = can_present_deferred_async_scroll();
+                        if (apply_viewport_scrollbar_drag(context, cmd.scrollbar_index, cmd.primary_position, cmd.thumb_grab_position)) {
+                            should_yield_to_async_scroll_present = can_present_deferred_async_scroll(context);
                             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor viewport scrollbar drag complete (yield_to_present={})",
                                 should_yield_to_async_scroll_present);
                         }
                     },
-                    [this](UpdateScrollStateCommand& cmd) {
-                        m_cached_scroll_state_snapshot = move(cmd.scroll_state_snapshot);
-                        if (m_has_async_scrolling_state) {
-                            auto pending_async_scroll_offsets = [this] {
+                    [this, &context](UpdateScrollStateCommand& cmd) {
+                        context.cached_scroll_state_snapshot = move(cmd.scroll_state_snapshot);
+                        if (context.has_async_scrolling_state) {
+                            auto pending_async_scroll_offsets = [this, &context] {
                                 Sync::MutexLocker const locker { m_mutex };
-                                return m_pending_async_scroll_offsets;
+                                return context.pending_async_scroll_offsets;
                             }();
                             Optional<Gfx::FloatPoint> reconciled_viewport_scroll_offset;
                             {
-                                Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
+                                Sync::MutexLocker const locker { context.async_scroll_tree_mutex };
                                 // A main-thread scroll-state update can be older than compositor-side async
                                 // scrolling. Preserve compositor-visible offsets in the fresh snapshot before
                                 // rebuilding hit-test data from it.
-                                reconciled_viewport_scroll_offset = reapply_pending_async_scroll_offsets(pending_async_scroll_offsets);
-                                m_async_scroll_tree.rebuild_wheel_hit_test_targets(m_cached_display_list, m_cached_scroll_state_snapshot);
+                                reconciled_viewport_scroll_offset = reapply_pending_async_scroll_offsets(context, pending_async_scroll_offsets);
+                                context.async_scroll_tree.rebuild_wheel_hit_test_targets(context.cached_display_list, context.cached_scroll_state_snapshot);
                             }
                             if (reconciled_viewport_scroll_offset.has_value()) {
                                 Sync::MutexLocker const mutex_locker { m_mutex };
-                                auto reconciled_viewport_rect = m_async_scrolling_viewport_rect;
+                                auto reconciled_viewport_rect = context.async_scrolling_viewport_rect;
                                 reconciled_viewport_rect.set_location(reconciled_viewport_scroll_offset->to_type<int>());
-                                m_async_scrolling_viewport_rect = reconciled_viewport_rect;
+                                context.async_scrolling_viewport_rect = reconciled_viewport_rect;
                             }
                         }
                     },
-                    [this](UpdateCompositorSurfaceCommand& cmd) {
-                        m_display_list_resource_storage.update_compositor_surface(cmd.surface_id, move(cmd.shared_image));
+                    [&context](UpdateCompositorSurfaceCommand& cmd) {
+                        context.display_list_resource_storage.update_compositor_surface(cmd.surface_id, move(cmd.shared_image));
                     },
-                    [this](ClearCompositorSurfaceCommand& cmd) {
-                        m_display_list_resource_storage.clear_compositor_surface(cmd.surface_id);
+                    [&context](ClearCompositorSurfaceCommand& cmd) {
+                        context.display_list_resource_storage.clear_compositor_surface(cmd.surface_id);
                     },
-                    [this](ViewportSizeUpdatedCommand& cmd) {
-                        auto allocation = m_backing_store_manager.resize_backing_stores_if_needed(
+                    [this, &context](ViewportSizeUpdatedCommand& cmd) {
+                        auto allocation = context.backing_store_manager.resize_backing_stores_if_needed(
                             cmd.viewport_size, cmd.is_top_level_traversable, cmd.window_resize_in_progress);
                         if (!allocation.has_value())
                             return;
 
-                        if (m_has_async_scrolling_state) {
+                        if (context.has_async_scrolling_state) {
                             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor resizing backing stores front={} back={} size={}x{}",
                                 allocation->front_bitmap_id, allocation->back_bitmap_id, allocation->size.width(), allocation->size.height());
                         }
-                        if (auto publication = m_backing_store_manager.allocate_backing_stores(*allocation, m_skia_backend_context, m_presents_to_client); publication.has_value())
-                            publish_backing_store_pair(publication.release_value());
+                        if (auto publication = context.backing_store_manager.allocate_backing_stores(*allocation, m_skia_backend_context, context.presents_to_client); publication.has_value())
+                            publish_backing_store_pair(context, publication.release_value());
                     },
-                    [this](ScreenshotCommand& cmd) {
-                        if (!m_cached_display_list)
+                    [this, &context](ScreenshotCommand& cmd) {
+                        if (!context.cached_display_list)
                             return;
-                        m_skia_player->execute(*m_cached_display_list, m_display_list_resource_storage, m_cached_scroll_state_snapshot, *cmd.target_surface);
-                        paint_viewport_scrollbar_overlay(*cmd.target_surface);
+                        m_skia_player->execute(*context.cached_display_list, context.display_list_resource_storage, context.cached_scroll_state_snapshot, *cmd.target_surface);
+                        paint_viewport_scrollbar_overlay(context, *cmd.target_surface);
                         flush_surface(*cmd.target_surface);
                         if (cmd.callback) {
                             invoke_on_main_thread([callback = move(cmd.callback)]() mutable {
@@ -788,6 +929,7 @@ public:
                 break;
 
             bool should_present = false;
+            RefPtr<ContextState> present_context_state;
             Gfx::IntRect viewport_rect;
             u64 presenting_frame_id = 0;
             bool should_present_deferred_async_scroll = false;
@@ -795,28 +937,36 @@ public:
             Optional<u64> deferred_async_scroll_presenting_frame_id;
             {
                 Sync::MutexLocker const locker { m_mutex };
-                if (m_has_deferred_async_scroll_present && !has_presented_bitmap_awaiting_ack_while_locked()) {
-                    should_present_deferred_async_scroll = true;
-                    deferred_async_scroll_viewport_rect = m_deferred_async_scroll_present_viewport_rect;
-                    m_has_deferred_async_scroll_present = false;
-                    if (m_needs_present) {
-                        deferred_async_scroll_presenting_frame_id = m_submitted_frame_id;
-                        m_needs_present = false;
+                for (auto& [_, context] : m_contexts) {
+                    if (context->has_deferred_async_scroll_present && !has_presented_bitmap_awaiting_ack_while_locked(*context)) {
+                        present_context_state = context;
+                        should_present_deferred_async_scroll = true;
+                        deferred_async_scroll_viewport_rect = context->deferred_async_scroll_present_viewport_rect;
+                        context->has_deferred_async_scroll_present = false;
+                        if (context->needs_present) {
+                            deferred_async_scroll_presenting_frame_id = context->submitted_frame_id;
+                            context->needs_present = false;
+                        }
+                        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor selected deferred async present (pending_main_thread_present={})",
+                            deferred_async_scroll_presenting_frame_id.has_value());
+                        break;
                     }
-                    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor selected deferred async present (pending_main_thread_present={})",
-                        deferred_async_scroll_presenting_frame_id.has_value());
-                } else if (m_needs_present && !has_presented_bitmap_awaiting_ack_while_locked()) {
-                    should_present = true;
-                    viewport_rect = m_pending_viewport_rect;
-                    presenting_frame_id = m_submitted_frame_id;
-                    m_needs_present = false;
+
+                    if (context->needs_present && !has_presented_bitmap_awaiting_ack_while_locked(*context)) {
+                        present_context_state = context;
+                        should_present = true;
+                        viewport_rect = context->pending_viewport_rect;
+                        presenting_frame_id = context->submitted_frame_id;
+                        context->needs_present = false;
+                        break;
+                    }
                 }
             }
 
             if (should_present_deferred_async_scroll)
-                present_frame(deferred_async_scroll_viewport_rect, deferred_async_scroll_presenting_frame_id, PresentFrameDelivery::AsyncScroll);
+                present_frame(*present_context_state, deferred_async_scroll_viewport_rect, deferred_async_scroll_presenting_frame_id, PresentFrameDelivery::AsyncScroll);
             else if (should_present)
-                present_frame(viewport_rect, presenting_frame_id, PresentFrameDelivery::MainThread);
+                present_frame(*present_context_state, viewport_rect, presenting_frame_id, PresentFrameDelivery::MainThread);
         }
     }
 
@@ -826,24 +976,24 @@ private:
         AsyncScroll,
     };
 
-    bool has_presented_bitmap_awaiting_ack_while_locked() const
+    bool has_presented_bitmap_awaiting_ack_while_locked(ContextState const& context) const
     {
-        return m_presented_bitmap_id_awaiting_ack.has_value();
+        return context.presented_bitmap_id_awaiting_ack.has_value();
     }
 
-    AsyncScrollOperationID next_async_scroll_operation_id()
+    AsyncScrollOperationID next_async_scroll_operation_id(ContextState& context)
     {
-        return m_next_async_scroll_operation_id.fetch_add(1) + 1;
+        return context.next_async_scroll_operation_id.fetch_add(1) + 1;
     }
 
-    void complete_async_scroll_operation(Optional<AsyncScrollOperationID> operation_id)
+    void complete_async_scroll_operation(ContextState& context, Optional<AsyncScrollOperationID> operation_id)
     {
         if (!operation_id.has_value())
             return;
 
         {
             Sync::MutexLocker const locker { m_mutex };
-            m_completed_async_scroll_operation_ids.append(*operation_id);
+            context.completed_async_scroll_operation_ids.append(*operation_id);
         }
 
         // No scroll offset was produced, so nothing else will wake the main thread; schedule a rendering update so it
@@ -853,12 +1003,12 @@ private:
         });
     }
 
-    void queue_rendering_update_if_async_scroll_updates_pending()
+    void queue_rendering_update_if_async_scroll_updates_pending(ContextState& context)
     {
-        auto has_pending_updates = [this] {
+        auto has_pending_updates = [this, &context] {
             Sync::MutexLocker const locker { m_mutex };
-            return !m_pending_async_scroll_offsets.is_empty()
-                || !m_completed_async_scroll_operation_ids.is_empty();
+            return !context.pending_async_scroll_offsets.is_empty()
+                || !context.completed_async_scroll_operation_ids.is_empty();
         }();
         if (!has_pending_updates)
             return;
@@ -868,30 +1018,30 @@ private:
         });
     }
 
-    void store_pending_async_scroll_offsets(Vector<AsyncScrollOffset> const& scroll_offsets, Optional<AsyncScrollOperationID> operation_id = {})
+    void store_pending_async_scroll_offsets(ContextState& context, Vector<AsyncScrollOffset> const& scroll_offsets, Optional<AsyncScrollOperationID> operation_id = {})
     {
         Sync::MutexLocker const locker { m_mutex };
         for (auto const& scroll_offset : scroll_offsets)
-            set_or_append_pending_scroll_offset(m_pending_async_scroll_offsets, scroll_offset);
+            set_or_append_pending_scroll_offset(context.pending_async_scroll_offsets, scroll_offset);
         if (operation_id.has_value())
-            m_completed_async_scroll_operation_ids.append(*operation_id);
+            context.completed_async_scroll_operation_ids.append(*operation_id);
     }
 
-    Optional<Gfx::FloatPoint> reapply_pending_async_scroll_offsets(Vector<AsyncScrollOffset> const& pending_scroll_offsets)
+    Optional<Gfx::FloatPoint> reapply_pending_async_scroll_offsets(ContextState& context, Vector<AsyncScrollOffset> const& pending_scroll_offsets)
     {
         Optional<Gfx::FloatPoint> viewport_scroll_offset;
         for (auto const& pending_scroll_offset : pending_scroll_offsets) {
-            auto node_id = m_async_scroll_tree.scroll_node_id_for_stable_id(pending_scroll_offset.stable_node_id);
+            auto node_id = context.async_scroll_tree.scroll_node_id_for_stable_id(pending_scroll_offset.stable_node_id);
             if (!node_id.has_value())
                 continue;
-            auto current_scroll_offset = m_async_scroll_tree.scroll_offset_for_node(*node_id, m_cached_scroll_state_snapshot);
+            auto current_scroll_offset = context.async_scroll_tree.scroll_offset_for_node(*node_id, context.cached_scroll_state_snapshot);
             if (!current_scroll_offset.has_value())
                 continue;
             // Reapplying pending async offsets is a restoration step for a freshly received
             // main-thread snapshot. The pending offset is already the compositor-visible
             // position, so applying the unadopted delta here would compound it.
-            auto reconciled_scroll_offset = m_async_scroll_tree.set_scroll_offset(*node_id, pending_scroll_offset.compositor_scroll_offset, m_cached_scroll_state_snapshot);
-            if (reconciled_scroll_offset.has_value() && m_async_scroll_tree.scroll_node_is_viewport(*node_id))
+            auto reconciled_scroll_offset = context.async_scroll_tree.set_scroll_offset(*node_id, pending_scroll_offset.compositor_scroll_offset, context.cached_scroll_state_snapshot);
+            if (reconciled_scroll_offset.has_value() && context.async_scroll_tree.scroll_node_is_viewport(*node_id))
                 viewport_scroll_offset = *reconciled_scroll_offset;
         }
         return viewport_scroll_offset;
@@ -906,59 +1056,59 @@ private:
         return {};
     }
 
-    void paint_viewport_scrollbar_overlay(Gfx::PaintingSurface& surface)
+    void paint_viewport_scrollbar_overlay(ContextState& context, Gfx::PaintingSurface& surface)
     {
         Vector<ViewportScrollbar> scrollbars;
         Optional<size_t> hovered_scrollbar_index;
         Optional<size_t> captured_scrollbar_index;
         {
-            Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
-            scrollbars = m_viewport_scrollbars;
-            hovered_scrollbar_index = m_hovered_viewport_scrollbar_index;
-            captured_scrollbar_index = m_captured_viewport_scrollbar_index;
+            Sync::MutexLocker const locker { context.async_scroll_tree_mutex };
+            scrollbars = context.viewport_scrollbars;
+            hovered_scrollbar_index = context.hovered_viewport_scrollbar_index;
+            captured_scrollbar_index = context.captured_viewport_scrollbar_index;
         }
-        paint_viewport_scrollbars(surface, scrollbars, m_cached_scroll_state_snapshot, hovered_scrollbar_index, captured_scrollbar_index);
+        paint_viewport_scrollbars(surface, scrollbars, context.cached_scroll_state_snapshot, hovered_scrollbar_index, captured_scrollbar_index);
     }
 
-    void schedule_viewport_scrollbar_present()
+    void schedule_viewport_scrollbar_present(ContextState& context)
     {
         Sync::MutexLocker const locker { m_mutex };
-        if (m_async_scrolling_viewport_rect.is_empty())
+        if (context.async_scrolling_viewport_rect.is_empty())
             return;
-        m_has_deferred_async_scroll_present = true;
-        m_deferred_async_scroll_present_viewport_rect = m_async_scrolling_viewport_rect;
+        context.has_deferred_async_scroll_present = true;
+        context.deferred_async_scroll_present_viewport_rect = context.async_scrolling_viewport_rect;
         m_command_ready.signal();
     }
 
-    void set_hovered_viewport_scrollbar(Optional<size_t> scrollbar_index)
+    void set_hovered_viewport_scrollbar(ContextState& context, Optional<size_t> scrollbar_index)
     {
         bool changed = false;
         {
-            Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
-            if (m_hovered_viewport_scrollbar_index == scrollbar_index)
+            Sync::MutexLocker const locker { context.async_scroll_tree_mutex };
+            if (context.hovered_viewport_scrollbar_index == scrollbar_index)
                 return;
             changed = true;
-            m_hovered_viewport_scrollbar_index = scrollbar_index;
+            context.hovered_viewport_scrollbar_index = scrollbar_index;
         }
         if (changed)
-            schedule_viewport_scrollbar_present();
+            schedule_viewport_scrollbar_present(context);
     }
 
-    bool apply_viewport_scrollbar_drag(size_t scrollbar_index, float primary_position, float thumb_grab_position)
+    bool apply_viewport_scrollbar_drag(ContextState& context, size_t scrollbar_index, float primary_position, float thumb_grab_position)
     {
         Vector<AsyncScrollOffset> scroll_offsets;
         {
-            Sync::MutexLocker const locker { m_async_scroll_tree_mutex };
-            if (scrollbar_index >= m_viewport_scrollbars.size())
+            Sync::MutexLocker const locker { context.async_scroll_tree_mutex };
+            if (scrollbar_index >= context.viewport_scrollbars.size())
                 return false;
 
-            auto const& scrollbar = m_viewport_scrollbars[scrollbar_index];
-            auto expanded = m_hovered_viewport_scrollbar_index == scrollbar_index || m_captured_viewport_scrollbar_index == scrollbar_index;
+            auto const& scrollbar = context.viewport_scrollbars[scrollbar_index];
+            auto expanded = context.hovered_viewport_scrollbar_index == scrollbar_index || context.captured_viewport_scrollbar_index == scrollbar_index;
             auto scroll_size = scrollbar_scroll_size(scrollbar, expanded);
             if (scroll_size == 0)
                 return false;
 
-            auto current_scroll_offset = m_async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id, m_cached_scroll_state_snapshot);
+            auto current_scroll_offset = context.async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id, context.cached_scroll_state_snapshot);
             if (!current_scroll_offset.has_value())
                 return false;
 
@@ -974,26 +1124,26 @@ private:
             if (delta.x() == 0 && delta.y() == 0)
                 return false;
 
-            scroll_offsets = m_async_scroll_tree.apply_scroll_delta(scrollbar.scroll_node_id, delta, m_cached_scroll_state_snapshot);
+            scroll_offsets = context.async_scroll_tree.apply_scroll_delta(scrollbar.scroll_node_id, delta, context.cached_scroll_state_snapshot);
             if (scroll_offsets.is_empty())
                 return false;
-            m_async_scroll_tree.rebuild_wheel_hit_test_targets(m_cached_display_list, m_cached_scroll_state_snapshot);
+            context.async_scroll_tree.rebuild_wheel_hit_test_targets(context.cached_display_list, context.cached_scroll_state_snapshot);
         }
 
         auto scroll_offset = viewport_scroll_offset_from(scroll_offsets);
         if (!scroll_offset.has_value())
             return false;
 
-        store_pending_async_scroll_offsets(scroll_offsets);
+        store_pending_async_scroll_offsets(context, scroll_offsets);
 
         Gfx::IntRect async_scroll_viewport_rect;
         {
             Sync::MutexLocker const locker { m_mutex };
-            async_scroll_viewport_rect = m_async_scrolling_viewport_rect;
+            async_scroll_viewport_rect = context.async_scrolling_viewport_rect;
             async_scroll_viewport_rect.set_location(scroll_offset->to_type<int>());
-            m_async_scrolling_viewport_rect = async_scroll_viewport_rect;
-            m_has_deferred_async_scroll_present = true;
-            m_deferred_async_scroll_present_viewport_rect = async_scroll_viewport_rect;
+            context.async_scrolling_viewport_rect = async_scroll_viewport_rect;
+            context.has_deferred_async_scroll_present = true;
+            context.deferred_async_scroll_present_viewport_rect = async_scroll_viewport_rect;
         }
         invoke_on_main_thread([] {
             HTML::main_thread_event_loop().queue_task_to_update_the_rendering();
@@ -1003,65 +1153,70 @@ private:
 
     bool has_presentable_work() const
     {
-        return (m_has_deferred_async_scroll_present && !has_presented_bitmap_awaiting_ack_while_locked())
-            || (m_needs_present && !has_presented_bitmap_awaiting_ack_while_locked());
+        for (auto const& [_, context] : m_contexts) {
+            if ((context->has_deferred_async_scroll_present || context->needs_present)
+                && !has_presented_bitmap_awaiting_ack_while_locked(*context)) {
+                return true;
+            }
+        }
+        return false;
     }
 
-    bool can_present_deferred_async_scroll() const
+    bool can_present_deferred_async_scroll(ContextState& context) const
     {
         Sync::MutexLocker const locker { m_mutex };
-        return m_has_deferred_async_scroll_present && !has_presented_bitmap_awaiting_ack_while_locked();
+        return context.has_deferred_async_scroll_present && !has_presented_bitmap_awaiting_ack_while_locked(context);
     }
 
-    void present_frame(Gfx::IntRect viewport_rect, Optional<u64> presenting_frame_id = {}, PresentFrameDelivery delivery = PresentFrameDelivery::MainThread)
+    void present_frame(ContextState& context, Gfx::IntRect viewport_rect, Optional<u64> presenting_frame_id = {}, PresentFrameDelivery delivery = PresentFrameDelivery::MainThread)
     {
         auto delivery_name = delivery == PresentFrameDelivery::AsyncScroll ? "compositor-thread"sv : "main-thread"sv;
 
         {
             Sync::MutexLocker const locker { m_mutex };
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Begin {} present (frame={}, awaiting_bitmap={}, viewport={}x{} at {},{})",
-                delivery_name, presenting_frame_id.value_or(0), m_presented_bitmap_id_awaiting_ack.value_or(-1), viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
+                delivery_name, presenting_frame_id.value_or(0), context.presented_bitmap_id_awaiting_ack.value_or(-1), viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
 
-            if (delivery == PresentFrameDelivery::AsyncScroll && has_presented_bitmap_awaiting_ack_while_locked()) {
-                m_has_deferred_async_scroll_present = true;
-                m_deferred_async_scroll_present_viewport_rect = viewport_rect;
+            if (delivery == PresentFrameDelivery::AsyncScroll && has_presented_bitmap_awaiting_ack_while_locked(context)) {
+                context.has_deferred_async_scroll_present = true;
+                context.deferred_async_scroll_present_viewport_rect = viewport_rect;
                 dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Deferring async scroll present until bitmap {} is ready to paint",
-                    m_presented_bitmap_id_awaiting_ack.value());
+                    context.presented_bitmap_id_awaiting_ack.value());
                 return;
             }
-            VERIFY(!has_presented_bitmap_awaiting_ack_while_locked());
+            VERIFY(!has_presented_bitmap_awaiting_ack_while_locked(context));
             if (m_exit)
                 return;
-            m_is_rasterizing = true;
+            context.is_rasterizing = true;
         }
 
-        auto presentation_mode = [this] {
+        auto presentation_mode = [&] {
             Sync::MutexLocker const locker { m_mutex };
-            return m_presentation_mode;
+            return context.presentation_mode;
         }();
 
-        if (m_cached_display_list && m_backing_store_manager.is_valid()) {
+        if (context.cached_display_list && context.backing_store_manager.is_valid()) {
             auto should_clear_back_store = presentation_mode.visit(
                 [](CompositorThread::PresentToUI) { return false; },
                 [](CompositorThread::PublishToCompositorSurface const&) { return true; });
-            auto& back_store = m_backing_store_manager.back_store();
+            auto& back_store = context.backing_store_manager.back_store();
             if (should_clear_back_store) {
                 // Embedded navigables leave their PaintConfig canvas unfilled, so double-buffered back stores must be
                 // cleared before repainting.
                 back_store.canvas().clear(SK_ColorTRANSPARENT);
             }
-            m_skia_player->execute(*m_cached_display_list, m_display_list_resource_storage, m_cached_scroll_state_snapshot, back_store);
-            paint_viewport_scrollbar_overlay(back_store);
+            m_skia_player->execute(*context.cached_display_list, context.display_list_resource_storage, context.cached_scroll_state_snapshot, back_store);
+            paint_viewport_scrollbar_overlay(context, back_store);
             flush_surface(back_store);
-            i32 rendered_bitmap_id = m_backing_store_manager.back_bitmap_id();
-            m_backing_store_manager.swap();
+            i32 rendered_bitmap_id = context.backing_store_manager.back_bitmap_id();
+            context.backing_store_manager.swap();
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Finished {} display-list replay into bitmap {}",
                 delivery_name, rendered_bitmap_id);
 
             presentation_mode.visit(
-                [this, viewport_rect, rendered_bitmap_id, delivery](CompositorThread::PresentToUI) {
-                    if (m_presents_to_client) {
-                        finish_rasterizing(rendered_bitmap_id);
+                [this, &context, viewport_rect, rendered_bitmap_id, delivery](CompositorThread::PresentToUI) {
+                    if (context.presents_to_client) {
+                        finish_rasterizing(context, rendered_bitmap_id);
                         if (delivery == PresentFrameDelivery::AsyncScroll) {
                             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Finished async scroll raster into bitmap {}",
                                 rendered_bitmap_id);
@@ -1069,35 +1224,35 @@ private:
                         VERIFY(CompositorThread::present_frame_to_client(m_page_id, viewport_rect, rendered_bitmap_id));
                     } else {
                         Sync::MutexLocker const locker { m_mutex };
-                        m_is_rasterizing = false;
+                        context.is_rasterizing = false;
                     }
                 },
-                [this](CompositorThread::PublishToCompositorSurface const& mode) {
+                [this, &context](CompositorThread::PublishToCompositorSurface const& mode) {
                     {
                         Sync::MutexLocker const locker { m_mutex };
-                        m_is_rasterizing = false;
+                        context.is_rasterizing = false;
                     }
-                    if (m_has_async_scrolling_state)
+                    if (context.has_async_scrolling_state)
                         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Publishing present to compositor surface");
-                    auto& front_store = m_backing_store_manager.front_store();
+                    auto& front_store = context.backing_store_manager.front_store();
                     VERIFY(CompositorThread::update_compositor_surface_for_context(
                         mode.target_context_id, mode.surface_id, front_store.snapshot_into_shared_image()));
                 });
         } else {
             {
                 Sync::MutexLocker const locker { m_mutex };
-                m_is_rasterizing = false;
+                context.is_rasterizing = false;
             }
-            if (m_has_async_scrolling_state) {
+            if (context.has_async_scrolling_state) {
                 dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Skipping {} present: cached_display_list={}, backing_stores_valid={}",
-                    delivery_name, !!m_cached_display_list, m_backing_store_manager.is_valid());
+                    delivery_name, !!context.cached_display_list, context.backing_store_manager.is_valid());
             }
         }
 
         if (presenting_frame_id.has_value())
-            mark_frame_complete(*presenting_frame_id);
+            mark_frame_complete(context, *presenting_frame_id);
 
-        queue_rendering_update_if_async_scroll_updates_pending();
+        queue_rendering_update_if_async_scroll_updates_pending(context);
     }
 
     void initialize_skia_player(DisplayListPlayerType display_list_player_type)
@@ -1112,9 +1267,9 @@ private:
         m_skia_player = make<Painting::DisplayListPlayerSkia>(m_skia_backend_context);
     }
 
-    void publish_backing_store_pair(BackingStoreManager::Publication&& publication)
+    void publish_backing_store_pair(ContextState& context, BackingStoreManager::Publication&& publication)
     {
-        if (!m_presents_to_client)
+        if (!context.presents_to_client)
             return;
 
         VERIFY(CompositorThread::present_backing_stores_to_client(
@@ -1136,70 +1291,45 @@ private:
 
     u64 m_page_id { 0 };
     NonnullRefPtr<Core::WeakEventLoopReference> m_main_thread_event_loop;
-    bool m_presents_to_client { false };
 
     mutable Sync::Mutex m_mutex;
     mutable Sync::ConditionVariable m_command_ready { m_mutex };
     Atomic<bool> m_exit { false };
 
     Queue<CompositorCommandEnvelope> m_command_queue;
+    HashMap<CompositorContextId, NonnullRefPtr<ContextState>> m_contexts;
     Optional<CompositorContextId> m_default_context_id;
+    Optional<CompositorContextId> m_page_presentation_context_id;
 
     OwnPtr<Painting::DisplayListPlayerSkia> m_skia_player;
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
-    Painting::DisplayListResourceStorage m_display_list_resource_storage;
-    RefPtr<Painting::DisplayList> m_cached_display_list;
-    Painting::ScrollStateSnapshot m_cached_scroll_state_snapshot;
-    Vector<ViewportScrollbar> m_viewport_scrollbars;
-    Optional<size_t> m_hovered_viewport_scrollbar_index;
-    Optional<size_t> m_captured_viewport_scrollbar_index;
-    float m_viewport_scrollbar_thumb_grab_position { 0 };
-    mutable Sync::Mutex m_async_scroll_tree_mutex;
-    AsyncScrollTree m_async_scroll_tree;
-    BackingStoreManager m_backing_store_manager;
-    CompositorThread::PresentationMode m_presentation_mode { CompositorThread::PresentToUI {} };
-
-    Optional<i32> m_presented_bitmap_id_awaiting_ack;
-    bool m_is_rasterizing { false };
-
-    bool m_needs_present { false };
-    Gfx::IntRect m_pending_viewport_rect;
-    bool m_has_deferred_async_scroll_present { false };
-    Gfx::IntRect m_deferred_async_scroll_present_viewport_rect;
-
-    u64 m_submitted_frame_id { 0 };
-    u64 m_completed_frame_id { 0 };
     mutable Sync::ConditionVariable m_frame_completed { m_mutex };
-    Vector<AsyncScrollOffset> m_pending_async_scroll_offsets;
-    Vector<AsyncScrollOperationID> m_completed_async_scroll_operation_ids;
-    Atomic<AsyncScrollOperationID> m_next_async_scroll_operation_id { 0 };
-    Gfx::IntRect m_async_scrolling_viewport_rect;
-    Atomic<bool> m_has_async_scrolling_state { false };
-    Atomic<bool> m_can_accept_async_wheel_events { false };
-    u64 m_wheel_event_listener_state_generation { 0 };
-    WheelRoutingAdmission m_wheel_routing_admission { WheelRoutingAdmission::NoAsyncScrollingState };
 
 public:
-    void finish_rasterizing(i32 bitmap_id)
+    void finish_rasterizing(ContextState& context, i32 bitmap_id)
     {
         Sync::MutexLocker const locker { m_mutex };
-        m_is_rasterizing = false;
-        VERIFY(!m_presented_bitmap_id_awaiting_ack.has_value());
-        m_presented_bitmap_id_awaiting_ack = bitmap_id;
+        context.is_rasterizing = false;
+        VERIFY(!context.presented_bitmap_id_awaiting_ack.has_value());
+        context.presented_bitmap_id_awaiting_ack = bitmap_id;
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rasterized bitmap {} waiting for ready_to_paint",
             bitmap_id);
     }
 
     void mark_presented_bitmap_ready_to_paint(i32 bitmap_id)
     {
+        auto context_state = page_presentation_context_state();
+        if (!context_state)
+            return;
+        auto& context = *context_state;
         Sync::MutexLocker const locker { m_mutex };
-        if (m_presented_bitmap_id_awaiting_ack != bitmap_id) {
+        if (context.presented_bitmap_id_awaiting_ack != bitmap_id) {
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Ignoring stale ready_to_paint for bitmap {} while awaiting bitmap {}",
-                bitmap_id, m_presented_bitmap_id_awaiting_ack.value_or(-1));
+                bitmap_id, context.presented_bitmap_id_awaiting_ack.value_or(-1));
             return;
         }
 
-        m_presented_bitmap_id_awaiting_ack.clear();
+        context.presented_bitmap_id_awaiting_ack.clear();
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor ready_to_paint released bitmap {}",
             bitmap_id);
         m_command_ready.signal();
@@ -1252,6 +1382,7 @@ CompositorThread::Context::~Context()
     m_backing_store_shrink_timer.clear();
 
     unregister_page_compositor(m_thread_data->page_id(), *m_thread_data);
+    m_thread_data->unregister_context(m_context_id);
     {
         Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
         VERIFY(context_compositors().remove(m_context_id));
@@ -1273,7 +1404,7 @@ CompositorThread::~CompositorThread()
 OwnPtr<CompositorThread::Context> CompositorThread::create_context(PagePresentationRegistration page_presentation_registration)
 {
     auto context_id = allocate_compositor_context_id();
-    m_thread_data->set_default_context_id(context_id);
+    m_thread_data->register_context(context_id, page_presentation_registration);
 
     {
         Sync::MutexLocker const locker { compositor_presentation_state_mutex() };
@@ -1281,10 +1412,8 @@ OwnPtr<CompositorThread::Context> CompositorThread::create_context(PagePresentat
         context_compositors().set(context_id, m_thread_data);
     }
 
-    if (page_presentation_registration == PagePresentationRegistration::Yes) {
-        m_thread_data->set_presents_to_client();
+    if (page_presentation_registration == PagePresentationRegistration::Yes)
         register_page_compositor(m_thread_data->page_id(), m_thread_data);
-    }
 
     return adopt_own(*new Context(m_thread_data, context_id));
 }
@@ -1519,12 +1648,12 @@ void CompositorThread::start(DisplayListPlayerType display_list_player_type)
 
 void CompositorThread::Context::set_presentation_mode(PresentationMode mode)
 {
-    m_thread_data->set_presentation_mode(move(mode));
+    m_thread_data->set_presentation_mode(m_context_id, move(mode));
 }
 
 void CompositorThread::Context::stop_presenting_to_client()
 {
-    m_thread_data->stop_presenting_to_client();
+    m_thread_data->stop_presenting_to_client(m_context_id);
     unregister_page_compositor(m_thread_data->page_id(), *m_thread_data);
 }
 
@@ -1548,28 +1677,28 @@ void CompositorThread::Context::clear_compositor_surface(Painting::CompositorSur
 
 void CompositorThread::Context::invalidate_wheel_event_listener_state(u64 generation)
 {
-    m_thread_data->invalidate_wheel_event_listener_state(generation);
+    m_thread_data->invalidate_wheel_event_listener_state(m_context_id, generation);
 }
 
 CompositorThread::AsyncScrollEnqueueResult CompositorThread::Context::async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position,
     Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect, AsyncScrollOperationTracking operation_tracking)
 {
-    return m_thread_data->enqueue_async_scroll_by(expected_document_id, position, delta_in_device_pixels, viewport_rect, operation_tracking);
+    return m_thread_data->enqueue_async_scroll_by(m_context_id, expected_document_id, position, delta_in_device_pixels, viewport_rect, operation_tracking);
 }
 
 bool CompositorThread::Context::should_defer_async_scroll_offset_adoption() const
 {
-    return m_thread_data->should_defer_async_scroll_offset_adoption();
+    return m_thread_data->should_defer_async_scroll_offset_adoption(m_context_id);
 }
 
 bool CompositorThread::Context::should_defer_main_thread_present_for_async_scroll() const
 {
-    return m_thread_data->should_defer_main_thread_present_for_async_scroll();
+    return m_thread_data->should_defer_main_thread_present_for_async_scroll(m_context_id);
 }
 
 CompositorThread::PendingAsyncScrollUpdates CompositorThread::Context::take_pending_async_scroll_updates()
 {
-    return m_thread_data->take_pending_async_scroll_updates();
+    return m_thread_data->take_pending_async_scroll_updates(m_context_id);
 }
 
 void CompositorThread::Context::update_scroll_state(Painting::ScrollStateSnapshot&& scroll_state_snapshot)
@@ -1596,12 +1725,12 @@ void CompositorThread::Context::enqueue_viewport_size_updated(
 
 u64 CompositorThread::Context::present_frame(Gfx::IntRect viewport_rect)
 {
-    return m_thread_data->set_needs_present(viewport_rect);
+    return m_thread_data->set_needs_present(m_context_id, viewport_rect);
 }
 
 void CompositorThread::Context::wait_for_frame(u64 frame_id)
 {
-    m_thread_data->wait_for_frame(frame_id);
+    m_thread_data->wait_for_frame(m_context_id, frame_id);
 }
 
 void CompositorThread::Context::request_screenshot(NonnullRefPtr<Gfx::PaintingSurface> target_surface, Function<void()>&& callback)
