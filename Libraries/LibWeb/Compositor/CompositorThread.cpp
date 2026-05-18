@@ -82,7 +82,6 @@ struct ViewportSizeUpdatedCommand {
 
 struct PresentFrameCommand {
     Gfx::IntRect viewport_rect;
-    u64 frame_id { 0 };
 };
 
 struct ScreenshotCommand {
@@ -300,8 +299,6 @@ public:
         bool has_deferred_async_scroll_present { false };
         Gfx::IntRect deferred_async_scroll_present_viewport_rect;
 
-        u64 submitted_frame_id { 0 };
-        u64 completed_frame_id { 0 };
         Vector<AsyncScrollOffset> pending_async_scroll_offsets;
         Vector<AsyncScrollOperationID> completed_async_scroll_operation_ids;
         Atomic<AsyncScrollOperationID> next_async_scroll_operation_id { 0 };
@@ -364,7 +361,6 @@ public:
         Sync::MutexLocker const locker { m_mutex };
         m_exit = true;
         m_command_ready.signal();
-        m_frame_completed.broadcast();
     }
 
     void enqueue_command(CompositorContextId context_id, CompositorCommand&& command)
@@ -382,35 +378,13 @@ public:
         m_command_ready.signal();
     }
 
-    u64 enqueue_present_frame(CompositorContextId context_id, Gfx::IntRect viewport_rect)
+    void enqueue_present_frame(CompositorContextId context_id, Gfx::IntRect viewport_rect)
     {
         Sync::MutexLocker const locker { m_mutex };
-        auto context_state = m_contexts.get(context_id);
-        if (!context_state.has_value())
-            return 0;
-        auto& context = *context_state.value();
-        context.submitted_frame_id++;
-        m_command_queue.enqueue({ context_id, PresentFrameCommand { viewport_rect, context.submitted_frame_id } });
-        m_command_ready.signal();
-        return context.submitted_frame_id;
-    }
-
-    void mark_frame_complete(ContextState& context, u64 frame_id)
-    {
-        Sync::MutexLocker const locker { m_mutex };
-        context.completed_frame_id = frame_id;
-        m_frame_completed.broadcast();
-    }
-
-    void wait_for_frame(CompositorContextId context_id, u64 frame_id)
-    {
-        Sync::MutexLocker const locker { m_mutex };
-        auto context_state = m_contexts.get(context_id);
-        if (!context_state.has_value())
+        if (!m_contexts.contains(context_id))
             return;
-        auto& context = *context_state.value();
-        while (context.completed_frame_id < frame_id && !m_exit)
-            m_frame_completed.wait();
+        m_command_queue.enqueue({ context_id, PresentFrameCommand { viewport_rect } });
+        m_command_ready.signal();
     }
 
     CompositorThread::PendingAsyncScrollUpdates take_pending_async_scroll_updates(CompositorContextId context_id)
@@ -890,11 +864,10 @@ public:
                             if (has_presented_bitmap_awaiting_ack_while_locked(context)) {
                                 context.needs_present = true;
                                 context.pending_viewport_rect = cmd.viewport_rect;
-                                context.submitted_frame_id = cmd.frame_id;
                                 return;
                             }
                         }
-                        present_frame(context, cmd.viewport_rect, cmd.frame_id, PresentFrameDelivery::MainThread);
+                        present_frame(context, cmd.viewport_rect, PresentFrameDelivery::MainThread);
                     },
                     [this, &context](ScreenshotCommand& cmd) {
                         if (!context.cached_display_list)
@@ -923,10 +896,8 @@ public:
             bool should_present = false;
             RefPtr<ContextState> present_context_state;
             Gfx::IntRect viewport_rect;
-            u64 presenting_frame_id = 0;
             bool should_present_deferred_async_scroll = false;
             Gfx::IntRect deferred_async_scroll_viewport_rect;
-            Optional<u64> deferred_async_scroll_presenting_frame_id;
             {
                 Sync::MutexLocker const locker { m_mutex };
                 for (auto& [_, context] : m_contexts) {
@@ -935,12 +906,11 @@ public:
                         should_present_deferred_async_scroll = true;
                         deferred_async_scroll_viewport_rect = context->deferred_async_scroll_present_viewport_rect;
                         context->has_deferred_async_scroll_present = false;
-                        if (context->needs_present) {
-                            deferred_async_scroll_presenting_frame_id = context->submitted_frame_id;
+                        auto had_pending_main_thread_present = context->needs_present;
+                        if (had_pending_main_thread_present)
                             context->needs_present = false;
-                        }
                         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor selected deferred async present (pending_main_thread_present={})",
-                            deferred_async_scroll_presenting_frame_id.has_value());
+                            had_pending_main_thread_present);
                         break;
                     }
 
@@ -948,7 +918,6 @@ public:
                         present_context_state = context;
                         should_present = true;
                         viewport_rect = context->pending_viewport_rect;
-                        presenting_frame_id = context->submitted_frame_id;
                         context->needs_present = false;
                         break;
                     }
@@ -956,9 +925,9 @@ public:
             }
 
             if (should_present_deferred_async_scroll)
-                present_frame(*present_context_state, deferred_async_scroll_viewport_rect, deferred_async_scroll_presenting_frame_id, PresentFrameDelivery::AsyncScroll);
+                present_frame(*present_context_state, deferred_async_scroll_viewport_rect, PresentFrameDelivery::AsyncScroll);
             else if (should_present)
-                present_frame(*present_context_state, viewport_rect, presenting_frame_id, PresentFrameDelivery::MainThread);
+                present_frame(*present_context_state, viewport_rect, PresentFrameDelivery::MainThread);
         }
     }
 
@@ -1169,14 +1138,14 @@ private:
         return CompositorThread::update_compositor_surface_for_context(context_id, surface_id, move(shared_image));
     }
 
-    void present_frame(ContextState& context, Gfx::IntRect viewport_rect, Optional<u64> presenting_frame_id = {}, PresentFrameDelivery delivery = PresentFrameDelivery::MainThread)
+    void present_frame(ContextState& context, Gfx::IntRect viewport_rect, PresentFrameDelivery delivery)
     {
         auto delivery_name = delivery == PresentFrameDelivery::AsyncScroll ? "compositor-thread"sv : "main-thread"sv;
 
         {
             Sync::MutexLocker const locker { m_mutex };
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Begin {} present (frame={}, awaiting_bitmap={}, viewport={}x{} at {},{})",
-                delivery_name, presenting_frame_id.value_or(0), context.presented_bitmap_id_awaiting_ack.value_or(-1), viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Begin {} present (awaiting_bitmap={}, viewport={}x{} at {},{})",
+                delivery_name, context.presented_bitmap_id_awaiting_ack.value_or(-1), viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
 
             if (delivery == PresentFrameDelivery::AsyncScroll && has_presented_bitmap_awaiting_ack_while_locked(context)) {
                 context.has_deferred_async_scroll_present = true;
@@ -1251,9 +1220,6 @@ private:
             }
         }
 
-        if (presenting_frame_id.has_value())
-            mark_frame_complete(context, *presenting_frame_id);
-
         queue_rendering_update_if_async_scroll_updates_pending(context);
     }
 
@@ -1303,7 +1269,6 @@ private:
 
     OwnPtr<Painting::DisplayListPlayerSkia> m_skia_player;
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
-    mutable Sync::ConditionVariable m_frame_completed { m_mutex };
 
 public:
     void finish_rasterizing(ContextState& context, i32 bitmap_id)
@@ -1702,14 +1667,9 @@ void CompositorThread::Context::enqueue_viewport_size_updated(
         ViewportSizeUpdatedCommand { viewport_size, is_top_level_traversable, window_resize_in_progress });
 }
 
-u64 CompositorThread::Context::present_frame(Gfx::IntRect viewport_rect)
+void CompositorThread::Context::present_frame(Gfx::IntRect viewport_rect)
 {
-    return m_thread_data->enqueue_present_frame(m_context_id, viewport_rect);
-}
-
-void CompositorThread::Context::wait_for_frame(u64 frame_id)
-{
-    m_thread_data->wait_for_frame(m_context_id, frame_id);
+    m_thread_data->enqueue_present_frame(m_context_id, viewport_rect);
 }
 
 void CompositorThread::Context::request_screenshot(NonnullRefPtr<Gfx::PaintingSurface> target_surface, Function<void()>&& callback)

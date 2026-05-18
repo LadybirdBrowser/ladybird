@@ -91,8 +91,7 @@ public:
         bool should_defer_main_thread_present_for_async_scroll() const;
         PendingAsyncScrollUpdates take_pending_async_scroll_updates();
         void viewport_size_updated(Gfx::IntSize, bool is_top_level_traversable, WindowResizingInProgress);
-        u64 present_frame(Gfx::IntRect);
-        void wait_for_frame(u64 frame_id);
+        void present_frame(Gfx::IntRect);
         void request_screenshot(NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&& callback);
 
     private:
