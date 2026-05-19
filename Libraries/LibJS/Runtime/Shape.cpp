@@ -22,6 +22,7 @@ Shape::~Shape() = default;
 void Shape::finalize()
 {
     Base::finalize();
+    clear_forward_transitions();
     if (m_dictionary)
         m_property_storage.property_table.~PropertyTablePtr();
 }
@@ -65,8 +66,8 @@ size_t Shape::external_memory_size() const
     size_t size = 0;
     if (m_dictionary)
         size += hash_map_external_memory_size(property_table());
-    if (m_forward_transitions)
-        size += hash_map_external_memory_size(*m_forward_transitions);
+    if (m_forward_transition_storage == ForwardTransitionStorage::Multiple)
+        size += hash_map_external_memory_size(*m_forward_transitions.map);
     if (m_prototype_transitions)
         size += hash_map_external_memory_size(*m_prototype_transitions);
     if (m_delete_transitions)
@@ -91,17 +92,92 @@ GC::Ptr<Shape> Shape::get_or_prune_cached_forward_transition(TransitionKey const
 {
     if (is_prototype_shape())
         return nullptr;
-    if (!m_forward_transitions)
+    if (m_forward_transition_storage == ForwardTransitionStorage::Empty)
         return nullptr;
-    auto it = m_forward_transitions->find(key);
-    if (it == m_forward_transitions->end())
+
+    if (m_forward_transition_storage == ForwardTransitionStorage::Single) {
+        auto shape = m_single_forward_transition.ptr();
+        if (!shape) {
+            // The cached forward transition has gone stale (from garbage collection). Prune it.
+            clear_forward_transitions();
+            return nullptr;
+        }
+        if (!(m_forward_transitions.property_key == key.property_key && m_single_forward_transition_attributes == key.attributes.bits()))
+            return nullptr;
+        return shape;
+    }
+
+    auto it = m_forward_transitions.map->find(key);
+    if (it == m_forward_transitions.map->end())
         return nullptr;
     if (!it->value) {
         // The cached forward transition has gone stale (from garbage collection). Prune it.
-        m_forward_transitions->remove(it);
+        m_forward_transitions.map->remove(it);
         return nullptr;
     }
     return it->value.ptr();
+}
+
+void Shape::cache_forward_transition(TransitionKey const& key, GC::Ref<Shape> shape)
+{
+    VERIFY(!is_prototype_shape());
+
+    switch (m_forward_transition_storage) {
+    case ForwardTransitionStorage::Empty:
+        new (&m_forward_transitions.property_key) PropertyKey(key.property_key);
+        m_single_forward_transition_attributes = key.attributes.bits();
+        m_single_forward_transition = shape;
+        m_forward_transition_storage = ForwardTransitionStorage::Single;
+        return;
+    case ForwardTransitionStorage::Single: {
+        auto existing_shape = m_single_forward_transition;
+        if (!existing_shape) {
+            m_forward_transitions.property_key = key.property_key;
+            m_single_forward_transition_attributes = key.attributes.bits();
+            m_single_forward_transition = shape;
+            return;
+        }
+
+        if (m_forward_transitions.property_key == key.property_key && m_single_forward_transition_attributes == key.attributes.bits()) {
+            m_single_forward_transition = shape;
+            return;
+        }
+
+        TransitionKey existing_key { m_forward_transitions.property_key, static_cast<u8>(m_single_forward_transition_attributes) };
+        m_forward_transitions.property_key.~PropertyKey();
+        m_single_forward_transition_attributes = 0;
+        m_single_forward_transition = nullptr;
+
+        new (&m_forward_transitions.map) ForwardTransitionMapPtr(make<ForwardTransitionMap>());
+        m_forward_transition_storage = ForwardTransitionStorage::Multiple;
+
+        m_forward_transitions.map->set(move(existing_key), move(existing_shape));
+        m_forward_transitions.map->set(key, ForwardTransitionTarget(shape));
+        return;
+    }
+    case ForwardTransitionStorage::Multiple:
+        m_forward_transitions.map->set(key, ForwardTransitionTarget(shape));
+        return;
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
+void Shape::clear_forward_transitions()
+{
+    switch (m_forward_transition_storage) {
+    case ForwardTransitionStorage::Empty:
+        return;
+    case ForwardTransitionStorage::Single:
+        m_forward_transitions.property_key.~PropertyKey();
+        m_single_forward_transition_attributes = 0;
+        m_single_forward_transition = nullptr;
+        break;
+    case ForwardTransitionStorage::Multiple:
+        m_forward_transitions.map.~ForwardTransitionMapPtr();
+        break;
+    }
+    m_forward_transition_storage = ForwardTransitionStorage::Empty;
 }
 
 GC::Ptr<Shape> Shape::get_or_prune_cached_delete_transition(PropertyKey const& key)
@@ -153,11 +229,8 @@ GC::Ref<Shape> Shape::create_put_transition(PropertyKey const& property_key, Pro
         new_shape->descriptors()->set(property_key, { m_property_count, attributes }, m_property_count);
     }
     invalidate_prototype_if_needed_for_new_prototype(new_shape);
-    if (!is_prototype_shape()) {
-        if (!m_forward_transitions)
-            m_forward_transitions = make<HashMap<TransitionKey, GC::Weak<Shape>>>();
-        m_forward_transitions->set(key, new_shape);
-    }
+    if (!is_prototype_shape())
+        cache_forward_transition(key, new_shape);
     return new_shape;
 }
 
@@ -170,11 +243,8 @@ GC::Ref<Shape> Shape::create_configure_transition(PropertyKey const& property_ke
     new_shape->set_descriptors(copy_descriptors());
     new_shape->descriptors()->set_attributes(property_key, attributes, m_property_count);
     invalidate_prototype_if_needed_for_new_prototype(new_shape);
-    if (!is_prototype_shape()) {
-        if (!m_forward_transitions)
-            m_forward_transitions = make<HashMap<TransitionKey, GC::Weak<Shape>>>();
-        m_forward_transitions->set(key, new_shape.ptr());
-    }
+    if (!is_prototype_shape())
+        cache_forward_transition(key, new_shape);
     return new_shape;
 }
 
@@ -249,8 +319,10 @@ void Shape::visit_edges(Cell::Visitor& visitor)
     visitor.ignore(m_child_prototype_shapes);
 
     // FIXME: The forward transition keys should be weak, but we have to mark them for now in case they go stale.
-    if (m_forward_transitions) {
-        for (auto& it : *m_forward_transitions)
+    if (m_forward_transition_storage == ForwardTransitionStorage::Single) {
+        m_forward_transitions.property_key.visit_edges(visitor);
+    } else if (m_forward_transition_storage == ForwardTransitionStorage::Multiple) {
+        for (auto& it : *m_forward_transitions.map)
             it.key.property_key.visit_edges(visitor);
     }
 

@@ -103,6 +103,12 @@ private:
         Decrement,
     };
 
+    enum class ForwardTransitionStorage : u8 {
+        Empty,
+        Single,
+        Multiple,
+    };
+
     explicit Shape(Realm&);
     Shape(Shape& previous_shape, PropertyCountChange);
     Shape(Shape& previous_shape, Object* new_prototype);
@@ -117,6 +123,8 @@ private:
     virtual size_t external_memory_size() const override;
 
     [[nodiscard]] GC::Ptr<Shape> get_or_prune_cached_forward_transition(TransitionKey const&);
+    void cache_forward_transition(TransitionKey const&, GC::Ref<Shape>);
+    void clear_forward_transitions();
     [[nodiscard]] GC::Ptr<Shape> get_or_prune_cached_prototype_transition(Object* prototype);
     [[nodiscard]] GC::Ptr<Shape> get_or_prune_cached_delete_transition(PropertyKey const&);
 
@@ -126,6 +134,9 @@ private:
 
     using PropertyTable = OrderedHashMap<PropertyKey, PropertyMetadata>;
     using PropertyTablePtr = OwnPtr<PropertyTable>;
+    using ForwardTransitionMap = HashMap<TransitionKey, GC::Weak<Shape>>;
+    using ForwardTransitionMapPtr = OwnPtr<ForwardTransitionMap>;
+    using ForwardTransitionTarget = GC::Weak<Shape>;
 
     static_assert(IsTriviallyDestructible<GC::Ptr<DescriptorArray>>);
 
@@ -147,14 +158,25 @@ private:
         PropertyTablePtr property_table;
     };
 
+    union ForwardTransitions {
+        ForwardTransitions() { }
+        ~ForwardTransitions() { }
+
+        PropertyKey property_key;
+        ForwardTransitionMapPtr map;
+    };
+
     bool m_dictionary : 1 { false };
     bool m_has_parameter_map : 1 { false };
+    ForwardTransitionStorage m_forward_transition_storage : 2 { ForwardTransitionStorage::Empty };
+    u8 m_single_forward_transition_attributes { 0 };
 
     GC::Ref<Realm> m_realm;
 
     PropertyStorage m_property_storage;
 
-    OwnPtr<HashMap<TransitionKey, GC::Weak<Shape>>> m_forward_transitions;
+    ForwardTransitions m_forward_transitions;
+    ForwardTransitionTarget m_single_forward_transition;
     OwnPtr<HashMap<GC::Ptr<Object>, GC::Weak<Shape>>> m_prototype_transitions;
     OwnPtr<HashMap<PropertyKey, GC::Weak<Shape>>> m_delete_transitions;
     GC::Ptr<Object> m_prototype;
@@ -168,7 +190,7 @@ private:
 };
 
 #if !defined(AK_OS_WINDOWS)
-static_assert(sizeof(Shape) == 88, "Keep the size of JS::Shape down!");
+static_assert(sizeof(Shape) == 96, "Keep the size of JS::Shape down!");
 #endif
 
 }
