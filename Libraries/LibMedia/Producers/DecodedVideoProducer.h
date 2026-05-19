@@ -132,6 +132,8 @@ private:
 
         size_t m_queue_max_size { 4 };
         FrameQueue m_queue;
+        AK::Duration m_earliest_available_timestamp;
+        AK::Duration m_latest_available_timestamp;
         FrameEndTimeHandler m_duration_change_handler;
         ErrorHandler m_error_handler;
         PipelineStatus m_current_halting_status { PipelineStatus::Pending };

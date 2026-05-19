@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/EventLoop.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/MediaTimeProvider.h>
 #include <LibMedia/PipelineStatus.h>
@@ -74,11 +75,38 @@ void DisplayingVideoSink::disconnect_input(NonnullRefPtr<VideoProducer> const& i
     m_input = nullptr;
 }
 
+static AK::Duration conservative_frame_end(VideoFrame& frame)
+{
+    return frame.timestamp() + frame.duration().scaled_by(3, 2);
+}
+
 void DisplayingVideoSink::seek(AK::Duration timestamp)
 {
+    m_seek_id++;
+
+    auto available_start = AK::Duration::max();
+    auto available_end = AK::Duration::min();
+    auto include_frame = [&](RefPtr<VideoFrame> const& frame) {
+        if (frame == nullptr)
+            return;
+        available_start = min(available_start, frame->timestamp());
+        available_end = max(available_end, conservative_frame_end(*frame));
+    };
+    include_frame(m_current_frame);
+    include_frame(m_next_frame);
+
+    m_last_dispatched_status = PipelineStatus::Pending;
+    if (timestamp >= available_start && timestamp < available_end) {
+        Core::deferred_invoke([self = NonnullRefPtr(*this), seek_id = m_seek_id] {
+            if (self->m_seek_id != seek_id)
+                return;
+            self->dispatch_state_if_changed(PipelineStatus::HaveData);
+        });
+        return;
+    }
+
     if (m_input != nullptr)
         m_input->seek(timestamp);
-    m_last_dispatched_status = PipelineStatus::Pending;
     m_seek_status = SeekStatus::InProgress;
 }
 

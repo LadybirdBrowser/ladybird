@@ -60,6 +60,7 @@ private:
 
     PipelineStateChangeHandler m_on_state_changed;
     PipelineStatus m_last_dispatched_status { PipelineStatus::Pending };
+    u32 m_seek_id { 0 };
 };
 
 }
