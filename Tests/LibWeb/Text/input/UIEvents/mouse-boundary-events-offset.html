@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<style>
+body {
+    margin: 0;
+    width: 300px;
+    height: 300px;
+}
+
+#outer {
+    position: absolute;
+    left: 20px;
+    top: 30px;
+    width: 100px;
+    height: 100px;
+    border: 5px solid black;
+    padding: 10px;
+}
+
+#middle {
+    position: absolute;
+    left: 20px;
+    top: 25px;
+    width: 60px;
+    height: 60px;
+    border: 4px solid black;
+    padding: 6px;
+}
+
+#inner {
+    position: absolute;
+    left: 15px;
+    top: 18px;
+    width: 20px;
+    height: 20px;
+    border: 2px solid black;
+    padding: 3px;
+}
+</style>
+<body><div id="outer"><div id="middle"><div id="inner"></div></div></div></body>
+<script src="../include.js"></script>
+<script>
+    const targets = [outer, middle, inner];
+    const events = [
+        "pointerover",
+        "mouseover",
+        "pointerenter",
+        "mouseenter",
+        "pointerout",
+        "mouseout",
+        "pointerleave",
+        "mouseleave",
+    ];
+
+    function logEvent(event) {
+        let relatedTargetName = event.relatedTarget?.id || event.relatedTarget?.localName || "null";
+        let targets = `target=${event.target.id} current=${event.currentTarget.id} related=${relatedTargetName}`;
+        println(`${event.type} ${targets} offset=(${event.offsetX}, ${event.offsetY})`);
+    }
+
+    for (const target of targets) {
+        for (const event of events)
+            target.addEventListener(event, logEvent);
+    }
+
+    test(() => {
+        internals.mouseMove(200, 200);
+
+        println("> enter inner");
+        internals.mouseMove(70, 90);
+
+        println("> leave inner and middle, remain in outer");
+        internals.mouseMove(35, 50);
+
+        println("> enter inner again");
+        internals.mouseMove(70, 90);
+
+        println("> leave all");
+        internals.mouseMove(200, 200);
+    });
+</script>
