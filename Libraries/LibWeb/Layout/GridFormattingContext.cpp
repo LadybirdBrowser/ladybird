@@ -11,6 +11,7 @@
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/GridFormattingContext.h>
 #include <LibWeb/Layout/ReplacedBox.h>
+#include <LibWeb/Layout/TableWrapper.h>
 
 namespace Web::Layout {
 
@@ -1718,7 +1719,8 @@ void GridFormattingContext::resolve_grid_item_sizes(GridDimension dimension)
             CSSPixels size;
         };
 
-        auto try_compute_size = [&item, containing_block_size, alignment, dimension](CSSPixels a_size, CSS::Size const& css_size) -> ItemAlignment {
+        auto try_compute_size = [&item, containing_block_size, alignment, dimension](CSSPixels a_size, CSS::Size const& css_size, Optional<CSSPixels> containing_block_size_override = {}) -> ItemAlignment {
+            auto alignment_containing_block_size = containing_block_size_override.value_or(containing_block_size);
             ItemAlignment result = {
                 .margin_start = item.used_margin_start(dimension),
                 .margin_end = item.used_margin_end(dimension),
@@ -1730,7 +1732,7 @@ void GridFormattingContext::resolve_grid_item_sizes(GridDimension dimension)
             // properties, thereby disabling the effects of any self-alignment properties in that axis.
             // Overflowing grid items resolve their auto margins to zero and overflow as specified by their box
             // alignment properties.
-            auto free_space_left_for_margins = containing_block_size - result.size - item.used_margin_box_start(dimension) - item.used_margin_box_end(dimension);
+            auto free_space_left_for_margins = alignment_containing_block_size - result.size - item.used_margin_box_start(dimension) - item.used_margin_box_end(dimension);
             bool start_is_auto = item.margin_start(dimension).is_auto();
             bool end_is_auto = item.margin_end(dimension).is_auto();
             auto absorbed_margin_space = max(CSSPixels(0), free_space_left_for_margins);
@@ -1749,7 +1751,7 @@ void GridFormattingContext::resolve_grid_item_sizes(GridDimension dimension)
             if ((start_is_auto || end_is_auto) && free_space_left_for_margins > 0)
                 return result;
 
-            auto free_space_left_for_alignment = containing_block_size - a_size - item.used_margin_box_start(dimension) - item.used_margin_box_end(dimension);
+            auto free_space_left_for_alignment = alignment_containing_block_size - a_size - item.used_margin_box_start(dimension) - item.used_margin_box_end(dimension);
             switch (alignment) {
             case Alignment::Normal:
             case Alignment::Stretch:
@@ -1822,6 +1824,16 @@ void GridFormattingContext::resolve_grid_item_sizes(GridDimension dimension)
                     .margin_end = item.used_margin_end(dimension),
                     .size = stretched_size
                 };
+            } else if (dimension == GridDimension::Column && is<TableWrapper>(*item.box)) {
+                // CSS Grid lays out each grid item into its grid-area containing block before alignment. For
+                // display:table, the anonymous table wrapper is the grid item, while table layout computes the inner
+                // table's border-box width, so resolve the wrapper width with the same grid-area basis used later.
+                auto table_wrapper_containing_block_width = non_cyclic_containing_block_width_for_table_wrapper(item, containing_block_size);
+                auto table_wrapper_width = compute_table_box_width_inside_table_wrapper(
+                    item.box, available_space, table_wrapper_containing_block_width, TableWrapperWidthMode::UseTableUsedWidthIfNotAuto);
+                if (table_box_inside_table_wrapper(item).computed_values().width().is_auto())
+                    table_wrapper_width = max(table_wrapper_width, calculate_min_content_width(item.box));
+                used_alignment = try_compute_size(table_wrapper_width, CSS::Size::make_px(table_wrapper_width), table_wrapper_containing_block_width);
             } else if (preferred_size.is_auto() || preferred_size.is_fit_content()) {
                 CSSPixels fit_content_size;
                 if (dimension == GridDimension::Column) {
@@ -2196,8 +2208,16 @@ void GridFormattingContext::run(AvailableSpace const& available_space)
     }
 
     for (auto& grid_item : m_grid_items) {
-        CSSPixelPoint margin_offset = { grid_item.used_values.margin_box_left(), grid_item.used_values.margin_box_top() };
         auto const grid_area_rect = get_grid_area_rect(grid_item);
+        if (is<TableWrapper>(*grid_item.box)) {
+            // Track spacing can expand the final grid area after the earlier width pass. Recompute the wrapper width
+            // against that final area and store it so the real table layout resolves percentages against the grid area.
+            resolve_table_wrapper_grid_item_width(grid_item, grid_area_rect.width());
+            auto grid_area_size = grid_area_rect.size();
+            grid_area_size.set_width(non_cyclic_containing_block_width_for_table_wrapper(grid_item, grid_area_size.width()));
+            grid_item.used_values.set_grid_area_size(grid_area_size);
+        }
+        CSSPixelPoint margin_offset = { grid_item.used_values.margin_box_left(), grid_item.used_values.margin_box_top() };
         grid_item.used_values.set_content_offset(grid_area_rect.top_left() + margin_offset);
         compute_inset(grid_item.box, grid_area_rect.size());
 
@@ -2572,6 +2592,132 @@ CSSPixels GridFormattingContext::containing_block_size_for_item(GridItem const& 
         containing_block_size += track.base_size;
     });
     return containing_block_size;
+}
+
+Box const& GridFormattingContext::table_box_inside_table_wrapper(GridItem const& item) const
+{
+    Optional<Box const&> table_box;
+    item.box->for_each_in_subtree_of_type<Box>([&](Box const& child_box) {
+        if (child_box.display().is_table_inside()) {
+            table_box = child_box;
+            return TraversalDecision::Break;
+        }
+        return TraversalDecision::Continue;
+    });
+    VERIFY(table_box.has_value());
+    return *table_box;
+}
+
+void GridFormattingContext::resolve_table_wrapper_grid_item_width(GridItem& item, CSSPixels containing_block_width)
+{
+    VERIFY(is<TableWrapper>(*item.box));
+
+    auto table_wrapper_containing_block_width = non_cyclic_containing_block_width_for_table_wrapper(item, containing_block_width);
+    auto available_space = AvailableSpace {
+        AvailableSize::make_definite(clamp_to_max_dimension_value(table_wrapper_containing_block_width)),
+        AvailableSize::make_definite(clamp_to_max_dimension_value(containing_block_size_for_item(item, GridDimension::Row)))
+    };
+    auto table_wrapper_width = compute_table_box_width_inside_table_wrapper(
+        item.box, available_space, table_wrapper_containing_block_width, TableWrapperWidthMode::UseTableUsedWidthIfNotAuto);
+    auto const& preferred_width = item.preferred_size(GridDimension::Column);
+    if (!preferred_width.is_auto())
+        table_wrapper_width = max(table_wrapper_width, calculate_inner_width(item.box, available_space.width, preferred_width));
+    if (table_box_inside_table_wrapper(item).computed_values().width().is_auto())
+        table_wrapper_width = max(table_wrapper_width, calculate_min_content_width(item.box));
+    auto alignment = alignment_for_item(item.box, GridDimension::Column);
+    if (table_box_inside_table_wrapper(item).computed_values().width().is_auto()
+        && (alignment == Alignment::Normal || alignment == Alignment::Stretch)
+        && !item.margin_start(GridDimension::Column).is_auto()
+        && !item.margin_end(GridDimension::Column).is_auto()) {
+        table_wrapper_width = max(table_wrapper_width, table_wrapper_containing_block_width - item.used_margin_box_start(GridDimension::Column) - item.used_margin_box_end(GridDimension::Column));
+    }
+    if (!should_treat_max_width_as_none(item.box, available_space.width))
+        table_wrapper_width = min(table_wrapper_width, calculate_inner_width(item.box, available_space.width, item.maximum_size(GridDimension::Column)));
+    if (!item.minimum_size(GridDimension::Column).is_auto())
+        table_wrapper_width = max(table_wrapper_width, calculate_inner_width(item.box, available_space.width, item.minimum_size(GridDimension::Column)));
+
+    auto const& computed_values = item.box->computed_values();
+    item.used_values.margin_left = computed_values.margin().left().to_px_or_zero(grid_container(), table_wrapper_containing_block_width);
+    item.used_values.margin_right = computed_values.margin().right().to_px_or_zero(grid_container(), table_wrapper_containing_block_width);
+
+    auto margin_start = item.used_margin_start(GridDimension::Column);
+    auto margin_end = item.used_margin_end(GridDimension::Column);
+    auto free_space_left_for_margins = table_wrapper_containing_block_width - table_wrapper_width - item.used_margin_box_start(GridDimension::Column) - item.used_margin_box_end(GridDimension::Column);
+    bool start_is_auto = item.margin_start(GridDimension::Column).is_auto();
+    bool end_is_auto = item.margin_end(GridDimension::Column).is_auto();
+    auto absorbed_margin_space = max(CSSPixels(0), free_space_left_for_margins);
+    if (start_is_auto && end_is_auto) {
+        margin_start = absorbed_margin_space / 2;
+        margin_end = absorbed_margin_space / 2;
+    } else if (start_is_auto) {
+        margin_start = absorbed_margin_space;
+    } else if (end_is_auto) {
+        margin_end = absorbed_margin_space;
+    }
+
+    if (!(start_is_auto || end_is_auto) || free_space_left_for_margins <= 0) {
+        auto free_space_left_for_alignment = table_wrapper_containing_block_width - table_wrapper_width - item.used_margin_box_start(GridDimension::Column) - item.used_margin_box_end(GridDimension::Column);
+        switch (alignment) {
+        case Alignment::Center:
+            margin_start += free_space_left_for_alignment / 2;
+            margin_end += free_space_left_for_alignment / 2;
+            break;
+        case Alignment::Start:
+        case Alignment::Baseline:
+            margin_end += free_space_left_for_alignment;
+            break;
+        case Alignment::End:
+            margin_start += free_space_left_for_alignment;
+            break;
+        case Alignment::Normal:
+        case Alignment::Stretch:
+        default:
+            break;
+        }
+    }
+
+    item.used_values.margin_left = margin_start;
+    item.used_values.margin_right = margin_end;
+    item.used_values.set_content_width(table_wrapper_width);
+}
+
+CSSPixels GridFormattingContext::non_cyclic_containing_block_width_for_table_wrapper(GridItem const& item, CSSPixels containing_block_width) const
+{
+    auto const& table_box = table_box_inside_table_wrapper(item);
+    auto const& table_box_computed_values = table_box.computed_values();
+    if (!table_box_computed_values.width().contains_percentage()
+        && !table_box_computed_values.min_width().contains_percentage()
+        && !table_box_computed_values.max_width().contains_percentage()) {
+        return containing_block_width;
+    }
+
+    if (!m_grid_container_used_values.has_definite_width())
+        return containing_block_width;
+
+    auto const available_width = AvailableSize::make_definite(clamp_to_max_dimension_value(m_grid_container_used_values.content_width()));
+    bool spans_intrinsic_column_track = false;
+    for_each_spanned_track_by_item(item, GridDimension::Column, [&](GridTrack const& track) {
+        if (track.is_gap)
+            return;
+        if (track.min_track_sizing_function.is_intrinsic(available_width) || track.max_track_sizing_function.is_intrinsic(available_width))
+            spans_intrinsic_column_track = true;
+    });
+    if (!spans_intrinsic_column_track)
+        return containing_block_width;
+
+    // CSS Grid breaks cyclic percentage dependencies during intrinsic track sizing. Percentage table width/min/max
+    // constraints can contribute to intrinsic column tracks, so do not feed that contribution back into the table
+    // wrapper containing block when resolving the final table width or margins.
+    CSSPixels total_column_width = 0;
+    for (auto const& track : m_grid_columns_and_gaps)
+        total_column_width += track.base_size;
+
+    if (total_column_width <= m_grid_container_used_values.content_width())
+        return containing_block_width;
+
+    auto non_spanned_column_width = max(CSSPixels(0), total_column_width - containing_block_width);
+    auto non_cyclic_containing_block_width = max(CSSPixels(0), m_grid_container_used_values.content_width() - non_spanned_column_width);
+    return min(containing_block_width, non_cyclic_containing_block_width);
 }
 
 CSSPixels GridFormattingContext::calculate_min_content_contribution(GridItem const& item, GridDimension dimension) const

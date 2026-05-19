@@ -23,6 +23,11 @@ TableFormattingContext::~TableFormattingContext() = default;
 
 CSSPixels TableFormattingContext::table_wrapper_containing_block_width() const
 {
+    // CSS Grid creates a grid-area containing block for each grid item. The table wrapper is the grid item for
+    // display:table, so table-root percentages use the grid area rather than the layout-tree containing block.
+    if (auto const& grid_area_size = m_state.get(table_wrapper()).grid_area_size(); grid_area_size.has_value())
+        return grid_area_size->width();
+
     auto const* containing_block_used_values = m_state.try_get(*table_wrapper().containing_block());
     if (!containing_block_used_values)
         return 0;
@@ -31,6 +36,10 @@ CSSPixels TableFormattingContext::table_wrapper_containing_block_width() const
 
 CSSPixels TableFormattingContext::table_wrapper_containing_block_height() const
 {
+    // Keep the block-axis percentage basis consistent with the grid-area containing block stored during grid layout.
+    if (auto const& grid_area_size = m_state.get(table_wrapper()).grid_area_size(); grid_area_size.has_value())
+        return grid_area_size->height();
+
     auto const* containing_block_used_values = m_state.try_get(*table_wrapper().containing_block());
     if (!containing_block_used_values)
         return 0;
