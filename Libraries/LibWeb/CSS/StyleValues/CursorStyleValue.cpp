@@ -65,10 +65,7 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
 
     auto const& document = layout_node.document();
 
-    CacheKey cache_key {
-        .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node),
-        .current_color = layout_node.computed_values().color(),
-    };
+    auto const& current_color = layout_node.computed_values().color();
 
     // Create a bitmap if needed.
     // The cursor size for a given image never changes. It's based either on the image itself, or our default size,
@@ -100,8 +97,8 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
     }
 
     // Repaint the bitmap if necessary
-    if (m_cache_key != cache_key) {
-        m_cache_key = move(cache_key);
+    if (m_cached_bitmap_color != current_color) {
+        m_cached_bitmap_color = current_color;
 
         // Clear whatever was in the bitmap before.
         auto& bitmap = *m_cached_bitmap->bitmap();
