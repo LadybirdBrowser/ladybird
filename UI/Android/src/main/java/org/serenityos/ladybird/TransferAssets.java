@@ -40,6 +40,10 @@ public class TransferAssets {
         if (isExtractionComplete(assetDir)) {
             return assetDir.getAbsolutePath();
         }
+        if (hasLegacyExtractedAssets(assetDir)) {
+            createExtractionMarker(assetDir);
+            return assetDir.getAbsolutePath();
+        }
 
         cleanupIncompleteExtraction(assetDir);
 
@@ -53,7 +57,11 @@ public class TransferAssets {
 
     private static boolean isExtractionComplete(File assetDir) {
         return new File(assetDir, EXTRACTION_MARKER).exists()
-            && new File(assetDir, "res/icons/48x48/app-browser.png").exists()
+            && hasLegacyExtractedAssets(assetDir);
+    }
+
+    private static boolean hasLegacyExtractedAssets(File assetDir) {
+        return new File(assetDir, "res/icons/48x48/app-browser.png").exists()
             && new File(assetDir, "cacert.pem").exists();
     }
 
@@ -108,7 +116,7 @@ public class TransferAssets {
                     }
                 });
         } catch (IOException exception) {
-            throw new IOException("Unable to read Android system certificates from " + certificateDirectory, exception);
+            throw new IOException("Unable to read Android system certificates from " + certificateDirectory + ": " + exception.getMessage(), exception);
         } catch (UncheckedIOException exception) {
             throw exception.getCause();
         }
