@@ -79,16 +79,6 @@ u8 YUVData::bit_depth() const
     return m_impl->bit_depth;
 }
 
-Media::Subsampling YUVData::subsampling() const
-{
-    return m_impl->subsampling;
-}
-
-Media::CodingIndependentCodePoints const& YUVData::cicp() const
-{
-    return m_impl->cicp;
-}
-
 Bytes YUVData::y_data()
 {
     return m_impl->y_buffer.span();

@@ -38,7 +38,6 @@ public:
     virtual void offset(Gfx::FloatPoint const&) = 0;
 
     virtual void append_path(Gfx::Path const&) = 0;
-    virtual void intersect(Gfx::Path const&) = 0;
 
     [[nodiscard]] virtual Vector<u8> serialize_to_bytes() const = 0;
     virtual void deserialize_from_bytes(ReadonlyBytes) = 0;
@@ -108,7 +107,6 @@ public:
     void vertical_line_to(float y) { line_to({ last_point().x(), y }); }
 
     void append_path(Gfx::Path const& other) { impl().append_path(other); }
-    void intersect(Gfx::Path const& other) { impl().intersect(other); }
 
     [[nodiscard]] Vector<u8> serialize_to_bytes() const { return impl().serialize_to_bytes(); }
 
@@ -118,9 +116,7 @@ public:
     bool contains(FloatPoint point, Gfx::WindingRule winding_rule) const { return impl().contains(point, winding_rule); }
     void set_fill_type(Gfx::WindingRule winding_rule) { impl().set_fill_type(winding_rule); }
 
-    Gfx::Path clone() const { return Gfx::Path { impl().clone() }; }
     Gfx::Path copy_transformed(Gfx::AffineTransform const& transform) const { return Gfx::Path { impl().copy_transformed(transform) }; }
-    Gfx::Path place_text_along(Utf8View const& text, Font const& font) const { return Gfx::Path { impl().place_text_along(text, font) }; }
     Gfx::Path place_text_along(Utf16View const& text, Font const& font) const { return Gfx::Path { impl().place_text_along(text, font) }; }
 
     String to_svg_string() const { return impl().to_svg_string(); }

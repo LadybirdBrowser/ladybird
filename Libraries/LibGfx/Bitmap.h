@@ -78,8 +78,6 @@ public:
 
     [[nodiscard]] u8* unchecked_scanline_u8(int physical_y);
     [[nodiscard]] u8 const* unchecked_scanline_u8(int physical_y) const;
-    [[nodiscard]] RawPixel* unchecked_scanline(int physical_y);
-    [[nodiscard]] RawPixel const* unchecked_scanline(int physical_y) const;
 
     [[nodiscard]] RawPixel* begin();
     [[nodiscard]] RawPixel const* begin() const;
@@ -96,7 +94,6 @@ public:
 
     [[nodiscard]] static size_t minimum_pitch(size_t width, BitmapFormat);
 
-    [[nodiscard]] bool has_alpha_channel() const { return m_format == BitmapFormat::BGRA8888 || m_format == BitmapFormat::RGBA8888; }
     [[nodiscard]] BitmapFormat format() const { return m_format; }
 
     // Call only for BGRx8888 and BGRA8888 bitmaps.
@@ -165,16 +162,6 @@ ALWAYS_INLINE u8* Bitmap::unchecked_scanline_u8(int y)
 ALWAYS_INLINE u8 const* Bitmap::unchecked_scanline_u8(int y) const
 {
     return reinterpret_cast<u8 const*>(m_data) + (y * m_pitch);
-}
-
-ALWAYS_INLINE RawPixel* Bitmap::unchecked_scanline(int y)
-{
-    return reinterpret_cast<RawPixel*>(unchecked_scanline_u8(y));
-}
-
-ALWAYS_INLINE RawPixel const* Bitmap::unchecked_scanline(int y) const
-{
-    return reinterpret_cast<RawPixel const*>(unchecked_scanline_u8(y));
 }
 
 ALWAYS_INLINE u8* Bitmap::scanline_u8(int y)

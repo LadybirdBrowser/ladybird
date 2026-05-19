@@ -8,7 +8,6 @@
 #include <AK/Stream.h>
 #include <AK/Vector.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/CMYKBitmap.h>
 #include <LibGfx/ImageFormats/JPEGWriter.h>
 #include <jpeglib.h>
 
@@ -47,7 +46,7 @@ struct MemoryDestinationManager : public jpeg_destination_mgr {
     }
 };
 
-ErrorOr<void> JPEGWriter::encode_impl(Stream& stream, auto const& bitmap, Options const& options, ColorSpace color_space)
+ErrorOr<void> JPEGWriter::encode(Stream& stream, Bitmap const& bitmap, Options const& options)
 {
     struct jpeg_compress_struct cinfo {};
     struct jpeg_error_mgr jerr {};
@@ -63,17 +62,7 @@ ErrorOr<void> JPEGWriter::encode_impl(Stream& stream, auto const& bitmap, Option
     cinfo.image_width = bitmap.size().width();
     cinfo.image_height = bitmap.size().height();
     cinfo.input_components = 4;
-
-    switch (color_space) {
-    case ColorSpace::RGB:
-        cinfo.in_color_space = JCS_EXT_BGRX;
-        break;
-    case ColorSpace::CMYK:
-        cinfo.in_color_space = JCS_CMYK;
-        break;
-    default:
-        VERIFY_NOT_REACHED();
-    }
+    cinfo.in_color_space = JCS_EXT_BGRX;
 
     jpeg_set_defaults(&cinfo);
     jpeg_set_colorspace(&cinfo, JCS_YCbCr);
@@ -99,16 +88,6 @@ ErrorOr<void> JPEGWriter::encode_impl(Stream& stream, auto const& bitmap, Option
 
     TRY(stream.write_until_depleted(buffer));
     return {};
-}
-
-ErrorOr<void> JPEGWriter::encode(Stream& stream, Bitmap const& bitmap, Options const& options)
-{
-    return encode_impl(stream, bitmap, options, ColorSpace::RGB);
-}
-
-ErrorOr<void> JPEGWriter::encode(Stream& stream, CMYKBitmap const& bitmap, Options const& options)
-{
-    return encode_impl(stream, bitmap, options, ColorSpace::CMYK);
 }
 
 }

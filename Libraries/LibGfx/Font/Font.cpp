@@ -25,7 +25,7 @@ namespace Gfx {
 
 static Atomic<u64> s_next_id { 1 };
 
-Font::Font(NonnullRefPtr<Typeface const> typeface, float point_width, float point_height, unsigned dpi_x, unsigned dpi_y, FontVariationSettings const variations, ShapeFeatures const& features)
+Font::Font(NonnullRefPtr<Typeface const> typeface, float point_width, float point_height, FontVariationSettings const variations, ShapeFeatures const& features)
     : m_id(s_next_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
     , m_typeface(move(typeface))
     , m_point_width(point_width)
@@ -33,10 +33,6 @@ Font::Font(NonnullRefPtr<Typeface const> typeface, float point_width, float poin
     , m_font_variation_settings(move(variations))
     , m_shape_features(features)
 {
-    float const units_per_em = m_typeface->units_per_em();
-    m_x_scale = (point_width * dpi_x) / (POINTS_PER_INCH * units_per_em);
-    m_y_scale = (point_height * dpi_y) / (POINTS_PER_INCH * units_per_em);
-
     m_pixel_size = m_point_height * (DEFAULT_DPI / POINTS_PER_INCH);
 
     auto const* sk_typeface = as<TypefaceSkia>(*m_typeface).sk_typeface();
@@ -46,27 +42,12 @@ Font::Font(NonnullRefPtr<Typeface const> typeface, float point_width, float poin
     font.getMetrics(&skMetrics);
 
     FontPixelMetrics metrics;
-    metrics.size = font.getSize();
     metrics.x_height = skMetrics.fXHeight;
     metrics.advance_of_ascii_zero = font.measureText("0", 1, SkTextEncoding::kUTF8);
     metrics.ascent = -skMetrics.fAscent;
     metrics.descent = skMetrics.fDescent;
-    metrics.line_gap = skMetrics.fLeading;
 
     m_pixel_metrics = metrics;
-}
-
-ScaledFontMetrics Font::metrics() const
-{
-    SkFontMetrics sk_metrics;
-    skia_font(1).getMetrics(&sk_metrics);
-
-    ScaledFontMetrics metrics;
-    metrics.ascender = -sk_metrics.fAscent;
-    metrics.descender = sk_metrics.fDescent;
-    metrics.line_gap = sk_metrics.fLeading;
-    metrics.x_height = sk_metrics.fXHeight;
-    return metrics;
 }
 
 float Font::width(Utf16View const& view) const { return measure_text_width(view, *this); }
@@ -77,18 +58,13 @@ float Font::glyph_width(u32 code_point) const
     return measure_text_width(string.utf16_view(), *this);
 }
 
-NonnullRefPtr<Font> Font::scaled_with_size(float point_size) const
+NonnullRefPtr<Font> Font::with_size(float point_size) const
 {
     if (point_size == m_point_height && point_size == m_point_width)
         return *const_cast<Font*>(this);
 
     // FIXME: Should we be discarding m_font_variation_settings and m_shape_features here?
     return m_typeface->font(point_size);
-}
-
-NonnullRefPtr<Font> Font::with_size(float point_size) const
-{
-    return scaled_with_size(point_size);
 }
 
 float Font::pixel_size() const

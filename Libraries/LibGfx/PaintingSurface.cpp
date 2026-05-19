@@ -203,12 +203,6 @@ void PaintingSurface::notify_content_will_change()
     m_impl->surface->notifyContentWillChange(SkSurface::kDiscard_ContentChangeMode);
 }
 
-template<>
-sk_sp<SkImage> PaintingSurface::sk_image_snapshot() const
-{
-    return m_impl->surface->makeImageSnapshot();
-}
-
 RefPtr<SkiaBackendContext> PaintingSurface::skia_backend_context() const
 {
     return m_impl->context;

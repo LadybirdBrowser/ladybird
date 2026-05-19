@@ -119,21 +119,6 @@ public:
         return division;
     }
 
-    [[nodiscard]] friend constexpr Matrix operator*(Matrix const& matrix, T scalar)
-    {
-        Matrix scaled;
-        for (size_t i = 0; i < N; ++i) {
-            for (size_t j = 0; j < N; ++j)
-                scaled[i, j] = matrix[i, j] * scalar;
-        }
-        return scaled;
-    }
-
-    [[nodiscard]] friend constexpr Matrix operator*(T scalar, Matrix const& matrix)
-    {
-        return matrix * scalar;
-    }
-
     [[nodiscard]] constexpr Matrix adjugate() const
     {
         if constexpr (N == 1)
@@ -212,18 +197,6 @@ public:
         for (size_t i = 0; i < N; ++i) {
             for (size_t j = 0; j < N; ++j)
                 result[i, j] = (*this)[j, i];
-        }
-        return result;
-    }
-
-    template<size_t U>
-    [[nodiscard]] constexpr Matrix<U, T> submatrix_from_topleft() const
-    requires(U > 0 && U < N)
-    {
-        Matrix<U, T> result;
-        for (size_t i = 0; i < U; ++i) {
-            for (size_t j = 0; j < U; ++j)
-                result[i, j] = (*this)[i, j];
         }
         return result;
     }

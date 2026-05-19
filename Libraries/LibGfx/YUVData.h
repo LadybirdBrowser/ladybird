@@ -36,8 +36,6 @@ public:
 
     IntSize size() const;
     u8 bit_depth() const;
-    Media::Subsampling subsampling() const;
-    Media::CodingIndependentCodePoints const& cicp() const;
 
     // Writable access for decoder to fill buffers after creation
     Bytes y_data();

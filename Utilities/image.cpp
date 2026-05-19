@@ -29,8 +29,6 @@ static ErrorOr<LoadedImage> load_image(RefPtr<Gfx::ImageDecoder> const& decoder,
     auto bitmap = TRY([&]() -> ErrorOr<AnyBitmap> {
         switch (internal_format) {
         case Gfx::NaturalFrameFormat::RGB:
-        case Gfx::NaturalFrameFormat::Grayscale:
-        case Gfx::NaturalFrameFormat::Vector:
             return TRY(decoder->frame(frame_index)).image;
         case Gfx::NaturalFrameFormat::CMYK:
             return TRY(decoder->cmyk_frame());

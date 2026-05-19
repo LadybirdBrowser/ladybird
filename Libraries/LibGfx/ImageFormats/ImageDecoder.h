@@ -15,7 +15,6 @@
 #include <LibGfx/CMYKBitmap.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/Size.h>
-#include <LibGfx/VectorGraphic.h>
 #include <LibMedia/Color/CodingIndependentCodePoints.h>
 
 namespace Gfx {
@@ -25,38 +24,15 @@ struct ImageFrameDescriptor {
     int duration { 0 };
 };
 
-struct VectorImageFrameDescriptor {
-    NonnullRefPtr<VectorGraphic> image;
-    int duration { 0 };
-};
-
 class Metadata {
 public:
     Metadata() = default;
     virtual ~Metadata() = default;
-
-    HashMap<StringView, String> const& main_tags() const
-    {
-        if (m_main_tags.is_empty())
-            fill_main_tags();
-
-        // This is designed to be used in a general GUI, don't include too much information here.
-        VERIFY(m_main_tags.size() < 8);
-
-        return m_main_tags;
-    }
-
-protected:
-    virtual void fill_main_tags() const { }
-
-    mutable HashMap<StringView, String> m_main_tags;
 };
 
 enum class NaturalFrameFormat {
     RGB,
-    Grayscale,
     CMYK,
-    Vector,
 };
 
 class ImageDecoderPlugin {
@@ -79,7 +55,6 @@ public:
     virtual bool is_animated() { return false; }
     virtual size_t loop_count() { return 0; }
     virtual size_t frame_count() { return 1; }
-    virtual size_t first_animated_frame_index() { return 0; }
 
     virtual ErrorOr<ImageFrameDescriptor> frame(size_t index, Optional<IntSize> ideal_size = {}) = 0;
 
@@ -98,7 +73,6 @@ public:
 
     virtual NaturalFrameFormat natural_frame_format() const { return NaturalFrameFormat::RGB; }
     virtual ErrorOr<NonnullRefPtr<CMYKBitmap>> cmyk_frame() { VERIFY_NOT_REACHED(); }
-    virtual ErrorOr<VectorImageFrameDescriptor> vector_frame(size_t) { VERIFY_NOT_REACHED(); }
 
 protected:
     ImageDecoderPlugin() = default;
@@ -110,12 +84,9 @@ public:
     ~ImageDecoder() = default;
 
     IntSize size() const { return m_plugin->size(); }
-    int width() const { return size().width(); }
-    int height() const { return size().height(); }
     bool is_animated() const { return m_plugin->is_animated(); }
     size_t loop_count() const { return m_plugin->loop_count(); }
     size_t frame_count() const { return m_plugin->frame_count(); }
-    size_t first_animated_frame_index() const { return m_plugin->first_animated_frame_index(); }
 
     ErrorOr<ImageFrameDescriptor> frame(size_t index, Optional<IntSize> ideal_size = {}) const { return m_plugin->frame(index, ideal_size); }
     int frame_duration(size_t index) const { return m_plugin->frame_duration(index); }
@@ -128,9 +99,6 @@ public:
 
     // Call only if natural_frame_format() == NaturalFrameFormat::CMYK.
     ErrorOr<NonnullRefPtr<CMYKBitmap>> cmyk_frame() { return m_plugin->cmyk_frame(); }
-
-    // Call only if natural_frame_format() == NaturalFrameFormat::Vector.
-    ErrorOr<VectorImageFrameDescriptor> vector_frame(size_t index) { return m_plugin->vector_frame(index); }
 
 private:
     explicit ImageDecoder(NonnullOwnPtr<ImageDecoderPlugin>);

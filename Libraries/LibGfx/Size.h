@@ -47,59 +47,15 @@ public:
 
     [[nodiscard]] ALWAYS_INLINE constexpr bool is_empty() const { return m_width <= 0 || m_height <= 0; }
 
-    constexpr void scale_by(T dx, T dy)
-    {
-        m_width *= dx;
-        m_height *= dy;
-    }
-
-    ALWAYS_INLINE constexpr void scale_by(T dboth) { scale_by(dboth, dboth); }
-    ALWAYS_INLINE constexpr void scale_by(Point<T> const& s) { scale_by(s.x(), s.y()); }
-
-    [[nodiscard]] constexpr Size scaled(T dx, T dy) const
-    {
-        Size<T> size = *this;
-        size.scale_by(dx, dy);
-        return size;
-    }
-
     [[nodiscard]] constexpr Size scaled(T dboth) const
     {
-        Size<T> size = *this;
-        size.scale_by(dboth);
-        return size;
-    }
-
-    [[nodiscard]] constexpr Size scaled(Point<T> const& s) const
-    {
-        Size<T> size = *this;
-        size.scale_by(s);
-        return size;
+        return { m_width * dboth, m_height * dboth };
     }
 
     [[nodiscard]] constexpr float aspect_ratio() const
     {
         VERIFY(height() != 0);
         return static_cast<float>(width()) / static_cast<float>(height());
-    }
-
-    // Horizontal means preserve the width, Vertical means preserve the height.
-    [[nodiscard]] constexpr Size<T> match_aspect_ratio(float aspect_ratio, Orientation side_to_preserve) const
-    {
-        VERIFY(aspect_ratio != 0.0f);
-        auto matched = *this;
-        auto height_corresponding_to_width = static_cast<T>(static_cast<float>(width()) / aspect_ratio);
-        auto width_corresponding_to_height = static_cast<T>(static_cast<float>(height()) * aspect_ratio);
-
-        switch (side_to_preserve) {
-        case Orientation::Vertical:
-            matched.m_width = width_corresponding_to_height;
-            break;
-        case Orientation::Horizontal:
-            matched.m_height = height_corresponding_to_width;
-            break;
-        }
-        return matched;
     }
 
     template<typename U>
@@ -114,28 +70,7 @@ public:
         return width() == other.width() && height() == other.height();
     }
 
-    constexpr Size<T>& operator-=(Size<T> const& other)
-    {
-        m_width -= other.m_width;
-        m_height -= other.m_height;
-        return *this;
-    }
-
-    Size<T>& operator+=(Size<T> const& other)
-    {
-        m_width += other.m_width;
-        m_height += other.m_height;
-        return *this;
-    }
-
     [[nodiscard]] constexpr Size<T> operator*(T factor) const { return { m_width * factor, m_height * factor }; }
-
-    constexpr Size<T>& operator*=(T factor)
-    {
-        m_width *= factor;
-        m_height *= factor;
-        return *this;
-    }
 
     [[nodiscard]] constexpr T primary_size_for_orientation(Orientation orientation) const
     {
@@ -171,8 +106,6 @@ public:
     {
         return Size<U>(*this);
     }
-
-    [[nodiscard]] ByteString to_byte_string() const;
 
     template<Integral I>
     [[nodiscard]] Size<I> to_rounded() const

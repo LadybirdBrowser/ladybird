@@ -375,19 +375,6 @@ public:
 private:
     friend {HANDLE_TAG_SIGNATURE_TIFF_NAMESPACE};
 
-    virtual void fill_main_tags() const override {{
-        if (model().has_value())
-            m_main_tags.set("Model"sv, model().value());
-        if (make().has_value())
-            m_main_tags.set("Manufacturer"sv, make().value());
-        if (software().has_value())
-            m_main_tags.set("Software"sv, software().value());
-        if (date_time().has_value())
-            m_main_tags.set("Creation Time"sv, date_time().value());
-        if (artist().has_value())
-            m_main_tags.set("Author"sv, artist().value());
-    }}
-
     void add_entry(StringView key, Vector<TIFF::Value>&& value) {{
         m_data.set(key, move(value));
     }}

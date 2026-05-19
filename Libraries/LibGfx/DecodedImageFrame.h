@@ -36,7 +36,6 @@ public:
     }
 
     Bitmap const& bitmap() const { return *m_bitmap; }
-    NonnullRefPtr<Bitmap const> bitmap_ref() const { return m_bitmap; }
     ColorSpace const& color_space() const { return m_color_space; }
     u64 id() const { return m_id; }
 

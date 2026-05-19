@@ -121,16 +121,6 @@ Utf16String Color::to_utf16_string_without_alpha() const
     return Utf16String::formatted("#{:02x}{:02x}{:02x}", red(), green(), blue());
 }
 
-ByteString Color::to_byte_string() const
-{
-    return to_string().to_byte_string();
-}
-
-ByteString Color::to_byte_string_without_alpha() const
-{
-    return to_string_without_alpha().to_byte_string();
-}
-
 static Optional<Color> parse_rgb_color(StringView string)
 {
     VERIFY(string.starts_with("rgb("sv, CaseSensitivity::CaseInsensitive));
@@ -430,30 +420,6 @@ Optional<Color> Color::from_utf16_string(Utf16View const& string)
     return from_string(string.to_utf8_but_should_be_ported_to_utf16());
 }
 
-Vector<Color> Color::shades(u32 steps, float max) const
-{
-    float shade = 1.f;
-    float step = max / steps;
-    Vector<Color> shades;
-    for (u32 i = 0; i < steps; i++) {
-        shade -= step;
-        shades.append(this->darkened(shade));
-    }
-    return shades;
-}
-
-Vector<Color> Color::tints(u32 steps, float max) const
-{
-    float shade = 1.f;
-    float step = max / steps;
-    Vector<Color> tints;
-    for (u32 i = 0; i < steps; i++) {
-        shade += step;
-        tints.append(this->lightened(shade));
-    }
-    return tints;
-}
-
 static Color color_from_linear_srgb(ColorComponents const& linear)
 {
     auto srgb = linear_srgb_to_srgb(linear);
@@ -538,20 +504,10 @@ ErrorOr<Gfx::Color> IPC::decode(Decoder& decoder)
 
 ErrorOr<void> AK::Formatter<Gfx::Color>::format(FormatBuilder& builder, Gfx::Color value)
 {
-    return Formatter<StringView>::format(builder, value.to_byte_string());
-}
-
-ErrorOr<void> AK::Formatter<Gfx::YUV>::format(FormatBuilder& builder, Gfx::YUV value)
-{
-    return Formatter<FormatString>::format(builder, "{} {} {}"sv, value.y, value.u, value.v);
+    return Formatter<StringView>::format(builder, value.to_string().to_byte_string());
 }
 
 ErrorOr<void> AK::Formatter<Gfx::HSV>::format(FormatBuilder& builder, Gfx::HSV value)
 {
     return Formatter<FormatString>::format(builder, "{} {} {}"sv, value.hue, value.saturation, value.value);
-}
-
-ErrorOr<void> AK::Formatter<Gfx::Oklab>::format(FormatBuilder& builder, Gfx::Oklab value)
-{
-    return Formatter<FormatString>::format(builder, "{} {} {}"sv, value.L, value.a, value.b);
 }

@@ -14,7 +14,6 @@
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/ConfigFile.h>
 #include <LibGfx/Color.h>
-#include <LibGfx/TextAlignment.h>
 
 namespace Gfx {
 
@@ -118,90 +117,22 @@ namespace Gfx {
     C(WindowText)                  \
     C(Yellow)
 
-#define ENUMERATE_ALIGNMENT_ROLES(C) \
-    C(TitleAlignment)
-
 #define ENUMERATE_FLAG_ROLES(C) \
-    C(BoldTextAsBright)         \
-    C(IsDark)                   \
-    C(TitleButtonsIconOnly)
-
-#define ENUMERATE_METRIC_ROLES(C) \
-    C(BorderThickness)            \
-    C(BorderRadius)               \
-    C(TitleHeight)                \
-    C(TitleButtonWidth)           \
-    C(TitleButtonHeight)
+    C(IsDark)
 
 #define ENUMERATE_PATH_ROLES(C) \
-    C(TitleButtonIcons)         \
-    C(InactiveWindowShadow)     \
-    C(ActiveWindowShadow)       \
-    C(TaskbarShadow)            \
-    C(MenuShadow)               \
-    C(TooltipShadow)            \
     C(ColorScheme)
 
 enum class ColorRole {
-    NoRole,
-
 #undef __ENUMERATE_COLOR_ROLE
 #define __ENUMERATE_COLOR_ROLE(role) role,
     ENUMERATE_COLOR_ROLES(__ENUMERATE_COLOR_ROLE)
 #undef __ENUMERATE_COLOR_ROLE
 
         __Count,
-
-    Background = Window,
-    DisabledText = ThreedShadow1,
 };
-
-inline StringView to_string(ColorRole role)
-{
-    switch (role) {
-    case ColorRole::NoRole:
-        return "NoRole"sv;
-#undef __ENUMERATE_COLOR_ROLE
-#define __ENUMERATE_COLOR_ROLE(role) \
-    case ColorRole::role:            \
-        return #role##sv;
-        ENUMERATE_COLOR_ROLES(__ENUMERATE_COLOR_ROLE)
-#undef __ENUMERATE_COLOR_ROLE
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
-enum class AlignmentRole {
-    NoRole,
-
-#undef __ENUMERATE_ALIGNMENT_ROLE
-#define __ENUMERATE_ALIGNMENT_ROLE(role) role,
-    ENUMERATE_ALIGNMENT_ROLES(__ENUMERATE_ALIGNMENT_ROLE)
-#undef __ENUMERATE_ALIGNMENT_ROLE
-
-        __Count,
-};
-
-inline StringView to_string(AlignmentRole role)
-{
-    switch (role) {
-    case AlignmentRole::NoRole:
-        return "NoRole"sv;
-#undef __ENUMERATE_ALIGNMENT_ROLE
-#define __ENUMERATE_ALIGNMENT_ROLE(role) \
-    case AlignmentRole::role:            \
-        return #role##sv;
-        ENUMERATE_ALIGNMENT_ROLES(__ENUMERATE_ALIGNMENT_ROLE)
-#undef __ENUMERATE_ALIGNMENT_ROLE
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
 
 enum class FlagRole {
-    NoRole,
-
 #undef __ENUMERATE_FLAG_ROLE
 #define __ENUMERATE_FLAG_ROLE(role) role,
     ENUMERATE_FLAG_ROLES(__ENUMERATE_FLAG_ROLE)
@@ -210,52 +141,7 @@ enum class FlagRole {
         __Count,
 };
 
-inline StringView to_string(FlagRole role)
-{
-    switch (role) {
-    case FlagRole::NoRole:
-        return "NoRole"sv;
-#undef __ENUMERATE_FLAG_ROLE
-#define __ENUMERATE_FLAG_ROLE(role) \
-    case FlagRole::role:            \
-        return #role##sv;
-        ENUMERATE_FLAG_ROLES(__ENUMERATE_FLAG_ROLE)
-#undef __ENUMERATE_FLAG_ROLE
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
-enum class MetricRole {
-    NoRole,
-
-#undef __ENUMERATE_METRIC_ROLE
-#define __ENUMERATE_METRIC_ROLE(role) role,
-    ENUMERATE_METRIC_ROLES(__ENUMERATE_METRIC_ROLE)
-#undef __ENUMERATE_METRIC_ROLE
-
-        __Count,
-};
-
-inline StringView to_string(MetricRole role)
-{
-    switch (role) {
-    case MetricRole::NoRole:
-        return "NoRole"sv;
-#undef __ENUMERATE_METRIC_ROLE
-#define __ENUMERATE_METRIC_ROLE(role) \
-    case MetricRole::role:            \
-        return #role##sv;
-        ENUMERATE_METRIC_ROLES(__ENUMERATE_METRIC_ROLE)
-#undef __ENUMERATE_METRIC_ROLE
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
 enum class PathRole {
-    NoRole,
-
 #undef __ENUMERATE_PATH_ROLE
 #define __ENUMERATE_PATH_ROLE(role) role,
     ENUMERATE_PATH_ROLES(__ENUMERATE_PATH_ROLE)
@@ -264,42 +150,14 @@ enum class PathRole {
         __Count,
 };
 
-inline StringView to_string(PathRole role)
-{
-    switch (role) {
-    case PathRole::NoRole:
-        return "NoRole"sv;
-#undef __ENUMERATE_PATH_ROLE
-#define __ENUMERATE_PATH_ROLE(role) \
-    case PathRole::role:            \
-        return #role##sv;
-        ENUMERATE_PATH_ROLES(__ENUMERATE_PATH_ROLE)
-#undef __ENUMERATE_PATH_ROLE
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
 struct SystemTheme {
     BGRA8888 color[(int)ColorRole::__Count];
-    Gfx::TextAlignment alignment[(int)AlignmentRole::__Count];
     bool flag[(int)FlagRole::__Count];
-    int metric[(int)MetricRole::__Count];
     char path[(int)PathRole::__Count][256]; // TODO: PATH_MAX?
 };
 
-Core::AnonymousBuffer& current_system_theme_buffer();
-void set_system_theme(Core::AnonymousBuffer);
-ErrorOr<Core::AnonymousBuffer> load_system_theme(Core::ConfigFile const&, Optional<ByteString> const& color_scheme = OptionalNone());
-ErrorOr<Core::AnonymousBuffer> load_system_theme(ByteString const& path, Optional<ByteString> const& color_scheme = OptionalNone());
-
-struct SystemThemeMetaData {
-    ByteString name;
-    ByteString menu_name;
-    ByteString path;
-};
-
-ErrorOr<Vector<SystemThemeMetaData>> list_installed_system_themes();
+ErrorOr<Core::AnonymousBuffer> load_system_theme(Core::ConfigFile const&);
+ErrorOr<Core::AnonymousBuffer> load_system_theme(ByteString const& path);
 
 }
 

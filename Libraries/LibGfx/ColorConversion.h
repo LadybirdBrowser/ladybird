@@ -143,41 +143,6 @@ constexpr ColorComponents srgb_to_hsv(ColorComponents const& rgb)
     return { hue, saturation, max, rgb.alpha() };
 }
 
-// https://www.itu.int/rec/R-REC-BT.1700-0-200502-I/en Table 4
-constexpr ColorComponents yuv_to_srgb(ColorComponents const& yuv)
-{
-    float y = yuv[0];
-    float u = yuv[1];
-    float v = yuv[2];
-
-    // Table 4, Items 8 and 9 arithmetically inverted
-    float r = y + v / 0.877f;
-    float b = y + u / 0.493f;
-    float g = (y - 0.299f * r - 0.114f * b) / 0.587f;
-    r = clamp(r, 0.0f, 1.0f);
-    g = clamp(g, 0.0f, 1.0f);
-    b = clamp(b, 0.0f, 1.0f);
-
-    return { r, g, b, yuv.alpha() };
-}
-
-// https://www.itu.int/rec/R-REC-BT.1700-0-200502-I/en Table 4
-constexpr ColorComponents srgb_to_yuv(ColorComponents const& rgb)
-{
-    float r = rgb[0];
-    float g = rgb[1];
-    float b = rgb[2];
-    // Item 8
-    float y = 0.299f * r + 0.587f * g + 0.114f * b;
-    // Item 9
-    float u = 0.493f * (b - y);
-    float v = 0.877f * (r - y);
-    y = clamp(y, 0.0f, 1.0f);
-    u = clamp(u, -1.0f, 1.0f);
-    v = clamp(v, -1.0f, 1.0f);
-    return { y, u, v, rgb.alpha() };
-}
-
 // https://bottosson.github.io/posts/oklab/
 constexpr ColorComponents oklab_to_linear_srgb(ColorComponents const& oklab)
 {
@@ -198,25 +163,6 @@ constexpr ColorComponents oklab_to_linear_srgb(ColorComponents const& oklab)
     float blue = -0.0041960863f * l - 0.7034186147f * m + 1.7076147010f * s;
 
     return { red, green, blue, oklab.alpha() };
-}
-
-// https://bottosson.github.io/posts/oklab/
-constexpr ColorComponents linear_srgb_to_oklab(ColorComponents const& rgb)
-{
-    float r = rgb[0];
-    float g = rgb[1];
-    float b = rgb[2];
-
-    float l = cbrtf(0.4122214708f * r + 0.5363325363f * g + 0.0514459929f * b);
-    float m = cbrtf(0.2119034982f * r + 0.6806995451f * g + 0.1073969566f * b);
-    float s = cbrtf(0.0883024619f * r + 0.2817188376f * g + 0.6299787005f * b);
-
-    return {
-        0.2104542553f * l + 0.7936177850f * m - 0.0040720468f * s,
-        1.9779984951f * l - 2.4285922050f * m + 0.4505937099f * s,
-        0.0259040371f * l + 0.7827717662f * m - 0.8086757660f * s,
-        rgb.alpha(),
-    };
 }
 
 ColorComponents linear_display_p3_to_xyz65(ColorComponents const&);

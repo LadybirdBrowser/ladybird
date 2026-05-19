@@ -59,7 +59,4 @@ private:
     bool m_has_no_points { true };
 };
 
-using FloatBoundingBox = BoundingBox<float>;
-using IntBoundingBox = BoundingBox<int>;
-
 }

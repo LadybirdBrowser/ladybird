@@ -250,7 +250,6 @@ void ConnectionFromClient::update_system_theme(u64 page_id, Core::AnonymousBuffe
     if (!page.has_value())
         return;
 
-    Gfx::set_system_theme(theme_buffer);
     auto impl = Gfx::PaletteImpl::create_with_anonymous_buffer(theme_buffer);
     page->set_palette_impl(*impl);
 }

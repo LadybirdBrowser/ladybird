@@ -70,16 +70,7 @@ public:
     [[nodiscard]] ALWAYS_INLINE bool is_empty() const { return width() <= 0 || height() <= 0; }
 
     ALWAYS_INLINE void translate_by(T dx, T dy) { m_location.translate_by(dx, dy); }
-    ALWAYS_INLINE void translate_by(T dboth) { m_location.translate_by(dboth); }
     ALWAYS_INLINE void translate_by(Point<T> const& delta) { m_location.translate_by(delta); }
-
-    ALWAYS_INLINE void scale_by(T dx, T dy)
-    {
-        m_location.scale_by(dx, dy);
-        m_size.scale_by(dx, dy);
-    }
-    ALWAYS_INLINE void scale_by(T dboth) { scale_by(dboth, dboth); }
-    ALWAYS_INLINE void scale_by(Point<T> const& delta) { scale_by(delta.x(), delta.y()); }
 
     [[nodiscard]] Point<T> center() const
     {
@@ -142,14 +133,6 @@ public:
         set_height(height() - (top + bottom));
     }
 
-    void shrink(Size<T> const& size)
-    {
-        set_x(x() + size.width() / 2);
-        set_width(width() - size.width());
-        set_y(y() + size.height() / 2);
-        set_height(height() - size.height());
-    }
-
     [[nodiscard]] Rect<T> translated(T dx, T dy) const
     {
         Rect<T> rect = *this;
@@ -157,38 +140,10 @@ public:
         return rect;
     }
 
-    [[nodiscard]] Rect<T> translated(T dboth) const
-    {
-        Rect<T> rect = *this;
-        rect.translate_by(dboth);
-        return rect;
-    }
-
     [[nodiscard]] Rect<T> translated(Point<T> const& delta) const
     {
         Rect<T> rect = *this;
         rect.translate_by(delta);
-        return rect;
-    }
-
-    [[nodiscard]] Rect<T> scaled(T dboth) const
-    {
-        Rect<T> rect = *this;
-        rect.scale_by(dboth);
-        return rect;
-    }
-
-    [[nodiscard]] Rect<T> scaled(T sx, T sy) const
-    {
-        Rect<T> rect = *this;
-        rect.scale_by(sx, sy);
-        return rect;
-    }
-
-    [[nodiscard]] Rect<T> scaled(Point<T> const& s) const
-    {
-        Rect<T> rect = *this;
-        rect.scale_by(s);
         return rect;
     }
 
@@ -203,13 +158,6 @@ public:
     {
         Rect<T> rect = *this;
         rect.shrink(top, right, bottom, left);
-        return rect;
-    }
-
-    [[nodiscard]] Rect<T> shrunken(Size<T> const& size) const
-    {
-        Rect<T> rect = *this;
-        rect.shrink(size);
         return rect;
     }
 
@@ -234,28 +182,6 @@ public:
         return rect;
     }
 
-    Rect<T> take_from_right(T w)
-    {
-        if (w > width())
-            w = width();
-        Rect<T> rect = *this;
-        set_width(width() - w);
-        rect.set_x(x() + width());
-        rect.set_width(w);
-        return rect;
-    }
-
-    Rect<T> take_from_left(T w)
-    {
-        if (w > width())
-            w = width();
-        Rect<T> rect = *this;
-        set_x(x() + w);
-        set_width(width() - w);
-        rect.set_width(w);
-        return rect;
-    }
-
     Rect<T> take_from_top(T h)
     {
         if (h > height())
@@ -263,17 +189,6 @@ public:
         Rect<T> rect = *this;
         set_y(y() + h);
         set_height(height() - h);
-        rect.set_height(h);
-        return rect;
-    }
-
-    Rect<T> take_from_bottom(T h)
-    {
-        if (h > height())
-            h = height();
-        Rect<T> rect = *this;
-        set_height(height() - h);
-        rect.set_y(y() + height());
         rect.set_height(h);
         return rect;
     }
@@ -306,22 +221,8 @@ public:
             && bottom() >= other.bottom();
     }
 
-    template<typename Container>
-    [[nodiscard]] bool contains(Container const& others) const
-    {
-        bool have_any = false;
-        for (auto const& other : others) {
-            if (!contains(other))
-                return false;
-            have_any = true;
-        }
-        return have_any;
-    }
-
     [[nodiscard]] ALWAYS_INLINE T primary_offset_for_orientation(Orientation orientation) const { return m_location.primary_offset_for_orientation(orientation); }
-    ALWAYS_INLINE void set_primary_offset_for_orientation(Orientation orientation, T value) { m_location.set_primary_offset_for_orientation(orientation, value); }
     [[nodiscard]] ALWAYS_INLINE T secondary_offset_for_orientation(Orientation orientation) const { return m_location.secondary_offset_for_orientation(orientation); }
-    ALWAYS_INLINE void set_secondary_offset_for_orientation(Orientation orientation, T value) { m_location.set_secondary_offset_for_orientation(orientation, value); }
     ALWAYS_INLINE void translate_primary_offset_for_orientation(Orientation orientation, T delta) { m_location.set_primary_offset_for_orientation(orientation, m_location.primary_offset_for_orientation(orientation) + delta); }
     ALWAYS_INLINE void translate_secondary_offset_for_orientation(Orientation orientation, T delta) { m_location.set_secondary_offset_for_orientation(orientation, m_location.secondary_offset_for_orientation(orientation) + delta); }
 
@@ -330,34 +231,12 @@ public:
     ALWAYS_INLINE void set_primary_size_for_orientation(Orientation orientation, T value) { m_size.set_primary_size_for_orientation(orientation, value); }
     ALWAYS_INLINE void set_secondary_size_for_orientation(Orientation orientation, T value) { m_size.set_secondary_size_for_orientation(orientation, value); }
 
-    void inflate_primary_for_orientation(Orientation orientation, T before, T after)
-    {
-        if (orientation == Orientation::Horizontal)
-            inflate(0, after, 0, before);
-        else
-            inflate(before, 0, after, 0);
-    }
-
     void inflate_secondary_for_orientation(Orientation orientation, T before, T after)
     {
         if (orientation == Orientation::Horizontal)
             inflate(before, 0, after, 0);
         else
             inflate(0, after, 0, before);
-    }
-
-    [[nodiscard]] T first_edge_for_orientation(Orientation orientation) const
-    {
-        if (orientation == Orientation::Vertical)
-            return top();
-        return left();
-    }
-
-    [[nodiscard]] T last_edge_for_orientation(Orientation orientation) const
-    {
-        if (orientation == Orientation::Vertical)
-            return bottom();
-        return right();
     }
 
     [[nodiscard]] ALWAYS_INLINE T left() const { return x(); }
@@ -382,16 +261,6 @@ public:
         translate_by(0, delta);
     }
 
-    [[nodiscard]] bool intersects_vertically(Rect<T> const& other) const
-    {
-        return top() < other.bottom() && other.top() < bottom();
-    }
-
-    [[nodiscard]] bool intersects_horizontally(Rect<T> const& other) const
-    {
-        return left() < other.right() && other.left() < right();
-    }
-
     [[nodiscard]] bool intersects(Rect<T> const& other) const
     {
         return left() < other.right()
@@ -406,16 +275,6 @@ public:
             && max(top(), other.top()) <= min(bottom(), other.bottom());
     }
 
-    template<typename Container>
-    [[nodiscard]] bool intersects(Container const& others) const
-    {
-        for (auto const& other : others) {
-            if (intersects(other))
-                return true;
-        }
-        return false;
-    }
-
     template<class U>
     [[nodiscard]] bool operator==(Rect<U> const& other) const
     {
@@ -423,13 +282,6 @@ public:
     }
 
     [[nodiscard]] Rect<T> operator*(T factor) const { return { m_location * factor, m_size * factor }; }
-
-    Rect<T>& operator*=(T factor)
-    {
-        m_location *= factor;
-        m_size *= factor;
-        return *this;
-    }
 
     void intersect(Rect<T> const& other)
     {
@@ -510,19 +362,9 @@ public:
     [[nodiscard]] Rect centered_within(Rect const& other) const
     {
         Rect rect { *this };
-        rect.center_horizontally_within(other);
-        rect.center_vertically_within(other);
+        rect.set_x(other.center().x() - width() / 2);
+        rect.set_y(other.center().y() - height() / 2);
         return rect;
-    }
-
-    void center_horizontally_within(Rect<T> const& other)
-    {
-        set_x(other.center().x() - width() / 2);
-    }
-
-    void center_vertically_within(Rect<T> const& other)
-    {
-        set_y(other.center().y() - height() / 2);
     }
 
     template<typename U>
@@ -577,8 +419,6 @@ public:
             round_to<I>(height()),
         };
     }
-
-    [[nodiscard]] ByteString to_byte_string() const;
 
 private:
     Point<T> m_location;

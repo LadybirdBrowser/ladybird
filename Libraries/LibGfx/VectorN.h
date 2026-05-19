@@ -139,15 +139,6 @@ public:
         return result;
     }
 
-    [[nodiscard]] constexpr VectorN operator-() const
-    {
-        VectorN result;
-        UNROLL_LOOP
-        for (auto i = 0u; i < N; ++i)
-            result.m_data[i] = -m_data[i];
-        return result;
-    }
-
     [[nodiscard]] constexpr VectorN operator/(VectorN const& other) const
     {
         VectorN result;
@@ -158,42 +149,12 @@ public:
     }
 
     template<typename U>
-    [[nodiscard]] constexpr VectorN operator+(U f) const
-    {
-        VectorN result;
-        UNROLL_LOOP
-        for (auto i = 0u; i < N; ++i)
-            result.m_data[i] = m_data[i] + f;
-        return result;
-    }
-
-    template<typename U>
-    [[nodiscard]] constexpr VectorN operator-(U f) const
-    {
-        VectorN result;
-        UNROLL_LOOP
-        for (auto i = 0u; i < N; ++i)
-            result.m_data[i] = m_data[i] - f;
-        return result;
-    }
-
-    template<typename U>
     [[nodiscard]] constexpr VectorN operator*(U f) const
     {
         VectorN result;
         UNROLL_LOOP
         for (auto i = 0u; i < N; ++i)
             result.m_data[i] = m_data[i] * f;
-        return result;
-    }
-
-    template<typename U>
-    [[nodiscard]] constexpr VectorN operator/(U f) const
-    {
-        VectorN result;
-        UNROLL_LOOP
-        for (auto i = 0u; i < N; ++i)
-            result.m_data[i] = m_data[i] / f;
         return result;
     }
 
@@ -233,22 +194,6 @@ public:
         return copy;
     }
 
-    [[nodiscard]] constexpr VectorN clamped(T m, T x) const
-    {
-        VectorN copy { *this };
-        copy.clamp(m, x);
-        return copy;
-    }
-
-    constexpr void clamp(T min_value, T max_value)
-    {
-        UNROLL_LOOP
-        for (auto i = 0u; i < N; ++i) {
-            m_data[i] = max(min_value, m_data[i]);
-            m_data[i] = min(max_value, m_data[i]);
-        }
-    }
-
     constexpr void normalize()
     {
         T const inv_length = 1 / length();
@@ -261,18 +206,6 @@ public:
         return AK::sqrt<O>(dot(*this));
     }
 
-    [[nodiscard]] constexpr VectorN<2, T> xy() const
-    requires(N >= 3)
-    {
-        return VectorN<2, T>(x(), y());
-    }
-
-    [[nodiscard]] constexpr VectorN<3, T> xyz() const
-    requires(N >= 4)
-    {
-        return VectorN<3, T>(x(), y(), z());
-    }
-
     [[nodiscard]] ByteString to_byte_string() const
     {
         if constexpr (N == 2)
@@ -283,55 +216,11 @@ public:
             return ByteString::formatted("[{},{},{},{}]", x(), y(), z(), w());
     }
 
-    template<typename U>
-    [[nodiscard]] VectorN<N, U> to_type() const
-    {
-        VectorN<N, U> result;
-        UNROLL_LOOP
-        for (auto i = 0u; i < N; ++i)
-            result.data()[i] = static_cast<U>(m_data[i]);
-        return result;
-    }
-
-    template<typename U>
-    [[nodiscard]] VectorN<N, U> to_rounded() const
-    {
-        VectorN<N, U> result;
-        UNROLL_LOOP
-        for (auto i = 0u; i < N; ++i)
-            result.data()[i] = round_to<U>(m_data[i]);
-        return result;
-    }
-
     constexpr auto& data() { return m_data; }
     constexpr auto const& data() const { return m_data; }
 
 private:
     Array<T, N> m_data;
 };
-
-}
-
-namespace AK {
-
-template<size_t N, typename T>
-constexpr Gfx::VectorN<N, T> min(Gfx::VectorN<N, T> const& a, Gfx::VectorN<N, T> const& b)
-{
-    Gfx::VectorN<N, T> result;
-    UNROLL_LOOP
-    for (auto i = 0u; i < N; ++i)
-        result[i] = min(a[i], b[i]);
-    return result;
-}
-
-template<size_t N, typename T>
-constexpr Gfx::VectorN<N, T> max(Gfx::VectorN<N, T> const& a, Gfx::VectorN<N, T> const& b)
-{
-    Gfx::VectorN<N, T> result;
-    UNROLL_LOOP
-    for (auto i = 0u; i < N; ++i)
-        result[i] = max(a[i], b[i]);
-    return result;
-}
 
 }
