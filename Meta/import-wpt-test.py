@@ -234,13 +234,15 @@ def modify_sources(files, resources: list[ResourceAndType]) -> None:
         for resource in map(lambda r: r.resource, resources):
             if resource.startswith("/"):
                 new_src_value = parent_folder_path + resource[1::]
-                page_source = page_source.replace(resource.encode(), new_src_value.encode())
+                page_source = page_source.replace(f'"{resource}"'.encode(), f'"{new_src_value}"'.encode())
+                page_source = page_source.replace(f"'{resource}'".encode(), f"'{new_src_value}'".encode())
 
         # Look for mentions of the reference page, and update their href
         if raw_reference_path is not None:
             assert reference_path is not None
             new_reference_path = parent_folder_path + "../../expected/wpt-import/" + reference_path[::]
-            page_source = page_source.replace(raw_reference_path.encode(), new_reference_path.encode())
+            page_source = page_source.replace(f'"{raw_reference_path}"'.encode(), f'"{new_reference_path}"'.encode())
+            page_source = page_source.replace(f"'{raw_reference_path}'".encode(), f"'{new_reference_path}'".encode())
 
         with open(file, "wb") as f:
             f.write(page_source)
