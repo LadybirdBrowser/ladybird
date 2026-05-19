@@ -29,6 +29,7 @@ public class TransferAssets {
     private static final String TAG = "Ladybird";
     private static final String ARCHIVE_NAME = "ladybird-assets.zip";
     private static final String EXTRACTION_MARKER = ".ladybird-assets-extracted";
+    private static final int IO_BUFFER_SIZE = 16 * 1024;
 
     /**
      * @return new ladybird resource root
@@ -57,7 +58,7 @@ public class TransferAssets {
     }
 
     private static void extractArchive(AssetManager assetManager, File assetDir) throws IOException {
-        try (ZipInputStream input = new ZipInputStream(new BufferedInputStream(assetManager.open(ARCHIVE_NAME)))) {
+        try (ZipInputStream input = new ZipInputStream(new BufferedInputStream(assetManager.open(ARCHIVE_NAME), IO_BUFFER_SIZE))) {
             ZipEntry entry;
             while ((entry = input.getNextEntry()) != null) {
                 File outputFile = validateEntryPath(assetDir, entry.getName());
@@ -74,7 +75,7 @@ public class TransferAssets {
                     throw new IOException("Unable to create directory " + parent);
                 }
 
-                try (OutputStream output = new BufferedOutputStream(new FileOutputStream(outputFile))) {
+                try (OutputStream output = new BufferedOutputStream(new FileOutputStream(outputFile), IO_BUFFER_SIZE)) {
                     copyFile(input, output);
                 }
                 input.closeEntry();
@@ -95,12 +96,12 @@ public class TransferAssets {
     private static void mergeSystemCertificates(File assetDir) throws IOException {
         File outputFile = new File(assetDir, "cacert.pem");
         Path certificateDirectory = Paths.get("/system/etc/security/cacerts");
-        try (OutputStream output = new BufferedOutputStream(new FileOutputStream(outputFile));
+        try (OutputStream output = new BufferedOutputStream(new FileOutputStream(outputFile), IO_BUFFER_SIZE);
              Stream<Path> certPaths = Files.walk(certificateDirectory)) {
             certPaths
                 .filter(Files::isRegularFile)
                 .forEach(certPath -> {
-                    try (InputStream input = new BufferedInputStream(Files.newInputStream(certPath))) {
+                    try (InputStream input = new BufferedInputStream(Files.newInputStream(certPath), IO_BUFFER_SIZE)) {
                         copyFile(input, output);
                     } catch (IOException exception) {
                         throw new UncheckedIOException(exception);
