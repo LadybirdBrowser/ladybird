@@ -1467,7 +1467,7 @@ ThrowCompletionOr<void> Object::for_each_own_property_with_enumerability(Functio
             PropertyKey property_key;
             bool enumerable;
         };
-        GC::ConservativeVector<OwnKey> keys { heap() };
+        GC::ConservativeVector<OwnKey> keys;
         keys.ensure_capacity(indexed_real_size() + shape().property_count() + (has_magical_length_property() ? 1 : 0));
 
         {

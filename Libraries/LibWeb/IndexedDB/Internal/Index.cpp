@@ -96,7 +96,7 @@ Optional<IndexRecord&> Index::first_in_range(GC::Ref<IDBKeyRange> range)
 
 GC::ConservativeVector<IndexRecord> Index::first_n_in_range(GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count)
 {
-    GC::ConservativeVector<IndexRecord> records(range->heap());
+    GC::ConservativeVector<IndexRecord> records;
     auto record_range = record_range_for_key_range(m_records, range);
     for (size_t i = record_range.start; i < record_range.end; ++i) {
         records.append(m_records[i]);
@@ -110,7 +110,7 @@ GC::ConservativeVector<IndexRecord> Index::first_n_in_range(GC::Ref<IDBKeyRange>
 
 GC::ConservativeVector<IndexRecord> Index::last_n_in_range(GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count)
 {
-    GC::ConservativeVector<IndexRecord> records(range->heap());
+    GC::ConservativeVector<IndexRecord> records;
     auto record_range = record_range_for_key_range(m_records, range);
     for (size_t i = record_range.end; i > record_range.start;) {
         --i;

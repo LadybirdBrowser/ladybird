@@ -117,7 +117,7 @@ WebIDL::ExceptionOr<Optional<GC::ConservativeVector<XHR::FormDataEntry>>> constr
     auto controls = form.get_submittable_elements();
 
     // 4. Let entry list be a new empty entry list.
-    GC::ConservativeVector<XHR::FormDataEntry> entry_list { realm.heap() };
+    GC::ConservativeVector<XHR::FormDataEntry> entry_list;
 
     // 5. For each element field in controls, in tree order:
     for (auto const& control : controls) {

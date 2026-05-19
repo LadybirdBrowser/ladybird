@@ -2027,7 +2027,7 @@ GC::Ref<JS::Array> retrieve_multiple_items_from_an_object_store(JS::Realm& realm
         count = OptionalNone();
 
     // 2. Let records an empty list.
-    GC::ConservativeVector<ObjectStoreRecord> records(realm.heap());
+    GC::ConservativeVector<ObjectStoreRecord> records;
 
     // 3. If direction is "next" or "nextunique", set records to the first count of store’s list of records whose key is in range.
     if (direction == Bindings::IDBCursorDirection::Next || direction == Bindings::IDBCursorDirection::Nextunique) {
@@ -2293,7 +2293,7 @@ GC::Ref<JS::Array> retrieve_multiple_items_from_an_index(JS::Realm& target_realm
         count = OptionalNone();
 
     // 2. Let records be a an empty list.
-    GC::ConservativeVector<IndexRecord> records(target_realm.heap());
+    GC::ConservativeVector<IndexRecord> records;
 
     // 3. Switching on direction:
     switch (direction) {

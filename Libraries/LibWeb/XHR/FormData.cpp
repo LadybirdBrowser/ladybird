@@ -22,7 +22,7 @@ GC_DEFINE_ALLOCATOR(FormData);
 // https://xhr.spec.whatwg.org/#dom-formdata
 WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::construct_impl(JS::Realm& realm, GC::Ptr<HTML::HTMLFormElement> form, GC::Ptr<HTML::HTMLElement> submitter)
 {
-    GC::ConservativeVector<FormDataEntry> list { realm.heap() };
+    GC::ConservativeVector<FormDataEntry> list;
     // 1. If form is given, then:
     if (form) {
         // 1. If submitter is non-null, then:
@@ -62,7 +62,7 @@ WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::construct_impl(JS::Realm& realm
 
 WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::create(JS::Realm& realm, Vector<DOMURL::QueryParam> entry_list)
 {
-    GC::ConservativeVector<FormDataEntry> list { realm.heap() };
+    GC::ConservativeVector<FormDataEntry> list;
     list.ensure_capacity(entry_list.size());
     for (auto& entry : entry_list)
         list.unchecked_append({ .name = move(entry.name), .value = move(entry.value) });
@@ -185,7 +185,7 @@ WebIDL::ExceptionOr<void> FormData::set(String const& name, GC::Ref<FileAPI::Blo
 
 GC::ConservativeVector<FormDataEntry> FormData::entry_list() const
 {
-    return { realm().heap(), m_entry_list };
+    return GC::ConservativeVector<FormDataEntry> { m_entry_list };
 }
 
 // https://xhr.spec.whatwg.org/#dom-formdata-set

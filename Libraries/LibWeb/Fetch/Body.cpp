@@ -381,7 +381,7 @@ MultipartParsingErrorOr<GC::ConservativeVector<XHR::FormDataEntry>> parse_multip
     auto boundary = maybe_boundary.release_value();
 
     // 3. Let entry list be an empty entry list.
-    GC::ConservativeVector<XHR::FormDataEntry> entry_list { realm.heap() };
+    GC::ConservativeVector<XHR::FormDataEntry> entry_list;
 
     // 4. Let position be a pointer to a byte in input, initially pointing at the first byte.
     GenericLexer lexer(input);
