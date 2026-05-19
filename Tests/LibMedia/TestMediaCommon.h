@@ -99,7 +99,9 @@ static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_cou
 
     while (true) {
         Media::AudioBlock block;
-        auto status = producer->pull(block);
+        auto status = producer->status();
+        if (status == Media::PipelineStatus::HaveData)
+            producer->pull(block);
         if (status == Media::PipelineStatus::HaveData) {
             EXPECT(!block.is_empty());
             EXPECT_EQ(block.sample_rate(), sample_rate);

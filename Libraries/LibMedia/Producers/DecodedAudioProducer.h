@@ -50,8 +50,9 @@ public:
     void suspend();
     void resume();
 
-    virtual PipelineStatus pull(AudioBlock& into) override;
-    virtual void set_state_changed_handler(PipelineStateChangeHandler) override;
+    virtual PipelineStatus status() const override;
+    virtual void pull(AudioBlock& into) override;
+    virtual void set_wake_handler(PipelineWakeHandler) override;
 
     virtual void seek(AK::Duration timestamp) override;
 
@@ -66,7 +67,7 @@ private:
         void set_error_handler(ErrorHandler&&);
         void set_duration_change_handler(BlockEndTimeHandler&&);
         ErrorOr<void> set_output_sample_specification(Audio::SampleSpecification);
-        void set_state_changed_handler(PipelineStateChangeHandler);
+        void set_wake_handler(PipelineWakeHandler);
 
         void start();
         DecoderErrorOr<void> create_decoder();
@@ -88,10 +89,12 @@ private:
         void flush_decoder();
         DecoderErrorOr<void> retrieve_next_block(AudioBlock&);
         bool handle_seek();
-        void resolve_seek(u32 seek_id);
+        void resolve_seek(u32 seek_id, bool moved_position);
         void push_data_and_decode_a_block();
 
-        PipelineStatus pull(AudioBlock& into);
+        PipelineStatus status() const;
+        PipelineStatus status_while_locked() const;
+        void pull(AudioBlock& into);
 
         TimeRanges buffered_time_ranges() const;
 
@@ -104,7 +107,7 @@ private:
         AudioQueue& queue() { return m_queue; }
         void clear_queue();
 
-        void dispatch_state_if_changed_while_locked(PipelineStatus);
+        void dispatch_wake_if_needed_while_locked();
 
         void enter_halting_state(PipelineStatus, Optional<DecoderError>);
 
@@ -134,14 +137,15 @@ private:
         AudioQueue m_queue;
         BlockEndTimeHandler m_duration_change_handler;
         ErrorHandler m_error_handler;
-        PipelineStatus m_pending_halting_status { PipelineStatus::Pending };
+        PipelineStatus m_current_halting_status { PipelineStatus::Pending };
+        bool m_moved_position_pending { false };
 
         u32 m_last_processed_seek_id { 0 };
         Atomic<u32> m_seek_id { 0 };
         AK::Duration m_seek_timestamp;
 
-        PipelineStateChangeHandler m_state_changed_handler;
-        PipelineStatus m_last_dispatched_status { PipelineStatus::Pending };
+        PipelineWakeHandler m_wake_handler;
+        mutable bool m_downstream_needs_wake { true };
     };
 
     NonnullRefPtr<ThreadData> m_thread_data;

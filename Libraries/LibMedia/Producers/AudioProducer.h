@@ -21,8 +21,9 @@ public:
     virtual void start() = 0;
     virtual ErrorOr<void> set_output_sample_specification(Audio::SampleSpecification) = 0;
 
-    virtual PipelineStatus pull(AudioBlock& into) = 0;
-    virtual void set_state_changed_handler(PipelineStateChangeHandler) = 0;
+    virtual PipelineStatus status() const = 0;
+    virtual void pull(AudioBlock& into) = 0;
+    virtual void set_wake_handler(PipelineWakeHandler) = 0;
 
     virtual void seek(AK::Duration timestamp) = 0;
 };

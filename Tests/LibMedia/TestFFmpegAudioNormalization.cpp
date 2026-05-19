@@ -94,7 +94,9 @@ static void decode_and_expect()
     MonotonicTime deadline = MonotonicTime::now_coarse() + AK::Duration::from_seconds(1);
     while (MonotonicTime::now_coarse() < deadline) {
         Media::AudioBlock block;
-        auto status = producer->pull(block);
+        auto status = producer->status();
+        if (status == Media::PipelineStatus::HaveData)
+            producer->pull(block);
         if (status == Media::PipelineStatus::HaveData) {
             EXPECT(!block.is_empty());
             for (float sample : block.data()) {

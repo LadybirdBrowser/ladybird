@@ -15,6 +15,7 @@ namespace Media {
 enum class PipelineStatus : u8 {
     Pending,
     HaveData,
+    MovedPosition,
     Blocked,
     EndOfStream,
     Error,
@@ -23,6 +24,8 @@ enum class PipelineStatus : u8 {
 constexpr bool is_waiting_for_data(PipelineStatus status)
 {
     if (status == PipelineStatus::Pending)
+        return true;
+    if (status == PipelineStatus::MovedPosition)
         return true;
     if (status == PipelineStatus::Blocked)
         return true;
@@ -46,12 +49,15 @@ constexpr PipelineStatus select_combined_pipeline_status(PipelineStatus a, Pipel
         return PipelineStatus::Blocked;
     if (a == PipelineStatus::HaveData || b == PipelineStatus::HaveData)
         return PipelineStatus::HaveData;
+    if (a == PipelineStatus::MovedPosition || b == PipelineStatus::MovedPosition)
+        return PipelineStatus::MovedPosition;
     if (a == PipelineStatus::Pending || b == PipelineStatus::Pending)
         return PipelineStatus::Pending;
     return PipelineStatus::EndOfStream;
 }
 
 using PipelineStateChangeHandler = Function<void(PipelineStatus)>;
+using PipelineWakeHandler = Function<void()>;
 
 constexpr StringView pipeline_status_to_string(PipelineStatus status)
 {
@@ -60,6 +66,8 @@ constexpr StringView pipeline_status_to_string(PipelineStatus status)
         return "Pending"sv;
     case PipelineStatus::HaveData:
         return "HaveData"sv;
+    case PipelineStatus::MovedPosition:
+        return "MovedPosition"sv;
     case PipelineStatus::Blocked:
         return "Blocked"sv;
     case PipelineStatus::EndOfStream:
