@@ -349,6 +349,7 @@ NUMERIC_TYPES = {
 CACHE_INDEX_TYPES = {
     "PropertyLookupCacheIndex",
     "GlobalVariableCacheIndex",
+    "EnvironmentCoordinateCacheIndex",
     "TemplateObjectCacheIndex",
     "ObjectShapeCacheIndex",
     "ObjectPropertyIteratorCacheIndex",

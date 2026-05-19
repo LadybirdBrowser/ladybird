@@ -41,6 +41,7 @@ pub struct FFIValidatorBounds {
     pub regex_table_size: u32,
     pub property_lookup_cache_count: u32,
     pub global_variable_cache_count: u32,
+    pub environment_coordinate_cache_count: u32,
     pub template_object_cache_count: u32,
     pub object_shape_cache_count: u32,
     pub object_property_iterator_cache_count: u32,
@@ -88,6 +89,7 @@ pub enum ValidationErrorKind {
     ExceptionHandlerHandlerInvalid = 24,
     ExceptionHandlerRangeInvalid = 25,
     SourceMapOffsetInvalid = 26,
+    EnvironmentCoordinateCacheIndexOutOfRange = 27,
 }
 
 /// Detail returned to the C++ caller on validation failure.
@@ -253,6 +255,17 @@ pub fn validate_global_variable_cache_index(raw: u32, ctx: &ValidationContext) -
     }
     if raw >= ctx.bounds.global_variable_cache_count {
         return Err(ValidationErrorKind::GlobalVariableCacheIndexOutOfRange);
+    }
+    Ok(())
+}
+
+#[inline]
+pub fn validate_environment_coordinate_cache_index(
+    raw: u32,
+    ctx: &ValidationContext,
+) -> Result<(), ValidationErrorKind> {
+    if raw >= ctx.bounds.environment_coordinate_cache_count {
+        return Err(ValidationErrorKind::EnvironmentCoordinateCacheIndexOutOfRange);
     }
     Ok(())
 }
@@ -495,6 +508,7 @@ mod tests {
             regex_table_size: 0,
             property_lookup_cache_count: 4,
             global_variable_cache_count: 4,
+            environment_coordinate_cache_count: 4,
             template_object_cache_count: 4,
             object_shape_cache_count: 4,
             object_property_iterator_cache_count: 4,
@@ -691,6 +705,21 @@ mod tests {
 
         let err = validate(&bytes, &permissive_bounds()).unwrap_err();
         assert_eq!(err.kind, ValidationErrorKind::ObjectShapeCacheIndexOutOfRange);
+    }
+
+    #[test]
+    fn rejects_environment_coordinate_cache_sentinel() {
+        // DynamicGetBinding layout: header(2) + pad(2) + m_dst(4)
+        // + m_identifier(4) + m_cache(4) = 16 bytes.
+        let mut bytes = [0u8; 16];
+        bytes[0] = OpCode::DynamicGetBinding as u8;
+        // m_dst and m_identifier stay at 0.
+        // m_cache at offset 12: dynamic environment opcodes always index this
+        // cache, so the no-cache sentinel must not validate.
+        put_u32(&mut bytes, 12, NO_CACHE_INDEX);
+
+        let err = validate(&bytes, &permissive_bounds()).unwrap_err();
+        assert_eq!(err.kind, ValidationErrorKind::EnvironmentCoordinateCacheIndexOutOfRange);
     }
 
     #[test]

@@ -274,6 +274,7 @@ public:
         NonnullRefPtr<SourceCode const>,
         size_t number_of_property_lookup_caches,
         size_t number_of_global_variable_caches,
+        size_t number_of_environment_coordinate_caches,
         size_t number_of_template_object_caches,
         size_t number_of_object_shape_caches,
         size_t number_of_object_property_iterator_caches,
@@ -286,6 +287,7 @@ public:
     InstructionStream bytecode;
     Vector<PropertyLookupCache> property_lookup_caches;
     Vector<GlobalVariableCache> global_variable_caches;
+    Vector<EnvironmentCoordinate> environment_coordinate_caches;
     Vector<TemplateObjectCache> template_object_caches;
     Vector<ObjectShapeCache> object_shape_caches;
     Vector<ObjectPropertyIteratorCache> object_property_iterator_caches;

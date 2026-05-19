@@ -262,6 +262,7 @@ Executable::Executable(
     NonnullRefPtr<SourceCode const> source_code,
     size_t number_of_property_lookup_caches,
     size_t number_of_global_variable_caches,
+    size_t number_of_environment_coordinate_caches,
     size_t number_of_template_object_caches,
     size_t number_of_object_shape_caches,
     size_t number_of_object_property_iterator_caches,
@@ -280,6 +281,7 @@ Executable::Executable(
 {
     property_lookup_caches.resize(number_of_property_lookup_caches);
     global_variable_caches.resize(number_of_global_variable_caches);
+    environment_coordinate_caches.resize(number_of_environment_coordinate_caches);
     template_object_caches.resize(number_of_template_object_caches);
     object_shape_caches.resize(number_of_object_shape_caches);
     object_property_iterator_caches.resize(number_of_object_property_iterator_caches);
@@ -563,6 +565,7 @@ size_t Executable::external_memory_size() const
     for (auto const& cache : property_lookup_caches)
         size = saturating_add_external_memory_size(size, cache.external_memory_size());
     size = saturating_add_external_memory_size(size, vector_external_memory_size(global_variable_caches));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(environment_coordinate_caches));
     size = saturating_add_external_memory_size(size, vector_external_memory_size(template_object_caches));
     size = saturating_add_external_memory_size(size, vector_external_memory_size(object_shape_caches));
     for (auto const& cache : object_shape_caches)

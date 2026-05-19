@@ -212,6 +212,7 @@ pub struct FFIExecutableData {
     pub local_variable_count: usize,
     pub property_lookup_cache_count: u32,
     pub global_variable_cache_count: u32,
+    pub environment_coordinate_cache_count: u32,
     pub template_object_cache_count: u32,
     pub object_shape_cache_count: u32,
     pub object_property_iterator_cache_count: u32,
@@ -700,6 +701,7 @@ pub struct ExecutableParts<'a> {
 pub struct ExecutableMetadata {
     pub property_lookup_cache_count: u32,
     pub global_variable_cache_count: u32,
+    pub environment_coordinate_cache_count: u32,
     pub template_object_cache_count: u32,
     pub object_shape_cache_count: u32,
     pub object_property_iterator_cache_count: u32,
@@ -781,6 +783,7 @@ pub unsafe fn create_executable_from_slices(
             local_variable_count: slices.local_variable_names.len(),
             property_lookup_cache_count: metadata.property_lookup_cache_count,
             global_variable_cache_count: metadata.global_variable_cache_count,
+            environment_coordinate_cache_count: metadata.environment_coordinate_cache_count,
             template_object_cache_count: metadata.template_object_cache_count,
             object_shape_cache_count: metadata.object_shape_cache_count,
             object_property_iterator_cache_count: metadata.object_property_iterator_cache_count,
@@ -850,6 +853,7 @@ pub unsafe fn create_executable_with_dependencies_from_parts(
         let metadata = ExecutableMetadata {
             property_lookup_cache_count: generator.next_property_lookup_cache,
             global_variable_cache_count: generator.next_global_variable_cache,
+            environment_coordinate_cache_count: generator.next_environment_coordinate_cache,
             template_object_cache_count: generator.next_template_object_cache,
             object_shape_cache_count: generator.next_object_shape_cache,
             object_property_iterator_cache_count: generator.next_object_property_iterator_cache,

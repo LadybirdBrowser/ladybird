@@ -51,6 +51,8 @@ static StringView validation_error_kind_to_string(JS::FFI::ValidationErrorKind k
         return "PropertyLookupCacheIndexOutOfRange"sv;
     case JS::FFI::ValidationErrorKind::GlobalVariableCacheIndexOutOfRange:
         return "GlobalVariableCacheIndexOutOfRange"sv;
+    case JS::FFI::ValidationErrorKind::EnvironmentCoordinateCacheIndexOutOfRange:
+        return "EnvironmentCoordinateCacheIndexOutOfRange"sv;
     case JS::FFI::ValidationErrorKind::TemplateObjectCacheIndexOutOfRange:
         return "TemplateObjectCacheIndexOutOfRange"sv;
     case JS::FFI::ValidationErrorKind::ObjectShapeCacheIndexOutOfRange:
@@ -109,6 +111,7 @@ ErrorOr<void> validate_bytecode(Executable const& executable, ReadonlySpan<u32> 
         .regex_table_size = 0,
         .property_lookup_cache_count = static_cast<u32>(executable.property_lookup_caches.size()),
         .global_variable_cache_count = static_cast<u32>(executable.global_variable_caches.size()),
+        .environment_coordinate_cache_count = static_cast<u32>(executable.environment_coordinate_caches.size()),
         .template_object_cache_count = static_cast<u32>(executable.template_object_caches.size()),
         .object_shape_cache_count = static_cast<u32>(executable.object_shape_caches.size()),
         .object_property_iterator_cache_count = static_cast<u32>(executable.object_property_iterator_caches.size()),

@@ -88,8 +88,14 @@ fn emit_get_binding(
     ) {
         (Some(cache), true) => generator.emit(Instruction::GetInitializedBinding { dst, identifier, cache }),
         (Some(cache), false) => generator.emit(Instruction::GetBinding { dst, identifier, cache }),
-        (None, true) => generator.emit(Instruction::DynamicGetInitializedBinding { dst, identifier }),
-        (None, false) => generator.emit(Instruction::DynamicGetBinding { dst, identifier }),
+        (None, true) => {
+            let cache = generator.next_environment_coordinate_cache();
+            generator.emit(Instruction::DynamicGetInitializedBinding { dst, identifier, cache });
+        }
+        (None, false) => {
+            let cache = generator.next_environment_coordinate_cache();
+            generator.emit(Instruction::DynamicGetBinding { dst, identifier, cache });
+        }
     }
 }
 
@@ -107,10 +113,12 @@ fn emit_get_callee_and_this_from_environment(
             cache,
         });
     } else {
+        let cache = generator.next_environment_coordinate_cache();
         generator.emit(Instruction::DynamicGetCalleeAndThisFromEnvironment {
             callee,
             this_value,
             identifier,
+            cache,
         });
     }
 }
@@ -119,7 +127,8 @@ fn emit_initialize_lexical_binding(generator: &mut Generator, identifier: Identi
     if let Some(cache) = generator.environment_coordinate_for_identifier(identifier) {
         generator.emit(Instruction::InitializeLexicalBinding { identifier, src, cache });
     } else {
-        generator.emit(Instruction::DynamicInitializeLexicalBinding { identifier, src });
+        let cache = generator.next_environment_coordinate_cache();
+        generator.emit(Instruction::DynamicInitializeLexicalBinding { identifier, src, cache });
     }
 }
 
@@ -130,7 +139,8 @@ fn emit_initialize_variable_binding(generator: &mut Generator, identifier: Ident
     if let Some(cache) = generator.variable_environment_coordinate_for_identifier(identifier) {
         generator.emit(Instruction::InitializeVariableBinding { identifier, src, cache });
     } else {
-        generator.emit(Instruction::DynamicInitializeVariableBinding { identifier, src });
+        let cache = generator.next_environment_coordinate_cache();
+        generator.emit(Instruction::DynamicInitializeVariableBinding { identifier, src, cache });
     }
 }
 
@@ -138,7 +148,8 @@ fn emit_set_lexical_binding(generator: &mut Generator, identifier: IdentifierTab
     if let Some(cache) = generator.environment_coordinate_for_identifier(identifier) {
         generator.emit(Instruction::SetLexicalBinding { identifier, src, cache });
     } else {
-        generator.emit(Instruction::DynamicSetLexicalBinding { identifier, src });
+        let cache = generator.next_environment_coordinate_cache();
+        generator.emit(Instruction::DynamicSetLexicalBinding { identifier, src, cache });
     }
 }
 
@@ -148,7 +159,8 @@ fn emit_set_variable_binding(generator: &mut Generator, identifier: IdentifierTa
     if let Some(cache) = generator.variable_environment_coordinate_for_identifier(identifier) {
         generator.emit(Instruction::SetVariableBinding { identifier, src, cache });
     } else {
-        generator.emit(Instruction::DynamicSetVariableBinding { identifier, src });
+        let cache = generator.next_environment_coordinate_cache();
+        generator.emit(Instruction::DynamicSetVariableBinding { identifier, src, cache });
     }
 }
 
@@ -156,7 +168,8 @@ fn emit_typeof_binding(generator: &mut Generator, dst: Operand, identifier: Iden
     if let Some(cache) = generator.environment_coordinate_for_identifier(identifier) {
         generator.emit(Instruction::TypeofBinding { dst, identifier, cache });
     } else {
-        generator.emit(Instruction::DynamicTypeofBinding { dst, identifier });
+        let cache = generator.next_environment_coordinate_cache();
+        generator.emit(Instruction::DynamicTypeofBinding { dst, identifier, cache });
     }
 }
 

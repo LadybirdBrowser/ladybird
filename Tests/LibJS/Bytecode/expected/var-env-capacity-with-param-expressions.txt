@@ -10,7 +10,7 @@ block0:
   [  30] End value:reg5
 
 
-f$20dcebd6 var-env-capacity-with-param-expressions.js:3:9
+f$a23ee45e var-env-capacity-with-param-expressions.js:3:9
   Registers: 10
   Blocks:    3
   Constants:
@@ -42,8 +42,8 @@ block2:
   [ 108] CreateVariable `c`, is_immutable:false, is_global:false, is_strict:false
   [ 118] InitializeVariableBinding `c`, src:reg7
   [ 130] DynamicGetCalleeAndThisFromEnvironment callee:reg8, this_value:reg9, `eval`
-  [ 140] CallDirectEval dst:reg7, callee:reg8, this_value:reg9, eval, arguments:[String("")]
-  [ 168] End value:Undefined
+  [ 148] CallDirectEval dst:reg7, callee:reg8, this_value:reg9, eval, arguments:[String("")]
+  [ 170] End value:Undefined
 
 
 eval$b72141f3

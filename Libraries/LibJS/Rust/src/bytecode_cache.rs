@@ -29,7 +29,7 @@ use crate::bytecode::validator::{
 use crate::{CompiledProgram, CompiledProgramBytecode, ModuleCallbacks, ast, u32_from_usize};
 
 const MAGIC: &[u8; 8] = b"LBJSBC\0\0";
-const FORMAT_VERSION: u32 = 10;
+const FORMAT_VERSION: u32 = 11;
 const SOURCE_HASH_SIZE: usize = 32;
 const BYTECODE_ALIGNMENT: usize = 8;
 const COMPLETION_TYPE_VARIANT_COUNT: u32 = 6;
@@ -1229,6 +1229,7 @@ unsafe fn materialize_executable(
             crate::bytecode::ffi::ExecutableMetadata {
                 property_lookup_cache_count: cache_counters.property_lookup_cache_count,
                 global_variable_cache_count: cache_counters.global_variable_cache_count,
+                environment_coordinate_cache_count: cache_counters.environment_coordinate_cache_count,
                 template_object_cache_count: cache_counters.template_object_cache_count,
                 object_shape_cache_count: cache_counters.object_shape_cache_count,
                 object_property_iterator_cache_count: cache_counters.object_property_iterator_cache_count,
@@ -2391,6 +2392,7 @@ impl DecodedExecutableRecord {
             regex_table_size: 0,
             property_lookup_cache_count: self.cache_counters.property_lookup_cache_count,
             global_variable_cache_count: self.cache_counters.global_variable_cache_count,
+            environment_coordinate_cache_count: self.cache_counters.environment_coordinate_cache_count,
             template_object_cache_count: self.cache_counters.template_object_cache_count,
             object_shape_cache_count: self.cache_counters.object_shape_cache_count,
             object_property_iterator_cache_count: self.cache_counters.object_property_iterator_cache_count,
@@ -2477,6 +2479,7 @@ impl Encode for CacheCounters<'_> {
     fn encode(&self, encoder: &mut Encoder) {
         self.0.next_property_lookup_cache.encode(encoder);
         self.0.next_global_variable_cache.encode(encoder);
+        self.0.next_environment_coordinate_cache.encode(encoder);
         self.0.next_template_object_cache.encode(encoder);
         self.0.next_object_shape_cache.encode(encoder);
         self.0.next_object_property_iterator_cache.encode(encoder);
@@ -2488,6 +2491,7 @@ impl CacheCounters<'_> {
         Some(DecodedCacheCounters {
             property_lookup_cache_count: u32::decode(decoder)?,
             global_variable_cache_count: u32::decode(decoder)?,
+            environment_coordinate_cache_count: u32::decode(decoder)?,
             template_object_cache_count: u32::decode(decoder)?,
             object_shape_cache_count: u32::decode(decoder)?,
             object_property_iterator_cache_count: u32::decode(decoder)?,
@@ -2498,6 +2502,7 @@ impl CacheCounters<'_> {
 struct DecodedCacheCounters {
     property_lookup_cache_count: u32,
     global_variable_cache_count: u32,
+    environment_coordinate_cache_count: u32,
     template_object_cache_count: u32,
     object_shape_cache_count: u32,
     object_property_iterator_cache_count: u32,
@@ -2507,6 +2512,7 @@ impl DecodedCacheCounters {
     fn validate(&self) {
         let _ = self.property_lookup_cache_count
             + self.global_variable_cache_count
+            + self.environment_coordinate_cache_count
             + self.template_object_cache_count
             + self.object_shape_cache_count
             + self.object_property_iterator_cache_count;
@@ -3568,6 +3574,9 @@ mod tests {
     }
 
     unsafe extern "C" fn ignore_foreign_owner(_: *mut c_void) {}
+    unsafe extern "C" fn ignore_clone_foreign_owner(_: *const c_void) -> *mut c_void {
+        std::ptr::null_mut()
+    }
 
     #[test]
     fn utf16_decode_borrows_from_foreign_blob() {
@@ -3581,6 +3590,7 @@ mod tests {
             &bytes,
             Some(ForeignBytecodeCacheBlobOwner {
                 owner: std::ptr::null_mut(),
+                clone_owner: ignore_clone_foreign_owner,
                 free_owner: ignore_foreign_owner,
             }),
         );
