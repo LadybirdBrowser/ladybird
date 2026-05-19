@@ -124,6 +124,7 @@ void DecodedVideoProducer::ThreadData::pull(RefPtr<VideoFrame>& into)
     }
     if (!m_queue.is_empty()) {
         into = m_queue.dequeue();
+        m_earliest_available_timestamp = max(m_earliest_available_timestamp, into->timestamp() + into->duration());
         wake();
         return;
     }
@@ -250,9 +251,17 @@ void DecodedVideoProducer::ThreadData::seek(AK::Duration timestamp)
 {
     auto locker = take_lock();
     m_seek_id++;
-    m_seek_timestamp = timestamp;
     m_current_halting_status = PipelineStatus::Pending;
     m_downstream_needs_wake = true;
+
+    if (timestamp >= m_earliest_available_timestamp && timestamp < m_latest_available_timestamp) {
+        dispatch_wake_if_needed_while_locked();
+        return;
+    }
+
+    m_seek_timestamp = timestamp;
+    m_earliest_available_timestamp = timestamp;
+    m_latest_available_timestamp = timestamp;
     m_demuxer->set_blocking_reads_aborted_for_track(m_track);
     wake();
 }
@@ -301,6 +310,8 @@ bool DecodedVideoProducer::ThreadData::handle_suspension()
             return false;
 
         m_queue.clear();
+        m_earliest_available_timestamp = {};
+        m_latest_available_timestamp = {};
         m_decoder.clear();
         m_decoder_needs_keyframe_next_seek = true;
 
@@ -345,11 +356,17 @@ void DecodedVideoProducer::ThreadData::dispatch_frame_end_time(CodedFrame const&
     });
 }
 
+static AK::Duration conservative_frame_end(VideoFrame& frame)
+{
+    return frame.timestamp() + frame.duration().scaled_by(3, 2);
+}
+
 void DecodedVideoProducer::ThreadData::queue_frame(NonnullRefPtr<VideoFrame> const& frame)
 {
     if (m_seek_id.load() != m_last_processed_seek_id)
         return;
     m_queue.enqueue(frame);
+    m_latest_available_timestamp = max(m_latest_available_timestamp, conservative_frame_end(frame));
     dispatch_wake_if_needed_while_locked();
 }
 
