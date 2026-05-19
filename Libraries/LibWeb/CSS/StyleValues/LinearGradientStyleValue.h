@@ -103,12 +103,7 @@ private:
         bool operator==(Properties const&) const = default;
     } m_properties;
 
-    struct ResolvedDataCacheKey {
-        Length::ResolutionContext length_resolution_context;
-        CSSPixelSize size;
-        bool operator==(ResolvedDataCacheKey const&) const = default;
-    };
-    mutable Optional<ResolvedDataCacheKey> m_resolved_data_cache_key;
+    mutable Optional<CSSPixelSize> m_resolved_size;
     mutable Optional<Painting::LinearGradientData> m_resolved;
 };
 

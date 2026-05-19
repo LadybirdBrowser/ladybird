@@ -69,12 +69,8 @@ void RadialGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& nod
     auto center = m_properties.position->resolved(node, gradient_box);
     auto gradient_size = resolve_size(center, gradient_box, node);
 
-    ResolvedDataCacheKey cache_key {
-        .length_resolution_context = Length::ResolutionContext::for_layout_node(node),
-        .size = paint_size,
-    };
-    if (m_resolved_data_cache_key != cache_key) {
-        m_resolved_data_cache_key = move(cache_key);
+    if (m_resolved_size != paint_size) {
+        m_resolved_size = move(paint_size);
         m_resolved = ResolvedData {
             Painting::resolve_radial_gradient_data(node, gradient_size, *this),
             gradient_size,
