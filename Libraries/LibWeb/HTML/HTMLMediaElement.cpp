@@ -175,6 +175,8 @@ void HTMLMediaElement::visit_edges(Cell::Visitor& visitor)
         [&visitor](GC::Ref<FileAPI::Blob> blob) {
             visitor.visit(blob);
         });
+    if (m_controls.has_value())
+        m_controls->visit_edges(visitor);
 }
 
 void HTMLMediaElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
