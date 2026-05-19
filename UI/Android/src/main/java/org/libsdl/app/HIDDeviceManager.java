@@ -1,6 +1,6 @@
 package org.libsdl.app;
 
-public final class HIDDeviceManager {
+final class HIDDeviceManager {
     private native void HIDDeviceRegisterCallback();
     private native void HIDDeviceReleaseCallback();
     native void HIDDeviceConnected(int deviceId, String identifier, int vendorId, int productId, String serialNumber, int releaseNumber, String manufacturerString, String productString, int interfaceNumber, int interfaceClass, int interfaceSubclass, int interfaceProtocol, boolean bluetooth);
