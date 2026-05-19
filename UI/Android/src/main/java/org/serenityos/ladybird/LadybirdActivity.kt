@@ -36,10 +36,11 @@ class LadybirdActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         resourceDir = TransferAssets.transferAssets(this)
+        val assetArchive = File("$resourceDir/ladybird-assets.zip")
         val testFile = File("$resourceDir/res/icons/48x48/app-browser.png")
         if (!testFile.exists())
         {
-            ZipFile("$resourceDir/ladybird-assets.zip").use { zip ->
+            ZipFile(assetArchive).use { zip ->
                 zip.entries().asSequence().forEach { entry ->
                     val fileName = entry.name
                     val file = File("$resourceDir/$fileName")
@@ -69,6 +70,9 @@ class LadybirdActivity : AppCompatActivity() {
                     }
                 }
             }
+            assetArchive.delete()
+        } else if (assetArchive.exists()) {
+            assetArchive.delete()
         }
         val userDir = applicationContext.getExternalFilesDir(null)!!.absolutePath;
         initNativeCode(resourceDir, "Ladybird", timerService, userDir)

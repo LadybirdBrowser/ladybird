@@ -26,6 +26,10 @@ public class TransferAssets {
         Log.d("Ladybird", "Hello from java");
         Context applicationContext = context.getApplicationContext();
         File assetDir = applicationContext.getFilesDir();
+        File extractedAssets = new File(assetDir, "res/icons/48x48/app-browser.png");
+        if (extractedAssets.exists()) {
+            return assetDir.getAbsolutePath();
+        }
         AssetManager assetManager = applicationContext.getAssets();
         if (!copyAsset(assetManager, "ladybird-assets.zip", assetDir.getAbsolutePath() + "/ladybird-assets.zip")) {
             Log.e("Ladybird", "Unable to copy assets");
