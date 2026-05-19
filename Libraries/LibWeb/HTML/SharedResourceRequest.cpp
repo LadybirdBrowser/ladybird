@@ -248,8 +248,8 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
 void SharedResourceRequest::handle_failed_fetch()
 {
     m_state = State::Failed;
-    m_fetch_controller = nullptr;
     m_load_event_delayer.clear();
+    m_fetch_controller = nullptr;
     for (auto& callback : m_callbacks) {
         if (callback.on_fail)
             callback.on_fail->function()();
@@ -260,8 +260,8 @@ void SharedResourceRequest::handle_failed_fetch()
 void SharedResourceRequest::handle_successful_resource_load()
 {
     m_state = State::Finished;
-    m_fetch_controller = nullptr;
     m_load_event_delayer.clear();
+    m_fetch_controller = nullptr;
     for (auto& callback : m_callbacks) {
         if (callback.on_finish)
             callback.on_finish->function()();
