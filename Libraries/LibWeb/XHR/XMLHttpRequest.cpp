@@ -1089,6 +1089,11 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::set_with_credentials(bool with_credent
 // https://xhr.spec.whatwg.org/#garbage-collection
 bool XMLHttpRequest::must_survive_garbage_collection() const
 {
+    // AD-HOC: Don't keep XHRs alive once their associated document is destroyed. No listener can ever fire at this point.
+    auto& global = HTML::relevant_global_object(*this);
+    if (auto* window = as_if<HTML::Window>(global); window && window->associated_document().has_been_destroyed())
+        return false;
+
     // An XMLHttpRequest object must not be garbage collected
     // if its state is either opened with the send() flag set, headers received, or loading,
     // and it has one or more event listeners registered whose type is one of
