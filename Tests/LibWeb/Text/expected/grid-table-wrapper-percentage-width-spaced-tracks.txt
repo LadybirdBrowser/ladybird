@@ -1,0 +1,24 @@
+full grid left: 0.0
+full grid right: 500.0
+full grid width: 500.0
+full start left: 0.0
+full start right: 250.0
+full start width: 250.0
+full center left: 125.0
+full center right: 375.0
+full center width: 250.0
+full end left: 250.0
+full end right: 500.0
+full end width: 250.0
+full auto margins left: 125.0
+full auto margins right: 375.0
+full auto margins width: 250.0
+partial grid left: 0.0
+partial grid right: 600.0
+partial grid width: 600.0
+partial center left: 337.5
+partial center right: 512.5
+partial center width: 175.0
+partial auto margins left: 337.5
+partial auto margins right: 512.5
+partial auto margins width: 175.0

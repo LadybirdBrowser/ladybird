@@ -1,0 +1,21 @@
+oversized start left: 0.0
+oversized start right: 180.0
+oversized start width: 180.0
+oversized center left: -40.0
+oversized center right: 140.0
+oversized center width: 180.0
+oversized end left: -80.0
+oversized end right: 100.0
+oversized end width: 180.0
+oversized auto margins center left: -40.0
+oversized auto margins center right: 140.0
+oversized auto margins center width: 180.0
+oversized auto margins end left: -80.0
+oversized auto margins end right: 100.0
+oversized auto margins end width: 180.0
+narrow center left: 20.0
+narrow center right: 80.0
+narrow center width: 60.0
+narrow stretch left: 0.0
+narrow stretch right: 100.0
+narrow stretch width: 100.0

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+body {
+    margin: 0;
+}
+
+.case {
+    display: flow-root;
+    width: 500px;
+    height: 30px;
+}
+
+.left-float {
+    float: left;
+    width: 200px;
+    height: 20px;
+}
+
+.right-float {
+    float: right;
+    width: 200px;
+    height: 20px;
+}
+
+.narrow-float {
+    width: 100px;
+}
+
+.table {
+    display: table;
+    width: 50%;
+    height: 20px;
+    margin-left: auto;
+    margin-right: auto;
+}
+</style>
+<div class="case">
+    <div class="left-float"></div>
+    <div id="left-float-table" class="table"></div>
+</div>
+<div class="case">
+    <div class="right-float"></div>
+    <div id="right-float-table" class="table"></div>
+</div>
+<div class="case">
+    <div class="left-float narrow-float"></div>
+    <div class="right-float narrow-float"></div>
+    <div id="both-floats-table" class="table"></div>
+</div>
+<script>
+test(() => {
+    for (const id of ["left-float-table", "right-float-table", "both-floats-table"]) {
+        const rect = document.getElementById(id).getBoundingClientRect();
+        println(`${id} left: ${rect.left.toFixed(1)}`);
+        println(`${id} right: ${rect.right.toFixed(1)}`);
+        println(`${id} width: ${rect.width.toFixed(1)}`);
+    }
+});
+</script>
