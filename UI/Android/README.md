@@ -136,7 +136,8 @@ The Ladybird Android port consists of:
 
 - NDK version `29.0.13599879` is an r29 beta release.  Once r29 is stable it should
   be updated in `build.gradle.kts`.
-- Resources are packaged as `ladybird-assets.zip` and extracted to app storage at
-  runtime.  A proper `AssetManager`-backed implementation is planned.
+- Resources are packaged as `ladybird-assets.zip` and extracted directly from APK
+  assets into app storage on first run.  A proper `AssetManager`-backed
+  implementation is planned.
 - CA certificates for curl are manually merged from the system cert store as a
   workaround for curl's handling of the Android certificate storage.

@@ -6,6 +6,7 @@
 
 package org.serenityos.ladybird
 
+import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.KeyEvent
@@ -13,16 +14,6 @@ import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.TextView
 import org.serenityos.ladybird.databinding.ActivityMainBinding
-import java.io.BufferedInputStream
-import java.io.BufferedOutputStream
-import java.io.File
-import java.io.FileOutputStream
-import java.nio.file.Files
-import java.util.zip.ZipFile
-import kotlin.io.path.Path
-import kotlin.io.path.inputStream
-import kotlin.io.path.isDirectory
-import kotlin.io.path.outputStream
 
 class LadybirdActivity : AppCompatActivity() {
 
@@ -31,51 +22,22 @@ class LadybirdActivity : AppCompatActivity() {
     private lateinit var view: WebView
     private lateinit var urlEditText: EditText
     private var timerService = TimerExecutorService()
+    private var nativeInitialized = false
+    private var viewInitialized = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        resourceDir = TransferAssets.transferAssets(this)
-        val assetArchive = File("$resourceDir/ladybird-assets.zip")
-        val testFile = File("$resourceDir/res/icons/48x48/app-browser.png")
-        if (!testFile.exists())
-        {
-            ZipFile(assetArchive).use { zip ->
-                zip.entries().asSequence().forEach { entry ->
-                    val fileName = entry.name
-                    val file = File("$resourceDir/$fileName")
-                    if (!entry.isDirectory)
-                    {
-                        val parentFolder = File(file.parent!!)
-                        if (!parentFolder.exists())
-                            parentFolder.mkdirs()
-                        zip.getInputStream(entry).use { input ->
-                            file.outputStream().use { output ->
-                                input.copyTo(output)
-                            }
-                        }
-                    }
-                }
-            }
-
-            // curl has some issues with the Android's way of storing certificates.
-            // We need to do this in order to make curl happy.
-            val certMain = File("$resourceDir/cacert.pem")
-            certMain.outputStream().use { output ->
-                Files.walk(Path("/system/etc/security/cacerts")).forEach { certPath ->
-                    if (!certPath.isDirectory()) {
-                        certPath.inputStream().use { input ->
-                            input.copyTo(output)
-                        }
-                    }
-                }
-            }
-            assetArchive.delete()
-        } else if (assetArchive.exists()) {
-            assetArchive.delete()
+        try {
+            resourceDir = TransferAssets.transferAssets(this)
+        } catch (exception: Exception) {
+            Log.e("Ladybird", "Failed to prepare runtime assets", exception)
+            finish()
+            return
         }
         val userDir = applicationContext.getExternalFilesDir(null)!!.absolutePath;
         initNativeCode(resourceDir, "Ladybird", timerService, userDir)
+        nativeInitialized = true
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -92,6 +54,7 @@ class LadybirdActivity : AppCompatActivity() {
             false
         }
         view.initialize(resourceDir)
+        viewInitialized = true
         view.loadURL(intent.dataString ?: "https://ladybird.dev")
     }
 
@@ -100,8 +63,10 @@ class LadybirdActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        view.dispose()
-        disposeNativeCode()
+        if (viewInitialized)
+            view.dispose()
+        if (nativeInitialized)
+            disposeNativeCode()
         super.onDestroy()
     }
 
