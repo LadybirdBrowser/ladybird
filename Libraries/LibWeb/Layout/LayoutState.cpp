@@ -857,33 +857,19 @@ void LayoutState::UsedValues::set_node(NodeWithStyle const& node, UsedValues con
             return false;
         }
 
-        if (size.is_calculated()) {
-            CSS::CalculationResolutionContext context {
-                .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(node),
-            };
-            if (size.calculated().contains_percentage()) {
+        if (size.is_length_percentage()) {
+            if (size.contains_percentage()) {
                 if (!containing_block_has_definite_size)
                     return false;
                 auto containing_block_size_as_length = width ? containing_block_used_values->content_width() : containing_block_used_values->content_height();
-                context.percentage_basis = CSS::Length::make_px(containing_block_size_as_length);
+                resolved_definite_size = clamp_to_max_dimension_value(adjust_for_box_sizing(size.to_px(node, containing_block_size_as_length), size, width));
+                return true;
             }
-            resolved_definite_size = clamp_to_max_dimension_value(adjust_for_box_sizing(size.calculated().resolve_length(context)->to_px(node), size, width));
+
+            resolved_definite_size = clamp_to_max_dimension_value(adjust_for_box_sizing(size.to_px(node, CSSPixels { 0 }), size, width));
             return true;
         }
 
-        if (size.is_length()) {
-            VERIFY(!size.is_auto()); // This should have been covered by the Size::is_auto() branch above.
-            resolved_definite_size = clamp_to_max_dimension_value(adjust_for_box_sizing(size.length().to_px(node), size, width));
-            return true;
-        }
-        if (size.is_percentage()) {
-            if (containing_block_has_definite_size) {
-                auto containing_block_size = width ? containing_block_used_values->content_width() : containing_block_used_values->content_height();
-                resolved_definite_size = clamp_to_max_dimension_value(adjust_for_box_sizing(containing_block_size.scaled(size.percentage().as_fraction()), size, width));
-                return true;
-            }
-            return false;
-        }
         return false;
     };
 
