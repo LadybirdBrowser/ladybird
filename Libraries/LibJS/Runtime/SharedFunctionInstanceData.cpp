@@ -77,7 +77,12 @@ Utf16String SharedFunctionInstanceData::source_text() const
     if (!m_source_code)
         return {};
 
-    return m_source_code->source_text_from_offsets(m_source_text_offset, m_source_text_length);
+    auto old_external_memory_size = utf16_string_external_memory_size(m_source_text_owner);
+    m_source_text_owner = m_source_code->source_text_from_offsets(m_source_text_offset, m_source_text_length);
+    auto new_external_memory_size = utf16_string_external_memory_size(m_source_text_owner);
+    if (new_external_memory_size > old_external_memory_size)
+        heap().did_allocate_external_memory(new_external_memory_size - old_external_memory_size);
+    return m_source_text_owner;
 }
 
 void SharedFunctionInstanceData::set_source_text(Utf16View source_text)

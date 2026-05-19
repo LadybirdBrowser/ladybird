@@ -89,7 +89,7 @@ public:
     //     source text needs to be owned by the function data (e.g. for
     //     dynamically created functions via Function constructor).
     RefPtr<SourceCode const> m_source_code;
-    Utf16String m_source_text_owner;
+    Utf16String mutable m_source_text_owner;
     size_t m_source_text_offset { 0 };
     size_t m_source_text_length { 0 }; // [[SourceText]]
 
