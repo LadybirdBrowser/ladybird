@@ -25,8 +25,48 @@
 
 static constexpr CGFloat const WINDOW_WIDTH = 1000;
 static constexpr CGFloat const WINDOW_HEIGHT = 800;
+static constexpr CGFloat const TAB_ICON_SIZE = 16;
+static constexpr NSUInteger const TAB_LOADING_SPINNER_SEGMENT_COUNT = 12;
+
+static NSImage* tab_loading_spinner_icon(NSUInteger frame)
+{
+    auto* image = [NSImage imageWithSize:NSMakeSize(TAB_ICON_SIZE, TAB_ICON_SIZE)
+                                 flipped:NO
+                          drawingHandler:^BOOL(NSRect) {
+                              auto* context = [NSGraphicsContext currentContext].CGContext;
+                              auto* color = [NSColor labelColor];
+                              static constexpr CGFloat radians_per_segment = 2.0 * 3.14159265358979323846 / TAB_LOADING_SPINNER_SEGMENT_COUNT;
+
+                              CGContextSaveGState(context);
+                              CGContextTranslateCTM(context, TAB_ICON_SIZE / 2.0, TAB_ICON_SIZE / 2.0);
+
+                              for (NSUInteger segment = 0; segment < TAB_LOADING_SPINNER_SEGMENT_COUNT; ++segment) {
+                                  auto alpha = static_cast<CGFloat>(((segment + frame % TAB_LOADING_SPINNER_SEGMENT_COUNT) % TAB_LOADING_SPINNER_SEGMENT_COUNT) + 1) / TAB_LOADING_SPINNER_SEGMENT_COUNT;
+                                  auto* segment_color = [color colorWithAlphaComponent:alpha];
+
+                                  CGContextSaveGState(context);
+                                  CGContextRotateCTM(context, static_cast<CGFloat>(segment) * radians_per_segment);
+                                  CGContextSetStrokeColorWithColor(context, segment_color.CGColor);
+                                  CGContextSetLineWidth(context, 2);
+                                  CGContextSetLineCap(context, kCGLineCapRound);
+                                  CGContextMoveToPoint(context, 0, -4);
+                                  CGContextAddLineToPoint(context, 0, -7);
+                                  CGContextStrokePath(context);
+                                  CGContextRestoreGState(context);
+                              }
+
+                              CGContextRestoreGState(context);
+                              return YES;
+                          }];
+    return image;
+}
 
 @interface Tab () <LadybirdWebViewObserver>
+{
+    BOOL m_loading;
+    NSUInteger m_loading_spinner_frame;
+    __strong NSTimer* m_loading_spinner_timer;
+}
 
 @property (nonatomic, strong) NSString* title;
 @property (nonatomic, strong) NSImage* favicon;
@@ -112,6 +152,11 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
     return self;
 }
 
+- (void)dealloc
+{
+    [m_loading_spinner_timer invalidate];
+}
+
 #pragma mark - Public methods
 
 - (void)find:(id)sender
@@ -141,15 +186,57 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
     return (TabController*)[self windowController];
 }
 
+- (NSImage*)tabIcon
+{
+    if (m_loading)
+        return tab_loading_spinner_icon(m_loading_spinner_frame);
+    return self.favicon;
+}
+
+- (void)updateLoadingSpinner
+{
+    if (!m_loading)
+        return;
+
+    m_loading_spinner_frame = (m_loading_spinner_frame + 1) % TAB_LOADING_SPINNER_SEGMENT_COUNT;
+    [self updateTabTitleAndFavicon];
+}
+
+- (void)setTabLoading:(BOOL)loading
+{
+    if (m_loading == loading)
+        return;
+
+    m_loading = loading;
+    m_loading_spinner_frame = 0;
+
+    if (m_loading) {
+        __weak Tab* weak_self = self;
+        m_loading_spinner_timer = [NSTimer timerWithTimeInterval:0.08
+                                                         repeats:YES
+                                                           block:^(NSTimer*) {
+                                                               Tab* strong_self = weak_self;
+                                                               if (strong_self == nil)
+                                                                   return;
+                                                               [strong_self updateLoadingSpinner];
+                                                           }];
+        [[NSRunLoop mainRunLoop] addTimer:m_loading_spinner_timer forMode:NSRunLoopCommonModes];
+    } else {
+        [m_loading_spinner_timer invalidate];
+        m_loading_spinner_timer = nil;
+    }
+
+    [self updateTabTitleAndFavicon];
+}
+
 - (void)updateTabTitleAndFavicon
 {
     static constexpr CGFloat TITLE_FONT_SIZE = 12;
-    static constexpr CGFloat FAVICON_SIZE = 16;
 
     NSFont* title_font = [NSFont systemFontOfSize:TITLE_FONT_SIZE];
 
     auto* favicon_attachment = [[NSTextAttachment alloc] init];
-    favicon_attachment.image = self.favicon;
+    favicon_attachment.image = [self tabIcon];
 
     // By default, the image attachment will "automatically adapt to the surrounding font and color
     // attributes in attributed strings". Therefore, we specify a clear color here to prevent the
@@ -160,8 +247,8 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
                               range:NSMakeRange(0, [favicon_attribute length])];
 
     // adjust the favicon image to middle center the title text
-    CGFloat offset_y = (title_font.capHeight - FAVICON_SIZE) / 2.f;
-    [favicon_attachment setBounds:CGRectMake(0, offset_y, FAVICON_SIZE, FAVICON_SIZE)];
+    CGFloat offset_y = (title_font.capHeight - TAB_ICON_SIZE) / 2.f;
+    [favicon_attachment setBounds:CGRectMake(0, offset_y, TAB_ICON_SIZE, TAB_ICON_SIZE)];
 
     auto* title_attributes = @{
         NSForegroundColorAttributeName : [NSColor textColor],
@@ -261,6 +348,7 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
 {
     self.title = Ladybird::string_to_ns_string(url.serialize());
     self.favicon = [Tab defaultFavicon];
+    [self setTabLoading:YES];
     [self updateTabTitleAndFavicon];
 
     [[self tabController] onFaviconChange:nil];
@@ -269,6 +357,7 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
 
 - (void)onLoadFinish:(URL::URL const&)url
 {
+    [self setTabLoading:NO];
     [[self tabController] onLoadFinish:url];
 }
 
