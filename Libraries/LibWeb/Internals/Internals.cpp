@@ -568,7 +568,7 @@ void Internals::ingest_hsts_header(String const& url, String const& header_value
 
 bool Internals::is_known_hsts_host(String const& domain)
 {
-    return page().client().page_did_is_known_hsts_host(domain);
+    return ResourceLoader::is_known_hsts_host(page(), domain);
 }
 
 void Internals::set_browser_zoom(double factor)

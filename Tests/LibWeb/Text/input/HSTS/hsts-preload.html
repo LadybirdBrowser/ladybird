@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Test the built-in HSTS preload list: known hosts and subdomains report as HSTS-known on
+    // a fresh profile, unknown hosts do not, and a max-age=0 response cannot override preload.
+    test(() => {
+        // Hosts from Chromium's transport_security_state_static.json:
+        //  - accounts.google.com: a preloaded force-https host (exact-match coverage).
+        //  - dev: a force-https TLD with include_subdomains, so any *.dev is a subdomain match.
+        //  - paypal.com: a preloaded force-https host, used for the max-age=0 override check.
+        if (!internals.isKnownHSTSHost("accounts.google.com")) {
+            println("FAIL - preloaded host should be HSTS-known");
+            return;
+        }
+
+        if (!internals.isKnownHSTSHost("anything.dev")) {
+            println("FAIL - subdomain of preloaded include_subdomains TLD should be HSTS-known");
+            return;
+        }
+
+        if (internals.isKnownHSTSHost("example.test")) {
+            println("FAIL - non-preloaded host should not be HSTS-known on a fresh profile");
+            return;
+        }
+
+        // max-age=0 from a preloaded host must not unset its preload bit.
+        internals.setHSTSPolicy("paypal.com", 0, false);
+        if (!internals.isKnownHSTSHost("paypal.com")) {
+            println("FAIL - max-age=0 should not override the preload list");
+            return;
+        }
+
+        println("PASS");
+    });
+</script>
