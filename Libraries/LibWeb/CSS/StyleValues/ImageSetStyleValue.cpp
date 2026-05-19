@@ -30,19 +30,7 @@ ImageSetStyleValue::ImageSetStyleValue(Vector<Option> options)
 {
 }
 
-static Optional<double> option_resolution_in_dppx(ImageSetStyleValue::Option const& option, Optional<CalculationResolutionContext> const& calculation_resolution_context)
-{
-    if (option.resolution->is_resolution())
-        return option.resolution->as_resolution().resolution().to_dots_per_pixel();
-    if (option.resolution->is_calculated()) {
-        auto resolution = option.resolution->as_calculated().resolve_resolution(calculation_resolution_context.value_or({}));
-        if (resolution.has_value())
-            return resolution->to_dots_per_pixel();
-    }
-    return {};
-}
-
-AbstractImageStyleValue const* ImageSetStyleValue::select_image(double device_pixels_per_css_pixel, Optional<CalculationResolutionContext> const& calculation_resolution_context) const
+AbstractImageStyleValue const* ImageSetStyleValue::select_image(double device_pixels_per_css_pixel) const
 {
     ImageSetStyleValue::Option const* best_below_or_equal = nullptr;
     Optional<double> best_below_or_equal_resolution;
@@ -53,21 +41,19 @@ AbstractImageStyleValue const* ImageSetStyleValue::select_image(double device_pi
         if (option.type.has_value() && !HTML::is_supported_image_type(*option.type))
             continue;
 
-        auto resolution = option_resolution_in_dppx(option, calculation_resolution_context);
-        if (!resolution.has_value())
-            continue;
+        auto resolution = Resolution::from_style_value(option.resolution).to_dots_per_pixel();
 
-        if (*resolution >= device_pixels_per_css_pixel) {
-            if (!best_above_resolution.has_value() || *resolution < *best_above_resolution) {
+        if (resolution >= device_pixels_per_css_pixel) {
+            if (!best_above_resolution.has_value() || resolution < *best_above_resolution) {
                 best_above = &option;
-                best_above_resolution = *resolution;
+                best_above_resolution = resolution;
             }
             continue;
         }
 
-        if (!best_below_or_equal_resolution.has_value() || *resolution > *best_below_or_equal_resolution) {
+        if (!best_below_or_equal_resolution.has_value() || resolution > *best_below_or_equal_resolution) {
             best_below_or_equal = &option;
-            best_below_or_equal_resolution = *resolution;
+            best_below_or_equal_resolution = resolution;
         }
     }
 
@@ -140,41 +126,12 @@ bool ImageSetStyleValue::is_computationally_independent() const
 void ImageSetStyleValue::load_any_resources(DOM::Document& document)
 {
     auto dpr = document.page().client().device_pixels_per_css_pixel();
-    if (auto const* image = select_image(dpr, {}); image && image != m_selected_image) {
+    if (auto const* image = select_image(dpr); image && image != m_selected_image) {
         const_cast<AbstractImageStyleValue&>(*image).set_style_sheet(m_style_sheet);
         m_selected_image = image;
     }
     if (m_selected_image)
         const_cast<AbstractImageStyleValue&>(*m_selected_image).load_any_resources(document);
-}
-
-void ImageSetStyleValue::load_any_resources(Layout::NodeWithStyle const& layout_node)
-{
-    update_selected_image_for_layout_node(layout_node);
-    if (m_selected_image)
-        const_cast<AbstractImageStyleValue&>(*m_selected_image).load_any_resources(const_cast<DOM::Document&>(layout_node.document()));
-}
-
-void ImageSetStyleValue::update_selected_image_for_layout_node(Layout::NodeWithStyle const& layout_node) const
-{
-    Optional<DOM::AbstractElement> abstract_element;
-    if (layout_node.is_generated_for_pseudo_element()) {
-        if (auto const* pseudo_element_generator = layout_node.pseudo_element_generator())
-            abstract_element = DOM::AbstractElement { *pseudo_element_generator, layout_node.generated_for_pseudo_element() };
-    } else if (auto const* dom_node = layout_node.dom_node(); dom_node && dom_node->is_element()) {
-        abstract_element = DOM::AbstractElement { static_cast<DOM::Element const&>(*dom_node) };
-    }
-
-    auto context = CalculationResolutionContext {
-        .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node),
-        .abstract_element = abstract_element,
-    };
-    auto dpr = layout_node.document().page().client().device_pixels_per_css_pixel();
-
-    if (auto const* image = select_image(dpr, context); image && image != m_selected_image) {
-        const_cast<AbstractImageStyleValue&>(*image).set_style_sheet(m_style_sheet);
-        m_selected_image = image;
-    }
 }
 
 Optional<CSSPixels> ImageSetStyleValue::natural_width() const
@@ -200,7 +157,6 @@ Optional<CSSPixelFraction> ImageSetStyleValue::natural_aspect_ratio() const
 
 void ImageSetStyleValue::resolve_for_size(Layout::NodeWithStyle const& layout_node, CSSPixelSize size) const
 {
-    update_selected_image_for_layout_node(layout_node);
     if (m_selected_image)
         m_selected_image->resolve_for_size(layout_node, size);
 }
