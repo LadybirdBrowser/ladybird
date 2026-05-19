@@ -1,4 +1,5 @@
 import com.android.build.gradle.internal.tasks.factory.dependsOn
+import org.gradle.api.tasks.bundling.Zip
 
 plugins {
     id("com.android.application") version "8.11.0"
@@ -17,6 +18,19 @@ task<Exec>("buildHostTools") {
 }
 tasks.named("preBuild").dependsOn("buildHostTools")
 tasks.named("prepareKotlinBuildScriptModel").dependsOn("buildHostTools")
+
+val ladybirdAssetsDir = layout.buildDirectory.dir("generated/ladybird-assets")
+val packageLadybirdAssets = tasks.register<Zip>("packageLadybirdAssets") {
+    archiveFileName.set("ladybird-assets.zip")
+    destinationDirectory.set(ladybirdAssetsDir)
+    isReproducibleFileOrder = true
+    isPreserveFileTimestamps = false
+
+    from("$sourceDir/Base/res/ladybird") { into("res/ladybird") }
+    from("$sourceDir/Base/res/fonts") { into("res/fonts") }
+    from("$sourceDir/Base/res/icons") { into("res/icons") }
+    from("$sourceDir/Base/res/themes") { into("res/themes") }
+}
 
 android {
     namespace = "org.serenityos.ladybird"
@@ -78,6 +92,14 @@ android {
         viewBinding = true
         prefab = true
     }
+
+    sourceSets {
+        getByName("main").assets.srcDir(ladybirdAssetsDir)
+    }
+}
+
+tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }.configureEach {
+    dependsOn(packageLadybirdAssets)
 }
 
 dependencies {
