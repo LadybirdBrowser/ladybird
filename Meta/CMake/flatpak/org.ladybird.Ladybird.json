@@ -719,6 +719,12 @@
           "sha256": "e79e372bcc6fcdb51f7a31e3c0c504530838432669af2ac544d2491de0a86030"
         },
         {
+          "type": "file",
+          "url": "https://raw.githubusercontent.com/chromium/chromium/aa04f175415addb04bb78936b0d8b973fbd8ea61/net/http/transport_security_state_static.json",
+          "dest": "Caches/HSTSPreload/",
+          "sha256": "4ca70f051571a198246bc337bd357f759fb8f9fdeddbe66b65960997540ee163"
+        },
+        {
           "type": "shell",
           "commands": [
             "# FIXME Is there an easier way to set an absolute path in config-opts?",
