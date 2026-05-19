@@ -26,6 +26,7 @@
 #include <QMimeData>
 #include <QMimeDatabase>
 #include <QResizeEvent>
+#include <QTimer>
 
 namespace Ladybird {
 
@@ -87,6 +88,8 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_toolbar = new QToolBar(this);
     m_location_edit = new LocationEdit(this);
     m_bookmarks_bar = new BookmarksBar(this);
+    m_loading_animation_timer = new QTimer(this);
+    m_loading_animation_timer->setInterval(80);
 
     m_hover_label = new HyperlinkLabel(this);
     m_hover_label->hide();
@@ -95,6 +98,10 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     QObject::connect(m_hover_label, &HyperlinkLabel::mouse_entered, [this] {
         update_hover_label();
+    });
+    QObject::connect(m_loading_animation_timer, &QTimer::timeout, this, [this] {
+        m_loading_animation_frame = (m_loading_animation_frame + 1) % 12;
+        update_tab_icon();
     });
 
     auto* focus_location_editor_action = new QAction("Edit Location", this);
@@ -179,7 +186,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         emit title_changed(tab_index(), url_serialized);
 
         m_favicon = default_favicon();
-        emit favicon_changed(tab_index(), m_favicon);
+        set_loading(true);
 
         m_location_edit->set_favicon({});
         m_location_edit->set_loading(true);
@@ -188,10 +195,12 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     };
 
     view().on_load_finish = [this](auto const&) {
+        set_loading(false);
         m_location_edit->set_loading(false);
     };
 
     view().on_web_content_crashed = [this] {
+        set_loading(false);
         m_location_edit->set_loading(false);
     };
 
@@ -215,7 +224,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
             return;
 
         m_favicon = qpixmap;
-        emit favicon_changed(tab_index(), m_favicon);
+        update_tab_icon();
         m_location_edit->set_favicon(m_favicon);
     };
 
@@ -506,6 +515,37 @@ void Tab::location_edit_return_pressed()
         view().load_navigation_error_page(ak_string_from_qstring(text));
 }
 
+QIcon Tab::tab_icon() const
+{
+    if (m_is_loading)
+        return loading_spinner_icon(palette(), m_loading_animation_frame);
+    return m_favicon;
+}
+
+void Tab::set_loading(bool is_loading)
+{
+    if (m_is_loading == is_loading)
+        return;
+
+    m_is_loading = is_loading;
+    m_loading_animation_frame = 0;
+
+    if (m_is_loading)
+        m_loading_animation_timer->start();
+    else
+        m_loading_animation_timer->stop();
+
+    update_tab_icon();
+}
+
+void Tab::update_tab_icon()
+{
+    auto index = tab_index();
+    if (index < 0)
+        return;
+    emit favicon_changed(index, tab_icon());
+}
+
 void Tab::open_file()
 {
     auto filename = QFileDialog::getOpenFileUrl(this, "Open file", QDir::homePath(), "All Files (*.*)");
@@ -547,6 +587,8 @@ bool Tab::event(QEvent* event)
 {
     if (event->type() == QEvent::PaletteChange) {
         recreate_toolbar_icons();
+        if (m_is_loading)
+            update_tab_icon();
         return QWidget::event(event);
     }
 

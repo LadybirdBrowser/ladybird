@@ -548,7 +548,7 @@ void BrowserWindow::initialize_tab(Tab* tab)
         return new_tab.view().handle();
     };
 
-    m_tabs_container->set_tab_icon(m_tabs_container->index_of(tab), tab->favicon());
+    m_tabs_container->set_tab_icon(m_tabs_container->index_of(tab), tab->tab_icon());
     create_close_button_for_tab(tab);
 }
 
@@ -648,13 +648,15 @@ void BrowserWindow::tab_title_changed(int index, QString const& title)
 
 void BrowserWindow::tab_favicon_changed(int index, QIcon const& icon)
 {
+    if (index < 0)
+        return;
     m_tabs_container->set_tab_icon(index, icon);
 }
 
 void BrowserWindow::create_close_button_for_tab(Tab* tab)
 {
     auto index = m_tabs_container->index_of(tab);
-    m_tabs_container->set_tab_icon(index, tab->favicon());
+    m_tabs_container->set_tab_icon(index, tab->tab_icon());
 
     auto* button = new TabBarButton(create_tvg_icon_with_theme_colors("close", palette()));
     button->setToolTip("Close Tab");
