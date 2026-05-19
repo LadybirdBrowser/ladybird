@@ -564,13 +564,17 @@ CSSPixels FormattingContext::compute_auto_height_for_block_formatting_context_ro
 
 // 17.5.2 Table width algorithms: the 'table-layout' property
 // https://www.w3.org/TR/CSS22/tables.html#width-layout
-CSSPixels FormattingContext::compute_table_box_width_inside_table_wrapper(Box const& box, AvailableSpace const& available_space)
+CSSPixels FormattingContext::compute_table_box_width_inside_table_wrapper(
+    Box const& box,
+    AvailableSpace const& available_space,
+    Optional<CSSPixels> table_wrapper_containing_block_width,
+    TableWrapperWidthMode table_wrapper_width_mode)
 {
-    // Table wrapper width should be equal to width of table box it contains
+    // CSS 2 says the table wrapper width is the border-edge width of the table grid box inside it.
 
     auto const& computed_values = box.computed_values();
 
-    auto width_of_containing_block = available_space.width.to_px_or_zero();
+    auto width_of_containing_block = table_wrapper_containing_block_width.value_or(available_space.width.to_px_or_zero());
 
     // If 'margin-left', or 'margin-right' are computed as 'auto', their used value is '0'.
     auto margin_left = computed_values.margin().left().to_px_or_zero(box, width_of_containing_block);
@@ -590,7 +594,11 @@ CSSPixels FormattingContext::compute_table_box_width_inside_table_wrapper(Box co
     VERIFY(table_box.has_value());
 
     LayoutState throwaway_state(box);
-    throwaway_state.populate_node_from(m_state, *box.containing_block());
+    auto& containing_block_state = throwaway_state.populate_node_from(m_state, *box.containing_block());
+    // CSS Grid lays out grid items into their grid-area containing blocks, which need not match the layout-tree
+    // containing block. Use the explicit grid-area width when measuring a table wrapper for grid alignment.
+    if (table_wrapper_containing_block_width.has_value())
+        containing_block_state.set_content_width(*table_wrapper_containing_block_width);
 
     auto& table_box_state = throwaway_state.get_mutable(*table_box);
     auto const& table_box_computed_values = table_box->computed_values();
@@ -603,6 +611,10 @@ CSSPixels FormattingContext::compute_table_box_width_inside_table_wrapper(Box co
     context->run_until_width_calculation(m_state.get(*table_box).available_inner_space_or_constraints_from(available_space));
 
     auto table_used_width = throwaway_state.get(*table_box).border_box_width();
+    if (table_wrapper_width_mode == TableWrapperWidthMode::UseTableUsedWidthIfNotAuto
+        && !table_box->computed_values().width().is_auto()) {
+        return table_used_width;
+    }
     return available_space.width.is_definite() ? min(table_used_width, available_width) : table_used_width;
 }
 

@@ -380,6 +380,9 @@ private:
     CSSPixels calculate_limited_max_content_contribution(GridItem const&, GridDimension) const;
 
     CSSPixels containing_block_size_for_item(GridItem const&, GridDimension) const;
+    Box const& table_box_inside_table_wrapper(GridItem const&) const;
+    void resolve_table_wrapper_grid_item_width(GridItem&, CSSPixels containing_block_width);
+    CSSPixels non_cyclic_containing_block_width_for_table_wrapper(GridItem const&, CSSPixels containing_block_width) const;
 
     CSSPixelRect get_grid_area_rect(GridItem const&) const;
 
