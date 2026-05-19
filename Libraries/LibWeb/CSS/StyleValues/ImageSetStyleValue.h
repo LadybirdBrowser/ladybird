@@ -33,7 +33,6 @@ public:
     virtual bool is_computationally_independent() const override;
 
     virtual void load_any_resources(DOM::Document&) override;
-    virtual void load_any_resources(Layout::NodeWithStyle const&) override;
 
     virtual Optional<CSSPixels> natural_width() const override;
     virtual Optional<CSSPixels> natural_height() const override;
@@ -52,8 +51,7 @@ private:
     virtual void set_style_sheet(GC::Ptr<CSSStyleSheet>) override;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
-    AbstractImageStyleValue const* select_image(double device_pixels_per_css_pixel, Optional<CalculationResolutionContext> const&) const;
-    void update_selected_image_for_layout_node(Layout::NodeWithStyle const&) const;
+    AbstractImageStyleValue const* select_image(double device_pixels_per_css_pixel) const;
 
     Vector<Option> m_options;
     GC::Ptr<CSSStyleSheet> m_style_sheet;
