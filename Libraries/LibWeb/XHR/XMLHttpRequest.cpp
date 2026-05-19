@@ -95,9 +95,19 @@ void XMLHttpRequest::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_request_body);
     visitor.visit(m_response);
     visitor.visit(m_fetch_controller);
+    visitor.visit(m_timeout_timer);
 
     if (auto* value = m_response_object.get_pointer<GC::Ref<JS::Object>>())
         visitor.visit(*value);
+}
+
+void XMLHttpRequest::stop_timeout_timer()
+{
+    if (!m_timeout_timer)
+        return;
+    m_timeout_timer->stop();
+    m_timeout_timer->on_timeout = nullptr;
+    m_timeout_timer = nullptr;
 }
 
 // https://xhr.spec.whatwg.org/#concept-event-fire-progress
@@ -871,20 +881,17 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
         //     1. Wait until either req’s done flag is set or this’s timeout is not 0 and this’s timeout milliseconds have passed since now.
         //     2. If req’s done flag is unset, then set this’s timed out flag and terminate this’s fetch controller.
         if (m_timeout != 0) {
-            auto timer = Platform::Timer::create_single_shot(heap(), m_timeout, nullptr);
-
-            // NOTE: `timer` is kept alive by capturing into the lambda for the GC to see
-            // NOTE: `this` and `request` is kept alive by Platform::Timer using a Handle.
-            timer->on_timeout = GC::create_function(heap(), [this, request, timer]() {
-                (void)timer;
+            stop_timeout_timer();
+            m_timeout_timer = Platform::Timer::create_single_shot(heap(), m_timeout, nullptr);
+            m_timeout_timer->on_timeout = GC::create_function(heap(), [this, request]() {
                 if (!request->done()) {
                     m_timed_out = true;
                     m_fetch_controller->terminate();
                     MUST(handle_errors());
                 }
+                stop_timeout_timer();
             });
-
-            timer->start();
+            m_timeout_timer->start();
         }
     }
     // 12. Otherwise, if this’s synchronous flag is set:
@@ -928,21 +935,21 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
         IGNORE_USE_IN_ESCAPING_LAMBDA bool did_time_out = false;
 
         if (m_timeout != 0) {
-            auto timer = Platform::Timer::create_single_shot(heap(), m_timeout, nullptr);
-
-            // NOTE: `timer` is kept alive by capturing into the lambda for the GC to see
-            timer->on_timeout = GC::create_function(heap(), [timer, &did_time_out]() {
-                (void)timer;
+            stop_timeout_timer();
+            m_timeout_timer = Platform::Timer::create_single_shot(heap(), m_timeout, nullptr);
+            m_timeout_timer->on_timeout = GC::create_function(heap(), [this, &did_time_out]() {
                 did_time_out = true;
+                stop_timeout_timer();
             });
-
-            timer->start();
+            m_timeout_timer->start();
         }
 
         // FIXME: This is not exactly correct, as it allows the HTML event loop to continue executing tasks.
         HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&]() {
             return processed_response || did_time_out;
         }));
+
+        stop_timeout_timer();
 
         // 6. If processedResponse is false, then set this’s timed out flag and terminate this’s fetch controller.
         if (!processed_response) {
@@ -1115,6 +1122,8 @@ bool XMLHttpRequest::must_survive_garbage_collection() const
 // https://xhr.spec.whatwg.org/#dom-xmlhttprequest-abort
 void XMLHttpRequest::abort()
 {
+    stop_timeout_timer();
+
     // 1. Abort this’s fetch controller.
     m_fetch_controller->abort(realm(), {});
 
@@ -1159,6 +1168,8 @@ WebIDL::ExceptionOr<String> XMLHttpRequest::status_text() const
 WebIDL::ExceptionOr<void> XMLHttpRequest::handle_response_end_of_body()
 {
     auto& realm = this->realm();
+
+    stop_timeout_timer();
 
     // 1. Handle errors for xhr.
     TRY(handle_errors());
@@ -1227,6 +1238,8 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::handle_errors()
 
 JS::ThrowCompletionOr<void> XMLHttpRequest::request_error_steps(FlyString const& event_name, GC::Ptr<WebIDL::DOMException> exception)
 {
+    stop_timeout_timer();
+
     // 1. Set xhr’s state to done.
     m_state = State::Done;
 
