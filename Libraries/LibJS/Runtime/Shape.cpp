@@ -6,6 +6,7 @@
  */
 
 #include <LibGC/DeferGC.h>
+#include <LibGC/RootHashTable.h>
 #include <LibJS/Runtime/DescriptorArray.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/Realm.h>
@@ -533,7 +534,7 @@ void Shape::invalidate_all_prototype_chains_leading_to_this()
     if (!m_child_prototype_shapes || m_child_prototype_shapes->is_empty())
         return;
 
-    HashTable<Shape*> shapes_to_invalidate;
+    GC::RootHashTable<Shape*> shapes_to_invalidate(heap());
     Vector<Shape*> worklist;
     auto enqueue_children_of = [&](Shape& shape) {
         if (!shape.m_child_prototype_shapes)

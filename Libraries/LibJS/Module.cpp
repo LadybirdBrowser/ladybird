@@ -7,6 +7,7 @@
  */
 
 #include <AK/GenericShorthands.h>
+#include <LibGC/RootHashTable.h>
 #include <LibJS/CyclicModule.h>
 #include <LibJS/Module.h>
 #include <LibJS/Runtime/ExternalMemory.h>
@@ -186,7 +187,7 @@ GC::Ref<Object> Module::get_module_namespace(VM& vm)
 
 Vector<Utf16FlyString> Module::get_exported_names(VM& vm)
 {
-    HashTable<Module const*> export_star_set;
+    GC::RootHashTable<GC::Ref<Module const>> export_star_set(vm.heap());
     return get_exported_names(vm, export_star_set);
 }
 
