@@ -2373,11 +2373,47 @@ static CSSPixelPoint hover_event_page_offset(Optional<HoverEventData> const& hov
     return {};
 }
 
-static CSSPixelPoint hover_event_offset(Optional<HoverEventData> const& hover_event_data)
+// https://drafts.csswg.org/cssom-view/#dom-mouseevent-offsetx
+static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Painting::Paintable const& paintable)
 {
-    if (hover_event_data.has_value())
-        return hover_event_data->offset;
-    return {};
+    auto inverse_transform_point = [](Painting::PaintableBox const& paintable_box, CSSPixelPoint position) {
+        auto pixel_ratio = static_cast<float>(paintable_box.document().page().client().device_pixels_per_css_pixel());
+        auto const& visual_context_tree = paintable_box.document().unsafe_paintable()->visual_context_tree();
+        auto transformed_position = visual_context_tree.inverse_transform_point(
+            paintable_box.accumulated_visual_context_index(), position.to_type<float>() * pixel_ratio);
+        return (transformed_position / pixel_ratio).to_type<CSSPixels>();
+    };
+
+    CSSPixelPoint offset_position = position;
+    if (auto const* paintable_box = as_if<Painting::PaintableBox>(paintable)) {
+        if (paintable_box->accumulated_visual_context_index().value())
+            offset_position = inverse_transform_point(*paintable_box, position);
+    } else if (auto containing_block = paintable.containing_block()) {
+        if (containing_block->accumulated_visual_context_index().value())
+            offset_position = inverse_transform_point(*containing_block, position);
+    }
+
+    auto const top_left_of_layout_node = paintable.box_type_agnostic_position();
+    return offset_position - top_left_of_layout_node;
+}
+
+static CSSPixelPoint hover_event_offset_for_target(Optional<HoverEventData> const& hover_event_data, Node const& target)
+{
+    if (!hover_event_data.has_value())
+        return {};
+
+    // Boundary events are dispatched in a batch, and earlier listeners in the batch can invalidate layout. The event
+    // offsets still need to be based on the layout tree that was used for the platform hit-test, so avoid helpers that
+    // assert layout is up to date.
+    auto* layout_node = target.unsafe_layout_node();
+    if (!layout_node)
+        return hover_event_data->viewport_position;
+
+    auto paintable = layout_node->first_paintable();
+    if (!paintable)
+        return hover_event_data->viewport_position;
+
+    return compute_mouse_event_offset(hover_event_data->page_offset, *paintable);
 }
 
 static void mark_mouse_transition_event_as_trusted_if_needed(Event& event, Optional<HoverEventData> const& hover_event_data)
@@ -2397,7 +2433,6 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
     if (auto navigable = this->navigable())
         window_proxy = navigable->active_window_proxy();
     auto page_offset = hover_event_page_offset(hover_event_data);
-    auto offset = hover_event_offset(hover_event_data);
 
     GC::Ptr<Node> old_hovered_node_root = nullptr;
     GC::Ptr<Node> new_hovered_node_root = nullptr;
@@ -2428,6 +2463,7 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
         pointer_event_init.view = window_proxy;
         if (hover_event_data.has_value())
             populate_mouse_event_init_from_hover_event_data(pointer_event_init, *hover_event_data, window_proxy);
+        auto offset = hover_event_offset_for_target(hover_event_data, *old_hovered_node);
         auto event = UIEvents::PointerEvent::create(realm(), UIEvents::EventNames::pointerout, pointer_event_init, page_offset.x().to_double(), page_offset.y().to_double(), offset.x().to_double(), offset.y().to_double());
         mark_mouse_transition_event_as_trusted_if_needed(event, hover_event_data);
         old_hovered_node->dispatch_event(event);
@@ -2443,6 +2479,7 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
         mouse_event_init.view = window_proxy;
         if (hover_event_data.has_value())
             populate_mouse_event_init_from_hover_event_data(mouse_event_init, *hover_event_data, window_proxy);
+        auto offset = hover_event_offset_for_target(hover_event_data, *old_hovered_node);
         auto event = UIEvents::MouseEvent::create(realm(), UIEvents::EventNames::mouseout, mouse_event_init, page_offset.x().to_double(), page_offset.y().to_double(), offset.x().to_double(), offset.y().to_double());
         mark_mouse_transition_event_as_trusted_if_needed(event, hover_event_data);
         old_hovered_node->dispatch_event(event);
@@ -2458,6 +2495,7 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
             pointer_event_init.view = window_proxy;
             if (hover_event_data.has_value())
                 populate_mouse_event_init_from_hover_event_data(pointer_event_init, *hover_event_data, window_proxy);
+            auto offset = hover_event_offset_for_target(hover_event_data, *target);
             auto event = UIEvents::PointerEvent::create(realm(), UIEvents::EventNames::pointerleave, pointer_event_init, page_offset.x().to_double(), page_offset.y().to_double(), offset.x().to_double(), offset.y().to_double());
             mark_mouse_transition_event_as_trusted_if_needed(event, hover_event_data);
             target->dispatch_event(event);
@@ -2471,6 +2509,7 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
             mouse_event_init.related_target = GC::Root<DOM::EventTarget> { m_hovered_node.ptr() };
             if (hover_event_data.has_value())
                 populate_mouse_event_init_from_hover_event_data(mouse_event_init, *hover_event_data, window_proxy);
+            auto offset = hover_event_offset_for_target(hover_event_data, *target);
             auto event = UIEvents::MouseEvent::create(realm(), UIEvents::EventNames::mouseleave, mouse_event_init, page_offset.x().to_double(), page_offset.y().to_double(), offset.x().to_double(), offset.y().to_double());
             mark_mouse_transition_event_as_trusted_if_needed(event, hover_event_data);
             target->dispatch_event(event);
@@ -2489,6 +2528,7 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
         pointer_event_init.view = window_proxy;
         if (hover_event_data.has_value())
             populate_mouse_event_init_from_hover_event_data(pointer_event_init, *hover_event_data, window_proxy);
+        auto offset = hover_event_offset_for_target(hover_event_data, *m_hovered_node);
         auto event = UIEvents::PointerEvent::create(realm(), UIEvents::EventNames::pointerover, pointer_event_init, page_offset.x().to_double(), page_offset.y().to_double(), offset.x().to_double(), offset.y().to_double());
         mark_mouse_transition_event_as_trusted_if_needed(event, hover_event_data);
         m_hovered_node->dispatch_event(event);
@@ -2504,6 +2544,7 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
         mouse_event_init.view = window_proxy;
         if (hover_event_data.has_value())
             populate_mouse_event_init_from_hover_event_data(mouse_event_init, *hover_event_data, window_proxy);
+        auto offset = hover_event_offset_for_target(hover_event_data, *m_hovered_node);
         auto event = UIEvents::MouseEvent::create(realm(), UIEvents::EventNames::mouseover, mouse_event_init, page_offset.x().to_double(), page_offset.y().to_double(), offset.x().to_double(), offset.y().to_double());
         mark_mouse_transition_event_as_trusted_if_needed(event, hover_event_data);
         m_hovered_node->dispatch_event(event);
@@ -2526,6 +2567,7 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
             pointer_event_init.view = window_proxy;
             if (hover_event_data.has_value())
                 populate_mouse_event_init_from_hover_event_data(pointer_event_init, *hover_event_data, window_proxy);
+            auto offset = hover_event_offset_for_target(hover_event_data, target);
             auto pointer_event = UIEvents::PointerEvent::create(realm(), UIEvents::EventNames::pointerenter, pointer_event_init, page_offset.x().to_double(), page_offset.y().to_double(), offset.x().to_double(), offset.y().to_double());
             mark_mouse_transition_event_as_trusted_if_needed(pointer_event, hover_event_data);
             target->dispatch_event(pointer_event);
@@ -2533,6 +2575,7 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
             mouse_event_init.related_target = GC::Root<DOM::EventTarget> { old_hovered_node.ptr() };
             if (hover_event_data.has_value())
                 populate_mouse_event_init_from_hover_event_data(mouse_event_init, *hover_event_data, window_proxy);
+            offset = hover_event_offset_for_target(hover_event_data, target);
             auto mouse_event = UIEvents::MouseEvent::create(realm(), UIEvents::EventNames::mouseenter, mouse_event_init, page_offset.x().to_double(), page_offset.y().to_double(), offset.x().to_double(), offset.y().to_double());
             mark_mouse_transition_event_as_trusted_if_needed(mouse_event, hover_event_data);
             target->dispatch_event(mouse_event);
