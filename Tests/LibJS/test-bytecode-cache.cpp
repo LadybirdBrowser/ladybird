@@ -77,6 +77,19 @@ TEST_CASE(lazy_source_code_decoding_replaces_overlong_utf8_sequences)
     EXPECT_EQ(source_code->code().to_utf8(), "\xef\xbf\xbd\xef\xbf\xbd"sv);
 }
 
+TEST_CASE(lazy_source_code_decoding_extracts_utf8_range_after_non_ascii)
+{
+    auto prefix = "// Known Trick\xe2\x84\xa2\n"sv;
+    auto function_source = "function f() { return 1; }"sv;
+    auto source = ByteString::formatted("{}{}", prefix, function_source);
+    auto source_utf16 = Utf16String::from_utf8(source.view());
+    auto source_bytes = TRY_OR_FAIL(Core::ImmutableBytes::copy(source.bytes()));
+    auto source_code = JS::SourceCode::create("test.js"_string, source_utf16.length_in_code_units(), "UTF-8"_string, move(source_bytes));
+
+    auto start_offset = Utf16String::from_utf8(prefix).length_in_code_units();
+    EXPECT_EQ(source_code->source_text_from_offsets(start_offset, function_source.length()).to_utf8(), function_source);
+}
+
 class BytecodeCacheBlobReader {
 public:
     explicit BytecodeCacheBlobReader(ReadonlyBytes bytes)
@@ -488,6 +501,40 @@ TEST_CASE(bytecode_cache_to_string_caches_lazy_ascii_source_text)
     VERIFY(result.value().is_string());
     EXPECT_EQ(result.value().as_string().utf8_string(), "function mapped() { return 'hello'; }|function mapped() { return 'hello'; }"_string);
     EXPECT_EQ(shared_data.m_source_text_owner.to_utf8(), "function mapped() { return 'hello'; }"sv);
+}
+
+TEST_CASE(bytecode_cache_to_string_uses_lazy_utf8_offset_map)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    auto prefix = "// Known Trick\xe2\x84\xa2\n"sv;
+    auto body = "let f = function mapped() { return 'Known Trick\xe2\x84\xa2'; }; f.toString();"sv;
+    auto source = ByteString::formatted("{}{}", prefix, body);
+    auto test_data = create_bytecode_cache_blob(source.view());
+
+    auto source_bytes = TRY_OR_FAIL(Core::ImmutableBytes::copy(source.bytes()));
+    auto source_code = JS::SourceCode::create("test.js"_string, test_data.source_code->length_in_code_units(), "UTF-8"_string, move(source_bytes));
+
+    auto* decoded_blob = JS::RustIntegration::decode_bytecode_cache_blob(test_data.blob.bytes(), JS::RustIntegration::ProgramType::Script, test_data.source_hash.bytes());
+    VERIFY(decoded_blob);
+
+    auto script_or_error = JS::Script::create_from_bytecode_cache(decoded_blob, source_code, realm);
+    VERIFY(!script_or_error.is_error());
+    auto script = script_or_error.release_value();
+
+    auto* executable = script->cached_executable();
+    VERIFY(executable);
+    VERIFY(!executable->shared_function_data.is_empty());
+    auto& shared_data = *executable->shared_function_data[0];
+    EXPECT(shared_data.m_source_text_owner.is_empty());
+
+    auto result = vm->run(script);
+    VERIFY(!result.is_throw_completion());
+    VERIFY(result.value().is_string());
+    EXPECT_EQ(result.value().as_string().utf8_string(), "function mapped() { return 'Known Trick\xe2\x84\xa2'; }"_string);
+    EXPECT_EQ(shared_data.m_source_text_owner.to_utf8(), "function mapped() { return 'Known Trick\xe2\x84\xa2'; }"sv);
 }
 
 TEST_CASE(bytecode_cache_materializes_from_mapped_blob)
