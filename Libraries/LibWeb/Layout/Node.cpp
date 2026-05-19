@@ -867,15 +867,6 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_perspective(computed_style.perspective());
     computed_values.set_perspective_origin(computed_style.perspective_origin());
 
-    auto const& transition_delay_property = computed_style.property(CSS::PropertyID::TransitionDelay);
-    if (transition_delay_property.is_time()) {
-        auto const& transition_delay = transition_delay_property.as_time();
-        computed_values.set_transition_delay(transition_delay.time());
-    } else if (transition_delay_property.is_calculated()) {
-        auto const& transition_delay = transition_delay_property.as_calculated();
-        computed_values.set_transition_delay(transition_delay.resolve_time({ .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) }).value());
-    }
-
     auto do_border_style = [&](CSS::BorderData& border, CSS::PropertyID width_property, CSS::PropertyID color_property, CSS::PropertyID style_property) {
         // FIXME: Support <image-1d>
         border.color = computed_style.color(color_property, color_resolution_context);
