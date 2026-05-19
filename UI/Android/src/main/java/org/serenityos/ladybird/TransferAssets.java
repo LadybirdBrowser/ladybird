@@ -94,8 +94,9 @@ public class TransferAssets {
 
     private static void mergeSystemCertificates(File assetDir) throws IOException {
         File outputFile = new File(assetDir, "cacert.pem");
+        Path certificateDirectory = Paths.get("/system/etc/security/cacerts");
         try (OutputStream output = new BufferedOutputStream(new FileOutputStream(outputFile));
-             Stream<Path> certPaths = Files.walk(Paths.get("/system/etc/security/cacerts"))) {
+             Stream<Path> certPaths = Files.walk(certificateDirectory)) {
             certPaths
                 .filter(Files::isRegularFile)
                 .forEach(certPath -> {
@@ -105,6 +106,8 @@ public class TransferAssets {
                         throw new UncheckedIOException(exception);
                     }
                 });
+        } catch (IOException exception) {
+            throw new IOException("Unable to read Android system certificates from " + certificateDirectory, exception);
         } catch (UncheckedIOException exception) {
             throw exception.getCause();
         }
@@ -119,8 +122,8 @@ public class TransferAssets {
 
     private static void createExtractionMarker(File assetDir) throws IOException {
         File marker = new File(assetDir, EXTRACTION_MARKER);
-        try (OutputStream output = new FileOutputStream(marker)) {
-            output.write('1');
+        if (!marker.createNewFile() && !marker.exists()) {
+            throw new IOException("Unable to create extraction marker " + marker);
         }
     }
 
