@@ -15,5 +15,8 @@ set(SOURCES
     Method.cpp
 )
 
+include(hsts_preload)
+list(APPEND SOURCES ${HSTS_PRELOAD_SOURCES})
+
 ladybird_lib(LibHTTP http)
 target_link_libraries(LibHTTP PRIVATE LibCompress LibCore LibCrypto LibDatabase LibFileSystem LibIPC LibRegex LibTextCodec LibTLS LibUnicode LibURL)

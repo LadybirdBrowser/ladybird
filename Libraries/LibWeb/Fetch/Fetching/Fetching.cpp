@@ -456,7 +456,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
         // - Matching request’s current URL’s host per Known HSTS Host Domain Name Matching results in either a
         //   superdomain match with an asserted includeSubDomains directive or a congruent match (with or without an
         //   asserted includeSubDomains directive) [HSTS]
-        && Bindings::principal_host_defined_page(realm).client().page_did_is_known_hsts_host(request->current_url().host()->get<String>())
+        && ResourceLoader::is_known_hsts_host(Bindings::principal_host_defined_page(realm), request->current_url().host()->get<String>())
         // FIXME: or DNS resolution for the request finds a matching HTTPS RR per section 9.5 of [SVCB].
     ) {
         request->current_url().set_scheme("https"_string);

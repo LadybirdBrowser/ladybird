@@ -14,6 +14,7 @@
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibHTTP/HSTS/ParsedHSTSPolicy.h>
+#include <LibHTTP/HSTSPreloadData.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
 #include <LibURL/Parser.h>
@@ -137,6 +138,15 @@ void ResourceLoader::try_store_hsts_policy_for_url(Page& page, URL::URL const& u
         return;
 
     page.client().page_did_store_hsts_policy(url.host()->get<String>(), parsed_policy.value());
+}
+
+// https://www.rfc-editor.org/rfc/rfc6797#section-8.2
+bool ResourceLoader::is_known_hsts_host(Page& page, String const& host)
+{
+    if (HTTP::HSTSPreloadData::the().is_known_preloaded_hsts_host(host.to_ascii_lowercase()))
+        return true;
+
+    return page.client().page_did_is_known_hsts_host(host);
 }
 
 static NonnullRefPtr<HTTP::HeaderList> response_headers_for_file(StringView path, Optional<time_t> const& modified_time)
