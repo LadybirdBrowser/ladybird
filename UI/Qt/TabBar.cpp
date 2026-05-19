@@ -15,10 +15,42 @@
 #include <QEvent>
 #include <QHBoxLayout>
 #include <QMouseEvent>
+#include <QPainter>
+#include <QProxyStyle>
+#include <QStyleOption>
 #include <QToolButton>
 #include <QVBoxLayout>
 
 namespace Ladybird {
+
+class LeftAlignedTabStyle final : public QProxyStyle {
+public:
+    virtual void drawControl(ControlElement element, QStyleOption const* option, QPainter* painter, QWidget const* widget = nullptr) const override
+    {
+        if (element != QStyle::CE_TabBarTabLabel) {
+            QProxyStyle::drawControl(element, option, painter, widget);
+            return;
+        }
+
+        auto const* tab = qstyleoption_cast<QStyleOptionTab const*>(option);
+        if (!tab) {
+            QProxyStyle::drawControl(element, option, painter, widget);
+            return;
+        }
+
+        QStyleOptionTab tab_without_text(*tab);
+        tab_without_text.text.clear();
+        QProxyStyle::drawControl(element, &tab_without_text, painter, widget);
+
+        auto text_rect = subElementRect(QStyle::SE_TabBarTabText, tab, widget);
+        int text_alignment = Qt::AlignLeft | Qt::AlignVCenter | Qt::TextShowMnemonic;
+        if (!styleHint(QStyle::SH_UnderlineShortcut, tab, widget))
+            text_alignment |= Qt::TextHideMnemonic;
+
+        drawItemText(painter, text_rect, text_alignment, tab->palette, tab->state & QStyle::State_Enabled, tab->text,
+            widget ? widget->foregroundRole() : QPalette::WindowText);
+    }
+};
 
 TabBar::TabBar(TabWidget* tab_widget)
     : QTabBar(tab_widget)
@@ -95,6 +127,10 @@ TabWidget::TabWidget(QWidget* parent)
     : QWidget(parent)
 {
     m_tab_bar = new TabBar(this);
+    auto* tab_style = new LeftAlignedTabStyle;
+    tab_style->setParent(m_tab_bar);
+    m_tab_bar->setStyle(tab_style);
+
     m_tab_bar->setDocumentMode(true);
     m_tab_bar->setElideMode(Qt::TextElideMode::ElideRight);
     m_tab_bar->setMovable(true);
