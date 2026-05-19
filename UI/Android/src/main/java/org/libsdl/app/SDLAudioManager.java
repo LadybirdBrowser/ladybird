@@ -1,9 +1,9 @@
 package org.libsdl.app;
 
 final class SDLAudioManager {
-    static native void nativeSetupJNI();
-    static native void nativeAddAudioDevice(boolean recording, String name, int deviceId);
-    static native void nativeRemoveAudioDevice(boolean recording, int deviceId);
+    public static native int nativeSetupJNI();
+    public static native void removeAudioDevice(boolean recording, int deviceId);
+    public static native void addAudioDevice(boolean recording, String name, int deviceId);
 
     private SDLAudioManager() { }
 }
