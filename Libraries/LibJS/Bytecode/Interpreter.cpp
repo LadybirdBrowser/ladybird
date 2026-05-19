@@ -3480,7 +3480,7 @@ NEVER_INLINE ThrowCompletionOr<void> NewClass::execute_impl(VM& vm) const
     Value super_class;
     if (m_super_class.has_value())
         super_class = vm.get(m_super_class.value());
-    Vector<Value> element_keys;
+    GC::RootVector<Value> element_keys(vm.heap());
     element_keys.ensure_capacity(m_element_keys_count);
     for (size_t i = 0; i < m_element_keys_count; ++i) {
         Value element_key;
