@@ -53,7 +53,9 @@
 #    include <objbase.h>
 #endif
 
-#include <SDL3/SDL_init.h>
+#if !defined(AK_OS_ANDROID)
+#    include <SDL3/SDL_init.h>
+#endif
 
 #if !defined(AK_OS_WINDOWS)
 #    include <signal.h>
@@ -119,11 +121,13 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     VERIFY(SUCCEEDED(hr));
     ScopeGuard uninitialize_com = []() { CoUninitialize(); };
 #endif
+#if !defined(AK_OS_ANDROID)
     // SDL is used for the Gamepad API.
     if (!SDL_Init(SDL_INIT_GAMEPAD)) {
         dbgln("Failed to initialize SDL3: {}", SDL_GetError());
         return -1;
     }
+#endif
 
     Core::EventLoop event_loop;
 

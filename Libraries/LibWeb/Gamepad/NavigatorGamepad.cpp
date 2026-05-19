@@ -230,6 +230,9 @@ void NavigatorGamepadPartial::handle_gamepad_disconnected(Badge<EventHandler>, S
 
 void NavigatorGamepadPartial::check_for_connected_gamepads()
 {
+#if defined(AK_OS_ANDROID)
+    return;
+#else
     // "(SDL_JoystickID *) Returns a 0 terminated array of joystick instance IDs or NULL on failure; call
     // SDL_GetError() for more information. This should be freed with SDL_free() when it is no longer needed."
     int gamepad_count = 0;
@@ -242,6 +245,7 @@ void NavigatorGamepadPartial::check_for_connected_gamepads()
     }
 
     SDL_free(connected_gamepads);
+#endif
 }
 
 void NavigatorGamepadPartial::set_has_gamepad_gesture(Badge<Gamepad>, bool value)

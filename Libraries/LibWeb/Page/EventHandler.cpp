@@ -54,8 +54,10 @@
 #include <LibWeb/UIEvents/PointerEvent.h>
 #include <LibWeb/UIEvents/WheelEvent.h>
 
-#include <SDL3/SDL_events.h>
-#include <SDL3/SDL_joystick.h>
+#if !defined(AK_OS_ANDROID)
+#    include <SDL3/SDL_events.h>
+#    include <SDL3/SDL_joystick.h>
+#endif
 
 namespace Web {
 
@@ -2080,6 +2082,9 @@ void EventHandler::handle_gamepad_disconnected(SDL_JoystickID sdl_joystick_id)
 
 void EventHandler::handle_sdl_input_events()
 {
+#if defined(AK_OS_ANDROID)
+    return;
+#else
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
@@ -2096,6 +2101,7 @@ void EventHandler::handle_sdl_input_events()
             break;
         }
     }
+#endif
 }
 
 CSSPixelPoint EventHandler::compute_mouse_event_page_offset(CSSPixelPoint event_client_offset) const
