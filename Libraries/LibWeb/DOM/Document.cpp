@@ -2038,7 +2038,7 @@ void Document::update_style_for_element(AbstractElement const& abstract_element)
     // Single walk up the inheritance chain: collect each ancestor and remember the index of the topmost display:none
     // entry seen. Pseudo-element styles are refreshed when the originating element is recomputed, so don't put the
     // pseudo on the path.
-    GC::RootVector<GC::Ref<Element>> inheritance_chain { heap() };
+    GC::RootVector<GC::Ref<Element>> inheritance_chain;
     if (!abstract_element.pseudo_element().has_value())
         inheritance_chain.append(const_cast<Element&>(abstract_element.element()));
 
@@ -2057,7 +2057,7 @@ void Document::update_style_for_element(AbstractElement const& abstract_element)
     // element's DOM ancestors, so that descendant-combinator selectors match correctly. The filter is empty at this
     // point because the normal top-down `update_style` traversal skipped the display:none subtree, so we have to seed
     // it ourselves.
-    GC::RootVector<GC::Ref<Element>> ancestor_chain { heap() };
+    GC::RootVector<GC::Ref<Element>> ancestor_chain;
     for (auto* cursor = inheritance_chain[*topmost_display_none_index].ptr(); cursor; cursor = cursor->parent_or_shadow_host_element())
         ancestor_chain.append(*cursor);
 
@@ -3059,9 +3059,7 @@ void Document::adopt_node(Node& node)
         //    « oldDocument, document ».
         node.for_each_shadow_including_inclusive_descendant([&](DOM::Node& inclusive_descendant) {
             if (auto* element = as_if<Element>(inclusive_descendant); element && element->is_custom()) {
-                auto& vm = this->vm();
-
-                GC::RootVector<JS::Value> arguments { vm.heap() };
+                GC::RootVector<JS::Value> arguments;
                 arguments.append(&old_document);
                 arguments.append(this);
 
@@ -3293,7 +3291,7 @@ void Document::flush_autofocus_candidates()
         candidates.take_first();
 
         // 7. Let inclusiveAncestorDocuments be a list consisting of the active document of doc's inclusive ancestor navigables.
-        GC::RootVector<GC::Ref<Document>> inclusive_ancestor_documents(heap());
+        GC::RootVector<GC::Ref<Document>> inclusive_ancestor_documents;
         inclusive_ancestor_documents.append(doc);
         auto ancestor_navigable = doc_navigable->parent();
         while (ancestor_navigable) {
@@ -5642,7 +5640,7 @@ void Document::queue_intersection_observer_task()
         m_intersection_observer_task_queued = false;
 
         // 2. Let notify list be a list of all IntersectionObservers whose root is in the DOM tree of document.
-        auto notify_list = GC::RootVector { heap(), m_intersection_observers.values() };
+        auto notify_list = GC::RootVector { m_intersection_observers.values() };
 
         // 3. For each IntersectionObserver object observer in notify list, run these steps:
         for (auto& observer : notify_list) {
@@ -5756,7 +5754,7 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
     // 2. For each observer in observer list:
 
     // NOTE: We make a copy of the intersection observers list to avoid modifying it while iterating.
-    auto intersection_observers = GC::RootVector { heap(), m_intersection_observers.values() };
+    auto intersection_observers = GC::RootVector { m_intersection_observers.values() };
 
     update_paint_and_hit_testing_properties_if_needed();
 
@@ -6396,7 +6394,7 @@ void Document::append_pending_animation_event(Web::DOM::Document::PendingAnimati
 void Document::update_animations_and_send_events(double timestamp)
 {
     m_last_animation_frame_timestamp = timestamp;
-    auto timelines_to_update = GC::RootVector { heap(), m_associated_animation_timelines.values() };
+    auto timelines_to_update = GC::RootVector { m_associated_animation_timelines.values() };
 
     {
         HTML::TemporaryExecutionContext temporary_execution_context { realm() };
@@ -6782,7 +6780,7 @@ Element const* Document::element_from_point(double x, double y)
 GC::RootVector<GC::Ref<Element>> Document::elements_from_point(double x, double y)
 {
     // 1. Let sequence be a new empty sequence.
-    GC::RootVector<GC::Ref<Element>> sequence(heap());
+    GC::RootVector<GC::Ref<Element>> sequence;
 
     // 2. If either argument is negative, x is greater than the viewport width excluding the size of a rendered scroll bar (if any),
     //    or y is greater than the viewport height excluding the size of a rendered scroll bar (if any),
@@ -6980,7 +6978,7 @@ void Document::gather_active_observations_at_depth(size_t depth)
     // 1. Let depth be the depth passed in.
 
     // 2. For each observer in [[resizeObservers]] run these steps:
-    auto resize_observers = GC::RootVector<GC::Ref<ResizeObserver::ResizeObserver>> { heap() };
+    GC::RootVector<GC::Ref<ResizeObserver::ResizeObserver>> resize_observers;
     for (auto& observer : m_resize_observers)
         resize_observers.append(observer);
 
@@ -7022,12 +7020,12 @@ size_t Document::broadcast_active_resize_observations()
     // 2. For each observer in document.[[resizeObservers]] run these steps:
 
     // NOTE: We make a copy of the resize observers list to avoid modifying it while iterating.
-    auto resize_observers = GC::RootVector<GC::Ref<ResizeObserver::ResizeObserver>> { heap() };
+    GC::RootVector<GC::Ref<ResizeObserver::ResizeObserver>> resize_observers;
     for (auto& observer : m_resize_observers)
         resize_observers.append(observer);
 
     // Keep all gathered targets alive while resize observer callbacks run.
-    auto active_targets = GC::RootVector<GC::Ref<Element>> { heap() };
+    GC::RootVector<GC::Ref<Element>> active_targets;
     for (auto const& observer : resize_observers) {
         for (auto const& observation : observer->active_targets()) {
             if (auto target = observation->target())
@@ -7042,7 +7040,7 @@ size_t Document::broadcast_active_resize_observations()
         }
 
         // 2. Let entries be an empty list of ResizeObserverEntryies.
-        GC::RootVector<GC::Ref<ResizeObserver::ResizeObserverEntry>> entries(heap());
+        GC::RootVector<GC::Ref<ResizeObserver::ResizeObserverEntry>> entries;
 
         // 3. For each observation in [[activeTargets]] perform these steps:
         for (auto const& observation : observer->active_targets()) {
@@ -7322,7 +7320,7 @@ void Document::process_top_layer_removals()
 {
     // 1. For each element el in doc’s pending top layer removals: if el’s computed value of overlay is none, or el is
     //    not rendered, remove el from doc’s top layer and pending top layer removals.
-    GC::RootVector<GC::Ref<Element>> elements_to_remove(heap());
+    GC::RootVector<GC::Ref<Element>> elements_to_remove;
     // NB: Called during top layer processing.
     for (auto& element : m_top_layer_pending_removals) {
         // FIXME: Implement overlay property
@@ -7597,7 +7595,7 @@ void Document::fully_exit_fullscreen()
         return;
 
     // 2. Unfullscreen elements whose fullscreen flag is set, within document’s top layer, except for document’s fullscreen element.
-    GC::RootVector<GC::Ref<Element>, 8> fullscreen_elements { heap() };
+    GC::RootVector<GC::Ref<Element>, 8> fullscreen_elements;
     for (auto const& element : top_layer_elements()) {
         if (element->is_fullscreen_element() && element != fullscreened_element)
             fullscreen_elements.append(element);

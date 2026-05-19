@@ -2221,7 +2221,7 @@ bool cleanup_indexed_database_transactions(GC::Ref<HTML::EventLoop> event_loop)
     bool has_matching_event_loop = false;
 
     Database::for_each_database([&has_matching_event_loop, event_loop](Database& database) {
-        for (auto const& connection : database.associated_connections_as_root_vector(event_loop->heap())) {
+        for (auto const& connection : database.associated_connections_as_root_vector()) {
             for (auto const& transaction : connection->transactions()) {
                 // 2. For each transaction transaction with cleanup event loop matching the current event loop:
                 if (transaction->cleanup_event_loop() == event_loop) {

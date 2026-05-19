@@ -109,7 +109,7 @@ NullableMessageEventSource MessageEvent::source() const
 GC::Ref<JS::Object> MessageEvent::ports() const
 {
     if (!m_ports_array) {
-        GC::RootVector<JS::Value> port_vector(heap());
+        GC::RootVector<JS::Value> port_vector;
         for (auto const& port : m_ports)
             port_vector.append(port);
 

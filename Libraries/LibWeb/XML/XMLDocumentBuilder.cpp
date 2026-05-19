@@ -46,7 +46,6 @@ Optional<String> resolve_named_html_entity(StringView entity_name)
 
 XMLDocumentBuilder::XMLDocumentBuilder(DOM::Document& document, XMLScriptingSupport scripting_support)
     : m_document(document)
-    , m_template_node_stack(document.realm().heap())
     , m_current_node(m_document)
     , m_scripting_support(scripting_support)
 {

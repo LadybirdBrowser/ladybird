@@ -37,7 +37,7 @@ void LiveNodeList::visit_edges(Cell::Visitor& visitor)
 
 GC::RootVector<Node*> LiveNodeList::collection() const
 {
-    GC::RootVector<Node*> nodes(heap());
+    GC::RootVector<Node*> nodes;
     if (m_scope == Scope::Descendants) {
         m_root->for_each_in_subtree([&](auto& node) {
             if (m_filter(node))

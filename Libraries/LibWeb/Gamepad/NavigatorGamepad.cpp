@@ -24,14 +24,13 @@ WebIDL::ExceptionOr<GC::RootVector<GC::Ptr<Gamepad>>> NavigatorGamepadPartial::g
 {
     auto& navigator = as<HTML::Navigator>(*this);
     auto& realm = navigator.realm();
-    auto& heap = realm.heap();
 
     // 1. Let doc be the current global object's associated Document.
     auto& window = as<HTML::Window>(HTML::current_global_object());
     auto& document = window.associated_document();
 
     // 2. If doc is null or doc is not fully active, then return an empty list.
-    GC::RootVector<GC::Ptr<Gamepad>> gamepads { heap };
+    GC::RootVector<GC::Ptr<Gamepad>> gamepads;
     if (!document.is_fully_active())
         return gamepads;
 
@@ -251,9 +250,7 @@ void NavigatorGamepadPartial::set_has_gamepad_gesture(Badge<Gamepad>, bool value
 
 GC::RootVector<GC::Ptr<Gamepad>> NavigatorGamepadPartial::gamepads(Badge<Gamepad>) const
 {
-    auto& navigator = as<HTML::Navigator>(*this);
-    auto& realm = navigator.realm();
-    return { realm.heap(), m_gamepads };
+    return GC::RootVector<GC::Ptr<Gamepad>> { as<HTML::Navigator>(*this).m_gamepads };
 }
 
 }

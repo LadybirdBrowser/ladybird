@@ -208,7 +208,7 @@ GC::Ref<WebIDL::Promise> Clipboard::read(Bindings::ClipboardUnsanitizedFormats f
             HTML::TemporaryExecutionContext execution_context { realm };
 
             // 4. Let items be a sequence<clipboard item>.
-            GC::RootVector<JS::Value> items(realm.heap());
+            GC::RootVector<JS::Value> items;
 
             // 5. For each systemClipboardItem in data:
             for (auto const& system_clipboard_item : data) {
@@ -441,8 +441,8 @@ GC::Ref<WebIDL::Promise> Clipboard::write(Vector<GC::Root<ClipboardItem>> const&
 
             // 4. For each clipboardItem in dataList:
             for (auto const& clipboard_item : data_list) {
-                IGNORE_USE_IN_ESCAPING_LAMBDA GC::RootVector<GC::Ref<FileAPI::Blob>> item_list(realm.heap());
-                GC::RootVector<GC::Ref<FileAPI::Blob>> clean_item_list(realm.heap());
+                IGNORE_USE_IN_ESCAPING_LAMBDA GC::RootVector<GC::Ref<FileAPI::Blob>> item_list;
+                GC::RootVector<GC::Ref<FileAPI::Blob>> clean_item_list;
 
                 // 1. For each representation in clipboardItem’s clipboard item's list of representations:
                 for (auto const& representation : clipboard_item->representations()) {
@@ -567,7 +567,7 @@ GC::Ref<WebIDL::Promise> Clipboard::write_text(String data)
         // 3. Queue a global task on the clipboard task source, given realm’s global object, to perform the below steps:
         queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, data = move(data)]() mutable {
             // 1. Let itemList be an empty sequence<Blob>.
-            GC::RootVector<GC::Ref<FileAPI::Blob>> item_list(realm.heap());
+            GC::RootVector<GC::Ref<FileAPI::Blob>> item_list;
 
             // 2. Let textBlob be a new Blob created with: type attribute set to "text/plain;charset=utf-8", and its
             //    underlying byte sequence set to the UTF-8 encoding of data.

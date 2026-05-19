@@ -134,7 +134,7 @@ ThrowCompletionOr<GC::RootVector<Value>> StringObject::internal_own_property_key
     auto& vm = this->vm();
 
     // 1. Let keys be a new empty List.
-    auto keys = GC::RootVector<Value> { heap() };
+    GC::RootVector<Value> keys;
 
     // 2. Let str be O.[[StringData]].
     // 3. Assert: str is a String.

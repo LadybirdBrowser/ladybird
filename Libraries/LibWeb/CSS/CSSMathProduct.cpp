@@ -50,7 +50,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSMathProduct>> CSSMathProduct::construct_impl(JS::
     // NB: So, the steps below are a modification of the CSSMathSum steps.
 
     // 1. Replace each item of args with the result of rectifying a numberish value for the item.
-    GC::RootVector<GC::Ref<CSSNumericValue>> converted_values { realm.heap() };
+    GC::RootVector<GC::Ref<CSSNumericValue>> converted_values;
     converted_values.ensure_capacity(values.size());
     for (auto const& value : values) {
         converted_values.append(rectify_a_numberish_value(realm, value));

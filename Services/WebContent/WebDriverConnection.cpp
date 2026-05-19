@@ -2083,11 +2083,8 @@ Messages::WebDriverClient::GetSourceResponse WebDriverConnection::get_source()
 // 13.2.1 Execute Script, https://w3c.github.io/webdriver/#dfn-execute-script
 Messages::WebDriverClient::ExecuteScriptResponse WebDriverConnection::execute_script(JsonValue payload)
 {
-    auto* window = current_browsing_context().active_window();
-    auto& vm = window->vm();
-
     // 1. Let body and arguments be the result of trying to extract the script arguments from a request with argument parameters.
-    auto [body, arguments] = TRY(extract_the_script_arguments_from_a_request(vm, payload));
+    auto [body, arguments] = TRY(extract_the_script_arguments_from_a_request(payload));
 
     // 2. If the current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
@@ -2113,11 +2110,8 @@ Messages::WebDriverClient::ExecuteScriptResponse WebDriverConnection::execute_sc
 // 13.2.2 Execute Async Script, https://w3c.github.io/webdriver/#dfn-execute-async-script
 Messages::WebDriverClient::ExecuteAsyncScriptResponse WebDriverConnection::execute_async_script(JsonValue payload)
 {
-    auto* window = current_browsing_context().active_window();
-    auto& vm = window->vm();
-
     // 1. Let body and arguments by the result of trying to extract the script arguments from a request with argument parameters.
-    auto [body, arguments] = TRY(extract_the_script_arguments_from_a_request(vm, payload));
+    auto [body, arguments] = TRY(extract_the_script_arguments_from_a_request(payload));
 
     // 2. If the current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
@@ -3076,7 +3070,7 @@ void WebDriverConnection::find(Web::WebDriver::LocationStrategy location_strateg
 }
 
 // https://w3c.github.io/webdriver/#dfn-extract-the-script-arguments-from-a-request
-ErrorOr<WebDriverConnection::ScriptArguments, Web::WebDriver::Error> WebDriverConnection::extract_the_script_arguments_from_a_request(JS::VM& vm, JsonValue const& payload)
+ErrorOr<WebDriverConnection::ScriptArguments, Web::WebDriver::Error> WebDriverConnection::extract_the_script_arguments_from_a_request(JsonValue const& payload)
 {
     // Creating JSON objects below requires an execution context.
     Web::HTML::TemporaryExecutionContext execution_context { current_browsing_context().active_document()->realm() };
@@ -3090,7 +3084,7 @@ ErrorOr<WebDriverConnection::ScriptArguments, Web::WebDriver::Error> WebDriverCo
     auto const& args = *TRY(Web::WebDriver::get_property<JsonArray const*>(payload, "args"sv));
 
     // 5. Let arguments be the result of calling the JSON deserialize algorithm with arguments args.
-    GC::RootVector<JS::Value> arguments { vm.heap() };
+    GC::RootVector<JS::Value> arguments;
     auto& browsing_context = current_browsing_context();
 
     TRY(args.try_for_each([&](JsonValue const& arg) -> ErrorOr<void, Web::WebDriver::Error> {

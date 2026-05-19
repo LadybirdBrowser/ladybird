@@ -80,7 +80,7 @@ void ResizeObserverEntry::visit_edges(JS::Cell::Visitor& visitor)
 
 static GC::Ref<JS::Object> to_js_array(JS::Realm& realm, Vector<GC::Ref<ResizeObserverSize>> const& sizes)
 {
-    GC::RootVector<JS::Value> vector(realm.heap());
+    GC::RootVector<JS::Value> vector;
     for (auto const& size : sizes)
         vector.append(JS::Value(size.ptr()));
 

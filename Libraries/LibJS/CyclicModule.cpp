@@ -222,7 +222,7 @@ ThrowCompletionOr<void> CyclicModule::link(VM& vm)
     // 1. Assert: module.[[Status]] is one of unlinked, linked, evaluating-async, or evaluated.
     VERIFY(m_status == ModuleStatus::Unlinked || m_status == ModuleStatus::Linked || m_status == ModuleStatus::EvaluatingAsync || m_status == ModuleStatus::Evaluated);
     // 2. Let stack be a new empty List.
-    GC::RootVector<GC::Ref<Module>> stack(vm.heap());
+    GC::RootVector<GC::Ref<Module>> stack;
 
     // 3. Let result be Completion(InnerModuleLinking(module, stack, 0)).
     auto result = inner_module_linking(vm, stack, 0);
@@ -398,7 +398,7 @@ ThrowCompletionOr<GC::Ref<PromiseCapability>> CyclicModule::evaluate(VM& vm)
     }
 
     // 5. Let stack be a new empty List.
-    GC::RootVector<GC::Ref<Module>> stack(vm.heap());
+    GC::RootVector<GC::Ref<Module>> stack;
 
     auto& realm = *vm.current_realm();
 
@@ -757,7 +757,7 @@ void CyclicModule::async_module_execution_fulfilled(VM& vm)
     }
 
     // 8. Let execList be a new empty List.
-    GC::RootVector<GC::Ptr<CyclicModule>> exec_list(vm.heap());
+    GC::RootVector<GC::Ptr<CyclicModule>> exec_list;
 
     // 9. Perform GatherAvailableAncestors(module, execList).
     gather_available_ancestors(exec_list);

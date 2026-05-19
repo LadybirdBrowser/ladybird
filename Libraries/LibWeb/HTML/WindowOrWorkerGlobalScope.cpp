@@ -1071,7 +1071,7 @@ void WindowOrWorkerGlobalScopeMixin::forcibly_close_all_event_sources()
 void WindowOrWorkerGlobalScopeMixin::close_all_idb_connections()
 {
     IndexedDB::Database::for_each_database([&](IndexedDB::Database& database) {
-        for (auto& connection : database.associated_connections_as_root_vector(this_impl().heap())) {
+        for (auto& connection : database.associated_connections_as_root_vector()) {
             if (connection->close_pending())
                 continue;
             if (&as<WindowOrWorkerGlobalScopeMixin>(relevant_global_object(*connection)) == this)
@@ -1181,7 +1181,7 @@ GC::Ref<JS::Object> WindowOrWorkerGlobalScopeMixin::supported_entry_types() cons
     auto& realm = this_impl().realm();
 
     if (!m_supported_entry_types_array) {
-        GC::RootVector<JS::Value> supported_entry_types(vm.heap());
+        GC::RootVector<JS::Value> supported_entry_types;
 
 #define __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(entry_type, cpp_class) \
     supported_entry_types.append(JS::PrimitiveString::create(vm, entry_type));

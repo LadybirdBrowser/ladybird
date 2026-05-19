@@ -21,6 +21,7 @@ public:
     virtual void gather_roots(HashMap<Cell*, GC::HeapRoot>&) const = 0;
 
 protected:
+    RootVectorBase();
     explicit RootVectorBase(Heap&);
     ~RootVectorBase();
 
@@ -41,15 +42,15 @@ class RootVector final
     using VectorBase = Vector<T, inline_capacity>;
 
 public:
-    explicit RootVector(Heap& heap)
-        : RootVectorBase(heap)
+    RootVector()
+        : RootVectorBase()
     {
     }
 
     ~RootVector() = default;
 
-    RootVector(Heap& heap, ReadonlySpan<T> other)
-        : RootVectorBase(heap)
+    RootVector(ReadonlySpan<T> other)
+        : RootVectorBase()
         , Vector<T, inline_capacity>(other)
     {
     }
@@ -99,12 +100,12 @@ public:
 };
 
 template<typename T>
-RootVector(Heap&, ReadonlySpan<T> const&) -> RootVector<T>;
+RootVector(ReadonlySpan<T> const&) -> RootVector<T>;
 
 template<typename T>
-RootVector(Heap&, Span<T> const&) -> RootVector<T>;
+RootVector(Span<T> const&) -> RootVector<T>;
 
 template<typename T>
-RootVector(Heap&, Vector<T> const&) -> RootVector<T>;
+RootVector(Vector<T> const&) -> RootVector<T>;
 
 }

@@ -85,7 +85,7 @@ WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> StylePropertyMapRead
     // 3. Let props be the value of this’s [[declarations]] internal slot.
     auto& props = m_declarations;
 
-    GC::RootVector<GC::Ref<CSSStyleValue>> results { heap() };
+    GC::RootVector<GC::Ref<CSSStyleValue>> results;
 
     // 4. If props[property] exists, subdivide into iterations props[property], then reify each item of the result, and return the list.
     if (auto property_value = get_style_value(props, property.value())) {

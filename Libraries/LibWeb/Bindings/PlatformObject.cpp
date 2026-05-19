@@ -410,7 +410,7 @@ JS::ThrowCompletionOr<GC::RootVector<JS::Value>> PlatformObject::internal_own_pr
     auto& vm = this->vm();
 
     // 1. Let keys be a new empty list of ECMAScript String and Symbol values.
-    GC::RootVector<JS::Value> keys { heap() };
+    GC::RootVector<JS::Value> keys;
 
     // 2. If O supports indexed properties, then for each index of O’s supported property indices, in ascending numerical order, append ! ToString(index) to keys.
     if (m_legacy_platform_object_flags->supports_indexed_properties) {

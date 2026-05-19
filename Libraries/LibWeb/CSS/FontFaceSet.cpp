@@ -253,7 +253,7 @@ static WebIDL::ExceptionOr<GC::Ref<JS::Set>> find_matching_font_faces(JS::Realm&
 
     // 8. For each font face in matched font faces, if its defined unicode-range does not include the codepoint of at
     //    least one character in text, remove it from the list.
-    auto faces_to_remove = GC::RootVector<JS::Value> { realm.heap() };
+    GC::RootVector<JS::Value> faces_to_remove;
     for (auto entry : *matched_font_faces) {
         auto& font_face = as<FontFace>(entry.key.as_object());
         bool includes_at_least_one_text_code_point = false;
@@ -301,7 +301,7 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> FontFaceSet::load(String const& 
 
         // 4. Queue a task to run the following steps synchronously:
         HTML::queue_a_task(HTML::Task::Source::FontLoading, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, promise, matched_font_faces] {
-            GC::RootVector<GC::Ref<WebIDL::Promise>> promises(realm.heap());
+            GC::RootVector<GC::Ref<WebIDL::Promise>> promises;
 
             // 1. For all of the font faces in the font face list, call their load() method.
             for (auto font_face_value : *matched_font_faces) {

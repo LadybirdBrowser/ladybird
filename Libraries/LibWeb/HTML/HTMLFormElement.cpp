@@ -354,7 +354,7 @@ void HTMLFormElement::reset_form()
 
     // 2. If reset is true, then invoke the reset algorithm of each resettable element whose form owner is form.
     if (reset) {
-        GC::RootVector<GC::Ref<HTMLElement>> associated_elements_copy(heap(), m_associated_elements);
+        GC::RootVector<GC::Ref<HTMLElement>> associated_elements_copy { m_associated_elements };
         for (auto element : associated_elements_copy) {
             auto& form_associated_element = as<FormAssociatedElement>(*element);
             if (form_associated_element.is_resettable())
@@ -557,7 +557,7 @@ HTMLFormElement::StaticValidationResult HTMLFormElement::statically_validate_con
     // 1. Let controls be a list of all the submittable elements whose form owner is form, in tree order.
     auto controls = get_submittable_elements();
     // 2. Let invalid controls be an initially empty list of elements.
-    GC::RootVector<GC::Ref<DOM::Element>> invalid_controls(realm().heap());
+    GC::RootVector<GC::Ref<DOM::Element>> invalid_controls;
     // 3. For each element field in controls, in tree order:
     for (auto& element : controls) {
         auto& field = as<FormAssociatedElement>(*element);
@@ -574,7 +574,7 @@ HTMLFormElement::StaticValidationResult HTMLFormElement::statically_validate_con
     if (invalid_controls.is_empty())
         return { true, invalid_controls };
     // 5. Let unhandled invalid controls be an initially empty list of elements.
-    GC::RootVector<GC::Ref<DOM::Element>> unhandled_invalid_controls(realm().heap());
+    GC::RootVector<GC::Ref<DOM::Element>> unhandled_invalid_controls;
     // 6. For each element field in invalid controls, if any, in tree order:
     for (auto& field : invalid_controls) {
         // 1. Let notCanceled be the result of firing an event named invalid at field, with the cancelable attribute

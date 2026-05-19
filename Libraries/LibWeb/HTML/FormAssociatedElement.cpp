@@ -79,7 +79,7 @@ void FormAssociatedElement::reset_algorithm()
     if (!html_element.is_form_associated_custom_element())
         return;
 
-    GC::RootVector<JS::Value> empty_arguments { html_element.heap() };
+    GC::RootVector<JS::Value> empty_arguments;
     html_element.enqueue_a_custom_element_callback_reaction(CustomElementReactionNames::formResetCallback, move(empty_arguments));
 }
 
@@ -254,7 +254,7 @@ void FormAssociatedElement::reset_form_owner()
 
     // See the AD-HOC comment above.
     if (m_form != old_form && html_element.is_form_associated_custom_element()) {
-        GC::RootVector<JS::Value> arguments { html_element.heap() };
+        GC::RootVector<JS::Value> arguments;
         arguments.append(JS::Value(m_form.ptr()));
         html_element.enqueue_a_custom_element_callback_reaction(CustomElementReactionNames::formAssociatedCallback, move(arguments));
     }
@@ -297,7 +297,7 @@ void FormAssociatedElement::update_face_disabled_state()
 
     m_face_disabled_state = is_disabled;
 
-    GC::RootVector<JS::Value> arguments { html_element.heap() };
+    GC::RootVector<JS::Value> arguments;
     arguments.append(JS::Value(is_disabled));
     html_element.enqueue_a_custom_element_callback_reaction(CustomElementReactionNames::formDisabledCallback, move(arguments));
 }

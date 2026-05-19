@@ -1100,7 +1100,7 @@ void EventHandler::process_auto_scroll()
 
 static GC::RootVector<GC::Ref<DOM::StaticRange>> target_ranges_for_input_event(DOM::Document const& document)
 {
-    GC::RootVector<GC::Ref<DOM::StaticRange>> target_ranges { document.heap() };
+    GC::RootVector<GC::Ref<DOM::StaticRange>> target_ranges;
     if (auto selection = document.get_selection(); selection && !selection->is_collapsed()) {
         if (auto range = selection->range()) {
             auto static_range = document.realm().create<DOM::StaticRange>(range->start_container(), range->start_offset(), range->end_container(), range->end_offset());

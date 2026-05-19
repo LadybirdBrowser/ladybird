@@ -95,7 +95,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::add(Vector<CSSNum
     //    Otherwise, prepend this to values.
 
     // NB: We reorder the steps a little to avoid the awkward prepending.
-    GC::RootVector<GC::Ref<CSSNumericValue>> values { heap() };
+    GC::RootVector<GC::Ref<CSSNumericValue>> values;
     if (auto const* math_sum = as_if<CSSMathSum>(*this))
         values.extend(math_sum->values()->values());
     else
@@ -156,7 +156,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::mul(Vector<CSSNum
     //    Otherwise, prepend this to values.
 
     // NB: We reorder the steps a little to avoid the awkward prepending.
-    GC::RootVector<GC::Ref<CSSNumericValue>> values { heap() };
+    GC::RootVector<GC::Ref<CSSNumericValue>> values;
     if (auto const* math_product = as_if<CSSMathProduct>(*this))
         values.extend(math_product->values()->values());
     else
@@ -254,7 +254,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::min(Vector<CSSNum
     //    Otherwise, prepend this to values.
 
     // NB: We reorder the steps a little to avoid the awkward prepending.
-    GC::RootVector<GC::Ref<CSSNumericValue>> values { heap() };
+    GC::RootVector<GC::Ref<CSSNumericValue>> values;
     if (auto const* math_product = as_if<CSSMathMin>(*this))
         values.extend(math_product->values()->values());
     else
@@ -284,7 +284,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::max(Vector<CSSNum
     //    Otherwise, prepend this to values.
 
     // NB: We reorder the steps a little to avoid the awkward prepending.
-    GC::RootVector<GC::Ref<CSSNumericValue>> values { heap() };
+    GC::RootVector<GC::Ref<CSSNumericValue>> values;
     if (auto const* math_product = as_if<CSSMathMax>(*this))
         values.extend(math_product->values()->values());
     else

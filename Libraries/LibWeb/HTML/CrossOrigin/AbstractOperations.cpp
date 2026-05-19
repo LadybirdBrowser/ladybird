@@ -246,7 +246,7 @@ GC::RootVector<JS::Value> cross_origin_own_property_keys(Variant<HTML::Location 
     auto& vm = event_loop.vm();
 
     // 1. Let keys be a new empty List.
-    auto keys = GC::RootVector<JS::Value> { vm.heap() };
+    GC::RootVector<JS::Value> keys;
 
     // 2. For each e of CrossOriginProperties(O), append e.[[Property]] to keys.
     for (auto& entry : cross_origin_properties(object))

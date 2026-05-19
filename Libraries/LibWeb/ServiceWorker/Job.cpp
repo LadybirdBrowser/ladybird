@@ -611,8 +611,8 @@ void schedule_job(JS::VM& vm, GC::Ref<Job> job)
 
     // 3. If scope to job queue map[jobScope] does not exist, set scope to job queue map[jobScope] to a new job queue.
     // 4. Set jobQueue to scope to job queue map[jobScope].
-    auto& job_queue = scope_to_job_queue_map().ensure(job_scope, [&vm] {
-        return JobQueue(vm.heap());
+    auto& job_queue = scope_to_job_queue_map().ensure(job_scope, [] {
+        return JobQueue {};
     });
 
     // 5. If jobQueue is empty, then:

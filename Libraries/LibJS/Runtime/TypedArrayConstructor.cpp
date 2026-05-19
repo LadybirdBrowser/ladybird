@@ -93,7 +93,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayConstructor::from)
         auto length = values.size();
 
         // c. Let targetObj be ? TypedArrayCreate(C, « 𝔽(len) »).
-        GC::RootVector<Value> arguments(vm.heap());
+        GC::RootVector<Value> arguments;
         arguments.empend(length);
         auto* target_object = TRY(typed_array_create(vm, constructor.as_function(), move(arguments)));
 
@@ -140,7 +140,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayConstructor::from)
     auto length = TRY(length_of_array_like(vm, array_like));
 
     // 10. Let targetObj be ? TypedArrayCreate(C, « 𝔽(len) »).
-    GC::RootVector<Value> arguments(vm.heap());
+    GC::RootVector<Value> arguments;
     arguments.empend(length);
     auto* target_object = TRY(typed_array_create(vm, constructor.as_function(), move(arguments)));
 
@@ -189,7 +189,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayConstructor::of)
         return vm.throw_completion<TypeError>(ErrorType::NotAConstructor, constructor);
 
     // 4. Let newObj be ? TypedArrayCreate(C, « 𝔽(len) »).
-    GC::RootVector<Value> arguments(vm.heap());
+    GC::RootVector<Value> arguments;
     arguments.append(Value(length));
     auto* new_object = TRY(typed_array_create(vm, constructor.as_function(), move(arguments)));
 

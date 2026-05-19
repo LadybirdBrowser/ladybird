@@ -216,7 +216,7 @@ static CalculationNode::NumericValue clamp_and_censor_numeric_value(NumericCalcu
 
 static GC::Ptr<CSSNumericArray> reify_children(JS::Realm& realm, ReadonlySpan<NonnullRefPtr<CalculationNode const>> children)
 {
-    GC::RootVector<GC::Ref<CSSNumericValue>> reified_children { realm.heap() };
+    GC::RootVector<GC::Ref<CSSNumericValue>> reified_children;
     for (auto const& child : children) {
         auto reified_child = child->reify(realm);
         if (!reified_child)

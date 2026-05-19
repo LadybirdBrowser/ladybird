@@ -390,20 +390,20 @@ GC::RootVector<GC::Ref<Web::DOM::Element>> pointer_interactable_tree(Web::HTML::
 {
     // 1. If element is not in the same tree as session's current browsing context's active document, return an empty sequence.
     if (!browsing_context.active_document()->contains(element))
-        return GC::RootVector<GC::Ref<Web::DOM::Element>>(browsing_context.heap());
+        return GC::RootVector<GC::Ref<Web::DOM::Element>> {};
 
     // 2. Let rectangles be the DOMRect sequence returned by calling getClientRects().
     auto rectangles = element.get_client_rects();
 
     // 3. If rectangles has the length of 0, return an empty sequence.
     if (rectangles.is_empty())
-        return GC::RootVector<GC::Ref<Web::DOM::Element>>(browsing_context.heap());
+        return GC::RootVector<GC::Ref<Web::DOM::Element>> {};
 
     // 4. Let center point be the in-view center point of the first indexed element in rectangles.
     auto viewport = browsing_context.page().top_level_traversable()->viewport_rect();
     auto center_point_or_error = Web::WebDriver::in_view_center_point(element, viewport);
     if (center_point_or_error.is_error())
-        return GC::RootVector<GC::Ref<Web::DOM::Element>>(browsing_context.heap());
+        return GC::RootVector<GC::Ref<Web::DOM::Element>> {};
     auto center_point = center_point_or_error.release_value();
 
     // 5. Return the elements from point given the coordinates center point.

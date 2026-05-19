@@ -903,7 +903,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
     }
 
     // 10. Let results be a new empty List.
-    GC::RootVector<Object*> results(vm.heap());
+    GC::RootVector<Object*> results;
 
     // 11. Let done be false.
     // 12. Repeat, while done is false,
@@ -970,7 +970,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
         position = clamp(position, static_cast<double>(0), static_cast<double>(string->length_in_utf16_code_units()));
 
         // g. Let captures be a new empty List.
-        GC::RootVector<Value> captures(vm.heap());
+        GC::RootVector<Value> captures;
 
         // h. Let n be 1.
         // i. Repeat, while n ≤ nCaptures,
@@ -1000,7 +1000,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
         // k. If functionalReplace is true, then
         if (replace_value.is_function()) {
             // i. Let replacerArgs be the list-concatenation of « matched », captures, and « 𝔽(position), S ».
-            GC::RootVector<Value> replacer_args(vm.heap());
+            GC::RootVector<Value> replacer_args;
             replacer_args.append(matched);
             replacer_args.extend(move(captures));
             replacer_args.append(Value(position));

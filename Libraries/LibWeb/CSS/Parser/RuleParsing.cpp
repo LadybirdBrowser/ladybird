@@ -189,7 +189,7 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
 
     auto declaration = convert_to_style_declaration(qualified_rule.declarations);
 
-    GC::RootVector<GC::Ref<CSSRule>> child_rules { realm().heap() };
+    GC::RootVector<GC::Ref<CSSRule>> child_rules;
     for (auto& child : qualified_rule.child_rules) {
         child.visit(
             [&](Rule const& rule) {
@@ -389,7 +389,7 @@ GC::Ptr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nested
         }
 
         // Then the rules
-        GC::RootVector<GC::Ref<CSSRule>> child_rules { realm().heap() };
+        GC::RootVector<GC::Ref<CSSRule>> child_rules;
         for (auto const& child : rule.child_rules_and_lists_of_declarations) {
             child.visit(
                 [&](Rule const& rule) {
@@ -519,7 +519,7 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
     // animation-name: "foo" compare on the same value.
     auto name = name_token.is(Token::Type::String) ? name_token.string() : name_token.ident();
 
-    GC::RootVector<GC::Ref<CSSRule>> keyframes(realm().heap());
+    GC::RootVector<GC::Ref<CSSRule>> keyframes;
     rule.for_each_as_qualified_rule_list([&](auto& qualified_rule) {
         if (!qualified_rule.child_rules.is_empty()) {
             for (auto const& child_rule : qualified_rule.child_rules) {
@@ -691,7 +691,7 @@ GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Ne
         return {};
     }
 
-    GC::RootVector<GC::Ref<CSSRule>> child_rules { realm().heap() };
+    GC::RootVector<GC::Ref<CSSRule>> child_rules;
     for (auto const& child : rule.child_rules_and_lists_of_declarations) {
         child.visit(
             [&](Rule const& rule) {
@@ -902,7 +902,7 @@ GC::Ptr<CSSContainerRule> Parser::convert_to_container_rule(AtRule const& rule, 
         conditions.unchecked_empend(move(container_name), move(container_query));
     }
 
-    GC::RootVector<GC::Ref<CSSRule>> child_rules { realm().heap() };
+    GC::RootVector<GC::Ref<CSSRule>> child_rules;
     for (auto const& child : rule.child_rules_and_lists_of_declarations) {
         child.visit(
             [&](Rule const& child_rule) {
@@ -1437,7 +1437,7 @@ GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)
     if (page_selectors.is_error())
         return nullptr;
 
-    GC::RootVector<GC::Ref<CSSRule>> child_rules { realm().heap() };
+    GC::RootVector<GC::Ref<CSSRule>> child_rules;
     DescriptorList descriptors { AtRuleID::Page };
     page_rule.for_each_as_declaration_rule_list(
         [&](auto& at_rule) {

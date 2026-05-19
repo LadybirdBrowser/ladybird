@@ -375,12 +375,12 @@ GC::RootVector<GC::Ref<MediaDeviceInfo>> MediaDevices::create_list_of_device_inf
     // To perform creating a list of device info objects, given mediaDevices and deviceList, run the following steps:
 
     // 1. Let resultList be an empty list.
-    GC::RootVector<GC::Ref<MediaDeviceInfo>> result_list { heap() };
+    GC::RootVector<GC::Ref<MediaDeviceInfo>> result_list;
 
     // 2. Let microphoneList, cameraList and otherDeviceList be empty lists.
-    GC::RootVector<GC::Ref<MediaDeviceInfo>> microphone_list { heap() };
-    GC::RootVector<GC::Ref<MediaDeviceInfo>> camera_list { heap() };
-    GC::RootVector<GC::Ref<MediaDeviceInfo>> other_device_list { heap() };
+    GC::RootVector<GC::Ref<MediaDeviceInfo>> microphone_list;
+    GC::RootVector<GC::Ref<MediaDeviceInfo>> camera_list;
+    GC::RootVector<GC::Ref<MediaDeviceInfo>> other_device_list;
 
     // 3. Let document be mediaDevices's relevant global object's associated Document.
     auto const& document = as<HTML::Window>(realm.global_object()).associated_document();

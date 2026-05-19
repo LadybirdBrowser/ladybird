@@ -172,7 +172,7 @@ ThrowCompletionOr<bool> Array::set_length(PropertyDescriptor const& property_des
 ThrowCompletionOr<GC::RootVector<Value>> sort_indexed_properties(VM& vm, Object const& object, size_t length, Function<ThrowCompletionOr<double>(Value, Value)> const& sort_compare, Holes holes)
 {
     // 1. Let items be a new empty List.
-    auto items = GC::RootVector<Value> { vm.heap() };
+    GC::RootVector<Value> items;
 
     // 2. Let k be 0.
     // 3. Repeat, while k < len,
