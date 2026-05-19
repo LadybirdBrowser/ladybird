@@ -23,7 +23,7 @@ void test_root_hash_map_non_gc_types(GC::Heap& heap)
 {
     // expected-error@*{{RootHashMap requires at least one of key or value types to be convertible to Cell const* or derive from NanBoxedValue}}
     // expected-note@+1 {{in instantiation of member function}}
-    GC::RootHashMap<int, int> bad_map(heap);
+    GC::RootHashMap<int, int> bad_map;
 }
 
 // RootHashTable with a non-GC element type should fail.

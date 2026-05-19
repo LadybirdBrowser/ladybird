@@ -19,6 +19,7 @@ public:
     virtual void gather_roots(HashMap<Cell*, GC::HeapRoot>&) const = 0;
 
 protected:
+    RootHashMapBase();
     explicit RootHashMapBase(Heap&);
     ~RootHashMapBase();
 
@@ -39,8 +40,8 @@ class RootHashMap final
     using HashMapBase = HashMap<K, V, KeyTraits, ValueTraits, IsOrdered>;
 
 public:
-    explicit RootHashMap(Heap& heap)
-        : RootHashMapBase(heap)
+    RootHashMap()
+        : RootHashMapBase()
     {
     }
 

@@ -9,6 +9,11 @@
 
 namespace GC {
 
+RootHashMapBase::RootHashMapBase()
+    : RootHashMapBase(Heap::the())
+{
+}
+
 RootHashMapBase::RootHashMapBase(Heap& heap)
     : m_heap(&heap)
 {

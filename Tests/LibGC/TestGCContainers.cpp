@@ -90,7 +90,7 @@ TEST_CASE(root_vector_ptr_reports_roots)
 TEST_CASE(root_hash_map_value_reports_roots)
 {
     auto& heap = test_heap();
-    GC::RootHashMap<int, GC::Ref<TestCell>> map(heap);
+    GC::RootHashMap<int, GC::Ref<TestCell>> map;
 
     auto cell = heap.allocate<TestCell>();
     map.set(42, cell);
@@ -105,7 +105,7 @@ TEST_CASE(root_hash_map_value_reports_roots)
 TEST_CASE(root_hash_map_key_reports_roots)
 {
     auto& heap = test_heap();
-    GC::RootHashMap<GC::Ref<TestCell>, int> map(heap);
+    GC::RootHashMap<GC::Ref<TestCell>, int> map;
 
     auto cell = heap.allocate<TestCell>();
     map.set(cell, 42);
@@ -120,7 +120,7 @@ TEST_CASE(root_hash_map_key_reports_roots)
 TEST_CASE(root_hash_map_key_and_value_reports_roots)
 {
     auto& heap = test_heap();
-    GC::RootHashMap<GC::Ref<TestCell>, GC::Ref<TestCell>> map(heap);
+    GC::RootHashMap<GC::Ref<TestCell>, GC::Ref<TestCell>> map;
 
     auto key_cell = heap.allocate<TestCell>();
     auto value_cell = heap.allocate<TestCell>();
@@ -137,7 +137,7 @@ TEST_CASE(root_hash_map_key_and_value_reports_roots)
 TEST_CASE(root_hash_map_non_gc_key_skipped)
 {
     auto& heap = test_heap();
-    GC::RootHashMap<int, GC::Ref<TestCell>> map(heap);
+    GC::RootHashMap<int, GC::Ref<TestCell>> map;
 
     auto cell = heap.allocate<TestCell>();
     map.set(42, cell);
@@ -243,10 +243,9 @@ TEST_CASE(root_hash_table_reports_roots)
 
 TEST_CASE(empty_containers_report_no_roots)
 {
-    auto& heap = test_heap();
     GC::RootVector<GC::Ref<TestCell>> vector;
     GC::RootHashTable<GC::Ref<TestCell>> table;
-    GC::RootHashMap<int, GC::Ref<TestCell>> map(heap);
+    GC::RootHashMap<int, GC::Ref<TestCell>> map;
 
     HashMap<GC::Cell*, GC::HeapRoot> roots;
     vector.gather_roots(roots);
