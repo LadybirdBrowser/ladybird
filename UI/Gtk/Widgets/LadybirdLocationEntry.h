@@ -16,6 +16,7 @@ LadybirdLocationEntry* ladybird_location_entry_new(void);
 
 void ladybird_location_entry_set_url(LadybirdLocationEntry* self, char const* url);
 void ladybird_location_entry_set_text(LadybirdLocationEntry* self, char const* text);
-void ladybird_location_entry_set_security_icon(LadybirdLocationEntry* self, char const* scheme);
+void ladybird_location_entry_set_favicon(LadybirdLocationEntry* self, GdkPaintable* favicon);
+void ladybird_location_entry_set_loading(LadybirdLocationEntry* self, bool is_loading);
 void ladybird_location_entry_focus_and_select_all(LadybirdLocationEntry* self);
 void ladybird_location_entry_set_on_navigate(LadybirdLocationEntry* self, Function<void(String)> callback);

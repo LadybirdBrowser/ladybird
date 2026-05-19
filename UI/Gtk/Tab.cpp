@@ -113,13 +113,22 @@ void Tab::setup_callbacks()
     };
 
     m_view->on_load_start = [this](auto const&, bool) {
+        m_is_loading = true;
+        m_favicon.clear();
         if (m_tab_page)
             adw_tab_page_set_loading(m_tab_page, TRUE);
+        if (m_window.current_tab() == this) {
+            m_window.update_location_favicon(nullptr);
+            m_window.update_location_loading(true);
+        }
     };
 
     m_view->on_load_finish = [this](auto const&) {
+        m_is_loading = false;
         if (m_tab_page)
             adw_tab_page_set_loading(m_tab_page, FALSE);
+        if (m_window.current_tab() == this)
+            m_window.update_location_loading(false);
     };
 
     m_view->on_cursor_change = [root](auto const& cursor) {
@@ -236,11 +245,13 @@ void Tab::setup_callbacks()
     };
 
     m_view->on_favicon_change = [this](auto const& bitmap) {
-        if (!m_tab_page)
-            return;
         g_autoptr(GBytes) bytes = g_bytes_new(bitmap.scanline_u8(0), bitmap.size_in_bytes());
         GObjectPtr texture { gdk_memory_texture_new(bitmap.width(), bitmap.height(), GDK_MEMORY_B8G8R8A8_PREMULTIPLIED, bytes, bitmap.pitch()) };
-        adw_tab_page_set_icon(m_tab_page, G_ICON(texture.ptr()));
+        m_favicon = GObjectPtr<GdkPaintable>(GDK_PAINTABLE(g_object_ref(texture.ptr())));
+        if (m_tab_page)
+            adw_tab_page_set_icon(m_tab_page, G_ICON(texture.ptr()));
+        if (m_window.current_tab() == this)
+            m_window.update_location_favicon(m_favicon.ptr());
     };
 
     m_view->on_audio_play_state_changed = [this](auto play_state) {
