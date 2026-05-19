@@ -10,6 +10,11 @@
 
 namespace GC {
 
+RootHashTableBase::RootHashTableBase()
+    : RootHashTableBase(Heap::the())
+{
+}
+
 RootHashTableBase::RootHashTableBase(Heap& heap)
     : m_heap(&heap)
 {

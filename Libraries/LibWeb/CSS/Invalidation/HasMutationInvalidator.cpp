@@ -337,13 +337,13 @@ static void invalidate_style_of_elements_affected_by_pending_has_mutations(Style
     auto& counters = style_scope.document().style_invalidation_counters();
     ++counters.has_ancestor_walk_invocations;
 
-    GC::RootHashTable<GC::Ref<DOM::Element>> elements_already_invalidated_for_has { style_scope.node().heap() };
+    GC::RootHashTable<GC::Ref<DOM::Element>> elements_already_invalidated_for_has;
     GC::OrderedRootHashMap<GC::Ref<DOM::Node>, PendingHasInvalidationMutationFeatures> pending_has_invalidations { style_scope.node().heap() };
     for (auto& [node, features] : style_scope.m_pending_has_invalidations)
         pending_has_invalidations.set(node, features);
     bool should_scan_ancestor_siblings = style_scope.have_has_selectors_with_relative_selector_that_has_sibling_combinator();
     for (auto& [node, mutation_features] : pending_has_invalidations) {
-        GC::RootHashTable<GC::Ref<DOM::Element>> elements_skipped_by_has_feature_filter { style_scope.node().heap() };
+        GC::RootHashTable<GC::Ref<DOM::Element>> elements_skipped_by_has_feature_filter;
         GC::RootVector<GC::Ref<DOM::Element>, 16> has_scope_ancestors;
         bool should_delay_ancestor_sibling_scans = false;
         for (GC::Ptr<DOM::Node> ancestor = node; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
