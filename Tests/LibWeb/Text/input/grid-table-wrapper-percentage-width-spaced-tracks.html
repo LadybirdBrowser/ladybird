@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+body {
+    margin: 0;
+}
+
+.outer {
+    width: 1280px;
+}
+
+.grid {
+    display: grid;
+    column-gap: 0;
+    justify-content: space-between;
+}
+
+.full-span {
+    width: 500px;
+    grid-template-columns: 100px 100px;
+}
+
+.partial-span {
+    width: 600px;
+    grid-template-columns: 100px 100px 100px;
+}
+
+.center {
+    justify-items: center;
+}
+
+.end {
+    justify-items: end;
+}
+
+.table {
+    display: table;
+    width: 50%;
+    height: 20px;
+}
+
+.full-item {
+    grid-column: 1 / span 2;
+}
+
+.partial-item {
+    grid-column: 2 / span 2;
+}
+
+.auto-margins {
+    margin-left: auto;
+    margin-right: auto;
+}
+</style>
+<div class="outer">
+    <div id="full-grid" class="grid full-span">
+        <div id="full-start" class="table full-item"></div>
+    </div>
+    <div class="grid full-span center">
+        <div id="full-center" class="table full-item"></div>
+    </div>
+    <div class="grid full-span end">
+        <div id="full-end" class="table full-item"></div>
+    </div>
+    <div class="grid full-span">
+        <div id="full-auto-margins" class="table full-item auto-margins"></div>
+    </div>
+    <div id="partial-grid" class="grid partial-span center">
+        <div></div>
+        <div id="partial-center" class="table partial-item"></div>
+    </div>
+    <div class="grid partial-span">
+        <div></div>
+        <div id="partial-auto-margins" class="table partial-item auto-margins"></div>
+    </div>
+</div>
+<script>
+test(() => {
+    const printRect = (name, selector) => {
+        const rect = document.querySelector(selector).getBoundingClientRect();
+        println(`${name} left: ${rect.left.toFixed(1)}`);
+        println(`${name} right: ${rect.right.toFixed(1)}`);
+        println(`${name} width: ${rect.width.toFixed(1)}`);
+    };
+
+    printRect("full grid", "#full-grid");
+    printRect("full start", "#full-start");
+    printRect("full center", "#full-center");
+    printRect("full end", "#full-end");
+    printRect("full auto margins", "#full-auto-margins");
+    printRect("partial grid", "#partial-grid");
+    printRect("partial center", "#partial-center");
+    printRect("partial auto margins", "#partial-auto-margins");
+});
+</script>

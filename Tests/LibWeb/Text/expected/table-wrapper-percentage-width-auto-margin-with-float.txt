@@ -1,0 +1,9 @@
+left-float-table left: 225.0
+left-float-table right: 475.0
+left-float-table width: 250.0
+right-float-table left: 25.0
+right-float-table right: 275.0
+right-float-table width: 250.0
+both-floats-table left: 125.0
+both-floats-table right: 375.0
+both-floats-table width: 250.0
