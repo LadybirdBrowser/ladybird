@@ -181,7 +181,7 @@ void ObjectStore::possibly_update_the_key_generator(GC::Ref<Key> key)
 
 GC::ConservativeVector<ObjectStoreRecord> ObjectStore::first_n_in_range(GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count)
 {
-    GC::ConservativeVector<ObjectStoreRecord> records(range->heap());
+    GC::ConservativeVector<ObjectStoreRecord> records;
     auto record_range = record_range_for_key_range(m_records, range);
     for (size_t i = record_range.start; i < record_range.end; ++i) {
         records.append(m_records[i]);
@@ -195,7 +195,7 @@ GC::ConservativeVector<ObjectStoreRecord> ObjectStore::first_n_in_range(GC::Ref<
 
 GC::ConservativeVector<ObjectStoreRecord> ObjectStore::last_n_in_range(GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count)
 {
-    GC::ConservativeVector<ObjectStoreRecord> records(range->heap());
+    GC::ConservativeVector<ObjectStoreRecord> records;
     auto record_range = record_range_for_key_range(m_records, range);
     for (size_t i = record_range.end; i > record_range.start;) {
         --i;

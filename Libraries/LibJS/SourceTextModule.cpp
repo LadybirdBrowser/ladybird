@@ -117,7 +117,7 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_f
     if (rust_result->is_error())
         return rust_result->release_error();
     auto& module_result = rust_result->value();
-    GC::ConservativeVector<FunctionToInitialize> functions_to_initialize(realm.heap());
+    GC::ConservativeVector<FunctionToInitialize> functions_to_initialize;
     functions_to_initialize.ensure_capacity(module_result.functions_to_initialize.size());
     for (auto& f : module_result.functions_to_initialize)
         functions_to_initialize.append({ *f.shared_data, move(f.name) });
@@ -187,7 +187,7 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse(S
         return rust_result->release_error();
 
     auto& module_result = rust_result->value();
-    GC::ConservativeVector<FunctionToInitialize> functions_to_initialize(realm.heap());
+    GC::ConservativeVector<FunctionToInitialize> functions_to_initialize;
     functions_to_initialize.ensure_capacity(module_result.functions_to_initialize.size());
     for (auto& f : module_result.functions_to_initialize)
         functions_to_initialize.append({ *f.shared_data, move(f.name) });

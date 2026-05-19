@@ -9,6 +9,11 @@
 
 namespace GC {
 
+ConservativeVectorBase::ConservativeVectorBase()
+    : ConservativeVectorBase(Heap::the())
+{
+}
+
 ConservativeVectorBase::ConservativeVectorBase(Heap& heap)
     : m_heap(&heap)
 {

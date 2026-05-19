@@ -126,10 +126,10 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> construct_class(
 
     using StaticElement = Variant<ClassFieldDefinition, GC::Ref<ECMAScriptFunctionObject>>;
 
-    GC::ConservativeVector<PrivateElement> static_private_methods(vm.heap());
-    GC::ConservativeVector<PrivateElement> instance_private_methods(vm.heap());
-    GC::ConservativeVector<ClassFieldDefinition> instance_fields(vm.heap());
-    GC::ConservativeVector<StaticElement> static_elements(vm.heap());
+    GC::ConservativeVector<PrivateElement> static_private_methods;
+    GC::ConservativeVector<PrivateElement> instance_private_methods;
+    GC::ConservativeVector<ClassFieldDefinition> instance_fields;
+    GC::ConservativeVector<StaticElement> static_elements;
 
     for (size_t element_index = 0; element_index < blueprint.elements.size(); ++element_index) {
         auto const& descriptor = blueprint.elements[element_index];

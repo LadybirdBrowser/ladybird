@@ -168,7 +168,7 @@ TEST_CASE(cleared_container_reports_no_roots)
 TEST_CASE(conservative_vector_reports_possible_values)
 {
     auto& heap = test_heap();
-    GC::ConservativeVector<GC::Ref<TestCell>> vector(heap);
+    GC::ConservativeVector<GC::Ref<TestCell>> vector;
 
     auto cell = heap.allocate<TestCell>();
     vector.append(cell);

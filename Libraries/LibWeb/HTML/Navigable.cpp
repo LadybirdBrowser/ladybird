@@ -2063,7 +2063,7 @@ void Navigable::begin_navigation(NavigateParams params)
         // 2. Let entryListForFiring be formDataEntryList if documentResource is a POST resource; otherwise, null.
         auto entry_list_for_firing = [&]() -> Optional<GC::ConservativeVector<XHR::FormDataEntry>> {
             if (document_resource.has<POSTResource>())
-                return GC::ConservativeVector { vm.heap(), params.form_data_entry_list.value() };
+                return GC::ConservativeVector { params.form_data_entry_list.value() };
             return {};
         }();
 
