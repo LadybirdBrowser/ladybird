@@ -263,11 +263,13 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
     self.favicon = [Tab defaultFavicon];
     [self updateTabTitleAndFavicon];
 
+    [[self tabController] onFaviconChange:nil];
     [[self tabController] onLoadStart:url isRedirect:is_redirect];
 }
 
 - (void)onLoadFinish:(URL::URL const&)url
 {
+    [[self tabController] onLoadFinish:url];
 }
 
 - (void)onURLChange:(URL::URL const&)url
@@ -287,6 +289,7 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
     [favicon setResizingMode:NSImageResizingModeStretch];
     self.favicon = favicon;
     [self updateTabTitleAndFavicon];
+    [[self tabController] onFaviconChange:favicon];
 }
 
 - (BookmarksBar*)bookmarksBar

@@ -181,8 +181,18 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         m_favicon = default_favicon();
         emit favicon_changed(tab_index(), m_favicon);
 
+        m_location_edit->set_favicon({});
+        m_location_edit->set_loading(true);
         m_location_edit->set_url(url);
         m_location_edit->setCursorPosition(0);
+    };
+
+    view().on_load_finish = [this](auto const&) {
+        m_location_edit->set_loading(false);
+    };
+
+    view().on_web_content_crashed = [this] {
+        m_location_edit->set_loading(false);
     };
 
     view().on_url_change = [this](auto const& url) {
@@ -206,6 +216,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
         m_favicon = qpixmap;
         emit favicon_changed(tab_index(), m_favicon);
+        m_location_edit->set_favicon(m_favicon);
     };
 
     view().on_request_alert = [this](auto const& message) {

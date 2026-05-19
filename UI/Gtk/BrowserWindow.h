@@ -39,6 +39,8 @@ public:
 
     void update_navigation_buttons(bool back_enabled, bool forward_enabled);
     void update_location_entry(StringView url);
+    void update_location_favicon(GdkPaintable* favicon);
+    void update_location_loading(bool is_loading);
     void update_zoom_label();
     void update_find_in_page_result(size_t current_match_index, Optional<size_t> const& total_match_count);
 
