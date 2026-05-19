@@ -1222,6 +1222,13 @@ void NodeWithStyle::reset_table_box_computed_values_used_by_wrapper_to_init_valu
     mutable_computed_values.set_float(CSS::InitialValues::float_());
     mutable_computed_values.set_clear(CSS::InitialValues::clear());
     mutable_computed_values.set_inset(CSS::InitialValues::inset());
+    mutable_computed_values.set_grid_column_end(CSS::InitialValues::grid_column_end());
+    mutable_computed_values.set_grid_column_start(CSS::InitialValues::grid_column_start());
+    mutable_computed_values.set_grid_row_end(CSS::InitialValues::grid_row_end());
+    mutable_computed_values.set_grid_row_start(CSS::InitialValues::grid_row_start());
+    mutable_computed_values.set_align_self(CSS::InitialValues::align_self());
+    mutable_computed_values.set_justify_self(CSS::InitialValues::justify_self());
+    mutable_computed_values.set_order(CSS::InitialValues::order());
     mutable_computed_values.set_margin(CSS::InitialValues::margin());
     // AD-HOC:
     // To match other browsers, z-index needs to be moved to the wrapper box as well,
@@ -1245,6 +1252,15 @@ void NodeWithStyle::transfer_table_box_computed_values_to_wrapper_computed_value
     mutable_wrapper_computed_values.set_inset(computed_values().inset());
     mutable_wrapper_computed_values.set_float(computed_values().float_());
     mutable_wrapper_computed_values.set_clear(computed_values().clear());
+    // CSS 2 moves table-root positioning and margins to the wrapper. The wrapper is also the grid item for
+    // display:table, so grid placement, self-alignment, and order need to move there as well.
+    mutable_wrapper_computed_values.set_grid_column_end(computed_values().grid_column_end());
+    mutable_wrapper_computed_values.set_grid_column_start(computed_values().grid_column_start());
+    mutable_wrapper_computed_values.set_grid_row_end(computed_values().grid_row_end());
+    mutable_wrapper_computed_values.set_grid_row_start(computed_values().grid_row_start());
+    mutable_wrapper_computed_values.set_align_self(computed_values().align_self());
+    mutable_wrapper_computed_values.set_justify_self(computed_values().justify_self());
+    mutable_wrapper_computed_values.set_order(computed_values().order());
     mutable_wrapper_computed_values.set_margin(computed_values().margin());
     // AD-HOC:
     // To match other browsers, z-index needs to be moved to the wrapper box as well,
