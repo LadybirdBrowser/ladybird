@@ -273,6 +273,11 @@ Heap& Heap::the()
     return *s_the;
 }
 
+void Heap::set_default_heap_for_testing(Heap& heap)
+{
+    s_the = &heap;
+}
+
 Heap::Heap(AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> gather_embedder_roots)
     : m_gather_embedder_roots(move(gather_embedder_roots))
 {
