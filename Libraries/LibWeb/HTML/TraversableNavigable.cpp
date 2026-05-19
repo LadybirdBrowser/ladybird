@@ -779,6 +779,9 @@ void ApplyHistoryStepState::start()
                 && (target_entry->document_state()->document_id() != navigable->active_document_id()
                     || target_entry->document_state()->reload_pending());
             if (needs_population) {
+                if (target_entry->document_state()->reload_pending() && navigable->is_top_level_traversable())
+                    navigable->page().client().page_did_start_loading(target_entry->url(), false);
+
                 // FIXME: 1. Let navTimingType be "back_forward" if targetEntry's document is null; otherwise "reload".
 
                 // 2. Let targetSnapshotParams be the result of snapshotting target snapshot params given navigable.
