@@ -118,6 +118,7 @@ public:
                 return t;
             },
             [&](Percentage const& percentage) {
+                // FIXME: This doesn't necessarily round correctly
                 return Length::make_px(CSSPixels(percentage.value() * reference_value) / 100);
             },
             [&](NonnullRefPtr<CalculatedStyleValue const> const& calculated) {
