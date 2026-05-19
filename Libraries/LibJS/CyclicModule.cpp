@@ -868,7 +868,7 @@ GC::Ref<Module> CyclicModule::get_imported_module(ModuleRequest const& request)
 {
     // 1. Let records be a List consisting of each LoadedModuleRequest Record r of referrer.[[LoadedModules]]
     //    such that ModuleRequestsEqual(r, request) is true.
-    Vector<LoadedModuleRequest> records;
+    GC::ConservativeVector<LoadedModuleRequest> records(vm().heap());
     for (auto const& r : m_loaded_modules) {
         if (module_requests_equal(r, request))
             records.append(r);
