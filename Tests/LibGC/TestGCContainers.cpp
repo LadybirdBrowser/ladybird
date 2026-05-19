@@ -33,6 +33,11 @@ static GC::Heap& test_heap()
     return *heap;
 }
 
+TEST_SETUP
+{
+    GC::Heap::set_default_heap_for_testing(test_heap());
+}
+
 class TestVisitor : public GC::Cell::Visitor {
     virtual void visit_impl(GC::Cell& cell) override { visited_cells.set(&cell); }
     virtual void visit_impl(ReadonlySpan<GC::NanBoxedValue>) override { }

@@ -46,6 +46,7 @@ public:
     ~Heap();
 
     static Heap& the();
+    static void set_default_heap_for_testing(Heap&);
 
     template<typename T, typename... Args>
     Ref<T> allocate(Args&&... args)
