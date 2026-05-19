@@ -9,11 +9,11 @@
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SharedImage.h>
 #include <LibGfx/SkiaBackendContext.h>
-#include <LibGfx/SkiaUtils.h>
 #include <LibThreading/Thread.h>
 #include <LibWeb/Compositor/AsyncScrollTree.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/Compositor/BackingStoreManager.h>
+#include <LibWeb/Compositor/CompositorContextState.h>
 #include <LibWeb/Compositor/CompositorThread.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/Page/InputEvent.h>
@@ -27,8 +27,6 @@
 
 #include <core/SkCanvas.h>
 #include <core/SkColor.h>
-#include <core/SkPaint.h>
-#include <core/SkRRect.h>
 #include <gpu/ganesh/GrDirectContext.h>
 
 #include <LibCore/Platform/ScopedAutoreleasePool.h>
@@ -98,127 +96,6 @@ struct CompositorCommandEnvelope {
     CompositorCommand command;
 };
 
-static SkRect to_skia_rect(Gfx::IntRect const& rect)
-{
-    return SkRect::MakeXYWH(rect.x(), rect.y(), rect.width(), rect.height());
-}
-
-static Gfx::Orientation orientation_for_scrollbar(ViewportScrollbar const& scrollbar)
-{
-    return scrollbar.vertical ? Gfx::Orientation::Vertical : Gfx::Orientation::Horizontal;
-}
-
-struct ViewportScrollbarIdentity {
-    AsyncScrollNodeID scroll_node_id;
-    bool vertical { false };
-};
-
-static ViewportScrollbarIdentity viewport_scrollbar_identity(ViewportScrollbar const& scrollbar)
-{
-    return { scrollbar.scroll_node_id, scrollbar.vertical };
-}
-
-static Optional<ViewportScrollbarIdentity> viewport_scrollbar_identity_at(ReadonlySpan<ViewportScrollbar> scrollbars, Optional<size_t> scrollbar_index)
-{
-    if (!scrollbar_index.has_value() || *scrollbar_index >= scrollbars.size())
-        return {};
-    return viewport_scrollbar_identity(scrollbars[*scrollbar_index]);
-}
-
-static Optional<size_t> find_viewport_scrollbar_index(ReadonlySpan<ViewportScrollbar> scrollbars, ViewportScrollbarIdentity identity)
-{
-    for (size_t i = 0; i < scrollbars.size(); ++i) {
-        if (scrollbars[i].scroll_node_id == identity.scroll_node_id && scrollbars[i].vertical == identity.vertical)
-            return i;
-    }
-    return {};
-}
-
-static void set_or_append_pending_scroll_offset(Vector<AsyncScrollOffset>& pending_scroll_offsets, AsyncScrollOffset const& scroll_offset)
-{
-    for (auto& existing : pending_scroll_offsets) {
-        if (existing.stable_node_id == scroll_offset.stable_node_id) {
-            existing.compositor_scroll_offset = scroll_offset.compositor_scroll_offset;
-            existing.unadopted_scroll_delta.translate_by(scroll_offset.unadopted_scroll_delta);
-            return;
-        }
-    }
-    pending_scroll_offsets.append(scroll_offset);
-}
-
-static Gfx::IntRect scrollbar_gutter_rect(ViewportScrollbar const& scrollbar, bool expanded)
-{
-    return expanded ? scrollbar.expanded_gutter_rect : scrollbar.gutter_rect;
-}
-
-static double scrollbar_scroll_size(ViewportScrollbar const& scrollbar, bool expanded)
-{
-    return expanded ? scrollbar.expanded_scroll_size : scrollbar.scroll_size;
-}
-
-static Gfx::IntRect translated_thumb_rect(ViewportScrollbar const& scrollbar, Painting::ScrollStateSnapshot const& scroll_state_snapshot, bool expanded)
-{
-    auto thumb_rect = expanded ? scrollbar.expanded_thumb_rect : scrollbar.thumb_rect;
-    auto scroll_size = scrollbar_scroll_size(scrollbar, expanded);
-    auto device_offset = scroll_state_snapshot.device_offset_for_index(scrollbar.scroll_frame_index);
-    if (scrollbar.vertical)
-        thumb_rect.translate_by(0, static_cast<int>(-device_offset.y() * scroll_size));
-    else
-        thumb_rect.translate_by(static_cast<int>(-device_offset.x() * scroll_size), 0);
-    return thumb_rect;
-}
-
-static Gfx::IntRect translated_thumb_rect(ViewportScrollbar const& scrollbar, Gfx::FloatPoint scroll_offset, bool expanded)
-{
-    auto orientation = orientation_for_scrollbar(scrollbar);
-    auto thumb_rect = expanded ? scrollbar.expanded_thumb_rect : scrollbar.thumb_rect;
-    thumb_rect.translate_primary_offset_for_orientation(orientation, static_cast<int>(scroll_offset.primary_offset_for_orientation(orientation) * scrollbar_scroll_size(scrollbar, expanded)));
-    return thumb_rect;
-}
-
-static Gfx::IntRect scrollbar_hit_rect(ViewportScrollbar const& scrollbar, Gfx::FloatPoint scroll_offset)
-{
-    static constexpr int scrollbar_hit_slop = 4;
-
-    auto rect = translated_thumb_rect(scrollbar, scroll_offset, false).united(translated_thumb_rect(scrollbar, scroll_offset, true));
-    auto expanded_gutter_rect = scrollbar_gutter_rect(scrollbar, true);
-    if (!expanded_gutter_rect.is_empty())
-        rect.unite(expanded_gutter_rect);
-    rect.inflate(scrollbar_hit_slop, scrollbar_hit_slop);
-    return rect;
-}
-
-static void paint_viewport_scrollbar(Gfx::PaintingSurface& surface, ViewportScrollbar const& scrollbar, Painting::ScrollStateSnapshot const& scroll_state_snapshot, bool expanded)
-{
-    auto thumb_rect = translated_thumb_rect(scrollbar, scroll_state_snapshot, expanded);
-    auto& canvas = surface.canvas();
-
-    SkPaint gutter_fill_paint;
-    gutter_fill_paint.setColor(to_skia_color(scrollbar.track_color));
-    canvas.drawRect(to_skia_rect(scrollbar_gutter_rect(scrollbar, expanded)), gutter_fill_paint);
-
-    auto skia_thumb_rect = to_skia_rect(thumb_rect);
-    auto radius = skia_thumb_rect.width() / 2;
-    auto thumb_rrect = SkRRect::MakeRectXY(skia_thumb_rect, radius, radius);
-
-    SkPaint thumb_fill_paint;
-    thumb_fill_paint.setColor(to_skia_color(scrollbar.thumb_color));
-    canvas.drawRRect(thumb_rrect, thumb_fill_paint);
-
-    SkPaint stroke_paint;
-    stroke_paint.setStroke(true);
-    stroke_paint.setStrokeWidth(1);
-    stroke_paint.setAntiAlias(true);
-    stroke_paint.setColor(to_skia_color(scrollbar.thumb_color.lightened()));
-    canvas.drawRRect(thumb_rrect, stroke_paint);
-}
-
-static void paint_viewport_scrollbars(Gfx::PaintingSurface& surface, ReadonlySpan<ViewportScrollbar> scrollbars, Painting::ScrollStateSnapshot const& scroll_state_snapshot, Optional<size_t> hovered_scrollbar_index, Optional<size_t> captured_scrollbar_index)
-{
-    for (size_t i = 0; i < scrollbars.size(); ++i)
-        paint_viewport_scrollbar(surface, scrollbars[i], scroll_state_snapshot, hovered_scrollbar_index == i || captured_scrollbar_index == i);
-}
-
 static void flush_surface(Gfx::PaintingSurface& surface)
 {
     if (auto context = surface.skia_backend_context()) {
@@ -269,44 +146,15 @@ public:
 
     ~ThreadData() = default;
 
-    struct ContextState final : public AtomicRefCounted<ContextState> {
+    struct ContextState final
+        : public AtomicRefCounted<ContextState>
+        , public CompositorContextState {
         ContextState(Optional<u64> page_id, CompositorThread::PagePresentationRegistration page_presentation_registration)
-            : presents_to_client(page_presentation_registration == CompositorThread::PagePresentationRegistration::Yes)
-            , page_id(page_id)
+            : CompositorContextState(page_id, page_presentation_registration)
         {
-            VERIFY(!presents_to_client || page_id.has_value());
         }
 
-        bool presents_to_client { false };
-        Optional<u64> page_id;
-        Painting::DisplayListResourceStorage display_list_resource_storage;
-        RefPtr<Painting::DisplayList> cached_display_list;
-        Painting::ScrollStateSnapshot cached_scroll_state_snapshot;
-        Vector<ViewportScrollbar> viewport_scrollbars;
-        Optional<size_t> hovered_viewport_scrollbar_index;
-        Optional<size_t> captured_viewport_scrollbar_index;
-        float viewport_scrollbar_thumb_grab_position { 0 };
-        mutable Sync::Mutex async_scroll_tree_mutex;
-        AsyncScrollTree async_scroll_tree;
-        BackingStoreManager backing_store_manager;
-        CompositorThread::PresentationMode presentation_mode { CompositorThread::PresentToUI {} };
-
-        Optional<i32> presented_bitmap_id_awaiting_ack;
-        bool is_rasterizing { false };
-
-        bool needs_present { false };
-        Gfx::IntRect pending_viewport_rect;
-        bool has_deferred_async_scroll_present { false };
-        Gfx::IntRect deferred_async_scroll_present_viewport_rect;
-
-        Vector<AsyncScrollOffset> pending_async_scroll_offsets;
-        Vector<AsyncScrollOperationID> completed_async_scroll_operation_ids;
-        Atomic<AsyncScrollOperationID> next_async_scroll_operation_id { 0 };
-        Gfx::IntRect async_scrolling_viewport_rect;
-        Atomic<bool> has_async_scrolling_state { false };
-        Atomic<bool> can_accept_async_wheel_events { false };
-        u64 wheel_event_listener_state_generation { 0 };
-        WheelRoutingAdmission wheel_routing_admission { WheelRoutingAdmission::NoAsyncScrollingState };
+        mutable Sync::Mutex state_mutex;
     };
 
     void register_context(CompositorContextId context_id, Optional<u64> page_id, CompositorThread::PagePresentationRegistration page_presentation_registration)
@@ -390,12 +238,9 @@ public:
     CompositorThread::PendingAsyncScrollUpdates take_pending_async_scroll_updates(CompositorContextId context_id)
     {
         Sync::MutexLocker const locker { m_mutex };
-        CompositorThread::PendingAsyncScrollUpdates updates;
-        if (auto context = m_contexts.get(context_id).value_or(nullptr)) {
-            AK::swap(updates.scroll_offsets, context->pending_async_scroll_offsets);
-            AK::swap(updates.completed_operation_ids, context->completed_async_scroll_operation_ids);
-        }
-        return updates;
+        if (auto context = m_contexts.get(context_id).value_or(nullptr))
+            return context->take_pending_async_scroll_updates();
+        return {};
     }
 
     bool should_defer_async_scroll_offset_adoption(CompositorContextId context_id) const
@@ -430,23 +275,6 @@ public:
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Invalidated compositor wheel listener state (generation={})", generation);
     }
 
-    struct WheelTarget {
-        Optional<AsyncScrollNodeID> node_id;
-        bool blocked_by_main_thread_region { false };
-        bool blocked_by_wheel_event_region { false };
-    };
-
-    WheelTarget hit_test_scroll_node_for_wheel(ContextState& context, Gfx::FloatPoint position, Gfx::FloatPoint delta) const
-    {
-        Sync::MutexLocker const locker { context.async_scroll_tree_mutex };
-        auto scroll_target = context.async_scroll_tree.hit_test_scroll_node_for_wheel(position, delta);
-        return {
-            .node_id = scroll_target.node_id,
-            .blocked_by_main_thread_region = scroll_target.blocked_by_main_thread_region,
-            .blocked_by_wheel_event_region = scroll_target.blocked_by_wheel_event_region,
-        };
-    }
-
     CompositorThread::AsyncScrollEnqueueResult enqueue_async_scroll_by(CompositorContextId context_id, UniqueNodeID expected_document_id, Gfx::FloatPoint position,
         Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect, CompositorThread::AsyncScrollOperationTracking operation_tracking)
     {
@@ -454,16 +282,21 @@ public:
         if (!context_state)
             return {};
         auto& context = *context_state;
-        if (!context.can_accept_async_wheel_events.load()) {
-            auto wheel_routing_admission = [&] {
-                Sync::MutexLocker const locker { m_mutex };
-                return context.wheel_routing_admission;
-            }();
+        auto rejected_wheel_routing_admission = [&]() -> Optional<WheelRoutingAdmission> {
+            Sync::MutexLocker const locker { m_mutex };
+            if (context.can_accept_async_wheel_events)
+                return {};
+            return context.wheel_routing_admission;
+        }();
+        if (rejected_wheel_routing_admission.has_value()) {
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: compositor cannot accept async wheel events ({})",
-                wheel_routing_admission_to_string(wheel_routing_admission));
+                wheel_routing_admission_to_string(*rejected_wheel_routing_admission));
             return {};
         }
-        auto scroll_target = hit_test_scroll_node_for_wheel(context, position, delta_in_device_pixels);
+        auto scroll_target = [&] {
+            Sync::MutexLocker const locker { context.state_mutex };
+            return context.hit_test_scroll_node_for_wheel(position, delta_in_device_pixels);
+        }();
         if (scroll_target.blocked_by_main_thread_region) {
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: main-thread wheel region at {},{} device delta {},{}",
                 position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y());
@@ -486,8 +319,10 @@ public:
         }
 
         Optional<AsyncScrollOperationID> operation_id;
-        if (operation_tracking == CompositorThread::AsyncScrollOperationTracking::Yes)
-            operation_id = next_async_scroll_operation_id(context);
+        if (operation_tracking == CompositorThread::AsyncScrollOperationTracking::Yes) {
+            Sync::MutexLocker const locker { m_mutex };
+            operation_id = context.next_async_scroll_operation_id();
+        }
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor accepted main-thread async scroll enqueue at {},{} device delta {},{} for scroll node {} viewport={}x{} at {},{}",
             position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y(), scroll_target.node_id->scroll_frame_index.value(), viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
         enqueue_command(context_id, AsyncScrollByCommand { position, delta_in_device_pixels, viewport_rect, *scroll_target.node_id, operation_id });
@@ -503,13 +338,15 @@ public:
         auto& context = *context_state;
         if (!context.presents_to_client)
             return false;
-        if (!context.can_accept_async_wheel_events.load()) {
-            auto wheel_routing_admission = [&] {
-                Sync::MutexLocker const locker { m_mutex };
-                return context.wheel_routing_admission;
-            }();
+        auto rejected_wheel_routing_admission = [&]() -> Optional<WheelRoutingAdmission> {
+            Sync::MutexLocker const locker { m_mutex };
+            if (context.can_accept_async_wheel_events)
+                return {};
+            return context.wheel_routing_admission;
+        }();
+        if (rejected_wheel_routing_admission.has_value()) {
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: compositor cannot accept async wheel events ({})",
-                wheel_routing_admission_to_string(wheel_routing_admission));
+                wheel_routing_admission_to_string(*rejected_wheel_routing_admission));
             return false;
         }
 
@@ -517,7 +354,10 @@ public:
             Sync::MutexLocker const locker { m_mutex };
             return context.async_scrolling_viewport_rect;
         }();
-        auto scroll_target = hit_test_scroll_node_for_wheel(context, position, delta_in_device_pixels);
+        auto scroll_target = [&] {
+            Sync::MutexLocker const locker { context.state_mutex };
+            return context.hit_test_scroll_node_for_wheel(position, delta_in_device_pixels);
+        }();
         if (scroll_target.blocked_by_main_thread_region) {
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Rejecting async scroll enqueue: main-thread wheel region at {},{} device delta {},{}",
                 position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y());
@@ -540,21 +380,6 @@ public:
         return true;
     }
 
-    Optional<size_t> hit_test_viewport_scrollbar(ContextState& context, Gfx::FloatPoint position) const
-    {
-        Sync::MutexLocker const locker { context.async_scroll_tree_mutex };
-        for (size_t i = 0; i < context.viewport_scrollbars.size(); ++i) {
-            auto const& scrollbar = context.viewport_scrollbars[i];
-            auto scroll_offset = context.async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id, context.cached_scroll_state_snapshot);
-            if (!scroll_offset.has_value())
-                continue;
-
-            if (scrollbar_hit_rect(scrollbar, *scroll_offset).to_type<float>().contains(position))
-                return i;
-        }
-        return {};
-    }
-
     bool handle_viewport_scrollbar_mouse_event(u64 page_id, MouseEvent const& event)
     {
         auto context_id = compositor_context_id_for_page(page_id);
@@ -568,107 +393,58 @@ public:
             static_cast<float>(event.position.x().value()),
             static_cast<float>(event.position.y().value()),
         };
-        auto primary_position_for_scrollbar = [&](ViewportScrollbar const& scrollbar) {
-            return position.primary_offset_for_orientation(orientation_for_scrollbar(scrollbar));
-        };
 
         switch (event.type) {
         case MouseEvent::Type::MouseDown: {
             if (event.button != UIEvents::MouseButton::Primary)
                 return false;
 
-            Optional<size_t> scrollbar_index;
-            float thumb_grab_position = 0;
-            float primary_position = 0;
-            {
-                Sync::MutexLocker const locker { context.async_scroll_tree_mutex };
-                for (size_t i = 0; i < context.viewport_scrollbars.size(); ++i) {
-                    auto const& scrollbar = context.viewport_scrollbars[i];
-                    auto scroll_offset = context.async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id, context.cached_scroll_state_snapshot);
-                    if (!scroll_offset.has_value())
-                        continue;
-
-                    auto expanded = context.hovered_viewport_scrollbar_index == i || context.captured_viewport_scrollbar_index == i;
-                    auto orientation = orientation_for_scrollbar(scrollbar);
-                    auto thumb_rect = translated_thumb_rect(scrollbar, *scroll_offset, expanded);
-                    primary_position = primary_position_for_scrollbar(scrollbar);
-                    if (thumb_rect.to_type<float>().contains(position)) {
-                        thumb_grab_position = primary_position - static_cast<float>(thumb_rect.primary_offset_for_orientation(orientation));
-                        scrollbar_index = i;
-                        break;
-                    }
-                    if (scrollbar_hit_rect(scrollbar, *scroll_offset).to_type<float>().contains(position)) {
-                        auto gutter_rect = scrollbar_gutter_rect(scrollbar, true);
-                        auto thumb_size = static_cast<float>(thumb_rect.primary_size_for_orientation(orientation));
-                        auto gutter_start = static_cast<float>(gutter_rect.primary_offset_for_orientation(orientation));
-                        auto gutter_size = static_cast<float>(gutter_rect.primary_size_for_orientation(orientation));
-                        auto offset_relative_to_gutter = primary_position - gutter_start;
-                        thumb_grab_position = max(min(offset_relative_to_gutter, thumb_size / 2), offset_relative_to_gutter - gutter_size + thumb_size);
-                        scrollbar_index = i;
-                        break;
-                    }
-                }
-
-                if (!scrollbar_index.has_value())
-                    return false;
-
-                context.captured_viewport_scrollbar_index = *scrollbar_index;
-                context.hovered_viewport_scrollbar_index = *scrollbar_index;
-                context.viewport_scrollbar_thumb_grab_position = thumb_grab_position;
-            }
+            auto drag = [&] {
+                Sync::MutexLocker const locker { context.state_mutex };
+                return context.begin_viewport_scrollbar_drag(position);
+            }();
+            if (!drag.has_value())
+                return false;
 
             schedule_viewport_scrollbar_present(context);
-            enqueue_command(context_id, ViewportScrollbarDragCommand { *scrollbar_index, primary_position, thumb_grab_position });
+            enqueue_command(context_id, ViewportScrollbarDragCommand { drag->scrollbar_index, drag->primary_position, drag->thumb_grab_position });
             return true;
         }
         case MouseEvent::Type::MouseMove: {
-            Optional<size_t> scrollbar_index;
-            float thumb_grab_position = 0;
-            float primary_position = 0;
+            bool had_capture = false;
+            Optional<CompositorContextState::ViewportScrollbarDrag> drag;
             {
-                Sync::MutexLocker const locker { context.async_scroll_tree_mutex };
-                if (context.captured_viewport_scrollbar_index.has_value()) {
-                    scrollbar_index = *context.captured_viewport_scrollbar_index;
-                    thumb_grab_position = context.viewport_scrollbar_thumb_grab_position;
-                    if (*scrollbar_index >= context.viewport_scrollbars.size()) {
-                        context.captured_viewport_scrollbar_index.clear();
-                        return false;
-                    }
-                    primary_position = primary_position_for_scrollbar(context.viewport_scrollbars[*scrollbar_index]);
-                }
+                Sync::MutexLocker const locker { context.state_mutex };
+                had_capture = context.captured_viewport_scrollbar_index.has_value();
+                drag = context.captured_viewport_scrollbar_drag(position);
             }
-            if (scrollbar_index.has_value()) {
-                enqueue_command(context_id, ViewportScrollbarDragCommand { *scrollbar_index, primary_position, thumb_grab_position });
+            if (had_capture) {
+                if (!drag.has_value())
+                    return false;
+                enqueue_command(context_id, ViewportScrollbarDragCommand { drag->scrollbar_index, drag->primary_position, drag->thumb_grab_position });
                 return true;
             }
-            auto hovered_scrollbar_index = hit_test_viewport_scrollbar(context, position);
+            auto hovered_scrollbar_index = [&] {
+                Sync::MutexLocker const locker { context.state_mutex };
+                return context.hit_test_viewport_scrollbar(position);
+            }();
             set_hovered_viewport_scrollbar(context, hovered_scrollbar_index);
             return hovered_scrollbar_index.has_value();
         }
         case MouseEvent::Type::MouseUp: {
-            Optional<size_t> scrollbar_index;
-            float thumb_grab_position = 0;
-            float primary_position = 0;
-            {
-                Sync::MutexLocker const locker { context.async_scroll_tree_mutex };
-                if (!context.captured_viewport_scrollbar_index.has_value())
-                    return false;
-                scrollbar_index = *context.captured_viewport_scrollbar_index;
-                thumb_grab_position = context.viewport_scrollbar_thumb_grab_position;
-                if (*scrollbar_index >= context.viewport_scrollbars.size()) {
-                    context.captured_viewport_scrollbar_index.clear();
-                    return false;
-                }
-                primary_position = primary_position_for_scrollbar(context.viewport_scrollbars[*scrollbar_index]);
-                context.captured_viewport_scrollbar_index.clear();
-            }
+            auto drag = [&] {
+                Sync::MutexLocker const locker { context.state_mutex };
+                return context.release_captured_viewport_scrollbar_drag(position);
+            }();
+            if (!drag.has_value())
+                return false;
             schedule_viewport_scrollbar_present(context);
-            enqueue_command(context_id, ViewportScrollbarDragCommand { *scrollbar_index, primary_position, thumb_grab_position });
+            enqueue_command(context_id, ViewportScrollbarDragCommand { drag->scrollbar_index, drag->primary_position, drag->thumb_grab_position });
             return true;
         }
         case MouseEvent::Type::MouseLeave: {
             auto has_capture = [&] {
-                Sync::MutexLocker const locker { context.async_scroll_tree_mutex };
+                Sync::MutexLocker const locker { context.state_mutex };
                 return context.captured_viewport_scrollbar_index.has_value();
             }();
             set_hovered_viewport_scrollbar(context, {});
@@ -734,8 +510,8 @@ public:
                             else
                                 context.wheel_event_listener_state_generation = wheel_event_listener_state_generation;
                             context.wheel_routing_admission = wheel_routing_admission;
+                            context.can_accept_async_wheel_events = wheel_routing_admission == WheelRoutingAdmission::Accepted;
                         }
-                        context.can_accept_async_wheel_events = wheel_routing_admission == WheelRoutingAdmission::Accepted;
                         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor wheel routing admission: {} (scroll_nodes={}, sticky_areas={}, blocking_regions={})",
                             wheel_routing_admission_to_string(wheel_routing_admission),
                             async_scrolling_state.scroll_nodes.size(),
@@ -747,17 +523,12 @@ public:
                         }();
 
                         {
-                            Sync::MutexLocker const locker { context.async_scroll_tree_mutex };
-                            auto hovered_scrollbar_identity = viewport_scrollbar_identity_at(context.viewport_scrollbars, context.hovered_viewport_scrollbar_index);
-                            auto captured_scrollbar_identity = viewport_scrollbar_identity_at(context.viewport_scrollbars, context.captured_viewport_scrollbar_index);
-                            context.viewport_scrollbars = move(async_scrolling_state.viewport_scrollbars);
-                            context.hovered_viewport_scrollbar_index = hovered_scrollbar_identity.has_value() ? find_viewport_scrollbar_index(context.viewport_scrollbars, *hovered_scrollbar_identity) : Optional<size_t> {};
-                            context.captured_viewport_scrollbar_index = captured_scrollbar_identity.has_value() ? find_viewport_scrollbar_index(context.viewport_scrollbars, *captured_scrollbar_identity) : Optional<size_t> {};
-                            context.async_scroll_tree.set_state(move(async_scrolling_state));
+                            Sync::MutexLocker const locker { context.state_mutex };
+                            context.set_async_scrolling_state(move(async_scrolling_state));
                             if (!pending_async_scroll_offsets.is_empty()) {
                                 dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Reapplying {} pending async scroll offset(s) to display list update",
                                     pending_async_scroll_offsets.size());
-                                if (auto viewport_scroll_offset = reapply_pending_async_scroll_offsets(context, pending_async_scroll_offsets); viewport_scroll_offset.has_value())
+                                if (auto viewport_scroll_offset = context.reapply_pending_async_scroll_offsets(pending_async_scroll_offsets); viewport_scroll_offset.has_value())
                                     async_scrolling_viewport_rect.set_location(viewport_scroll_offset->to_type<int>());
                             }
                             context.async_scroll_tree.rebuild_wheel_hit_test_targets(context.cached_display_list, context.cached_scroll_state_snapshot);
@@ -774,7 +545,7 @@ public:
                         auto async_scroll_viewport_rect = cmd.viewport_rect;
                         Vector<AsyncScrollOffset> scroll_offsets;
                         {
-                            Sync::MutexLocker const locker { context.async_scroll_tree_mutex };
+                            Sync::MutexLocker const locker { context.state_mutex };
                             scroll_offsets = context.async_scroll_tree.apply_scroll_delta(cmd.scroll_target, cmd.delta_in_device_pixels, context.cached_scroll_state_snapshot);
                             if (scroll_offsets.is_empty()) {
                                 dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Dropping async scroll command: scroll tree consumed no delta");
@@ -785,7 +556,7 @@ public:
                             }
                             context.async_scroll_tree.rebuild_wheel_hit_test_targets(context.cached_display_list, context.cached_scroll_state_snapshot);
                         }
-                        if (auto viewport_scroll_offset = viewport_scroll_offset_from(scroll_offsets); viewport_scroll_offset.has_value())
+                        if (auto viewport_scroll_offset = CompositorContextState::viewport_scroll_offset_from(scroll_offsets); viewport_scroll_offset.has_value())
                             async_scroll_viewport_rect.set_location(viewport_scroll_offset->to_type<int>());
                         store_pending_async_scroll_offsets(context, scroll_offsets, cmd.operation_id);
                         {
@@ -824,11 +595,11 @@ public:
                             }();
                             Optional<Gfx::FloatPoint> reconciled_viewport_scroll_offset;
                             {
-                                Sync::MutexLocker const locker { context.async_scroll_tree_mutex };
+                                Sync::MutexLocker const locker { context.state_mutex };
                                 // A main-thread scroll-state update can be older than compositor-side async
                                 // scrolling. Preserve compositor-visible offsets in the fresh snapshot before
                                 // rebuilding hit-test data from it.
-                                reconciled_viewport_scroll_offset = reapply_pending_async_scroll_offsets(context, pending_async_scroll_offsets);
+                                reconciled_viewport_scroll_offset = context.reapply_pending_async_scroll_offsets(pending_async_scroll_offsets);
                                 context.async_scroll_tree.rebuild_wheel_hit_test_targets(context.cached_display_list, context.cached_scroll_state_snapshot);
                             }
                             if (reconciled_viewport_scroll_offset.has_value()) {
@@ -939,12 +710,7 @@ private:
 
     bool has_presented_bitmap_awaiting_ack_while_locked(ContextState const& context) const
     {
-        return context.presented_bitmap_id_awaiting_ack.has_value();
-    }
-
-    AsyncScrollOperationID next_async_scroll_operation_id(ContextState& context)
-    {
-        return context.next_async_scroll_operation_id.fetch_add(1) + 1;
+        return context.has_presented_bitmap_awaiting_ack();
     }
 
     void complete_async_scroll_operation(ContextState& context, Optional<AsyncScrollOperationID> operation_id)
@@ -954,7 +720,7 @@ private:
 
         {
             Sync::MutexLocker const locker { m_mutex };
-            context.completed_async_scroll_operation_ids.append(*operation_id);
+            context.record_completed_async_scroll_operation(operation_id);
         }
 
         // No scroll offset was produced, so nothing else will wake the main thread; schedule a rendering update so it
@@ -968,8 +734,7 @@ private:
     {
         auto has_pending_updates = [this, &context] {
             Sync::MutexLocker const locker { m_mutex };
-            return !context.pending_async_scroll_offsets.is_empty()
-                || !context.completed_async_scroll_operation_ids.is_empty();
+            return context.has_pending_async_scroll_updates();
         }();
         if (!has_pending_updates)
             return;
@@ -982,53 +747,17 @@ private:
     void store_pending_async_scroll_offsets(ContextState& context, Vector<AsyncScrollOffset> const& scroll_offsets, Optional<AsyncScrollOperationID> operation_id = {})
     {
         Sync::MutexLocker const locker { m_mutex };
-        for (auto const& scroll_offset : scroll_offsets)
-            set_or_append_pending_scroll_offset(context.pending_async_scroll_offsets, scroll_offset);
-        if (operation_id.has_value())
-            context.completed_async_scroll_operation_ids.append(*operation_id);
-    }
-
-    Optional<Gfx::FloatPoint> reapply_pending_async_scroll_offsets(ContextState& context, Vector<AsyncScrollOffset> const& pending_scroll_offsets)
-    {
-        Optional<Gfx::FloatPoint> viewport_scroll_offset;
-        for (auto const& pending_scroll_offset : pending_scroll_offsets) {
-            auto node_id = context.async_scroll_tree.scroll_node_id_for_stable_id(pending_scroll_offset.stable_node_id);
-            if (!node_id.has_value())
-                continue;
-            auto current_scroll_offset = context.async_scroll_tree.scroll_offset_for_node(*node_id, context.cached_scroll_state_snapshot);
-            if (!current_scroll_offset.has_value())
-                continue;
-            // Reapplying pending async offsets is a restoration step for a freshly received
-            // main-thread snapshot. The pending offset is already the compositor-visible
-            // position, so applying the unadopted delta here would compound it.
-            auto reconciled_scroll_offset = context.async_scroll_tree.set_scroll_offset(*node_id, pending_scroll_offset.compositor_scroll_offset, context.cached_scroll_state_snapshot);
-            if (reconciled_scroll_offset.has_value() && context.async_scroll_tree.scroll_node_is_viewport(*node_id))
-                viewport_scroll_offset = *reconciled_scroll_offset;
-        }
-        return viewport_scroll_offset;
-    }
-
-    static Optional<Gfx::FloatPoint> viewport_scroll_offset_from(Vector<AsyncScrollOffset> const& scroll_offsets)
-    {
-        for (auto const& scroll_offset : scroll_offsets) {
-            if (scroll_offset.stable_node_id.kind == AsyncScrollNodeKind::Viewport)
-                return scroll_offset.compositor_scroll_offset;
-        }
-        return {};
+        context.store_pending_async_scroll_offsets(scroll_offsets, operation_id);
     }
 
     void paint_viewport_scrollbar_overlay(ContextState& context, Gfx::PaintingSurface& surface)
     {
-        Vector<ViewportScrollbar> scrollbars;
-        Optional<size_t> hovered_scrollbar_index;
-        Optional<size_t> captured_scrollbar_index;
+        CompositorContextState::ViewportScrollbarOverlayState overlay_state;
         {
-            Sync::MutexLocker const locker { context.async_scroll_tree_mutex };
-            scrollbars = context.viewport_scrollbars;
-            hovered_scrollbar_index = context.hovered_viewport_scrollbar_index;
-            captured_scrollbar_index = context.captured_viewport_scrollbar_index;
+            Sync::MutexLocker const locker { context.state_mutex };
+            overlay_state = context.viewport_scrollbar_overlay_state();
         }
-        paint_viewport_scrollbars(surface, scrollbars, context.cached_scroll_state_snapshot, hovered_scrollbar_index, captured_scrollbar_index);
+        CompositorContextState::paint_viewport_scrollbar_overlay(surface, overlay_state, context.cached_scroll_state_snapshot);
     }
 
     void schedule_viewport_scrollbar_present(ContextState& context)
@@ -1045,11 +774,8 @@ private:
     {
         bool changed = false;
         {
-            Sync::MutexLocker const locker { context.async_scroll_tree_mutex };
-            if (context.hovered_viewport_scrollbar_index == scrollbar_index)
-                return;
-            changed = true;
-            context.hovered_viewport_scrollbar_index = scrollbar_index;
+            Sync::MutexLocker const locker { context.state_mutex };
+            changed = context.set_hovered_viewport_scrollbar(scrollbar_index);
         }
         if (changed)
             schedule_viewport_scrollbar_present(context);
@@ -1057,51 +783,20 @@ private:
 
     bool apply_viewport_scrollbar_drag(ContextState& context, size_t scrollbar_index, float primary_position, float thumb_grab_position)
     {
-        Vector<AsyncScrollOffset> scroll_offsets;
-        {
-            Sync::MutexLocker const locker { context.async_scroll_tree_mutex };
-            if (scrollbar_index >= context.viewport_scrollbars.size())
-                return false;
-
-            auto const& scrollbar = context.viewport_scrollbars[scrollbar_index];
-            auto expanded = context.hovered_viewport_scrollbar_index == scrollbar_index || context.captured_viewport_scrollbar_index == scrollbar_index;
-            auto scroll_size = scrollbar_scroll_size(scrollbar, expanded);
-            if (scroll_size == 0)
-                return false;
-
-            auto current_scroll_offset = context.async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id, context.cached_scroll_state_snapshot);
-            if (!current_scroll_offset.has_value())
-                return false;
-
-            auto orientation = orientation_for_scrollbar(scrollbar);
-            auto thumb_rect = expanded ? scrollbar.expanded_thumb_rect : scrollbar.thumb_rect;
-            auto min_thumb_position = static_cast<float>(thumb_rect.primary_offset_for_orientation(orientation));
-            auto max_thumb_position = min_thumb_position + scrollbar.max_scroll_offset * static_cast<float>(scroll_size);
-            auto target_thumb_position = AK::clamp(primary_position - thumb_grab_position, min_thumb_position, max_thumb_position);
-            auto target_scroll_offset = (target_thumb_position - min_thumb_position) / static_cast<float>(scroll_size);
-
-            Gfx::FloatPoint delta;
-            delta.set_primary_offset_for_orientation(orientation, target_scroll_offset - current_scroll_offset->primary_offset_for_orientation(orientation));
-            if (delta.x() == 0 && delta.y() == 0)
-                return false;
-
-            scroll_offsets = context.async_scroll_tree.apply_scroll_delta(scrollbar.scroll_node_id, delta, context.cached_scroll_state_snapshot);
-            if (scroll_offsets.is_empty())
-                return false;
-            context.async_scroll_tree.rebuild_wheel_hit_test_targets(context.cached_display_list, context.cached_scroll_state_snapshot);
-        }
-
-        auto scroll_offset = viewport_scroll_offset_from(scroll_offsets);
-        if (!scroll_offset.has_value())
+        auto drag = [&] {
+            Sync::MutexLocker const locker { context.state_mutex };
+            return context.apply_viewport_scrollbar_drag(scrollbar_index, primary_position, thumb_grab_position);
+        }();
+        if (!drag.has_value())
             return false;
 
-        store_pending_async_scroll_offsets(context, scroll_offsets);
+        store_pending_async_scroll_offsets(context, drag->scroll_offsets);
 
         Gfx::IntRect async_scroll_viewport_rect;
         {
             Sync::MutexLocker const locker { m_mutex };
             async_scroll_viewport_rect = context.async_scrolling_viewport_rect;
-            async_scroll_viewport_rect.set_location(scroll_offset->to_type<int>());
+            async_scroll_viewport_rect.set_location(drag->viewport_scroll_offset.to_type<int>());
             context.async_scrolling_viewport_rect = async_scroll_viewport_rect;
             context.has_deferred_async_scroll_present = true;
             context.deferred_async_scroll_present_viewport_rect = async_scroll_viewport_rect;
