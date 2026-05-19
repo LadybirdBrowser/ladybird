@@ -15,7 +15,7 @@ void test_root_vector_non_gc_type(GC::Heap& heap)
 {
     // expected-error@*{{RootVector element type must be convertible to Cell const* or derive from NanBoxedValue}}
     // expected-note@+1 {{in instantiation of member function}}
-    GC::RootVector<int> bad_vector(heap);
+    GC::RootVector<int> bad_vector;
 }
 
 // RootHashMap where neither key nor value is a GC type should fail.

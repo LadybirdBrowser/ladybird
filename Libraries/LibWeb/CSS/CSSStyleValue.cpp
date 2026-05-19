@@ -90,7 +90,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, GC::RootVector<GC::Ref<CSSSt
     auto values = whole_value->subdivide_into_iterations(property.value());
 
     // 5. For each value in values, replace it with the result of reifying value for property.
-    GC::RootVector<GC::Ref<CSSStyleValue>> reified_values { vm.heap() };
+    GC::RootVector<GC::Ref<CSSStyleValue>> reified_values;
     for (auto const& value : values) {
         reified_values.append(value->reify(*vm.current_realm(), property->name()));
     }

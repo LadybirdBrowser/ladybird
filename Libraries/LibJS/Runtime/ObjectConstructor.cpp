@@ -103,7 +103,7 @@ static ThrowCompletionOr<GC::RootVector<Value>> get_own_property_keys(VM& vm, Va
     auto keys = TRY(object->internal_own_property_keys());
 
     // 3. Let nameList be a new empty List.
-    auto name_list = GC::RootVector<Value> { vm.heap() };
+    GC::RootVector<Value> name_list;
 
     // 4. For each element nextKey of keys, do
     for (auto& next_key : keys) {

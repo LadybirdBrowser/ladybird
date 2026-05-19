@@ -54,7 +54,7 @@ ThrowCompletionOr<Value> Console::assert_()
     auto message = PrimitiveString::create(vm, "Assertion failed"_string);
 
     // NOTE: Assemble `data` from the function arguments.
-    GC::RootVector<Value> data { vm.heap() };
+    GC::RootVector<Value> data;
     if (vm.argument_count() > 1) {
         data.ensure_capacity(vm.argument_count() - 1);
         for (size_t i = 1; i < vm.argument_count(); ++i) {
@@ -266,10 +266,10 @@ ThrowCompletionOr<Value> Console::table()
         }
 
         // 1. Let `finalRows` be the new list, initially empty
-        GC::RootVector<Value> final_rows(vm.heap());
+        GC::RootVector<Value> final_rows;
 
         // 2. Let `finalColumns` be the new list, initially empty
-        GC::RootVector<Value> final_columns(vm.heap());
+        GC::RootVector<Value> final_columns;
 
         HashMap<PropertyKey, bool> visited_columns;
 
@@ -327,7 +327,7 @@ ThrowCompletionOr<Value> Console::table()
             TRY(final_data->set(vm.names.columns, table_cols, Object::ShouldThrowExceptions::No));
 
             // 5.4. Perform `Printer("table", finalData)`
-            GC::RootVector<Value> args(vm.heap());
+            GC::RootVector<Value> args;
             args.append(Value(final_data));
             return m_client->printer(LogLevel::Table, args);
         }
@@ -404,7 +404,7 @@ ThrowCompletionOr<Value> Console::dir()
 
     // 2. Perform Printer("dir", « object », options).
     if (m_client) {
-        GC::RootVector<Value> printer_arguments { vm.heap() };
+        GC::RootVector<Value> printer_arguments;
         TRY_OR_THROW_OOM(vm, printer_arguments.try_append(object));
 
         return m_client->printer(LogLevel::Dir, move(printer_arguments));
@@ -419,7 +419,7 @@ ThrowCompletionOr<Value> Console::dirxml()
     auto& vm = realm().vm();
 
     // 1. Let finalList be a new list, initially empty.
-    GC::RootVector<Value> final_list(vm.heap());
+    GC::RootVector<Value> final_list;
 
     // 2. For each item of data:
     for (size_t i = 0; i < vm.argument_count(); ++i) {
@@ -472,7 +472,7 @@ ThrowCompletionOr<Value> Console::count()
     auto concat = TRY_OR_THROW_OOM(vm, String::formatted("{}: {}", label, map.get(label).value()));
 
     // 5. Perform Logger("count", « concat »).
-    GC::RootVector<Value> concat_as_vector { vm.heap() };
+    GC::RootVector<Value> concat_as_vector;
     concat_as_vector.append(PrimitiveString::create(vm, move(concat)));
     if (m_client)
         TRY(m_client->logger(LogLevel::Count, concat_as_vector));
@@ -500,7 +500,7 @@ ThrowCompletionOr<Value> Console::count_reset()
         //    that the given label does not have an associated count.
         auto message = TRY_OR_THROW_OOM(vm, String::formatted("\"{}\" doesn't have a count", label));
         // 2. Perform Logger("countReset", « message »);
-        GC::RootVector<Value> message_as_vector { vm.heap() };
+        GC::RootVector<Value> message_as_vector;
         message_as_vector.append(PrimitiveString::create(vm, move(message)));
         if (m_client)
             TRY(m_client->logger(LogLevel::CountReset, message_as_vector));
@@ -611,7 +611,7 @@ ThrowCompletionOr<Value> Console::time()
     //    a warning to the console indicating that a timer with label `label` has already been started.
     if (m_timer_table.contains(label)) {
         if (m_client) {
-            GC::RootVector<Value> timer_already_exists_warning_message_as_vector { vm.heap() };
+            GC::RootVector<Value> timer_already_exists_warning_message_as_vector;
 
             auto message = TRY_OR_THROW_OOM(vm, String::formatted("Timer '{}' already exists.", label));
             timer_already_exists_warning_message_as_vector.append(PrimitiveString::create(vm, move(message)));
@@ -642,7 +642,7 @@ ThrowCompletionOr<Value> Console::time_log()
     // NOTE: Warn if the timer doesn't exist. Not part of the spec yet, but discussed here: https://github.com/whatwg/console/issues/134
     if (maybe_start_time == m_timer_table.end()) {
         if (m_client) {
-            GC::RootVector<Value> timer_does_not_exist_warning_message_as_vector { vm.heap() };
+            GC::RootVector<Value> timer_does_not_exist_warning_message_as_vector;
 
             auto message = TRY_OR_THROW_OOM(vm, String::formatted("Timer '{}' does not exist.", label));
             timer_does_not_exist_warning_message_as_vector.append(PrimitiveString::create(vm, move(message)));
@@ -660,7 +660,7 @@ ThrowCompletionOr<Value> Console::time_log()
     auto concat = TRY_OR_THROW_OOM(vm, String::formatted("{}: {}", label, duration));
 
     // 5. Prepend concat to data.
-    GC::RootVector<Value> data { vm.heap() };
+    GC::RootVector<Value> data;
     data.ensure_capacity(vm.argument_count());
     data.append(PrimitiveString::create(vm, move(concat)));
     for (size_t i = 1; i < vm.argument_count(); ++i)
@@ -688,7 +688,7 @@ ThrowCompletionOr<Value> Console::time_end()
     // NOTE: Warn if the timer doesn't exist. Not part of the spec yet, but discussed here: https://github.com/whatwg/console/issues/134
     if (maybe_start_time == m_timer_table.end()) {
         if (m_client) {
-            GC::RootVector<Value> timer_does_not_exist_warning_message_as_vector { vm.heap() };
+            GC::RootVector<Value> timer_does_not_exist_warning_message_as_vector;
 
             auto message = TRY_OR_THROW_OOM(vm, String::formatted("Timer '{}' does not exist.", label));
             timer_does_not_exist_warning_message_as_vector.append(PrimitiveString::create(vm, move(message)));
@@ -710,7 +710,7 @@ ThrowCompletionOr<Value> Console::time_end()
 
     // 6. Perform Printer("timeEnd", « concat »).
     if (m_client) {
-        GC::RootVector<Value> concat_as_vector { vm.heap() };
+        GC::RootVector<Value> concat_as_vector;
         concat_as_vector.append(PrimitiveString::create(vm, move(concat)));
         TRY(m_client->printer(LogLevel::TimeEnd, move(concat_as_vector)));
     }
@@ -721,7 +721,7 @@ GC::RootVector<Value> Console::vm_arguments()
 {
     auto& vm = realm().vm();
 
-    GC::RootVector<Value> arguments { vm.heap() };
+    GC::RootVector<Value> arguments;
     arguments.ensure_capacity(vm.argument_count());
     for (size_t i = 0; i < vm.argument_count(); ++i) {
         arguments.append(vm.argument(i));
@@ -790,8 +790,6 @@ void ConsoleClient::visit_edges(Visitor& visitor)
 // 2.1. Logger(logLevel, args), https://console.spec.whatwg.org/#logger
 ThrowCompletionOr<Value> ConsoleClient::logger(Console::LogLevel log_level, GC::RootVector<Value> const& args)
 {
-    auto& vm = m_console->realm().vm();
-
     // 1. If args is empty, return.
     if (args.is_empty())
         return js_undefined();
@@ -804,11 +802,10 @@ ThrowCompletionOr<Value> ConsoleClient::logger(Console::LogLevel log_level, GC::
 
     // 4. If rest is empty, perform Printer(logLevel, « first ») and return.
     if (rest_size == 0) {
-        GC::RootVector<Value> first_as_vector { vm.heap() };
+        GC::RootVector<Value> first_as_vector;
         first_as_vector.append(first);
         return printer(log_level, move(first_as_vector));
     }
-
     // 5. Otherwise, perform Printer(logLevel, Formatter(args)).
     else {
         auto formatted = TRY(formatter(args));
@@ -922,7 +919,7 @@ ThrowCompletionOr<GC::RootVector<Value>> ConsoleClient::formatter(GC::RootVector
     }
 
     // 7. Let result be a list containing target together with the elements of args starting from the third onward.
-    GC::RootVector<Value> result { vm.heap() };
+    GC::RootVector<Value> result;
     result.ensure_capacity(args.size() - 1);
     result.empend(PrimitiveString::create(vm, move(target)));
     for (size_t i = 2; i < args.size(); ++i)

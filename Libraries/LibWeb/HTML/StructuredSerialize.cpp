@@ -1163,7 +1163,7 @@ WebIDL::ExceptionOr<DeserializedTransferRecord> structured_deserialize_with_tran
     auto& vm = target_realm.vm();
 
     // 1. Let memory be an empty map.
-    auto memory = DeserializationMemory(vm.heap());
+    DeserializationMemory memory {};
 
     // 2. Let transferredValues be a new empty List.
     Vector<GC::Root<JS::Object>> transferred_values;
@@ -1275,7 +1275,7 @@ WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM& vm, SerializationR
     TemporaryExecutionContext execution_context { target_realm };
 
     if (!memory.has_value())
-        memory = DeserializationMemory { vm.heap() };
+        memory = DeserializationMemory {};
 
     TransferDataDecoder decoder { serialized };
     return structured_deserialize_internal(vm, decoder, target_realm, *memory);

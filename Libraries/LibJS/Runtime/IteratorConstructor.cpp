@@ -261,7 +261,7 @@ public:
         // b. Repeat,
 
         // i. Let results be a new empty List.
-        GC::RootVector<Value> results { vm.heap() };
+        GC::RootVector<Value> results;
 
         // ii. Assert: openIters is not empty.
         VERIFY(!m_open_iterators.is_empty());

@@ -109,11 +109,11 @@ WebIDL::ExceptionOr<Vector<ModuleExportDescriptor>> Module::exports(JS::VM&, GC:
 }
 
 // https://webassembly.github.io/threads/js-api/index.html#dom-module-customsections
-WebIDL::ExceptionOr<GC::RootVector<GC::Ref<JS::ArrayBuffer>>> Module::custom_sections(JS::VM& vm, GC::Ref<Module> module_object, String section_name)
+WebIDL::ExceptionOr<GC::RootVector<GC::Ref<JS::ArrayBuffer>>> Module::custom_sections(JS::VM&, GC::Ref<Module> module_object, String section_name)
 {
     // 1. Let bytes be moduleObject.[[Bytes]].
     // 2. Let customSections be « ».
-    GC::RootVector<GC::Ref<JS::ArrayBuffer>> array_buffers { vm.heap() };
+    GC::RootVector<GC::Ref<JS::ArrayBuffer>> array_buffers;
 
     // 3. For each custom section customSection of bytes, interpreted according to the module grammar,
     auto& custom_sections = module_object->m_compiled_module->module->custom_sections();

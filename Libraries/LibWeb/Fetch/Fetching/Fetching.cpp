@@ -1702,7 +1702,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
             auto& group = http_request->client()->fetch_group();
 
             // 3. Let inflightRecords be the set of fetch records in group whose request’s keepalive is true and done flag is unset.
-            GC::RootVector<GC::Ref<Infrastructure::FetchRecord>> in_flight_records(vm.heap());
+            GC::RootVector<GC::Ref<Infrastructure::FetchRecord>> in_flight_records;
             for (auto& fetch_record : group) {
                 if (fetch_record.request()->keepalive() && !fetch_record.request()->done())
                     in_flight_records.append(fetch_record);

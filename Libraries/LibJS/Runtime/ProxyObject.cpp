@@ -704,10 +704,10 @@ ThrowCompletionOr<GC::RootVector<Value>> ProxyObject::internal_own_property_keys
     // 13. Assert: targetKeys contains no duplicate entries.
 
     // 14. Let targetConfigurableKeys be a new empty List.
-    auto target_configurable_keys = GC::RootVector<Value> { heap() };
+    GC::RootVector<Value> target_configurable_keys;
 
     // 15. Let targetNonconfigurableKeys be a new empty List.
-    auto target_nonconfigurable_keys = GC::RootVector<Value> { heap() };
+    GC::RootVector<Value> target_nonconfigurable_keys;
 
     // 16. For each element key of targetKeys, do
     for (auto& key : target_keys) {
@@ -735,7 +735,7 @@ ThrowCompletionOr<GC::RootVector<Value>> ProxyObject::internal_own_property_keys
     }
 
     // 18. Let uncheckedResultKeys be a List whose elements are the elements of trapResult.
-    auto unchecked_result_keys = GC::RootVector<Value> { heap() };
+    GC::RootVector<Value> unchecked_result_keys;
     unchecked_result_keys.extend(trap_result);
 
     // 19. For each element key of targetNonconfigurableKeys, do

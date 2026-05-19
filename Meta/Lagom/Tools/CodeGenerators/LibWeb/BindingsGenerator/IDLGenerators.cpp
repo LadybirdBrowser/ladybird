@@ -1070,17 +1070,9 @@ static void generate_variadic_to_cpp(SourceGenerator& generator, ParameterType& 
     variadic_generator.set("variadic.inner_cpp_name", inner_cpp_name);
     variadic_generator.set("variadic.value_name", value_name);
 
-    if (variadic_cpp_type.sequence_storage_type == SequenceStorageType::RootVector) {
-        variadic_generator.append(R"~~~(
-    @variadic.storage_type@<@variadic.item_type@> @cpp_name@ { vm.heap() };
-)~~~");
-    } else {
-        variadic_generator.append(R"~~~(
-    @variadic.storage_type@<@variadic.item_type@> @cpp_name@;
-)~~~");
-    }
-
     variadic_generator.append(R"~~~(
+    @variadic.storage_type@<@variadic.item_type@> @cpp_name@;
+
     if (vm.argument_count() > @js_suffix@) {
         @cpp_name@.ensure_capacity(vm.argument_count() - @js_suffix@);
 
@@ -2164,19 +2156,9 @@ void IDL::ParameterizedType::generate_sequence_from_iterable(SourceGenerator& ge
     // FIXME: The WebIDL spec is out of date - it should be using GetIteratorFromMethod.
     sequence_generator.append(R"~~~(
     auto @iterable_cpp_name@_iterator@recursion_depth@ = TRY(JS::get_iterator_from_method(vm, @iterable_cpp_name@, *@iterator_method_cpp_name@));
-)~~~");
 
-    if (sequence_cpp_type.sequence_storage_type == SequenceStorageType::Vector) {
-        sequence_generator.append(R"~~~(
     @sequence.storage_type@<@sequence.type@> @cpp_name@;
-)~~~");
-    } else {
-        sequence_generator.append(R"~~~(
-    @sequence.storage_type@<@sequence.type@> @cpp_name@ { vm.heap() };
-)~~~");
-    }
 
-    sequence_generator.append(R"~~~(
     for (;;) {
         auto next@recursion_depth@ = TRY(JS::iterator_step(vm, @iterable_cpp_name@_iterator@recursion_depth@));
         if (!next@recursion_depth@.has<JS::IterationResult>())

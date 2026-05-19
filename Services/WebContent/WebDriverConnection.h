@@ -147,7 +147,7 @@ private:
         String script;
         GC::RootVector<JS::Value> arguments;
     };
-    ErrorOr<ScriptArguments, Web::WebDriver::Error> extract_the_script_arguments_from_a_request(JS::VM&, JsonValue const& payload);
+    ErrorOr<ScriptArguments, Web::WebDriver::Error> extract_the_script_arguments_from_a_request(JsonValue const& payload);
     void handle_script_response(Web::WebDriver::ExecutionResult, size_t script_execution_id);
 
     void delete_cookies(Optional<StringView> const& name = {});

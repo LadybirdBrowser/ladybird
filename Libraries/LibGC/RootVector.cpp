@@ -10,6 +10,11 @@
 
 namespace GC {
 
+RootVectorBase::RootVectorBase()
+    : RootVectorBase(Heap::the())
+{
+}
+
 RootVectorBase::RootVectorBase(Heap& heap)
     : m_heap(&heap)
 {

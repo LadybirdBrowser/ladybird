@@ -688,7 +688,7 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
                 // 2. If inclusiveDescendant is custom, then enqueue a custom element callback reaction with
                 //    inclusiveDescendant, callback name "connectedCallback", and « ».
                 if (element->is_custom()) {
-                    GC::RootVector<JS::Value> empty_arguments { vm().heap() };
+                    GC::RootVector<JS::Value> empty_arguments;
                     element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::connectedCallback, move(empty_arguments));
                 }
 
@@ -726,7 +726,7 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
     //       post-connection steps while we’re traversing the node tree. This is because the post-connection steps can
     //       modify the tree’s structure, making live traversal unsafe, possibly leading to the post-connection steps
     //       being called multiple times on the same node.
-    GC::RootVector<GC::Ref<Node>> static_node_list(heap());
+    GC::RootVector<GC::Ref<Node>> static_node_list;
 
     // 11. For each node of nodes, in tree order:
     for (auto& node : nodes) {
@@ -942,7 +942,7 @@ void Node::remove(bool suppress_observers)
     //            This might change in the future if there is a need.
     if (auto* element = as_if<DOM::Element>(*this)) {
         if (element->is_custom() && is_parent_connected) {
-            GC::RootVector<JS::Value> empty_arguments { vm().heap() };
+            GC::RootVector<JS::Value> empty_arguments;
             element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::disconnectedCallback, move(empty_arguments));
         }
     }
@@ -956,7 +956,7 @@ void Node::remove(bool suppress_observers)
         //    with descendant, callback name "disconnectedCallback", and « ».
         if (auto* element = as_if<DOM::Element>(descendant)) {
             if (element->is_custom() && is_parent_connected) {
-                GC::RootVector<JS::Value> empty_arguments { vm().heap() };
+                GC::RootVector<JS::Value> empty_arguments;
                 element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::disconnectedCallback, move(empty_arguments));
             }
         }
@@ -1344,7 +1344,7 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
         //    reaction with inclusiveDescendant, callback name "connectedMoveCallback", and « ».
         if (auto* element = as_if<DOM::Element>(inclusive_descendant)) {
             if (element->is_custom() && new_parent.is_connected()) {
-                GC::RootVector<JS::Value> empty_arguments { vm().heap() };
+                GC::RootVector<JS::Value> empty_arguments;
                 element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::connectedMoveCallback, move(empty_arguments));
             }
         }

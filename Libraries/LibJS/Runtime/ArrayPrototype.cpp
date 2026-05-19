@@ -1483,8 +1483,8 @@ ThrowCompletionOr<void> array_merge_sort(VM& vm, Function<ThrowCompletionOr<doub
     if (arr_to_sort.size() <= 1)
         return {};
 
-    GC::RootVector<Value> left(vm.heap());
-    GC::RootVector<Value> right(vm.heap());
+    GC::RootVector<Value> left;
+    GC::RootVector<Value> right;
 
     left.ensure_capacity(arr_to_sort.size() / 2);
     right.ensure_capacity(arr_to_sort.size() / 2 + (arr_to_sort.size() & 1));

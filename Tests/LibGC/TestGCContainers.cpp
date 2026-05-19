@@ -60,7 +60,7 @@ static bool possible_values_contain(GC::ConservativeVectorBase const& container,
 TEST_CASE(root_vector_reports_roots)
 {
     auto& heap = test_heap();
-    GC::RootVector<GC::Ref<TestCell>> vector(heap);
+    GC::RootVector<GC::Ref<TestCell>> vector;
 
     auto cell = heap.allocate<TestCell>();
     vector.append(cell);
@@ -75,7 +75,7 @@ TEST_CASE(root_vector_reports_roots)
 TEST_CASE(root_vector_ptr_reports_roots)
 {
     auto& heap = test_heap();
-    GC::RootVector<GC::Ptr<TestCell>> vector(heap);
+    GC::RootVector<GC::Ptr<TestCell>> vector;
 
     auto cell = heap.allocate<TestCell>();
     vector.append(cell);
@@ -153,7 +153,7 @@ TEST_CASE(root_hash_map_non_gc_key_skipped)
 TEST_CASE(cleared_container_reports_no_roots)
 {
     auto& heap = test_heap();
-    GC::RootVector<GC::Ref<TestCell>> vector(heap);
+    GC::RootVector<GC::Ref<TestCell>> vector;
 
     auto cell = heap.allocate<TestCell>();
     vector.append(cell);
@@ -244,7 +244,7 @@ TEST_CASE(root_hash_table_reports_roots)
 TEST_CASE(empty_containers_report_no_roots)
 {
     auto& heap = test_heap();
-    GC::RootVector<GC::Ref<TestCell>> vector(heap);
+    GC::RootVector<GC::Ref<TestCell>> vector;
     GC::RootHashTable<GC::Ref<TestCell>> table(heap);
     GC::RootHashMap<int, GC::Ref<TestCell>> map(heap);
 

@@ -174,7 +174,7 @@ ThrowCompletionOr<GC::RootVector<Value>> create_list_from_array_like(VM& vm, Val
     auto length = TRY(length_of_array_like(vm, array_like));
 
     // 4. Let list be a new empty List.
-    auto list = GC::RootVector<Value> { vm.heap() };
+    GC::RootVector<Value> list;
     list.ensure_capacity(length);
 
     // 5. Let index be 0.

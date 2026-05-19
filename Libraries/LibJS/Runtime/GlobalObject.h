@@ -51,7 +51,7 @@ template<typename... Args>
 [[nodiscard]] ALWAYS_INLINE ThrowCompletionOr<Value> Value::invoke(VM& vm, PropertyKey const& property_key, Args... args)
 {
     if constexpr (sizeof...(Args) > 0) {
-        GC::RootVector<Value> arglist { vm.heap() };
+        GC::RootVector<Value> arglist;
         (..., arglist.append(move(args)));
         return invoke_internal(vm, property_key, move(arglist));
     }

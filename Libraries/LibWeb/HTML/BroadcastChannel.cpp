@@ -169,7 +169,7 @@ void BroadcastChannel::deliver_message_locally(BroadcastChannelMessage const& me
     auto& vm = Bindings::main_thread_vm();
 
     // 6. Let destinations be a list of BroadcastChannel objects that match the following criteria:
-    GC::RootVector<GC::Ref<BroadcastChannel>> destinations(vm.heap());
+    GC::RootVector<GC::Ref<BroadcastChannel>> destinations;
 
     // * The result of running obtain a storage key for non-storage purposes with their relevant settings object equals sourceStorageKey.
     auto same_origin_broadcast_channels = s_broadcast_channel_repository.registered_channels_for_key(message.storage_key);

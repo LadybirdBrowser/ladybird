@@ -462,7 +462,7 @@ public:
         auto typed_array_record = make_typed_array_with_buffer_witness_record(*this, ArrayBuffer::Order::SeqCst);
 
         // 2. Let keys be a new empty List.
-        auto keys = GC::RootVector<Value> { heap() };
+        GC::RootVector<Value> keys;
 
         // 3. If IsTypedArrayOutOfBounds(taRecord) is false, then
         if (!is_typed_array_out_of_bounds(typed_array_record)) {

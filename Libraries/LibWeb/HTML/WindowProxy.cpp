@@ -238,7 +238,7 @@ JS::ThrowCompletionOr<GC::RootVector<JS::Value>> WindowProxy::internal_own_prope
     // 1. Let W be the value of the [[Window]] internal slot of this.
 
     // 2. Let keys be a new empty List.
-    auto keys = GC::RootVector<JS::Value> { vm.heap() };
+    GC::RootVector<JS::Value> keys;
 
     // 3. Let maxProperties be W's associated Document's document-tree child navigables's size.
     auto max_properties = m_window->associated_document().document_tree_child_navigables().size();

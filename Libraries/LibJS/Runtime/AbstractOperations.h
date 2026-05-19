@@ -199,7 +199,7 @@ ALWAYS_INLINE ThrowCompletionOr<GC::Ref<T>> ordinary_create_from_constructor(VM&
 
 // 7.3.35 AddValueToKeyedGroup ( groups, key, value ), https://tc39.es/ecma262/#sec-add-value-to-keyed-group
 template<typename GroupsType, typename KeyType>
-void add_value_to_keyed_group(VM& vm, GroupsType& groups, KeyType key, Value value)
+void add_value_to_keyed_group(GroupsType& groups, KeyType key, Value value)
 {
     // 1. For each Record { [[Key]], [[Elements]] } g of groups, do
     //      a. If SameValue(g.[[Key]], key) is true, then
@@ -217,7 +217,7 @@ void add_value_to_keyed_group(VM& vm, GroupsType& groups, KeyType key, Value val
     }
 
     // 2. Let group be the Record { [[Key]]: key, [[Elements]]: « value » }.
-    GC::RootVector<Value> new_elements { vm.heap() };
+    GC::RootVector<Value> new_elements;
     new_elements.append(value);
 
     // 3. Append group as the last element of groups.
@@ -280,7 +280,7 @@ ThrowCompletionOr<GroupsType> group_by(VM& vm, Value items, Value callback_funct
             // ii. IfAbruptCloseIterator(key, iteratorRecord).
             auto property_key = TRY_OR_CLOSE_ITERATOR(vm, iterator_record, key.to_property_key(vm));
 
-            add_value_to_keyed_group(vm, groups, move(property_key), value);
+            add_value_to_keyed_group(groups, move(property_key), value);
         }
         // h. Else,
         else {
@@ -290,7 +290,7 @@ ThrowCompletionOr<GroupsType> group_by(VM& vm, Value items, Value callback_funct
             // ii. Set key to CanonicalizeKeyedCollectionKey(key).
             key = canonicalize_keyed_collection_key(key);
 
-            add_value_to_keyed_group(vm, groups, make_root(key), value);
+            add_value_to_keyed_group(groups, make_root(key), value);
         }
 
         // i. Perform AddValueToKeyedGroup(groups, key, value).

@@ -742,7 +742,7 @@ GC::Ptr<DOM::Element> Element::get_the_attribute_associated_element(FlyString co
 Optional<GC::RootVector<GC::Ref<DOM::Element>>> Element::get_the_attribute_associated_elements(FlyString const& content_attribute, Optional<Vector<GC::Weak<DOM::Element>> const&> explicitly_set_attribute_elements) const
 {
     // 1. Let elements be an empty list.
-    GC::RootVector<GC::Ref<DOM::Element>> elements(heap());
+    GC::RootVector<GC::Ref<DOM::Element>> elements;
 
     // 2. Let element be the result of running reflectedTarget's get the element.
     auto const& element = *this;
@@ -3242,7 +3242,7 @@ void Element::enqueue_a_custom_element_callback_reaction(FlyString const& callba
 
         // 4. Set callback to the following steps:
         auto steps = JS::NativeFunction::create(realm(), [this, disconnected_callback, connected_callback](JS::VM&) {
-            GC::RootVector<JS::Value> no_arguments { heap() };
+            GC::RootVector<JS::Value> no_arguments;
 
             // 1. If disconnectedCallback is not null, then call disconnectedCallback with no arguments.
             if (disconnected_callback)
@@ -3304,7 +3304,7 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(GC::Ref<HTML::CustomElement
         auto const* attribute = m_attributes->item(attribute_index);
         VERIFY(attribute);
 
-        GC::RootVector<JS::Value> arguments { vm.heap() };
+        GC::RootVector<JS::Value> arguments;
 
         arguments.append(JS::PrimitiveString::create(vm, attribute->local_name()));
         arguments.append(JS::js_null());
@@ -3317,7 +3317,7 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(GC::Ref<HTML::CustomElement
     // 5. If element is connected, then enqueue a custom element callback reaction with element, callback name
     //    "connectedCallback", and « ».
     if (is_connected()) {
-        GC::RootVector<JS::Value> empty_arguments { vm.heap() };
+        GC::RootVector<JS::Value> empty_arguments;
         enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::connectedCallback, move(empty_arguments));
     }
 

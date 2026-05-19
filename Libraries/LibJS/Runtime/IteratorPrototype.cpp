@@ -774,7 +774,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::to_array)
     auto iterated = TRY(get_iterator_direct(vm, object));
 
     // 4. Let items be a new empty List.
-    GC::RootVector<Value> items(realm.heap());
+    GC::RootVector<Value> items;
 
     // 5. Repeat,
     while (true) {

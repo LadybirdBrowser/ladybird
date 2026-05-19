@@ -96,7 +96,7 @@ GC::Ref<PolicyList> Policy::parse_a_responses_content_security_policies(GC::Heap
     // the returned list will be empty.
 
     // 1. Let policies be an empty list.
-    GC::RootVector<GC::Ref<Policy>> policies(heap);
+    GC::RootVector<GC::Ref<Policy>> policies;
 
     // 2. For each token returned by extracting header list values given Content-Security-Policy and response’s header
     //    list:

@@ -536,7 +536,7 @@ void Shape::invalidate_all_prototype_chains_leading_to_this()
         return;
 
     GC::RootHashTable<Shape*> shapes_to_invalidate(heap());
-    GC::RootVector<Shape*> worklist(heap());
+    GC::RootVector<Shape*> worklist;
     auto enqueue_children_of = [&](Shape& shape) {
         if (!shape.m_child_prototype_shapes)
             return;

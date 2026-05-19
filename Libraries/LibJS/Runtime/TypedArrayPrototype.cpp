@@ -653,7 +653,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::filter)
     auto callback_function = TRY(callback_from_args(vm, "filter"sv));
 
     // 5. Let kept be a new empty List.
-    GC::RootVector<Value> kept { vm.heap() };
+    GC::RootVector<Value> kept;
 
     // 6. Let captured be 0.
     size_t captured = 0;
@@ -683,7 +683,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::filter)
     }
 
     // 9. Let A be ? TypedArraySpeciesCreate(O, « 𝔽(captured) »).
-    GC::RootVector<Value> arguments(vm.heap());
+    GC::RootVector<Value> arguments;
     arguments.empend(captured);
     auto& realm = *vm.current_realm();
     auto* filter_array = TRY(typed_array_species_create(vm, *typed_array, [&]() -> ThrowCompletionOr<GC::Ref<TypedArrayBase>> { return TRY(typed_array->create_default(realm, captured)); }, move(arguments)));
@@ -1206,7 +1206,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::map)
     auto callback_function = TRY(callback_from_args(vm, "map"sv));
 
     // 5. Let A be ? TypedArraySpeciesCreate(O, « 𝔽(len) »).
-    GC::RootVector<Value> arguments(vm.heap());
+    GC::RootVector<Value> arguments;
     arguments.empend(length);
     auto& realm = *vm.current_realm();
     auto* array = TRY(typed_array_species_create(vm, *typed_array, [&]() -> ThrowCompletionOr<GC::Ref<TypedArrayBase>> { return TRY(typed_array->create_default(realm, length)); }, move(arguments)));
@@ -1689,7 +1689,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::slice)
     auto count = max(final - k, 0);
 
     // 13. Let A be ? TypedArraySpeciesCreate(O, « 𝔽(count) »).
-    GC::RootVector<Value> arguments(vm.heap());
+    GC::RootVector<Value> arguments;
     arguments.empend(count);
     auto& realm = *vm.current_realm();
     auto* array = TRY(typed_array_species_create(vm, *typed_array, [&]() -> ThrowCompletionOr<GC::Ref<TypedArrayBase>> { return TRY(typed_array->create_default(realm, count)); }, move(arguments)));
@@ -1944,7 +1944,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::subarray)
         return typed_array;
     }
 
-    GC::RootVector<Value> arguments(vm.heap());
+    GC::RootVector<Value> arguments;
     Optional<u32> new_length;
 
     // 15. If O.[[ArrayLength]] is auto and end is undefined, then
@@ -2058,7 +2058,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::to_reversed)
     auto length = typed_array_length(typed_array_record);
 
     // 4. Let A be ? TypedArrayCreateSameType(O, « 𝔽(length) »).
-    GC::RootVector<Value> arguments(vm.heap());
+    GC::RootVector<Value> arguments;
     arguments.empend(length);
     auto* array = TRY(typed_array_create_same_type(vm, *typed_array, move(arguments)));
 
@@ -2103,7 +2103,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::to_sorted)
     auto length = typed_array_length(typed_array_record);
 
     // 5. Let A be ? TypedArrayCreateSameType(O, « 𝔽(len) »).
-    GC::RootVector<Value> arguments(vm.heap());
+    GC::RootVector<Value> arguments;
     arguments.empend(length);
     auto* array = TRY(typed_array_create_same_type(vm, *typed_array, move(arguments)));
 
@@ -2183,7 +2183,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::with)
         return vm.throw_completion<RangeError>(ErrorType::TypedArrayInvalidIntegerIndex, actual_index);
 
     // 10. Let A be ? TypedArrayCreateSameType(O, « 𝔽(len) »).
-    GC::RootVector<Value> arguments(vm.heap());
+    GC::RootVector<Value> arguments;
     arguments.empend(length);
     auto* array = TRY(typed_array_create_same_type(vm, *typed_array, move(arguments)));
 

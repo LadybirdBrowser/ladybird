@@ -104,7 +104,7 @@ ThrowCompletionOr<void> FinalizationRegistry::cleanup(GC::Ptr<JobCallback> callb
             break;
 
         // b. Remove cell from finalizationRegistry.[[Cells]].
-        GC::RootVector<Value> arguments(vm.heap());
+        GC::RootVector<Value> arguments;
         arguments.append(it->held_value);
         it = m_records.remove(it);
 

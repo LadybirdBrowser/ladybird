@@ -187,7 +187,7 @@ WebIDL::ExceptionOr<JS::Value> TrustedTypePolicy::get_trusted_type_policy_value(
     }
 
     // 4. Let args be << value >>.
-    GC::RootVector<JS::Value> args(heap());
+    GC::RootVector<JS::Value> args;
     args.append(JS::PrimitiveString::create(vm, value));
 
     // 5. Append each item in arguments to args.
@@ -227,7 +227,7 @@ WebIDL::ExceptionOr<Optional<TrustedType>> process_value_with_a_default_policy(T
     //    throwIfMissing:
     //      false
     //  3. If the algorithm threw an error, rethrow the error and abort the following steps.
-    auto arguments = GC::RootVector<JS::Value>(vm.heap());
+    auto arguments = GC::RootVector<JS::Value> {};
     arguments.append(JS::PrimitiveString::create(vm, to_string(trusted_type_name)));
     arguments.append(JS::PrimitiveString::create(vm, to_string(sink)));
     auto policy_value = TRY(default_policy->get_trusted_type_policy_value(

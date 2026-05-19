@@ -336,7 +336,7 @@ GC::Ref<WebIDL::Promise> readable_stream_pipe_to(ReadableStream& source, Writabl
 
             // 5. Shutdown with an action consisting of getting a promise to wait for all of the actions in actions, and with error.
             auto action = GC::create_function(realm.heap(), [&realm, abort_destination, cancel_source]() {
-                GC::RootVector<GC::Ref<WebIDL::Promise>> actions(realm.heap());
+                GC::RootVector<GC::Ref<WebIDL::Promise>> actions {};
 
                 if (abort_destination)
                     actions.append(abort_destination->function()());

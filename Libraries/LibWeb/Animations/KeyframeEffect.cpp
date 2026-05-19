@@ -872,7 +872,7 @@ WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> KeyframeEffect::get_keyframes()
         }
     }
 
-    GC::RootVector<JS::Object*> keyframes { heap() };
+    GC::RootVector<JS::Object*> keyframes;
     for (auto const& keyframe : m_keyframe_objects)
         keyframes.append(keyframe);
     return keyframes;

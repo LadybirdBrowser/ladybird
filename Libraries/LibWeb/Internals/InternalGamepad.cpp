@@ -146,7 +146,7 @@ void InternalGamepad::set_axis(int axis, short value)
 
 GC::RootVector<JS::Object*> InternalGamepad::get_received_rumble_effects() const
 {
-    GC::RootVector<JS::Object*> received_rumble_effects { realm().heap() };
+    GC::RootVector<JS::Object*> received_rumble_effects;
     for (auto const received_rumble_effect : m_received_rumble_effects)
         received_rumble_effects.append(received_rumble_effect);
     return received_rumble_effects;
@@ -154,7 +154,7 @@ GC::RootVector<JS::Object*> InternalGamepad::get_received_rumble_effects() const
 
 GC::RootVector<JS::Object*> InternalGamepad::get_received_rumble_trigger_effects() const
 {
-    GC::RootVector<JS::Object*> received_rumble_trigger_effects { realm().heap() };
+    GC::RootVector<JS::Object*> received_rumble_trigger_effects {};
     for (auto const received_rumble_trigger_effect : m_received_rumble_trigger_effects)
         received_rumble_trigger_effects.append(received_rumble_trigger_effect);
     return received_rumble_trigger_effects;

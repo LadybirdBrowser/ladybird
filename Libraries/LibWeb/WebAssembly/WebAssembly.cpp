@@ -219,7 +219,7 @@ Wasm::HostFunction create_host_function(JS::VM& vm, JS::FunctionObject& function
 {
     return Wasm::HostFunction {
         [&](auto&, auto arguments) -> Wasm::Result {
-            GC::RootVector<JS::Value> argument_values { vm.heap() };
+            GC::RootVector<JS::Value> argument_values;
             size_t index = 0;
             for (auto& entry : arguments) {
                 argument_values.append(to_js_value(vm, entry, type.parameters()[index]));
@@ -637,7 +637,7 @@ JS::NativeFunction* create_native_function(JS::VM& vm, Wasm::FunctionAddress add
                 return to_js_value(vm, result.values().first(), type.results().first());
 
             // Put result values into a JS::Array in reverse order.
-            auto js_result_values = GC::RootVector<JS::Value> { realm.heap() };
+            GC::RootVector<JS::Value> js_result_values;
             js_result_values.ensure_capacity(result.values().size());
 
             for (size_t i = result.values().size(); i > 0; i--) {

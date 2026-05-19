@@ -45,7 +45,7 @@ void AnimationTimeline::update_associated_animations_and_dispatch_events()
     for (auto& animation : m_associated_animations)
         animation.update();
 
-    auto animations = GC::RootVector<GC::Ref<Animations::Animation>> { heap() };
+    GC::RootVector<GC::Ref<Animations::Animation>> animations;
     for (auto& animation : m_associated_animations)
         animations.append(animation);
     for (auto& animation : animations)

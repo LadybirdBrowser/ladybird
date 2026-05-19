@@ -144,9 +144,9 @@ GC::Ref<Database::AssociatedConnections> Database::associated_connections_as_hea
     return connections;
 }
 
-GC::RootVector<GC::Ref<IDBDatabase>> Database::associated_connections_as_root_vector(GC::Heap& heap)
+GC::RootVector<GC::Ref<IDBDatabase>> Database::associated_connections_as_root_vector()
 {
-    GC::RootVector<GC::Ref<IDBDatabase>> connections(heap);
+    GC::RootVector<GC::Ref<IDBDatabase>> connections {};
     for (auto& connection : m_associated_connections) {
         if (connection)
             connections.append(*connection);

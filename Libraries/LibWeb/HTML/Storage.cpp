@@ -193,7 +193,7 @@ void Storage::broadcast(Optional<String> const& key, Optional<String> const& old
     auto url = this_document.url().serialize();
 
     // 3. Let remoteStorages be all Storage objects excluding storage whose:
-    GC::RootVector<GC::Ref<Storage>> remote_storages(heap());
+    GC::RootVector<GC::Ref<Storage>> remote_storages;
 
     // AD-HOC: The specification defines this by iterating over created Storage objects. However, Storage objects are
     //         created lazily when accessed through window.localStorage or window.sessionStorage. This means that events

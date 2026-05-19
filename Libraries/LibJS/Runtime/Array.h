@@ -38,7 +38,7 @@ public:
     template<typename T>
     static GC::Ref<Array> create_from(Realm& realm, ReadonlySpan<T> elements, Function<Value(T const&)> map_fn)
     {
-        auto values = GC::RootVector<Value> { realm.heap() };
+        GC::RootVector<Value> values;
         values.ensure_capacity(elements.size());
         for (auto const& element : elements)
             values.append(map_fn(element));

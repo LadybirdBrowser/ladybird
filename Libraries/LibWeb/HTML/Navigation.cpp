@@ -1172,7 +1172,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
     // 34. If endResultIsSameDocument is true:
     if (end_result_is_same_document) {
         // 1. Let promisesList be an empty list.
-        GC::RootVector<GC::Ref<WebIDL::Promise>> promises_list(realm.heap());
+        GC::RootVector<GC::Ref<WebIDL::Promise>> promises_list;
 
         // 2. For each handler of event's navigation handler list:
         for (auto const& handler : event->navigation_handler_list()) {

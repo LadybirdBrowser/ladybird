@@ -108,7 +108,7 @@ Vector<Parser::ComponentValue> StyleValueList::tokenize() const
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-transform-list
 static ErrorOr<GC::Ref<CSSStyleValue>> reify_a_transform_list(JS::Realm& realm, StyleValueVector const& values)
 {
-    GC::RootVector<GC::Ref<CSSTransformComponent>> transform_components { realm.heap() };
+    GC::RootVector<GC::Ref<CSSTransformComponent>> transform_components;
     for (auto const& transform : values) {
         // NB: Not all transform functions are reifiable, in which case we give up reifying as a transform list.
         transform_components.append(TRY(transform->as_transformation().reify_a_transform_function(realm)));

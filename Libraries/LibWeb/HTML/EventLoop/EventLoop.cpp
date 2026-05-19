@@ -668,7 +668,7 @@ void EventLoop::perform_a_microtask_checkpoint()
     }
 
     // 4. For each environment settings object settingsObject whose responsible event loop is this event loop, notify about rejected promises given settingsObject's global object.
-    auto environments = GC::RootVector { heap(), m_related_environment_settings_objects };
+    auto environments = GC::RootVector { m_related_environment_settings_objects };
     for (auto& environment_settings_object : environments) {
         environment_settings_object->universal_global_scope().notify_about_rejected_promises({});
     }

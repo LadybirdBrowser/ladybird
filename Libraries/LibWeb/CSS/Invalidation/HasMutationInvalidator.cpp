@@ -344,7 +344,7 @@ static void invalidate_style_of_elements_affected_by_pending_has_mutations(Style
     bool should_scan_ancestor_siblings = style_scope.have_has_selectors_with_relative_selector_that_has_sibling_combinator();
     for (auto& [node, mutation_features] : pending_has_invalidations) {
         GC::RootHashTable<GC::Ref<DOM::Element>> elements_skipped_by_has_feature_filter { style_scope.node().heap() };
-        GC::RootVector<GC::Ref<DOM::Element>, 16> has_scope_ancestors { style_scope.node().heap() };
+        GC::RootVector<GC::Ref<DOM::Element>, 16> has_scope_ancestors;
         bool should_delay_ancestor_sibling_scans = false;
         for (GC::Ptr<DOM::Node> ancestor = node; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
             if (!ancestor->is_element())
