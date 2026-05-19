@@ -209,13 +209,15 @@ def is_crash_test(url_string):
     return False
 
 
-def modify_sources(files, resources: list[ResourceAndType]) -> None:
+def modify_sources(files, resources: list[ResourceAndType], shared_resources: set[str]) -> None:
     for file in files:
         # Get the distance to the wpt-imports folder
         folder_index = str(file).find(test_type.input_path)
+        is_expected_file = False
         if folder_index == -1:
             folder_index = str(file).find(test_type.expected_path)
             non_prefixed_path = str(file)[folder_index + len(test_type.expected_path) :]
+            is_expected_file = True
         else:
             non_prefixed_path = str(file)[folder_index + len(test_type.input_path) :]
 
@@ -236,6 +238,16 @@ def modify_sources(files, resources: list[ResourceAndType]) -> None:
                 new_src_value = parent_folder_path + resource[1::]
                 page_source = page_source.replace(f'"{resource}"'.encode(), f'"{new_src_value}"'.encode())
                 page_source = page_source.replace(f"'{resource}'".encode(), f"'{new_src_value}'".encode())
+
+        # Redirect resources shared with the test to the copy under input/.
+        if is_expected_file and reference_path is not None:
+            for resource in shared_resources:
+                if resource.startswith("/") or urlparse(resource).scheme != "":
+                    continue
+                resolved = normpath(str(Path(reference_path).parent.joinpath(resource)))
+                redirected = parent_folder_path + "../../input/wpt-import/" + resolved
+                page_source = page_source.replace(f'"{resource}"'.encode(), f'"{redirected}"'.encode())
+                page_source = page_source.replace(f"'{resource}'".encode(), f"'{redirected}'".encode())
 
         # Look for mentions of the reference page, and update their href
         if raw_reference_path is not None:
@@ -422,11 +434,14 @@ def main():
             # replacing undecodable bytes with U+FFFD is safe and avoids a UnicodeDecodeError.
             page = response.read().decode("utf-8", errors="replace")
             expected_parser.feed(page)
+
+    # Resources shared with the test are downloaded only into input/.
+    shared_resources = input_parser.resources & expected_parser.resources
     additional_resources.extend(
-        list(map(lambda s: ResourceAndType(s, ResourceType.EXPECTED), expected_parser.resources))
+        list(map(lambda s: ResourceAndType(s, ResourceType.EXPECTED), expected_parser.resources - shared_resources))
     )
 
-    modify_sources(files_to_modify, additional_resources)
+    modify_sources(files_to_modify, additional_resources, shared_resources)
     script_paths = map_to_path(additional_resources, wpt_base_url, True, resource_path)
     download_files(script_paths, wpt_base_url, skip_existing)
     download_headers_files(script_paths, wpt_base_url, skip_existing)
