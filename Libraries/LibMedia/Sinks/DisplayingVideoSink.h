@@ -17,7 +17,7 @@
 
 namespace Media {
 
-enum class DisplayingVideoSinkUpdateResult : u8 {
+enum class [[nodiscard]] DisplayingVideoSinkUpdateResult : u8 {
     NewFrameAvailable,
     NoChange,
 };
@@ -40,6 +40,8 @@ public:
     RefPtr<VideoFrame> current_frame();
 
 private:
+    DisplayingVideoSinkUpdateResult consume_moved_position_signals(PipelineStatus&);
+
     void dispatch_state_if_changed(PipelineStatus);
 
     NonnullRefPtr<MediaTimeProvider> m_time_provider;
@@ -47,7 +49,14 @@ private:
 
     RefPtr<VideoFrame> m_next_frame;
     RefPtr<VideoFrame> m_current_frame;
-    bool m_seek_pending_display_update { false };
+
+    enum class SeekStatus : u8 {
+        None,
+        InProgress,
+        FrameInvalidated,
+        Complete,
+    };
+    SeekStatus m_seek_status { SeekStatus::None };
 
     PipelineStateChangeHandler m_on_state_changed;
     PipelineStatus m_last_dispatched_status { PipelineStatus::Pending };

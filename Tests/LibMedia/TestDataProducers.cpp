@@ -127,7 +127,9 @@ TEST_CASE(audio_producer_underspecified_5_1_channel_map)
 
     while (true) {
         Media::AudioBlock block;
-        auto status = producer->pull(block);
+        auto status = producer->status();
+        if (status == Media::PipelineStatus::HaveData)
+            producer->pull(block);
         if (status == Media::PipelineStatus::HaveData) {
             EXPECT(!block.is_empty());
             EXPECT_EQ(block.channel_count(), 6);
