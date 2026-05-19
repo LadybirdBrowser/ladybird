@@ -558,10 +558,29 @@ void TableFormattingContext::compute_table_width()
     }
     grid_max += undistributable_space;
 
+    auto resolve_width_constraint_to_content_box = [&](auto const& width_constraint) {
+        if (width_constraint.is_min_content())
+            return grid_min;
+        if (width_constraint.is_max_content())
+            return grid_max;
+        if (width_constraint.is_fit_content()) {
+            auto fit_content_limit = width_of_table_wrapper_containing_block;
+            if (auto const& fit_content_available_space = width_constraint.fit_content_available_space(); fit_content_available_space.has_value())
+                fit_content_limit = fit_content_available_space->to_px(table_box(), width_of_table_wrapper_containing_block);
+            return min(grid_max, max(grid_min, fit_content_limit));
+        }
+        // CSS Sizing says box-sizing:border-box applies length/percentage width/min-width/max-width constraints to
+        // the border box. The table width algorithm compares content widths, so convert them before comparing.
+        auto resolved_width = width_constraint.to_px(table_box(), width_of_table_wrapper_containing_block);
+        if (computed_values.box_sizing() == CSS::BoxSizing::BorderBox)
+            resolved_width -= table_box_state.border_box_left() + table_box_state.border_box_right();
+        return max(CSSPixels(0), resolved_width);
+    };
+
     // The used min-width of a table is the greater of the resolved min-width, CAPMIN, and GRIDMIN.
     auto used_min_width = max(grid_min, compute_capmin());
     if (!computed_values.min_width().is_auto()) {
-        used_min_width = max(used_min_width, computed_values.min_width().to_px(table_box(), width_of_table_wrapper_containing_block));
+        used_min_width = max(used_min_width, resolve_width_constraint_to_content_box(computed_values.min_width()));
     }
 
     CSSPixels used_width;
@@ -598,17 +617,27 @@ void TableFormattingContext::compute_table_width()
         // If the table-root’s width property has a computed value (resolving to
         // resolved-table-width) other than auto, the used width is the greater
         // of resolved-table-width, and the used min-width of the table.
-        CSSPixels resolved_table_width = computed_values.width().to_px(table_box(), width_of_table_wrapper_containing_block);
-        // Since used_width is content width, we need to subtract the border and padding spacing from the specified width for a consistent comparison.
-        if (computed_values.box_sizing() == CSS::BoxSizing::BorderBox)
-            resolved_table_width -= table_box_state.border_box_left() + table_box_state.border_box_right();
+        CSSPixels resolved_table_width = resolve_width_constraint_to_content_box(computed_values.width());
         used_width = max(resolved_table_width, used_min_width);
         if (!should_treat_max_width_as_none(table_box(), m_available_space->width))
-            used_width = min(used_width, computed_values.max_width().to_px(table_box(), width_of_table_wrapper_containing_block));
+            used_width = min(used_width, resolve_width_constraint_to_content_box(computed_values.max_width()));
     }
 
-    table_box_state.set_content_width(used_width);
     auto& table_wrapper_box_state = m_state.get_mutable(table_wrapper());
+    if (computed_values.width().is_auto()
+        && table_wrapper_box_state.grid_area_size().has_value()
+        && table_wrapper_box_state.has_definite_width()) {
+        auto stretched_table_width = table_wrapper_box_state.content_width()
+            - table_box_state.border_box_left()
+            - table_box_state.border_box_right();
+        stretched_table_width = max(CSSPixels(0), stretched_table_width);
+        used_width = max(used_width, stretched_table_width);
+    }
+    if (!should_treat_max_width_as_none(table_box(), m_available_space->width))
+        used_width = min(used_width, resolve_width_constraint_to_content_box(computed_values.max_width()));
+    used_width = max(used_width, used_min_width);
+
+    table_box_state.set_content_width(used_width);
     table_wrapper_box_state.set_content_width(table_box_state.border_box_width());
 }
 
