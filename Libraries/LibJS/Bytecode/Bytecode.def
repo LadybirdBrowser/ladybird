@@ -476,6 +476,7 @@ op DynamicGetCalleeAndThisFromEnvironment < Instruction
     m_callee: Operand
     m_this_value: Operand
     m_identifier: IdentifierTableIndex
+    m_cache: EnvironmentCoordinateCacheIndex
 endop
 
 op GetCompletionFields < Instruction
@@ -564,6 +565,7 @@ endop
 op DynamicGetBinding < Instruction
     m_dst: Operand
     m_identifier: IdentifierTableIndex
+    m_cache: EnvironmentCoordinateCacheIndex
 endop
 
 op GetInitializedBinding < Instruction
@@ -575,6 +577,7 @@ endop
 op DynamicGetInitializedBinding < Instruction
     m_dst: Operand
     m_identifier: IdentifierTableIndex
+    m_cache: EnvironmentCoordinateCacheIndex
 endop
 
 op GreaterThan < Instruction
@@ -620,6 +623,7 @@ endop
 op DynamicInitializeLexicalBinding < Instruction
     m_identifier: IdentifierTableIndex
     m_src: Operand
+    m_cache: EnvironmentCoordinateCacheIndex
 endop
 
 op InitializeVariableBinding < Instruction
@@ -631,6 +635,7 @@ endop
 op DynamicInitializeVariableBinding < Instruction
     m_identifier: IdentifierTableIndex
     m_src: Operand
+    m_cache: EnvironmentCoordinateCacheIndex
 endop
 
 op InstanceOf < Instruction
@@ -1050,6 +1055,7 @@ endop
 op DynamicSetLexicalBinding < Instruction
     m_identifier: IdentifierTableIndex
     m_src: Operand
+    m_cache: EnvironmentCoordinateCacheIndex
 endop
 
 op SetVariableBinding < Instruction
@@ -1061,6 +1067,7 @@ endop
 op DynamicSetVariableBinding < Instruction
     m_identifier: IdentifierTableIndex
     m_src: Operand
+    m_cache: EnvironmentCoordinateCacheIndex
 endop
 
 op StrictlyEquals < Instruction
@@ -1138,6 +1145,7 @@ endop
 op DynamicTypeofBinding < Instruction
     m_dst: Operand
     m_identifier: IdentifierTableIndex
+    m_cache: EnvironmentCoordinateCacheIndex
 endop
 
 op UnaryMinus < Instruction

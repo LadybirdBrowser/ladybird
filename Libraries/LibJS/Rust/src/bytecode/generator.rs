@@ -259,6 +259,7 @@ pub struct Generator {
     // --- Various counters ---
     pub next_property_lookup_cache: u32,
     pub next_global_variable_cache: u32,
+    pub next_environment_coordinate_cache: u32,
     pub next_template_object_cache: u32,
     pub next_object_shape_cache: u32,
     pub next_object_property_iterator_cache: u32,
@@ -424,6 +425,7 @@ impl Generator {
             current_finally_context: None,
             next_property_lookup_cache: 0,
             next_global_variable_cache: 0,
+            next_environment_coordinate_cache: 0,
             next_template_object_cache: 0,
             next_object_shape_cache: 0,
             next_object_property_iterator_cache: 0,
@@ -968,6 +970,7 @@ impl Generator {
 
     next_cache_method!(next_property_lookup_cache, next_property_lookup_cache);
     next_cache_method!(next_global_variable_cache, next_global_variable_cache);
+    next_cache_method!(next_environment_coordinate_cache, next_environment_coordinate_cache);
     next_cache_method!(next_template_object_cache, next_template_object_cache);
     next_cache_method!(next_object_shape_cache, next_object_shape_cache);
     next_cache_method!(next_object_property_iterator_cache, next_object_property_iterator_cache);

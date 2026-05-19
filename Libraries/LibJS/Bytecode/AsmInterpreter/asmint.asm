@@ -460,6 +460,39 @@ macro walk_env_chain(m_cache_field, target_env, bind_index, fail_label)
     assert_nonzero target_env
 end
 
+# Walk the environment chain using a runtime EnvironmentCoordinate cache.
+# The cache lives in Executable::environment_coordinate_caches so bytecode can
+# remain immutable while dynamic binding lookups still warm up.
+macro walk_cached_env_chain(m_environment_field, target_env, bind_index, fail_label)
+    temp exe, caches, coord_addr, hops, sentinel, flag
+    load32 coord_addr, [pb, pc, m_cache]
+    mul coord_addr, coord_addr, ENVIRONMENT_COORDINATE_SIZE
+    load64 exe, [exec_ctx, EXECUTION_CONTEXT_EXECUTABLE]
+    load64 caches, [exe, EXECUTABLE_ENVIRONMENT_COORDINATE_CACHES_DATA]
+    add coord_addr, caches
+    load_pair32 hops, bind_index, [coord_addr, ENVIRONMENT_COORDINATE_HOPS], [coord_addr, ENVIRONMENT_COORDINATE_INDEX]
+    mov sentinel, ENVIRONMENT_COORDINATE_INVALID
+    branch_eq hops, sentinel, fail_label
+    load64 target_env, [exec_ctx, m_environment_field]
+    assert_nonzero target_env
+    branch_zero hops, .walk_done
+.walk_loop:
+    load8 flag, [target_env, ENVIRONMENT_DECLARATIVE]
+    branch_zero flag, fail_label
+    load8 flag, [target_env, ENVIRONMENT_SCREWED_BY_EVAL]
+    branch_nonzero flag, fail_label
+    load64 target_env, [target_env, ENVIRONMENT_OUTER]
+    branch_zero target_env, fail_label
+    sub hops, 1
+    branch_nonzero hops, .walk_loop
+.walk_done:
+    assert_nonzero target_env
+    load8 flag, [target_env, ENVIRONMENT_DECLARATIVE]
+    branch_zero flag, fail_label
+    load8 flag, [target_env, ENVIRONMENT_SCREWED_BY_EVAL]
+    branch_nonzero flag, fail_label
+end
+
 # Pop an inline frame and resume the caller without bouncing through C++.
 # The asm-managed JS-to-JS call fast path currently only inlines Call, never
 # CallConstruct, so caller_is_construct is always false for asm-managed inline
@@ -1060,6 +1093,16 @@ handler GetBinding
     call_slow_path asm_slow_path_get_binding
 end
 
+handler DynamicGetBinding
+    temp env, idx, binding_values, value, empty
+    walk_cached_env_chain EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT, env, idx, .slow
+    check_binding_initialized env, idx, binding_values, value, empty, .slow
+    store_operand m_dst, value
+    dispatch_next
+.slow:
+    call_slow_path asm_slow_path_dynamic_get_binding
+end
+
 # Inline environment chain walk + direct binding value load.
 handler GetInitializedBinding
     temp env, idx, binding_values, value
@@ -1071,6 +1114,16 @@ handler GetInitializedBinding
     call_slow_path asm_slow_path_get_initialized_binding
 end
 
+handler DynamicGetInitializedBinding
+    temp env, idx, binding_values, value
+    walk_cached_env_chain EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT, env, idx, .slow
+    load_binding_value env, idx, binding_values, value
+    store_operand m_dst, value
+    dispatch_next
+.slow:
+    call_slow_path asm_slow_path_dynamic_get_initialized_binding
+end
+
 # Inline environment chain walk + initialize binding.
 handler InitializeLexicalBinding
     temp env, idx, value, binding_values
@@ -1080,6 +1133,26 @@ handler InitializeLexicalBinding
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_initialize_lexical_binding
+end
+
+handler DynamicInitializeLexicalBinding
+    temp env, idx, value, binding_values
+    walk_cached_env_chain EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT, env, idx, .slow
+    load_operand value, m_src
+    store_binding_value env, idx, binding_values, value
+    dispatch_next
+.slow:
+    call_slow_path asm_slow_path_dynamic_initialize_lexical_binding
+end
+
+handler DynamicInitializeVariableBinding
+    temp env, idx, value, binding_values
+    walk_cached_env_chain EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT, env, idx, .slow
+    load_operand value, m_src
+    store_binding_value env, idx, binding_values, value
+    dispatch_next
+.slow:
+    call_slow_path asm_slow_path_dynamic_initialize_variable_binding
 end
 
 # Inline environment chain walk + set mutable binding.
@@ -1096,6 +1169,36 @@ handler SetLexicalBinding
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_set_lexical_binding
+end
+
+handler DynamicSetLexicalBinding
+    temp env, idx, flag, value, binding_values, flags, empty
+    walk_cached_env_chain EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT, env, idx, .slow
+    check_binding_initialized env, idx, binding_values, value, empty, .slow
+    # Check mutable
+    load_binding_flags env, idx, flags, flag
+    and flag, BINDING_FLAG_MUTABLE
+    branch_zero flag, .slow
+    load_operand value, m_src
+    store_binding_value env, idx, binding_values, value
+    dispatch_next
+.slow:
+    call_slow_path asm_slow_path_dynamic_set_lexical_binding
+end
+
+handler DynamicSetVariableBinding
+    temp env, idx, flag, value, binding_values, flags, empty
+    walk_cached_env_chain EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT, env, idx, .slow
+    check_binding_initialized env, idx, binding_values, value, empty, .slow
+    # Check mutable
+    load_binding_flags env, idx, flags, flag
+    and flag, BINDING_FLAG_MUTABLE
+    branch_zero flag, .slow
+    load_operand value, m_src
+    store_binding_value env, idx, binding_values, value
+    dispatch_next
+.slow:
+    call_slow_path asm_slow_path_dynamic_set_variable_binding
 end
 
 # x++: save original to dst first, then increment src in-place.
@@ -1424,6 +1527,19 @@ handler GetCalleeAndThisFromEnvironment
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_get_callee_and_this
+end
+
+handler DynamicGetCalleeAndThisFromEnvironment
+    temp env, idx, binding_values, value, empty
+    walk_cached_env_chain EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT, env, idx, .slow
+    check_binding_initialized env, idx, binding_values, value, empty, .slow
+    store_operand m_callee, value
+    # this = undefined for cached declarative environment references.
+    mov value, UNDEFINED_SHIFTED
+    store_operand m_this_value, value
+    dispatch_next
+.slow:
+    call_slow_path asm_slow_path_dynamic_get_callee_and_this
 end
 
 handler LooselyEquals

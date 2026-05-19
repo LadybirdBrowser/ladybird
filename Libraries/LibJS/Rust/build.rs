@@ -201,6 +201,10 @@ fn emit_scalar_field_check(
             w,
             "            validate_global_variable_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
         )?,
+        "EnvironmentCoordinateCacheIndex" => writeln!(
+            w,
+            "            validate_environment_coordinate_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
+        )?,
         "TemplateObjectCacheIndex" => writeln!(
             w,
             "            validate_template_object_cache_index(read_u32(bytes, at + {offset}), ctx)?;"

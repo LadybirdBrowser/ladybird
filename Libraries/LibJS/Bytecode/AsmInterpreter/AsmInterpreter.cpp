@@ -275,11 +275,17 @@ i64 asm_try_inline_call(VM*, u32 pc);
 i64 asm_try_put_by_id_cache(VM*, u32 pc);
 i64 asm_try_get_by_id_cache(VM*, u32 pc);
 i64 asm_slow_path_initialize_lexical_binding(VM*, u32 pc);
+i64 asm_slow_path_dynamic_initialize_lexical_binding(VM*, u32 pc);
+i64 asm_slow_path_dynamic_initialize_variable_binding(VM*, u32 pc);
 
 i64 asm_try_get_by_value_typed_array(VM*, u32 pc);
 i64 asm_slow_path_get_initialized_binding(VM*, u32 pc);
+i64 asm_slow_path_dynamic_get_initialized_binding(VM*, u32 pc);
 i64 asm_slow_path_get_binding(VM*, u32 pc);
+i64 asm_slow_path_dynamic_get_binding(VM*, u32 pc);
 i64 asm_slow_path_set_lexical_binding(VM*, u32 pc);
+i64 asm_slow_path_dynamic_set_lexical_binding(VM*, u32 pc);
+i64 asm_slow_path_dynamic_set_variable_binding(VM*, u32 pc);
 i64 asm_slow_path_bitwise_not(VM*, u32 pc);
 i64 asm_slow_path_unary_plus(VM*, u32 pc);
 i64 asm_slow_path_throw_if_tdz(VM*, u32 pc);
@@ -288,6 +294,7 @@ i64 asm_slow_path_throw_if_nullish(VM*, u32 pc);
 i64 asm_slow_path_loosely_equals(VM*, u32 pc);
 i64 asm_slow_path_loosely_inequals(VM*, u32 pc);
 i64 asm_slow_path_get_callee_and_this(VM*, u32 pc);
+i64 asm_slow_path_dynamic_get_callee_and_this(VM*, u32 pc);
 i64 asm_try_put_by_value_typed_array(VM*, u32 pc);
 i64 asm_slow_path_get_private_by_id(VM*, u32 pc);
 i64 asm_slow_path_put_private_by_id(VM*, u32 pc);
@@ -619,6 +626,11 @@ i64 asm_slow_path_get_initialized_binding(VM* vm, u32 pc)
     return slow_path_throwing<Op::GetInitializedBinding>(*vm, pc);
 }
 
+i64 asm_slow_path_dynamic_get_initialized_binding(VM* vm, u32 pc)
+{
+    return slow_path_throwing<Op::DynamicGetInitializedBinding>(*vm, pc);
+}
+
 i64 asm_slow_path_loosely_equals(VM* vm, u32 pc)
 {
     return slow_path_throwing<Op::LooselyEquals>(*vm, pc);
@@ -632,6 +644,11 @@ i64 asm_slow_path_loosely_inequals(VM* vm, u32 pc)
 i64 asm_slow_path_get_callee_and_this(VM* vm, u32 pc)
 {
     return slow_path_throwing<Op::GetCalleeAndThisFromEnvironment>(*vm, pc);
+}
+
+i64 asm_slow_path_dynamic_get_callee_and_this(VM* vm, u32 pc)
+{
+    return slow_path_throwing<Op::DynamicGetCalleeAndThisFromEnvironment>(*vm, pc);
 }
 
 i64 asm_slow_path_postfix_increment(VM* vm, u32 pc)
@@ -1009,14 +1026,39 @@ i64 asm_slow_path_get_binding(VM* vm, u32 pc)
     return slow_path_throwing<Op::GetBinding>(*vm, pc);
 }
 
+i64 asm_slow_path_dynamic_get_binding(VM* vm, u32 pc)
+{
+    return slow_path_throwing<Op::DynamicGetBinding>(*vm, pc);
+}
+
 i64 asm_slow_path_initialize_lexical_binding(VM* vm, u32 pc)
 {
     return slow_path_throwing<Op::InitializeLexicalBinding>(*vm, pc);
 }
 
+i64 asm_slow_path_dynamic_initialize_lexical_binding(VM* vm, u32 pc)
+{
+    return slow_path_throwing<Op::DynamicInitializeLexicalBinding>(*vm, pc);
+}
+
+i64 asm_slow_path_dynamic_initialize_variable_binding(VM* vm, u32 pc)
+{
+    return slow_path_throwing<Op::DynamicInitializeVariableBinding>(*vm, pc);
+}
+
 i64 asm_slow_path_set_lexical_binding(VM* vm, u32 pc)
 {
     return slow_path_throwing<Op::SetLexicalBinding>(*vm, pc);
+}
+
+i64 asm_slow_path_dynamic_set_lexical_binding(VM* vm, u32 pc)
+{
+    return slow_path_throwing<Op::DynamicSetLexicalBinding>(*vm, pc);
+}
+
+i64 asm_slow_path_dynamic_set_variable_binding(VM* vm, u32 pc)
+{
+    return slow_path_throwing<Op::DynamicSetVariableBinding>(*vm, pc);
 }
 
 i64 asm_slow_path_bitwise_not(VM* vm, u32 pc)
