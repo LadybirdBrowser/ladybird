@@ -4,13 +4,39 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AllOf.h>
 #include <AK/BinarySearch.h>
+#include <AK/CharacterTypes.h>
 #include <LibJS/SourceCode.h>
 #include <LibJS/SourceRange.h>
 #include <LibJS/Token.h>
 #include <LibTextCodec/Decoder.h>
 
 namespace JS {
+
+static bool ascii_source_bytes_decode_to_same_code_units(StringView standardized_encoding, ReadonlyBytes bytes)
+{
+    auto decoder = TextCodec::decoder_for_exact_name(standardized_encoding);
+    if (!decoder.has_value())
+        return false;
+
+    size_t byte_offset = 0;
+    bool bytes_are_identity_mapped = true;
+    auto result = decoder->process_code_points(StringView { bytes }, [&](auto code_point) -> ErrorOr<void> {
+        if (byte_offset >= bytes.size()) {
+            bytes_are_identity_mapped = false;
+            return {};
+        }
+
+        auto byte = bytes[byte_offset++];
+        if (code_point != byte)
+            bytes_are_identity_mapped = false;
+        return {};
+    });
+    result.release_value_but_fixme_should_propagate_errors();
+
+    return bytes_are_identity_mapped && byte_offset == bytes.size();
+}
 
 NonnullRefPtr<SourceCode const> SourceCode::create(String filename, Utf16String code)
 {
@@ -84,11 +110,52 @@ Utf16String SourceCode::source_text_from_offsets(size_t start_offset, size_t len
     if (m_code.has_value())
         return Utf16String::from_utf16(m_code->utf16_view().substring_view(start_offset, length));
 
-    if (m_source_bytes.is_valid())
+    if (m_source_bytes.is_valid()) {
+        if (source_bytes_can_be_sliced_by_code_unit_offsets()) {
+            auto bytes = m_source_bytes.bytes();
+            VERIFY(m_length_in_code_units == bytes.size());
+            auto source_text_bytes = bytes.slice(start_offset, length);
+            if (all_of(source_text_bytes, AK::is_ascii))
+                return Utf16String::from_ascii_without_validation(source_text_bytes);
+            return Utf16String::from_utf8(StringView { source_text_bytes });
+        }
         return decode_source_range(start_offset, length);
+    }
 
     ensure_code();
     return Utf16String::from_utf16(m_code->utf16_view().substring_view(start_offset, length));
+}
+
+bool SourceCode::source_bytes_can_be_sliced_by_code_unit_offsets() const
+{
+    if (!m_source_bytes_can_be_sliced_by_code_unit_offsets.has_value()) {
+        auto standardized_encoding = TextCodec::get_standardized_encoding(m_source_encoding);
+        if (!standardized_encoding.has_value()) {
+            m_source_bytes_can_be_sliced_by_code_unit_offsets = false;
+            return *m_source_bytes_can_be_sliced_by_code_unit_offsets;
+        }
+
+        auto bytes = m_source_bytes.bytes();
+        if (m_length_in_code_units != bytes.size()) {
+            m_source_bytes_can_be_sliced_by_code_unit_offsets = false;
+            return *m_source_bytes_can_be_sliced_by_code_unit_offsets;
+        }
+
+        auto source_bytes_are_ascii = all_of(bytes, AK::is_ascii);
+        if (standardized_encoding->equals_ignoring_ascii_case("UTF-8"sv)) {
+            m_source_bytes_can_be_sliced_by_code_unit_offsets = source_bytes_are_ascii;
+            return *m_source_bytes_can_be_sliced_by_code_unit_offsets;
+        }
+
+        if (!source_bytes_are_ascii) {
+            m_source_bytes_can_be_sliced_by_code_unit_offsets = false;
+            return *m_source_bytes_can_be_sliced_by_code_unit_offsets;
+        }
+
+        m_source_bytes_can_be_sliced_by_code_unit_offsets = ascii_source_bytes_decode_to_same_code_units(*standardized_encoding, bytes);
+    }
+
+    return *m_source_bytes_can_be_sliced_by_code_unit_offsets;
 }
 
 Utf16String SourceCode::decode_source_range(size_t start_offset, size_t length) const
