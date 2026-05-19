@@ -49,7 +49,7 @@ void SVGRadialGradientElement::attribute_changed(FlyString const& name, Optional
 // https://svgwg.org/svg2-draft/pservers.html#RadialGradientElementFXAttribute
 NumberPercentage SVGRadialGradientElement::start_circle_x() const
 {
-    GC::RootHashTable<SVGGradientElement const*> seen_gradients(heap());
+    GC::RootHashTable<SVGGradientElement const*> seen_gradients;
     return start_circle_x_impl(seen_gradients);
 }
 
@@ -69,7 +69,7 @@ NumberPercentage SVGRadialGradientElement::start_circle_x_impl(GC::RootHashTable
 // https://svgwg.org/svg2-draft/pservers.html#RadialGradientElementFYAttribute
 NumberPercentage SVGRadialGradientElement::start_circle_y() const
 {
-    GC::RootHashTable<SVGGradientElement const*> seen_gradients(heap());
+    GC::RootHashTable<SVGGradientElement const*> seen_gradients;
     return start_circle_y_impl(seen_gradients);
 }
 
@@ -89,7 +89,7 @@ NumberPercentage SVGRadialGradientElement::start_circle_y_impl(GC::RootHashTable
 // https://svgwg.org/svg2-draft/pservers.html#RadialGradientElementFRAttribute
 NumberPercentage SVGRadialGradientElement::start_circle_radius() const
 {
-    GC::RootHashTable<SVGGradientElement const*> seen_gradients(heap());
+    GC::RootHashTable<SVGGradientElement const*> seen_gradients;
     return start_circle_radius_impl(seen_gradients);
 }
 
@@ -109,7 +109,7 @@ NumberPercentage SVGRadialGradientElement::start_circle_radius_impl(GC::RootHash
 // https://svgwg.org/svg2-draft/pservers.html#RadialGradientElementCXAttribute
 NumberPercentage SVGRadialGradientElement::end_circle_x() const
 {
-    GC::RootHashTable<SVGGradientElement const*> seen_gradients(heap());
+    GC::RootHashTable<SVGGradientElement const*> seen_gradients;
     return end_circle_x_impl(seen_gradients);
 }
 
@@ -125,7 +125,7 @@ NumberPercentage SVGRadialGradientElement::end_circle_x_impl(GC::RootHashTable<S
 // https://svgwg.org/svg2-draft/pservers.html#RadialGradientElementCYAttribute
 NumberPercentage SVGRadialGradientElement::end_circle_y() const
 {
-    GC::RootHashTable<SVGGradientElement const*> seen_gradients(heap());
+    GC::RootHashTable<SVGGradientElement const*> seen_gradients;
     return end_circle_y_impl(seen_gradients);
 }
 
@@ -141,7 +141,7 @@ NumberPercentage SVGRadialGradientElement::end_circle_y_impl(GC::RootHashTable<S
 // https://svgwg.org/svg2-draft/pservers.html#RadialGradientElementRAttribute
 NumberPercentage SVGRadialGradientElement::end_circle_radius() const
 {
-    GC::RootHashTable<SVGGradientElement const*> seen_gradients(heap());
+    GC::RootHashTable<SVGGradientElement const*> seen_gradients;
     return end_circle_radius_impl(seen_gradients);
 }
 

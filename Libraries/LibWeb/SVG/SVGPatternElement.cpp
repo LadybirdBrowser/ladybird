@@ -105,7 +105,7 @@ GC::Ptr<SVGPatternElement const> SVGPatternElement::linked_pattern(GC::RootHashT
 
 GC::Ptr<SVGPatternElement const> SVGPatternElement::pattern_content_element() const
 {
-    GC::RootHashTable<SVGPatternElement const*> seen_patterns(heap());
+    GC::RootHashTable<SVGPatternElement const*> seen_patterns;
     return pattern_content_element_impl(seen_patterns);
 }
 
@@ -121,7 +121,7 @@ GC::Ptr<SVGPatternElement const> SVGPatternElement::pattern_content_element_impl
 // https://svgwg.org/svg2-draft/pservers.html#PatternElementPatternUnitsAttribute
 SVGUnits SVGPatternElement::pattern_units() const
 {
-    GC::RootHashTable<SVGPatternElement const*> seen_patterns(heap());
+    GC::RootHashTable<SVGPatternElement const*> seen_patterns;
     return pattern_units_impl(seen_patterns);
 }
 
@@ -138,7 +138,7 @@ SVGUnits SVGPatternElement::pattern_units_impl(GC::RootHashTable<SVGPatternEleme
 // https://svgwg.org/svg2-draft/pservers.html#PatternElementPatternContentUnitsAttribute
 SVGUnits SVGPatternElement::pattern_content_units() const
 {
-    GC::RootHashTable<SVGPatternElement const*> seen_patterns(heap());
+    GC::RootHashTable<SVGPatternElement const*> seen_patterns;
     return pattern_content_units_impl(seen_patterns);
 }
 
@@ -155,7 +155,7 @@ SVGUnits SVGPatternElement::pattern_content_units_impl(GC::RootHashTable<SVGPatt
 // https://svgwg.org/svg2-draft/pservers.html#PatternElementPatternTransformAttribute
 Optional<Gfx::AffineTransform> SVGPatternElement::pattern_transform() const
 {
-    GC::RootHashTable<SVGPatternElement const*> seen_patterns(heap());
+    GC::RootHashTable<SVGPatternElement const*> seen_patterns;
     return pattern_transform_impl(seen_patterns);
 }
 
@@ -171,7 +171,7 @@ Optional<Gfx::AffineTransform> SVGPatternElement::pattern_transform_impl(GC::Roo
 // https://svgwg.org/svg2-draft/pservers.html#PatternElementXAttribute
 NumberPercentage SVGPatternElement::pattern_x() const
 {
-    GC::RootHashTable<SVGPatternElement const*> seen_patterns(heap());
+    GC::RootHashTable<SVGPatternElement const*> seen_patterns;
     return pattern_x_impl(seen_patterns);
 }
 
@@ -187,7 +187,7 @@ NumberPercentage SVGPatternElement::pattern_x_impl(GC::RootHashTable<SVGPatternE
 // https://svgwg.org/svg2-draft/pservers.html#PatternElementYAttribute
 NumberPercentage SVGPatternElement::pattern_y() const
 {
-    GC::RootHashTable<SVGPatternElement const*> seen_patterns(heap());
+    GC::RootHashTable<SVGPatternElement const*> seen_patterns;
     return pattern_y_impl(seen_patterns);
 }
 
@@ -203,7 +203,7 @@ NumberPercentage SVGPatternElement::pattern_y_impl(GC::RootHashTable<SVGPatternE
 // https://svgwg.org/svg2-draft/pservers.html#PatternElementWidthAttribute
 NumberPercentage SVGPatternElement::pattern_width() const
 {
-    GC::RootHashTable<SVGPatternElement const*> seen_patterns(heap());
+    GC::RootHashTable<SVGPatternElement const*> seen_patterns;
     return pattern_width_impl(seen_patterns);
 }
 
@@ -219,7 +219,7 @@ NumberPercentage SVGPatternElement::pattern_width_impl(GC::RootHashTable<SVGPatt
 // https://svgwg.org/svg2-draft/pservers.html#PatternElementHeightAttribute
 NumberPercentage SVGPatternElement::pattern_height() const
 {
-    GC::RootHashTable<SVGPatternElement const*> seen_patterns(heap());
+    GC::RootHashTable<SVGPatternElement const*> seen_patterns;
     return pattern_height_impl(seen_patterns);
 }
 

@@ -31,5 +31,5 @@ void test_root_hash_table_non_gc_type(GC::Heap& heap)
 {
     // expected-error@*{{RootHashTable element type must be convertible to Cell const* or derive from NanBoxedValue}}
     // expected-note@+1 {{in instantiation of member function}}
-    GC::RootHashTable<int> bad_table(heap);
+    GC::RootHashTable<int> bad_table;
 }

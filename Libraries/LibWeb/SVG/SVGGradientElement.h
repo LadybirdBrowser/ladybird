@@ -69,7 +69,7 @@ protected:
     template<VoidFunction<SVGStopElement> Callback>
     void for_each_color_stop(Callback const& callback) const
     {
-        GC::RootHashTable<SVGGradientElement const*> seen_gradients(heap());
+        GC::RootHashTable<SVGGradientElement const*> seen_gradients;
         return for_each_color_stop_impl(callback, seen_gradients);
     }
 

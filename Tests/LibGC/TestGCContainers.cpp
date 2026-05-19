@@ -229,7 +229,7 @@ TEST_CASE(empty_heap_hash_table_visit_edges_reports_nothing)
 TEST_CASE(root_hash_table_reports_roots)
 {
     auto& heap = test_heap();
-    GC::RootHashTable<GC::Ref<TestCell>> table(heap);
+    GC::RootHashTable<GC::Ref<TestCell>> table;
 
     auto cell = heap.allocate<TestCell>();
     table.set(cell);
@@ -245,7 +245,7 @@ TEST_CASE(empty_containers_report_no_roots)
 {
     auto& heap = test_heap();
     GC::RootVector<GC::Ref<TestCell>> vector;
-    GC::RootHashTable<GC::Ref<TestCell>> table(heap);
+    GC::RootHashTable<GC::Ref<TestCell>> table;
     GC::RootHashMap<int, GC::Ref<TestCell>> map(heap);
 
     HashMap<GC::Cell*, GC::HeapRoot> roots;

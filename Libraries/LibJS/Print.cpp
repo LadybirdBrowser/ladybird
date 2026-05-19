@@ -1051,7 +1051,7 @@ namespace JS {
 
 ErrorOr<void> print(JS::Value value, PrintContext& print_context)
 {
-    GC::RootHashTable<GC::Ref<JS::Object>> seen_objects { print_context.vm.heap() };
+    GC::RootHashTable<GC::Ref<JS::Object>> seen_objects;
     return print_value(print_context, value, seen_objects);
 }
 

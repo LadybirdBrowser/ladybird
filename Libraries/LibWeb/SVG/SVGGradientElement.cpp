@@ -40,7 +40,7 @@ void SVGGradientElement::attribute_changed(FlyString const& name, Optional<Strin
 
 GradientUnits SVGGradientElement::gradient_units() const
 {
-    GC::RootHashTable<SVGGradientElement const*> seen_gradients(heap());
+    GC::RootHashTable<SVGGradientElement const*> seen_gradients;
     return gradient_units_impl(seen_gradients);
 }
 
@@ -55,7 +55,7 @@ GradientUnits SVGGradientElement::gradient_units_impl(GC::RootHashTable<SVGGradi
 
 SpreadMethod SVGGradientElement::spread_method() const
 {
-    GC::RootHashTable<SVGGradientElement const*> seen_gradients(heap());
+    GC::RootHashTable<SVGGradientElement const*> seen_gradients;
     return spread_method_impl(seen_gradients);
 }
 
@@ -83,7 +83,7 @@ Gfx::InterpolationColorSpace SVGGradientElement::color_space() const
 
 Optional<Gfx::AffineTransform> SVGGradientElement::gradient_transform() const
 {
-    GC::RootHashTable<SVGGradientElement const*> seen_gradients(heap());
+    GC::RootHashTable<SVGGradientElement const*> seen_gradients;
     return gradient_transform_impl(seen_gradients);
 }
 

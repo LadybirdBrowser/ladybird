@@ -188,7 +188,7 @@ GC::Ref<Object> Module::get_module_namespace(VM& vm)
 
 Vector<Utf16FlyString> Module::get_exported_names(VM& vm)
 {
-    GC::RootHashTable<GC::Ref<Module const>> export_star_set(vm.heap());
+    GC::RootHashTable<GC::Ref<Module const>> export_star_set;
     return get_exported_names(vm, export_star_set);
 }
 
