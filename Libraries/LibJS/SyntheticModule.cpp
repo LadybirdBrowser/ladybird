@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/RootHashTable.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/ExternalMemory.h>
@@ -105,7 +106,7 @@ PromiseCapability& SyntheticModule::load_requested_modules(GC::Ptr<GraphLoadingS
 }
 
 // 16.2.1.8.4.2 GetExportedNames ( ), https://tc39.es/ecma262/#sec-smr-getexportednames
-Vector<Utf16FlyString> SyntheticModule::get_exported_names(VM&, HashTable<Module const*>&)
+Vector<Utf16FlyString> SyntheticModule::get_exported_names(VM&, GC::RootHashTable<GC::Ref<Module const>>&)
 {
     // 1. Return module.[[ExportNames]].
     return m_export_names;

@@ -113,7 +113,7 @@ public:
     virtual ThrowCompletionOr<GC::Ref<PromiseCapability>> evaluate(VM& vm) = 0;
 
     Vector<Utf16FlyString> get_exported_names(VM& vm);
-    virtual Vector<Utf16FlyString> get_exported_names(VM& vm, HashTable<Module const*>& export_star_set) = 0;
+    virtual Vector<Utf16FlyString> get_exported_names(VM& vm, GC::RootHashTable<GC::Ref<Module const>>& export_star_set) = 0;
 
     virtual ResolvedBinding resolve_export(VM& vm, Utf16FlyString const& export_name, Vector<ResolvedBinding> resolve_set = {}) = 0;
 

@@ -140,7 +140,7 @@ Vector<Utf16FlyString> WebAssemblyModule::export_name_list()
 }
 
 // https://webassembly.github.io/esm-integration/js-api/index.html#get-exported-names
-Vector<Utf16FlyString> WebAssemblyModule::get_exported_names(JS::VM&, HashTable<Module const*>&)
+Vector<Utf16FlyString> WebAssemblyModule::get_exported_names(JS::VM&, GC::RootHashTable<GC::Ref<Module const>>&)
 {
     // 1. Let record be this WebAssembly Module Record.
     auto* record = this;
