@@ -183,6 +183,8 @@ private:
     void resolve_items_box_metrics(GridDimension dimension);
 
     CSSPixels m_automatic_content_height { 0 };
+    CSSPixels m_row_track_alignment_grid_container_height { 0 };
+    bool m_use_row_track_alignment_grid_container_height { false };
 
     bool is_auto_positioned_track(CSS::GridTrackPlacement const&, CSS::GridTrackPlacement const&) const;
 
@@ -309,6 +311,7 @@ private:
     void resolve_grid_item_sizes(GridDimension dimension);
 
     void resolve_track_spacing(GridDimension dimension);
+    CSSPixels grid_container_size_for_track_alignment(GridDimension dimension) const;
 
     AvailableSize get_free_space(AvailableSpace const&, GridDimension) const;
 

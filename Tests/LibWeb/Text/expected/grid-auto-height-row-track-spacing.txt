@@ -1,0 +1,33 @@
+auto end item top: 0.0
+auto end item bottom: 100.0
+auto end item height: 100.0
+auto height percentage grid height: 200.0
+auto height percentage gap: 20.0
+auto height percentage second top: 120.0
+definite height percentage grid height: 300.0
+definite height percentage gap: 30.0
+definite height percentage second top: 130.0
+min-height end item top: 200.0
+min-height end item bottom: 300.0
+min-height end item height: 100.0
+min-height percentage grid height: 300.0
+min-height percentage gap: 30.0
+min-height percentage second top: 130.0
+max-height end first top: -50.0
+max-height end first bottom: 50.0
+max-height end first height: 100.0
+centered definite percentage grid height: 300.0
+centered definite percentage gap: 30.0
+centered definite percentage second top: 165.0
+min-height space-between grid height: 300.0
+min-height space-between gap: 200.0
+min-height space-between second top: 250.0
+min-height space-around grid height: 300.0
+min-height space-around gap: 100.0
+min-height space-around second top: 200.0
+framed end item top: 115.0
+framed end item bottom: 165.0
+framed end item height: 50.0
+stretched overflowing first top: -100.0
+stretched overflowing first bottom: 0.0
+stretched overflowing first height: 100.0
