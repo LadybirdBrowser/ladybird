@@ -2026,7 +2026,13 @@ CSSPixelRect GridFormattingContext::get_grid_area_rect(GridItem const& grid_item
         }
         CSSPixels start_offset = 0;
         CSSPixels end_offset = 0;
-        if (alignment == Alignment::Center || alignment == Alignment::SpaceAround || alignment == Alignment::SpaceEvenly) {
+        if (alignment == Alignment::Center) {
+            // CSS Align's automatic overflow alignment is unsafe for grid content
+            // alignment, so preserve negative free space here.
+            auto free_space = grid_container_size - sum_of_base_sizes_including_gaps;
+            start_offset = free_space / 2;
+            end_offset = free_space / 2;
+        } else if (alignment == Alignment::SpaceAround || alignment == Alignment::SpaceEvenly) {
             auto free_space = grid_container_size - sum_of_base_sizes_including_gaps;
             free_space = max(free_space, 0);
             start_offset = free_space / 2;
@@ -2293,7 +2299,12 @@ AbsposContainingBlockInfo GridFormattingContext::resolve_abspos_containing_block
             auto alignment = dimension == GridDimension::Column
                 ? to_alignment(grid_container().computed_values().justify_content())
                 : to_alignment(grid_container().computed_values().align_content());
-            if (alignment == Alignment::Center || alignment == Alignment::SpaceAround || alignment == Alignment::SpaceEvenly) {
+            if (alignment == Alignment::Center) {
+                // CSS Align's automatic overflow alignment is unsafe for grid content
+                // alignment, so preserve negative free space here.
+                auto free_space = grid_container_size.to_px_or_zero() - sum_of_base_sizes_including_gaps;
+                offset = free_space / 2;
+            } else if (alignment == Alignment::SpaceAround || alignment == Alignment::SpaceEvenly) {
                 auto free_space = grid_container_size.to_px_or_zero() - sum_of_base_sizes_including_gaps;
                 offset = max(free_space, 0) / 2;
             } else if (alignment == Alignment::End) {
