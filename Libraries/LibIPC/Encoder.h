@@ -76,6 +76,12 @@ ErrorOr<void> encode(Encoder& encoder, T const& value)
     return encoder.encode(to_underlying(value));
 }
 
+template<Concepts::DistinctNumeric T>
+ErrorOr<void> encode(Encoder& encoder, T const& value)
+{
+    return encoder.encode(value.value());
+}
+
 template<>
 ErrorOr<void> encode(Encoder&, float const&);
 

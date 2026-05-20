@@ -16,20 +16,6 @@ namespace Web {
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder& encoder, Web::DevicePixels const& value)
-{
-    TRY(encoder.encode(value.value()));
-    return {};
-}
-
-template<>
-ErrorOr<Web::DevicePixels> decode(Decoder& decoder)
-{
-    auto value = TRY(decoder.decode<int>());
-    return Web::DevicePixels(value);
-}
-
-template<>
 ErrorOr<void> encode(Encoder& encoder, Web::DevicePixelPoint const& value)
 {
     TRY(encoder.encode(value.x()));

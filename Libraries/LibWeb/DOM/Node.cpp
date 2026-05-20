@@ -12,8 +12,6 @@
 #include <AK/JsonObjectSerializer.h>
 #include <AK/StringBuilder.h>
 #include <LibGC/DeferGC.h>
-#include <LibIPC/Decoder.h>
-#include <LibIPC/Encoder.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibWeb/Animations/Animation.h>
@@ -3425,23 +3423,6 @@ GC::Ptr<ShadowRoot> Node::containing_shadow_root()
     if (auto* shadow_root = as_if<ShadowRoot>(root()))
         return shadow_root;
     return nullptr;
-}
-
-}
-
-namespace IPC {
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Web::UniqueNodeID const& value)
-{
-    return encode(encoder, value.value());
-}
-
-template<>
-ErrorOr<Web::UniqueNodeID> decode(Decoder& decoder)
-{
-    auto value = TRY(decoder.decode<i64>());
-    return Web::UniqueNodeID(value);
 }
 
 }

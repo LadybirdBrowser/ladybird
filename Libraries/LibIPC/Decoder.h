@@ -84,6 +84,12 @@ ErrorOr<T> decode(Decoder& decoder)
     return static_cast<T>(value);
 }
 
+template<Concepts::DistinctNumeric T>
+ErrorOr<T> decode(Decoder& decoder)
+{
+    return T { TRY(decoder.decode<typename T::Type>()) };
+}
+
 template<>
 ErrorOr<String> decode(Decoder&);
 
