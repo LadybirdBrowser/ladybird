@@ -572,13 +572,18 @@ GC::Ptr<Selection::Selection> ViewportPaintable::selection() const
     return document().get_selection();
 }
 
-void ViewportPaintable::recompute_selection_states(DOM::Range& range)
+void ViewportPaintable::reset_selection_states()
 {
-    // 1. Start by resetting the selection state of all layout nodes to None.
-    for_each_in_inclusive_subtree([&](auto& layout_node) {
+    for_each_in_inclusive_subtree([](auto& layout_node) {
         layout_node.set_selection_state(SelectionState::None);
         return TraversalDecision::Continue;
     });
+}
+
+void ViewportPaintable::recompute_selection_states(DOM::Range& range)
+{
+    // 1. Start by resetting the selection state of all layout nodes to None.
+    reset_selection_states();
 
     auto set_selection_state_on_all_slices = [](DOM::Node& container, SelectionState state) {
         if (auto* text = as_if<DOM::Text>(container)) {

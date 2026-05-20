@@ -110,17 +110,21 @@ void Range::set_associated_selection(Badge<Selection::Selection>, GC::Ptr<Select
 
 void Range::update_associated_selection()
 {
-    if (!m_associated_selection)
-        return;
-
     auto& document = m_start_container->document();
-    document.reset_cursor_blink_cycle();
 
     // NB: Called during selection update after range change.
     if (auto viewport = document.unsafe_paintable()) {
-        viewport->recompute_selection_states(*this);
+        if (m_associated_selection)
+            viewport->recompute_selection_states(*this);
+        else
+            viewport->reset_selection_states();
         viewport->set_needs_repaint();
     }
+
+    if (!m_associated_selection)
+        return;
+
+    document.reset_cursor_blink_cycle();
 
     // https://w3c.github.io/selection-api/#selectionchange-event
     // When the selection is dissociated with its range, associated with a new range, or the associated range's boundary

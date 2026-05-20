@@ -31,6 +31,7 @@ public:
 
     GC::Ptr<Selection::Selection> selection() const;
     void recompute_selection_states(DOM::Range&);
+    void reset_selection_states();
 
     bool handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, double wheel_delta_x, double wheel_delta_y) override;
 
