@@ -14,6 +14,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/Invalidation/SlotInvalidator.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -22,6 +23,7 @@
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -801,7 +803,10 @@ static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation_f
         auto const* new_value = new_properties.get(property_id).value_or({});
         if (!old_value && !new_value)
             continue;
-        invalidation |= compute_property_invalidation(property_id, old_value, new_value);
+        auto property_invalidation = compute_property_invalidation(property_id, old_value, new_value);
+        if (!property_invalidation.is_none() && CSS::is_inherited_property(property_id))
+            property_invalidation.inherited_style_changed = true;
+        invalidation |= property_invalidation;
     }
     return invalidation;
 }
@@ -820,12 +825,30 @@ AnimationUpdateContext::~AnimationUpdateContext()
             continue;
 
         // Traversal of the subtree is necessary to update the animated properties inherited from the target element.
-        target->for_each_in_subtree_of_type<DOM::Element>([&](auto& element) {
+        bool invalidated_assigned_slottables_for_descendant_slots = false;
+        if (!element.pseudo_element().has_value()) {
+            CSS::Invalidation::invalidate_assigned_slottables_after_slot_style_change(target);
+            if (invalidation.inherited_style_changed || invalidation.rebuild_layout_tree) {
+                CSS::Invalidation::invalidate_assigned_slottables_for_descendant_slots_after_inherited_style_change(target);
+                invalidated_assigned_slottables_for_descendant_slots = true;
+            }
+        }
+
+        target->for_each_shadow_including_descendant([&](auto& node) {
+            if (!is<DOM::Element>(node))
+                return TraversalDecision::Continue;
+            auto& element = static_cast<DOM::Element&>(node);
             if (!element.computed_properties())
                 return TraversalDecision::SkipChildrenAndContinue;
             auto element_invalidation = element.recompute_inherited_style();
             if (element_invalidation.is_none())
                 return TraversalDecision::SkipChildrenAndContinue;
+            CSS::Invalidation::invalidate_assigned_slottables_after_slot_style_change(element);
+            if (!invalidated_assigned_slottables_for_descendant_slots
+                && (element_invalidation.inherited_style_changed || element_invalidation.rebuild_layout_tree)) {
+                CSS::Invalidation::invalidate_assigned_slottables_for_descendant_slots_after_inherited_style_change(target);
+                invalidated_assigned_slottables_for_descendant_slots = true;
+            }
             invalidation |= element_invalidation;
             return TraversalDecision::Continue;
         });

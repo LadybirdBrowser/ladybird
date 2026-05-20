@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+
+<div id="root"></div>
+
+<script>
+    asyncTest(done => {
+        setTimeout(() => {
+            let current = root;
+            for (let i = 0; i < 24; ++i) {
+                const child = document.createElement("div");
+                current.appendChild(child);
+                current = child;
+            }
+
+            getComputedStyle(current).color;
+            internals.resetStyleInvalidationCounters();
+
+            const animation = root.animate([{ color: "red" }, { color: "blue" }], {
+                duration: 1000,
+            });
+            animation.pause();
+            animation.currentTime = 500;
+
+            println(`deep child color: ${getComputedStyle(current).color}`);
+
+            const counters = internals.getStyleInvalidationCounters();
+            println(`descendant slot scans stayed linear: ${counters.descendantSlotInvalidationSubtreeScans <= 1}`);
+            done();
+        }, 100);
+    });
+</script>

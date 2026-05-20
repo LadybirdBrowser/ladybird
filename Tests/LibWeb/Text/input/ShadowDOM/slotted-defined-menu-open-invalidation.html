@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+
+<x-popover-host id="host"></x-popover-host>
+
+<script>
+    customElements.define("x-popover-host", class extends HTMLElement {
+        constructor() {
+            super();
+            this.attachShadow({ mode: "open" }).innerHTML = `
+                <style>
+                    :not(:defined):not(x-dropdown-menu) { visibility: hidden; }
+                </style>
+                <x-dropdown-menu id="dropdown">
+                    <x-menu id="menu" slot="menu" hidden>
+                        <div id="item" slot="items">item</div>
+                    </x-menu>
+                </x-dropdown-menu>
+            `;
+        }
+    });
+
+    customElements.define("x-dropdown-menu", class extends HTMLElement {
+        constructor() {
+            super();
+            this.attachShadow({ mode: "open" }).innerHTML = `
+                <style>
+                    #container {
+                        display: none;
+                        opacity: 0;
+                        pointer-events: none;
+                        transition: all 0s;
+                        visibility: hidden;
+                    }
+
+                    #container.open {
+                        display: block;
+                        opacity: 1;
+                        pointer-events: auto;
+                        visibility: visible;
+                    }
+                </style>
+                <article id="container">
+                    <slot id="outer-slot" name="menu"></slot>
+                </article>
+            `;
+        }
+    });
+
+    test(() => {
+        const host = document.getElementById("host");
+        const dropdown = host.shadowRoot.getElementById("dropdown");
+        const menu = host.shadowRoot.getElementById("menu");
+        const item = host.shadowRoot.getElementById("item");
+        const container = dropdown.shadowRoot.getElementById("container");
+        const outerSlot = dropdown.shadowRoot.getElementById("outer-slot");
+
+        println(`initial outer slot visibility: ${getComputedStyle(outerSlot).visibility}`);
+        println(`initial menu defined: ${menu.matches(":defined")}`);
+        println(`initial menu visibility: ${getComputedStyle(menu).visibility}`);
+
+        customElements.define("x-menu", class extends HTMLElement {
+            constructor() {
+                super();
+                this.attachShadow({ mode: "open" }).innerHTML = `
+                    <ul id="list">
+                        <slot id="inner-slot" name="items"></slot>
+                    </ul>
+                `;
+            }
+        });
+
+        const list = menu.shadowRoot.getElementById("list");
+        const innerSlot = menu.shadowRoot.getElementById("inner-slot");
+
+        println(`defined menu visibility while closed: ${getComputedStyle(menu).visibility}`);
+
+        menu.removeAttribute("hidden");
+        container.classList.add("open");
+        container.getBoundingClientRect();
+
+        println(`opened outer slot visibility: ${getComputedStyle(outerSlot).visibility}`);
+        println(`opened menu visibility: ${getComputedStyle(menu).visibility}`);
+        println(`opened inner shadow child visibility: ${getComputedStyle(list).visibility}`);
+        println(`opened inner shadow slot visibility: ${getComputedStyle(innerSlot).visibility}`);
+        println(`opened slotted item visibility: ${getComputedStyle(item).visibility}`);
+    });
+</script>

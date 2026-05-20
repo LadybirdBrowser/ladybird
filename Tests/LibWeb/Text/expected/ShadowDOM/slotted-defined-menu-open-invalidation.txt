@@ -1,0 +1,9 @@
+initial outer slot visibility: hidden
+initial menu defined: false
+initial menu visibility: hidden
+defined menu visibility while closed: hidden
+opened outer slot visibility: visible
+opened menu visibility: visible
+opened inner shadow child visibility: visible
+opened inner shadow slot visibility: visible
+opened slotted item visibility: visible

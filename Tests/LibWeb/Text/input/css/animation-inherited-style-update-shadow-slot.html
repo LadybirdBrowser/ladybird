@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+
+<div id="host">
+    <span id="host-slotted"></span>
+</div>
+
+<div id="slot-host">
+    <span id="slot-target-slotted"></span>
+</div>
+
+<div id="margin-host">
+    <span id="margin-slotted" style="margin-left: inherit"></span>
+</div>
+
+<script>
+    asyncTest(done => {
+        setTimeout(() => {
+            const host = document.getElementById("host");
+            const slotHost = document.getElementById("slot-host");
+            const marginHost = document.getElementById("margin-host");
+
+            host.attachShadow({ mode: "open" }).innerHTML = `
+                <div id="host-shadow-child">
+                    <slot id="host-slot"></slot>
+                </div>
+            `;
+            slotHost.attachShadow({ mode: "open" }).innerHTML = `
+                <slot id="animated-slot"></slot>
+            `;
+            marginHost.attachShadow({ mode: "open" }).innerHTML = `
+                <div id="margin-shadow-child" style="margin-left: inherit">
+                    <slot id="margin-slot" style="margin-left: inherit"></slot>
+                </div>
+            `;
+
+            const hostShadowChild = host.shadowRoot.getElementById("host-shadow-child");
+            const hostSlot = host.shadowRoot.getElementById("host-slot");
+            const hostSlotted = document.getElementById("host-slotted");
+            const animatedSlot = slotHost.shadowRoot.getElementById("animated-slot");
+            const slotTargetSlotted = document.getElementById("slot-target-slotted");
+            const marginShadowChild = marginHost.shadowRoot.getElementById("margin-shadow-child");
+            const marginSlot = marginHost.shadowRoot.getElementById("margin-slot");
+            const marginSlotted = document.getElementById("margin-slotted");
+
+            getComputedStyle(hostShadowChild).color;
+            getComputedStyle(slotTargetSlotted).color;
+            getComputedStyle(marginSlotted).marginLeft;
+
+            const hostAnimation = host.animate([{ color: "red" }, { color: "blue" }], {
+                duration: 1000,
+            });
+            hostAnimation.pause();
+            hostAnimation.currentTime = 500;
+
+            const slotAnimation = animatedSlot.animate([{ color: "red" }, { color: "blue" }], {
+                duration: 1000,
+            });
+            slotAnimation.pause();
+            slotAnimation.currentTime = 500;
+
+            const marginAnimation = marginHost.animate([{ marginLeft: "10px" }, { marginLeft: "30px" }], {
+                duration: 1000,
+            });
+            marginAnimation.pause();
+            marginAnimation.currentTime = 500;
+
+            println(`host shadow child color: ${getComputedStyle(hostShadowChild).color}`);
+            println(`host shadow slot color: ${getComputedStyle(hostSlot).color}`);
+            println(`host slotted color: ${getComputedStyle(hostSlotted).color}`);
+            println(`slot target slotted color: ${getComputedStyle(slotTargetSlotted).color}`);
+            println(`explicit inherit shadow child margin-left: ${getComputedStyle(marginShadowChild).marginLeft}`);
+            println(`explicit inherit shadow slot margin-left: ${getComputedStyle(marginSlot).marginLeft}`);
+            println(`explicit inherit slotted margin-left: ${getComputedStyle(marginSlotted).marginLeft}`);
+            done();
+        }, 100);
+    });
+</script>
