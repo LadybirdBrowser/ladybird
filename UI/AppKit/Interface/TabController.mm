@@ -729,7 +729,7 @@ static NSImage* location_field_globe_icon()
     self.current_inline_autocomplete_suggestion = nil;
     self.suppressed_inline_autocomplete_query = nil;
     m_should_suppress_inline_autocomplete_on_next_change = false;
-    [self.window makeFirstResponder:nil];
+    [self focusWebView];
     [self.autocomplete close];
 
     return YES;
