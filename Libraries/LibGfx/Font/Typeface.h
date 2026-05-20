@@ -17,6 +17,7 @@
 #include <LibGfx/Font/FontVariationSettings.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/ShapeFeature.h>
+#include <LibIPC/Forward.h>
 
 #define POINTS_PER_INCH 72.0f
 #define DEFAULT_DPI 96
@@ -69,9 +70,6 @@ public:
     [[nodiscard]] NonnullRefPtr<Font> font(float point_size, FontVariationSettings const& variations = {}, Gfx::ShapeFeatures const& shape_features = {}) const;
 
     hb_face_t* harfbuzz_typeface() const;
-    ReadonlyBytes font_data_bytes() const;
-    Optional<Core::AnonymousBuffer> anonymous_font_data() const;
-    u32 font_data_ttc_index() const { return ttc_index(); }
 
     template<typename T>
     bool fast_is() const = delete;
@@ -79,16 +77,30 @@ public:
     virtual bool is_skia() const { return false; }
 
 protected:
+    enum class FontDataFormat : u8 {
+        RawFontData,
+        ResourceFontData,
+        SystemFont,
+    };
+
     Typeface();
 
     virtual ReadonlyBytes buffer() const = 0;
     virtual u32 ttc_index() const = 0;
+    virtual void encode_font_data_for_ipc(IPC::Encoder&) const;
 
     void set_anonymous_font_data(Core::AnonymousBuffer);
     void set_resource_font_data(Core::Resource const&);
     void copy_font_data_from(Typeface const&);
+    bool has_font_data_backing() const { return m_font_data.has_value(); }
 
 private:
+    template<typename T>
+    friend ErrorOr<void> IPC::encode(IPC::Encoder&, T const&);
+
+    template<typename T>
+    friend ErrorOr<T> IPC::decode(IPC::Decoder&);
+
     using FontDataBacking = Variant<Core::AnonymousBuffer, NonnullRefPtr<Core::Resource const>>;
     Optional<FontDataBacking> m_font_data;
 
@@ -106,3 +118,13 @@ struct AK::Traits<Gfx::FontCacheKey> : public AK::DefaultTraits<Gfx::FontCacheKe
         return key.hash();
     }
 };
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder&, Gfx::Typeface const&);
+
+template<>
+ErrorOr<NonnullRefPtr<Gfx::Typeface const>> decode(Decoder&);
+
+}

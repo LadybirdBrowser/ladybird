@@ -10,6 +10,8 @@
 #include <LibGfx/Font/FontVariationSettings.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Font/TypefaceSkia.h>
+#include <LibIPC/Decoder.h>
+#include <LibIPC/Encoder.h>
 
 namespace Gfx {
 
@@ -84,20 +86,21 @@ hb_face_t* Typeface::harfbuzz_typeface() const
     return m_harfbuzz_face;
 }
 
-ReadonlyBytes Typeface::font_data_bytes() const
+void Typeface::encode_font_data_for_ipc(IPC::Encoder& encoder) const
 {
-    if (!m_font_data.has_value())
-        return buffer();
-    return m_font_data->visit(
-        [](Core::AnonymousBuffer const& anonymous_buffer) { return anonymous_buffer.bytes(); },
-        [](NonnullRefPtr<Core::Resource const> const& resource) { return resource->data(); });
-}
+    VERIFY(m_font_data.has_value());
 
-Optional<Core::AnonymousBuffer> Typeface::anonymous_font_data() const
-{
-    if (!m_font_data.has_value() || !m_font_data->has<Core::AnonymousBuffer>())
-        return {};
-    return m_font_data->get<Core::AnonymousBuffer>();
+    m_font_data->visit(
+        [&](Core::AnonymousBuffer const& anonymous_buffer) {
+            MUST(encoder.encode(FontDataFormat::RawFontData));
+            MUST(encoder.encode(anonymous_buffer));
+            MUST(encoder.encode(ttc_index()));
+        },
+        [&](NonnullRefPtr<Core::Resource const> const& resource) {
+            MUST(encoder.encode(FontDataFormat::ResourceFontData));
+            MUST(encoder.encode(resource->uri()));
+            MUST(encoder.encode(ttc_index()));
+        });
 }
 
 void Typeface::set_anonymous_font_data(Core::AnonymousBuffer anonymous_buffer)
@@ -113,6 +116,62 @@ void Typeface::set_resource_font_data(Core::Resource const& resource)
 void Typeface::copy_font_data_from(Typeface const& other)
 {
     m_font_data = other.m_font_data;
+}
+
+}
+
+namespace IPC {
+
+static NonnullRefPtr<Gfx::Typeface const> match_system_typeface(Optional<Gfx::SystemUIFontKind> system_ui_font_kind, String family_name, u16 weight, u16 width, u8 slope)
+{
+    if (system_ui_font_kind.has_value()) {
+        auto typeface = MUST(Gfx::TypefaceSkia::match_system_ui(system_ui_font_kind.value(), 0, weight, width, slope));
+        if (typeface)
+            return typeface.release_nonnull();
+    }
+
+    auto typeface = MUST(Gfx::TypefaceSkia::match_family_style(family_name.bytes_as_string_view(), weight, width, slope));
+    VERIFY(typeface);
+    return typeface.release_nonnull();
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Gfx::Typeface const& typeface)
+{
+    typeface.encode_font_data_for_ipc(encoder);
+    return {};
+}
+
+template<>
+ErrorOr<NonnullRefPtr<Gfx::Typeface const>> decode(Decoder& decoder)
+{
+    auto format = TRY(decoder.decode<Gfx::Typeface::FontDataFormat>());
+
+    switch (format) {
+    case Gfx::Typeface::FontDataFormat::RawFontData: {
+        auto font_data = TRY(decoder.decode<Core::AnonymousBuffer>());
+        auto ttc_index = TRY(decoder.decode<u32>());
+        if (!font_data.is_valid())
+            return Error::from_string_literal("Typeface IPC data contained invalid font data");
+        return TRY(Gfx::Typeface::try_load_from_anonymous_buffer(move(font_data), ttc_index));
+    }
+    case Gfx::Typeface::FontDataFormat::ResourceFontData: {
+        auto resource_uri = TRY(decoder.decode<String>());
+        auto ttc_index = TRY(decoder.decode<u32>());
+        auto resource = TRY(Core::Resource::load_from_uri(resource_uri.bytes_as_string_view()));
+        return TRY(Gfx::Typeface::try_load_from_resource(*resource, ttc_index));
+    }
+    case Gfx::Typeface::FontDataFormat::SystemFont: {
+        auto system_ui_font_kind = TRY(decoder.decode<Optional<Gfx::SystemUIFontKind>>());
+        auto family_name = TRY(decoder.decode<String>());
+        auto weight = TRY(decoder.decode<u16>());
+        auto width = TRY(decoder.decode<u16>());
+        auto slope = TRY(decoder.decode<u8>());
+        return match_system_typeface(system_ui_font_kind, move(family_name), weight, width, slope);
+    }
+    }
+
+    return Error::from_string_literal("Typeface IPC data contained invalid font data format");
 }
 
 }
