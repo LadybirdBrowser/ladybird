@@ -193,6 +193,13 @@
     [controller focusLocationToolbarItem];
 }
 
+- (void)createNewWindow:(id)sender
+{
+    [self createNewTab:WebView::Application::settings().new_tab_page_url()
+               fromTab:nil
+           activateTab:Web::HTML::ActivateTab::Yes];
+}
+
 - (nonnull TabController*)createChildTab:(Web::HTML::ActivateTab)activate_tab
                                  fromTab:(nonnull Tab*)tab
                                pageIndex:(u64)page_index
@@ -270,6 +277,9 @@
     auto* menu = [[NSMenuItem alloc] init];
     auto* submenu = [[NSMenu alloc] initWithTitle:@"File"];
 
+    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"New Window"
+                                                action:@selector(createNewWindow:)
+                                         keyEquivalent:@"n"]];
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"New Tab"
                                                 action:@selector(createNewTab:)
                                          keyEquivalent:@"t"]];
