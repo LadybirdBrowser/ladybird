@@ -1,0 +1,13 @@
+<!doctype html>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const animation = target.animate({ transform: ["none", "skewX(60deg)"] }, 2000);
+        animation.pause();
+        animation.currentTime = 1000;
+
+        // FIXME: This should be skew(30deg) but we don't yet support native interpolation of skew functions and fall back to matrix interpolations
+        println(getComputedStyle(target).transform);
+    });
+</script>

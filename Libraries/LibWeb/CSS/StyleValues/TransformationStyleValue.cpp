@@ -68,12 +68,12 @@ ValueComparingNonnullRefPtr<TransformationStyleValue const> TransformationStyleV
         case TransformFunction::RotateX:
         case TransformFunction::RotateY:
         case TransformFunction::RotateZ:
-            return { AngleStyleValue::create(Angle::make_degrees(0.)) };
-        case TransformFunction::Rotate3d:
-            return { number_one, number_one, number_one, AngleStyleValue::create(Angle::make_degrees(0.)) };
         case TransformFunction::Skew:
         case TransformFunction::SkewX:
         case TransformFunction::SkewY:
+            return { AngleStyleValue::create(Angle::make_degrees(0.)) };
+        case TransformFunction::Rotate3d:
+            return { number_one, number_one, number_one, AngleStyleValue::create(Angle::make_degrees(0.)) };
         case TransformFunction::Translate:
         case TransformFunction::TranslateX:
         case TransformFunction::TranslateY:
