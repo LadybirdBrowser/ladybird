@@ -7,11 +7,14 @@
 #pragma once
 
 #include <AK/AtomicRefCounted.h>
+#include <AK/Error.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/NonnullRefPtr.h>
 #include <AK/Time.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Size.h>
+#include <LibIPC/Forward.h>
 #include <LibMedia/Export.h>
 
 namespace Media {
@@ -48,5 +51,17 @@ private:
     Gfx::ColorSpace m_color_space;
     NonnullOwnPtr<Gfx::YUVData> m_yuv_data;
 };
+
+}
+
+namespace IPC {
+
+template<>
+MEDIA_API ErrorOr<void> encode(Encoder&, Media::VideoFrame const&);
+template<>
+MEDIA_API ErrorOr<void> encode(Encoder&, NonnullRefPtr<Media::VideoFrame const> const&);
+
+template<>
+MEDIA_API ErrorOr<NonnullRefPtr<Media::VideoFrame const>> decode(Decoder&);
 
 }
