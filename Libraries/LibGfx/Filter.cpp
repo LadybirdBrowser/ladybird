@@ -4,11 +4,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/HashMap.h>
 #include <AK/MemoryStream.h>
 #include <AK/NumericLimits.h>
+#include <LibGfx/ColorSpace.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Filter.h>
 #include <LibGfx/FilterImpl.h>
+#include <LibGfx/ShareableBitmap.h>
+#include <LibIPC/Decoder.h>
+#include <LibIPC/Encoder.h>
 
 namespace Gfx {
 
@@ -585,6 +590,66 @@ Filter deserialize_filter(ReadonlyBytes bytes, Function<Gfx::DecodedImageFrame(u
     auto filter = decode_filter(stream, decode_image);
     VERIFY(stream.is_eof());
     return filter;
+}
+
+}
+
+namespace IPC {
+
+static ErrorOr<void> encode_decoded_image_frame(Encoder& encoder, u64 id, Gfx::DecodedImageFrame const& frame)
+{
+    auto bitmap = frame.bitmap().to_shareable_bitmap();
+    if (!bitmap.is_valid())
+        return Error::from_string_literal("IPC encode: failed to create shareable bitmap for filter image");
+    TRY(encoder.encode(id));
+    TRY(encoder.encode(bitmap));
+    TRY(encoder.encode(frame.color_space()));
+    return {};
+}
+
+static ErrorOr<Gfx::DecodedImageFrame> decode_decoded_image_frame(Decoder& decoder)
+{
+    auto bitmap = TRY(decoder.decode<Gfx::ShareableBitmap>());
+    if (!bitmap.is_valid() || !bitmap.bitmap())
+        return Error::from_string_literal("IPC decode: invalid filter image bitmap");
+    auto color_space = TRY(decoder.decode<Gfx::ColorSpace>());
+    return Gfx::DecodedImageFrame { *bitmap.bitmap(), move(color_space) };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Gfx::Filter const& filter)
+{
+    HashMap<u64, Gfx::DecodedImageFrame> images;
+    auto filter_data = Gfx::serialize_filter(filter, [&](Gfx::DecodedImageFrame const& frame) {
+        images.ensure(frame.id(), [&] { return frame; });
+        return frame.id();
+    });
+
+    TRY(encoder.encode(filter_data));
+    TRY(encoder.encode_size(images.size()));
+    for (auto const& image : images)
+        TRY(encode_decoded_image_frame(encoder, image.key, image.value));
+    return {};
+}
+
+template<>
+ErrorOr<Gfx::Filter> decode(Decoder& decoder)
+{
+    auto filter_data = TRY(decoder.decode<ByteBuffer>());
+    auto image_count = TRY(decoder.decode_size());
+    HashMap<u64, Gfx::DecodedImageFrame> images;
+    TRY(images.try_ensure_capacity(image_count));
+    for (size_t i = 0; i < image_count; ++i) {
+        auto id = TRY(decoder.decode<u64>());
+        auto frame = TRY(decode_decoded_image_frame(decoder));
+        TRY(images.try_set(id, move(frame)));
+    }
+
+    return Gfx::deserialize_filter(filter_data.bytes(), [&](u64 image_id) {
+        auto image = images.get(image_id);
+        VERIFY(image.has_value());
+        return image.value();
+    });
 }
 
 }
