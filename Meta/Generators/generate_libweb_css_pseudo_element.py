@@ -446,6 +446,26 @@ bool is_pseudo_element_root(PseudoElement pseudo_element)
 
 bool pseudo_element_supports_property(PseudoElement pseudo_element, PropertyID property_id)
 {
+    if (property_id == PropertyID::Transition
+        || property_id == PropertyID::TransitionBehavior
+        || property_id == PropertyID::TransitionDelay
+        || property_id == PropertyID::TransitionDuration
+        || property_id == PropertyID::TransitionProperty
+        || property_id == PropertyID::TransitionTimingFunction
+        || property_id == PropertyID::Animation
+        || property_id == PropertyID::AnimationComposition
+        || property_id == PropertyID::AnimationDelay
+        || property_id == PropertyID::AnimationDirection
+        || property_id == PropertyID::AnimationDuration
+        || property_id == PropertyID::AnimationFillMode
+        || property_id == PropertyID::AnimationIterationCount
+        || property_id == PropertyID::AnimationName
+        || property_id == PropertyID::AnimationPlayState
+        || property_id == PropertyID::AnimationTimeline
+        || property_id == PropertyID::AnimationTimingFunction) {
+        return true;
+    }
+
     switch (pseudo_element) {
 """)
 
