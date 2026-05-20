@@ -13,11 +13,10 @@
 #include <LibGfx/Forward.h>
 #include <LibGfx/SharedImage.h>
 #include <LibGfx/Size.h>
+#include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Export.h>
 
 namespace Web::Compositor {
-
-enum class WindowResizingInProgress : u8;
 
 class WEB_API BackingStoreManager {
     AK_MAKE_NONCOPYABLE(BackingStoreManager);

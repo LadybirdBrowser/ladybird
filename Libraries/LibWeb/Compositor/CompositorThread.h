@@ -27,14 +27,17 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/DisplayListResourceStorage.h>
+
+namespace Web::Painting {
+
+struct DisplayListResourceTransaction;
+
+}
 
 namespace Web::Compositor {
 
-enum class WindowResizingInProgress : u8 {
-    No,
-    Yes,
-};
+class CompositorMainThreadClient;
+class CompositorUIPresentationClient;
 
 class WEB_API CompositorThread {
     AK_MAKE_NONCOPYABLE(CompositorThread);
@@ -43,93 +46,40 @@ class WEB_API CompositorThread {
 public:
     class ThreadData;
 
-    enum class PagePresentationRegistration {
-        No,
-        Yes,
-    };
-
-    using BackingStorePresentationCallback = Function<void(u64 page_id, i32 front_bitmap_id, Gfx::SharedImage, i32 back_bitmap_id, Gfx::SharedImage)>;
-    using FramePresentationCallback = Function<void(u64 page_id, Gfx::IntRect const&, i32 bitmap_id)>;
-    struct PendingAsyncScrollUpdates {
-        Vector<AsyncScrollOffset> scroll_offsets;
-        Vector<AsyncScrollOperationID> completed_operation_ids;
-    };
-    struct AsyncScrollEnqueueResult {
-        bool accepted { false };
-        Optional<AsyncScrollOperationID> operation_id;
-    };
-    enum class AsyncScrollOperationTracking {
-        No,
-        Yes,
-    };
-    struct PresentToUI {
-    };
-    struct PublishToCompositorSurface {
-        CompositorContextId target_context_id;
-        Painting::CompositorSurfaceId surface_id;
-    };
-    using PresentationMode = Variant<PresentToUI, PublishToCompositorSurface>;
-
-    class WEB_API Context {
-        AK_MAKE_NONCOPYABLE(Context);
-        AK_MAKE_NONMOVABLE(Context);
-
-    public:
-        ~Context();
-
-        CompositorContextId id() const { return m_context_id; }
-        void stop_presenting_to_client();
-        void set_presentation_mode(PresentationMode);
-
-        void update_display_list(NonnullRefPtr<Painting::DisplayList>, Painting::DisplayListResourceTransaction&&, Painting::ScrollStateSnapshot&&);
-        void update_video_frame(Painting::VideoFrameResourceId, NonnullRefPtr<Media::VideoFrame const>);
-        void clear_video_frame(Painting::VideoFrameResourceId);
-        void update_compositor_surface(Painting::CompositorSurfaceId, Gfx::SharedImage&&);
-        void clear_compositor_surface(Painting::CompositorSurfaceId);
-        void update_scroll_state(Painting::ScrollStateSnapshot&&);
-        void invalidate_wheel_event_listener_state(u64 generation);
-        AsyncScrollEnqueueResult async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels,
-            Gfx::IntRect viewport_rect, AsyncScrollOperationTracking = AsyncScrollOperationTracking::No);
-        bool should_defer_async_scroll_offset_adoption() const;
-        bool should_defer_main_thread_present_for_async_scroll() const;
-        PendingAsyncScrollUpdates take_pending_async_scroll_updates();
-        void viewport_size_updated(Gfx::IntSize, bool is_top_level_traversable, WindowResizingInProgress);
-        void present_frame(Gfx::IntRect);
-        void request_screenshot(NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&& callback);
-
-    private:
-        friend class CompositorThread;
-
-        Context(NonnullRefPtr<ThreadData>, CompositorContextId);
-
-        void enqueue_viewport_size_updated(Gfx::IntSize, bool is_top_level_traversable, WindowResizingInProgress);
-
-        NonnullRefPtr<ThreadData> m_thread_data;
-        CompositorContextId m_context_id;
-        RefPtr<Core::Timer> m_backing_store_shrink_timer;
-        Gfx::IntSize m_last_viewport_size;
-        bool m_last_viewport_size_is_top_level_traversable { false };
-    };
-
-    CompositorThread();
+    explicit CompositorThread(NonnullRefPtr<CompositorMainThreadClient>);
     ~CompositorThread();
 
-    static void set_frame_presentation_callbacks(NonnullRefPtr<Core::WeakEventLoopReference>, BackingStorePresentationCallback, FramePresentationCallback);
-    static void clear_frame_presentation_callbacks();
-    static void presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_id);
-    static bool async_scroll_by(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels);
-    static bool handle_mouse_event(u64 page_id, MouseEvent const&);
+    void set_ui_presentation_client(NonnullRefPtr<CompositorUIPresentationClient>);
+    void clear_ui_presentation_client();
+    void presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_id);
+    bool async_scroll_by(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels);
+    bool handle_mouse_event(u64 page_id, MouseEvent const&);
 
-    OwnPtr<Context> create_context(Optional<u64> page_id, PagePresentationRegistration);
+    CompositorContextId create_context(Optional<u64> page_id, PagePresentationRegistration);
+    void destroy_context(CompositorContextId);
+    void stop_presenting_to_client(CompositorContextId);
+    void set_presentation_mode(CompositorContextId, PresentationMode);
+
+    void update_display_list(CompositorContextId, NonnullRefPtr<Painting::DisplayList>, Painting::DisplayListResourceTransaction&&, Painting::ScrollStateSnapshot&&);
+    void update_video_frame(CompositorContextId, Painting::VideoFrameResourceId, NonnullRefPtr<Media::VideoFrame const>);
+    void clear_video_frame(CompositorContextId, Painting::VideoFrameResourceId);
+    void update_compositor_surface(CompositorContextId, Painting::CompositorSurfaceId, Gfx::SharedImage&&);
+    void clear_compositor_surface(CompositorContextId, Painting::CompositorSurfaceId);
+    void update_scroll_state(CompositorContextId, Painting::ScrollStateSnapshot&&);
+    void invalidate_wheel_event_listener_state(CompositorContextId, u64 generation);
+    AsyncScrollEnqueueResult async_scroll_by(CompositorContextId, UniqueNodeID expected_document_id, Gfx::FloatPoint position,
+        Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect, AsyncScrollOperationTracking = AsyncScrollOperationTracking::No);
+    bool should_defer_async_scroll_offset_adoption(CompositorContextId) const;
+    bool should_defer_main_thread_present_for_async_scroll(CompositorContextId) const;
+    PendingAsyncScrollUpdates take_pending_async_scroll_updates(CompositorContextId);
+    void viewport_size_updated(CompositorContextId, Gfx::IntSize, bool is_top_level_traversable, WindowResizingInProgress);
+    void present_frame(CompositorContextId, Gfx::IntRect);
+    void request_screenshot(CompositorContextId, NonnullRefPtr<Gfx::PaintingSurface>, ScreenshotRequestId);
     void start(DisplayListPlayerType);
 
 private:
     NonnullRefPtr<ThreadData> m_thread_data;
     RefPtr<Threading::Thread> m_thread;
-
-    static bool update_compositor_surface_for_context(CompositorContextId, Painting::CompositorSurfaceId, Gfx::SharedImage&&);
-    static bool present_backing_stores_to_client(u64 page_id, i32 front_bitmap_id, Gfx::SharedImage&&, i32 back_bitmap_id, Gfx::SharedImage&&);
-    static bool present_frame_to_client(u64 page_id, Gfx::IntRect const&, i32 bitmap_id);
 };
 
 }

@@ -15,7 +15,7 @@
 #include <LibGfx/Rect.h>
 #include <LibWeb/Compositor/AsyncScrollTree.h>
 #include <LibWeb/Compositor/BackingStoreManager.h>
-#include <LibWeb/Compositor/CompositorThread.h>
+#include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 
 namespace Web::Compositor {
@@ -42,14 +42,14 @@ public:
         Optional<size_t> captured_scrollbar_index;
     };
 
-    CompositorContextState(Optional<u64> page_id, CompositorThread::PagePresentationRegistration);
+    CompositorContextState(Optional<u64> page_id, PagePresentationRegistration);
     ~CompositorContextState();
 
     bool has_presented_bitmap_awaiting_ack() const { return presented_bitmap_id_awaiting_ack.has_value(); }
     AsyncScrollOperationID next_async_scroll_operation_id();
     void record_completed_async_scroll_operation(Optional<AsyncScrollOperationID>);
     bool has_pending_async_scroll_updates() const;
-    CompositorThread::PendingAsyncScrollUpdates take_pending_async_scroll_updates();
+    PendingAsyncScrollUpdates take_pending_async_scroll_updates();
     void store_pending_async_scroll_offsets(Vector<AsyncScrollOffset> const&, Optional<AsyncScrollOperationID> = {});
     Optional<Gfx::FloatPoint> reapply_pending_async_scroll_offsets(Vector<AsyncScrollOffset> const&);
 
@@ -77,7 +77,7 @@ public:
     float viewport_scrollbar_thumb_grab_position { 0 };
     AsyncScrollTree async_scroll_tree;
     BackingStoreManager backing_store_manager;
-    CompositorThread::PresentationMode presentation_mode { CompositorThread::PresentToUI {} };
+    PresentationMode presentation_mode { Empty {} };
 
     Optional<i32> presented_bitmap_id_awaiting_ack;
     bool is_rasterizing { false };

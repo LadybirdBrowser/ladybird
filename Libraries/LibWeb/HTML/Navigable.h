@@ -14,7 +14,7 @@
 #include <AK/Tuple.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Bindings/Navigation.h>
-#include <LibWeb/Compositor/CompositorThread.h>
+#include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -231,7 +231,7 @@ public:
     bool has_pending_navigations() const { return !m_pending_navigations.is_empty(); }
     void clear_pending_navigations() { m_pending_navigations.clear(); }
 
-    void record_display_list_and_scroll_state(PaintConfig);
+    bool record_display_list_and_scroll_state(PaintConfig);
     void paint_next_frame();
     void render_screenshot(Gfx::PaintingSurface&, PaintConfig, Function<void()>&& callback);
 
@@ -241,7 +241,7 @@ public:
 
     [[nodiscard]] bool has_inclusive_ancestor_with_visibility_hidden() const;
 
-    Compositor::CompositorThread::Context& compositor_context()
+    Compositor::CompositorContextHandle& compositor_context()
     {
         VERIFY(m_compositor_context);
         return *m_compositor_context;
@@ -269,7 +269,7 @@ protected:
     explicit Navigable(
         GC::Ref<Page>,
         bool is_svg_page,
-        Compositor::CompositorThread::PagePresentationRegistration = Compositor::CompositorThread::PagePresentationRegistration::No);
+        Compositor::PagePresentationRegistration = Compositor::PagePresentationRegistration::No);
 
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;
@@ -286,6 +286,7 @@ private:
 
     void scroll_offset_did_change();
     void clear_compositor_surface();
+    void destroy_compositor_context();
 
     void inform_the_navigation_api_about_aborting_navigation();
     void resolve_async_scroll_operation(Compositor::AsyncScrollOperationID);
@@ -342,7 +343,7 @@ private:
     Optional<PaintConfig> m_rendering_thread_display_list_paint_config;
     Painting::DisplayListResourceStorage m_display_list_resource_storage;
     Painting::DisplayListResourceSet m_rendering_thread_display_list_resources;
-    OwnPtr<Compositor::CompositorThread::Context> m_compositor_context;
+    OwnPtr<Compositor::CompositorContextHandle> m_compositor_context;
     Optional<Painting::CompositorSurfaceId> m_compositor_surface_id;
 
     struct PendingAsyncScrollOperation {

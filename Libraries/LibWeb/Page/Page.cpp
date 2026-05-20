@@ -12,7 +12,7 @@
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/Clipboard/SystemClipboard.h>
-#include <LibWeb/Compositor/CompositorThread.h>
+#include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Range.h>
@@ -49,31 +49,31 @@ Page::Page(GC::Ref<PageClient> client)
 
 Page::~Page() = default;
 
-bool Page::has_compositor_thread() const
+bool Page::has_compositor_host() const
 {
-    return m_client->compositor_thread();
+    return m_client->compositor_host();
 }
 
-void Page::ensure_compositor_thread()
+void Page::ensure_compositor_host()
 {
     if (!m_client->supports_compositor())
         return;
 
-    m_client->ensure_compositor_thread();
+    m_client->ensure_compositor_host();
 }
 
-Compositor::CompositorThread& Page::compositor_thread()
+Compositor::CompositorHost& Page::compositor_host()
 {
-    auto* compositor_thread = m_client->compositor_thread();
-    VERIFY(compositor_thread);
-    return *compositor_thread;
+    auto* compositor_host = m_client->compositor_host();
+    VERIFY(compositor_host);
+    return *compositor_host;
 }
 
-Compositor::CompositorThread const& Page::compositor_thread() const
+Compositor::CompositorHost const& Page::compositor_host() const
 {
-    auto const* compositor_thread = m_client->compositor_thread();
-    VERIFY(compositor_thread);
-    return *compositor_thread;
+    auto const* compositor_host = m_client->compositor_host();
+    VERIFY(compositor_host);
+    return *compositor_host;
 }
 
 void Page::visit_edges(JS::Cell::Visitor& visitor)

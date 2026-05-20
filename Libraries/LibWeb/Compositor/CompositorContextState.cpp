@@ -140,8 +140,8 @@ static void paint_viewport_scrollbars(Gfx::PaintingSurface& surface, ReadonlySpa
         paint_viewport_scrollbar(surface, scrollbars[i], scroll_state_snapshot, hovered_scrollbar_index == i || captured_scrollbar_index == i);
 }
 
-CompositorContextState::CompositorContextState(Optional<u64> page_id, CompositorThread::PagePresentationRegistration page_presentation_registration)
-    : presents_to_client(page_presentation_registration == CompositorThread::PagePresentationRegistration::Yes)
+CompositorContextState::CompositorContextState(Optional<u64> page_id, PagePresentationRegistration page_presentation_registration)
+    : presents_to_client(page_presentation_registration == PagePresentationRegistration::Yes)
     , page_id(page_id)
 {
     VERIFY(!presents_to_client || page_id.has_value());
@@ -166,9 +166,9 @@ bool CompositorContextState::has_pending_async_scroll_updates() const
         || !completed_async_scroll_operation_ids.is_empty();
 }
 
-CompositorThread::PendingAsyncScrollUpdates CompositorContextState::take_pending_async_scroll_updates()
+PendingAsyncScrollUpdates CompositorContextState::take_pending_async_scroll_updates()
 {
-    CompositorThread::PendingAsyncScrollUpdates updates;
+    PendingAsyncScrollUpdates updates;
     AK::swap(updates.scroll_offsets, pending_async_scroll_offsets);
     AK::swap(updates.completed_operation_ids, completed_async_scroll_operation_ids);
     return updates;

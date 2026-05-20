@@ -13,6 +13,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/OwnPtr.h>
 #include <LibGC/Root.h>
+#include <LibIPC/Forward.h>
 #include <WebContent/Forward.h>
 
 namespace Web {
@@ -21,7 +22,7 @@ enum class DisplayListPlayerType;
 
 namespace Compositor {
 
-class CompositorThread;
+class CompositorHost;
 
 }
 
@@ -42,15 +43,16 @@ public:
     void remove_page(Badge<PageClient>, u64 index);
 
     ConnectionFromClient& client() const { return m_client; }
-    void ensure_compositor_thread(Web::DisplayListPlayerType);
-    Web::Compositor::CompositorThread* compositor_thread() { return m_compositor_thread.ptr(); }
-    Web::Compositor::CompositorThread const* compositor_thread() const { return m_compositor_thread.ptr(); }
+    void ensure_compositor_host(Web::DisplayListPlayerType);
+    void attach_compositor_ui_client(IPC::TransportHandle);
+    Web::Compositor::CompositorHost* compositor_host() { return m_compositor_host.ptr(); }
+    Web::Compositor::CompositorHost const* compositor_host() const { return m_compositor_host.ptr(); }
 
 private:
     explicit PageHost(ConnectionFromClient&);
 
     ConnectionFromClient& m_client;
-    OwnPtr<Web::Compositor::CompositorThread> m_compositor_thread;
+    OwnPtr<Web::Compositor::CompositorHost> m_compositor_host;
     HashMap<u64, GC::Root<PageClient>> m_pages;
     u64 m_next_id { 0 };
 };

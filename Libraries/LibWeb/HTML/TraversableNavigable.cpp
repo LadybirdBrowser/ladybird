@@ -38,7 +38,7 @@ TraversableNavigable::TraversableNavigable(GC::Ref<Page> page)
     : Navigable(
           page,
           page->client().is_svg_page_client(),
-          Compositor::CompositorThread::PagePresentationRegistration::Yes)
+          Compositor::PagePresentationRegistration::Yes)
     , m_storage_shed(StorageAPI::StorageShed::create(page->heap()))
     , m_session_history_traversal_queue(vm().heap().allocate<SessionHistoryTraversalQueue>())
 {
@@ -77,7 +77,7 @@ BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(
 GC::Ref<TraversableNavigable> TraversableNavigable::create_a_new_top_level_traversable(GC::Ref<Page> page, GC::Ptr<HTML::BrowsingContext> opener, String target_name)
 {
     auto& vm = Bindings::main_thread_vm();
-    page->ensure_compositor_thread();
+    page->ensure_compositor_host();
 
     // 1. Let document be null.
     GC::Ptr<DOM::Document> document = nullptr;
