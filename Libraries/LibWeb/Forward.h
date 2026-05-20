@@ -1393,16 +1393,6 @@ struct FormDataEntry;
 
 }
 
-namespace IPC {
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::UniqueNodeID const&);
-
-template<>
-WEB_API ErrorOr<Web::UniqueNodeID> decode(Decoder&);
-
-}
-
 namespace Web::TrustedTypes {
 
 class TrustedHTML;
