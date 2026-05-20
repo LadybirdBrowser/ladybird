@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Compositor/BackingStoreManager.h>
-#include <LibWeb/Compositor/CompositorThread.h>
 
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SharedImageBuffer.h>

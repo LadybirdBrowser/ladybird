@@ -100,9 +100,9 @@ public:
 
     virtual Web::DisplayListPlayerType display_list_player_type() const override;
     virtual bool supports_compositor() const override { return true; }
-    virtual void ensure_compositor_thread() override;
-    virtual Web::Compositor::CompositorThread* compositor_thread() override;
-    virtual Web::Compositor::CompositorThread const* compositor_thread() const override;
+    virtual void ensure_compositor_host() override;
+    virtual Web::Compositor::CompositorHost* compositor_host() override;
+    virtual Web::Compositor::CompositorHost const* compositor_host() const override;
 
     void queue_screenshot_task(Optional<Web::UniqueNodeID> node_id);
 

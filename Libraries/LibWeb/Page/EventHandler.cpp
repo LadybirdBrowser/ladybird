@@ -547,8 +547,8 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
             auto device_pixels_per_css_pixel = static_cast<float>(m_navigable->page().client().device_pixels_per_css_pixel());
             auto async_scroll_delta_in_device_pixels = async_scroll_delta.scaled(device_pixels_per_css_pixel);
             auto operation_tracking = async_scroll_operation
-                ? Compositor::CompositorThread::AsyncScrollOperationTracking::Yes
-                : Compositor::CompositorThread::AsyncScrollOperationTracking::No;
+                ? Compositor::AsyncScrollOperationTracking::Yes
+                : Compositor::AsyncScrollOperationTracking::No;
             auto enqueue_result = m_navigable->compositor_context().async_scroll_by(
                 document->unique_id(), async_scroll_position, async_scroll_delta_in_device_pixels, viewport_rect, operation_tracking);
             async_scroll_performed_default_action = enqueue_result.accepted;

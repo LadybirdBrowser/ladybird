@@ -1013,19 +1013,19 @@ Web::DisplayListPlayerType PageClient::display_list_player_type() const
     }
 }
 
-void PageClient::ensure_compositor_thread()
+void PageClient::ensure_compositor_host()
 {
-    m_owner.ensure_compositor_thread(display_list_player_type());
+    m_owner.ensure_compositor_host(display_list_player_type());
 }
 
-Web::Compositor::CompositorThread* PageClient::compositor_thread()
+Web::Compositor::CompositorHost* PageClient::compositor_host()
 {
-    return m_owner.compositor_thread();
+    return m_owner.compositor_host();
 }
 
-Web::Compositor::CompositorThread const* PageClient::compositor_thread() const
+Web::Compositor::CompositorHost const* PageClient::compositor_host() const
 {
-    return m_owner.compositor_thread();
+    return m_owner.compositor_host();
 }
 
 void PageClient::queue_screenshot_task(Optional<Web::UniqueNodeID> node_id)

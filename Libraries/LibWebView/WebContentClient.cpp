@@ -63,17 +63,25 @@ static HashMap<WebContentClient*, NonnullRefPtr<CompositorConnectionToServer>>& 
     return *connections;
 }
 
+static bool try_notify_presented_bitmap_ready_to_paint(WebContentClient& web_content_client, u64 page_id, i32 bitmap_id)
+{
+    auto connection = compositor_connections().get(&web_content_client);
+    if (!connection.has_value() || !connection.value()->is_open())
+        return false;
+
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI sending compositor ready_to_paint for page {} bitmap {}",
+        page_id, bitmap_id);
+    connection.value()->async_ready_to_paint(page_id, bitmap_id);
+    return true;
+}
+
 static void initialize_compositor_connection(WebContentClient& web_content_client)
 {
-    auto paired_transport = IPC::Transport::create_paired();
-    if (paired_transport.is_error()) {
-        dbgln("Failed to create compositor IPC transport: {}", paired_transport.error());
-        return;
-    }
+    auto paired_transport = MUST(IPC::Transport::create_paired());
 
-    auto connection = CompositorConnectionToServer::construct(web_content_client, move(paired_transport.value().local));
+    auto connection = CompositorConnectionToServer::construct(web_content_client, move(paired_transport.local));
     compositor_connections().set(&web_content_client, connection);
-    web_content_client.async_connect_to_compositor(move(paired_transport.value().remote_handle));
+    web_content_client.async_connect_to_compositor(move(paired_transport.remote_handle));
 }
 
 static Optional<String> history_title(Utf16String const& title, URL::URL const& url)
@@ -165,11 +173,8 @@ void WebContentClient::notify_all_views_of_crash()
 bool WebContentClient::send_async_scroll_to_compositor(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels)
 {
     auto connection = compositor_connections().get(this);
-    if (!connection.has_value() || !connection.value()->is_open()) {
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC unavailable for page {} (connection={}, open={})",
-            page_id, connection.has_value(), connection.has_value() && connection.value()->is_open());
-        return false;
-    }
+    VERIFY(connection.has_value());
+    VERIFY(connection.value()->is_open());
 
     auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
     auto handled = connection.value()->async_scroll_by(page_id, position, delta_in_device_pixels);
@@ -181,11 +186,8 @@ bool WebContentClient::send_async_scroll_to_compositor(u64 page_id, Gfx::FloatPo
 bool WebContentClient::send_mouse_event_to_compositor(u64 page_id, Web::MouseEvent const& event)
 {
     auto connection = compositor_connections().get(this);
-    if (!connection.has_value() || !connection.value()->is_open()) {
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC unavailable for page {} (connection={}, open={})",
-            page_id, connection.has_value(), connection.has_value() && connection.value()->is_open());
-        return false;
-    }
+    VERIFY(connection.has_value());
+    VERIFY(connection.value()->is_open());
 
     auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
     auto handled = connection.value()->mouse_event(page_id, event.clone_without_browser_data());
@@ -196,15 +198,7 @@ bool WebContentClient::send_mouse_event_to_compositor(u64 page_id, Web::MouseEve
 
 void WebContentClient::notify_presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_id)
 {
-    auto connection = compositor_connections().get(this);
-    if (!connection.has_value() || !connection.value()->is_open()) {
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC unavailable for ready_to_paint page {} bitmap {} (connection={}, open={})",
-            page_id, bitmap_id, connection.has_value(), connection.has_value() && connection.value()->is_open());
-        return;
-    }
-    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI sending compositor ready_to_paint for page {} bitmap {}",
-        page_id, bitmap_id);
-    connection.value()->async_ready_to_paint(page_id, bitmap_id);
+    VERIFY(try_notify_presented_bitmap_ready_to_paint(*this, page_id, bitmap_id));
 }
 
 void WebContentClient::did_present_bitmap(u64 page_id, Gfx::IntRect rect, i32 bitmap_id)
@@ -216,7 +210,7 @@ void WebContentClient::did_present_bitmap(u64 page_id, Gfx::IntRect rect, i32 bi
     } else {
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI dropping did_paint for page {} bitmap {}: no view",
             page_id, bitmap_id);
-        notify_presented_bitmap_ready_to_paint(page_id, bitmap_id);
+        try_notify_presented_bitmap_ready_to_paint(*this, page_id, bitmap_id);
     }
 }
 

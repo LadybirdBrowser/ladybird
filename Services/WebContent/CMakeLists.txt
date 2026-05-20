@@ -6,6 +6,7 @@ set(SOURCES
     DevToolsConsoleClient.cpp
     PageClient.cpp
     PageHost.cpp
+    WebContentCompositorHost.cpp
     WebContentConsoleClient.cpp
     WebDriverConnection.cpp
     WebUIConnection.cpp
@@ -48,6 +49,7 @@ target_sources(webcontentservice PUBLIC FILE_SET server TYPE HEADERS
           ConsoleGlobalEnvironmentExtensions.h
           Forward.h
           PageHost.h
+          WebContentCompositorHost.h
           WebContentConsoleClient.h
           WebDriverConnection.h
 )
