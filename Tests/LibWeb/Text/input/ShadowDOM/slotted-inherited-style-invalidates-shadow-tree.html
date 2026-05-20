@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+
+<outer-host id="outer">
+    <inner-host id="inner" slot="menu">
+        <div id="item" slot="items">item</div>
+    </inner-host>
+</outer-host>
+
+<script>
+    customElements.define("outer-host", class extends HTMLElement {
+        constructor() {
+            super();
+            this.attachShadow({ mode: "open" }).innerHTML = `
+                <article id="container" style="visibility: hidden">
+                    <slot id="outer-slot" name="menu"></slot>
+                </article>
+            `;
+        }
+    });
+
+    customElements.define("inner-host", class extends HTMLElement {
+        constructor() {
+            super();
+            this.attachShadow({ mode: "open" }).innerHTML = `
+                <ul id="list">
+                    <slot id="inner-slot" name="items"></slot>
+                </ul>
+            `;
+        }
+    });
+
+    test(() => {
+        const outer = document.getElementById("outer");
+        const inner = document.getElementById("inner");
+        const item = document.getElementById("item");
+        const container = outer.shadowRoot.getElementById("container");
+        const outerSlot = outer.shadowRoot.getElementById("outer-slot");
+        const list = inner.shadowRoot.getElementById("list");
+        const innerSlot = inner.shadowRoot.getElementById("inner-slot");
+
+        println(`initial container visibility: ${getComputedStyle(container).visibility}`);
+        println(`initial item visibility: ${getComputedStyle(item).visibility}`);
+
+        container.style.visibility = "visible";
+
+        println(`opened outer slot visibility: ${getComputedStyle(outerSlot).visibility}`);
+        println(`opened inner host visibility: ${getComputedStyle(inner).visibility}`);
+        println(`opened inner shadow child visibility: ${getComputedStyle(list).visibility}`);
+        println(`opened inner shadow slot visibility: ${getComputedStyle(innerSlot).visibility}`);
+        println(`opened slotted item visibility: ${getComputedStyle(item).visibility}`);
+    });
+</script>

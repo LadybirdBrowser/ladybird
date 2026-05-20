@@ -1,0 +1,7 @@
+initial container visibility: hidden
+initial item visibility: hidden
+opened outer slot visibility: visible
+opened inner host visibility: visible
+opened inner shadow child visibility: visible
+opened inner shadow slot visibility: hidden
+opened slotted item visibility: hidden
