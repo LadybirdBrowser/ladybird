@@ -513,6 +513,8 @@ void Tab::location_edit_return_pressed()
         navigate(*url);
     else
         view().load_navigation_error_page(ak_string_from_qstring(text));
+
+    view().setFocus();
 }
 
 QIcon Tab::tab_icon() const
