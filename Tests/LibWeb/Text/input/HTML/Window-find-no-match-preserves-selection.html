@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div>findable text</div>
+<script>
+    test(() => {
+        const selection = window.getSelection();
+
+        const foundResult = window.find("findable");
+        println(`window.find("findable"): ${foundResult}, rangeCount: ${selection.rangeCount}`);
+
+        const missingResult = window.find("nonexistent");
+        println(`window.find("nonexistent"): ${missingResult}, rangeCount: ${selection.rangeCount}`);
+    });
+</script>

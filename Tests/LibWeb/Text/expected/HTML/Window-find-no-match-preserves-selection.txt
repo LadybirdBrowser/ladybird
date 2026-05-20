@@ -1,0 +1,2 @@
+window.find("findable"): true, rangeCount: 1
+window.find("nonexistent"): false, rangeCount: 1
