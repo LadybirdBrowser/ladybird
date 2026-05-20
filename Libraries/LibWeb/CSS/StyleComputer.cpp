@@ -2117,6 +2117,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
         if (property_id == PropertyID::FontSize && !value && new_font_size)
             continue;
 
+        bool const explicitly_inherits_non_inherited_property = value && value->is_inherit() && !is_inherited_property(property_id);
         bool should_inherit = (!value && is_inherited_property(property_id));
 
         // https://www.w3.org/TR/css-cascade-4/#inherit
@@ -2132,6 +2133,8 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
         should_inherit |= property_id == PropertyID::Color && value && value->to_keyword() == Keyword::Currentcolor;
 
         if (should_inherit && computed_properties_to_inherit_from) {
+            if (explicitly_inherits_non_inherited_property)
+                abstract_element.element().set_subtree_may_depend_on_non_inherited_property_inheritance();
             computed_style->set_property_inherited(property_id, ComputedProperties::Inherited::Yes);
             value = computed_properties_to_inherit_from->property(inherited_property_id, ComputedProperties::WithAnimationsApplied::No);
             requires_computation = property_requires_computation_with_inherited_value(property_id);

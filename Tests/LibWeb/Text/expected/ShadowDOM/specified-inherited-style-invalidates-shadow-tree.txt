@@ -1,0 +1,10 @@
+inline initial child color: rgb(255, 0, 0)
+inline initial grandchild color: rgb(255, 0, 0)
+inline changed child color: rgb(0, 128, 0)
+inline changed grandchild color: rgb(0, 128, 0)
+class initial child color: rgb(255, 0, 0)
+class changed child color: rgb(0, 128, 0)
+relative initial child font-size: 20px
+relative changed child font-size: 40px
+explicit inherit initial child margin-left: 11px
+explicit inherit changed child margin-left: 27px
