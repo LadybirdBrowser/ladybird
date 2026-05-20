@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Platform.h>
 #include <AK/ScopeGuard.h>
 #include <ImageDecoder/Sandbox.h>
 #include <errno.h>
@@ -293,7 +294,7 @@ ErrorOr<void> install_no_new_privileges()
 
 ErrorOr<void> configure_runtime_for_sandbox()
 {
-#if defined(__GLIBC__) && defined(M_ARENA_MAX)
+#if defined(__GLIBC__) && defined(M_ARENA_MAX) && !defined(HAS_ADDRESS_SANITIZER)
     if (mallopt(M_ARENA_MAX, 4) == 0)
         return Error::from_string_literal("mallopt(M_ARENA_MAX) failed");
 #endif
