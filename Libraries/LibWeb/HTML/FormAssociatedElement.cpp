@@ -1219,6 +1219,34 @@ void FormAssociatedTextControlElement::move_cursor_to_end(CollapseSelection coll
     selection_was_changed(SelectionSource::UI);
 }
 
+void FormAssociatedTextControlElement::move_cursor_to_start_of_current_line(CollapseSelection collapse)
+{
+    auto text_node = form_associated_element_to_text_node();
+    if (!text_node)
+        return;
+    auto new_offset = find_line_start(text_node->data().utf16_view(), m_selection_end);
+    if (collapse == CollapseSelection::Yes) {
+        collapse_selection_to_offset(new_offset);
+    } else {
+        m_selection_end = new_offset;
+    }
+    selection_was_changed(SelectionSource::UI);
+}
+
+void FormAssociatedTextControlElement::move_cursor_to_end_of_current_line(CollapseSelection collapse)
+{
+    auto text_node = form_associated_element_to_text_node();
+    if (!text_node)
+        return;
+    auto new_offset = find_line_end(text_node->data().utf16_view(), m_selection_end);
+    if (collapse == CollapseSelection::Yes) {
+        collapse_selection_to_offset(new_offset);
+    } else {
+        m_selection_end = new_offset;
+    }
+    selection_was_changed(SelectionSource::UI);
+}
+
 void FormAssociatedTextControlElement::increment_cursor_position_offset(CollapseSelection collapse)
 {
     auto const text_node = form_associated_element_to_text_node();

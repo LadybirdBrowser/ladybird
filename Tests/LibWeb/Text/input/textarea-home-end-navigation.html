@@ -26,5 +26,13 @@ test(() => {
     textarea.setSelectionRange(12, 12);
     internals.sendKey(textarea, "End", internals.MOD_SHIFT);
     reportSelection("Shift+End from middle line");
+
+    textarea.setSelectionRange(12, 12);
+    internals.sendKey(textarea, "Home", internals.MOD_CTRL);
+    reportSelection("Ctrl+Home from middle line");
+
+    textarea.setSelectionRange(12, 12);
+    internals.sendKey(textarea, "End", internals.MOD_CTRL);
+    reportSelection("Ctrl+End from middle line");
 });
 </script>
