@@ -149,8 +149,6 @@ ErrorOr<FloatMatrix4x4> TransformationStyleValue::to_matrix(Optional<Painting::P
     auto get_value = [&](size_t argument_index, Optional<CSSPixels> reference_length = {}) -> ErrorOr<float> {
         auto& transformation_value = *m_properties.values[argument_index];
         CalculationResolutionContext context;
-        if (paintable_box.has_value())
-            context.length_resolution_context = Length::ResolutionContext::for_layout_node(paintable_box->layout_node());
         if (reference_length.has_value())
             context.percentage_basis = Length::make_px(reference_length.value());
 
