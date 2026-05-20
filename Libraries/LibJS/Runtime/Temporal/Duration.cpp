@@ -847,8 +847,8 @@ Crypto::BigFraction total_time_duration(TimeDuration const& time_duration, Unit 
 // 7.5.33 ComputeNudgeWindow ( sign, duration, originEpochNs, isoDateTime, timeZone, calendar, increment, unit, additionalShift ), https://tc39.es/proposal-temporal/#sec-temporal-computenudgewindow
 ThrowCompletionOr<NudgeWindow> compute_nudge_window(VM& vm, i8 sign, InternalDuration const& duration, Crypto::SignedBigInteger const& origin_epoch_ns, ISODateTime const& iso_date_time, Optional<String const&> time_zone, String const& calendar, u64 increment, Unit unit, bool additional_shift)
 {
-    DateDuration start_duration;
-    DateDuration end_duration;
+    DateDuration start_date_duration;
+    DateDuration end_date_duration;
 
     double r1 = 0;
     double r2 = 0;
@@ -870,10 +870,10 @@ ThrowCompletionOr<NudgeWindow> compute_nudge_window(VM& vm, i8 sign, InternalDur
         r2 = r1 + signed_increment;
 
         // e. Let startDuration be ? CreateDateDurationRecord(r1, 0, 0, 0).
-        start_duration = TRY(create_date_duration_record(vm, r1, 0, 0, 0));
+        start_date_duration = TRY(create_date_duration_record(vm, r1, 0, 0, 0));
 
         // f. Let endDuration be ? CreateDateDurationRecord(r2, 0, 0, 0).
-        end_duration = TRY(create_date_duration_record(vm, r2, 0, 0, 0));
+        end_date_duration = TRY(create_date_duration_record(vm, r2, 0, 0, 0));
     }
     // 2. Else if unit is MONTH, then
     else if (unit == Unit::Month) {
@@ -890,10 +890,10 @@ ThrowCompletionOr<NudgeWindow> compute_nudge_window(VM& vm, i8 sign, InternalDur
         r2 = r1 + signed_increment;
 
         // e. Let startDuration be ? AdjustDateDurationRecord(duration.[[Date]], 0, 0, r1).
-        start_duration = TRY(adjust_date_duration_record(vm, duration.date, 0, 0, r1));
+        start_date_duration = TRY(adjust_date_duration_record(vm, duration.date, 0, 0, r1));
 
         // f. Let endDuration be ? AdjustDateDurationRecord(duration.[[Date]], 0, 0, r2).
-        end_duration = TRY(adjust_date_duration_record(vm, duration.date, 0, 0, r2));
+        end_date_duration = TRY(adjust_date_duration_record(vm, duration.date, 0, 0, r2));
     }
     // 3. Else if unit is WEEK, then
     else if (unit == Unit::Week) {
@@ -919,10 +919,10 @@ ThrowCompletionOr<NudgeWindow> compute_nudge_window(VM& vm, i8 sign, InternalDur
         r2 = weeks + signed_increment;
 
         // h. Let startDuration be ? AdjustDateDurationRecord(duration.[[Date]], 0, r1).
-        start_duration = TRY(adjust_date_duration_record(vm, duration.date, 0, r1));
+        start_date_duration = TRY(adjust_date_duration_record(vm, duration.date, 0, r1));
 
         // i. Let endDuration be ? AdjustDateDurationRecord(duration.[[Date]], 0, r2).
-        end_duration = TRY(adjust_date_duration_record(vm, duration.date, 0, r2));
+        end_date_duration = TRY(adjust_date_duration_record(vm, duration.date, 0, r2));
     }
     // 4. Else,
     else {
@@ -939,10 +939,10 @@ ThrowCompletionOr<NudgeWindow> compute_nudge_window(VM& vm, i8 sign, InternalDur
         r2 = days + signed_increment;
 
         // e. Let startDuration be ? AdjustDateDurationRecord(duration.[[Date]], r1).
-        start_duration = TRY(adjust_date_duration_record(vm, duration.date, r1));
+        start_date_duration = TRY(adjust_date_duration_record(vm, duration.date, r1));
 
         // f. Let endDuration be ? AdjustDateDurationRecord(duration.[[Date]], r2).
-        end_duration = TRY(adjust_date_duration_record(vm, duration.date, r2));
+        end_date_duration = TRY(adjust_date_duration_record(vm, duration.date, r2));
     }
 
     // 5. Assert: If sign = 1, r1 ≥ 0 and r1 < r2.
@@ -963,7 +963,7 @@ ThrowCompletionOr<NudgeWindow> compute_nudge_window(VM& vm, i8 sign, InternalDur
     // 8. Else,
     else {
         // a. Let start be ? CalendarDateAdd(calendar, isoDateTime.[[ISODate]], startDuration, CONSTRAIN).
-        auto start = TRY(calendar_date_add(vm, calendar, iso_date_time.iso_date, start_duration, Overflow::Constrain));
+        auto start = TRY(calendar_date_add(vm, calendar, iso_date_time.iso_date, start_date_duration, Overflow::Constrain));
 
         // b. Let startDateTime be CombineISODateAndTimeRecord(start, isoDateTime.[[Time]]).
         auto start_date_time = combine_iso_date_and_time_record(start, iso_date_time.time);
@@ -981,7 +981,7 @@ ThrowCompletionOr<NudgeWindow> compute_nudge_window(VM& vm, i8 sign, InternalDur
     }
 
     // 9. Let end be ? CalendarDateAdd(calendar, isoDateTime.[[ISODate]], endDuration, CONSTRAIN).
-    auto end = TRY(calendar_date_add(vm, calendar, iso_date_time.iso_date, end_duration, Overflow::Constrain));
+    auto end = TRY(calendar_date_add(vm, calendar, iso_date_time.iso_date, end_date_duration, Overflow::Constrain));
 
     // 10. Let endDateTime be CombineISODateAndTimeRecord(end, isoDateTime.[[Time]]).
     auto end_date_time = combine_iso_date_and_time_record(end, iso_date_time.time);
@@ -997,8 +997,14 @@ ThrowCompletionOr<NudgeWindow> compute_nudge_window(VM& vm, i8 sign, InternalDur
         end_epoch_ns = TRY(get_epoch_nanoseconds_for(vm, *time_zone, end_date_time, Disambiguation::Compatible));
     }
 
-    // 13. Return the Record { [[R1]]: r1, [[R2]]: r2, [[StartEpochNs]]: startEpochNs, [[EndEpochNs]]: endEpochNs, [[StartDuration]]: startDuration, [[EndDuration]]: endDuration }.
-    return NudgeWindow { r1, r2, move(start_epoch_ns), move(end_epoch_ns), start_duration, end_duration };
+    // 13. Let startDuration be CombineDateAndTimeDuration(startDateDuration, 0).
+    auto start_duration = combine_date_and_time_duration(start_date_duration, TimeDuration { 0 });
+
+    // 14. Let endDuration be CombineDateAndTimeDuration(endDateDuration, 0).
+    auto end_duration = combine_date_and_time_duration(end_date_duration, TimeDuration { 0 });
+
+    // 15. Return the Record { [[R1]]: r1, [[R2]]: r2, [[StartEpochNs]]: startEpochNs, [[EndEpochNs]]: endEpochNs, [[StartDuration]]: startDuration, [[EndDuration]]: endDuration }.
+    return NudgeWindow { r1, r2, move(start_epoch_ns), move(end_epoch_ns), move(start_duration), move(end_duration) };
 }
 
 // 7.5.34 NudgeToCalendarUnit ( sign, duration, originEpochNs, destEpochNs, isoDateTime, timeZone, calendar, increment, unit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-nudgetocalendarunit
@@ -1064,10 +1070,10 @@ ThrowCompletionOr<CalendarNudgeResult> nudge_to_calendar_unit(VM& vm, i8 sign, I
     // 10. Set endEpochNs to nudgeWindow.[[StartEpochNs]].
 
     // 11. Let startDuration be nudgeWindow.[[StartDuration]].
-    auto start_duration = nudge_window.start_duration;
+    auto start_duration = move(nudge_window.start_duration);
 
     // 12. Let endDuration be nudgeWindow.[[EndDuration]].
-    auto end_duration = nudge_window.end_duration;
+    auto end_duration = move(nudge_window.end_duration);
 
     // 13. Assert: startEpochNs ≠ endEpochNs.
     VERIFY(start_epoch_ns != end_epoch_ns);
@@ -1119,7 +1125,7 @@ ThrowCompletionOr<CalendarNudgeResult> nudge_to_calendar_unit(VM& vm, i8 sign, I
         rounded_unit = apply_unsigned_rounding_mode(fabs(total), fabs(r1), fabs(r2), unsigned_rounding_mode);
     }
 
-    DateDuration result_duration;
+    InternalDuration result_duration;
     Crypto::SignedBigInteger nudged_epoch_ns;
 
     // 22. If roundedUnit is abs(r2), then
@@ -1128,7 +1134,7 @@ ThrowCompletionOr<CalendarNudgeResult> nudge_to_calendar_unit(VM& vm, i8 sign, I
         did_expand_calendar_unit = true;
 
         // b. Let resultDuration be endDuration.
-        result_duration = end_duration;
+        result_duration = move(end_duration);
 
         // c. Let nudgedEpochNs be endEpochNs.
         nudged_epoch_ns = move(end_epoch_ns);
@@ -1136,19 +1142,16 @@ ThrowCompletionOr<CalendarNudgeResult> nudge_to_calendar_unit(VM& vm, i8 sign, I
     // 23. Else,
     else {
         // a. Let resultDuration be startDuration.
-        result_duration = start_duration;
+        result_duration = move(start_duration);
 
         // b. Let nudgedEpochNs be startEpochNs.
         nudged_epoch_ns = move(start_epoch_ns);
     }
 
-    // 24. Set resultDuration to CombineDateAndTimeDuration(resultDuration, 0).
-    auto result_date_and_time_duration = combine_date_and_time_duration(result_duration, TimeDuration { 0 });
+    // 24. Let nudgeResult be Duration Nudge Result Record { [[Duration]]: resultDuration, [[NudgedEpochNs]]: nudgedEpochNs, [[DidExpandCalendarUnit]]: didExpandCalendarUnit }.
+    DurationNudgeResult nudge_result { .duration = move(result_duration), .nudged_epoch_ns = move(nudged_epoch_ns), .did_expand_calendar_unit = did_expand_calendar_unit };
 
-    // 25. Let nudgeResult be Duration Nudge Result Record { [[Duration]]: resultDuration, [[NudgedEpochNs]]: nudgedEpochNs, [[DidExpandCalendarUnit]]: didExpandCalendarUnit }.
-    DurationNudgeResult nudge_result { .duration = move(result_date_and_time_duration), .nudged_epoch_ns = move(nudged_epoch_ns), .did_expand_calendar_unit = did_expand_calendar_unit };
-
-    // 26. Return the Record { [[NudgeResult]]: nudgeResult, [[Total]]: total }.
+    // 25. Return the Record { [[NudgeResult]]: nudgeResult, [[Total]]: total }.
     return CalendarNudgeResult { .nudge_result = move(nudge_result), .total = move(total_mv) };
 }
 
