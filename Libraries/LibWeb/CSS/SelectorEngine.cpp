@@ -710,8 +710,7 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         // FIXME: Match pseudo-elements
         if (target.pseudo_element().has_value())
             return false;
-        auto focused_area = target.document().focused_area();
-        return focused_area && target.element().is_inclusive_ancestor_of(*focused_area);
+        return target.element().matches_focus_within_pseudo_class();
     }
     case CSS::PseudoClass::Fullscreen: {
         if (target.pseudo_element().has_value())

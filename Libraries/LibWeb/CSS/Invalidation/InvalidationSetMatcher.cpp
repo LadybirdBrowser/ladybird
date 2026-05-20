@@ -87,12 +87,8 @@ bool element_matches_any_invalidation_set_property(DOM::Element const& element, 
                 return element.is_focused();
             case PseudoClass::FocusVisible:
                 return element.is_focused() && element.should_indicate_focus();
-            case PseudoClass::FocusWithin: {
-                auto focused_area = element.document().focused_area();
-                if (!focused_area)
-                    return false;
-                return element.is_inclusive_ancestor_of(*focused_area);
-            }
+            case PseudoClass::FocusWithin:
+                return element.matches_focus_within_pseudo_class();
             case PseudoClass::Active:
                 return element.is_being_activated();
             case PseudoClass::Target:

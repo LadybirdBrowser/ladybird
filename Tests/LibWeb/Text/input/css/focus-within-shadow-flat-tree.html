@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function state(element, pseudoElement = null) {
+        return getComputedStyle(element, pseudoElement).getPropertyValue("--state") || "none";
+    }
+
+    test(() => {
+        const host = document.createElement("div");
+        const lightInput = document.createElement("input");
+        host.appendChild(lightInput);
+        document.body.appendChild(host);
+
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `
+            <style>
+                :host(:focus-within)::before { content: ""; --state: host; }
+                :host(:focus-within) #shadow-target { --state: shadow-target; }
+                ::slotted(:focus) { --state: slotted; }
+            </style>
+            <span id="shadow-target"></span>
+            <slot></slot>
+        `;
+
+        const shadowTarget = shadowRoot.getElementById("shadow-target");
+
+        println(`host before light input focus: ${state(host, "::before")}`);
+        println(`shadow target before light input focus: ${state(shadowTarget)}`);
+        println(`slotted input before light input focus: ${state(lightInput)}`);
+
+        lightInput.focus();
+
+        println(`host after light input focus: ${state(host, "::before")}`);
+        println(`shadow target after light input focus: ${state(shadowTarget)}`);
+        println(`slotted input after light input focus: ${state(lightInput)}`);
+
+        lightInput.blur();
+
+        println(`host after light input blur: ${state(host, "::before")}`);
+        println(`shadow target after light input blur: ${state(shadowTarget)}`);
+        println(`slotted input after light input blur: ${state(lightInput)}`);
+
+        const shadowInput = document.createElement("input");
+        shadowRoot.appendChild(shadowInput);
+        shadowInput.focus();
+
+        println(`host after shadow input focus: ${state(host, "::before")}`);
+        println(`shadow target after shadow input focus: ${state(shadowTarget)}`);
+    });
+</script>

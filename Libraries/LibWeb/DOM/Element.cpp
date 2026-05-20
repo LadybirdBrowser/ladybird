@@ -1891,6 +1891,19 @@ bool Element::matches_local_link_pseudo_class() const
     return document_url.equals(*target_url, URL::ExcludeFragment::Yes);
 }
 
+bool Element::matches_focus_within_pseudo_class() const
+{
+    auto focused_area = document().focused_area();
+    if (!focused_area)
+        return false;
+
+    for (auto const* node = focused_area.ptr(); node; node = node->flat_tree_parent()) {
+        if (node == this)
+            return true;
+    }
+    return false;
+}
+
 bool Element::has_pseudo_elements() const
 {
     if (m_pseudo_element_data) {
