@@ -10,6 +10,7 @@
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibRequests/RequestClient.h>
 #include <LibURL/Origin.h>
+#include <LibWeb/Bindings/MessageEvent.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/WebSocket.h>
 #include <LibWeb/DOM/Document.h>
@@ -23,6 +24,7 @@
 #include <LibWeb/HTML/EventHandler.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/MessageEvent.h>
+#include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
@@ -303,7 +305,7 @@ WebIDL::ExceptionOr<void> WebSocket::close(Optional<u16> code, Optional<String> 
 }
 
 // https://websockets.spec.whatwg.org/#dom-websocket-send
-WebIDL::ExceptionOr<void> WebSocket::send(Variant<GC::Root<WebIDL::BufferSource>, GC::Root<FileAPI::Blob>, String> const& data)
+WebIDL::ExceptionOr<void> WebSocket::send(Variant<GC::Ref<WebIDL::BufferSource>, GC::Ref<FileAPI::Blob>, String> const& data)
 {
     auto state = ready_state();
     if (state == Requests::WebSocket::ReadyState::Connecting)
@@ -313,7 +315,7 @@ WebIDL::ExceptionOr<void> WebSocket::send(Variant<GC::Root<WebIDL::BufferSource>
             [this](String const& string) {
                 m_websocket->send(string);
             },
-            [this](GC::Root<WebIDL::BufferSource> const& buffer_source) {
+            [this](GC::Ref<WebIDL::BufferSource> buffer_source) {
                 ReadonlyBytes buffer;
 
                 if (auto array_buffer = buffer_source->viewed_array_buffer(); array_buffer && !array_buffer->is_detached())
@@ -321,7 +323,7 @@ WebIDL::ExceptionOr<void> WebSocket::send(Variant<GC::Root<WebIDL::BufferSource>
 
                 m_websocket->send(buffer, false);
             },
-            [this](GC::Root<FileAPI::Blob> const& blob) {
+            [this](GC::Ref<FileAPI::Blob> blob) {
                 m_websocket->send(blob->raw_bytes(), false);
             });
         // TODO : If the data cannot be sent, e.g. because it would need to be buffered but the buffer is full, the user agent must flag the WebSocket as full and then close the WebSocket connection.

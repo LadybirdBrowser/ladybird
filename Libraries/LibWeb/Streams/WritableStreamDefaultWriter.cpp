@@ -52,7 +52,7 @@ GC::Ptr<WebIDL::Promise> WritableStreamDefaultWriter::ready()
 }
 
 // https://streams.spec.whatwg.org/#default-writer-abort
-GC::Ref<WebIDL::Promise> WritableStreamDefaultWriter::abort(JS::Value reason)
+GC::Ref<WebIDL::Promise> WritableStreamDefaultWriter::abort(Optional<JS::Value> reason)
 {
     auto& realm = this->realm();
 
@@ -63,7 +63,7 @@ GC::Ref<WebIDL::Promise> WritableStreamDefaultWriter::abort(JS::Value reason)
     }
 
     // 2. Return ! WritableStreamDefaultWriterAbort(this, reason).
-    return writable_stream_default_writer_abort(*this, reason);
+    return writable_stream_default_writer_abort(*this, reason.value_or(JS::js_undefined()));
 }
 
 // https://streams.spec.whatwg.org/#default-writer-close
@@ -106,7 +106,7 @@ void WritableStreamDefaultWriter::release_lock()
 }
 
 // https://streams.spec.whatwg.org/#default-writer-write
-GC::Ref<WebIDL::Promise> WritableStreamDefaultWriter::write(JS::Value chunk)
+GC::Ref<WebIDL::Promise> WritableStreamDefaultWriter::write(Optional<JS::Value> chunk)
 {
     auto& realm = this->realm();
 
@@ -117,7 +117,7 @@ GC::Ref<WebIDL::Promise> WritableStreamDefaultWriter::write(JS::Value chunk)
     }
 
     // 2. Return ! WritableStreamDefaultWriterWrite(this, chunk).
-    return writable_stream_default_writer_write(*this, chunk);
+    return writable_stream_default_writer_write(*this, chunk.value_or(JS::js_undefined()));
 }
 
 WritableStreamDefaultWriter::WritableStreamDefaultWriter(JS::Realm& realm)

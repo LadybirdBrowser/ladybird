@@ -47,12 +47,12 @@ public:
         Errored,
     };
 
-    static WebIDL::ExceptionOr<GC::Ref<WritableStream>> construct_impl(JS::Realm& realm, Optional<GC::Root<JS::Object>> const& underlying_sink, Bindings::QueuingStrategy const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<WritableStream>> construct_impl(JS::Realm& realm, GC::Ptr<JS::Object> underlying_sink, Bindings::QueuingStrategy const& = {});
 
     virtual ~WritableStream() = default;
 
     bool locked() const;
-    GC::Ref<WebIDL::Promise> abort(JS::Value reason);
+    GC::Ref<WebIDL::Promise> abort(Optional<JS::Value> reason);
     GC::Ref<WebIDL::Promise> close();
     WebIDL::ExceptionOr<GC::Ref<WritableStreamDefaultWriter>> get_writer();
 

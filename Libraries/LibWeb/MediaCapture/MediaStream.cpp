@@ -31,7 +31,7 @@ GC::Ref<MediaStream> MediaStream::create(JS::Realm& realm)
 }
 
 // https://w3c.github.io/mediacapture-main/#mediastream
-GC::Ref<MediaStream> MediaStream::construct_impl(JS::Realm& realm, Vector<GC::Root<MediaStreamTrack>> const& tracks)
+GC::Ref<MediaStream> MediaStream::construct_impl(JS::Realm& realm, ReadonlySpan<GC::Ref<MediaStreamTrack>> const& tracks)
 {
     // 1. Let stream be a newly constructed MediaStream object.
     // 2. Initialize stream.id attribute to a newly generated value.
@@ -120,8 +120,7 @@ void MediaStream::add_track(GC::Ref<MediaStreamTrack> track)
     m_tracks.append(track);
 
     // 4. Fire a track event named addtrack with track at stream.
-    Bindings::MediaStreamTrackEventInit event_init {};
-    event_init.track = track;
+    Bindings::MediaStreamTrackEventInit event_init { Bindings::EventInit {}, track };
     auto event = MediaStreamTrackEvent::create(realm(), HTML::EventNames::addtrack, event_init);
     dispatch_event(event);
 }
@@ -139,8 +138,7 @@ void MediaStream::remove_track(GC::Ref<MediaStreamTrack> track)
         return;
 
     // 4. Fire a track event named removetrack with track at stream.
-    Bindings::MediaStreamTrackEventInit event_init;
-    event_init.track = track;
+    Bindings::MediaStreamTrackEventInit event_init { Bindings::EventInit {}, track };
     auto event = MediaStreamTrackEvent::create(realm(), HTML::EventNames::removetrack, event_init);
     dispatch_event(event);
 }

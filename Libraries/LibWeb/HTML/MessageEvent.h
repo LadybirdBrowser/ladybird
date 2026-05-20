@@ -9,7 +9,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
-#include <LibWeb/Bindings/MessageEvent.h>
+#include <LibGC/RootVector.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Export.h>
 
@@ -17,8 +17,8 @@ namespace Web::HTML {
 
 // FIXME: Include ServiceWorker
 // https://html.spec.whatwg.org/multipage/comms.html#messageeventsource
-using MessageEventSource = Variant<GC::Root<WindowProxy>, GC::Root<MessagePort>>;
-using NullableMessageEventSource = Variant<GC::Root<WindowProxy>, GC::Root<MessagePort>, Empty>;
+using MessageEventSource = Variant<GC::Ref<WindowProxy>, GC::Ref<MessagePort>>;
+using NullableMessageEventSource = Variant<GC::Ref<WindowProxy>, GC::Ref<MessagePort>, Empty>;
 
 // https://html.spec.whatwg.org/multipage/comms.html#messageevent
 class WEB_API MessageEvent : public DOM::Event {
@@ -26,7 +26,7 @@ class WEB_API MessageEvent : public DOM::Event {
     GC_DECLARE_ALLOCATOR(MessageEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<MessageEvent> create(JS::Realm&, FlyString const& event_name, Bindings::MessageEventInit const& = {});
+    [[nodiscard]] static GC::Ref<MessageEvent> create(JS::Realm&, FlyString const& event_name, Bindings::MessageEventInit const&);
     [[nodiscard]] static GC::Ref<MessageEvent> create(JS::Realm&, FlyString const& event_name, Bindings::MessageEventInit const&, URL::Origin const&);
     static WebIDL::ExceptionOr<GC::Ref<MessageEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::MessageEventInit const&);
 
@@ -43,14 +43,12 @@ public:
 
     virtual Optional<URL::Origin> extract_an_origin() const override;
 
-    void init_message_event(String const& type, bool bubbles, bool cancelable, JS::Value data, String const& origin, String const& last_event_id, NullableMessageEventSource source, Vector<GC::Root<MessagePort>> const& ports);
+    void init_message_event(String const& type, bool bubbles, bool cancelable, JS::Value data, String const& origin, String const& last_event_id, NullableMessageEventSource source, GC::RootVector<GC::Ref<MessagePort>> const& ports);
 
 private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    using MessageEventSourceInternal = Variant<Empty, GC::Ref<WindowProxy>, GC::Ref<MessagePort>>;
-    static MessageEventSourceInternal to_message_event_source_internal(NullableMessageEventSource const&);
     MessageEvent(JS::Realm&, FlyString const& event_name, Bindings::MessageEventInit const& event_init, Variant<URL::Origin, String, Empty>);
 
     JS::Value m_data;
@@ -60,7 +58,7 @@ private:
     Variant<URL::Origin, String, Empty> m_origin;
 
     String m_last_event_id;
-    MessageEventSourceInternal m_source;
+    NullableMessageEventSource m_source;
     Vector<GC::Ref<JS::Object>> m_ports;
     mutable GC::Ptr<JS::Array> m_ports_array;
 };

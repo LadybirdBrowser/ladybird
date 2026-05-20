@@ -226,7 +226,7 @@ GC::Ref<WebIDL::Promise> Cache::add_all(ReadonlySpan<Fetch::RequestInfo> request
 
     // 3. For each request whose type is Request in requests:
     for (auto const& request_info : requests) {
-        if (auto const* request = request_info.get_pointer<GC::Root<Fetch::Request>>()) {
+        if (auto const* request = request_info.get_pointer<GC::Ref<Fetch::Request>>()) {
             // 1. Let r be request’s request.
             auto inner_request = (*request)->request();
 

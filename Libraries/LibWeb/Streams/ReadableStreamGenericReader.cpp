@@ -21,7 +21,7 @@ GC::Ptr<WebIDL::Promise> ReadableStreamGenericReaderMixin::closed()
 }
 
 // https://streams.spec.whatwg.org/#generic-reader-cancel
-GC::Ref<WebIDL::Promise> ReadableStreamGenericReaderMixin::cancel(JS::Value reason)
+GC::Ref<WebIDL::Promise> ReadableStreamGenericReaderMixin::cancel(Optional<JS::Value> reason)
 {
     // 1. If this.[[stream]] is undefined, return a promise rejected with a TypeError exception.
     if (!m_stream) {
@@ -30,7 +30,7 @@ GC::Ref<WebIDL::Promise> ReadableStreamGenericReaderMixin::cancel(JS::Value reas
     }
 
     // 2. Return ! ReadableStreamReaderGenericCancel(this, reason).
-    return readable_stream_reader_generic_cancel(*this, reason);
+    return readable_stream_reader_generic_cancel(*this, reason.value_or(JS::js_undefined()));
 }
 
 ReadableStreamGenericReaderMixin::ReadableStreamGenericReaderMixin(JS::Realm& realm)

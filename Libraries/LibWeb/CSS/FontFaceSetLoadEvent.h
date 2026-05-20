@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/FontFaceSetLoadEvent.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/Event.h>
 
@@ -17,15 +16,15 @@ class FontFaceSetLoadEvent : public DOM::Event {
     GC_DECLARE_ALLOCATOR(FontFaceSetLoadEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<FontFaceSetLoadEvent> create(JS::Realm&, FlyString const& type, Bindings::FontFaceSetLoadEventInit const& event_init = {});
-    static WebIDL::ExceptionOr<GC::Ref<FontFaceSetLoadEvent>> construct_impl(JS::Realm&, FlyString const& type, Bindings::FontFaceSetLoadEventInit const& event_init = {});
+    [[nodiscard]] static GC::Ref<FontFaceSetLoadEvent> create(JS::Realm&, FlyString const& type, Bindings::FontFaceSetLoadEventInit const&);
+    static WebIDL::ExceptionOr<GC::Ref<FontFaceSetLoadEvent>> construct_impl(JS::Realm&, FlyString const& type, Bindings::FontFaceSetLoadEventInit const&);
 
     virtual ~FontFaceSetLoadEvent() override = default;
 
     Vector<GC::Ref<FontFace>> const& fontfaces() const { return m_fontfaces; }
 
 private:
-    FontFaceSetLoadEvent(JS::Realm&, FlyString const& type, Bindings::FontFaceSetLoadEventInit const& event_init = {});
+    FontFaceSetLoadEvent(JS::Realm&, FlyString const& type, Bindings::FontFaceSetLoadEventInit const&);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;

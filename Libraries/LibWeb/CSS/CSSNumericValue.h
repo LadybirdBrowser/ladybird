@@ -36,14 +36,14 @@ public:
     };
     virtual ~CSSNumericValue() override = default;
 
-    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> add(Vector<CSSNumberish> const&);
-    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> sub(Vector<CSSNumberish> const&);
-    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> mul(Vector<CSSNumberish> const&);
-    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> div(Vector<CSSNumberish> const&);
-    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> min(Vector<CSSNumberish> const&);
-    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> max(Vector<CSSNumberish> const&);
+    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> add(ReadonlySpan<CSSNumberish>);
+    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> sub(ReadonlySpan<CSSNumberish>);
+    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> mul(ReadonlySpan<CSSNumberish>);
+    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> div(ReadonlySpan<CSSNumberish>);
+    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> min(ReadonlySpan<CSSNumberish>);
+    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> max(ReadonlySpan<CSSNumberish>);
 
-    bool equals_for_bindings(Vector<CSSNumberish>) const;
+    bool equals_for_bindings(ReadonlySpan<CSSNumberish>) const;
     virtual bool is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const = 0;
 
     WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> to(FlyString const& unit) const;

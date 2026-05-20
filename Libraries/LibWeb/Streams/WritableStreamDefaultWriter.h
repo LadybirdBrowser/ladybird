@@ -28,10 +28,10 @@ public:
     GC::Ptr<WebIDL::Promise> closed();
     WebIDL::ExceptionOr<Optional<double>> desired_size() const;
     GC::Ptr<WebIDL::Promise> ready();
-    GC::Ref<WebIDL::Promise> abort(JS::Value reason);
+    GC::Ref<WebIDL::Promise> abort(Optional<JS::Value> reason);
     GC::Ref<WebIDL::Promise> close();
     void release_lock();
-    GC::Ref<WebIDL::Promise> write(JS::Value chunk);
+    GC::Ref<WebIDL::Promise> write(Optional<JS::Value> chunk);
 
     GC::Ptr<WebIDL::Promise> closed_promise() { return m_closed_promise; }
     void set_closed_promise(GC::Ptr<WebIDL::Promise> value) { m_closed_promise = value; }

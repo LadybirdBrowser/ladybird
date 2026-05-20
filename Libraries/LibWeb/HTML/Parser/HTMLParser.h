@@ -60,7 +60,7 @@ public:
         No,
         Yes,
     };
-    static String serialize_html_fragment(DOM::Node const&, SerializableShadowRoots, Vector<GC::Root<DOM::ShadowRoot>> const&, DOM::FragmentSerializationMode = DOM::FragmentSerializationMode::Inner);
+    static String serialize_html_fragment(DOM::Node const&, SerializableShadowRoots, ReadonlySpan<GC::Ref<DOM::ShadowRoot>>, DOM::FragmentSerializationMode = DOM::FragmentSerializationMode::Inner);
 
     HTMLTokenizer& tokenizer() { return m_tokenizer; }
 

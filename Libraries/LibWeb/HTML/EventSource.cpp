@@ -11,6 +11,7 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/EventSource.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/MessageEvent.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
@@ -23,6 +24,7 @@
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/EventSource.h>
 #include <LibWeb/HTML/MessageEvent.h>
+#include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
@@ -442,7 +444,7 @@ void EventSource::dispatch_the_event()
     //    the event source.
     // 6. If the event type buffer has a value other than the empty string, change the type of the newly created event to equal
     //    the value of the event type buffer.
-    Bindings::MessageEventInit init {};
+    Bindings::MessageEventInit init;
     init.data = JS::PrimitiveString::create(vm(), data_buffer);
     init.last_event_id = last_event_id;
 

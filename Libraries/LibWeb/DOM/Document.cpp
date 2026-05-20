@@ -42,6 +42,8 @@
 #include <LibWeb/Bindings/Document.h>
 #include <LibWeb/Bindings/IntersectionObserver.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Bindings/MessageEvent.h>
+#include <LibWeb/Bindings/PointerEvent.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/CSS/AnimationEvent.h>
 #include <LibWeb/CSS/CSSAnimation.h>
@@ -2678,11 +2680,11 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
 
     // https://w3c.github.io/pointerevents/#the-pointerout-event
     if (old_hovered_node && old_hovered_node != m_hovered_node) {
-        Bindings::PointerEventInit pointer_event_init {};
+        Bindings::PointerEventInit pointer_event_init;
         pointer_event_init.bubbles = true;
         pointer_event_init.cancelable = true;
         pointer_event_init.composed = true;
-        pointer_event_init.related_target = GC::Root<DOM::EventTarget> { m_hovered_node.ptr() };
+        pointer_event_init.related_target = m_hovered_node;
         pointer_event_init.is_primary = true;
         pointer_event_init.pointer_type = UIEvents::PointerTypes::Mouse;
         pointer_event_init.view = window_proxy;
@@ -2700,7 +2702,7 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
         mouse_event_init.bubbles = true;
         mouse_event_init.cancelable = true;
         mouse_event_init.composed = true;
-        mouse_event_init.related_target = GC::Root<DOM::EventTarget> { m_hovered_node.ptr() };
+        mouse_event_init.related_target = m_hovered_node;
         mouse_event_init.view = window_proxy;
         if (hover_event_data.has_value())
             populate_mouse_event_init_from_hover_event_data(mouse_event_init, *hover_event_data, window_proxy);
@@ -2713,8 +2715,8 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
     // https://w3c.github.io/pointerevents/#the-pointerleave-event
     if (!pointer_leave_targets.is_empty()) {
         for (auto const& target : pointer_leave_targets) {
-            Bindings::PointerEventInit pointer_event_init {};
-            pointer_event_init.related_target = GC::Root<DOM::EventTarget> { m_hovered_node.ptr() };
+            Bindings::PointerEventInit pointer_event_init;
+            pointer_event_init.related_target = m_hovered_node;
             pointer_event_init.is_primary = true;
             pointer_event_init.pointer_type = UIEvents::PointerTypes::Mouse;
             pointer_event_init.view = window_proxy;
@@ -2731,7 +2733,7 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
     if (!mouse_leave_targets.is_empty()) {
         for (auto const& target : mouse_leave_targets) {
             Bindings::MouseEventInit mouse_event_init {};
-            mouse_event_init.related_target = GC::Root<DOM::EventTarget> { m_hovered_node.ptr() };
+            mouse_event_init.related_target = m_hovered_node;
             if (hover_event_data.has_value())
                 populate_mouse_event_init_from_hover_event_data(mouse_event_init, *hover_event_data, window_proxy);
             auto offset = target.offset;
@@ -2743,11 +2745,11 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
 
     // https://w3c.github.io/pointerevents/#the-pointerover-event
     if (m_hovered_node && m_hovered_node != old_hovered_node) {
-        Bindings::PointerEventInit pointer_event_init {};
+        Bindings::PointerEventInit pointer_event_init;
         pointer_event_init.bubbles = true;
         pointer_event_init.cancelable = true;
         pointer_event_init.composed = true;
-        pointer_event_init.related_target = GC::Root<DOM::EventTarget> { old_hovered_node.ptr() };
+        pointer_event_init.related_target = old_hovered_node;
         pointer_event_init.is_primary = true;
         pointer_event_init.pointer_type = UIEvents::PointerTypes::Mouse;
         pointer_event_init.view = window_proxy;
@@ -2765,7 +2767,7 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
         mouse_event_init.bubbles = true;
         mouse_event_init.cancelable = true;
         mouse_event_init.composed = true;
-        mouse_event_init.related_target = GC::Root<DOM::EventTarget> { old_hovered_node.ptr() };
+        mouse_event_init.related_target = old_hovered_node;
         mouse_event_init.view = window_proxy;
         if (hover_event_data.has_value())
             populate_mouse_event_init_from_hover_event_data(mouse_event_init, *hover_event_data, window_proxy);
@@ -2781,8 +2783,8 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
     // Leave events are dispatched in the opposite order.
     if (!entered_ancestors.is_empty()) {
         for (auto target : entered_ancestors.in_reverse()) {
-            Bindings::PointerEventInit pointer_event_init {};
-            pointer_event_init.related_target = GC::Root<DOM::EventTarget> { old_hovered_node.ptr() };
+            Bindings::PointerEventInit pointer_event_init;
+            pointer_event_init.related_target = old_hovered_node;
             pointer_event_init.is_primary = true;
             pointer_event_init.pointer_type = UIEvents::PointerTypes::Mouse;
             pointer_event_init.view = window_proxy;
@@ -2793,7 +2795,7 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
             mark_mouse_transition_event_as_trusted_if_needed(pointer_event, hover_event_data);
             target.node->dispatch_event(pointer_event);
             Bindings::MouseEventInit mouse_event_init {};
-            mouse_event_init.related_target = GC::Root<DOM::EventTarget> { old_hovered_node.ptr() };
+            mouse_event_init.related_target = old_hovered_node;
             if (hover_event_data.has_value())
                 populate_mouse_event_init_from_hover_event_data(mouse_event_init, *hover_event_data, window_proxy);
             auto mouse_event = UIEvents::MouseEvent::create(realm(), UIEvents::EventNames::mouseenter, mouse_event_init, page_offset.x().to_double(), page_offset.y().to_double(), offset.x().to_double(), offset.y().to_double());
@@ -3076,7 +3078,7 @@ WebIDL::ExceptionOr<GC::Ref<Event>> Document::create_event(StringView interface)
     } else if (interface.equals_ignoring_ascii_case("keyboardevent"sv)) {
         event = UIEvents::KeyboardEvent::create(realm, String {});
     } else if (interface.equals_ignoring_ascii_case("messageevent"sv)) {
-        event = HTML::MessageEvent::create(realm, String {});
+        event = HTML::MessageEvent::create(realm, FlyString {}, Bindings::MessageEventInit {});
     } else if (interface.equals_ignoring_ascii_case("mouseevent"sv)
         || interface.equals_ignoring_ascii_case("mouseevents"sv)) {
         event = UIEvents::MouseEvent::create(realm, FlyString {});
@@ -3209,8 +3211,8 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Document::import_node(GC::Ref<Node> node, Var
             subtree = !options.self_only;
 
             // 2. If options["customElementRegistry"] exists, then set registry to it.
-            if (options.custom_element_registry.has_value())
-                registry = options.custom_element_registry->ptr();
+            if (options.custom_element_registry)
+                registry = options.custom_element_registry;
 
             // 3. If registry’s is scoped is false and registry is not this’s custom element registry, then throw a
             //    "NotSupportedError" DOMException.

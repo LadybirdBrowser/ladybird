@@ -10,6 +10,7 @@
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/HTMLElement.h>
+#include <LibWeb/Bindings/PointerEvent.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/Document.h>
@@ -1205,7 +1206,7 @@ WebIDL::ExceptionOr<bool> HTMLElement::check_popover_validity(ExpectedToBeShowin
 WebIDL::ExceptionOr<void> HTMLElement::show_popover_for_bindings(Bindings::ShowPopoverOptions const& options)
 {
     // 1. Let source be options["source"] if it exists; otherwise, null.
-    auto source = options.source.has_value() ? GC::Ptr<HTMLElement> { options.source->ptr() } : GC::Ptr<HTMLElement> {};
+    auto source = GC::Ptr<HTMLElement> { options.source };
     // 2. Run show popover given this, true, and source.
     return show_popover(ThrowExceptions::Yes, source);
 }
@@ -1579,8 +1580,7 @@ WebIDL::ExceptionOr<bool> HTMLElement::toggle_popover(TogglePopoverOptionsOrForc
             // 3. Otherwise, if options["force"] exists, set force to options["force"].
             force = options.force;
             // 4. Let source be options["source"] if it exists; otherwise, null.
-            if (options.source.has_value())
-                source = options.source->ptr();
+            source = options.source;
         });
 
     // 5. If this's popover visibility state is showing, and force is null or false, then run the hide popover algorithm given this, true, true, true, false, and null.

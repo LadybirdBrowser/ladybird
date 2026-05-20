@@ -17,7 +17,7 @@ GC_DEFINE_ALLOCATOR(AudioBufferSourceNode);
 
 AudioBufferSourceNode::AudioBufferSourceNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::AudioBufferSourceOptions const& options)
     : AudioScheduledSourceNode(realm, context)
-    , m_buffer(options.buffer.has_value() ? options.buffer->ptr() : nullptr)
+    , m_buffer(options.buffer.value_or(nullptr))
     , m_playback_rate(AudioParam::create(realm, context, options.playback_rate, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::KRate, AudioParam::FixedAutomationRate::Yes))
     , m_detune(AudioParam::create(realm, context, options.detune, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::KRate, AudioParam::FixedAutomationRate::Yes))
     , m_loop(options.loop)

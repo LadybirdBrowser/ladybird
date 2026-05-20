@@ -35,7 +35,7 @@ void WritableStreamDefaultController::initialize(JS::Realm& realm)
 }
 
 // https://streams.spec.whatwg.org/#ws-default-controller-error
-void WritableStreamDefaultController::error(JS::Value error)
+void WritableStreamDefaultController::error(Optional<JS::Value> error)
 {
     // 1. Let state be this.[[stream]].[[state]].
     auto state = m_stream->state();
@@ -45,7 +45,7 @@ void WritableStreamDefaultController::error(JS::Value error)
         return;
 
     // 3. Perform ! WritableStreamDefaultControllerError(this, e).
-    writable_stream_default_controller_error(*this, error);
+    writable_stream_default_controller_error(*this, error.value_or(JS::js_undefined()));
 }
 
 // https://streams.spec.whatwg.org/#ws-default-controller-private-abort

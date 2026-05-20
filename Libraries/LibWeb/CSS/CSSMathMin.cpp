@@ -44,7 +44,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSMathMin>> CSSMathMin::add_all_types_into_math_min
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssmathmin-cssmathmin
-WebIDL::ExceptionOr<GC::Ref<CSSMathMin>> CSSMathMin::construct_impl(JS::Realm& realm, Vector<CSSNumberish> values)
+WebIDL::ExceptionOr<GC::Ref<CSSMathMin>> CSSMathMin::construct_impl(JS::Realm& realm, ReadonlySpan<CSSNumberish> values)
 {
     // The CSSMathMin(...args) and CSSMathMax(...args) constructors are defined identically to the above, except that
     // in the last step they return a new CSSMathMin or CSSMathMax object, respectively.

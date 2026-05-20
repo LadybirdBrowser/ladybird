@@ -56,8 +56,7 @@ static JS::ThrowCompletionOr<HashAlgorithmIdentifier> hash_algorithm_identifier_
         }
         if (hash_value.is_object()) {
             auto const hash_object = TRY(hash_value.to_object(vm));
-            auto const hash_object_root = GC::make_root(hash_object);
-            return normalize_an_algorithm(*realm, hash_object_root, "digest"_string);
+            return normalize_an_algorithm(*realm, hash_object, "digest"_string);
         }
         VERIFY_NOT_REACHED();
     }();

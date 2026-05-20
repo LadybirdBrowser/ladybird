@@ -22,7 +22,7 @@ class HTMLCanvasElement final : public HTMLElement {
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    using RenderingContext = Variant<GC::Root<CanvasRenderingContext2D>, GC::Root<WebGL::WebGLRenderingContext>, GC::Root<WebGL::WebGL2RenderingContext>, Empty>;
+    using RenderingContext = Variant<GC::Ref<CanvasRenderingContext2D>, GC::Ref<WebGL::WebGLRenderingContext>, GC::Ref<WebGL::WebGL2RenderingContext>, Empty>;
 
     virtual ~HTMLCanvasElement() override;
 
@@ -43,8 +43,8 @@ public:
 
     virtual void attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
-    String to_data_url(StringView type, JS::Value quality);
-    WebIDL::ExceptionOr<void> to_blob(GC::Ref<WebIDL::CallbackType> callback, StringView type, JS::Value quality);
+    String to_data_url(StringView type, Optional<JS::Value> quality);
+    WebIDL::ExceptionOr<void> to_blob(GC::Ref<WebIDL::CallbackType> callback, StringView type, Optional<JS::Value> quality);
     RefPtr<Gfx::Bitmap> get_bitmap_from_surface();
 
     void present();

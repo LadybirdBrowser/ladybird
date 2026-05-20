@@ -41,10 +41,10 @@ void AbortController::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://dom.spec.whatwg.org/#dom-abortcontroller-abort
-void AbortController::abort(JS::Value reason)
+void AbortController::abort(Optional<JS::Value> reason)
 {
     // The abort(reason) method steps are to signal abort on this’s signal with reason if it is given.
-    m_signal->signal_abort(reason);
+    m_signal->signal_abort(reason.value_or(JS::js_undefined()));
 }
 
 }

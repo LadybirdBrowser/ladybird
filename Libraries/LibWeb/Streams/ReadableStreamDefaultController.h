@@ -29,8 +29,8 @@ public:
     Optional<double> desired_size();
 
     WebIDL::ExceptionOr<void> close();
-    WebIDL::ExceptionOr<void> enqueue(JS::Value chunk);
-    void error(JS::Value error);
+    WebIDL::ExceptionOr<void> enqueue(Optional<JS::Value> chunk);
+    void error(Optional<JS::Value> error);
 
     GC::Ptr<CancelAlgorithm> cancel_algorithm() { return m_cancel_algorithm; }
     void set_cancel_algorithm(GC::Ptr<CancelAlgorithm> value) { m_cancel_algorithm = value; }

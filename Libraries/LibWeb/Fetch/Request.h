@@ -20,7 +20,7 @@
 namespace Web::Fetch {
 
 // https://fetch.spec.whatwg.org/#requestinfo
-using RequestInfo = Variant<GC::Root<Request>, String>;
+using RequestInfo = Variant<GC::Ref<Request>, String>;
 
 // https://fetch.spec.whatwg.org/#request
 class Request final

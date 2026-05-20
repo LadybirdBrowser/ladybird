@@ -288,7 +288,7 @@ JS::ThrowCompletionOr<HTMLCanvasElement::RenderingContext> HTMLCanvasElement::ge
     // NOTE: See the spec for the full table.
     if (type == "2d"sv) {
         if (TRY(create_2d_context(options)) == HasOrCreatedContext::Yes)
-            return GC::make_root(*m_context.get<GC::Ref<HTML::CanvasRenderingContext2D>>());
+            return m_context.get<GC::Ref<HTML::CanvasRenderingContext2D>>();
 
         return Empty {};
     }
@@ -296,14 +296,14 @@ JS::ThrowCompletionOr<HTMLCanvasElement::RenderingContext> HTMLCanvasElement::ge
     // NOTE: The WebGL spec says "experimental-webgl" is also acceptable and must be equivalent to "webgl". Other engines accept this, so we do too.
     if (type.is_one_of("webgl"sv, "experimental-webgl"sv)) {
         if (TRY(create_webgl_context<WebGL::WebGLRenderingContext>(options)) == HasOrCreatedContext::Yes)
-            return GC::make_root(*m_context.get<GC::Ref<WebGL::WebGLRenderingContext>>());
+            return m_context.get<GC::Ref<WebGL::WebGLRenderingContext>>();
 
         return Empty {};
     }
 
     if (type == "webgl2"sv) {
         if (TRY(create_webgl_context<WebGL::WebGL2RenderingContext>(options)) == HasOrCreatedContext::Yes)
-            return GC::make_root(*m_context.get<GC::Ref<WebGL::WebGL2RenderingContext>>());
+            return m_context.get<GC::Ref<WebGL::WebGL2RenderingContext>>();
 
         return Empty {};
     }
@@ -331,7 +331,7 @@ Gfx::IntSize HTMLCanvasElement::bitmap_size_for_canvas(size_t minimum_width, siz
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-todataurl
-String HTMLCanvasElement::to_data_url(StringView type, JS::Value js_quality)
+String HTMLCanvasElement::to_data_url(StringView type, Optional<JS::Value> js_quality)
 {
     // It is possible the canvas doesn't have an associated bitmap so create one
     allocate_painting_surface_if_needed();
@@ -351,7 +351,7 @@ String HTMLCanvasElement::to_data_url(StringView type, JS::Value js_quality)
 
     // 3. Let file be a serialization of this canvas element's bitmap as a file, passing type and quality if given.
     auto bitmap = surface->snapshot_bitmap();
-    Optional<double> quality = js_quality.is_number() ? js_quality.as_double() : Optional<double>();
+    Optional<double> quality = js_quality.has_value() && js_quality->is_number() ? js_quality->as_double() : Optional<double>();
     auto file = serialize_bitmap(bitmap, type, quality);
 
     // 4. If file is null, then return "data:,".
@@ -369,7 +369,7 @@ String HTMLCanvasElement::to_data_url(StringView type, JS::Value js_quality)
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-toblob
-WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackType> callback, StringView type, JS::Value js_quality)
+WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackType> callback, StringView type, Optional<JS::Value> js_quality)
 {
     // FIXME: 1. If this canvas element's bitmap's origin-clean flag is set to false, then throw a "SecurityError" DOMException.
 
@@ -378,7 +378,7 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackTyp
     //    then set result to a copy of this canvas element's bitmap.
     auto bitmap_result = get_bitmap_from_surface();
 
-    Optional<double> quality = js_quality.is_number() ? js_quality.as_double() : Optional<double>();
+    Optional<double> quality = js_quality.has_value() && js_quality->is_number() ? js_quality->as_double() : Optional<double>();
 
     // 4. Run these steps in parallel:
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this, callback, bitmap_result, type, quality] {

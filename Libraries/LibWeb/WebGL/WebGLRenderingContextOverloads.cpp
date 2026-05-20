@@ -34,18 +34,18 @@ void WebGLRenderingContextOverloads::buffer_data(WebIDL::UnsignedLong target, We
     glBufferData(target, size, 0, usage);
 }
 
-void WebGLRenderingContextOverloads::buffer_data(WebIDL::UnsignedLong target, Optional<GC::Root<WebIDL::BufferSource>> data, WebIDL::UnsignedLong usage)
+void WebGLRenderingContextOverloads::buffer_data(WebIDL::UnsignedLong target, GC::Ptr<WebIDL::BufferSource> data, WebIDL::UnsignedLong usage)
 {
     m_context->make_current();
 
     // https://registry.khronos.org/webgl/specs/latest/1.0/#5.14.5
     // If the passed data is null then an INVALID_VALUE error is generated.
-    if (!data.has_value()) {
+    if (!data) {
         set_error(GL_INVALID_VALUE);
         return;
     }
 
-    auto span = MUST(get_offset_span<u8 const>(*data.value(), /* src_offset= */ 0));
+    auto span = MUST(get_offset_span<u8 const>(*data, /* src_offset= */ 0));
     glBufferData(target, static_cast<GLsizeiptr>(span.size()), span.data(), usage);
 }
 

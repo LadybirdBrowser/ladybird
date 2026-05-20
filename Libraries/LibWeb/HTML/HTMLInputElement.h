@@ -153,7 +153,7 @@ public:
     SelectedCoordinate selected_coordinate() const { return m_selected_coordinate; }
 
     JS::Object* value_as_date() const;
-    WebIDL::ExceptionOr<void> set_value_as_date(Optional<GC::Root<JS::Object>> const&);
+    WebIDL::ExceptionOr<void> set_value_as_date(GC::Ptr<JS::Object>);
 
     double value_as_number() const;
     WebIDL::ExceptionOr<void> set_value_as_number(double value);

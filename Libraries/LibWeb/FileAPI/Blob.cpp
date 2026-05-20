@@ -107,12 +107,12 @@ ErrorOr<ByteBuffer> process_blob_parts(BlobParts const& blob_parts, Optional<Bin
                 return bytes.try_append(s.bytes());
             },
             // 2. If element is a BufferSource, get a copy of the bytes held by the buffer source, and append those bytes to bytes.
-            [&](GC::Root<WebIDL::BufferSource> const& buffer_source) -> ErrorOr<void> {
+            [&](GC::Ref<WebIDL::BufferSource> const& buffer_source) -> ErrorOr<void> {
                 auto data_buffer = TRY(WebIDL::get_buffer_source_copy(*buffer_source->raw_object()));
                 return bytes.try_append(data_buffer.bytes());
             },
             // 3. If element is a Blob, append the bytes it represents to bytes.
-            [&](GC::Root<Blob> const& blob) -> ErrorOr<void> {
+            [&](GC::Ref<Blob> const& blob) -> ErrorOr<void> {
                 return bytes.try_append(blob->raw_bytes());
             }));
     }
@@ -223,7 +223,9 @@ GC::Ref<Blob> Blob::create(JS::Realm& realm, Optional<BlobPartsOrByteBuffer> con
 
 WebIDL::ExceptionOr<GC::Ref<Blob>> Blob::construct_impl(JS::Realm& realm, Optional<BlobParts> const& blob_parts, Optional<Bindings::BlobPropertyBag> const& options)
 {
-    return create(realm, blob_parts.has_value() ? blob_parts.value() : Optional<BlobPartsOrByteBuffer> {}, options);
+    if (blob_parts.has_value())
+        return create(realm, BlobPartsOrByteBuffer { blob_parts.value() }, options);
+    return create(realm, {}, options);
 }
 
 // https://w3c.github.io/FileAPI/#dfn-slice

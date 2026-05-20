@@ -29,8 +29,7 @@ FontFaceSetLoadEvent::FontFaceSetLoadEvent(JS::Realm& realm, FlyString const& ev
 {
     m_fontfaces.ensure_capacity(event_init.fontfaces.size());
     for (auto const& font_face : event_init.fontfaces) {
-        VERIFY(font_face);
-        m_fontfaces.unchecked_append(*font_face);
+        m_fontfaces.unchecked_append(font_face);
     }
 }
 

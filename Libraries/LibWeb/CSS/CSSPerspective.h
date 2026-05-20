@@ -14,7 +14,7 @@ namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#typedefdef-cssperspectivevalue
 // NB: CSSKeywordish is flattened here, because our bindings generator flattens nested variants.
-using CSSPerspectiveValue = Variant<GC::Root<CSSNumericValue>, String, GC::Root<CSSKeywordValue>>;
+using CSSPerspectiveValue = Variant<GC::Ref<CSSNumericValue>, String, GC::Ref<CSSKeywordValue>>;
 using CSSPerspectiveValueInternal = Variant<GC::Ref<CSSNumericValue>, GC::Ref<CSSKeywordValue>>;
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssperspective

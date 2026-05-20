@@ -25,7 +25,7 @@ public:
     virtual ~DedicatedWorkerGlobalScope() override;
 
     WebIDL::ExceptionOr<void> post_message(JS::Value message, Bindings::StructuredSerializeOptions const&);
-    WebIDL::ExceptionOr<void> post_message(JS::Value message, Vector<GC::Root<JS::Object>> const& transfer);
+    WebIDL::ExceptionOr<void> post_message(JS::Value message, GC::RootVector<GC::Ref<JS::Object>> const& transfer);
 
     void close();
 

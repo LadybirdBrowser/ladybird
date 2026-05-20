@@ -60,7 +60,7 @@ ContentSecurityPolicy::Directives::Directive::Result RequireTrustedTypesForDirec
     if (converted_script_source.is_error() || !converted_script_source.value().has_value())
         return Result::Blocked;
 
-    auto const* converted_script_source_value = converted_script_source.value().value().get_pointer<GC::Root<TrustedScript>>();
+    auto const* converted_script_source_value = converted_script_source.value().value().get_pointer<GC::Ref<TrustedScript>>();
 
     if (!converted_script_source_value)
         return Result::Blocked;

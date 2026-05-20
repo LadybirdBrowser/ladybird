@@ -21,6 +21,7 @@
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Bindings/PromiseRejectionEvent.h>
 #include <LibWeb/Bindings/WindowExposedInterfaces.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/KeywordSources.h>

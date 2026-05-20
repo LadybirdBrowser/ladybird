@@ -26,7 +26,7 @@ namespace Web::Fetch {
 Infrastructure::BodyWithType safely_extract_body(JS::Realm& realm, BodyInitOrReadableBytes const& object)
 {
     // 1. If object is a ReadableStream object, then:
-    if (auto const* stream = object.get_pointer<GC::Root<Streams::ReadableStream>>()) {
+    if (auto const* stream = object.get_pointer<GC::Ref<Streams::ReadableStream>>()) {
         // 1. Assert: object is neither disturbed nor locked.
         VERIFY(!((*stream)->is_disturbed() || (*stream)->is_locked()));
     }
@@ -46,12 +46,12 @@ WebIDL::ExceptionOr<Infrastructure::BodyWithType> extract_body(JS::Realm& realm,
     GC::Ptr<Streams::ReadableStream> stream;
 
     // 2. If object is a ReadableStream object, then set stream to object.
-    if (auto const* stream_handle = object.get_pointer<GC::Root<Streams::ReadableStream>>()) {
-        stream = const_cast<Streams::ReadableStream*>(stream_handle->cell());
+    if (auto const* maybe_stream = object.get_pointer<GC::Ref<Streams::ReadableStream>>()) {
+        stream = *maybe_stream;
     }
     // 3. Otherwise, if object is a Blob object, set stream to the result of running object’s get stream.
-    else if (auto const* blob_handle = object.get_pointer<GC::Root<FileAPI::Blob>>()) {
-        stream = blob_handle->cell()->get_stream();
+    else if (auto* blob = object.get_pointer<GC::Ref<FileAPI::Blob>>()) {
+        stream = (*blob)->get_stream();
     }
     // 4. Otherwise, set stream to a new ReadableStream object, and set up stream with byte reading support.
     else {
@@ -76,7 +76,7 @@ WebIDL::ExceptionOr<Infrastructure::BodyWithType> extract_body(JS::Realm& realm,
 
     // 10. Switch on object.
     TRY(object.visit(
-        [&](GC::Root<FileAPI::Blob> const& blob) -> WebIDL::ExceptionOr<void> {
+        [&](GC::Ref<FileAPI::Blob> blob) -> WebIDL::ExceptionOr<void> {
             // Set source to object.
             source = blob;
             // Set length to object’s size.
@@ -96,12 +96,12 @@ WebIDL::ExceptionOr<Infrastructure::BodyWithType> extract_body(JS::Realm& realm,
             source = bytes;
             return {};
         },
-        [&](GC::Root<WebIDL::BufferSource> const& buffer_source) -> WebIDL::ExceptionOr<void> {
+        [&](GC::Ref<WebIDL::BufferSource> buffer_source) -> WebIDL::ExceptionOr<void> {
             // Set source to a copy of the bytes held by object.
             source = MUST(WebIDL::get_buffer_source_copy(*buffer_source->raw_object()));
             return {};
         },
-        [&](GC::Root<XHR::FormData> const& form_data) -> WebIDL::ExceptionOr<void> {
+        [&](GC::Ref<XHR::FormData> form_data) -> WebIDL::ExceptionOr<void> {
             // Set action to this step: run the multipart/form-data encoding algorithm, with object’s entry list and UTF-8.
             auto serialized_form_data = MUST(HTML::serialize_to_multipart_form_data(form_data->entry_list()));
             // Set source to object.
@@ -111,7 +111,7 @@ WebIDL::ExceptionOr<Infrastructure::BodyWithType> extract_body(JS::Realm& realm,
             type = ByteString::formatted("multipart/form-data; boundary={}", serialized_form_data.boundary);
             return {};
         },
-        [&](GC::Root<DOMURL::URLSearchParams> const& url_search_params) -> WebIDL::ExceptionOr<void> {
+        [&](GC::Ref<DOMURL::URLSearchParams> url_search_params) -> WebIDL::ExceptionOr<void> {
             // Set source to the result of running the application/x-www-form-urlencoded serializer with object’s list.
             auto search_params_string = url_search_params->to_string();
             source = MUST(ByteBuffer::copy(search_params_string.bytes()));
@@ -127,7 +127,7 @@ WebIDL::ExceptionOr<Infrastructure::BodyWithType> extract_body(JS::Realm& realm,
             type = "text/plain;charset=UTF-8"sv;
             return {};
         },
-        [&](GC::Root<Streams::ReadableStream> const& stream) -> WebIDL::ExceptionOr<void> {
+        [&](GC::Ref<Streams::ReadableStream> stream) -> WebIDL::ExceptionOr<void> {
             // If keepalive is true, then throw a TypeError.
             if (keepalive)
                 return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot extract body from stream when keepalive is set"sv };

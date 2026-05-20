@@ -55,7 +55,7 @@ public:
     void set_binary_type(String const& type) { m_binary_type = type; }
 
     WebIDL::ExceptionOr<void> close(Optional<u16> code, Optional<String> reason);
-    WebIDL::ExceptionOr<void> send(Variant<GC::Root<WebIDL::BufferSource>, GC::Root<FileAPI::Blob>, String> const& data);
+    WebIDL::ExceptionOr<void> send(Variant<GC::Ref<WebIDL::BufferSource>, GC::Ref<FileAPI::Blob>, String> const& data);
 
     void make_disappear();
 

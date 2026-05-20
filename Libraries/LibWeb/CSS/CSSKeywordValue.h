@@ -12,7 +12,7 @@
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#typedefdef-csskeywordish
-using CSSKeywordish = Variant<String, GC::Root<CSSKeywordValue>>;
+using CSSKeywordish = Variant<String, GC::Ref<CSSKeywordValue>>;
 
 // https://drafts.css-houdini.org/css-typed-om-1/#csskeywordvalue
 class CSSKeywordValue final : public CSSStyleValue {

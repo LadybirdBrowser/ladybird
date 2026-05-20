@@ -25,18 +25,10 @@ WebIDL::ExceptionOr<GC::Ref<AnimationPlaybackEvent>> AnimationPlaybackEvent::con
     return create(realm, type, event_init);
 }
 
-AnimationPlaybackEvent::CSSNumberishInternal AnimationPlaybackEvent::to_numberish_internal(NullableCSSNumberish const& numberish_root)
-{
-    return numberish_root.visit(
-        [](Empty) -> CSSNumberishInternal { return Empty {}; },
-        [](GC::Root<CSS::CSSNumericValue> const& root) -> CSSNumberishInternal { return GC::Ref { *root }; },
-        [](auto const& other) -> CSSNumberishInternal { return other; });
-}
-
 AnimationPlaybackEvent::AnimationPlaybackEvent(JS::Realm& realm, FlyString const& type, Bindings::AnimationPlaybackEventInit const& event_init)
     : DOM::Event(realm, type, event_init)
-    , m_current_time(to_numberish_internal(event_init.current_time))
-    , m_timeline_time(to_numberish_internal(event_init.timeline_time))
+    , m_current_time(event_init.current_time)
+    , m_timeline_time(event_init.timeline_time)
 {
 }
 
@@ -53,21 +45,14 @@ void AnimationPlaybackEvent::visit_edges(Visitor& visitor)
     visitor.visit(m_timeline_time);
 }
 
-NullableCSSNumberish AnimationPlaybackEvent::to_nullable_numberish(CSSNumberishInternal const& numberish)
-{
-    return numberish.visit(
-        [](GC::Ref<CSS::CSSNumericValue> const& ref) -> NullableCSSNumberish { return GC::Root { *ref }; },
-        [](auto const& other) -> NullableCSSNumberish { return other; });
-}
-
 NullableCSSNumberish AnimationPlaybackEvent::current_time() const
 {
-    return to_nullable_numberish(m_current_time);
+    return m_current_time;
 }
 
 NullableCSSNumberish AnimationPlaybackEvent::timeline_time() const
 {
-    return to_nullable_numberish(m_timeline_time);
+    return m_timeline_time;
 }
 
 }

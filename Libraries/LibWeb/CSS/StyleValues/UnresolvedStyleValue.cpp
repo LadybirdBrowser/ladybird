@@ -52,7 +52,7 @@ bool UnresolvedStyleValue::equals(StyleValue const& other) const
 static GC::Ref<CSSUnparsedValue> reify_a_list_of_component_values(JS::Realm&, Vector<Parser::ComponentValue>);
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-var
-static GC::Root<CSSVariableReferenceValue> reify_a_var_reference(JS::Realm& realm, Parser::Function function)
+static GC::Ptr<CSSVariableReferenceValue> reify_a_var_reference(JS::Realm& realm, Parser::Function function)
 {
     // NB: A var() might not be representable as a CSSVariableReferenceValue, for example if it has invalid syntax or
     //    it contains an ASF in its variable-name slot. In those cases, we return null here, so it's treated like a
@@ -90,7 +90,7 @@ static GC::Root<CSSVariableReferenceValue> reify_a_var_reference(JS::Realm& real
 
 class Reifier {
 public:
-    static Vector<GCRootCSSUnparsedSegment> reify(JS::Realm& realm, Vector<Parser::ComponentValue> const& source_values)
+    static Vector<CSSUnparsedSegment> reify(JS::Realm& realm, Vector<Parser::ComponentValue> const& source_values)
     {
         Reifier reifier;
         reifier.process_values(realm, source_values);
@@ -112,7 +112,7 @@ private:
                 // serializing it like a regular function.
                 if (auto var_reference = reify_a_var_reference(realm, component_value.function())) {
                     serialize_unserialized_values();
-                    m_reified_values.append(move(var_reference));
+                    m_reified_values.append(GC::Ref { *var_reference });
                     continue;
                 }
             }
@@ -143,7 +143,7 @@ private:
         m_unserialized_values.clear_with_capacity();
     }
 
-    Vector<GCRootCSSUnparsedSegment> m_reified_values {};
+    Vector<CSSUnparsedSegment> m_reified_values {};
     Vector<Parser::ComponentValue> m_unserialized_values {};
 };
 

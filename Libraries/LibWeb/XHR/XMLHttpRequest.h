@@ -28,8 +28,8 @@
 namespace Web::XHR {
 
 // https://fetch.spec.whatwg.org/#typedefdef-xmlhttprequestbodyinit
-using DocumentOrXMLHttpRequestBodyInit = Variant<GC::Root<Web::DOM::Document>, GC::Root<Web::FileAPI::Blob>, GC::Root<WebIDL::BufferSource>, GC::Root<XHR::FormData>, GC::Root<Web::DOMURL::URLSearchParams>, AK::String>;
-using NullableDocumentOrXMLHttpRequestBodyInit = Variant<GC::Root<Web::DOM::Document>, GC::Root<Web::FileAPI::Blob>, GC::Root<WebIDL::BufferSource>, GC::Root<XHR::FormData>, GC::Root<Web::DOMURL::URLSearchParams>, AK::String, Empty>;
+using DocumentOrXMLHttpRequestBodyInit = Variant<GC::Ref<Web::DOM::Document>, GC::Ref<Web::FileAPI::Blob>, GC::Ref<WebIDL::BufferSource>, GC::Ref<XHR::FormData>, GC::Ref<Web::DOMURL::URLSearchParams>, AK::String>;
+using NullableDocumentOrXMLHttpRequestBodyInit = Variant<GC::Ref<Web::DOM::Document>, GC::Ref<Web::FileAPI::Blob>, GC::Ref<WebIDL::BufferSource>, GC::Ref<XHR::FormData>, GC::Ref<Web::DOMURL::URLSearchParams>, AK::String, Empty>;
 
 class XMLHttpRequest final : public XMLHttpRequestEventTarget {
     WEB_PLATFORM_OBJECT(XMLHttpRequest, XMLHttpRequestEventTarget);

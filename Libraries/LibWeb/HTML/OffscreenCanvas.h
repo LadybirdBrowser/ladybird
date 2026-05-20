@@ -17,7 +17,7 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/canvas.html#offscreenrenderingcontext
 // NOTE: This is the Variant created by the IDL wrapper generator, and needs to be updated accordingly.
-using OffscreenRenderingContext = Variant<GC::Root<OffscreenCanvasRenderingContext2D>, GC::Root<WebGL::WebGLRenderingContext>, GC::Root<WebGL::WebGL2RenderingContext>, Empty>;
+using OffscreenRenderingContext = Variant<GC::Ref<OffscreenCanvasRenderingContext2D>, GC::Ref<WebGL::WebGLRenderingContext>, GC::Ref<WebGL::WebGL2RenderingContext>, Empty>;
 
 // https://html.spec.whatwg.org/multipage/canvas.html#offscreencanvas
 class OffscreenCanvas : public DOM::EventTarget

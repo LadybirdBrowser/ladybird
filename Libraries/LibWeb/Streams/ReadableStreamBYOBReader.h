@@ -47,7 +47,7 @@ public:
 
     virtual ~ReadableStreamBYOBReader() override = default;
 
-    GC::Ref<WebIDL::Promise> read(GC::Root<WebIDL::ArrayBufferView>&, Bindings::ReadableStreamBYOBReaderReadOptions options = {});
+    GC::Ref<WebIDL::Promise> read(GC::Ref<WebIDL::ArrayBufferView>, Bindings::ReadableStreamBYOBReaderReadOptions options = {});
 
     void release_lock();
 

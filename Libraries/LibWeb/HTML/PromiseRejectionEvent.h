@@ -11,7 +11,6 @@
 #include <LibGC/Root.h>
 #include <LibJS/Runtime/Promise.h>
 #include <LibJS/Runtime/Value.h>
-#include <LibWeb/Bindings/PromiseRejectionEvent.h>
 #include <LibWeb/DOM/Event.h>
 
 namespace Web::HTML {
@@ -21,7 +20,7 @@ class PromiseRejectionEvent final : public DOM::Event {
     GC_DECLARE_ALLOCATOR(PromiseRejectionEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<PromiseRejectionEvent> create(JS::Realm&, FlyString const& event_name, Bindings::PromiseRejectionEventInit const& = {});
+    [[nodiscard]] static GC::Ref<PromiseRejectionEvent> create(JS::Realm&, FlyString const& event_name, Bindings::PromiseRejectionEventInit const&);
     static WebIDL::ExceptionOr<GC::Ref<PromiseRejectionEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::PromiseRejectionEventInit const&);
 
     virtual ~PromiseRejectionEvent() override;

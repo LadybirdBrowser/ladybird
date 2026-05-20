@@ -764,7 +764,7 @@ WebIDL::ExceptionOr<void> HTMLScriptElement::set_src(TrustedTypes::TrustedScript
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#the-textContent-idl-attribute
-Variant<GC::Root<TrustedTypes::TrustedScript>, Utf16String, Empty> HTMLScriptElement::text_content() const
+Variant<GC::Ref<TrustedTypes::TrustedScript>, Utf16String, Empty> HTMLScriptElement::text_content() const
 {
     // 1. Return the result of running get text content with this.
     return descendant_text_content();

@@ -122,7 +122,7 @@ JS::Value IDBCursor::key()
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbcursor-continue
-WebIDL::ExceptionOr<void> IDBCursor::continue_(JS::Value key)
+WebIDL::ExceptionOr<void> IDBCursor::continue_(Optional<JS::Value> key)
 {
     auto& realm = this->realm();
 
@@ -143,9 +143,9 @@ WebIDL::ExceptionOr<void> IDBCursor::continue_(JS::Value key)
 
     // 5. If key is given, then:
     GC::Ptr<Key> key_value;
-    if (!key.is_undefined()) {
+    if (key.has_value()) {
         // 1. Let r be the result of converting a value to a key with key. Rethrow any exceptions.
-        auto r = TRY(convert_a_value_to_a_key(realm, key));
+        auto r = TRY(convert_a_value_to_a_key(realm, *key));
 
         // 2. If r is invalid, throw a "DataError" DOMException.
         if (r->is_invalid())

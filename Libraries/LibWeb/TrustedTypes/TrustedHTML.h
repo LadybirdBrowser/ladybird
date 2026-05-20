@@ -12,7 +12,7 @@
 
 namespace Web::TrustedTypes {
 
-using TrustedHTMLOrString = Variant<GC::Root<TrustedHTML>, Utf16String>;
+using TrustedHTMLOrString = Variant<GC::Ref<TrustedHTML>, Utf16String>;
 
 class TrustedHTML final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(TrustedHTML, Bindings::PlatformObject);

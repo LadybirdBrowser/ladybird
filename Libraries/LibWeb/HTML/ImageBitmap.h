@@ -17,7 +17,7 @@
 
 namespace Web::HTML {
 
-using ImageBitmapSource = FlattenVariant<CanvasImageSource, Variant<GC::Root<FileAPI::Blob>, GC::Root<ImageData>>>;
+using ImageBitmapSource = FlattenVariant<CanvasImageSource, Variant<GC::Ref<FileAPI::Blob>, GC::Ref<ImageData>>>;
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#imagebitmapoptions
 struct ImageBitmapOptions {

@@ -20,7 +20,7 @@ class WritableStreamDefaultController final : public Bindings::PlatformObject {
 public:
     virtual ~WritableStreamDefaultController() override = default;
 
-    void error(JS::Value error);
+    void error(Optional<JS::Value> error);
     GC::Ref<DOM::AbortSignal> signal() { return *m_signal; }
     void set_signal(GC::Ref<DOM::AbortSignal> value) { m_signal = value; }
 

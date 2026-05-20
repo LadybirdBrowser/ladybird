@@ -126,7 +126,7 @@ WebIDL::ExceptionOr<void> pack_and_post_message(JS::Realm& realm, HTML::MessageP
     auto target_port = port.entangled_port();
 
     // 5. Let options be «[ "transfer" → « » ]».
-    Bindings::StructuredSerializeOptions options { .transfer = {} };
+    Bindings::StructuredSerializeOptions options;
 
     // 6. Run the message port post message steps providing targetPort, message, and options.
     return port.message_port_post_message_steps(target_port, message, options);

@@ -22,7 +22,7 @@ GC::Ref<NavigationCurrentEntryChangeEvent> NavigationCurrentEntryChangeEvent::co
 
 NavigationCurrentEntryChangeEvent::NavigationCurrentEntryChangeEvent(JS::Realm& realm, FlyString const& event_name, Bindings::NavigationCurrentEntryChangeEventInit const& event_init)
     : DOM::Event(realm, event_name, event_init)
-    , m_navigation_type(event_init.navigation_type)
+    , m_navigation_type(event_init.navigation_type.value_or({}))
     , m_from(*event_init.from)
 {
 }

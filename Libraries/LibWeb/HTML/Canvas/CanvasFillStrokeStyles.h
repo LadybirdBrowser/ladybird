@@ -19,7 +19,7 @@ template<typename IncludingClass>
 class CanvasFillStrokeStyles {
 public:
     ~CanvasFillStrokeStyles() = default;
-    using FillOrStrokeStyleVariant = Variant<String, GC::Root<CanvasGradient>, GC::Root<CanvasPattern>>;
+    using FillOrStrokeStyleVariant = Variant<String, GC::Ref<CanvasGradient>, GC::Ref<CanvasPattern>>;
 
     void set_fill_style(FillOrStrokeStyleVariant style);
     FillOrStrokeStyleVariant fill_style() const;

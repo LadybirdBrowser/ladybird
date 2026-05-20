@@ -19,7 +19,7 @@ public:
 
     virtual ~HTMLFormControlsCollection() override;
 
-    Variant<Empty, DOM::Element*, GC::Root<RadioNodeList>> named_item_or_radio_node_list(FlyString const& name) const;
+    Variant<Empty, GC::Ref<DOM::Element>, GC::Ref<RadioNodeList>> named_item_or_radio_node_list(FlyString const& name) const;
 
 protected:
     virtual void initialize(JS::Realm&) override;

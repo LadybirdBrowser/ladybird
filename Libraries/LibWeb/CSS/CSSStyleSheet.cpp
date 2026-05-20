@@ -92,7 +92,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> CSSStyleSheet::construct_impl(JS::Re
         if (options->media.has<String>()) {
             sheet->set_media(options->media.get<String>());
         } else {
-            sheet->m_media = *options->media.get<GC::Root<MediaList>>();
+            sheet->m_media = *options->media.get<GC::Ref<MediaList>>();
         }
     }
 

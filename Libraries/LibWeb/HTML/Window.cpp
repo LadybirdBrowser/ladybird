@@ -20,6 +20,7 @@
 #include <LibTextCodec/Decoder.h>
 #include <LibURL/Origin.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
+#include <LibWeb/Bindings/MessageEvent.h>
 #include <LibWeb/Bindings/Window.h>
 #include <LibWeb/Bindings/WindowExposedInterfaces.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
@@ -1281,8 +1282,7 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, B
         // If this throws an exception, catch it, fire an event named messageerror at targetWindow, using MessageEvent,
         // with its origin initialized to origin and the source attribute initialized to source, and then return.
         if (deserialize_record_or_error.is_exception()) {
-            Bindings::MessageEventInit message_event_init {};
-            message_event_init.source = GC::make_root(source);
+            Bindings::MessageEventInit message_event_init { Bindings::EventInit {}, JS::js_null(), String {}, String {}, {}, GC::Ref { source } };
 
             auto message_error_event = MessageEvent::create(target_realm, EventNames::messageerror, message_event_init, origin);
             dispatch_event(message_error_event);
@@ -1296,7 +1296,7 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, B
         // 6. Let newPorts be a new frozen array consisting of all MessagePort objects in deserializeRecord.[[TransferredValues]],
         //    if any, maintaining their relative order.
         // FIXME: Use a FrozenArray
-        Vector<GC::Root<MessagePort>> new_ports;
+        GC::RootVector<GC::Ref<MessagePort>> new_ports;
         for (auto const& object : deserialize_record.transferred_values) {
             if (auto* message_port = as_if<HTML::MessagePort>(*object)) {
                 new_ports.append(*message_port);
@@ -1306,10 +1306,7 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, B
         // 7. Fire an event named message at targetWindow, using MessageEvent, with its origin initialized to origin,
         //    the source attribute initialized to source, the data attribute initialized to messageClone, and the ports
         //    attribute initialized to newPorts.
-        Bindings::MessageEventInit message_event_init {};
-        message_event_init.source = GC::make_root(source);
-        message_event_init.data = message_clone;
-        message_event_init.ports = move(new_ports);
+        Bindings::MessageEventInit message_event_init { Bindings::EventInit {}, message_clone, String {}, String {}, move(new_ports), GC::Ref { source } };
 
         auto message_event = MessageEvent::create(target_realm, EventNames::message, message_event_init, origin);
         message_event->set_is_trusted(true);
@@ -1328,7 +1325,7 @@ WebIDL::ExceptionOr<void> Window::post_message(JS::Value message, Bindings::Wind
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-window-postmessage
-WebIDL::ExceptionOr<void> Window::post_message(JS::Value message, String const& target_origin, Vector<GC::Root<JS::Object>> const& transfer)
+WebIDL::ExceptionOr<void> Window::post_message(JS::Value message, String const& target_origin, GC::RootVector<GC::Ref<JS::Object>> const& transfer)
 {
     // The Window interface's postMessage(message, targetOrigin, transfer) method steps are to run the window post message
     // steps given this, message, and «[ "targetOrigin" → targetOrigin, "transfer" → transfer ]».
@@ -1336,11 +1333,11 @@ WebIDL::ExceptionOr<void> Window::post_message(JS::Value message, String const& 
 }
 
 // https://dom.spec.whatwg.org/#dom-window-event
-Variant<GC::Root<DOM::Event>, Empty> Window::event() const
+Variant<GC::Ref<DOM::Event>, Empty> Window::event() const
 {
     // The event getter steps are to return this’s current event.
     if (auto* current_event = this->current_event())
-        return make_root(const_cast<DOM::Event&>(*current_event));
+        return GC::Ref<DOM::Event> { const_cast<DOM::Event&>(*current_event) };
     return Empty {};
 }
 

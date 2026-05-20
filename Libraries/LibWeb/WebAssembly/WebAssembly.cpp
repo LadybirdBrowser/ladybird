@@ -98,7 +98,7 @@ void initialize(JS::Object& self, JS::Realm&)
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-webassembly-validate
-bool validate(JS::VM& vm, GC::Root<WebIDL::BufferSource>& bytes)
+bool validate(JS::VM& vm, GC::Ref<WebIDL::BufferSource> bytes)
 {
     // 1. Let stableBytes be a copy of the bytes held by the buffer bytes.
     auto stable_bytes = WebIDL::get_buffer_source_copy(*bytes->raw_object());
@@ -119,7 +119,7 @@ bool validate(JS::VM& vm, GC::Root<WebIDL::BufferSource>& bytes)
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-webassembly-compile
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile(JS::VM& vm, GC::Root<WebIDL::BufferSource>& bytes)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile(JS::VM& vm, GC::Ref<WebIDL::BufferSource> bytes)
 {
     auto& realm = *vm.current_realm();
 
@@ -135,15 +135,15 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile(JS::VM& vm, GC::Root<WebID
 }
 
 // https://webassembly.github.io/spec/web-api/index.html#dom-webassembly-compilestreaming
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile_streaming(JS::VM& vm, GC::Root<WebIDL::Promise> source)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile_streaming(JS::VM& vm, GC::Ref<WebIDL::Promise> source)
 {
     //  The compileStreaming(source) method, when invoked, returns the result of compiling a potential WebAssembly response with source.
-    return compile_potential_webassembly_response(vm, *source);
+    return compile_potential_webassembly_response(vm, source);
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-webassembly-instantiate
 // https://webassembly.github.io/content-security-policy/js-api/#dom-webassembly-instantiate
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::VM& vm, GC::Root<WebIDL::BufferSource>& bytes, Optional<GC::Root<JS::Object>>& import_object_handle)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::VM& vm, GC::Ref<WebIDL::BufferSource> bytes, GC::Ptr<JS::Object> import_object)
 {
     auto& realm = *vm.current_realm();
 
@@ -161,30 +161,26 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::VM& vm, GC::Root<W
     auto promise_of_module = asynchronously_compile_webassembly_module(vm, stable_bytes.release_value());
 
     // 4. Instantiate promiseOfModule with imports importObject and return the result.
-    GC::Ptr<JS::Object> const import_object = import_object_handle.has_value() ? import_object_handle.value().ptr() : nullptr;
     return instantiate_promise_of_module(vm, promise_of_module, import_object);
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-webassembly-instantiate-moduleobject-importobject
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::VM& vm, Module const& module_object, Optional<GC::Root<JS::Object>>& import_object)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::VM& vm, GC::Ref<Module> module_object, GC::Ptr<JS::Object> import_object)
 {
     // 1. Asynchronously instantiate the WebAssembly module moduleObject importing importObject, and return the result.
-    GC::Ref<Module> module { const_cast<Module&>(module_object) };
-    GC::Ptr<JS::Object> const imports = import_object.has_value() ? import_object.value().ptr() : nullptr;
-    return asynchronously_instantiate_webassembly_module(vm, module, imports);
+    return asynchronously_instantiate_webassembly_module(vm, module_object, import_object);
 }
 
 // https://webassembly.github.io/spec/web-api/index.html#dom-webassembly-instantiatestreaming
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate_streaming(JS::VM& vm, GC::Root<WebIDL::Promise> source, Optional<GC::Root<JS::Object>>& import_object)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate_streaming(JS::VM& vm, GC::Ref<WebIDL::Promise> source, GC::Ptr<JS::Object> import_object)
 {
     // The instantiateStreaming(source, importObject) method, when invoked, performs the following steps:
 
     // 1. Let promiseOfModule be the result of compiling a potential WebAssembly response with source.
-    auto promise_of_module = compile_potential_webassembly_response(vm, *source);
+    auto promise_of_module = compile_potential_webassembly_response(vm, source);
 
     // 2. Return the result of instantiating the promise of a module promiseOfModule with imports importObject.
-    auto imports = GC::Ptr { import_object.has_value() ? import_object.value().ptr() : nullptr };
-    return instantiate_promise_of_module(vm, promise_of_module, imports);
+    return instantiate_promise_of_module(vm, promise_of_module, import_object);
 }
 
 namespace Detail {

@@ -23,12 +23,12 @@ class Table : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(Table);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<Table>> construct_impl(JS::Realm&, Bindings::TableDescriptor& descriptor, JS::Value value);
+    static WebIDL::ExceptionOr<GC::Ref<Table>> construct_impl(JS::Realm&, Bindings::TableDescriptor& descriptor, Optional<JS::Value> value);
 
-    WebIDL::ExceptionOr<u32> grow(u32 delta, JS::Value value);
+    WebIDL::ExceptionOr<u32> grow(u32 delta, Optional<JS::Value> value);
 
     WebIDL::ExceptionOr<JS::Value> get(u32 index) const;
-    WebIDL::ExceptionOr<void> set(u32 index, JS::Value value);
+    WebIDL::ExceptionOr<void> set(u32 index, Optional<JS::Value> value);
 
     WebIDL::ExceptionOr<u32> length() const;
 

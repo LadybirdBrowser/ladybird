@@ -194,10 +194,10 @@ public:
     bool confirm(Optional<String> const& message);
     Optional<String> prompt(Optional<String> const& message, Optional<String> const& default_);
 
-    WebIDL::ExceptionOr<void> post_message(JS::Value message, String const&, Vector<GC::Root<JS::Object>> const&);
+    WebIDL::ExceptionOr<void> post_message(JS::Value message, String const&, GC::RootVector<GC::Ref<JS::Object>> const&);
     WebIDL::ExceptionOr<void> post_message(JS::Value message, Bindings::WindowPostMessageOptions const&);
 
-    Variant<GC::Root<DOM::Event>, Empty> event() const;
+    Variant<GC::Ref<DOM::Event>, Empty> event() const;
 
     [[nodiscard]] GC::Ref<CSS::CSSStyleProperties> get_computed_style(DOM::Element&, Optional<String> const& pseudo_element) const;
 

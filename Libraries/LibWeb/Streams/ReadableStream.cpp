@@ -34,14 +34,14 @@ namespace Web::Streams {
 GC_DEFINE_ALLOCATOR(ReadableStream);
 
 // https://streams.spec.whatwg.org/#rs-constructor
-WebIDL::ExceptionOr<GC::Ref<ReadableStream>> ReadableStream::construct_impl(JS::Realm& realm, Optional<GC::Root<JS::Object>> const& underlying_source_object, Bindings::QueuingStrategy const& strategy)
+WebIDL::ExceptionOr<GC::Ref<ReadableStream>> ReadableStream::construct_impl(JS::Realm& realm, GC::Ptr<JS::Object> underlying_source_object, Bindings::QueuingStrategy const& strategy)
 {
     auto& vm = realm.vm();
 
     auto readable_stream = realm.create<ReadableStream>(realm);
 
     // 1. If underlyingSource is missing, set it to null.
-    auto underlying_source = underlying_source_object.has_value() ? JS::Value(underlying_source_object.value()) : JS::js_null();
+    auto underlying_source = underlying_source_object ? JS::Value(underlying_source_object) : JS::js_null();
 
     // 2. Let underlyingSourceDict be underlyingSource, converted to an IDL value of type UnderlyingSource.
     auto underlying_source_dict = TRY(Bindings::convert_to_idl_value_for_underlying_source(vm, underlying_source));
@@ -116,7 +116,7 @@ bool ReadableStream::locked() const
 }
 
 // https://streams.spec.whatwg.org/#rs-cancel
-GC::Ref<WebIDL::Promise> ReadableStream::cancel(JS::Value reason)
+GC::Ref<WebIDL::Promise> ReadableStream::cancel(Optional<JS::Value> reason)
 {
     auto& realm = this->realm();
 
@@ -127,7 +127,7 @@ GC::Ref<WebIDL::Promise> ReadableStream::cancel(JS::Value reason)
     }
 
     // 2. Return ! ReadableStreamCancel(this, reason).
-    return readable_stream_cancel(*this, reason);
+    return readable_stream_cancel(*this, reason.value_or(JS::js_undefined()));
 }
 
 // https://streams.spec.whatwg.org/#rs-get-reader
@@ -156,7 +156,7 @@ WebIDL::ExceptionOr<GC::Ref<ReadableStream>> ReadableStream::pipe_through(Bindin
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Failed to execute 'pipeThrough' on 'ReadableStream': parameter 1's 'writable' is locked"sv };
 
     // 3. Let signal be options["signal"] if it exists, or undefined otherwise.
-    GC::Ptr<DOM::AbortSignal> signal = options.signal.has_value() ? options.signal->ptr() : nullptr;
+    GC::Ptr<DOM::AbortSignal> signal = options.signal;
 
     // 4. Let promise be ! ReadableStreamPipeTo(this, transform["writable"], options["preventClose"], options["preventAbort"], options["preventCancel"], signal).
     auto promise = readable_stream_pipe_to(*this, *transform.writable, options.prevent_close, options.prevent_abort, options.prevent_cancel, signal);
@@ -185,7 +185,7 @@ GC::Ref<WebIDL::Promise> ReadableStream::pipe_to(WritableStream& destination, Bi
     }
 
     // 3. Let signal be options["signal"] if it exists, or undefined otherwise.
-    GC::Ptr<DOM::AbortSignal> signal = options.signal.has_value() ? options.signal->ptr() : nullptr;
+    GC::Ptr<DOM::AbortSignal> signal = options.signal;
 
     // 4. Return ! ReadableStreamPipeTo(this, destination, options["preventClose"], options["preventAbort"], options["preventCancel"], signal).
     return readable_stream_pipe_to(*this, destination, options.prevent_close, options.prevent_abort, options.prevent_cancel, signal);
@@ -489,7 +489,7 @@ WebIDL::ExceptionOr<void> ReadableStream::transfer_steps(HTML::TransferDataEncod
     WebIDL::mark_promise_as_handled(promise);
 
     // 9. Set dataHolder.[[port]] to ! StructuredSerializeWithTransfer(port2, « port2 »).
-    auto result = MUST(HTML::structured_serialize_with_transfer(vm, port2, { { GC::Root { port2 } } }));
+    auto result = MUST(HTML::structured_serialize_with_transfer(vm, port2, { { port2 } }));
     data_holder.extend(move(result.transfer_data_holders));
 
     return {};

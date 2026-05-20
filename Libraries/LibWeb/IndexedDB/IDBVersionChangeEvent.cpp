@@ -21,7 +21,7 @@ GC::Ref<IDBVersionChangeEvent> IDBVersionChangeEvent::create(JS::Realm& realm, F
 IDBVersionChangeEvent::IDBVersionChangeEvent(JS::Realm& realm, FlyString const& event_name, Bindings::IDBVersionChangeEventInit const& event_init)
     : DOM::Event(realm, event_name, event_init)
     , m_old_version(event_init.old_version)
-    , m_new_version(event_init.new_version)
+    , m_new_version(event_init.new_version.value_or({}))
 {
 }
 

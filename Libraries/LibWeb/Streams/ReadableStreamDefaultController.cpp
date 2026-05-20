@@ -45,23 +45,23 @@ WebIDL::ExceptionOr<void> ReadableStreamDefaultController::close()
 }
 
 // https://streams.spec.whatwg.org/#rs-default-controller-enqueue
-WebIDL::ExceptionOr<void> ReadableStreamDefaultController::enqueue(JS::Value chunk)
+WebIDL::ExceptionOr<void> ReadableStreamDefaultController::enqueue(Optional<JS::Value> chunk)
 {
     // 1. If ! ReadableStreamDefaultControllerCanCloseOrEnqueue(this) is false, throw a TypeError exception.
     if (!readable_stream_default_controller_can_close_or_enqueue(*this))
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot enqueue chunk to stream"sv };
 
     // 2. Perform ? ReadableStreamDefaultControllerEnqueue(this, chunk).
-    TRY(readable_stream_default_controller_enqueue(*this, chunk));
+    TRY(readable_stream_default_controller_enqueue(*this, chunk.value_or(JS::js_undefined())));
 
     return {};
 }
 
 // https://streams.spec.whatwg.org/#rs-default-controller-error
-void ReadableStreamDefaultController::error(JS::Value error)
+void ReadableStreamDefaultController::error(Optional<JS::Value> error)
 {
     // 1. Perform ! ReadableStreamDefaultControllerError(this, e).
-    readable_stream_default_controller_error(*this, error);
+    readable_stream_default_controller_error(*this, error.value_or(JS::js_undefined()));
 }
 
 // https://streams.spec.whatwg.org/#rs-default-controller-private-cancel

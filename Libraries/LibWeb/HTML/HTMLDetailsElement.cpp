@@ -272,12 +272,12 @@ void HTMLDetailsElement::update_shadow_tree_slots()
     if (!shadow_root())
         return;
 
-    Vector<HTMLSlotElement::SlottableHandle> summary_assignment;
-    Vector<HTMLSlotElement::SlottableHandle> descendants_assignment;
+    GC::ConservativeVector<HTMLSlotElement::SlottableHandle> summary_assignment;
+    GC::ConservativeVector<HTMLSlotElement::SlottableHandle> descendants_assignment;
 
     auto* summary = first_child_of_type<HTMLSummaryElement>();
     if (summary != nullptr)
-        summary_assignment.append(GC::make_root(static_cast<DOM::Element&>(*summary)));
+        summary_assignment.append(GC::Ref { static_cast<DOM::Element&>(*summary) });
 
     for_each_in_subtree([&](auto& child) {
         if (&child == summary)
@@ -286,7 +286,7 @@ void HTMLDetailsElement::update_shadow_tree_slots()
             return TraversalDecision::Continue;
 
         child.as_slottable().visit([&](auto& node) {
-            descendants_assignment.append(GC::make_root(node));
+            descendants_assignment.append(node);
         });
 
         return TraversalDecision::Continue;

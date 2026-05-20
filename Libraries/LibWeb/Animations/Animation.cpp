@@ -225,7 +225,7 @@ WebIDL::ExceptionOr<Optional<TimeValue>> Animation::validate_a_css_numberish_tim
         m_timeline && m_timeline->is_progress_based() &&
 
         // time is not a CSSNumeric value with percent units:
-        (!time.has<GC::Root<CSS::CSSNumericValue>>() || !time.get<GC::Root<CSS::CSSNumericValue>>()->type().matches_percentage())) {
+        (!time.has<GC::Ref<CSS::CSSNumericValue>>() || !time.get<GC::Ref<CSS::CSSNumericValue>>()->type().matches_percentage())) {
         // throw a TypeError.
         // return false;
         return WebIDL::SimpleException {
@@ -240,14 +240,14 @@ WebIDL::ExceptionOr<Optional<TimeValue>> Animation::validate_a_css_numberish_tim
         (!m_timeline || !m_timeline->is_progress_based()) &&
 
         // time is a CSSNumericValue, and
-        time.has<GC::Root<CSS::CSSNumericValue>>() &&
+        time.has<GC::Ref<CSS::CSSNumericValue>>() &&
 
         // the units of time are not duration units:
-        !time.get<GC::Root<CSS::CSSNumericValue>>()->type().matches_time({}) &&
+        !time.get<GC::Ref<CSS::CSSNumericValue>>()->type().matches_time({}) &&
 
         // AD-HOC: While it's not mentioned in the spec WPT also expects us to support CSSNumericValue number value, see
         //         https://github.com/w3c/csswg-drafts/issues/13196
-        !time.get<GC::Root<CSS::CSSNumericValue>>()->type().matches_number({})) {
+        !time.get<GC::Ref<CSS::CSSNumericValue>>()->type().matches_number({})) {
         // throw a TypeError.
         // return false.
         return WebIDL::SimpleException {
@@ -266,7 +266,7 @@ WebIDL::ExceptionOr<Optional<TimeValue>> Animation::validate_a_css_numberish_tim
 
     // FIXME: Figure out which element we should use for this, for now we just use the document element of the current
     //        window
-    return TimeValue::from_css_numberish(time.downcast<double, GC::Root<CSS::CSSNumericValue>>(), DOM::AbstractElement { *as<HTML::Window>(realm().global_object()).associated_document().document_element() });
+    return TimeValue::from_css_numberish(time.downcast<double, GC::Ref<CSS::CSSNumericValue>>(), DOM::AbstractElement { *as<HTML::Window>(realm().global_object()).associated_document().document_element() });
 
     VERIFY_NOT_REACHED();
 }

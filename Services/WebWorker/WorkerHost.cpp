@@ -6,6 +6,7 @@
 
 #include <LibIPC/File.h>
 #include <LibJS/Runtime/ConsoleObject.h>
+#include <LibWeb/Bindings/MessageEvent.h>
 #include <LibWeb/Fetch/Enums.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
@@ -275,10 +276,10 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
                 auto& vm = realm.vm();
                 Web::HTML::TemporaryExecutionContext const context(realm);
 
-                Web::Bindings::MessageEventInit event_init {};
+                Web::Bindings::MessageEventInit event_init;
                 event_init.data = GC::Ref { vm.empty_string() };
-                event_init.ports = { inside_port };
                 event_init.source = Web::HTML::NullableMessageEventSource { inside_port };
+                event_init.ports.append(inside_port);
 
                 auto message_event = Web::HTML::MessageEvent::create(realm, Web::HTML::EventNames::connect, event_init);
                 worker_global_scope->dispatch_event(message_event);

@@ -72,7 +72,7 @@ Bindings::OptionalEffectTiming to_optional_effect_timing(Bindings::EffectTiming 
             [](double const& value) -> Variant<double, String> { return value; },
             [](String const& value) -> Variant<double, String> { return value; },
             // NB: We check that this isn't the case in the caller
-            [](GC::Root<CSS::CSSNumericValue> const&) -> Variant<double, String> { VERIFY_NOT_REACHED(); }),
+            [](GC::Ref<CSS::CSSNumericValue>) -> Variant<double, String> { VERIFY_NOT_REACHED(); }),
         .easing = effect_timing.easing,
         .end_delay = effect_timing.end_delay,
         .fill = effect_timing.fill,

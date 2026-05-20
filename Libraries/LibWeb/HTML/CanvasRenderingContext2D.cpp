@@ -911,7 +911,7 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
     // 1. Switch on image:
     auto usability = TRY(image.visit(
         // HTMLOrSVGImageElement
-        [](GC::Root<HTMLImageElement> const& image_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
+        [](GC::Ref<HTMLImageElement> image_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             // If image's current request's state is broken, then throw an "InvalidStateError" DOMException.
             if (image_element->current_request().state() == HTML::ImageRequest::State::Broken)
                 return WebIDL::InvalidStateError::create(image_element->realm(), "Image element state is broken"_utf16);
@@ -927,7 +927,7 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
             return Optional<CanvasImageSourceUsability> {};
         },
         // FIXME: Don't duplicate this for HTMLImageElement and SVGImageElement.
-        [](GC::Root<SVG::SVGImageElement> const& image_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
+        [](GC::Ref<SVG::SVGImageElement> image_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             // FIXME: If image's current request's state is broken, then throw an "InvalidStateError" DOMException.
 
             // If image is not fully decodable, then return bad.
@@ -941,7 +941,7 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
             return Optional<CanvasImageSourceUsability> {};
         },
 
-        [](GC::Root<HTML::HTMLVideoElement> const& video_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
+        [](GC::Ref<HTML::HTMLVideoElement> video_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             // If image's readyState attribute is either HAVE_NOTHING or HAVE_METADATA, then return bad.
             if (video_element->ready_state() == HTML::HTMLMediaElement::ReadyState::HaveNothing || video_element->ready_state() == HTML::HTMLMediaElement::ReadyState::HaveMetadata) {
                 return { CanvasImageSourceUsability::Bad };
@@ -950,14 +950,14 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
         },
 
         // OffscreenCanvas
-        [](GC::Root<OffscreenCanvas> const& offscreen_canvas) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
+        [](GC::Ref<OffscreenCanvas> offscreen_canvas) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             // If image has either a horizontal dimension or a vertical dimension equal to zero, then throw an "InvalidStateError" DOMException.
             if (offscreen_canvas->width() == 0 || offscreen_canvas->height() == 0)
                 return WebIDL::InvalidStateError::create(offscreen_canvas->realm(), "OffscreenCanvas width or height is zero"_utf16);
             return Optional<CanvasImageSourceUsability> {};
         },
         // HTMLCanvasElement
-        [](GC::Root<HTMLCanvasElement> const& canvas_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
+        [](GC::Ref<HTMLCanvasElement> canvas_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             // If image has either a horizontal dimension or a vertical dimension equal to zero, then throw an "InvalidStateError" DOMException.
             if (canvas_element->width() == 0 || canvas_element->height() == 0)
                 return WebIDL::InvalidStateError::create(canvas_element->realm(), "Canvas width or height is zero"_utf16);
@@ -966,7 +966,7 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
 
         // ImageBitmap
         // FIXME: VideoFrame
-        [](GC::Root<ImageBitmap> const& image_bitmap) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
+        [](GC::Ref<ImageBitmap> image_bitmap) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             if (image_bitmap->is_detached())
                 return WebIDL::InvalidStateError::create(image_bitmap->realm(), "Image bitmap is detached"_utf16);
             return Optional<CanvasImageSourceUsability> {};
@@ -984,20 +984,20 @@ bool image_is_not_origin_clean(CanvasImageSource const& image)
     // An object image is not origin-clean if, switching on image's type:
     return image.visit(
         // HTMLOrSVGImageElement
-        [](GC::Root<HTMLImageElement> const&) {
+        [](GC::Ref<HTMLImageElement>) {
             // FIXME: image's current request's image data is CORS-cross-origin.
             return false;
         },
-        [](GC::Root<SVG::SVGImageElement> const&) {
+        [](GC::Ref<SVG::SVGImageElement>) {
             // FIXME: image's current request's image data is CORS-cross-origin.
             return false;
         },
-        [](GC::Root<HTML::HTMLVideoElement> const&) {
+        [](GC::Ref<HTML::HTMLVideoElement>) {
             // FIXME: image's media data is CORS-cross-origin.
             return false;
         },
         // HTMLCanvasElement, ImageBitmap or OffscreenCanvas
-        [](OneOf<GC::Root<HTMLCanvasElement>, GC::Root<ImageBitmap>, GC::Root<OffscreenCanvas>> auto const&) {
+        [](OneOf<GC::Ref<HTMLCanvasElement>, GC::Ref<ImageBitmap>, GC::Ref<OffscreenCanvas>> auto const&) {
             // FIXME: image's bitmap's origin-clean flag is false.
             return false;
         });

@@ -18,7 +18,7 @@ class Global : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(Global);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<Global>> construct_impl(JS::Realm&, Bindings::GlobalDescriptor const&, JS::Value v);
+    static WebIDL::ExceptionOr<GC::Ref<Global>> construct_impl(JS::Realm&, Bindings::GlobalDescriptor const&, Optional<JS::Value>);
 
     WebIDL::ExceptionOr<JS::Value> value_of() const;
 

@@ -129,10 +129,10 @@ public:
     Optional<String> lang() const;
     void invalidate_lang_value();
 
-    WebIDL::ExceptionOr<void> set_attribute_for_bindings(FlyString qualified_name, Variant<GC::Root<TrustedTypes::TrustedHTML>, GC::Root<TrustedTypes::TrustedScript>, GC::Root<TrustedTypes::TrustedScriptURL>, Utf16String> const& value);
-    WebIDL::ExceptionOr<void> set_attribute_for_bindings(FlyString qualified_name, Variant<GC::Root<TrustedTypes::TrustedHTML>, GC::Root<TrustedTypes::TrustedScript>, GC::Root<TrustedTypes::TrustedScriptURL>, String> const& value);
+    WebIDL::ExceptionOr<void> set_attribute_for_bindings(FlyString qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const& value);
+    WebIDL::ExceptionOr<void> set_attribute_for_bindings(FlyString qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, String> const& value);
 
-    WebIDL::ExceptionOr<void> set_attribute_ns_for_bindings(Optional<FlyString> const& namespace_, FlyString const& qualified_name, Variant<GC::Root<TrustedTypes::TrustedHTML>, GC::Root<TrustedTypes::TrustedScript>, GC::Root<TrustedTypes::TrustedScriptURL>, Utf16String> const& value);
+    WebIDL::ExceptionOr<void> set_attribute_ns_for_bindings(Optional<FlyString> const& namespace_, FlyString const& qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const& value);
     void set_attribute_value(FlyString const& local_name, String const& value, Optional<FlyString> const& prefix = {}, Optional<FlyString> const& namespace_ = {});
     WebIDL::ExceptionOr<GC::Ptr<Attr>> set_attribute_node_for_bindings(Attr&);
     WebIDL::ExceptionOr<GC::Ptr<Attr>> set_attribute_node_ns_for_bindings(Attr&);

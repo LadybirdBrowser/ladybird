@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/Debug.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
@@ -1093,7 +1094,7 @@ static String escape_string(ViewType const& string, AttributeMode attribute_mode
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#html-fragment-serialisation-algorithm
-String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableShadowRoots serializable_shadow_roots, Vector<GC::Root<DOM::ShadowRoot>> const& shadow_roots, DOM::FragmentSerializationMode fragment_serialization_mode)
+String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableShadowRoots serializable_shadow_roots, ReadonlySpan<GC::Ref<DOM::ShadowRoot>> shadow_roots, DOM::FragmentSerializationMode fragment_serialization_mode)
 {
     // NOTE: Steps in this function are jumbled a bit to accommodate the Element.outerHTML API.
     //       When called with FragmentSerializationMode::Outer, we will serialize the element itself,
@@ -1228,7 +1229,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
             //    - serializableShadowRoots is true and shadow's serializable is true; or
             //    - shadowRoots contains shadow,
             if ((serializable_shadow_roots == SerializableShadowRoots::Yes && shadow->serializable())
-                || shadow_roots.contains([&](auto& entry) { return entry == shadow; })) {
+                || any_of(shadow_roots, [&](auto& entry) { return entry == shadow; })) {
                 // then:
                 // 1. Append "<template shadowrootmode="".
                 builder.append("<template shadowrootmode=\""sv);

@@ -570,8 +570,8 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
         Optional<ByteString> extracted_content_type;
 
         // 2. If body is a Document, then set this’s request body to body, serialized, converted, and UTF-8 encoded.
-        if (body.has<GC::Root<DOM::Document>>()) {
-            auto string_serialized_document = TRY(body.get<GC::Root<DOM::Document>>().cell()->serialize_fragment(HTML::RequireWellFormed::No));
+        if (body.has<GC::Ref<DOM::Document>>()) {
+            auto string_serialized_document = TRY(body.get<GC::Ref<DOM::Document>>()->serialize_fragment(HTML::RequireWellFormed::No));
             auto string_serialized_document_utf8 = string_serialized_document.to_utf8();
             m_request_body = Fetch::Infrastructure::byte_sequence_as_body(realm, string_serialized_document_utf8.bytes());
         }
@@ -593,7 +593,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
         // 5. If originalAuthorContentType is non-null, then:
         if (original_author_content_type.has_value()) {
             // 1. If body is a Document or a USVString, then:
-            if (body.has<GC::Root<DOM::Document>>() || body.has<String>()) {
+            if (body.has<GC::Ref<DOM::Document>>() || body.has<String>()) {
                 // 1. Let contentTypeRecord be the result of parsing originalAuthorContentType.
                 auto content_type_record = MimeSniff::MimeType::parse(original_author_content_type.value());
 
@@ -616,8 +616,8 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
         }
         // 6. Otherwise:
         else {
-            if (body.has<GC::Root<DOM::Document>>()) {
-                auto document = body.get<GC::Root<DOM::Document>>();
+            if (body.has<GC::Ref<DOM::Document>>()) {
+                auto document = body.get<GC::Ref<DOM::Document>>();
 
                 // NOTE: A document can only be an HTML document or XML document.
                 // 1. If body is an HTML document, then set (`Content-Type`, `text/html;charset=UTF-8`) in this’s author request headers.

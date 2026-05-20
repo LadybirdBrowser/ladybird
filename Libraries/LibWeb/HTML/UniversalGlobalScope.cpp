@@ -15,6 +15,7 @@
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/MessagePort.h>
+#include <LibWeb/Bindings/PromiseRejectionEvent.h>
 #include <LibWeb/HTML/PromiseRejectionEvent.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/StructuredSerialize.h>

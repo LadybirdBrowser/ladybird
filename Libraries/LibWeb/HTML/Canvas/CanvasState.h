@@ -59,7 +59,7 @@ public:
         Optional<Gfx::Color> as_color() const;
         Gfx::Color to_color_but_fixme_should_accept_any_paint_style() const;
 
-        using JsFillOrStrokeStyle = Variant<String, GC::Root<CanvasGradient>, GC::Root<CanvasPattern>>;
+        using JsFillOrStrokeStyle = Variant<String, GC::Ref<CanvasGradient>, GC::Ref<CanvasPattern>>;
 
         JsFillOrStrokeStyle to_js_fill_or_stroke_style() const
         {
@@ -68,7 +68,7 @@ public:
                     return color.to_string(Gfx::Color::HTMLCompatibleSerialization::Yes);
                 },
                 [&](auto handle) -> JsFillOrStrokeStyle {
-                    return GC::make_root(handle);
+                    return handle;
                 });
         }
 

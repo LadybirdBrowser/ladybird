@@ -25,14 +25,14 @@ namespace Web::Streams {
 GC_DEFINE_ALLOCATOR(TransformStream);
 
 // https://streams.spec.whatwg.org/#ts-constructor
-WebIDL::ExceptionOr<GC::Ref<TransformStream>> TransformStream::construct_impl(JS::Realm& realm, Optional<GC::Root<JS::Object>> transformer_object, Bindings::QueuingStrategy const& writable_strategy, Bindings::QueuingStrategy const& readable_strategy)
+WebIDL::ExceptionOr<GC::Ref<TransformStream>> TransformStream::construct_impl(JS::Realm& realm, GC::Ptr<JS::Object> transformer_object, Bindings::QueuingStrategy const& writable_strategy, Bindings::QueuingStrategy const& readable_strategy)
 {
     auto& vm = realm.vm();
 
     auto stream = realm.create<TransformStream>(realm);
 
     // 1. If transformer is missing, set it to null.
-    auto transformer = transformer_object.has_value() ? JS::Value { transformer_object.value() } : JS::js_null();
+    auto transformer = transformer_object ? JS::Value { transformer_object } : JS::js_null();
 
     // 2. Let transformerDict be transformer, converted to an IDL value of type Transformer.
     auto transformer_dict = TRY(Bindings::convert_to_idl_value_for_transformer(vm, transformer));
@@ -208,11 +208,11 @@ WebIDL::ExceptionOr<void> TransformStream::transfer_steps(HTML::TransferDataEnco
         return WebIDL::DataCloneError::create(realm, "Cannot transfer locked WritableStream"_utf16);
 
     // 5. Set dataHolder.[[readable]] to ! StructuredSerializeWithTransfer(readable, « readable »).
-    auto readable_result = MUST(HTML::structured_serialize_with_transfer(vm, readable, { { GC::Root { readable } } }));
+    auto readable_result = MUST(HTML::structured_serialize_with_transfer(vm, readable, { { readable } }));
     data_holder.extend(move(readable_result.transfer_data_holders));
 
     // 6. Set dataHolder.[[writable]] to ! StructuredSerializeWithTransfer(writable, « writable »).
-    auto writable_result = MUST(HTML::structured_serialize_with_transfer(vm, writable, { { GC::Root { writable } } }));
+    auto writable_result = MUST(HTML::structured_serialize_with_transfer(vm, writable, { { writable } }));
     data_holder.extend(move(writable_result.transfer_data_holders));
 
     return {};

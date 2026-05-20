@@ -1546,7 +1546,7 @@ GC::Ptr<PendingResponse> http_redirect_fetch(JS::Realm& realm, Infrastructure::F
         auto converted_source = source.visit(
             [](ByteBuffer const& byte_buffer) -> BodyInitOrReadableBytes { return byte_buffer.bytes(); },
             [](Core::ImmutableBytes const& bytes) -> BodyInitOrReadableBytes { return bytes; },
-            [](GC::Ref<FileAPI::Blob> const& blob) -> BodyInitOrReadableBytes { return GC::make_root(blob); },
+            [](GC::Ref<FileAPI::Blob> blob) -> BodyInitOrReadableBytes { return blob; },
             [](Empty) -> BodyInitOrReadableBytes { VERIFY_NOT_REACHED(); });
         auto [body, _] = safely_extract_body(realm, converted_source);
         request->set_body(body);
@@ -2005,7 +2005,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
                 auto converted_source = source.visit(
                     [](ByteBuffer const& byte_buffer) -> BodyInitOrReadableBytes { return byte_buffer.bytes(); },
                     [](Core::ImmutableBytes const& bytes) -> BodyInitOrReadableBytes { return bytes; },
-                    [](GC::Ref<FileAPI::Blob> const& blob) -> BodyInitOrReadableBytes { return GC::make_root(blob); },
+                    [](GC::Ref<FileAPI::Blob> blob) -> BodyInitOrReadableBytes { return blob; },
                     [](Empty) -> BodyInitOrReadableBytes { VERIFY_NOT_REACHED(); });
                 auto [body, _] = safely_extract_body(realm, converted_source);
                 request->set_body(body);

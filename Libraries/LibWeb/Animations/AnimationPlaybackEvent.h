@@ -34,15 +34,11 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
 
-    using CSSNumberishInternal = Variant<Empty, double, GC::Ref<CSS::CSSNumericValue>>;
-    static CSSNumberishInternal to_numberish_internal(NullableCSSNumberish const&);
-    static NullableCSSNumberish to_nullable_numberish(CSSNumberishInternal const&);
-
     // https://drafts.csswg.org/web-animations-2/#dom-animationplaybackevent-currenttime
-    CSSNumberishInternal m_current_time;
+    NullableCSSNumberish m_current_time;
 
     // https://drafts.csswg.org/web-animations-2/#dom-animationplaybackevent-timelinetime
-    CSSNumberishInternal m_timeline_time;
+    NullableCSSNumberish m_timeline_time;
 };
 
 }

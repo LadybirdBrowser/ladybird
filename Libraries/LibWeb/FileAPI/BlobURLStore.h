@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <AK/HashMap.h>
 #include <AK/String.h>
+#include <LibGC/ConservativeHashMap.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/Root.h>
 #include <LibURL/URL.h>
@@ -17,14 +17,14 @@ namespace Web::FileAPI {
 
 // https://w3c.github.io/FileAPI/#blob-url-entry
 struct BlobURLEntry {
-    using Object = Variant<GC::Root<Blob>, GC::Root<MediaSourceExtensions::MediaSource>>;
+    using Object = Variant<GC::Ref<Blob>, GC::Ref<MediaSourceExtensions::MediaSource>>;
 
     Object object;
-    GC::Root<HTML::EnvironmentSettingsObject> environment;
+    GC::Ref<HTML::EnvironmentSettingsObject> environment;
 };
 
 // https://w3c.github.io/FileAPI/#BlobURLStore
-using BlobURLStore = HashMap<String, BlobURLEntry>;
+using BlobURLStore = GC::ConservativeHashMap<String, BlobURLEntry>;
 
 BlobURLStore& blob_url_store();
 ErrorOr<Utf16String> generate_new_blob_url();

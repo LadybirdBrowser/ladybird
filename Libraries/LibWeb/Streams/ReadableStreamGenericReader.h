@@ -21,7 +21,7 @@ public:
 
     GC::Ptr<WebIDL::Promise> closed();
 
-    GC::Ref<WebIDL::Promise> cancel(JS::Value reason);
+    GC::Ref<WebIDL::Promise> cancel(Optional<JS::Value> reason);
 
     GC::Ptr<ReadableStream> stream() const { return m_stream; }
     void set_stream(GC::Ptr<ReadableStream> stream) { m_stream = stream; }
