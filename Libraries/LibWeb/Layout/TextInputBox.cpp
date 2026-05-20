@@ -17,11 +17,16 @@ TextInputBox::TextInputBox(DOM::Document& document, GC::Ptr<DOM::Element> elemen
 
 CSS::SizeWithAspectRatio TextInputBox::compute_auto_content_box_size() const
 {
-    auto width = CSS::Length(dom_node().size(), CSS::LengthUnit::Ch).to_px(*this);
-    auto height = computed_values().line_height() + CSSPixels(2);
+    return auto_content_box_size_for_text_control(dom_node(), *this);
+}
+
+CSS::SizeWithAspectRatio TextInputBox::auto_content_box_size_for_text_control(HTML::HTMLInputElement const& input_element, Box const& box)
+{
+    auto width = CSS::Length(input_element.size(), CSS::LengthUnit::Ch).to_px(box);
+    auto height = box.computed_values().line_height() + CSSPixels(2);
     // AD-HOC: 2px is inline shadow DOM padding in HTMLInputElement::create_text_input_shadow_tree()
 
-    if (this->computed_values().writing_mode() != CSS::WritingMode::HorizontalTb)
+    if (box.computed_values().writing_mode() != CSS::WritingMode::HorizontalTb)
         swap(width, height);
 
     return { width, height, {} };

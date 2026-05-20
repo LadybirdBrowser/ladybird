@@ -1,0 +1,48 @@
+<!doctype html>
+<link rel="help" href="https://drafts.csswg.org/css-ui/#appearance-switching">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/input.html#the-size-attribute">
+<script src="include.js"></script>
+<style>
+    .wrapper {
+        display: inline-flex;
+        align-items: stretch;
+        min-width: 160px;
+        border: 1px solid black;
+        overflow: hidden;
+    }
+
+    .wrapper > :not(:last-child) {
+        margin-right: 8px;
+    }
+
+    .visual {
+        flex-shrink: 0;
+        align-self: center;
+        width: 16px;
+    }
+
+    input {
+        appearance: none;
+        border: 0;
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        font: 20px/1 Arial;
+    }
+</style>
+<div id="wrapper" class="wrapper">
+    <span class="visual"></span>
+    <input placeholder="Go to file">
+    <span class="visual"></span>
+</div>
+<script>
+    test(() => {
+        const wrapper = document.getElementById("wrapper");
+        const width = wrapper.getBoundingClientRect().width;
+        if (width > 180)
+            println("PASS");
+        else
+            println(`FAIL: wrapper width was ${width}`);
+    });
+</script>
