@@ -861,7 +861,7 @@ Page::FindInPageResult Page::perform_find_in_page_query(FindInPageQuery const& q
         }
     }
 
-    update_find_in_page_selection(all_matches);
+    update_find_in_page_selection(all_matches, query.clear_selection_on_no_match);
 
     return Page::FindInPageResult {
         .current_match_index = m_find_in_page_match_index,
@@ -906,10 +906,13 @@ Page::FindInPageResult Page::find_in_page_previous_match()
     return result;
 }
 
-void Page::update_find_in_page_selection(Vector<GC::Root<DOM::Range>> matches)
+void Page::update_find_in_page_selection(Vector<GC::Root<DOM::Range>> matches, ClearSelectionOnNoMatch clear_selection_on_no_match)
 {
-    if (matches.is_empty())
+    if (matches.is_empty()) {
+        if (clear_selection_on_no_match == ClearSelectionOnNoMatch::Yes)
+            clear_selection();
         return;
+    }
 
     clear_selection();
 

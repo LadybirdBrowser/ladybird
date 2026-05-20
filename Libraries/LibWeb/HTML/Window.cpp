@@ -2025,6 +2025,7 @@ bool Window::find(String const& string)
             string,
             CaseSensitivity::CaseInsensitive,
             Page::WrapAround::No,
+            Page::ClearSelectionOnNoMatch::No,
         };
 
         result = page.find_in_page(query);
