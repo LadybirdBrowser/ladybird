@@ -148,6 +148,11 @@ ErrorOr<void> handle_attached_debugger()
 
 ErrorOr<Web::HTML::SelectedFile> create_selected_file(ByteString const& file_path)
 {
+    // FIXME: Implement the File and Directory Entries API.
+    //        https://wicg.github.io/entries-api/
+    if (FileSystem::is_directory(file_path))
+        return Error::from_string_literal("Only files may currently be selected");
+
     // https://html.spec.whatwg.org/multipage/input.html#file-upload-state-(type=file):concept-input-file-path
     // Filenames must not contain path components, even in the case that a user has selected an entire directory
     // hierarchy or multiple files with the same name from different directories.
