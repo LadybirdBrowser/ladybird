@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+body {
+    margin: 0;
+}
+
+.grid {
+    display: grid;
+    width: 40px;
+    height: 40px;
+    padding: 15px;
+    box-sizing: border-box;
+    justify-content: center;
+    align-content: center;
+}
+
+.item {
+    width: 20px;
+    height: 20px;
+}
+</style>
+<div class="grid"><div id="item" class="item"></div></div>
+<script>
+test(() => {
+    const rect = document.getElementById("item").getBoundingClientRect();
+    println(`left: ${rect.left.toFixed(1)}`);
+    println(`top: ${rect.top.toFixed(1)}`);
+    println(`right: ${rect.right.toFixed(1)}`);
+    println(`bottom: ${rect.bottom.toFixed(1)}`);
+});
+</script>

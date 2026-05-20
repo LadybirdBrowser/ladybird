@@ -1,0 +1,4 @@
+left: 10.0
+top: 10.0
+right: 30.0
+bottom: 30.0
