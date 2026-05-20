@@ -18,7 +18,7 @@
 #include <LibIPC/File.h>
 #include <LibIPC/Forward.h>
 #include <LibIPC/Message.h>
-#include <LibURL/Forward.h>
+#include <LibURL/URL.h>
 
 namespace IPC {
 

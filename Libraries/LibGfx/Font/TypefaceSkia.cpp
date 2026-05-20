@@ -5,14 +5,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ByteString.h>
 #include <AK/LsanSuppressions.h>
-#include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/TypefaceSkia.h>
+#include <LibIPC/Encoder.h>
 
 #include <core/SkData.h>
 #include <core/SkFontMgr.h>
 #include <core/SkStream.h>
+#include <core/SkString.h>
 #include <core/SkTypeface.h>
 #if defined(AK_OS_ANDROID)
 #    include <ports/SkFontMgr_android.h>
@@ -34,14 +36,16 @@ namespace Gfx {
 static sk_sp<SkFontMgr> s_font_manager;
 
 struct TypefaceSkia::Impl {
-    Impl(sk_sp<SkTypeface> skia_typeface, std::unique_ptr<SkStreamAsset> stream = {})
+    Impl(sk_sp<SkTypeface> skia_typeface, std::unique_ptr<SkStreamAsset> stream = {}, Optional<SystemUIFontKind> system_ui_font_kind = {})
         : skia_typeface(move(skia_typeface))
         , stream(move(stream))
+        , system_ui_font_kind(move(system_ui_font_kind))
     {
     }
 
     sk_sp<SkTypeface> skia_typeface;
     std::unique_ptr<SkStreamAsset> stream;
+    Optional<SystemUIFontKind> system_ui_font_kind;
 };
 
 static SkFontMgr& font_manager()
@@ -66,6 +70,18 @@ static SkFontMgr& font_manager()
     return *s_font_manager;
 }
 
+static std::unique_ptr<SkMemoryStream> copy_stream_to_memory_stream(SkStreamAsset& stream)
+{
+    auto stream_copy = stream.duplicate();
+    VERIFY(stream_copy);
+
+    auto data = SkData::MakeFromStream(stream_copy.get(), stream_copy->getLength());
+    VERIFY(data);
+    VERIFY(data->size() == stream.getLength());
+
+    return std::make_unique<SkMemoryStream>(move(data));
+}
+
 static SkFontStyle::Slant slope_to_skia_slant(u8 slope)
 {
     switch (slope) {
@@ -78,7 +94,11 @@ static SkFontStyle::Slant slope_to_skia_slant(u8 slope)
     }
 }
 
-ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::typeface_from_skia_typeface(sk_sp<SkTypeface> skia_typeface)
+#ifdef AK_OS_MACOS
+static CTFontRef create_system_ui_font(SystemUIFontKind, float point_size, u8 slope);
+#endif
+
+ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::typeface_from_skia_typeface(sk_sp<SkTypeface> skia_typeface, Optional<SystemUIFontKind> system_ui_font_kind)
 {
     if (!skia_typeface)
         return RefPtr<TypefaceSkia> {};
@@ -91,22 +111,20 @@ ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::typeface_from_skia_typeface(sk_sp<Sk
         // NB: Safe to reference without copying because we hold on to the stream.
         ReadonlyBytes bytes { static_cast<u8 const*>(stream->getMemoryBase()), stream->getLength() };
         return adopt_ref(*new TypefaceSkia {
-            make<TypefaceSkia::Impl>(skia_typeface, std::move(stream)),
+            make<TypefaceSkia::Impl>(skia_typeface, std::move(stream), system_ui_font_kind),
             bytes,
             ttc_index });
     }
 
-    auto data = skia_typeface->serialize(SkTypeface::SerializeBehavior::kDoIncludeData);
-    if (!data)
+    if (!stream)
         return Error::from_string_literal("Failed to get font data from typeface");
 
-    auto anonymous_buffer = TRY(Core::AnonymousBuffer::create_with_size(data->size()));
-    if (data->size() > 0)
-        memcpy(anonymous_buffer.data<void>(), data->data(), data->size());
-
-    auto result = TRY(TypefaceSkia::load_from_buffer(anonymous_buffer.bytes(), ttc_index));
-    result->set_anonymous_font_data(move(anonymous_buffer));
-    return result;
+    auto memory_stream = copy_stream_to_memory_stream(*stream);
+    auto bytes = ReadonlyBytes { static_cast<u8 const*>(memory_stream->getMemoryBase()), memory_stream->getLength() };
+    return adopt_ref(*new TypefaceSkia {
+        make<TypefaceSkia::Impl>(skia_typeface, move(memory_stream), system_ui_font_kind),
+        bytes,
+        ttc_index });
 }
 
 ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::ReadonlyBytes buffer, u32 ttc_index)
@@ -127,6 +145,23 @@ ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::Readonly
     }
 
     return adopt_ref(*new TypefaceSkia { make<TypefaceSkia::Impl>(skia_typeface), buffer, ttc_index });
+}
+
+void TypefaceSkia::encode_font_data_for_ipc(IPC::Encoder& encoder) const
+{
+    if (has_font_data_backing()) {
+        Typeface::encode_font_data_for_ipc(encoder);
+        return;
+    }
+
+    auto family_name = family().to_string();
+
+    MUST(encoder.encode(FontDataFormat::SystemFont));
+    MUST(encoder.encode(impl().system_ui_font_kind));
+    MUST(encoder.encode(family_name));
+    MUST(encoder.encode(weight()));
+    MUST(encoder.encode(width()));
+    MUST(encoder.encode(slope()));
 }
 
 #ifdef AK_OS_MACOS
@@ -204,7 +239,7 @@ ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::match_system_ui(SystemUIFontKind kin
         return RefPtr<TypefaceSkia> {};
 
     auto skia_typeface = SkMakeTypefaceFromCTFont(ct_font);
-    auto typeface = typeface_from_skia_typeface(move(skia_typeface));
+    auto typeface = typeface_from_skia_typeface(move(skia_typeface), kind);
     CFRelease(ct_font);
     return typeface;
 #else
@@ -215,6 +250,12 @@ ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::match_system_ui(SystemUIFontKind kin
     (void)slope;
     return RefPtr<TypefaceSkia> {};
 #endif
+}
+
+ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::match_family_style(StringView family_name, u16 weight, u16 width, u8 slope)
+{
+    auto skia_typeface = font_manager().matchFamilyStyle(ByteString(family_name).characters(), SkFontStyle { weight, width, slope_to_skia_slant(slope) });
+    return typeface_from_skia_typeface(move(skia_typeface));
 }
 
 ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::find_typeface_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope)
@@ -273,9 +314,19 @@ RefPtr<TypefaceSkia const> TypefaceSkia::clone_with_variations(Vector<FontVariat
     if (!skia_typeface)
         return {};
 
-    auto typeface = adopt_ref(*new TypefaceSkia { make<TypefaceSkia::Impl>(skia_typeface), m_buffer, m_ttc_index });
-    typeface->copy_font_data_from(*this);
-    return typeface;
+    if (has_font_data_backing()) {
+        auto typeface = adopt_ref(*new TypefaceSkia {
+            make<TypefaceSkia::Impl>(skia_typeface, std::unique_ptr<SkStreamAsset> {}, impl().system_ui_font_kind),
+            m_buffer,
+            m_ttc_index });
+        typeface->copy_font_data_from(*this);
+        return typeface;
+    }
+
+    auto typeface_or_error = typeface_from_skia_typeface(move(skia_typeface), impl().system_ui_font_kind);
+    if (typeface_or_error.is_error())
+        return {};
+    return typeface_or_error.release_value();
 }
 
 SkTypeface const* TypefaceSkia::sk_typeface() const
