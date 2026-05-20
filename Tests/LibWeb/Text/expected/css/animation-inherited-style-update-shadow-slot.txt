@@ -1,0 +1,7 @@
+host shadow child color: rgb(128, 0, 128)
+host shadow slot color: rgb(128, 0, 128)
+host slotted color: rgb(128, 0, 128)
+slot target slotted color: rgb(128, 0, 128)
+explicit inherit shadow child margin-left: 20px
+explicit inherit shadow slot margin-left: 20px
+explicit inherit slotted margin-left: 20px

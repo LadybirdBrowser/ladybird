@@ -1910,6 +1910,8 @@ bool Document::layout_is_up_to_date() const
 
         if (!node_invalidation.is_none())
             CSS::Invalidation::invalidate_assigned_slottables_after_slot_style_change(element);
+        if (!needs_inherited_style_update && (node_invalidation.inherited_style_changed || node_invalidation.rebuild_layout_tree))
+            CSS::Invalidation::invalidate_assigned_slottables_for_descendant_slots_after_inherited_style_change(element);
     }
     if (node_invalidation.relayout)
         node.set_needs_layout_update(SetNeedsLayoutReason::StyleChange);
@@ -2042,12 +2044,23 @@ void Document::update_style()
     if (m_needs_media_query_evaluation)
         evaluate_media_rules();
 
-    style_computer().reset_has_result_cache();
-    style_computer().reset_ancestor_filter();
-
     build_registered_properties_cache();
 
-    auto invalidation = update_style_recursively(*this, style_computer(), false, false, false, false);
+    CSS::RequiredInvalidationAfterStyleChange invalidation;
+    constexpr size_t max_style_update_passes = 8;
+    for (size_t style_update_pass = 0; style_update_pass < max_style_update_passes; ++style_update_pass) {
+        style_computer().reset_has_result_cache();
+        style_computer().reset_ancestor_filter();
+
+        invalidation |= update_style_recursively(*this, style_computer(), false, false, false, false);
+        m_needs_full_style_update = false;
+
+        if (!m_style_invalidator->has_pending_invalidations() && !needs_style_update() && !child_needs_style_update())
+            break;
+
+        m_style_invalidator->invalidate(*this);
+    }
+
     if (!invalidation.is_none())
         set_needs_to_record_display_list();
 
@@ -2056,7 +2069,6 @@ void Document::update_style()
 
     if (invalidation.rebuild_stacking_context_tree)
         invalidate_stacking_context_tree();
-    m_needs_full_style_update = false;
 }
 
 void Document::update_style_if_needed_for_element(AbstractElement const& abstract_element)
@@ -2117,7 +2129,11 @@ void Document::update_style_for_element(AbstractElement const& abstract_element)
     for (size_t i = *topmost_display_none_index; i > 0; --i) {
         auto& element = inheritance_chain[i - 1];
         bool did_change_custom_properties = false;
-        element->recompute_style(did_change_custom_properties);
+        auto invalidation = element->recompute_style(did_change_custom_properties);
+        if (!invalidation.is_none())
+            CSS::Invalidation::invalidate_assigned_slottables_after_slot_style_change(element);
+        if (invalidation.inherited_style_changed || invalidation.rebuild_layout_tree)
+            CSS::Invalidation::invalidate_assigned_slottables_for_descendant_slots_after_inherited_style_change(element);
         if (i > 1)
             style_computer.push_ancestor(element);
     }

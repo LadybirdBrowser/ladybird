@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+
+<div id="root"></div>
+
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+        let current = root;
+        for (let i = 0; i < 24; ++i) {
+            const child = document.createElement("div");
+            current.appendChild(child);
+            current = child;
+        }
+
+        getComputedStyle(current).color;
+        internals.resetStyleInvalidationCounters();
+
+        root.style.color = "rgb(0, 128, 0)";
+
+        println(`deep child color: ${getComputedStyle(current).color}`);
+
+        const counters = internals.getStyleInvalidationCounters();
+        println(`descendant slot scans stayed linear: ${counters.descendantSlotInvalidationSubtreeScans <= 1}`);
+    });
+</script>

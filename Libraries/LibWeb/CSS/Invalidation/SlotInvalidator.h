@@ -12,5 +12,6 @@ namespace Web::CSS::Invalidation {
 
 void invalidate_style_after_slottable_assignment_change(DOM::Slottable const&);
 void invalidate_assigned_slottables_after_slot_style_change(DOM::Element&);
+void invalidate_assigned_slottables_for_descendant_slots_after_inherited_style_change(DOM::Element&);
 
 }

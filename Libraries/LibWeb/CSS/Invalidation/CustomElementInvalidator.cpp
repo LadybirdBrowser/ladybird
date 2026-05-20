@@ -14,12 +14,15 @@ namespace Web::CSS::Invalidation {
 
 void invalidate_style_after_custom_element_state_change(DOM::Element& element)
 {
+    DOM::StyleInvalidationOptions options;
+    options.invalidate_self = true;
+
     element.invalidate_style(
         DOM::StyleInvalidationReason::CustomElementStateChange,
         {
             { .type = InvalidationSet::Property::Type::PseudoClass, .value = PseudoClass::Defined },
         },
-        {});
+        options);
 }
 
 void invalidate_style_after_custom_state_set_change(DOM::Element& element)

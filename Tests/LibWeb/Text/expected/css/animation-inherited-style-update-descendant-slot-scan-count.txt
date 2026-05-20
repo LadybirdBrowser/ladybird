@@ -1,0 +1,2 @@
+deep child color: rgb(128, 0, 128)
+descendant slot scans stayed linear: true
