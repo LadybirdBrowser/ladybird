@@ -120,7 +120,8 @@ void ViewImplementation::set_favicon(Badge<WebContentClient>, Gfx::Bitmap const&
 
     if (m_favicon_base64_png.has_value()) {
         Application::bookmark_store().update_favicon(m_url, *m_favicon_base64_png);
-        Application::history_store().update_favicon(m_url, *m_favicon_base64_png);
+        if (!m_should_suppress_history_for_current_load)
+            Application::history_store().update_favicon(m_url, *m_favicon_base64_png);
     }
 
     if (on_favicon_change)
@@ -189,13 +190,25 @@ void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState 
 
 void ViewImplementation::load(URL::URL const& url)
 {
+    m_should_suppress_history_for_current_load = false;
+    m_should_suppress_history_for_next_load = false;
     set_url(url);
     client().async_load_url(page_id(), url);
 }
 
 void ViewImplementation::load_html(StringView html)
 {
+    m_should_suppress_history_for_current_load = false;
+    m_should_suppress_history_for_next_load = false;
     client().async_load_html(page_id(), html);
+}
+
+void ViewImplementation::load_crash_page_html(StringView html, URL::URL const& crashed_url)
+{
+    m_should_suppress_history_for_current_load = true;
+    m_should_suppress_history_for_next_load = true;
+    set_url(crashed_url);
+    client().async_load_html_with_url(page_id(), html, crashed_url);
 }
 
 void ViewImplementation::load_navigation_error_page(StringView text)
@@ -203,7 +216,7 @@ void ViewImplementation::load_navigation_error_page(StringView text)
     auto message = MUST(String::formatted("Failed to load \"{}\"", text));
 
     StringBuilder builder;
-    builder.appendff(ERROR_HTML_HEADER, ERROR_SVG, message);
+    builder.appendff(ERROR_HTML_HEADER, ""sv, ERROR_SVG, message);
     builder.append("<p>If you were trying to enter a search query, please enable search in <a href=\"about:settings#search\">settings</a>.</p>"sv);
     builder.append(ERROR_HTML_FOOTER);
     load_html(builder.string_view());
@@ -211,11 +224,15 @@ void ViewImplementation::load_navigation_error_page(StringView text)
 
 void ViewImplementation::reload()
 {
+    m_should_suppress_history_for_current_load = false;
+    m_should_suppress_history_for_next_load = false;
     client().async_reload(page_id());
 }
 
 void ViewImplementation::traverse_the_history_by_delta(int delta)
 {
+    m_should_suppress_history_for_current_load = false;
+    m_should_suppress_history_for_next_load = false;
     client().async_traverse_the_history_by_delta(page_id(), delta);
 }
 
@@ -774,10 +791,10 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
         auto escaped_url = escape_html_entities(m_url.serialize());
 
         StringBuilder builder;
-        builder.appendff(ERROR_HTML_HEADER, CRASH_ERROR_SVG, "Ladybird flew off-course!"sv);
+        builder.appendff(ERROR_HTML_HEADER, NO_FALLBACK_FAVICON_LINK, CRASH_ERROR_SVG, "Ladybird flew off-course!"sv);
         builder.appendff("<p>The web page <a href=\"{}\">{}</a> has crashed.<br><br>You can reload the page to try again.</p>", escaped_url, escaped_url);
         builder.append(ERROR_HTML_FOOTER);
-        load_html(builder.string_view());
+        load_crash_page_html(builder.string_view(), m_url);
     }
 }
 

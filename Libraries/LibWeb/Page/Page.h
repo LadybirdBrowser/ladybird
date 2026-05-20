@@ -97,6 +97,7 @@ public:
     void load(URL::URL const&);
 
     void load_html(StringView);
+    void load_html(StringView, URL::URL const&);
 
     void reload();
 

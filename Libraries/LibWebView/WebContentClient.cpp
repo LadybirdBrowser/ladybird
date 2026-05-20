@@ -253,6 +253,9 @@ void WebContentClient::did_start_loading(u64 page_id, URL::URL url, bool is_redi
     m_history_recorded_urls_for_current_load.remove(page_id);
 
     if (auto view = view_for_page_id(page_id); view.has_value()) {
+        view->m_should_suppress_history_for_current_load = view->m_should_suppress_history_for_next_load;
+        view->m_should_suppress_history_for_next_load = false;
+
         view->set_url({}, url);
 
         if (view->on_load_start)
@@ -275,26 +278,34 @@ void WebContentClient::did_finish_loading(u64 page_id, URL::URL url)
     }
 
     if (auto view = view_for_page_id(page_id); view.has_value()) {
-        view->set_url({}, url);
+        auto client_url = url;
+        // Browser-generated pages can finish with an internal document URL.
+        // Keep exposing the URL accepted at load start for suppressed loads.
+        if (view->m_should_suppress_history_for_current_load)
+            client_url = view->url();
+        else
+            view->set_url({}, url);
+        auto should_update_history = !view->m_should_suppress_history_for_current_load;
         auto title = history_title(view->title(), url);
 
-        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Load finished for page {} at '{}' with title '{}'",
-            page_id,
-            url,
-            title.has_value() ? title->bytes_as_string_view() : "<none>"sv);
+        if (should_update_history) {
+            dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Load finished for page {} at '{}' with title '{}'",
+                page_id,
+                url,
+                title.has_value() ? title->bytes_as_string_view() : "<none>"sv);
 
-        maybe_record_history_visit_for_current_load(page_id, url, title, "load finish"sv);
-        if (title.has_value())
-            Application::history_store().update_title(url, *title);
-        if (view->favicon_base64_png().has_value())
-            Application::history_store().update_favicon(url, *view->favicon_base64_png());
-
+            maybe_record_history_visit_for_current_load(page_id, url, title, "load finish"sv);
+            if (title.has_value())
+                Application::history_store().update_title(url, *title);
+            if (view->favicon_base64_png().has_value())
+                Application::history_store().update_favicon(url, *view->favicon_base64_png());
+        }
         if (view->on_load_finish)
-            view->on_load_finish(url);
+            view->on_load_finish(client_url);
 
         for (auto const& [id, listener] : view->m_navigation_listeners) {
             if (listener.on_load_finish)
-                listener.on_load_finish(url);
+                listener.on_load_finish(client_url);
         }
     }
 }
@@ -365,7 +376,7 @@ void WebContentClient::did_change_title(u64 page_id, Utf16String title)
         process->set_title(title);
 
     if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (!title.is_empty()) {
+        if (!title.is_empty() && !view->m_should_suppress_history_for_current_load) {
             auto title_utf8 = title.to_utf8();
 
             maybe_record_history_visit_for_current_load(page_id, view->url(), title_utf8, "title change"sv);
@@ -702,7 +713,8 @@ void WebContentClient::did_change_favicon(u64 page_id, Gfx::ShareableBitmap favi
     }
 
     if (auto view = view_for_page_id(page_id); view.has_value()) {
-        maybe_record_history_visit_for_current_load(page_id, view->url(), history_title(view->title(), view->url()), "favicon change"sv);
+        if (!view->m_should_suppress_history_for_current_load)
+            maybe_record_history_visit_for_current_load(page_id, view->url(), history_title(view->title(), view->url()), "favicon change"sv);
         view->set_favicon({}, *favicon.bitmap());
     }
 }

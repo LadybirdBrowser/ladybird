@@ -2165,8 +2165,81 @@ void Navigable::begin_navigation(NavigateParams params)
                 // 7. Let navigationParams be null.
                 NavigationParamsVariant navigation_params = Navigable::NullOrError {};
 
-                // FIXME: 8. If response is non-null:
+                // 8. If response is non-null:
                 if (response) {
+                    auto response_url = response->url();
+                    VERIFY(response_url.has_value());
+
+                    // 1. Let sourcePolicyContainer be a clone of the sourceDocument's policy container, if
+                    //    sourceDocument is not null; otherwise null.
+                    auto source_policy_container = source_snapshot_params->source_policy_container;
+
+                    // 2. Let policyContainer be the result of determining navigation params policy container given
+                    //    response's URL, null, sourcePolicyContainer, navigable's container document's policy container,
+                    //    and null.
+                    GC::Ptr<PolicyContainer> parent_policy_container;
+                    if (auto container_document = this->container_document())
+                        parent_policy_container = container_document->policy_container();
+                    else if (*response_url == URL::about_srcdoc()) {
+                        // NOTE: Specification assumes that only navigables corresponding to iframes can be navigated to about:srcdoc.
+                        //       We also use srcdoc to implement load_html() for top level navigables so we need a policy container
+                        //       because the navigable might not have a container.
+                        parent_policy_container = heap().allocate<PolicyContainer>(heap());
+                    }
+                    auto policy_container = determine_navigation_params_policy_container(*response_url, heap(), {}, source_policy_container, parent_policy_container, {});
+
+                    // 3. Let finalSandboxFlags be the union of targetSnapshotParams's sandboxing flags and
+                    //    policyContainer's CSP list's CSP-derived sandboxing flags.
+                    auto final_sandbox_flags = target_snapshot_params.sandboxing_flags | policy_container->csp_list->csp_derived_sandboxing_flags();
+
+                    // 4. Let responseOrigin be the result of determining the origin given response's URL,
+                    //    finalSandboxFlags, and documentState's initiator origin.
+                    auto response_origin = determine_the_origin(response_url, final_sandbox_flags, document_state->initiator_origin());
+
+                    // 5. Let coop be a new opener policy.
+                    OpenerPolicy response_coop = {};
+
+                    // 6. Let coopEnforcementResult be a new opener policy enforcement result with
+                    //    url: response's URL
+                    //    origin: responseOrigin
+                    //    opener policy: coop
+                    OpenerPolicyEnforcementResult coop_enforcement_result {
+                        .url = *response_url,
+                        .origin = response_origin,
+                        .opener_policy = response_coop,
+                    };
+
+                    // 7. Set navigationParams to a new navigation params, with
+                    //    id: navigationId
+                    //    navigable: navigable
+                    //    request: null
+                    //    response: response
+                    //    fetch controller: null
+                    //    commit early hints: null
+                    //    COOP enforcement result: coopEnforcementResult
+                    //    reserved environment: null
+                    //    origin: responseOrigin
+                    //    policy container: policyContainer
+                    //    final sandboxing flag set: finalSandboxFlags
+                    //    opener policy: coop
+                    //    FIXME: navigation timing type: "navigate"
+                    //    about base URL: documentState's about base URL
+                    //    user involvement: userInvolvement
+                    navigation_params = heap().allocate<NavigationParams>(
+                        navigation_id,
+                        this,
+                        nullptr,
+                        response,
+                        nullptr,
+                        nullptr,
+                        move(coop_enforcement_result),
+                        nullptr,
+                        move(response_origin),
+                        policy_container,
+                        final_sandbox_flags,
+                        response_coop,
+                        document_state->about_base_url(),
+                        user_involvement);
                 }
 
                 // 9. Attempt to populate the history entry's document for historyEntry, given navigable, "navigate",
