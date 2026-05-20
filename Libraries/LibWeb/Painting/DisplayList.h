@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/ByteBuffer.h>
+#include <AK/Error.h>
 #include <AK/Forward.h>
 #include <AK/HashMap.h>
 #include <AK/NonnullRefPtr.h>
@@ -18,6 +19,8 @@
 #include <LibGfx/Forward.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibGfx/TextLayout.h>
+#include <LibIPC/Forward.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
@@ -188,6 +191,7 @@ public:
 
 private:
     explicit DisplayList(NonnullRefPtr<AccumulatedVisualContextTree const> visual_context_tree);
+    DisplayList(NonnullRefPtr<AccumulatedVisualContextTree const>, u64 id, ByteBuffer&& command_bytes, Optional<AsyncScrollingMetadata>);
 
     static Optional<Gfx::IntRect> command_bounding_rectangle(auto const& command)
     {
@@ -217,6 +221,26 @@ private:
     u64 m_id { 0 };
     ByteBuffer m_command_bytes;
     Optional<AsyncScrollingMetadata> m_async_scrolling_metadata;
+
+    template<typename T>
+    friend ErrorOr<void> IPC::encode(IPC::Encoder&, T const&);
+    template<typename T>
+    friend ErrorOr<T> IPC::decode(IPC::Decoder&);
 };
+
+}
+
+namespace IPC {
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::DisplayList::AsyncScrollingMetadata const&);
+template<>
+WEB_API ErrorOr<Web::Painting::DisplayList::AsyncScrollingMetadata> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::DisplayList const&);
+WEB_API ErrorOr<void> encode(Encoder&, NonnullRefPtr<Web::Painting::DisplayList> const&);
+template<>
+WEB_API ErrorOr<NonnullRefPtr<Web::Painting::DisplayList>> decode(Decoder&);
 
 }

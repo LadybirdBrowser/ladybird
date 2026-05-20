@@ -8,6 +8,8 @@
 #include <AK/NumericLimits.h>
 #include <AK/TemporaryChange.h>
 #include <LibGfx/PaintingSurface.h>
+#include <LibIPC/Decoder.h>
+#include <LibIPC/Encoder.h>
 #include <LibWeb/Painting/DisplayList.h>
 
 namespace Web::Painting {
@@ -32,6 +34,14 @@ DisplayListCommandSequence::DisplayListCommandSequence() = default;
 DisplayList::DisplayList(NonnullRefPtr<AccumulatedVisualContextTree const> visual_context_tree)
     : m_visual_context_tree(move(visual_context_tree))
     , m_id(s_next_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
+{
+}
+
+DisplayList::DisplayList(NonnullRefPtr<AccumulatedVisualContextTree const> visual_context_tree, u64 id, ByteBuffer&& command_bytes, Optional<AsyncScrollingMetadata> async_scrolling_metadata)
+    : m_visual_context_tree(move(visual_context_tree))
+    , m_id(id)
+    , m_command_bytes(move(command_bytes))
+    , m_async_scrolling_metadata(move(async_scrolling_metadata))
 {
 }
 
@@ -303,6 +313,56 @@ void DisplayListPlayer::execute_impl(
         restore({});
         applied_depth--;
     }
+}
+
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::Painting::DisplayList::AsyncScrollingMetadata const& metadata)
+{
+    TRY(encoder.encode(metadata.viewport_rect));
+    TRY(encoder.encode(metadata.wheel_event_listener_state_generation));
+    TRY(encoder.encode(metadata.has_blocking_wheel_event_listeners));
+    TRY(encoder.encode(metadata.has_blocking_wheel_event_region_covering_viewport));
+    return {};
+}
+
+template<>
+ErrorOr<Web::Painting::DisplayList::AsyncScrollingMetadata> decode(Decoder& decoder)
+{
+    return Web::Painting::DisplayList::AsyncScrollingMetadata {
+        .viewport_rect = TRY(decoder.decode<Gfx::IntRect>()),
+        .wheel_event_listener_state_generation = TRY(decoder.decode<u64>()),
+        .has_blocking_wheel_event_listeners = TRY(decoder.decode<bool>()),
+        .has_blocking_wheel_event_region_covering_viewport = TRY(decoder.decode<bool>()),
+    };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::Painting::DisplayList const& display_list)
+{
+    TRY(encoder.encode(display_list.m_id));
+    TRY(encoder.encode(display_list.m_command_bytes));
+    TRY(encoder.encode(*display_list.m_visual_context_tree));
+    TRY(encoder.encode(display_list.m_async_scrolling_metadata));
+    return {};
+}
+
+ErrorOr<void> encode(Encoder& encoder, NonnullRefPtr<Web::Painting::DisplayList> const& display_list)
+{
+    return encoder.encode(*display_list);
+}
+
+template<>
+ErrorOr<NonnullRefPtr<Web::Painting::DisplayList>> decode(Decoder& decoder)
+{
+    auto id = TRY(decoder.decode<u64>());
+    auto command_bytes = TRY(decoder.decode<ByteBuffer>());
+    auto visual_context_tree = TRY(decoder.decode<NonnullRefPtr<Web::Painting::AccumulatedVisualContextTree>>());
+    auto async_scrolling_metadata = TRY(decoder.decode<Optional<Web::Painting::DisplayList::AsyncScrollingMetadata>>());
+    return adopt_ref(*new Web::Painting::DisplayList(move(visual_context_tree), id, move(command_bytes), move(async_scrolling_metadata)));
 }
 
 }

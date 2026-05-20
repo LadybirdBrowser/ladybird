@@ -7,6 +7,8 @@
 
 #include <AK/StringBuilder.h>
 #include <LibGfx/Matrix4x4.h>
+#include <LibIPC/Decoder.h>
+#include <LibIPC/Encoder.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/ScrollState.h>
 
@@ -261,6 +263,168 @@ void AccumulatedVisualContextTree::dump(VisualContextIndex index, StringBuilder&
         [&](ScrollCompensation const& compensation) {
             builder.appendff("scroll_compensation(frame_id={})", compensation.scroll_frame_index.value());
         });
+}
+
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::Painting::ScrollData const& data)
+{
+    TRY(encoder.encode(data.scroll_frame_index));
+    TRY(encoder.encode(data.is_sticky));
+    return {};
+}
+
+template<>
+ErrorOr<Web::Painting::ScrollData> decode(Decoder& decoder)
+{
+    return Web::Painting::ScrollData {
+        .scroll_frame_index = TRY(decoder.decode<Web::Painting::ScrollFrameIndex>()),
+        .is_sticky = TRY(decoder.decode<bool>()),
+    };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::Painting::ClipData const& data)
+{
+    TRY(encoder.encode(data.rect));
+    TRY(encoder.encode(data.corner_radii));
+    return {};
+}
+
+template<>
+ErrorOr<Web::Painting::ClipData> decode(Decoder& decoder)
+{
+    return Web::Painting::ClipData {
+        TRY(decoder.decode<Web::DevicePixelRect>()),
+        TRY(decoder.decode<Gfx::CornerRadii>()),
+    };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::Painting::TransformData const& data)
+{
+    TRY(encoder.encode(data.matrix));
+    TRY(encoder.encode(data.origin));
+    return {};
+}
+
+template<>
+ErrorOr<Web::Painting::TransformData> decode(Decoder& decoder)
+{
+    return Web::Painting::TransformData {
+        .matrix = TRY(decoder.decode<Gfx::FloatMatrix4x4>()),
+        .origin = TRY(decoder.decode<Gfx::FloatPoint>()),
+    };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::Painting::PerspectiveData const& data)
+{
+    TRY(encoder.encode(data.matrix));
+    return {};
+}
+
+template<>
+ErrorOr<Web::Painting::PerspectiveData> decode(Decoder& decoder)
+{
+    return Web::Painting::PerspectiveData {
+        .matrix = TRY(decoder.decode<Gfx::FloatMatrix4x4>()),
+    };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::Painting::ClipPathData const& data)
+{
+    TRY(encoder.encode(data.path));
+    TRY(encoder.encode(data.bounding_rect));
+    TRY(encoder.encode(data.fill_rule));
+    return {};
+}
+
+template<>
+ErrorOr<Web::Painting::ClipPathData> decode(Decoder& decoder)
+{
+    return Web::Painting::ClipPathData {
+        .path = TRY(decoder.decode<Gfx::Path>()),
+        .bounding_rect = TRY(decoder.decode<Web::DevicePixelRect>()),
+        .fill_rule = TRY(decoder.decode<Gfx::WindingRule>()),
+    };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::Painting::EffectsData const& data)
+{
+    TRY(encoder.encode(data.opacity));
+    TRY(encoder.encode(data.blend_mode));
+    TRY(encoder.encode(data.gfx_filter));
+    return {};
+}
+
+template<>
+ErrorOr<Web::Painting::EffectsData> decode(Decoder& decoder)
+{
+    return Web::Painting::EffectsData {
+        .opacity = TRY(decoder.decode<float>()),
+        .blend_mode = TRY(decoder.decode<Gfx::CompositingAndBlendingOperator>()),
+        .gfx_filter = TRY(decoder.decode<Optional<Gfx::Filter>>()),
+    };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::Painting::ScrollCompensation const& data)
+{
+    TRY(encoder.encode(data.scroll_frame_index));
+    return {};
+}
+
+template<>
+ErrorOr<Web::Painting::ScrollCompensation> decode(Decoder& decoder)
+{
+    return Web::Painting::ScrollCompensation {
+        .scroll_frame_index = TRY(decoder.decode<Web::Painting::ScrollFrameIndex>()),
+    };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::Painting::AccumulatedVisualContextNode const& node)
+{
+    TRY(encoder.encode(node.data));
+    TRY(encoder.encode(node.parent_index));
+    TRY(encoder.encode(node.depth));
+    TRY(encoder.encode(node.has_empty_effective_clip));
+    return {};
+}
+
+template<>
+ErrorOr<Web::Painting::AccumulatedVisualContextNode> decode(Decoder& decoder)
+{
+    return Web::Painting::AccumulatedVisualContextNode {
+        .data = TRY(decoder.decode<Web::Painting::VisualContextData>()),
+        .parent_index = TRY(decoder.decode<Web::Painting::VisualContextIndex>()),
+        .depth = TRY(decoder.decode<size_t>()),
+        .has_empty_effective_clip = TRY(decoder.decode<bool>()),
+    };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::Painting::AccumulatedVisualContextTree const& tree)
+{
+    TRY(encoder.encode(tree.m_nodes));
+    return {};
+}
+
+template<>
+ErrorOr<NonnullRefPtr<Web::Painting::AccumulatedVisualContextTree>> decode(Decoder& decoder)
+{
+    auto nodes = TRY(decoder.decode<Vector<Web::Painting::AccumulatedVisualContextNode>>());
+    if (nodes.is_empty())
+        return Error::from_string_literal("IPC decode: AccumulatedVisualContextTree missing sentinel node");
+    auto visual_context_tree = adopt_ref(*new Web::Painting::AccumulatedVisualContextTree());
+    visual_context_tree->m_nodes = move(nodes);
+    return visual_context_tree;
 }
 
 }

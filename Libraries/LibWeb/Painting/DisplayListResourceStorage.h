@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Error.h>
 #include <AK/Forward.h>
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
@@ -17,6 +18,7 @@
 #include <AK/Vector.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
+#include <LibIPC/Forward.h>
 #include <LibMedia/VideoFrame.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/DisplayListResourceIds.h>
@@ -30,14 +32,24 @@ struct DisplayListResourceSet {
     HashTable<DisplayListResourceId> display_lists;
 };
 
+struct DisplayListFontResource {
+    FontResourceId id;
+    NonnullRefPtr<Gfx::Font const> font;
+};
+
+struct DisplayListImageFrameResource {
+    ImageFrameResourceId id;
+    Gfx::DecodedImageFrame frame;
+};
+
 struct DisplayListVideoFrameResource {
     VideoFrameResourceId id;
     RefPtr<Media::VideoFrame const> frame;
 };
 
 struct DisplayListResourceTransaction {
-    Vector<NonnullRefPtr<Gfx::Font const>> fonts;
-    Vector<Gfx::DecodedImageFrame> image_frames;
+    Vector<DisplayListFontResource> fonts;
+    Vector<DisplayListImageFrameResource> image_frames;
     Vector<DisplayListVideoFrameResource> video_frames;
     Vector<NonnullRefPtr<DisplayList const>> display_lists;
 
@@ -59,6 +71,10 @@ public:
     ImageFrameResourceId add_image_frame(Gfx::DecodedImageFrame const&);
     VideoFrameResourceId add_video_frame(VideoFrameResourceId, RefPtr<Media::VideoFrame const> = nullptr);
     DisplayListResourceId add_display_list(NonnullRefPtr<DisplayList const>);
+    void set_font(FontResourceId, NonnullRefPtr<Gfx::Font const>);
+    void set_image_frame(ImageFrameResourceId, Gfx::DecodedImageFrame);
+    void set_video_frame(VideoFrameResourceId, RefPtr<Media::VideoFrame const> = nullptr);
+    void set_display_list(DisplayListResourceId, NonnullRefPtr<DisplayList const>);
     void append_referenced_resources_from(DisplayListResourceStorage const& source, ReadonlyBytes command_bytes);
     void apply_transaction(DisplayListResourceTransaction&&);
     DisplayListResourceTransaction create_transaction(DisplayListResourceSet const& previous, DisplayListResourceSet const& current) const;
@@ -85,5 +101,29 @@ private:
     HashMap<u64, NonnullRefPtr<DisplayList const>> m_display_lists;
     HashMap<u64, Gfx::DecodedImageFrame> m_compositor_surfaces;
 };
+
+}
+
+namespace IPC {
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::DisplayListFontResource const&);
+template<>
+WEB_API ErrorOr<Web::Painting::DisplayListFontResource> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::DisplayListImageFrameResource const&);
+template<>
+WEB_API ErrorOr<Web::Painting::DisplayListImageFrameResource> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::DisplayListVideoFrameResource const&);
+template<>
+WEB_API ErrorOr<Web::Painting::DisplayListVideoFrameResource> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::DisplayListResourceTransaction const&);
+template<>
+WEB_API ErrorOr<Web::Painting::DisplayListResourceTransaction> decode(Decoder&);
 
 }
