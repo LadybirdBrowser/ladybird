@@ -692,14 +692,14 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::round)
         // e. Let endNs be ? GetStartOfDay(timeZone, dateEnd).
         auto end_nanoseconds = TRY(get_start_of_day(vm, time_zone, date_end));
 
-        // f. Assert: thisNs < endNs.
-        VERIFY(this_nanoseconds < end_nanoseconds);
+        // f. Set thisNs to min(thisNs, endNs - 1).
+        auto this_nanoseconds_clamped = min(this_nanoseconds, end_nanoseconds.minus(1_bigint));
 
         // g. Let dayLengthNs be ℝ(endNs - startNs).
         auto day_length_nanoseconds = end_nanoseconds.minus(start_nanoseconds);
 
         // h. Let dayProgressNs be TimeDurationFromEpochNanosecondsDifference(thisNs, startNs).
-        auto day_progress_nanoseconds = time_duration_from_epoch_nanoseconds_difference(this_nanoseconds, start_nanoseconds);
+        auto day_progress_nanoseconds = time_duration_from_epoch_nanoseconds_difference(this_nanoseconds_clamped, start_nanoseconds);
 
         // i. Let roundedDayNs be ! RoundTimeDurationToIncrement(dayProgressNs, dayLengthNs, roundingMode).
         auto rounded_day_nanoseconds = MUST(round_time_duration_to_increment(vm, day_progress_nanoseconds, day_length_nanoseconds.unsigned_value(), rounding_mode));

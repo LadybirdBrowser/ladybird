@@ -29,6 +29,12 @@ describe("correct behavior", () => {
         const zonedDateTime = new Temporal.ZonedDateTime(1111111111111n, "UTC");
         expect(zonedDateTime.round("second").equals(zonedDateTime.round({ smallestUnit: "second" }))).toBeTrue();
     });
+
+    test("round when midnight occurs twice in once day", () => {
+        const zonedDateTime = Temporal.ZonedDateTime.from("2010-03-04T23:10:00+08:00[Antarctica/Casey]");
+        const result = zonedDateTime.round({ smallestUnit: "day" });
+        expect(result.epochNanoseconds).toBe(1267707600000000000n);
+    });
 });
 
 describe("errors", () => {
