@@ -10,6 +10,7 @@
 #include <AK/QuickSort.h>
 #include <AK/Vector.h>
 #include <LibGfx/FourCC.h>
+#include <LibIPC/Forward.h>
 
 namespace Gfx {
 
@@ -70,5 +71,15 @@ struct FontVariationSettings {
         return list;
     }
 };
+
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder&, Gfx::FontVariationSettings const&);
+
+template<>
+ErrorOr<Gfx::FontVariationSettings> decode(Decoder&);
 
 }
