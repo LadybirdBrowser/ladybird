@@ -1548,14 +1548,12 @@ static void relayout_svg_root(Layout::SVGSVGBox& svg_root)
     if (auto paintable = svg_root.paintable_box())
         layout_state.populate_from_paintable(svg_root, *paintable);
 
-    // Pre-populate SVGGraphicsBox ancestors (up to outer SVG) for get_parent_svg_transform().
+    // Pre-populate SVGGraphicsBox ancestors for get_parent_svg_transform().
     for (auto* ancestor = svg_root.parent(); ancestor; ancestor = ancestor->parent()) {
         if (auto const* svg_graphics_ancestor = as_if<Layout::SVGGraphicsBox>(*ancestor)) {
             if (auto paintable = svg_graphics_ancestor->paintable_box())
                 layout_state.populate_from_paintable(*svg_graphics_ancestor, *paintable);
         }
-        if (is<Layout::SVGSVGBox>(*ancestor))
-            break;
     }
 
     // Pre-populate the viewport for position:fixed elements inside <foreignObject>.
