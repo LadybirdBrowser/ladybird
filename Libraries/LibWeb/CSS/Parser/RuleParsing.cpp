@@ -158,6 +158,11 @@ GC::Ptr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
 
 GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualified_rule, Nested nested)
 {
+    m_rule_context.append(RuleContext::Style);
+    ScopeGuard guard = [&] {
+        [[maybe_unused]] auto last = m_rule_context.take_last();
+        VERIFY(last == RuleContext::Style);
+    };
     TokenStream prelude_stream { qualified_rule.prelude };
 
     auto maybe_selectors = parse_a_selector_list(prelude_stream,
@@ -357,6 +362,12 @@ Optional<FlyString> Parser::parse_layer_name(TokenStream<ComponentValue>& tokens
 template<typename NestedDeclarationsRule>
 GC::Ptr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nested)
 {
+    m_rule_context.append(RuleContext::AtLayer);
+    ScopeGuard guard = [&] {
+        [[maybe_unused]] auto last = m_rule_context.take_last();
+        VERIFY(last == RuleContext::AtLayer);
+    };
+
     // https://drafts.csswg.org/css-cascade-5/#at-layer
     if (rule.is_block_rule) {
         // CSSLayerBlockRule
@@ -450,6 +461,12 @@ GC::Ptr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nested
 
 GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
 {
+    m_rule_context.append(RuleContext::AtKeyframes);
+    ScopeGuard guard = [&] {
+        [[maybe_unused]] auto last = m_rule_context.take_last();
+        VERIFY(last == RuleContext::AtKeyframes);
+    };
+
     // https://drafts.csswg.org/css-animations/#keyframes
     // @keyframes = @keyframes <keyframes-name> { <qualified-rule-list> }
     // <keyframes-name> = <custom-ident> | <string>
@@ -658,6 +675,12 @@ GC::Ptr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule)
 template<typename NestedDeclarationsRule>
 GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Nested nested)
 {
+    m_rule_context.append(RuleContext::AtSupports);
+    ScopeGuard guard = [&] {
+        [[maybe_unused]] auto last = m_rule_context.take_last();
+        VERIFY(last == RuleContext::AtSupports);
+    };
+
     // https://drafts.csswg.org/css-conditional-3/#at-supports
     // @supports <supports-condition> {
     //   <rule-list>
@@ -709,6 +732,12 @@ GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Ne
 
 GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
 {
+    m_rule_context.append(RuleContext::AtProperty);
+    ScopeGuard guard = [&] {
+        [[maybe_unused]] auto last = m_rule_context.take_last();
+        VERIFY(last == RuleContext::AtProperty);
+    };
+
     // https://drafts.css-houdini.org/css-properties-values-api-1/#at-ruledef-property
     // @property <custom-property-name> {
     // <declaration-list>
@@ -843,6 +872,12 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
 template<typename NestedDeclarationsRule>
 GC::Ptr<CSSContainerRule> Parser::convert_to_container_rule(AtRule const& rule, Nested nested)
 {
+    m_rule_context.append(RuleContext::AtContainer);
+    ScopeGuard guard = [&] {
+        [[maybe_unused]] auto last = m_rule_context.take_last();
+        VERIFY(last == RuleContext::AtContainer);
+    };
+
     // @container <container-condition># {
     //   <rule-list>
     // }
@@ -920,6 +955,12 @@ GC::Ptr<CSSContainerRule> Parser::convert_to_container_rule(AtRule const& rule, 
 
 GC::Ptr<CSSCounterStyleRule> Parser::convert_to_counter_style_rule(AtRule const& rule)
 {
+    m_rule_context.append(RuleContext::AtCounterStyle);
+    ScopeGuard guard = [&] {
+        [[maybe_unused]] auto last = m_rule_context.take_last();
+        VERIFY(last == RuleContext::AtCounterStyle);
+    };
+
     // https://drafts.csswg.org/css-counter-styles-3/#the-counter-style-rule
     TokenStream prelude_stream { rule.prelude };
     if (!rule.is_block_rule) {
@@ -1029,6 +1070,12 @@ GC::Ptr<CSSCounterStyleRule> Parser::convert_to_counter_style_rule(AtRule const&
 
 GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
 {
+    m_rule_context.append(RuleContext::AtFontFace);
+    ScopeGuard guard = [&] {
+        [[maybe_unused]] auto last = m_rule_context.take_last();
+        VERIFY(last == RuleContext::AtFontFace);
+    };
+
     // https://drafts.csswg.org/css-fonts/#font-face-rule
     TokenStream prelude_stream { rule.prelude };
     if (!rule.is_block_rule) {
@@ -1385,6 +1432,12 @@ Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(TokenStream<Com
 
 GC::Ptr<CSSFunctionRule> Parser::convert_to_function_rule(AtRule const& function_rule)
 {
+    m_rule_context.append(RuleContext::AtFunction);
+    ScopeGuard guard = [&] {
+        [[maybe_unused]] auto last = m_rule_context.take_last();
+        VERIFY(last == RuleContext::AtFunction);
+    };
+
     // https://drafts.csswg.org/css-mixins-1/#function-rule
     TokenStream prelude_stream { function_rule.prelude };
 
@@ -1421,6 +1474,12 @@ GC::Ptr<CSSFunctionRule> Parser::convert_to_function_rule(AtRule const& function
 
 GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)
 {
+    m_rule_context.append(RuleContext::AtPage);
+    ScopeGuard guard = [&] {
+        [[maybe_unused]] auto last = m_rule_context.take_last();
+        VERIFY(last == RuleContext::AtPage);
+    };
+
     // https://drafts.csswg.org/css-page-3/#syntax-page-selector
     // @page = @page <page-selector-list>? { <declaration-rule-list> }
     TokenStream tokens { page_rule.prelude };
@@ -1464,6 +1523,12 @@ GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)
 
 GC::Ptr<CSSMarginRule> Parser::convert_to_margin_rule(AtRule const& rule)
 {
+    m_rule_context.append(RuleContext::Margin);
+    ScopeGuard guard = [&] {
+        [[maybe_unused]] auto last = m_rule_context.take_last();
+        VERIFY(last == RuleContext::Margin);
+    };
+
     TokenStream prelude_stream { rule.prelude };
     if (!rule.is_block_rule) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {

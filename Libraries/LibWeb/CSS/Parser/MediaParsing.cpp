@@ -667,6 +667,12 @@ Optional<FeatureValue> Parser::parse_size_feature_value(SizeFeatureID feature, T
 template<typename NestedDeclarationsRule>
 GC::Ptr<CSSMediaRule> Parser::convert_to_media_rule(AtRule const& rule, Nested nested)
 {
+    m_rule_context.append(RuleContext::AtMedia);
+    ScopeGuard guard = [&] {
+        [[maybe_unused]] auto last = m_rule_context.take_last();
+        VERIFY(last == RuleContext::AtMedia);
+    };
+
     // https://drafts.csswg.org/css-conditional-3/#at-media
     // @media <media-query-list> {
     // <rule-list>
