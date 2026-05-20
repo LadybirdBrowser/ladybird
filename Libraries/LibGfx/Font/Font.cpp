@@ -98,7 +98,8 @@ hb_font_t* Font::harfbuzz_font() const
     if (!m_harfbuzz_font) {
         m_harfbuzz_font = hb_font_create(typeface().harfbuzz_typeface());
         hb_font_set_scale(m_harfbuzz_font, pixel_size() * text_shaping_resolution, pixel_size() * text_shaping_resolution);
-        hb_font_set_ptem(m_harfbuzz_font, point_size());
+        // HarfBuzz uses ptem for AAT 'trak' table lookup; use CSS pixels instead of physical points here.
+        hb_font_set_ptem(m_harfbuzz_font, pixel_size());
 
         auto variations = m_font_variation_settings.axes;
         if (!variations.is_empty()) {
